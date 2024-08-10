@@ -29,3 +29,5 @@ _ignore/
 app.env
 tmp/
 .idea/
+
+telex_be
