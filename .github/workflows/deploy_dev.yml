@@ -22,13 +22,11 @@ jobs:
       - name: Save and compress Docker image
         run: docker save telex_be | gzip > telex_be.tar.gz
       - name: Copy image to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USERNAME }}
-          key: ${{ env.SSH_KEY }}
-          source: telex_be.tar.gz
-          target: "/tmp"
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem telex_be.tar.gz ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/telex_be.tar.gz
+          rm ssh_key.pem
 
   update_repo_and_create_env:
     runs-on: self-hosted
@@ -60,13 +58,11 @@ jobs:
           RESET_PASSWORD_DURATION: ${{ secrets.RESET_PASSWORD_DURATION }}
 
       - name: Copy app.env to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USERNAME }}
-          key: ${{ env.SSH_KEY }}
-          source: app.env
-          target: "~/deployments/telex_doc"
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_doc/app.env
+          rm ssh_key.pem
 
   run_docker_container:
     runs-on: self-hosted
@@ -78,15 +74,15 @@ jobs:
       SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
       - name: Restart containers
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ env.HOST }}
-          username: ${{ env.USERNAME }}
-          key: ${{ env.SSH_KEY }}
-          script: |
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+            chmod 600 ssh_key.pem
+            ssh -o StrictHostKeyChecking=no -i ssh_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
+            rm ssh_key.pem
             cd ~/deployments/telex_doc
             git reset --hard
             git pull origin dev
             gunzip -c /tmp/telex_be.tar.gz | docker load
             rm -f /tmp/telex_be.tar.gz
             docker compose -f docker-compose.yml up -d
+          '
