@@ -5,10 +5,6 @@ services:
     image: postgres:16
     env_file:
       - app.env
-    environment:
-      POSTGRES_DB: telex_be_db
-      POSTGRES_PASSWORD: natalya7
-      POSTGRES_USER: telex_be_user
     volumes:
       - ../golang_volumes/pgsql_volumes/telex_be/:/var/lib/postgresql/data
     healthcheck:
