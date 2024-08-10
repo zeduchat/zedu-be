@@ -38,6 +38,8 @@ func Auth(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	{
 		authUrlSec.POST("/logout", auth.LogoutUser)
 		authUrlSec.PUT("/change-password", auth.ChangePassword)
+		authUrlSec.GET("/onboard-status", auth.GetOnboardStatus)
+		authUrlSec.PUT("/onboard-status", auth.UpdateOnboardStatus)
 	}
 
 	return r

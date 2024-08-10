@@ -699,7 +699,108 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
  
+  
+  /auth/onboard-status:
+    get:
+      tags:
+        - auth
+      summary: get user onboarding status 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required:
+                - token
 
+      responses:
+        '200':
+          description: user status fetch successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "user status fetch successfully"
+                statusCode:
+                  type: integer
+                  example: 200
+                data:
+                  type: object
+                  properties:
+                    status: boolean
+                    example: false
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+ 
+   
+  
+    put:
+      tags:
+        - auth
+      summary: Update user onboarding status
+
+      responses:
+        '200':
+          description: user onboarding status updated successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "user onboarding status updated successfully"
+                statusCode:
+                  type: integer
+                  example: 200
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+ 
 components:
 
   schemas:
@@ -880,6 +981,9 @@ components:
           type: string
           description: lastname of the user
         is_verified:
+          type: boolean
+          example: true
+        is_onboarded:
           type: boolean
           example: true
         email:
