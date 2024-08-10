@@ -43,7 +43,7 @@ func RandomString(length int) string {
 
 func GenerateOTP(max int) (int, error) {
 	b := make([]byte, max)
-	n, err := io.ReadAtLeast(crand.Reader, b, max)
+	n, err := io.ReadFull(crand.Reader, b)
 	if n != max {
 		panic(err)
 	}

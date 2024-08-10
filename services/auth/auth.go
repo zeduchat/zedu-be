@@ -249,3 +249,48 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, er
 
 	return responseData, http.StatusCreated, nil
 }
+
+func GetOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
+
+	var (
+		responseData gin.H
+		user         models.User
+	)
+
+	user, err := user.GetUserByID(db, owner_id)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+	}
+
+	status := user.IsOnboarded
+
+	responseData = gin.H{
+		"status": status,
+	}
+
+	return responseData, http.StatusOK, nil
+}
+
+func UpdateOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
+
+	var (
+		responseData gin.H
+		user         models.User
+	)
+
+	user, err := user.GetUserByID(db, owner_id)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+	}
+
+	user.IsOnboarded = true
+	err = user.Update(db)
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error updating user status: " + err.Error())
+	}
+
+	responseData = gin.H{}
+
+	return responseData, http.StatusOK, nil
+}

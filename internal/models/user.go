@@ -13,6 +13,7 @@ type User struct {
 	Name       string         `gorm:"column:name; type:varchar(255)" json:"name"`
 	Email      string         `gorm:"column:email; type:varchar(255)" json:"email"`
 	IsVerified bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
+	IsOnboarded bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
 	Profile    Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Rooms      []Room         `gorm:"many2many:user_rooms;" json:"rooms"`
 	Password   string         `gorm:"column:password; type:text; not null" json:"-"`

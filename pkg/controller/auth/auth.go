@@ -134,7 +134,7 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 
-	access_uuid, ok := userClaims["access_uuid"].(string)
+	access_uuid, _ := userClaims["access_uuid"].(string)
 	owner_id, ok := userClaims["user_id"].(string)
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access id", nil, nil)
@@ -152,5 +152,66 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 	base.Logger.Info("user logout successfully")
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user logout successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetOnboardStatus(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	owner_id, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := auth.GetOnboardStatus(owner_id, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("user status fetch successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user status fetch successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateOnboardStatus(c *gin.Context) {
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	owner_id, ok := userClaims["user_id"].(string)
+
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	respData, code, err := auth.UpdateOnboardStatus(owner_id, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("user status updated successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user status updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
