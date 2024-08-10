@@ -112,15 +112,16 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 
 	sender := mailConfig.Username
 	subject := e.Subject
+	From := "telex@hng.email"
 	recipients := e.To
 	mime := "\nMIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	body := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\n%s%s%s", sender, recipients[0], subject, mime, e.Body))
+	body := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\n%s%s%s", From, recipients[0], subject, mime, e.Body))
 
 	conn, err := tls.Dial(
 		"tcp",
 		mailConfig.Server+":"+mailConfig.Port,
 		&tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: false,
 			ServerName:         mailConfig.Server,
 		})
 
