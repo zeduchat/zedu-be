@@ -140,6 +140,10 @@ func VerifyPasswordResetToken(req models.ResetPasswordRequestModel, db *gorm.DB)
 		return nil, http.StatusBadRequest, err
 	}
 
+	if utility.CompareHash(req.NewPassword, userDataExist.Password) && userDataExist.Password != "" {
+		return nil, http.StatusConflict, errors.New("new password cannot be the same as the old password")
+	}
+
 	userDataExist.Password = hashedPassword
 	err = userDataExist.Update(db)
 	if err != nil {
