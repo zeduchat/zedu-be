@@ -15,6 +15,7 @@ type User struct {
 	IsVerified bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
 	Profile    Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Rooms      []Room         `gorm:"many2many:user_rooms;" json:"rooms"`
+	Channels   []Channel      `gorm:"many2many:user_channels;" json:"channels"`
 	Password   string         `gorm:"column:password; type:text; not null" json:"-"`
 	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt  time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
