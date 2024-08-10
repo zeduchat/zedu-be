@@ -105,6 +105,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB) (gin.H, int, e
 			"username":    user.Name,
 			"fullname":    user.Name,
 			"is_verified": user.IsVerified,
+			"is_onboarded": user.IsOnboarded,
 			"avatar_url":  user.Profile.AvatarURL,
 			"expires_in":  strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":  strconv.Itoa(int(user.CreatedAt.Unix())),

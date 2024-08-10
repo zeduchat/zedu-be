@@ -210,8 +210,8 @@ func (base *Controller) UpdateOnboardStatus(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("user status updated successfully")
+	base.Logger.Info("user onboarding status updated successfully")
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "user status updated successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user onboarding status updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
