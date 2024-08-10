@@ -10,10 +10,6 @@ jobs:
   build_and_upload_image:
     runs-on: self-hosted
     if: github.event.repository.fork == false
-    env:
-      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,9 +20,9 @@ jobs:
       - name: Copy image to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USERNAME }}
-          password: ${{ env.SSH_PASSWORD }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
           source: telex_be.tar.gz
           target: "/tmp"
 
