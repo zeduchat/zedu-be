@@ -1,0 +1,92 @@
+name: Docker Dev Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build_and_upload_image:
+    runs-on: self-hosted
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t telex_be .
+      - name: Save and compress Docker image
+        run: docker save telex_be | gzip > telex_be.tar.gz
+      - name: Copy image to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          password: ${{ env.SSH_PASSWORD }}
+          source: telex_be.tar.gz
+          target: "/tmp"
+
+  update_repo_and_create_env:
+    runs-on: self-hosted
+    needs: build_and_upload_image
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Create app.env file
+        uses: vicradon/create-env-action@v0.0.8
+        with:
+          action_input_file: "app-sample.env"
+          APP_NAME: "telex_be"
+          APP_URL: "https://api-golang.boilerplate.hng.tech"
+          SERVER_PORT: ${{ secrets.SERVER_PORT_DOC }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_HOST: ${{ secrets.DB_HOST_DOC }}
+          POSTGRES_USER: ${{ secrets.USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+          MIGRATE: "true"
+          HMAC_SECRET: ${{ secrets.HMAC_SECRET }}
+          RESET_PASSWORD_DURATION: ${{ secrets.RESET_PASSWORD_DURATION }}
+
+      - name: Copy app.env to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          password: ${{ env.SSH_PASSWORD }}
+          source: app.env
+          target: "~/deployments/telex_doc"
+
+  run_docker_container:
+    runs-on: self-hosted
+    needs: [build_and_upload_image, update_repo_and_create_env]
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+    steps:
+      - name: Restart containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.HOST }}
+          username: ${{ env.USERNAME }}
+          password: ${{ env.PASSWORD }}
+          script: |
+            cd ~/deployments/telex_doc
+            git reset --hard
+            git pull origin dev
+            gunzip -c /tmp/telex_be.tar.gz | docker load
+            rm -f /tmp/telex_be.tar.gz
+            docker compose -f docker-compose.yml up -d
