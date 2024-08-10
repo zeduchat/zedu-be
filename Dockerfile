@@ -1,26 +1,37 @@
-FROM golang:1.23rc2-alpine3.20 AS build-stage
+# Build stage
+FROM golang:1.20.1-alpine3.17 as build
 
-WORKDIR /
+# Set the Current Working Directory inside the container
+WORKDIR /usr/src/app
 
+# Copy go.mod and go.sum files
 COPY go.mod go.sum ./
 
-RUN go mod download
+# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
+RUN go mod download && go mod verify
 
+# Copy the source code into the container
 COPY . .
 
-RUN go build -o telex_be main.go
+# Build the Go app
+RUN go build -v -o /dist/telex_be
 
-FROM alpine:latest
+# Wait-for-it stage
+FROM alpine:3.17 as wait
+RUN apk add --no-cache bash
+ADD https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
 
-RUN addgroup -S nonroot && adduser -S nonroot -G nonroot
+# Deployment stage
+FROM alpine:3.17
+WORKDIR /usr/src/app
+COPY --from=build /usr/src/app ./
+COPY --from=build /dist/telex_be /usr/local/bin/telex_be
+COPY --from=wait /wait-for-it.sh /wait-for-it.sh
 
-WORKDIR /
+# Install bash (required for wait-for-it script)
+RUN apk add --no-cache bash
 
-COPY --from=build-stage telex_be .
-
-EXPOSE 8080
-
-USER nonroot:nonroot
-
-
-ENTRYPOINT ["./telex_be"]
+# Wait for DB and Redis, then start the application
+# CMD /wait-for-it.sh $DB_HOST:$DB_PORT -t 10 -- /wait-for-it.sh $REDIS_HOST:$REDIS_PORT -t 10 -- telex_be
+CMD telex_be

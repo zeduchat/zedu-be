@@ -1,0 +1,40 @@
+name: telex_be
+
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - app.env
+    volumes:
+      - ../golang_volumes/pgsql_volumes/telex_be/:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telex_be_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 2
+
+  redis:
+    image: redis:latest
+    volumes:
+      - ../golang_volumes/redis_volumes/telex_be/:/data
+
+  backend:
+    image: telex_be
+    build:
+      context: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - app.env
+
+  nginx:
+    image: nginx:latest
+    depends_on:
+      - backend
+    ports:
+      - "7004:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
