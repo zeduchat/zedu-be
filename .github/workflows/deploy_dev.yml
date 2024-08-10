@@ -13,7 +13,7 @@ jobs:
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
         with:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USERNAME }}
-          password: ${{ env.SSH_PASSWORD }}
+          key: ${{ env.SSH_KEY }}
           source: telex_be.tar.gz
           target: "/tmp"
 
@@ -37,7 +37,7 @@ jobs:
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,7 +64,7 @@ jobs:
         with:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USERNAME }}
-          password: ${{ env.SSH_PASSWORD }}
+          key: ${{ env.SSH_KEY }}
           source: app.env
           target: "~/deployments/telex_doc"
 
@@ -75,14 +75,14 @@ jobs:
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
       - name: Restart containers
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.HOST }}
           username: ${{ env.USERNAME }}
-          password: ${{ env.PASSWORD }}
+          key: ${{ env.SSH_KEY }}
           script: |
             cd ~/deployments/telex_doc
             git reset --hard
