@@ -35,6 +35,6 @@ services:
     depends_on:
       - backend
     ports:
-      - "7004:80"
+      - "7003:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf

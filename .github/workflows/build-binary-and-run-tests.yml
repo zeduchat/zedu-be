@@ -1,9 +1,6 @@
-name: Build, Test, and Deploy for "Staging"
+name: Build Golang Binary and Run Tests
 
 on:
-  push:
-    branches:
-      - dev
   pull_request:
     branches:
       - dev
@@ -48,35 +45,10 @@ jobs:
       - name: Run the application
         run: nohup ./telex_be > /dev/null 2>&1 &
       - name: Wait for application to start
-        run: sleep 30s
-      - name: Test for reachability
-        run: curl http://localhost:8019
+        run: |
+          for i in {1..30}; do
+            curl -s http://localhost:8019 && break
+            sleep 1
+          done
       - name: Run All Tests
         run: go test ./... -timeout 300s
-
-  deploy:
-    runs-on: self-hosted
-    needs: build_and_test
-    if: github.event_name == 'push'
-    env:
-      APP_NAME: "telex_be"
-      APP_URL: "https://staging.api-golang.boilerplate.hng.tech"
-      MIGRATE: true
-
-    steps:
-      - name: SSH into server and deploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            cd ~/deployments/telex_be
-            bash ./scripts/deploy_staging.sh SERVER_PORT=${{ secrets.SERVER_PORT }} \
-              DB_NAME=${{ secrets.DB_NAME }} \
-              USERNAME=${{ secrets.USERNAME }} \
-              APP_NAME=${{ env.APP_NAME }} \
-              APP_URL=${{ env.APP_URL }} \
-              MIGRATE=${{ env.MIGRATE }} \
-              HMAC_SECRET=${{ secrets.HMAC_SECRET }}

@@ -45,11 +45,11 @@ jobs:
           action_input_file: "app-sample.env"
           APP_NAME: "telex_be"
           APP_URL: "https://api-golang.boilerplate.hng.tech"
-          SERVER_PORT: ${{ secrets.SERVER_PORT_DOC }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
-          DB_HOST: ${{ secrets.DB_HOST_DOC }}
+          DB_HOST: ${{ secrets.DB_HOST }}
           POSTGRES_USER: ${{ secrets.USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.PASSWORD }}
           POSTGRES_DB: ${{ secrets.DB_NAME }}
@@ -61,7 +61,7 @@ jobs:
         run: |
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
           chmod 600 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_doc/app.env
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
           rm ssh_key.pem
 
   run_docker_container:
@@ -78,13 +78,13 @@ jobs:
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
             chmod 600 ssh_key.pem
             ssh -o StrictHostKeyChecking=no -i ssh_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
-            cd ~/deployments/telex_doc
+            cd ~/deployments/telex_be
             git reset --hard
             git pull origin dev
             gunzip -c /tmp/telex_be.tar.gz | docker load
             rm -f /tmp/telex_be.tar.gz
             docker compose -f docker-compose.yml up -d
           '
-          
+
       - name: Remove ssh_key
         run: rm ssh_key.pem
