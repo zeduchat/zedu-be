@@ -1,4 +1,4 @@
-package test_tokens
+package test_teams
 
 import (
 	"bytes"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
-	"github.com/hngprojects/telex_be/pkg/controller/room"
 	"github.com/hngprojects/telex_be/pkg/controller/teams"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -22,7 +21,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestMessage(t *testing.T) {
+func TestTeamsEndpoints(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -37,19 +36,15 @@ func TestMessage(t *testing.T) {
 		Password:    "password",
 		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
-	
 	loginData := models.LoginRequestModel{
 		Email:    userSignUpData.Email,
 		Password: userSignUpData.Password,
 	}
 
 	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	r := gin.Default()
-
-	tst.SignupUser(t, r, auth, userSignUpData, false)
-
-	room := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	team := teams.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	r := gin.Default()
+	tst.SignupUser(t, r, auth, userSignUpData, false)
 
 	token := tst.GetLoginToken(t, r, auth, loginData)
 
@@ -60,22 +55,9 @@ func TestMessage(t *testing.T) {
 
 	teamId, _ := tst.CreateTeam(t, r, team, db, createTeamData, token)
 
-	createRoomData := models.CreateRoomRequest{
-		Name:        fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
-		Username:    fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
-		TeamID: 	 teamId,
-		Description: "Some Random description",
-	}
-
-	roomId, _ := tst.CreateRoom(t, r, room, db, createRoomData, token)
-
-	fmt.Println("Room ID: ", roomId)
-
-
-
 	tests := []struct {
 		Name         string
-		RequestBody  models.CreateMessageRequest
+		RequestBody  interface{}
 		ExpectedCode int
 		Message      string
 		Method       string
@@ -83,25 +65,47 @@ func TestMessage(t *testing.T) {
 		RequestURI   url.URL
 	}{
 		{
-			Name: "Add message Successfully",
-			RequestBody: models.CreateMessageRequest{
-				Content: "It's a nice day to check the room",
+			Name: "Create Team Action",
+			RequestBody: models.CreateTeamRequest{
+				Name:        "Test-Team"+utility.GenerateUUID(),
+				Description: "This is a test team",
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "message added successfully",
+			Message:      "team created successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/messages", roomId)},
+			RequestURI:   url.URL{Path: "/api/v1/teams/"},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
-		}, {
-			Name:         "Successfully Get messages in a room",
-			RequestBody:  models.CreateMessageRequest{},
+		},
+		{
+			Name:         "Get Team Action",
 			ExpectedCode: http.StatusOK,
-			Message:      "room messages fetched successfully",
+			Message:      "team fetched successfully",
 			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/messages", roomId)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/teams/%s", teamId)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token,
+			},
+		},{
+			Name:         "Get All Rooms in a Team Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "rooms fetched successfully",
+			Method:       http.MethodGet,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/teams/rooms/%s", teamId)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token,
+			},
+		},
+		{
+			Name:         "Delete Team Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "team deleted successfully",
+			Method:       http.MethodDelete,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/teams/%s", teamId)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -112,11 +116,12 @@ func TestMessage(t *testing.T) {
 	for _, test := range tests {
 		r := gin.Default()
 
-		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/rooms"), middleware.Authorize(db.Postgresql))
+		teamUrl := r.Group(fmt.Sprintf("%v", "/api/v1/teams"), middleware.Authorize(db.Postgresql))
 		{
-			tknUrl.GET("/:roomId/messages", room.GetRoomMsg)
-			tknUrl.POST("/:roomId/messages", room.AddRoomMsg)
-
+			teamUrl.POST("/", team.CreateTeam)
+			teamUrl.GET("/rooms/:teamId", team.GetAllRoomsInTeam)
+			teamUrl.GET("/:teamId", team.GetTeamByID)
+			teamUrl.DELETE("/:teamId", team.DeleteTeam)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {
@@ -151,9 +156,6 @@ func TestMessage(t *testing.T) {
 				}
 
 			}
-
 		})
-
 	}
-
 }
