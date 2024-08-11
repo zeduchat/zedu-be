@@ -97,8 +97,13 @@ func (r *OrgRole) UpdateOrgRole(db *gorm.DB) error {
 	return err
 }
 
-func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
+func (rp *Permission) AddOrgPermissions(db *gorm.DB) error {
 	_, err := postgresql.SaveAllFields(db, &rp)
+	return err
+}
+
+func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
+	_, err := postgresql.UpdateFields(db, rp, rp, "id = ?", rp.ID)
 	return err
 }
 

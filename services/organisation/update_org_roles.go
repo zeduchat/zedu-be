@@ -2,6 +2,7 @@ package organisation
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -121,14 +122,26 @@ func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.
 		return http.StatusBadRequest, err
 	}
 
-	req.ID = utility.GenerateUUID()
-	req.RoleID = roleData.ID
-
-	if err := req.UpdateOrgPermissions(db); err != nil {
-		if strings.Contains(err.Error(), "duplicate key value") {
-			return http.StatusConflict, errors.New("permission already exists")
+	if roleData.Permissions.ID == "" {
+		req.ID = utility.GenerateUUID()
+		req.RoleID = roleData.ID
+		fmt.Println("new")
+		if err := req.AddOrgPermissions(db); err != nil {
+			if strings.Contains(err.Error(), "duplicate key value") {
+				return http.StatusConflict, errors.New("permission already exists")
+			}
+			return http.StatusBadRequest, err
 		}
-		return http.StatusBadRequest, err
+	} else {
+		req.ID = roleData.Permissions.ID
+		req.RoleID = roleData.Permissions.RoleID
+		fmt.Println("old")
+		if err := req.UpdateOrgPermissions(db); err != nil {
+			if strings.Contains(err.Error(), "duplicate key value") {
+				return http.StatusConflict, errors.New("permission already exists")
+			}
+			return http.StatusBadRequest, err
+		}
 	}
 
 	return http.StatusOK, nil
