@@ -1577,9 +1577,78 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: get user profile  
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "User profile retrieved successfully"
+                statusCode:
+                  type: integer
+                  example: 200
+                data:
+                  type: object
+                  properties:
+                    schema:
+                      $ref: '#/components/schemas/ProfileResponseSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'    
+              
+
 components:
 
   schemas:
+    
+    ProfileResponseSchema:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        full_name:
+          type: string
+        user_name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        profile_id:
+          type: string
+        avatar_url:
+          type: string
+        user_id:
+          type: string 
+        created_at:
+          type: string 
+        updated_at:
+          type: string 
 
     NotFoundErrorSchema:
       type: object
