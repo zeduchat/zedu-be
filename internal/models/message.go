@@ -25,7 +25,6 @@ type CreateMessageRequest struct {
 }
 
 func (m *Message) CreateMessage(db *gorm.DB) error {
-
 	var userRoom UserRoom
 
 	exist := postgresql.CheckExists(db, &userRoom, "room_id = ? AND user_id = ?", m.RoomID, m.UserID)

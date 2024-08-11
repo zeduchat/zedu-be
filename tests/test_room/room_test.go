@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/room"
+	"github.com/hngprojects/telex_be/pkg/controller/teams"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -43,18 +44,27 @@ func TestRoomEndpoints(t *testing.T) {
 
 	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	roomController := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	team := teams.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
 	token := tst.GetLoginToken(t, r, auth, loginData)
 
-	createRoomReq := models.CreateRoomRequest{
-		Name:        "Test-Room",
-		Description: "This is a test room",
-		Username:    userSignUpData.UserName,
+	createTeamData := models.CreateTeamRequest{
+		Name:        fmt.Sprintf("TestTeam%s", utility.GenerateUUID()),
+		Description: "Some Random description",
 	}
 
-	room_id, roomName := tst.CreateRoom(t, r, roomController, db, createRoomReq, token)
+	teamId, _ := tst.CreateTeam(t, r, team, db, createTeamData, token)
+
+	createRoomData := models.CreateRoomRequest{
+		Name:        fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
+		Username:    fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
+		TeamID:      teamId,
+		Description: "Some Random description",
+	}
+
+	room_id, roomName := tst.CreateRoom(t, r, roomController, db, createRoomData, token)
 
 	tests := []struct {
 		Name         string
@@ -71,6 +81,7 @@ func TestRoomEndpoints(t *testing.T) {
 				Name:        "Test-Room",
 				Description: "This is a test room",
 				Username:    userSignUpData.UserName,
+				TeamID:      teamId,
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "room created successfully",
@@ -103,31 +114,8 @@ func TestRoomEndpoints(t *testing.T) {
 				"Authorization": "Bearer " + token,
 			},
 		},
+
 		{
-			Name:         "Leave Room Action",
-			ExpectedCode: http.StatusOK,
-			Message:      "user left room successfully",
-			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/leave", room_id)},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name:         "Join Room Action",
-			ExpectedCode: http.StatusOK,
-			Message:      "room joined successfully",
-			RequestBody: models.JoinRoomRequest{
-				Username: userSignUpData.UserName,
-			},
-			Method:     http.MethodPost,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/join", room_id)},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		}, {
 			Name:         "Update Room Username Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "username updated successfully",
@@ -175,22 +163,51 @@ func TestRoomEndpoints(t *testing.T) {
 			},
 			Message:    "room name retrieved successfully",
 			Method:     http.MethodGet,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/name/%s", roomName)},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/name/%s", "Test-Room")},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name: "Search Room by Name Action",
-			Message: "room names retrieved successfully",
+			Name:         "Search Room by Name Action",
+			Message:      "room names retrieved successfully",
 			ExpectedCode: http.StatusOK,
-			Method: http.MethodGet,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/search/%s", roomName)},
+			Method:       http.MethodGet,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/search/%s", roomName)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
-		},{
+		},
+		{
+			Name:         "Leave Room Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "user left room successfully",
+			Method:       http.MethodPost,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/leave", room_id)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token,
+			},
+		},
+		{
+			Name:         "Join Room Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "room joined successfully",
+			RequestBody: models.JoinRoomRequest{
+				Username: userSignUpData.UserName,
+				RoomID:   room_id,
+				UserID:   "0191401f-e2da-72d6-88fe-f3bfab57c688",
+			},
+			Method:     http.MethodPost,
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/join", room_id)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token,
+			},
+		},
+
+		{
 			Name:         "Delete Room Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "room deleted successfully",

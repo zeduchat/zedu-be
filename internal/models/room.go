@@ -12,14 +12,21 @@ import (
 )
 
 type Room struct {
-	ID          string    `gorm:"type:uuid;primary_key" json:"room_id"`
-	Name        string    `gorm:"column:name;unique type:text; not null" json:"name"`
-	Description string    `gorm:"column:description; type:text; not null" json:"description"`
-	OwnerId     string    `gorm:"column:owner_id; type:uuid" json:"owner_id"`
-	Users       []User    `gorm:"many2many:user_rooms;" json:"users"`
-	UserCount   int64     `gorm:"-" json:"user_count"`
-	CreatedAt   time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt   time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+	ID          string `gorm:"type:uuid;primary_key" json:"room_id"`
+	Name        string `gorm:"column:name;unique type:text; not null" json:"name"`
+	Description string `gorm:"column:description; type:text; not null" json:"description"`
+	IsPrivate   bool   `gorm:"column:is_private; type:bool" json:"is_private"`
+
+	TeamID       string    `gorm:"column:team_id; type:uuid" json:"team_id"`
+	OwnerId      string    `gorm:"column:owner_id; type:uuid" json:"owner_id"`
+	Users        []User    `gorm:"many2many:user_rooms;" json:"users"`
+	UserCount    int64     `gorm:"-" json:"user_count"`
+	MessageCount int64     `gorm:"-" json:"message_count"`
+	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt    time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+
+	// One-to-Many Relationship with Message
+	Messages []Message `gorm:"foreignKey:RoomID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 }
 
 type UserRoom struct {
@@ -31,6 +38,7 @@ type UserRoom struct {
 }
 
 type CreateRoomRequest struct {
+	TeamID      string `json:"team_id" validate:"required"`
 	Username    string `json:"username" validate:"required"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -49,6 +57,7 @@ type JoinRoomRequest struct {
 type UpdateRoomRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	IsPrivate   bool   `json:"is_private"`
 }
 
 type UpdateRoomUserNameReq struct {
@@ -58,7 +67,7 @@ type UpdateRoomUserNameReq struct {
 func (r *Room) CreateRoom(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
-		return err
+		return errors.New("could not create room")
 	}
 	return nil
 }
@@ -75,25 +84,34 @@ func (r *Room) GetRoomUsersByID(db *gorm.DB, roomID string) ([]UserRoom, error) 
 	)
 
 	if err != nil {
-		return users, err
+		return users, errors.New("could not get users in room")
 	}
 
 	return users, nil
 }
 
-func (r *Room) GetRoomByName(db *gorm.DB, name string) (Room, error) {
-	var room Room
+func (r *Room) GetRoomByName(db *gorm.DB, name string) ([]Room, error) {
+	var (
+		rooms []Room
+		ur    UserRoom
+	)
 
-	exists := postgresql.CheckExists(db, &room, "name= ?", name)
+	exists := postgresql.CheckExists(db, &rooms, "name= ?", name)
 	if !exists {
-		return room, errors.New("room not found")
+		return rooms, errors.New("room not found")
 	}
 
-	err, _ := postgresql.SelectOneFromDb(db, &room, "name= ?", name)
+	err := postgresql.SelectAllFromDb(db, "", &rooms, "name= ?", name)
 	if err != nil {
-		return room, err
+		return rooms, errors.New("could not get room by name")
 	}
-	return room, nil
+
+	for i, room := range rooms {
+		count, _ := ur.CountRoomUsers(db, room.ID)
+		rooms[i].UserCount = count
+	}
+
+	return rooms, nil
 }
 
 func (r *Room) GetRoomByID(db *gorm.DB, roomID string) (Room, error) {
@@ -106,9 +124,10 @@ func (r *Room) GetRoomByID(db *gorm.DB, roomID string) (Room, error) {
 	if err != nil {
 		return room, errors.New("room not found")
 	}
+
 	count, err := ur.CountRoomUsers(db, roomID)
 	if err != nil {
-		return room, err
+		return room, errors.New("could not get room users count")
 	}
 
 	room.UserCount = count
@@ -122,7 +141,7 @@ func (r *Room) GetRooms(db *gorm.DB) ([]Room, error) {
 		ur    UserRoom
 	)
 
-	err := postgresql.SelectAllFromDb(db.Preload("Users"), "", &rooms, "")
+	err := postgresql.SelectAllFromDb(db, "", &rooms, "")
 	if err != nil {
 		return rooms, err
 	}
@@ -139,9 +158,31 @@ func (u *UserRoom) CountRoomUsers(db *gorm.DB, roomID string) (int64, error) {
 	var count int64
 	err := db.Model(&UserRoom{}).Where("room_id = ?", roomID).Count(&count).Error
 	if err != nil {
-		return 0, err
+		return 0, errors.New("could not count users in room")
 	}
 	return count, nil
+}
+
+func (r *Room) CountRoomMessages(db *gorm.DB, roomID string) (int64, error) {
+	var (
+		count   int64
+		message Message
+	)
+	err := db.Model(&message).Where("room_id = ?", roomID).Count(&count).Error
+	if err != nil {
+		return 0, errors.New("could not count messages in room")
+	}
+	return count, nil
+}
+
+func (r *Room) CountTeamRooms(db *gorm.DB, teamId string) (int64, error) {
+	var rs []Room
+
+	err := postgresql.SelectAllFromDb(db, "", &rs, "team_id = ?", teamId)
+	if err != nil {
+		return 0, errors.New("error counting rooms in a team")
+	}
+	return int64(len(rs)), nil
 }
 
 func (r *Room) GetRoomMessages(db *gorm.DB, userID, roomID string) ([]Message, error) {
@@ -170,7 +211,7 @@ func (r *Room) GetRoomMessages(db *gorm.DB, userID, roomID string) ([]Message, e
 	return messages, nil
 }
 
-func (r *Room) AddUserToRoom(db *gorm.DB, req JoinRoomRequest) error {
+func (r *Room) AddUserToRoom(db *gorm.DB, req JoinRoomRequest) (Room, error) {
 
 	var (
 		user   User
@@ -181,18 +222,18 @@ func (r *Room) AddUserToRoom(db *gorm.DB, req JoinRoomRequest) error {
 
 	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
 	if !exists {
-		return errors.New("user does not exist")
+		return room, errors.New("user does not exist")
 	}
 
 	exists = postgresql.CheckExists(db, &room, "id = ?", roomID)
 	if !exists {
-		return errors.New("room does not exist")
+		return room, errors.New("room does not exist")
 	}
 
 	var userRoom UserRoom
 	exist := postgresql.CheckExists(db, &userRoom, "room_id = ? AND user_id = ?", roomID, userID)
 	if exist {
-		return errors.New("user already in room")
+		return room, errors.New("user already in room")
 	}
 
 	userRoom = UserRoom{
@@ -203,9 +244,10 @@ func (r *Room) AddUserToRoom(db *gorm.DB, req JoinRoomRequest) error {
 
 	err := postgresql.CreateOneRecord(db, &userRoom)
 	if err != nil {
-		return errors.New("could not add user to room")
+		return room, errors.New("could not add user to room")
 	}
-	return nil
+
+	return room, nil
 }
 
 func (r *Room) RemoveUserFromRoom(db *gorm.DB, roomID, userID string) error {
@@ -216,7 +258,14 @@ func (r *Room) RemoveUserFromRoom(db *gorm.DB, roomID, userID string) error {
 		return errors.New("user not in room")
 	}
 
-	err := postgresql.DeleteRecordFromDb(db, &userRoom)
+	err, _ := postgresql.SelectOneFromDb(db, &userRoom, "room_id = ? AND user_id = ?", roomID, userID)
+	if err != nil {
+		return errors.New("could not get user in room")
+	}
+
+
+
+	err = postgresql.DeleteRecordFromDb(db, &userRoom)
 	if err != nil {
 		return errors.New("could not remove user from room")
 	}
@@ -276,29 +325,29 @@ func (c *UserRoom) UserInRoom(db *gorm.DB, roomID, userID string) error {
 
 func (r *Room) UpdateRoom(db *gorm.DB, req UpdateRoomRequest, roomID string, userId string) (Room, int, error) {
 	var room Room
-	room.ID = roomID
 
 	exists := postgresql.CheckExists(db, &room, "id = ?", roomID)
 	if !exists {
-		return room, http.StatusNotFound, errors.New("room does not exist")
+		return Room{}, http.StatusNotFound, errors.New("room does not exist")
 	}
 
 	if room.OwnerId != userId {
-		return room, http.StatusUnauthorized, errors.New("user not authorized")
+		return Room{}, http.StatusUnauthorized, errors.New("user not authorized")
 	}
 
-	room.Name = req.Name
-	room.Description = req.Description
-
-	_, err := postgresql.SaveAllFields(db, room)
+	result, err := postgresql.UpdateFields(db, &room, req, "id = ?", roomID)
 	if err != nil {
-		return room, http.StatusInternalServerError, nil
+		return Room{}, http.StatusInternalServerError, nil
+	}
+
+	if result.RowsAffected == 0 {
+		return Room{}, http.StatusInternalServerError, errors.New("failed to update room")
 	}
 
 	updatedRoom := Room{}
 	err = db.First(&updatedRoom, "id = ?", roomID).Error
 	if err != nil {
-		return room, http.StatusInternalServerError, err
+		return Room{}, http.StatusInternalServerError, err
 	}
 	return updatedRoom, http.StatusOK, nil
 }

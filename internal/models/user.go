@@ -10,16 +10,21 @@ import (
 
 type User struct {
 	ID         string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name       string         `gorm:"column:name; type:varchar(255)" json:"name"`
-	Email      string         `gorm:"column:email; type:varchar(255)" json:"email"`
-	IsVerified bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
+	Name       string         `gorm:"column:name;type:varchar(255)" json:"name"`
+	Email      string         `gorm:"column:email;type:varchar(255)" json:"email"`
+	IsVerified bool           `gorm:"column:is_verified;type:bool" json:"is_verified"`
 	Profile    Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
-	Rooms      []Room         `gorm:"many2many:user_rooms;" json:"rooms"`
-	Channels   []Channel      `gorm:"many2many:user_channels;" json:"channels"`
-	Password   string         `gorm:"column:password; type:text; not null" json:"-"`
-	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt  time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Password   string         `gorm:"column:password;type:text;not null" json:"-"`
+	CreatedAt  time.Time      `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time      `gorm:"column:updated_at;null;autoUpdateTime" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// One-to-One Relationship with Team
+	// TeamID  string `gorm:"column:team_id;type:uuid" json:"team_id"`
+	Team Team `gorm:"foreignKey:OwnerId;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team"`
+
+	// Many-to-Many Relationship with Room
+	Rooms []Room `gorm:"many2many:user_rooms;" json:"rooms"`
 }
 
 type CreateUserRequestModel struct {
