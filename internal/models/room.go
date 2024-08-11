@@ -25,7 +25,6 @@ type Room struct {
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt    time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 
-	// One-to-Many Relationship with Message
 	Messages []Message `gorm:"foreignKey:RoomID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 }
 

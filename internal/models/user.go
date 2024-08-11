@@ -20,11 +20,8 @@ type User struct {
 	UpdatedAt  time.Time      `gorm:"column:updated_at;null;autoUpdateTime" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 
-	// One-to-One Relationship with Team
-	// TeamID  string `gorm:"column:team_id;type:uuid" json:"team_id"`
 	Team Team `gorm:"foreignKey:OwnerId;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team"`
 
-	// Many-to-Many Relationship with Room
 	Rooms []Room `gorm:"many2many:user_rooms;" json:"rooms"`
 }
 

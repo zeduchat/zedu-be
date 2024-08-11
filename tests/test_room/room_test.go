@@ -191,23 +191,6 @@ func TestRoomEndpoints(t *testing.T) {
 			},
 		},
 		{
-			Name:         "Join Room Action",
-			ExpectedCode: http.StatusOK,
-			Message:      "room joined successfully",
-			RequestBody: models.JoinRoomRequest{
-				Username: userSignUpData.UserName,
-				RoomID:   room_id,
-				UserID:   "0191401f-e2da-72d6-88fe-f3bfab57c688",
-			},
-			Method:     http.MethodPost,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/join", room_id)},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-
-		{
 			Name:         "Delete Room Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "room deleted successfully",

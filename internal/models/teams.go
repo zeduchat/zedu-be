@@ -19,7 +19,6 @@ type Team struct {
 	UpdatedAt          time.Time      `gorm:"column:updated_at;not null;autoUpdateTime" json:"updated_at"`
 	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 
-	// One-to-Many Relationship with Room
 	Rooms []Room `gorm:"foreignKey:TeamID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"rooms"`
 }
 
