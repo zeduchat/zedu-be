@@ -14,6 +14,9 @@ func AuthMigrationModels() []interface{} {
 		models.MagicLink{},
 		models.PasswordReset{},
 		models.Team{},
+		models.Organisation{},
+		models.Permission{},
+		models.OrgRole{},
 	} // an array of db models, example: User{}
 }
 
