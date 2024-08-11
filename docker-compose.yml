@@ -19,7 +19,7 @@ services:
       - ../golang_volumes/redis_volumes/telex_be/:/data
 
   backend:
-    image: telex_be
+    image: telex_be:latest
     build:
       context: .
     depends_on:
