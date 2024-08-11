@@ -705,18 +705,8 @@ paths:
       tags:
         - auth
       summary: get user onboarding status 
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
-              required:
-                - token
-
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: user status fetch successfully
@@ -764,7 +754,8 @@ paths:
       tags:
         - auth
       summary: Update user onboarding status
-
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: user onboarding status updated successfully
