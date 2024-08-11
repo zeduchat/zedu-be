@@ -17,6 +17,8 @@ servers:
 tags:
   - name: auth
     description:  API for user registration and authentication
+  - name: user
+    description: API for users management
   - name: roles
     description: API for organization and role management
   - name: organisation
@@ -1514,6 +1516,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
+
+  /users/{userId}/role/{roleId}:
+    put:
+      tags:
+        - user
+      summary: Assign user to another role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "Role updated successfully"
+                status_code:
+                  type: integer
+                  example: 200
+        '400':
+          description: Bad request
+          content:
+           application/json:
+            schema:
+              $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        '404':
+          description: Not found
+          content:
+           application/json:
+            schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
 components:
 
