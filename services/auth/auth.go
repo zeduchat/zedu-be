@@ -12,7 +12,10 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -93,6 +96,15 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		return nil, http.StatusInternalServerError, err
 	}
 
+	resetReq := models.SendWelcomeMail{
+		Email: user.Email,
+	}
+
+	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
 	return nil, http.StatusCreated, nil
 }
 
@@ -139,18 +151,19 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB) (gin.H, int, error) {
 	responseData = gin.H{
 
 		"user": map[string]interface{}{
-			"id":          userData.ID,
-			"email":       userData.Email,
-			"username":    userData.Name,
-			"is_verified": userData.IsVerified,
-			"first_name":  userData.Profile.FirstName,
-			"last_name":   userData.Profile.LastName,
-			"fullname":    userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":       userData.Profile.Phone,
-			"avatar_url":  userData.Profile.AvatarURL,
-			"expires_in":  strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":  strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":  strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":           userData.ID,
+			"email":        userData.Email,
+			"username":     userData.Name,
+			"is_verified":  userData.IsVerified,
+			"is_onboarded": userData.IsOnboarded,
+			"first_name":   userData.Profile.FirstName,
+			"last_name":    userData.Profile.LastName,
+			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":        userData.Profile.Phone,
+			"avatar_url":   userData.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}
@@ -248,4 +261,49 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, er
 	}
 
 	return responseData, http.StatusCreated, nil
+}
+
+func GetOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
+
+	var (
+		responseData gin.H
+		user         models.User
+	)
+
+	user, err := user.GetUserByID(db, owner_id)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+	}
+
+	status := user.IsOnboarded
+
+	responseData = gin.H{
+		"status": status,
+	}
+
+	return responseData, http.StatusOK, nil
+}
+
+func UpdateOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
+
+	var (
+		responseData gin.H
+		user         models.User
+	)
+
+	user, err := user.GetUserByID(db, owner_id)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+	}
+
+	user.IsOnboarded = true
+	err = user.Update(db)
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error updating user status: " + err.Error())
+	}
+
+	responseData = gin.H{}
+
+	return responseData, http.StatusOK, nil
 }
