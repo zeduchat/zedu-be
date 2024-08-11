@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/controller/room"
+	"github.com/hngprojects/telex_be/pkg/controller/teams"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -186,4 +187,42 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	dataM := data["data"].(map[string]interface{})
 	orgID := dataM["id"].(string)
 	return orgID
+}
+
+func CreateTeam(t *testing.T, r *gin.Engine, team teams.Controller, db *storage.Database, CreateData models.CreateTeamRequest, token string) (string, string) {
+	var (
+		createPath = "/api/v1/teams/"
+		createURI  = url.URL{Path: createPath}
+	)
+
+	roomUrl := r.Group(fmt.Sprintf("%v", "/api/v1/teams"), middleware.Authorize(db.Postgresql))
+	{
+		roomUrl.POST("/", team.CreateTeam)
+	}
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(CreateData)
+	req, err := http.NewRequest(http.MethodPost, createURI.String(), &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		return "", ""
+	}
+
+	data := ParseResponse(rr)
+	dataM := data["data"].(map[string]interface{})
+	teamID := dataM["team_id"].(string)
+	teamName := dataM["name"].(string)
+
+	fmt.Println("team ID: ", teamID)
+
+	return teamID, teamName
 }

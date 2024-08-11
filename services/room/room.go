@@ -28,8 +28,9 @@ func CreateRoom(req models.CreateRoomRequest, db *gorm.DB, userId string) (model
 	room := models.Room{
 		ID:          utility.GenerateUUID(),
 		Name:        req.Name,
-		OwnerId:     userId,
 		Description: req.Description,
+		OwnerId:     userId,
+		TeamID:      req.TeamID,
 	}
 
 	joinRoomReq.RoomID = room.ID
@@ -41,11 +42,11 @@ func CreateRoom(req models.CreateRoomRequest, db *gorm.DB, userId string) (model
 		return room, http.StatusBadRequest, err
 	}
 
-	err = room.AddUserToRoom(db, joinRoomReq)
+	newroom, err := room.AddUserToRoom(db, joinRoomReq)
 	if err != nil {
-		return room, http.StatusBadRequest, err
+		return newroom, http.StatusBadRequest, err
 	}
-	return room, http.StatusOK, nil
+	return newroom, http.StatusOK, nil
 }
 
 func GetRoom(db *gorm.DB, roomID string) (models.Room, int, error) {
@@ -58,7 +59,7 @@ func GetRoom(db *gorm.DB, roomID string) (models.Room, int, error) {
 	return room, http.StatusOK, nil
 }
 
-func GetRoomByName(db *gorm.DB, name string) (models.Room, int, error) {
+func GetRoomByName(db *gorm.DB, name string) ([]models.Room, int, error) {
 	var r models.Room
 
 	room, err := r.GetRoomByName(db, name)
@@ -69,9 +70,9 @@ func GetRoomByName(db *gorm.DB, name string) (models.Room, int, error) {
 }
 
 func GetRoomMsg(roomId, userID string, db *gorm.DB) ([]models.Message, int, error) {
-	var message models.Message
+	var m models.Message
 
-	resp, err := message.GetMessagesByRoomID(db, userID, roomId)
+	resp, err := m.GetMessagesByRoomID(db, userID, roomId)
 
 	if err != nil {
 		return []models.Message{}, http.StatusBadRequest, err
@@ -81,16 +82,16 @@ func GetRoomMsg(roomId, userID string, db *gorm.DB) ([]models.Message, int, erro
 
 }
 
-func JoinRoom(db *gorm.DB, req models.JoinRoomRequest) (int, error) {
-	var room models.Room
+func JoinRoom(db *gorm.DB, req models.JoinRoomRequest) (models.Room,int, error) {
+	var r models.Room
 
-	err := room.AddUserToRoom(db, req)
+	room, err := r.AddUserToRoom(db, req)
 
 	if err != nil {
-		return http.StatusBadRequest, err
+		return room, http.StatusBadRequest, err
 	}
 
-	return http.StatusOK, nil
+	return room, http.StatusOK, nil
 }
 
 func LeaveRoom(db *gorm.DB, room_id, user_id string) (int, error) {
@@ -109,7 +110,7 @@ func LeaveRoom(db *gorm.DB, room_id, user_id string) (int, error) {
 
 }
 
-func AddRoomMsg(req models.CreateMessageRequest, db *gorm.DB) (int, error) {
+func AddRoomMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message,int, error) {
 
 	message := models.Message{
 		Content: req.Content,
@@ -120,17 +121,17 @@ func AddRoomMsg(req models.CreateMessageRequest, db *gorm.DB) (int, error) {
 	err := message.CreateMessage(db)
 
 	if err != nil {
-		return http.StatusBadRequest, err
+		return message, http.StatusBadRequest, err
 	}
 
-	return http.StatusCreated, nil
+	return message, http.StatusCreated, nil
 }
 
 func UpdateUsername(req models.UpdateRoomUserNameReq, db *gorm.DB, roomId, userId string) (int, error) {
 
-	var userroom models.UserRoom
+	var ur models.UserRoom
 
-	err := userroom.UpdateUsername(db, req, roomId, userId)
+	err := ur.UpdateUsername(db, req, roomId, userId)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
@@ -139,9 +140,9 @@ func UpdateUsername(req models.UpdateRoomUserNameReq, db *gorm.DB, roomId, userI
 }
 
 func DeleteRoom(db *gorm.DB, roomId, userId string) (int, error) {
-	var room models.Room
+	var r models.Room
 
-	room, err := room.GetRoomByID(db, roomId)
+	room, err := r.GetRoomByID(db, roomId)
 
 	if room.OwnerId != userId {
 		return http.StatusUnauthorized, errors.New("user not authorized")
@@ -170,10 +171,8 @@ func CountRoomUsers(db *gorm.DB, roomId string) (int64, int, error) {
 }
 
 func UpdateRoom(db *gorm.DB, req models.UpdateRoomRequest, roomId string, userId string) (models.Room, error) {
-	var (
-		room models.Room
-	)
-	updatedRoom, _, err := room.UpdateRoom(db, req, roomId, userId)
+	var r models.Room
+	updatedRoom, _, err := r.UpdateRoom(db, req ,roomId, userId)
 	if err != nil {
 		return updatedRoom, err
 	}

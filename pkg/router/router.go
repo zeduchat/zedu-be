@@ -38,6 +38,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Auth(r, ApiVersion, validator, db, logger)
 	Room(r, ApiVersion, validator, db, logger)
 	TokenGen(r, ApiVersion, validator, db, logger)
+	Team(r, ApiVersion, validator, db, logger)
 	Organisation(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {

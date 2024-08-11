@@ -40,9 +40,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Create app.env file
-        uses: vicradon/create-env-action@v0.0.8
+        uses: vicradon/create-env-action@v1.0.0
         with:
           action_input_file: "app-sample.env"
+          action_output_file: "app.env"
           APP_NAME: "telex_be"
           APP_URL: "https://api-golang.boilerplate.hng.tech"
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
@@ -53,7 +54,14 @@ jobs:
           POSTGRES_USER: ${{ secrets.USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.PASSWORD }}
           POSTGRES_DB: ${{ secrets.DB_NAME }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_DB: "0"
           MIGRATE: "true"
+          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           HMAC_SECRET: ${{ secrets.HMAC_SECRET }}
           RESET_PASSWORD_DURATION: ${{ secrets.RESET_PASSWORD_DURATION }}
 
