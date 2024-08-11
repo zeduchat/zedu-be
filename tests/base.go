@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/controller/room"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -157,4 +158,32 @@ func CreateRoom(t *testing.T, r *gin.Engine, room room.Controller, db *storage.D
 	roomName := dataM["name"].(string)
 
 	return roomID, roomName
+}
+
+func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org organisation.Controller, orgData models.CreateOrgRequestModel, token string) string {
+	var (
+		orgPath = "/api/v1/organizations"
+		orgURI  = url.URL{Path: orgPath}
+	)
+	orgUrl := r.Group(fmt.Sprintf("%v", "/api/v1"), middleware.Authorize(db.Postgresql))
+	{
+		orgUrl.POST("/organizations", org.CreateOrganisation)
+	}
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(orgData)
+	req, err := http.NewRequest(http.MethodPost, orgURI.String(), &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	//get the response
+	data := ParseResponse(rr)
+	dataM := data["data"].(map[string]interface{})
+	orgID := dataM["id"].(string)
+	return orgID
 }
