@@ -727,8 +727,9 @@ paths:
                 data:
                   type: object
                   properties:
-                    status: boolean
-                    example: false
+                    status:
+                      type: boolean
+                      example: false
         '400':
           description: Invalid input
           content:
