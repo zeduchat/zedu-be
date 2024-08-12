@@ -2824,6 +2824,105 @@ paths:
     
 
 
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: get user profile  
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "User profile retrieved successfully"
+                statusCode:
+                  type: integer
+                  example: 200
+                data:
+                  type: object
+                  properties:
+                    schema:
+                      $ref: '#/components/schemas/ProfileResponseSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+    patch:
+      tags:
+        - Profile
+      summary: Update user profile
+      description: Allows authenticated users to update their profile information.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            example:
+              email: "newemail@example.com"
+              full_name: "New Full Name"
+              user_name: "new_username"
+              phone: "1234567890"
+              avatar_url: "https://example.com/avatar.jpg"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile updated successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/UpdateProfileResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'               
+              
+
 components:
 
   schemas:
@@ -3054,6 +3153,103 @@ components:
             total_pages:
               type: integer
               example: 1
+    
+    UpdateProfileResponse:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Updated email address
+          example: "newemail@example.com"
+        full_name:
+          type: string
+          description: Updated full name
+          example: "New Full Name"
+        user_name:
+          type: string
+          description: Updated username
+          example: "new_username"
+        phone:
+          type: string
+          description: Updated phone number
+          example: "1234567890"
+        avatar_url:
+          type: string
+          format: uri
+          description: Updated avatar URL
+          example: "https://example.com/avatar.jpg"
+    
+    UpdateProfileRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: New email address
+        full_name:
+          type: string
+          description: Full name of the user
+        user_name:
+          type: string
+          description: Username
+        phone:
+          type: string
+          description: Phone number
+        avatar_url:
+          type: string
+          format: uri
+          description: URL to the avatar image
+      example:
+        email: "newemail@example.com"
+        full_name: "New Full Name"
+        user_name: "new_username"
+        phone: "1234567890"
+        avatar_url: "https://example.com/avatar.jpg"
+      description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
+    
+    ProfileResponseSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "019142c8-5408-7a48-8173-f31e6c8e00cd"
+        email:
+          type: string
+          example: "keepStrugle@gmail.com"
+        phone:
+          type: string
+          example: "09099999999"
+        first_name:
+          type: string
+          example: "Test"
+        last_name:
+          type: string
+          example: "Og"
+        full_name:
+          type: string
+          example: "Testinp Update"
+        user_name:
+          type: string
+          example: "What_b_Heck"
+        avatar_url:
+          type: string
+          example: "img898989.png"
+        user_id:
+          type: string
+          example: "019142c8-5408-7a47-b94c-91d674dd8358"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-11T19:51:50+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-12T00:59:39+01:00"
+        deleted_at:
+          type: string
+          format: date-time
+          example: "0001-01-01T00:00:00Z"
 
     NotFoundErrorSchema:
       type: object
