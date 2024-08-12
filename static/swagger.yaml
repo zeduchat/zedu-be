@@ -3545,7 +3545,71 @@ components:
         description:
           type: string
         
-
+    UsersListResponseSchema:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: The HTTP status code of the response.
+        status:
+          type: string
+          description: The status of the response (e.g., "success").
+        error:
+          type: string
+          description: Any error message (should be empty on success).
+        message:
+          type: string
+          description: A message describing the outcome (e.g., "Users retrieved successfully").
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSchema'
+          description: The list of users.
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - code
+        - status
+        - message
+        - data
+        - pagination
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "Users retrieved successfully"
+        data:
+          - id: "user_1"
+            name: "John Doe"
+            email: "john.doe@example.com"
+            is_verified: true
+            is_onboarded: true
+            profile:
+              id: "profile_1"
+              first_name: "John"
+              last_name: "Doe"
+              phone: "+123456789"
+            channels:
+              - id: "channel_1"
+                name: "General"
+            organisations:
+              - id: "org_1"
+                name: "Example Organisation"
+            org_role_id: "role_1"
+            org_role:
+              id: "role_1"
+              role_name: "Admin"
+            created_at: "2024-08-12T12:34:56Z"
+            updated_at: "2024-08-12T12:34:56Z"
+            role: 1
+        pagination:
+          total: 100
+          per_page: 10
+          current_page: 1
+          last_page: 10
+          next_page_url: "/api/v1/users?page=2"
+          prev_page_url: null
     RegionSchema:
       type: object
       properties:
@@ -4673,7 +4737,107 @@ components:
               items:
                 type: string
               nullable: true
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+          description: The total number of items.
+        per_page:
+          type: integer
+          format: int32
+          description: The number of items per page.
+        current_page:
+          type: integer
+          format: int32
+          description: The current page number.
+        last_page:
+          type: integer
+          format: int32
+          description: The last page number.
+        next_page_url:
+          type: string
+          description: The URL for the next page.
+        prev_page_url:
+          type: string
+          description: The URL for the previous page.
 
+    AccessToken:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the access token.
+        owner_id:
+          type: string
+          description: The unique identifier for the owner of the access token.
+        is_live:
+          type: boolean
+          description: Indicates if the access token is live.
+        created_at:
+          type: string
+          format: date-time
+          description: The timestamp when the access token was created.
+        updated_at:
+          type: string
+          format: date-time
+          description: The timestamp when the access token was last updated.
+
+    
+    UserSessionsListResponseSchema:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: The HTTP status code of the response.
+        status:
+          type: string
+          description: The status of the response (e.g., "success").
+        error:
+          type: string
+          description: Any error message (should be empty on success).
+        message:
+          type: string
+          description: A message describing the outcome (e.g., "Data retrieved successfully").
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessToken'
+          description: The list of access tokens (user sessions).
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - code
+        - status
+        - message
+        - data
+        - pagination
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "Data retrieved successfully"
+        data:
+          - id: "token_1"
+            owner_id: "user_1"
+            is_live: true
+            created_at: "2024-08-12T12:34:56Z"
+            updated_at: "2024-08-12T12:34:56Z"
+          - id: "token_2"
+            owner_id: "user_1"
+            is_live: false
+            created_at: "2024-08-10T08:22:30Z"
+            updated_at: "2024-08-10T08:22:30Z"
+        pagination:
+          total: 2
+          per_page: 10
+          current_page: 1
+          last_page: 1
+          next_page_url: null
+          prev_page_url: null
+          
     ChannelUpdateResponseSchema:
       type: object
       properties:
@@ -4683,6 +4847,58 @@ components:
           type: integer
         message:
           type: string
+    UserUpdateResponseSchema:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: The HTTP status code of the response.
+        status:
+          type: string
+          description: The status of the response (e.g., "success").
+        error:
+          type: string
+          description: Any error message (should be empty on success).
+        message:
+          type: string
+          description: A message describing the outcome (e.g., "User info updated successfully").
+        data:
+          $ref: '#/components/schemas/UserSchema'
+      required:
+        - code
+        - status
+        - message
+        - data
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "User info updated successfully"
+        data:
+          id: "user_1"
+          name: "John Doe"
+          email: "john.doe@example.com"
+          is_verified: true
+          is_onboarded: true
+          profile:
+            id: "profile_1"
+            first_name: "John"
+            last_name: "Doe"
+            phone: "+123456789"
+          channels:
+            - id: "channel_1"
+              name: "General"
+          organisations:
+            - id: "org_1"
+              name: "Example Organisation"
+          org_role_id: "role_1"
+          org_role:
+            id: "role_1"
+            role_name: "Admin"
+          created_at: "2024-08-12T12:34:56Z"
+          updated_at: "2024-08-12T12:34:56Z"
+          role: 1
 
     NumUsersResponseSchema:
       type: object
