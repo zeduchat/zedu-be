@@ -69,7 +69,12 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	logger.Info("after prefix", name, r.Path, data, buf)
 
 	client := &http.Client{}
-	req, err := http.NewRequest(r.Method, r.Path, nil)
+	var req *http.Request
+	if r.Method == http.MethodGet {
+		req, err = http.NewRequest(r.Method, r.Path, nil)
+	} else {
+		req, err = http.NewRequest(r.Method, r.Path, buf)
+	}
 
 	if err != nil {
 		fmt.Printf("error1: %v", err)
