@@ -41,12 +41,10 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		ID:          utility.GenerateUUID(),
 		Name:        strings.ToLower(req.Name),
 		Description: strings.ToLower(req.Description),
+		Location:    strings.ToLower(req.Location),
 		Email:       strings.ToLower(req.Email),
-		State:       strings.ToLower(req.State),
-		Industry:    strings.ToLower(req.Industry),
 		Type:        strings.ToLower(req.Type),
 		OwnerID:     userId,
-		Address:     strings.ToLower(req.Address),
 		Country:     strings.ToLower(req.Country),
 	}
 
@@ -93,6 +91,17 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	}
 
 	return &org, nil
+}
+
+func GetAllChannelssInTeam(db *gorm.DB, orgID string) ([]models.Channels, map[string]interface{}, error) {
+	var o models.Organisation
+
+	channels, additionalInfo, err := o.GetAllChannelssInOrganisation(db, orgID)
+	if err != nil {
+		return channels, map[string]interface{}{}, err
+	}
+
+	return channels, additionalInfo, nil
 }
 
 func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB) (*models.Organisation, error) {
