@@ -1,4 +1,4 @@
-package room
+package channel
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/room"
+	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -24,8 +24,8 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) CreateRoom(c *gin.Context) {
-	var req models.CreateRoomRequest
+func (base *Controller) CreateChannels(c *gin.Context) {
+	var req models.CreateChannelsRequest
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -53,63 +53,47 @@ func (base *Controller) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := room.CreateRoom(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
 	if err != nil {
-		base.Logger.Info("error creating room")
+		base.Logger.Info("error creating channel")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("room created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "room created successfully", respData)
+	base.Logger.Info("channel created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "channel created successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) GetRooms(c *gin.Context) {
+func (base *Controller) GetChannels(c *gin.Context) {
+	channels_id := c.Param("channelId")
 
-	respData, code, err := room.GetRooms(base.Db.Postgresql)
-	if err != nil {
-		base.Logger.Info("error getting rooms")
-		rd := utility.BuildErrorResponse(code, "error",
-			err.Error(), err, nil)
+	if _, err := uuid.Parse(channels_id); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("rooms retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "rooms retrieved successfully", respData)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) GetRoom(c *gin.Context) {
-	room_id := c.Param("roomId")
-
-	if _, err := uuid.Parse(room_id); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	respData, code, err := room.GetRoom(base.Db.Postgresql, room_id)
+	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id)
 	if err != nil {
-		base.Logger.Info("error getting room")
+		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("room retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room retreived successfully", respData)
+	base.Logger.Info("channel retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel retreived successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetRoomMsg(c *gin.Context) {
+func (base *Controller) GetChannelsMsg(c *gin.Context) {
 
-	RoomId := c.Param("roomId")
+	ChannelsId := c.Param("channelId")
 
-	if _, err := uuid.Parse(RoomId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -124,19 +108,19 @@ func (base *Controller) GetRoomMsg(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	respData, code, err := room.GetRoomMsg(RoomId, UserId, base.Db.Postgresql)
+	respData, code, err := channel.GetChannelsMsg(ChannelsId, UserId, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("room messages fetched successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room messages fetched successfully", respData)
+	base.Logger.Info("channel messages fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel messages fetched successfully", respData)
 	c.JSON(code, rd)
 }
 
-func (base *Controller) AddRoomMsg(c *gin.Context) {
+func (base *Controller) AddChannelsMsg(c *gin.Context) {
 	var (
 		req models.CreateMessageRequest
 	)
@@ -155,10 +139,10 @@ func (base *Controller) AddRoomMsg(c *gin.Context) {
 		return
 	}
 
-	req.RoomId = c.Param("roomId")
+	req.ChannelsId = c.Param("channelId")
 
-	if _, err := uuid.Parse(req.RoomId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(req.ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -174,7 +158,7 @@ func (base *Controller) AddRoomMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := room.AddRoomMsg(req, base.Db.Postgresql)
+	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -186,12 +170,12 @@ func (base *Controller) AddRoomMsg(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) JoinRoom(c *gin.Context) {
+func (base *Controller) JoinChannels(c *gin.Context) {
 	var (
-		req models.JoinRoomRequest
+		req models.JoinChannelsRequest
 	)
 
-	room_id := c.Param("roomId")
+	channels_id := c.Param("channelId")
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -204,18 +188,17 @@ func (base *Controller) JoinRoom(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	user_id := userClaims["user_id"].(string)
 
-
-	if req.RoomID == "" {
-		req.RoomID = room_id
+	if req.ChannelsID == "" {
+		req.ChannelsID = channels_id
 	}
 	if req.UserID == "" {
 		req.UserID = user_id
 	}
 
-	newReq := models.JoinRoomRequest{
-		Username: req.Username,
-		RoomID: req.RoomID,
-		UserID: req.UserID,
+	newReq := models.JoinChannelsRequest{
+		Username:   req.Username,
+		ChannelsID: req.ChannelsID,
+		UserID:     req.UserID,
 	}
 
 	err := c.ShouldBindJSON(&newReq)
@@ -233,25 +216,25 @@ func (base *Controller) JoinRoom(c *gin.Context) {
 		return
 	}
 
-	room, code, err := room.JoinRoom(base.Db.Postgresql, newReq)
+	channel, code, err := channel.JoinChannels(base.Db.Postgresql, newReq)
 	if err != nil {
-		base.Logger.Info("error joining room")
+		base.Logger.Info("error joining channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("room joined successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room joined successfully", room)
+	base.Logger.Info("channel joined successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel joined successfully", channel)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) LeaveRoom(c *gin.Context) {
+func (base *Controller) LeaveChannels(c *gin.Context) {
 
-	roomId := c.Param("roomId")
+	channelId := c.Param("channelId")
 
-	if _, err := uuid.Parse(roomId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -267,25 +250,25 @@ func (base *Controller) LeaveRoom(c *gin.Context) {
 
 	user_id := userClaims["user_id"].(string)
 
-	code, err := room.LeaveRoom(base.Db.Postgresql, roomId, user_id)
+	code, err := channel.LeaveChannels(base.Db.Postgresql, channelId, user_id)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("user left room successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "user left room successfully", gin.H{})
+	base.Logger.Info("user left channel successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user left channel successfully", gin.H{})
 	c.JSON(code, rd)
 }
 
 func (base *Controller) UpdateUsername(c *gin.Context) {
-	var req models.UpdateRoomUserNameReq
+	var req models.UpdateChannelsUserNameReq
 
-	roomId := c.Param("roomId")
+	channelId := c.Param("channelId")
 
-	if _, err := uuid.Parse(roomId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -316,9 +299,9 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 		return
 	}
 
-	code, err := room.UpdateUsername(req, base.Db.Postgresql, roomId, userId)
+	code, err := channel.UpdateUsername(req, base.Db.Postgresql, channelId, userId)
 	if err != nil {
-		base.Logger.Info("error creating room")
+		base.Logger.Info("error creating channel")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
@@ -329,12 +312,12 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) DeleteRoom(c *gin.Context) {
+func (base *Controller) DeleteChannels(c *gin.Context) {
 
-	RoomId := c.Param("roomId")
+	ChannelsId := c.Param("channelId")
 
-	if _, err := uuid.Parse(RoomId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -349,60 +332,60 @@ func (base *Controller) DeleteRoom(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	code, err := room.DeleteRoom(base.Db.Postgresql, RoomId, UserId)
+	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("room deleted successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room deleted successfully", nil)
+	base.Logger.Info("channel deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel deleted successfully", nil)
 	c.JSON(code, rd)
 }
 
-func (base *Controller) GetRoomByName(c *gin.Context) {
-	name := c.Params.ByName("roomName")
+func (base *Controller) GetChannelsByName(c *gin.Context) {
+	name := c.Params.ByName("channelName")
 
-	respData, code, err := room.GetRoomByName(base.Db.Postgresql, name)
+	respData, code, err := channel.GetChannelsByName(base.Db.Postgresql, name)
 	if err != nil {
-		base.Logger.Info("error getting room")
+		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("room name retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room name retrieved successfully", respData)
+	base.Logger.Info("channel name retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel name retrieved successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) CountRoomUsers(c *gin.Context) {
-	roomId := c.Param("roomId")
+func (base *Controller) CountChannelsUsers(c *gin.Context) {
+	channelId := c.Param("channelId")
 
-	if _, err := uuid.Parse(roomId); err != nil {
-		base.Logger.Info("failed to get roomId")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(channelId); err != nil {
+		base.Logger.Info("failed to get channelId")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	totalCount, code, err := room.CountRoomUsers(base.Db.Postgresql, roomId)
+	totalCount, code, err := channel.CountChannelsUsers(base.Db.Postgresql, channelId)
 	if err != nil {
-		base.Logger.Info("error getting total room users")
+		base.Logger.Info("error getting total channel users")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("room users count retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room users count retrieved successfully", totalCount)
+	base.Logger.Info("channel users count retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel users count retrieved successfully", totalCount)
 	c.JSON(code, rd)
 }
 
-func (base *Controller) UpdateRoom(c *gin.Context) {
-	id := c.Param("roomId")
-	var req models.UpdateRoomRequest
+func (base *Controller) UpdateChannels(c *gin.Context) {
+	id := c.Param("channelId")
+	var req models.UpdateChannelsRequest
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -432,29 +415,29 @@ func (base *Controller) UpdateRoom(c *gin.Context) {
 		return
 	}
 
-	result, err := room.UpdateRoom(base.Db.Postgresql, req, id, userId)
+	result, err := channel.UpdateChannels(base.Db.Postgresql, req, id, userId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Room not found", err, nil)
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Channels not found", err, nil)
 			c.JSON(http.StatusNotFound, rd)
 		} else {
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update room", err, nil)
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update channel", err, nil)
 			c.JSON(http.StatusInternalServerError, rd)
 		}
 		return
 	}
 
-	base.Logger.Info("Room updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Room updated successfully", result)
+	base.Logger.Info("Channels updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Channels updated successfully", result)
 	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) CheckUser(c *gin.Context) {
 
-	RoomId := c.Param("roomId")
+	ChannelsId := c.Param("channelId")
 
-	if _, err := uuid.Parse(RoomId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid room id format", errors.New("failed to parse room id"), nil)
+	if _, err := uuid.Parse(ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -469,7 +452,7 @@ func (base *Controller) CheckUser(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	respData, code, err := room.CheckUser(RoomId, UserId, base.Db.Postgresql)
+	respData, code, err := channel.CheckUser(ChannelsId, UserId, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -481,13 +464,13 @@ func (base *Controller) CheckUser(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) SearchRoomByNames(c *gin.Context) {
-	name := c.Param("roomName")
+func (base *Controller) SearchChannelsByNames(c *gin.Context) {
+	name := c.Param("channelName")
 
-	rooms, paginationResponse, err := room.SearchRoomByNames(base.Db.Postgresql, c, name)
+	channels, paginationResponse, err := channel.SearchChannelsByNames(base.Db.Postgresql, c, name)
 	if err != nil {
-		base.Logger.Info("error fetching rooms")
-		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "failed to fetch rooms", err, nil)
+		base.Logger.Info("error fetching channels")
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "failed to fetch channels", err, nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}
@@ -496,10 +479,10 @@ func (base *Controller) SearchRoomByNames(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(rooms),
+		"total_items":  len(channels),
 	}
 
-	base.Logger.Info("room names retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "room names retrieved successfully", rooms, paginationData)
+	base.Logger.Info("channel names retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel names retrieved successfully", channels, paginationData)
 	c.JSON(http.StatusOK, rd)
 }

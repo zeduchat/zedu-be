@@ -5,15 +5,16 @@ import "github.com/hngprojects/telex_be/internal/models"
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.BlogCategory{},
+		models.Blog{},
 		models.User{},
 		models.AccessToken{},
-		models.Room{},
+		models.Channels{},
 		models.Profile{},
-		models.UserRoom{},
+		models.UserChannels{},
 		models.Message{},
 		models.MagicLink{},
 		models.PasswordReset{},
-		models.Team{},
 		models.Organisation{},
 		models.Permission{},
 		models.OrgRole{},

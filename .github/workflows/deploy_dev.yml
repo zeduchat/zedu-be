@@ -93,7 +93,7 @@ jobs:
             git pull origin dev
             gunzip -c /tmp/telex_be.tar.gz | docker load
             rm -f /tmp/telex_be.tar.gz
-            docker compose -f docker-compose.yml up -d
+            docker compose -f docker-compose.yml up --force-recreate -d
           '
 
       - name: Remove ssh_key

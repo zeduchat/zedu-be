@@ -23,8 +23,10 @@ tags:
     description: API for organization and role management
   - name: organisation
     description: API for organization related operations
-  - name: rooms
-    description: API for rooms endpoint
+  - name: channels
+    description: API for channels endpoint
+  - name: blogs
+    description: API for blog related operations
 
 
 paths:
@@ -1675,6 +1677,1041 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
+                
+  /channels:
+    post:
+      tags:
+        - channels
+      summary: Create a new channel
+      security:
+        - bearerAuth: []
+      description: Creates a new channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelCreateSchema'
+      responses:
+        '201':
+          description: Channel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelCreateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    get:
+      tags:
+        - channels
+      summary: Retrieve a list of channels
+      security:
+        - bearerAuth: []
+      description: Retrieves a list of channels.
+      responses:
+        '200':
+          description: Channels retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelsListResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /channels/{channel_id}/messages:
+    post:
+      tags:
+        - messages
+      summary: Create a new message
+      security:
+        - bearerAuth: []
+      description: Creates a new message within a channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreateSchema'
+      responses:
+        '201':
+          description: Message created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageCreateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    get:
+      tags:
+        - messages
+      summary: Retrieve a list of messages
+      security:
+        - bearerAuth: []
+      description: Retrieves a list of messages within a channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to retrieve messages for.
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesListResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+
+  /channels/name/{channelName}:
+    get:
+      tags:
+        - channels
+      summary: Retrieve a specific channel by name
+      security:
+        - bearerAuth: []
+      description: Retrieves detailed information about a specific channel by name.
+      parameters:
+        - name: channelName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the channel to retrieve.
+      responses:
+        '200':
+          description: Channel retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /channels/{channelId}/join:
+    post:
+      tags:
+        - channels
+      summary: Join a channel
+      security:
+        - bearerAuth: []
+      description: Adds the current user to a channel.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to join.
+      responses:
+        '200':
+          description: Channel joined successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelJoinResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+  
+  /channels/{channelId}/leave:
+    post:
+      tags:
+        - channels
+      summary: Leave a channel
+      security:
+        - bearerAuth: []
+      description: Removes the current user from a channel.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to leave.
+      responses:
+        '200':
+          description: Channel left successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelLeaveResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+
+  /channels/{channelId}/username:
+      patch:
+        tags:
+          - channels
+        summary: Update a channel's username
+        security:
+          - bearerAuth: []
+        description: Updates the username of a channel.
+        parameters:
+          - name: channelId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the channel to update the username for.
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelUsernameUpdateSchema'
+        responses:
+          '200':
+            description: Channel username updated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ChannelUsernameUpdateResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '403':
+            description: Forbidden
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ForbiddenErrorSchema'
+          '422':
+            description: Validation error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+  /channels/{channelId}/:
+    get:
+      tags:
+        - channels
+      summary: Retrieve a specific channel
+      security:
+        - bearerAuth: []
+      description: Retrieves detailed information about a specific channel.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to retrieve.
+      responses:
+        '200':
+          description: Channel retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+                
+    patch:
+        tags:
+          - channels
+        summary: Update a channel
+        security:
+          - bearerAuth: []
+        description: Updates a channel.
+        parameters:
+          - name: channelId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the channel to update.
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelUpdateSchema'
+        responses:
+          '200':
+            description: Channel updated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ChannelUpdateResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '403':
+            description: Forbidden
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ForbiddenErrorSchema'
+          '422':
+            description: Validation error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    delete:
+      tags:
+        - channels
+      summary: Delete a channel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Channel deleted successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /channels/{channelId}/user-exist:
+      get:
+        tags:
+          - channels
+        summary: Check if a user exists in a channel
+        security:
+          - bearerAuth: []
+        description: Checks if a user exists in a channel.
+        parameters:
+          - name: channelId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the channel to check for the user.
+          - name: userId
+            in: query
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the user to check for.
+        responses:
+          '200':
+            description: User exists in channel
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserExistResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
+                  
+  /organisations/{organisationId}/channels:
+      get:
+        tags:
+          - channels
+        summary: Get all channels in an organisation
+        security:
+          - bearerAuth: []
+        description: Get all channels in an organisation
+        parameters:
+          - name: organisationId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the organisation to check for the channel.
+        responses:
+          '200':
+            description: Get all channels in an organisation
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ChannelsFetchResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
+    
+  /channels/{channelId}/num-users:
+      get:
+        tags:
+          - channels
+        summary: Retrieve the number of users in a channel
+        security:
+          - bearerAuth: []
+        description: Retrieves the number of users in a channel.
+        parameters:
+          - name: channelId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the channel to retrieve the number of users for.
+        responses:
+          '200':
+            description: Number of users retrieved successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NumUsersResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
+                  
+  /blogs:
+    post:
+      tags:
+        - blogs
+      summary: create a blog post by admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: New Blog Post
+                content:
+                  type: string
+                  example: This is the content of the new blog post
+                category_id:
+                  type: string
+                  format: uuid
+                image_url:
+                  type: string
+                  example: http://image.com
+              required:
+                - title
+                - content
+                - category_id
+      responses:
+        '201':
+          description: blog created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: blog created successfully.   
+        
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+    
+    get:
+      tags:
+        - blogs
+      summary: get all blogs from the lastest
+      parameters:
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A list of all blogs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Blogs retrieved successfully.   
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "019143a0-c5cc-7c8b-be12-7b8143c3c60a"
+                        title:
+                          type: string
+                          example: "Airplane crash due to stalling"
+                        content:
+                          type: string
+                          example: "Brazil is somehwbrbere to pay sowntng"
+                        category_id:
+                          type: string
+                          format: uuid
+                        category:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "news"
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                        image_url:
+                          type: string
+                          format: uri
+                          example: "https://brazil.com"
+                        author_id:
+                          type: string
+                          format: uuid
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+        
+        '400':
+          description: Failed to fetch all blogs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /blogs/{blogId}:
+    get:
+      tags:
+        - blogs
+      summary: retrieve a single blog post
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Blog post retrieved successfully.   
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "019143a0-c5cc-7c8b-be12-7b8143c3c60a"
+                      title:
+                        type: string
+                        example: "Airplane crash due to stalling"
+                      content:
+                        type: string
+                        example: "Brazil is somehwbrbere to pay sowntng"
+                      category_id:
+                        type: string
+                        format: uuid
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                            example: "news"
+                          created_at:
+                            type: string
+                            format: date-time
+                          updated_at:
+                            type: string
+                            format: date-time
+                      image_url:
+                        type: string
+                        format: uri
+                        example: "https://brazil.com"
+                      author_id:
+                        type: string
+                        format: uuid
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+                
+  /blog_categories:
+   post:
+      tags:
+        - blogs
+      summary: create a blog category by admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: categoryName
+              required:
+                - name
+      responses:
+        '201':
+          description: blog category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: blog category created successfully.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                        example: "categoryName"
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-
+        '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+   get:
+      tags:
+        - blogs
+      summary: get all blogs category
+      parameters:
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A list of all blog categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: blog categories retrieved successfully.   
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                          example: "categoryName"
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+        
+        '400':
+          description: Failed to fetch all blogs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      
+
+
 
 components:
 
@@ -2342,6 +3379,81 @@ components:
           type: string
         country:
           type: string
+    
+    ChannelsFetchResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "channels fetched successfully"
+        data:
+          type: object
+          properties:
+            additional_info:
+              type: object
+              properties:
+                channels_count:
+                  type: integer
+                  example: 1
+                totalmessage_count:
+                  type: integer
+                  example: 1
+            channels:
+              type: array
+              items:
+                type: object
+                properties:
+                  channels_id:
+                    type: string
+                    format: uuid
+                    example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+                  name:
+                    type: string
+                    example: "hackers"
+                  description:
+                    type: string
+                    example: "this room is meant for hackers"
+                  is_private:
+                    type: boolean
+                    example: false
+                  organisation_id:
+                    type: string
+                    format: uuid
+                    example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+                  owner_id:
+                    type: string
+                    format: uuid
+                    example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
+                  users:
+                    type: array
+                    items:
+                      type: string
+                    nullable: true
+                  user_count:
+                    type: integer
+                    example: 0
+                  message_count:
+                    type: integer
+                    example: 0
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "2024-08-12T15:23:56.147736+01:00"
+                  deleted_at:
+                    type: string
+                    format: date-time
+                    example: "0001-01-01T00:13:35+00:13"
+                  messages:
+                    type: array
+                    items:
+                      type: string
+                    nullable: true
           
     organizationResData:
       type: object
@@ -2624,6 +3736,501 @@ components:
           format: uuid
           example: 019144c2-c180-7db9-a1e1-72feac95b9b9
 
+    CreateChannelSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the channel
+        description:
+          type: string
+          description: Description of the channel
+        is_private:
+          type: boolean
+          description: Whether the channel is private or not
+        is_dm:
+          type: boolean
+          description: Whether the channel is a direct message channel or not
+        user_ids:
+          type: array
+          items:
+            type: string
+          description: List of user IDs to add to the channel
+        organization_id:
+          type: string
+          format: uuid
+          description: ID of the organization the channel belongs to
+        created_by:
+          type: string
+          format: uuid
+          description: ID of the user who created the channel
+        
+    CreateChannelResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 201
+        message:
+          type: string
+          example: Channel created successfully
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            name:
+              type: string
+              example: General
+            description:
+              type: string
+              example: General discussion
+            is_private:
+              type: boolean
+              example: false
+            is_dm:
+              type: boolean
+              example: false
+            organization_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            created_by:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            created_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+            updated_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+
+    ChannelsListResponseSchema:
+      type: object
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelResponseSchema'
+
+    ChannelResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "channel name retrieved successfully"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              channels_id:
+                type: string
+                format: uuid
+                example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+              name:
+                type: string
+                example: "hackers"
+              description:
+                type: string
+                example: "this room is meant for hackers"
+              is_private:
+                type: boolean
+                example: false
+              organisation_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              owner_id:
+                type: string
+                format: uuid
+                example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
+              users:
+                type: array
+                items:
+                  type: string
+                nullable: true
+              user_count:
+                type: integer
+                example: 1
+              message_count:
+                type: integer
+                example: 0
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-12T15:23:56.147736+01:00"
+              deleted_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:13:35+00:13"
+              messages:
+                type: array
+                items:
+                  type: string
+                nullable: true
+
+    MessageCreateSchema:
+      type: object
+      properties:
+      
+        content:
+          type: string
+          description: Content of the message
+        channel_id:
+          type: string
+          format: uuid
+          description: ID of the channel the message belongs to
+        user_id:
+          type: string
+          format: uuid
+          description: ID of the user who sent the message
+  
+          
+
+    MessageCreateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 201
+        message:
+          type: string
+          example: Message sent successfully
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            content:
+              type: string
+              example: Hello, world!
+            channel_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            user_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            created_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+      
+
+    MessagesListResponseSchema:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponseSchema'
+
+    MessageResponseSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        channel_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+
+    ChannelJoinResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: User joined channel successfully
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+
+            user_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            channel_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            organisation_id:
+              type: string
+              format: uuid
+            owner_id:
+              type: string
+              format: uuid
+            created_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+            updated_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+
+    ChannelLeaveResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: User left channel successfully
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+
+            user_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            channel_id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            organisation_id:
+              type: string
+              format: uuid
+            owner_id:
+              type: string
+              format: uuid
+            created_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+            updated_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+
+    ChannelUsernameUpdateSchema:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Updated name of the channel
+
+    ChannelUsernameUpdateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+        status_code:
+          type: integer
+        message:
+          type: string
+
+
+    UserExistResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: User exists
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            username:
+              type: string
+              example: johndoe
+            email:
+              type: string
+              example: micah@gmail.com
+            phone:
+              type: string
+              example: 08012345678
+            created_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+            updated_at:
+              type: string
+              format: date-time
+              example: 2024-07-30T21:11:21.9538358+01:00
+            
+    ChannelUpdateSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Updated name of the channel
+        description:
+          type: string
+          description: Updated description of the channel
+        is_private:
+          type: boolean
+          description: Whether the channel is private or not
+
+    ChannelCreateSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the channel
+        description:
+          type: string
+          description: Description of the channel
+        is_private:
+          type: boolean
+          description: Whether the channel is private or not
+        organization_id:
+          type: string
+          format: uuid
+          description: ID of the organization the channel belongs to
+        created_by:
+          type: string
+          format: uuid
+          description: ID of the user who created the channel
+
+    ChannelCreateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 201
+        message:
+          type: string
+          example: "channel created successfully"
+        data:
+          type: object
+          properties:
+            channels_id:
+              type: string
+              format: uuid
+              example: "019146da-d92a-7264-90ee-80ea37e54cfc"
+            name:
+              type: string
+              example: "hackers"
+            description:
+              type: string
+              example: "this room is meant for hackers"
+            is_private:
+              type: boolean
+              example: false
+            organization_id:
+              type: string
+              format: uuid
+              example: "0191442b-0202-751d-8b35-fdc41b8fbc06"
+            owner_id:
+              type: string
+              format: uuid
+              example: "01913d5e-c15a-7394-b62e-416b894cb173"
+            users:
+              type: array
+              items:
+                type: string
+              nullable: true
+            user_count:
+              type: integer
+              example: 0
+            message_count:
+              type: integer
+              example: 0
+            created_at:
+              type: string
+              format: date-time
+              example: "2024-08-12T14:50:33.258778+01:00"
+            deleted_at:
+              type: string
+              format: date-time
+              example: "0001-01-01T00:13:35+00:13"
+            messages:
+              type: array
+              items:
+                type: string
+              nullable: true
+
+    ChannelUpdateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+        status_code:
+          type: integer
+        message:
+          type: string
+
+    NumUsersResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+        status_code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            num_users:
+              type: integer
+              example: 10
+
+
   responses:
     UnauthorizedError:
       description: Authentication information is missing or invalid
@@ -2652,6 +4259,8 @@ components:
               message:
                 type: string
                 example: Not Found      
+
+    
 
   parameters:
     PageLimitParam:

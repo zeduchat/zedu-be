@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/services/organisation"
 	service "github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -105,6 +107,34 @@ func (base *Controller) GetOrganisation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, rd)
 
+}
+
+func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
+	orgID := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgID); err != nil {
+		base.Logger.Info("error parsing org id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org id format", errors.New("failed to parse org id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, additionalInfo, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
+	if err != nil {
+		base.Logger.Info("error fetching channels")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	response := gin.H{
+		"channels":        respData,
+		"additional_info": additionalInfo,
+	}
+
+	base.Logger.Info("channels fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channels fetched successfully", response)
+	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) UpdateOrganisation(c *gin.Context) {
