@@ -111,7 +111,7 @@ func (base *Controller) LoginUser(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := auth.LoginUser(req, base.Db.Postgresql)
+	respData, code, err := auth.LoginUser(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

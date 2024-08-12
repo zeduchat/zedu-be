@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
@@ -61,6 +62,10 @@ func SetupOrgTestRouter() (*gin.Engine, *organisation.Controller) {
 		Db:        db,
 		Validator: validator,
 		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
 	}
 
 	r := gin.Default()

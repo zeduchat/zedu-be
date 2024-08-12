@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -17,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (models.CreateUserRequestModel, error) {
@@ -108,7 +110,7 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 	return nil, http.StatusCreated, nil
 }
 
-func LoginUser(req models.LoginRequestModel, db *gorm.DB) (gin.H, int, error) {
+func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
@@ -167,7 +169,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB) (gin.H, int, error) {
 		},
 		"access_token": tokenData.AccessToken,
 	}
-
+	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
 	return responseData, http.StatusOK, nil
 }
 

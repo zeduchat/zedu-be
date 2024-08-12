@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	tkn "github.com/hngprojects/telex_be/pkg/controller/token"
@@ -41,7 +42,11 @@ func TestToken(t *testing.T) {
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 

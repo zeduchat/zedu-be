@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/teams"
@@ -41,7 +42,11 @@ func TestTeamsEndpoints(t *testing.T) {
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	team := teams.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
@@ -67,7 +72,7 @@ func TestTeamsEndpoints(t *testing.T) {
 		{
 			Name: "Create Team Action",
 			RequestBody: models.CreateTeamRequest{
-				Name:        "Test-Team"+utility.GenerateUUID(),
+				Name:        "Test-Team" + utility.GenerateUUID(),
 				Description: "This is a test team",
 			},
 			ExpectedCode: http.StatusCreated,
@@ -89,7 +94,7 @@ func TestTeamsEndpoints(t *testing.T) {
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
-		},{
+		}, {
 			Name:         "Get All Rooms in a Team Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "rooms fetched successfully",
