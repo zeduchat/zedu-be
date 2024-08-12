@@ -25,6 +25,8 @@ tags:
     description: API for organization related operations
   - name: channels
     description: API for channels endpoint
+  - name: blogs
+    description: API for blog related operations
 
 
 paths:
@@ -2352,6 +2354,362 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
+                  
+  /blogs:
+    post:
+      tags:
+        - blogs
+      summary: create a blog post by admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: New Blog Post
+                content:
+                  type: string
+                  example: This is the content of the new blog post
+                category_id:
+                  type: string
+                  format: uuid
+                image_url:
+                  type: string
+                  example: http://image.com
+              required:
+                - title
+                - content
+                - category_id
+      responses:
+        '201':
+          description: blog created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: blog created successfully.   
+        
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+    
+    get:
+      tags:
+        - blogs
+      summary: get all blogs from the lastest
+      parameters:
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A list of all blogs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Blogs retrieved successfully.   
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "019143a0-c5cc-7c8b-be12-7b8143c3c60a"
+                        title:
+                          type: string
+                          example: "Airplane crash due to stalling"
+                        content:
+                          type: string
+                          example: "Brazil is somehwbrbere to pay sowntng"
+                        category_id:
+                          type: string
+                          format: uuid
+                        category:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "news"
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                        image_url:
+                          type: string
+                          format: uri
+                          example: "https://brazil.com"
+                        author_id:
+                          type: string
+                          format: uuid
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+        
+        '400':
+          description: Failed to fetch all blogs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /blogs/{blogId}:
+    get:
+      tags:
+        - blogs
+      summary: retrieve a single blog post
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Blog post retrieved successfully.   
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "019143a0-c5cc-7c8b-be12-7b8143c3c60a"
+                      title:
+                        type: string
+                        example: "Airplane crash due to stalling"
+                      content:
+                        type: string
+                        example: "Brazil is somehwbrbere to pay sowntng"
+                      category_id:
+                        type: string
+                        format: uuid
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                            example: "news"
+                          created_at:
+                            type: string
+                            format: date-time
+                          updated_at:
+                            type: string
+                            format: date-time
+                      image_url:
+                        type: string
+                        format: uri
+                        example: "https://brazil.com"
+                      author_id:
+                        type: string
+                        format: uuid
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+                
+  /blog_categories:
+   post:
+      tags:
+        - blogs
+      summary: create a blog category by admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: categoryName
+              required:
+                - name
+      responses:
+        '201':
+          description: blog category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: blog category created successfully.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                        example: "categoryName"
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-
+        '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+   get:
+      tags:
+        - blogs
+      summary: get all blogs category
+      parameters:
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A list of all blog categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: blog categories retrieved successfully.   
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                          example: "categoryName"
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+        
+        '400':
+          description: Failed to fetch all blogs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      
 
 
 
