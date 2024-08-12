@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
@@ -42,7 +43,12 @@ func TestOrganizationCreate(t *testing.T) {
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
@@ -200,7 +206,11 @@ func TestGetOrganisation(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 	currUUID := utility.GenerateUUID()
-	user := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	user := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 
@@ -300,7 +310,11 @@ func TestOrganisationUpdate(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 	currUUID := utility.GenerateUUID()
-	user := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	user := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 
@@ -443,7 +457,10 @@ func TestOrganisationDelete(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 	currUUID := utility.GenerateUUID()
-	user := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	user := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{
+		Logger: logger,
+		Test:   true,
+	}}
 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 
@@ -558,7 +575,10 @@ func TestGetUsersInOrg(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 	currUUID := utility.GenerateUUID()
-	user := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	user := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{
+		Logger: logger,
+		Test:   true,
+	}}
 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 

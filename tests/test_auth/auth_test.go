@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -86,7 +87,11 @@ func TestUserSignup(t *testing.T) {
 		},
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 
 	for _, test := range tests {
 		r := gin.Default()
@@ -196,7 +201,11 @@ func TestAdminSignup(t *testing.T) {
 		},
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 
 	for _, test := range tests {
 		r := gin.Default()
@@ -300,7 +309,11 @@ func TestLogin(t *testing.T) {
 		},
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	r := gin.Default()
 	r.POST(loginPath, auth.LoginUser)
 
@@ -369,7 +382,10 @@ func TestLogout(t *testing.T) {
 		Password: userSignUpData.Password,
 	}
 
-	authen := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	authen := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{
+		Logger: logger,
+		Test:   true,
+	}}
 	r := gin.Default()
 	tst.SignupUser(t, r, authen, userSignUpData, false)
 
