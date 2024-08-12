@@ -23,6 +23,9 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 		return err
 	}
 
+	req.Title = utility.CleanStringInput(req.Title)
+	req.Title = utility.CleanStringInput(req.Content)
+
 	blog := models.Blog{
 		ID:         utility.GenerateUUID(),
 		Title:      req.Title,

@@ -11,6 +11,8 @@ import (
 )
 
 func CreateBlogCategory(req models.BlogCategoryCreateReq, db *gorm.DB) (models.BlogCategory, error) {
+	req.Name = utility.CleanStringInput(req.Name)
+
 	blogCategory := models.BlogCategory{
 		ID:   utility.GenerateUUID(),
 		Name: strings.ToLower(req.Name),
