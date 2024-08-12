@@ -14,8 +14,8 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/controller/room"
-	"github.com/hngprojects/telex_be/pkg/controller/teams"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -37,7 +37,7 @@ func TestMessage(t *testing.T) {
 		Password:    "password",
 		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
-	
+
 	loginData := models.LoginRequestModel{
 		Email:    userSignUpData.Email,
 		Password: userSignUpData.Password,
@@ -49,29 +49,31 @@ func TestMessage(t *testing.T) {
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
 	room := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	team := teams.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	token := tst.GetLoginToken(t, r, auth, loginData)
 
-	createTeamData := models.CreateTeamRequest{
-		Name:        fmt.Sprintf("TestTeam%s", utility.GenerateUUID()),
+	createOrgData := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("TestTeam%s", currUUID),
 		Description: "Some Random description",
+		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+		Type:        "type1",
+		Location:   "wakanda",
+		Country:     "wakanda",
 	}
 
-	teamId, _ := tst.CreateTeam(t, r, team, db, createTeamData, token)
+	orgId, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
 	createRoomData := models.CreateRoomRequest{
-		Name:        fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
-		Username:    fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
-		TeamID: 	 teamId,
-		Description: "Some Random description",
+		Name:           fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
+		OrganisationID: orgId,
+		Description:    "Some Random description",
 	}
 
 	roomId, _ := tst.CreateRoom(t, r, room, db, createRoomData, token)
 
 	fmt.Println("Room ID: ", roomId)
-
-
 
 	tests := []struct {
 		Name         string

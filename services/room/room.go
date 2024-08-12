@@ -12,25 +12,16 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func GetRooms(db *gorm.DB) ([]models.Room, int, error) {
-	var room models.Room
-
-	rooms, err := room.GetRooms(db)
-	if err != nil {
-		return rooms, http.StatusInternalServerError, err
-	}
-	return rooms, http.StatusOK, nil
-}
 
 func CreateRoom(req models.CreateRoomRequest, db *gorm.DB, userId string) (models.Room, int, error) {
 	var joinRoomReq models.JoinRoomRequest
 
 	room := models.Room{
-		ID:          utility.GenerateUUID(),
-		Name:        req.Name,
-		Description: req.Description,
-		OwnerId:     userId,
-		TeamID:      req.TeamID,
+		ID:             utility.GenerateUUID(),
+		Name:           req.Name,
+		Description:    req.Description,
+		OwnerId:        userId,
+		OrganisationID: req.OrganisationID,
 	}
 
 	joinRoomReq.RoomID = room.ID
@@ -82,7 +73,7 @@ func GetRoomMsg(roomId, userID string, db *gorm.DB) ([]models.Message, int, erro
 
 }
 
-func JoinRoom(db *gorm.DB, req models.JoinRoomRequest) (models.Room,int, error) {
+func JoinRoom(db *gorm.DB, req models.JoinRoomRequest) (models.Room, int, error) {
 	var r models.Room
 
 	room, err := r.AddUserToRoom(db, req)
@@ -110,7 +101,7 @@ func LeaveRoom(db *gorm.DB, room_id, user_id string) (int, error) {
 
 }
 
-func AddRoomMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message,int, error) {
+func AddRoomMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message, int, error) {
 
 	message := models.Message{
 		Content: req.Content,
@@ -172,7 +163,7 @@ func CountRoomUsers(db *gorm.DB, roomId string) (int64, int, error) {
 
 func UpdateRoom(db *gorm.DB, req models.UpdateRoomRequest, roomId string, userId string) (models.Room, error) {
 	var r models.Room
-	updatedRoom, _, err := r.UpdateRoom(db, req ,roomId, userId)
+	updatedRoom, _, err := r.UpdateRoom(db, req, roomId, userId)
 	if err != nil {
 		return updatedRoom, err
 	}

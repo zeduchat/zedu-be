@@ -13,7 +13,6 @@ func AuthMigrationModels() []interface{} {
 		models.Message{},
 		models.MagicLink{},
 		models.PasswordReset{},
-		models.Team{},
 		models.Organisation{},
 		models.Permission{},
 		models.OrgRole{},

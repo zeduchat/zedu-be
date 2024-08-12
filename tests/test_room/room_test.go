@@ -14,8 +14,8 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/controller/room"
-	"github.com/hngprojects/telex_be/pkg/controller/teams"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -44,24 +44,29 @@ func TestRoomEndpoints(t *testing.T) {
 
 	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	roomController := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	team := teams.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
+	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+
 	token := tst.GetLoginToken(t, r, auth, loginData)
 
-	createTeamData := models.CreateTeamRequest{
-		Name:        fmt.Sprintf("TestTeam%s", utility.GenerateUUID()),
+	createOrgData := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("TestTeam%s", currUUID),
 		Description: "Some Random description",
+		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
 	}
 
-	teamId, _ := tst.CreateTeam(t, r, team, db, createTeamData, token)
+	orgId, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
 	createRoomData := models.CreateRoomRequest{
-		Name:        fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
-		Username:    fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
-		TeamID:      teamId,
-		Description: "Some Random description",
+		Name:           fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
+		OrganisationID: orgId,
+		Description:    "Some Random description",
 	}
 
 	room_id, roomName := tst.CreateRoom(t, r, roomController, db, createRoomData, token)
@@ -78,25 +83,14 @@ func TestRoomEndpoints(t *testing.T) {
 		{
 			Name: "Create Room Action",
 			RequestBody: models.CreateRoomRequest{
-				Name:        "Test-Room",
-				Description: "This is a test room",
-				Username:    userSignUpData.UserName,
-				TeamID:      teamId,
+				Name:           "Test-Room",
+				Description:    "This is a test room",
+				Username:       userSignUpData.UserName,
+				OrganisationID: orgId,
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "room created successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: "/api/v1/rooms/"},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name:         "Get Rooms Action",
-			ExpectedCode: http.StatusOK,
-			Message:      "rooms retrieved successfully",
-			Method:       http.MethodGet,
 			RequestURI:   url.URL{Path: "/api/v1/rooms/"},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
@@ -210,7 +204,6 @@ func TestRoomEndpoints(t *testing.T) {
 
 		roomUrl := r.Group(fmt.Sprintf("%v", "/api/v1/rooms"), middleware.Authorize(db.Postgresql))
 		{
-			roomUrl.GET("/", room.GetRooms)
 			roomUrl.POST("/", room.CreateRoom)
 			roomUrl.GET("/:roomId", room.GetRoom)
 			roomUrl.POST("/:roomId/join", room.JoinRoom)

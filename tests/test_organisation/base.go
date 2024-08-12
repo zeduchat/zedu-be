@@ -38,14 +38,12 @@ func initialise(currUUID string, t *testing.T, r *gin.Engine, db *storage.Databa
 		Name:        fmt.Sprintf("Org %v", currUUID),
 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
 		Description: "Some random description about vibranium",
-		State:       "test",
-		Industry:    "user",
 		Type:        "type1",
-		Address:     "wakanda land",
+		Location:   "wakanda",
 		Country:     "wakanda",
 	}
 
-	orgID := tst.CreateOrganisation(t, r, db, org, organisationCreationData, token)
+	orgID, _ := tst.CreateOrganisation(t, r, db, org, organisationCreationData, token)
 
 	return orgID, token
 }

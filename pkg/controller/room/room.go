@@ -66,22 +66,6 @@ func (base *Controller) CreateRoom(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) GetRooms(c *gin.Context) {
-
-	respData, code, err := room.GetRooms(base.Db.Postgresql)
-	if err != nil {
-		base.Logger.Info("error getting rooms")
-		rd := utility.BuildErrorResponse(code, "error",
-			err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	base.Logger.Info("rooms retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "rooms retrieved successfully", respData)
-	c.JSON(http.StatusOK, rd)
-}
-
 func (base *Controller) GetRoom(c *gin.Context) {
 	room_id := c.Param("roomId")
 

@@ -17,13 +17,13 @@ type Room struct {
 	Description string `gorm:"column:description; type:text; not null" json:"description"`
 	IsPrivate   bool   `gorm:"column:is_private; type:bool" json:"is_private"`
 
-	TeamID       string    `gorm:"column:team_id; type:uuid" json:"team_id"`
-	OwnerId      string    `gorm:"column:owner_id; type:uuid" json:"owner_id"`
-	Users        []User    `gorm:"many2many:user_rooms;" json:"users"`
-	UserCount    int64     `gorm:"-" json:"user_count"`
-	MessageCount int64     `gorm:"-" json:"message_count"`
-	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt    time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+	OrganisationID string    `gorm:"column:organisation_id; type:uuid" json:"organisation_id"`
+	OwnerId        string    `gorm:"column:owner_id; type:uuid" json:"owner_id"`
+	Users          []User    `gorm:"many2many:user_rooms;" json:"users"`
+	UserCount      int64     `gorm:"-" json:"user_count"`
+	MessageCount   int64     `gorm:"-" json:"message_count"`
+	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 
 	Messages []Message `gorm:"foreignKey:RoomID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 }
@@ -37,10 +37,10 @@ type UserRoom struct {
 }
 
 type CreateRoomRequest struct {
-	TeamID      string `json:"team_id" validate:"required"`
-	Username    string `json:"username" validate:"required"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	OrganisationID string `json:"organisation_id"`
+	Username       string `json:"username" validate:"required"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
 }
 
 type GetRoomRequest struct {
@@ -134,24 +134,6 @@ func (r *Room) GetRoomByID(db *gorm.DB, roomID string) (Room, error) {
 	return room, nil
 }
 
-func (r *Room) GetRooms(db *gorm.DB) ([]Room, error) {
-	var (
-		rooms []Room
-		ur    UserRoom
-	)
-
-	err := postgresql.SelectAllFromDb(db, "", &rooms, "")
-	if err != nil {
-		return rooms, err
-	}
-
-	for i, room := range rooms {
-		count, _ := ur.CountRoomUsers(db, room.ID)
-
-		rooms[i].UserCount = count
-	}
-	return rooms, nil
-}
 
 func (u *UserRoom) CountRoomUsers(db *gorm.DB, roomID string) (int64, error) {
 	var count int64
@@ -261,8 +243,6 @@ func (r *Room) RemoveUserFromRoom(db *gorm.DB, roomID, userID string) error {
 	if err != nil {
 		return errors.New("could not get user in room")
 	}
-
-
 
 	err = postgresql.DeleteRecordFromDb(db, &userRoom)
 	if err != nil {

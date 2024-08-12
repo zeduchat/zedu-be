@@ -17,20 +17,22 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	organisation := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	organisationUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
+	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 
-		organisationUrl.POST("/organisations", organisation.CreateOrganisation)
-		organisationUrl.GET("/organisations/:org_id", organisation.GetOrganisation)
-		organisationUrl.DELETE("/organisations/:org_id", organisation.DeleteOrganisation)
-		organisationUrl.PUT("/organisations/:org_id", organisation.UpdateOrganisation)
-		organisationUrl.GET("/organisations/:org_id/users", organisation.GetUsersInOrganisation)
-		organisationUrl.POST("/organisations/:org_id/roles", organisation.CreateOrgRole)
-		organisationUrl.GET("/organisations/:org_id/roles", organisation.GetOrgRoles)
-		organisationUrl.GET("/organisations/:org_id/roles/:role_id", organisation.GetAOrgRole)
-		organisationUrl.DELETE("/organisations/:org_id/roles/:role_id", organisation.DeleteOrgRole)
-		organisationUrl.PUT("/organisations/:org_id/roles/:role_id", organisation.UpdateOrgRole)
-		organisationUrl.PUT("/organisations/:org_id/roles/:role_id/permissions", organisation.UpdateOrgPermissions)
+		organisationUrl.POST("/", organisation.CreateOrganisation)
+		organisationUrl.GET("/:org_id", organisation.GetOrganisation)
+		organisationUrl.DELETE("/:org_id", organisation.DeleteOrganisation)
+		organisationUrl.PUT("/:org_id", organisation.UpdateOrganisation)
+		organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
+		organisationUrl.POST("/:org_id/roles", organisation.CreateOrgRole)
+		organisationUrl.GET("/:org_id/roles", organisation.GetOrgRoles)
+		organisationUrl.GET("/:org_id/roles/:role_id", organisation.GetAOrgRole)
+		organisationUrl.DELETE("/:org_id/roles/:role_id", organisation.DeleteOrgRole)
+		organisationUrl.PUT("/:org_id/roles/:role_id", organisation.UpdateOrgRole)
+		organisationUrl.PUT("/:org_id/roles/:role_id/permissions", organisation.UpdateOrgPermissions)
+
+		organisationUrl.GET("/:org_id/rooms", organisation.GetAllRoomsInOrganisation)
 	}
 
 	return r

@@ -171,7 +171,7 @@ func TestGetAOrgRole(t *testing.T) {
 
 	role := models.OrgRole{
 		ID:             roleID,
-		Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(5)),
+		Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(6)),
 		Description:    "Administrator role",
 		OrganisationID: orgID,
 	}

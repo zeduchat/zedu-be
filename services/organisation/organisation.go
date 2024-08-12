@@ -42,11 +42,8 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		Name:        strings.ToLower(req.Name),
 		Description: strings.ToLower(req.Description),
 		Email:       strings.ToLower(req.Email),
-		State:       strings.ToLower(req.State),
-		Industry:    strings.ToLower(req.Industry),
 		Type:        strings.ToLower(req.Type),
 		OwnerID:     userId,
-		Address:     strings.ToLower(req.Address),
 		Country:     strings.ToLower(req.Country),
 	}
 
@@ -93,6 +90,17 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	}
 
 	return &org, nil
+}
+
+func GetAllRoomsInTeam(db *gorm.DB, orgID string) ([]models.Room, map[string]interface{}, error) {
+	var o models.Organisation
+
+	rooms, additionalInfo, err := o.GetAllRoomsInOrganisation(db, orgID)
+	if err != nil {
+		return rooms, map[string]interface{}{}, err
+	}
+
+	return rooms, additionalInfo, nil
 }
 
 func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB) (*models.Organisation, error) {

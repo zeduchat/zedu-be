@@ -12,31 +12,33 @@ import (
 )
 
 type Organisation struct {
-	ID          string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name        string         `gorm:"type:varchar(255);not null" json:"name"`
-	Description string         `gorm:"type:text" json:"description"`
-	Email       string         `gorm:"type:varchar(255);unique" json:"email"`
-	State       string         `gorm:"type:varchar(255)" json:"state"`
-	Industry    string         `gorm:"type:varchar(255)" json:"industry"`
-	Type        string         `gorm:"type:varchar(255)" json:"type"`
-	Address     string         `gorm:"type:varchar(255)" json:"address"`
-	Country     string         `gorm:"type:varchar(255)" json:"country"`
-	OwnerID     string         `gorm:"type:uuid;" json:"owner_id"`
-	OrgRoles    []OrgRole      `gorm:"foreignKey:OrganisationID" json:"org_roles"`
-	Users       []User         `gorm:"many2many:user_organisations;foreignKey:ID;joinForeignKey:organisation_id;References:ID;joinReferences:user_id"`
-	CreatedAt   time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                 string `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	Name               string `gorm:"type:varchar(255);not null" json:"name"`
+	Description        string `gorm:"type:text" json:"description"`
+	Email              string `gorm:"type:varchar(255);unique" json:"email"`
+	Type               string `gorm:"type:varchar(255)" json:"type"`
+	Location           string `gorm:"type:varchar(255)" json:"location"`
+	Country            string `gorm:"type:varchar(255)" json:"country"`
+	OwnerID            string `gorm:"type:uuid;" json:"owner_id"`
+	RoomsCount         int64  `gorm:"-" json:"rooms_count"`
+	TotalMessagesCount int64  `gorm:"-" json:"total_messages_count"`
+
+	OrgRoles []OrgRole `gorm:"foreignKey:OrganisationID" json:"org_roles"`
+	Users    []User    `gorm:"many2many:user_organisations;foreignKey:ID;joinForeignKey:organisation_id;References:ID;joinReferences:user_id"`
+
+	CreatedAt time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Rooms []Room `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"rooms"`
 }
 
 type CreateOrgRequestModel struct {
 	Name        string `json:"name" validate:"required,min=2,max=255"`
 	Description string `json:"description" `
 	Email       string `json:"email" validate:"required"`
-	State       string `json:"state" validate:"required"`
-	Industry    string `json:"industry" validate:"required"`
 	Type        string `json:"type" validate:"required"`
-	Address     string `json:"address" validate:"required"`
+	Location    string `json:"location" validate:"required"`
 	Country     string `json:"country" validate:"required"`
 }
 
@@ -44,10 +46,8 @@ type UpdateOrgRequestModel struct {
 	Name        string `json:"name"`
 	Description string `json:"description" `
 	Email       string `json:"email"`
-	State       string `json:"state"`
-	Industry    string `json:"industry"`
 	Type        string `json:"type"`
-	Address     string `json:"address"`
+	Location    string `json:"location"`
 	Country     string `json:"country"`
 }
 
@@ -94,6 +94,11 @@ func (c *Organisation) Update(db *gorm.DB) (*Organisation, error) {
 func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, error) {
 	var org Organisation
 
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return org, errors.New("organisation not found")
+	}
+
 	query := db.Where("id = ?", orgID)
 	query = postgresql.PreloadEntities(query, &org, "OrgRoles", "OrgRoles.Permissions")
 
@@ -101,7 +106,45 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 		return org, err
 	}
 
+	roomsCount, err := o.CountOrganisationRooms(db, orgID)
+	if err != nil {
+		return org, err
+	}
+
+	org.RoomsCount = roomsCount
+
 	return org, nil
+}
+
+func (o *Organisation) GetAllRoomsInOrganisation(db *gorm.DB, orgID string) ([]Room, map[string]interface{}, error) {
+	var (
+		rooms []Room
+	)
+
+	exists := postgresql.CheckExists(db, &o, "id = ?", orgID)
+	if !exists {
+		return rooms, map[string]interface{}{}, errors.New("organisation does not exist")
+	}
+
+	err := postgresql.SelectAllFromDb(db, "desc", &rooms, "organisation_id = ?", orgID)
+	if err != nil {
+		return rooms, map[string]interface{}{}, err
+	}
+
+	totalRoomCount := len(rooms)
+	totalMessagesCount := int64(0)
+
+	for _, room := range rooms {
+		count, _ := room.CountRoomMessages(db, room.ID)
+		totalMessagesCount += int64(count)
+	}
+
+	additionalInfo := map[string]interface{}{
+		"rooms_count":         int64(totalRoomCount),
+		"totalmessage_count": totalMessagesCount,
+	}
+
+	return rooms, additionalInfo, nil
 }
 
 func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]Organisation, error) {
@@ -256,4 +299,14 @@ func (o *Organisation) IsOwnerOfOrganisation(db *gorm.DB, requesterID, organisat
 	}
 
 	return count > 0, nil
+}
+
+func (o *Organisation) CountOrganisationRooms(db *gorm.DB, orgId string) (int64, error) {
+	var rs []Room
+
+	err := postgresql.SelectAllFromDb(db, "", &rs, "organisation_id = ?", orgId)
+	if err != nil {
+		return 0, errors.New("error counting rooms in an organisation")
+	}
+	return int64(len(rs)), nil
 }
