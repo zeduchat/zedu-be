@@ -37,9 +37,8 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Blog(r, ApiVersion, validator, db, logger)
 	Health(r, ApiVersion, validator, db, logger)
 	Auth(r, ApiVersion, validator, db, logger)
-	Room(r, ApiVersion, validator, db, logger)
+	Channels(r, ApiVersion, validator, db, logger)
 	TokenGen(r, ApiVersion, validator, db, logger)
-	Team(r, ApiVersion, validator, db, logger)
 	Organisation(r, ApiVersion, validator, db, logger)
 	User(r, ApiVersion, validator, db, logger)
 

@@ -16,7 +16,7 @@ type User struct {
 	IsVerified    bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
 	IsOnboarded   bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
 	Profile       Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
-	Rooms         []Room         `gorm:"many2many:user_rooms;" json:"rooms"`
+	Channelss     []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
 	OrgRoleID     *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
 	OrgRole       OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
@@ -24,7 +24,6 @@ type User struct {
 	CreatedAt     time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
-	Team          Team           `gorm:"foreignKey:OwnerId;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"team"`
 	Role          int            `gorm:"foreignKey:RoleID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"role"`
 }
 
