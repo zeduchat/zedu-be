@@ -39,7 +39,6 @@ func GetAUserLoginActivity(userIDStr string, db *gorm.DB, c *gin.Context) (*[]mo
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &loginResp, nil, http.StatusNoContent, nil
 		}
-		fmt.Println(err)
 		return &loginResp, nil, http.StatusBadRequest, err
 
 	}
@@ -69,13 +68,11 @@ func GetAUserSessions(userIDStr string, db *gorm.DB, c *gin.Context) (*[]models.
 	}
 
 	isSuperAdmin := user.CheckUserIsAdmin(db)
-	fmt.Println(isSuperAdmin)
 	accessResp, paginationResponse, err := accessData.FetchAllUserSessions(db, c, userIDStr, userID, isSuperAdmin)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
 		}
-		fmt.Println(err)
 		return &accessResp, nil, http.StatusBadRequest, err
 
 	}

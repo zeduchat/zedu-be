@@ -82,7 +82,6 @@ func TestGetUserLoginAudit(t *testing.T) {
 			Password: "password",
 		}
 		token := tests.GetLoginToken(t, router, *userController, loginData)
-		fmt.Println(token)
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/login-audit", adminUser.ID), nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
