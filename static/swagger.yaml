@@ -3325,7 +3325,29 @@ components:
           description: >
             A basic message describing a request was processed successfully.
             example: "Successfully"
-
+    UserResponseSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the user.
+        first_name:
+          type: string
+          description: The user's first name.
+        last_name:
+          type: string
+          description: The user's last name.
+        username:
+          type: string
+          description: The user's username.
+        phone_number:
+          type: string
+          description: The user's phone number (optional).
+      required:
+        - id
+        - first_name
+        - last_name
+        - username
     SuccessResponseSchema2:
       type: object
       properties:
