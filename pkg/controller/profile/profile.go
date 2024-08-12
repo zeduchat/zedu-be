@@ -23,7 +23,17 @@ type Controller struct {
 
 func (base *Controller) GetUserProfile(c *gin.Context) {
 
-	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, c)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, userId)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to Fetch user profile", err, nil)

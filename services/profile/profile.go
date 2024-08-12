@@ -1,30 +1,16 @@
 package profile
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/middleware"
 	"gorm.io/gorm"
 )
 
 
-func GetUserProfile( db *gorm.DB, c *gin.Context) (*models.ProfileSummary, int, error) {
+func GetUserProfile( db *gorm.DB, userID string) (*models.ProfileSummary, int, error) {
     var user models.User
-
-    userId, err := middleware.GetUserClaims(c, db, "user_id")
-	if err != nil {
-		return nil, http.StatusNotFound, err
-	}
-
-	userID, ok := userId.(string)
-	if !ok {
-		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
-	}
-
 	userProfile, err := user.GetUserWithProfile(db, userID)
 	
 	if err != nil {
