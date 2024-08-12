@@ -63,6 +63,7 @@ func TestDeleteOrgRole(t *testing.T) {
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
 			Logger:    orgController.Logger,
+			ExtReq:    orgController.ExtReq,
 		}
 
 		return router, &authController

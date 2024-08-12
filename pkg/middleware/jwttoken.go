@@ -98,3 +98,15 @@ func GetUserClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, e
 	return userValue, nil
 
 }
+
+func GetAllUserClaims(c *gin.Context) jwt.MapClaims {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return nil
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	return userClaims
+
+}

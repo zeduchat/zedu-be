@@ -1577,6 +1577,105 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
+  /users/{userId}/login-audit:
+    get:
+      tags:
+        - user
+      summary: Retrieve login audit logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Login audit logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginAuditResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /users/revoke-session:
+    put:
+      tags:
+        - user
+      summary: Revoke a user session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminateSessionRequest'
+      responses:
+        '200':
+          description: Session revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Success response
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Session revoked successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
 components:
 
   schemas:
@@ -2462,6 +2561,68 @@ components:
         personalized_ads:
           type: boolean
           example: true
+
+    LoginAuditResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Data retrieved successfully
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: 019144c2-c330-7db9-adfc-2628b0107740
+              user_id:
+                type: string
+                format: uuid
+                example: 01913f91-57e0-7875-b795-a25984e7594c
+              access_token_id:
+                type: string
+                format: uuid
+                example: 019144c2-c180-7db9-a1e1-72feac95b9b9
+              login_at:
+                type: string
+                format: date-time
+                example: 2024-08-12T05:05:00.336726Z
+              ip_address:
+                type: string
+                example: 127.0.0.1
+              location:
+                type: string
+                example: error
+              device:
+                type: string
+                example: PostmanRuntime/7.40.0
+              created_at:
+                type: string
+                format: date-time
+                example: 2024-08-12T05:05:00.337231+01:00
+
+    TerminateSessionRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: 01913f91-57e0-7875-b795-a25984e7594c
+        global_termination:
+          type: boolean
+          example: false
+        access_token_id:
+          type: string
+          format: uuid
+          example: 019144c2-c180-7db9-a1e1-72feac95b9b9
 
   responses:
     UnauthorizedError:

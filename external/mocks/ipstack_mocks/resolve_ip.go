@@ -8,25 +8,29 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func IpstackResolveIp(logger *utility.Logger, idata interface{}) (external_models.IPStackResolveIPResponse, error) {
-
+func IpinfoResolveIp(logger *utility.Logger, idata interface{}) (external_models.IPInfoResponse, error) {
 	var (
 		key              = config.GetConfig().IPStack.Key
-		outBoundResponse external_models.IPStackResolveIPResponse
+		outBoundResponse external_models.IPInfoResponse
 	)
 
 	ip, ok := idata.(string)
 	if !ok {
-		logger.Error("ipstack resolve ip", idata, "request data format error")
+		logger.Error("ipinfo resolve ip", idata, "request data format error")
 		return outBoundResponse, fmt.Errorf("request data format error")
 	}
-	outBoundResponse.Ip = ip
-	outBoundResponse.City = "city"
-	outBoundResponse.CountryName = "name"
 
-	path := "/" + ip + "?access_key=" + key
+	// Simulating a response from ipinfo.io
+	outBoundResponse.IP = ip
+	outBoundResponse.City = "Sample City"
+	outBoundResponse.Region = "Sample Region"
+	outBoundResponse.Country = "Sample Country"
+	outBoundResponse.Location = "40.7128,-74.0060"
+	outBoundResponse.Org = "Example ISP"
+	outBoundResponse.ASN = "AS12345"
 
-	logger.Info("ipstack resolve ip", ip, path)
+	path := "/" + ip + "?token=" + key
+	logger.Info("ipinfo resolve ip", ip, path)
 
 	return outBoundResponse, nil
 }

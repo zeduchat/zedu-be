@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/room"
@@ -37,13 +38,17 @@ func TestMessage(t *testing.T) {
 		Password:    "password",
 		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
-	
+
 	loginData := models.LoginRequestModel{
 		Email:    userSignUpData.Email,
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	r := gin.Default()
 
 	tst.SignupUser(t, r, auth, userSignUpData, false)
@@ -63,15 +68,13 @@ func TestMessage(t *testing.T) {
 	createRoomData := models.CreateRoomRequest{
 		Name:        fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
 		Username:    fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
-		TeamID: 	 teamId,
+		TeamID:      teamId,
 		Description: "Some Random description",
 	}
 
 	roomId, _ := tst.CreateRoom(t, r, room, db, createRoomData, token)
 
 	fmt.Println("Room ID: ", roomId)
-
-
 
 	tests := []struct {
 		Name         string
