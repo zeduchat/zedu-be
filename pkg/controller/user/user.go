@@ -8,7 +8,6 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
@@ -54,18 +53,9 @@ func (base *Controller) GetAUser(c *gin.Context) {
 
 func (base *Controller) GetAUserOrganisation(c *gin.Context) {
 
-	userId, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
-	if err != nil {
-		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to retrieve organisations", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to retrieve organisations", nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	userID := userId.(string)
+	var (
+		userID = c.Param("user_id")
+	)
 
 	userData, code, err := service.GetAUserOrganisation(userID, base.Db.Postgresql, c)
 	if err != nil {
