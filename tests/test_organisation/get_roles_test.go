@@ -71,6 +71,7 @@ func TestGetOrgRoles(t *testing.T) {
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
 			Logger:    orgController.Logger,
+			ExtReq:    orgController.ExtReq,
 		}
 
 		return router, &authController
@@ -184,6 +185,7 @@ func TestGetAOrgRole(t *testing.T) {
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
 			Logger:    orgController.Logger,
+			ExtReq:    orgController.ExtReq,
 		}
 
 		return router, &authController

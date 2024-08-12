@@ -16,6 +16,7 @@ func AuthMigrationModels() []interface{} {
 		models.Organisation{},
 		models.Permission{},
 		models.OrgRole{},
+		models.LoginActivity{},
 	} // an array of db models, example: User{}
 }
 

@@ -7,27 +7,26 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 )
 
-func (r *RequestObj) IpstackResolveIp() (external_models.IPStackResolveIPResponse, error) {
-
+func (r *RequestObj) IpinfoResolveIp() (external_models.IPInfoResponse, error) {
 	var (
 		key              = config.GetConfig().IPStack.Key
-		outBoundResponse external_models.IPStackResolveIPResponse
+		outBoundResponse external_models.IPInfoResponse
 		logger           = r.Logger
 		idata            = r.RequestData
 	)
 
 	ip, ok := idata.(string)
 	if !ok {
-		logger.Error("ipstack resolve ip", idata, "request data format error")
+		logger.Error("ipinfo resolve ip", idata, "request data format error")
 		return outBoundResponse, fmt.Errorf("request data format error")
 	}
 
-	path := "/" + ip + "?access_key=" + key
+	path := "/" + ip + "?token=" + key
 
-	logger.Info("ipstack resolve ip", ip)
+	logger.Info("ipinfo resolve ip", ip)
 	err := r.getNewSendRequestObject(nil, map[string]string{}, path).SendRequest(&outBoundResponse)
 	if err != nil {
-		logger.Error("ipstack resolve ip", outBoundResponse, err.Error())
+		logger.Error("ipinfo resolve ip", outBoundResponse, err.Error())
 		return outBoundResponse, err
 	}
 

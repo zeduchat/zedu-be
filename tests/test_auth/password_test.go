@@ -33,7 +33,8 @@ func TestUpdateUserPassword(t *testing.T) {
 		Password: currUUID,
 	}
 
-	auth := auth.Controller{Db: authController.Db, Validator: authController.Validator, Logger: authController.Logger}
+	auth := auth.Controller{Db: authController.Db, Validator: authController.Validator,
+		Logger: authController.Logger, ExtReq: authController.ExtReq}
 	token := tests.GetLoginToken(t, router, auth, loginData)
 
 	t.Run("Successful Password Change", func(t *testing.T) {
