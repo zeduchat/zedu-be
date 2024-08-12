@@ -33,6 +33,8 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
 
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)
+		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
 	}
+	
 	return r
 }
