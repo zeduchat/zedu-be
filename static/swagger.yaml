@@ -3325,6 +3325,18 @@ components:
           description: >
             A basic message describing a request was processed successfully.
             example: "Successfully"
+
+    UserDeleteResponseSchema:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponseSchema'
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "user delete successfully"
+        data: null
+        pagination: null
+
     UserResponseSchema:
       type: object
       properties:
@@ -3530,7 +3542,7 @@ components:
           type: string
           description: organisation description
 
-    UpdateUser:
+    UserUpdateSchema:
       type: object
       properties:
         firstName:
