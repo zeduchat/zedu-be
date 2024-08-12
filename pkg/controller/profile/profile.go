@@ -25,8 +25,6 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
