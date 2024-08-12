@@ -92,15 +92,15 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	return &org, nil
 }
 
-func GetAllRoomsInTeam(db *gorm.DB, orgID string) ([]models.Room, map[string]interface{}, error) {
+func GetAllChannelssInTeam(db *gorm.DB, orgID string) ([]models.Channels, map[string]interface{}, error) {
 	var o models.Organisation
 
-	rooms, additionalInfo, err := o.GetAllRoomsInOrganisation(db, orgID)
+	channels, additionalInfo, err := o.GetAllChannelssInOrganisation(db, orgID)
 	if err != nil {
-		return rooms, map[string]interface{}{}, err
+		return channels, map[string]interface{}{}, err
 	}
 
-	return rooms, additionalInfo, nil
+	return channels, additionalInfo, nil
 }
 
 func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB) (*models.Organisation, error) {

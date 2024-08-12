@@ -15,8 +15,8 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
-	"github.com/hngprojects/telex_be/pkg/controller/room"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -124,15 +124,15 @@ func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData 
 	return token
 }
 
-func CreateRoom(t *testing.T, r *gin.Engine, room room.Controller, db *storage.Database, CreateData models.CreateRoomRequest, token string) (string, string) {
+func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db *storage.Database, CreateData models.CreateChannelsRequest, token string) (string, string) {
 	var (
-		createPath = "/api/v1/rooms/"
+		createPath = "/api/v1/channels/"
 		createURI  = url.URL{Path: createPath}
 	)
 
-	roomUrl := r.Group(fmt.Sprintf("%v", "/api/v1/rooms"), middleware.Authorize(db.Postgresql))
+	channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 	{
-		roomUrl.POST("/", room.CreateRoom)
+		channelUrl.POST("/", channel.CreateChannels)
 	}
 
 	var b bytes.Buffer
@@ -154,10 +154,10 @@ func CreateRoom(t *testing.T, r *gin.Engine, room room.Controller, db *storage.D
 
 	data := ParseResponse(rr)
 	dataM := data["data"].(map[string]interface{})
-	roomID := dataM["room_id"].(string)
-	roomName := dataM["name"].(string)
+	channelID := dataM["channels_id"].(string)
+	channelName := dataM["name"].(string)
 
-	return roomID, roomName
+	return channelID, channelName
 }
 
 func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org organisation.Controller, orgData models.CreateOrgRequestModel, token string) (string, string) {

@@ -36,7 +36,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	ApiVersion := "api/v1"
 	Health(r, ApiVersion, validator, db, logger)
 	Auth(r, ApiVersion, validator, db, logger)
-	Room(r, ApiVersion, validator, db, logger)
+	Channels(r, ApiVersion, validator, db, logger)
 	TokenGen(r, ApiVersion, validator, db, logger)
 	Organisation(r, ApiVersion, validator, db, logger)
 	User(r, ApiVersion, validator, db, logger)

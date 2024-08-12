@@ -1,4 +1,4 @@
-package test_room
+package test_channel
 
 import (
 	"bytes"
@@ -15,15 +15,15 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
-	"github.com/hngprojects/telex_be/pkg/controller/room"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestRoomEndpoints(t *testing.T) {
+func TestChannelsEndpoints(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -48,7 +48,7 @@ func TestRoomEndpoints(t *testing.T) {
 			Logger: logger,
 			Test:   true,
 		}}
-	roomController := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	channelController := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
@@ -67,14 +67,14 @@ func TestRoomEndpoints(t *testing.T) {
 
 	orgId, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
-	createRoomData := models.CreateRoomRequest{
-		Name:           fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
-		Username:       fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
+	createChannelsData := models.CreateChannelsRequest{
+		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
 		OrganisationID: orgId,
 		Description:    "Some Random description",
 	}
 
-	room_id, roomName := tst.CreateRoom(t, r, roomController, db, createRoomData, token)
+	channels_id, channelName := tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
 
 	tests := []struct {
 		Name         string
@@ -86,28 +86,28 @@ func TestRoomEndpoints(t *testing.T) {
 		RequestURI   url.URL
 	}{
 		{
-			Name: "Create Room Action",
-			RequestBody: models.CreateRoomRequest{
-				Name:           "Test-Room",
-				Description:    "This is a test room",
+			Name: "Create Channels Action",
+			RequestBody: models.CreateChannelsRequest{
+				Name:           "Test-Channels",
+				Description:    "This is a test channel",
 				Username:       userSignUpData.UserName,
 				OrganisationID: orgId,
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "room created successfully",
+			Message:      "channel created successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: "/api/v1/rooms/"},
+			RequestURI:   url.URL{Path: "/api/v1/channels/"},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
 		{
-			Name:         "Get Room Action",
+			Name:         "Get Channels Action",
 			ExpectedCode: http.StatusOK,
-			Message:      "room retreived successfully",
+			Message:      "channel retreived successfully",
 			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s", room_id)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s", channels_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -115,86 +115,86 @@ func TestRoomEndpoints(t *testing.T) {
 		},
 
 		{
-			Name:         "Update Room Username Action",
+			Name:         "Update Channels Username Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "username updated successfully",
-			RequestBody: models.UpdateRoomUserNameReq{
+			RequestBody: models.UpdateChannelsUserNameReq{
 				Username: fmt.Sprintf("username%v", currUUID),
 			},
 			Method:     http.MethodPatch,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/username", room_id)},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/username", channels_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name:         "Update Room Action",
+			Name:         "Update Channels Action",
 			ExpectedCode: http.StatusOK,
-			RequestBody: models.UpdateRoomRequest{
+			RequestBody: models.UpdateChannelsRequest{
 				Name: "Normal",
 			},
-			Message:    "Room updated successfully",
+			Message:    "Channels updated successfully",
 			Method:     http.MethodPatch,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s", room_id)},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/channels/%s", channels_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
 		{
-			Name:         "Check User In Room Action",
+			Name:         "Check User In Channels Action",
 			ExpectedCode: http.StatusOK,
-			RequestBody: models.UpdateRoomRequest{
+			RequestBody: models.UpdateChannelsRequest{
 				Name: "Normal",
 			},
 			Message:    "user checked successfully",
 			Method:     http.MethodGet,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/user-exist", room_id)},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/user-exist", channels_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name:         "Get Room by Name Action",
+			Name:         "Get Channels by Name Action",
 			ExpectedCode: http.StatusOK,
-			RequestBody: models.UpdateRoomRequest{
+			RequestBody: models.UpdateChannelsRequest{
 				Name: "Normal",
 			},
-			Message:    "room name retrieved successfully",
+			Message:    "channel name retrieved successfully",
 			Method:     http.MethodGet,
-			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/rooms/name/%s", "Test-Room")},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/channels/name/%s", "Test-Channels")},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name:         "Search Room by Name Action",
-			Message:      "room names retrieved successfully",
+			Name:         "Search Channels by Name Action",
+			Message:      "channel names retrieved successfully",
 			ExpectedCode: http.StatusOK,
 			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/search/%s", roomName)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/search/%s", channelName)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
 		{
-			Name:         "Leave Room Action",
+			Name:         "Leave Channels Action",
 			ExpectedCode: http.StatusOK,
-			Message:      "user left room successfully",
+			Message:      "user left channel successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/leave", room_id)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/leave", channels_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
 		{
-			Name:         "Delete Room Action",
+			Name:         "Delete Channels Action",
 			ExpectedCode: http.StatusOK,
-			Message:      "room deleted successfully",
+			Message:      "channel deleted successfully",
 			Method:       http.MethodDelete,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s", room_id)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s", channels_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -202,24 +202,24 @@ func TestRoomEndpoints(t *testing.T) {
 		},
 	}
 
-	room := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	channel := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	for _, test := range tests {
 		r := gin.Default()
 
-		roomUrl := r.Group(fmt.Sprintf("%v", "/api/v1/rooms"), middleware.Authorize(db.Postgresql))
+		channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
-			roomUrl.POST("/", room.CreateRoom)
-			roomUrl.GET("/:roomId", room.GetRoom)
-			roomUrl.POST("/:roomId/join", room.JoinRoom)
-			roomUrl.POST("/:roomId/leave", room.LeaveRoom)
-			roomUrl.PATCH("/:roomId/username", room.UpdateUsername)
-			roomUrl.GET("/name/:roomName", room.GetRoomByName)
-			roomUrl.GET("/:roomId/num-users", room.CountRoomUsers)
-			roomUrl.PATCH("/:roomId", room.UpdateRoom)
-			roomUrl.DELETE("/:roomId", room.DeleteRoom)
-			roomUrl.GET("/:roomId/user-exist", room.CheckUser)
-			roomUrl.GET(("/search/:roomName"), room.SearchRoomByNames)
+			channelUrl.POST("/", channel.CreateChannels)
+			channelUrl.GET("/:channelId", channel.GetChannels)
+			channelUrl.POST("/:channelId/join", channel.JoinChannels)
+			channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
+			channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
+			channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
+			channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
+			channelUrl.PATCH("/:channelId", channel.UpdateChannels)
+			channelUrl.DELETE("/:channelId", channel.DeleteChannels)
+			channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
+			channelUrl.GET(("/search/:channelName"), channel.SearchChannelsByNames)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {

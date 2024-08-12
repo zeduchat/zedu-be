@@ -15,8 +15,8 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
-	"github.com/hngprojects/telex_be/pkg/controller/room"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -53,7 +53,7 @@ func TestMessage(t *testing.T) {
 
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
-	room := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	channel := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	token := tst.GetLoginToken(t, r, auth, loginData)
@@ -63,22 +63,22 @@ func TestMessage(t *testing.T) {
 		Description: "Some Random description",
 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
 		Type:        "type1",
-		Location:   "wakanda",
+		Location:    "wakanda",
 		Country:     "wakanda",
 	}
 
 	orgId, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
-	createRoomData := models.CreateRoomRequest{
-		Name:           fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
-		Username:       fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
+	createChannelsData := models.CreateChannelsRequest{
+		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
 		OrganisationID: orgId,
 		Description:    "Some Random description",
 	}
 
-	roomId, _ := tst.CreateRoom(t, r, room, db, createRoomData, token)
+	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
 
-	fmt.Println("Room ID: ", roomId)
+	fmt.Println("Channels ID: ", channelId)
 
 	tests := []struct {
 		Name         string
@@ -92,23 +92,23 @@ func TestMessage(t *testing.T) {
 		{
 			Name: "Add message Successfully",
 			RequestBody: models.CreateMessageRequest{
-				Content: "It's a nice day to check the room",
+				Content: "It's a nice day to check the channel",
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "message added successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/messages", roomId)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name:         "Successfully Get messages in a room",
+			Name:         "Successfully Get messages in a channel",
 			RequestBody:  models.CreateMessageRequest{},
 			ExpectedCode: http.StatusOK,
-			Message:      "room messages fetched successfully",
+			Message:      "channel messages fetched successfully",
 			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/messages", roomId)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -119,10 +119,10 @@ func TestMessage(t *testing.T) {
 	for _, test := range tests {
 		r := gin.Default()
 
-		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/rooms"), middleware.Authorize(db.Postgresql))
+		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
-			tknUrl.GET("/:roomId/messages", room.GetRoomMsg)
-			tknUrl.POST("/:roomId/messages", room.AddRoomMsg)
+			tknUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
+			tknUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
 
 		}
 

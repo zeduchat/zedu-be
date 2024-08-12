@@ -109,7 +109,7 @@ func (base *Controller) GetOrganisation(c *gin.Context) {
 
 }
 
-func (base *Controller) GetAllRoomsInOrganisation(c *gin.Context) {
+func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 	orgID := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgID); err != nil {
@@ -119,21 +119,21 @@ func (base *Controller) GetAllRoomsInOrganisation(c *gin.Context) {
 		return
 	}
 
-	respData, additionalInfo, err := organisation.GetAllRoomsInTeam(base.Db.Postgresql, orgID)
+	respData, additionalInfo, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
 	if err != nil {
-		base.Logger.Info("error fetching rooms")
+		base.Logger.Info("error fetching channels")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	response := gin.H{
-		"rooms":           respData,
+		"channels":        respData,
 		"additional_info": additionalInfo,
 	}
 
-	base.Logger.Info("rooms fetched successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "rooms fetched successfully", response)
+	base.Logger.Info("channels fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channels fetched successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 

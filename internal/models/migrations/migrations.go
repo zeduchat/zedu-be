@@ -7,9 +7,9 @@ func AuthMigrationModels() []interface{} {
 	return []interface{}{
 		models.User{},
 		models.AccessToken{},
-		models.Room{},
+		models.Channels{},
 		models.Profile{},
-		models.UserRoom{},
+		models.UserChannels{},
 		models.Message{},
 		models.MagicLink{},
 		models.PasswordReset{},

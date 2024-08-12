@@ -10,29 +10,29 @@ import (
 )
 
 type Message struct {
-	ID        int       `gorm:"column:id; type:serial; primaryKey" json:"id"`
-	Content   string    `gorm:"column:content; type:text; not null" json:"content"`
-	RoomID    string    `gorm:"type:uuid;not null" json:"room_id"`
-	UserID    string    `gorm:"type:uuid;not null" json:"user_id"`
-	Username  string    `gorm:"column:username; type:varchar(255)" json:"username"`
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ID         int       `gorm:"column:id; type:serial; primaryKey" json:"id"`
+	Content    string    `gorm:"column:content; type:text; not null" json:"content"`
+	ChannelsID string    `gorm:"type:uuid;not null" json:"channels_id"`
+	UserID     string    `gorm:"type:uuid;not null" json:"user_id"`
+	Username   string    `gorm:"column:username; type:varchar(255)" json:"username"`
+	CreatedAt  time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
 type CreateMessageRequest struct {
-	Content string `json:"content" validate:"required"`
-	UserId  string `json:"user_id"`
-	RoomId  string `json:"room_id"`
+	Content    string `json:"content" validate:"required"`
+	UserId     string `json:"user_id"`
+	ChannelsId string `json:"channels_id"`
 }
 
 func (m *Message) CreateMessage(db *gorm.DB) error {
-	var userRoom UserRoom
+	var userChannels UserChannels
 
-	exist := postgresql.CheckExists(db, &userRoom, "room_id = ? AND user_id = ?", m.RoomID, m.UserID)
+	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	if !exist {
-		return errors.New("user not in room")
+		return errors.New("user not in channel")
 	}
 
-	m.Username = userRoom.Username
+	m.Username = userChannels.Username
 
 	err := postgresql.CreateOneRecord(db, m)
 	if err != nil {
@@ -41,16 +41,16 @@ func (m *Message) CreateMessage(db *gorm.DB) error {
 	return nil
 }
 
-func (m *Message) GetMessagesByRoomID(db *gorm.DB, userId, roomID string) ([]Message, error) {
+func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string) ([]Message, error) {
 	var messages []Message
-	var userRoom UserRoom
+	var userChannels UserChannels
 
-	exist := postgresql.CheckExists(db, &userRoom, "room_id = ? AND user_id = ?", roomID, userId)
+	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userId)
 	if !exist {
-		return messages, errors.New("user not in room")
+		return messages, errors.New("user not in channel")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "", &messages, "room_id = ?", roomID)
+	err := postgresql.SelectAllFromDb(db, "", &messages, "channels_id = ?", channelID)
 	if err != nil {
 		return messages, err
 	}

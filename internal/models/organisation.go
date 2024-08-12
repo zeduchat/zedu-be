@@ -20,7 +20,7 @@ type Organisation struct {
 	Location           string `gorm:"type:varchar(255)" json:"location"`
 	Country            string `gorm:"type:varchar(255)" json:"country"`
 	OwnerID            string `gorm:"type:uuid;" json:"owner_id"`
-	RoomsCount         int64  `gorm:"-" json:"rooms_count"`
+	ChannelssCount     int64  `gorm:"-" json:"channels_count"`
 	TotalMessagesCount int64  `gorm:"-" json:"total_messages_count"`
 
 	OrgRoles []OrgRole `gorm:"foreignKey:OrganisationID" json:"org_roles"`
@@ -30,7 +30,7 @@ type Organisation struct {
 	UpdatedAt time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Rooms []Room `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"rooms"`
+	Channels []Channels `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"channels"`
 }
 
 type CreateOrgRequestModel struct {
@@ -106,45 +106,45 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 		return org, err
 	}
 
-	roomsCount, err := o.CountOrganisationRooms(db, orgID)
+	channelsCount, err := o.CountOrganisationChannelss(db, orgID)
 	if err != nil {
 		return org, err
 	}
 
-	org.RoomsCount = roomsCount
+	org.ChannelssCount = channelsCount
 
 	return org, nil
 }
 
-func (o *Organisation) GetAllRoomsInOrganisation(db *gorm.DB, orgID string) ([]Room, map[string]interface{}, error) {
+func (o *Organisation) GetAllChannelssInOrganisation(db *gorm.DB, orgID string) ([]Channels, map[string]interface{}, error) {
 	var (
-		rooms []Room
+		channels []Channels
 	)
 
 	exists := postgresql.CheckExists(db, &o, "id = ?", orgID)
 	if !exists {
-		return rooms, map[string]interface{}{}, errors.New("organisation does not exist")
+		return channels, map[string]interface{}{}, errors.New("organisation does not exist")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "desc", &rooms, "organisation_id = ?", orgID)
+	err := postgresql.SelectAllFromDb(db, "desc", &channels, "organisation_id = ?", orgID)
 	if err != nil {
-		return rooms, map[string]interface{}{}, err
+		return channels, map[string]interface{}{}, err
 	}
 
-	totalRoomCount := len(rooms)
+	totalChannelsCount := len(channels)
 	totalMessagesCount := int64(0)
 
-	for _, room := range rooms {
-		count, _ := room.CountRoomMessages(db, room.ID)
+	for _, channel := range channels {
+		count, _ := channel.CountChannelsMessages(db, channel.ID)
 		totalMessagesCount += int64(count)
 	}
 
 	additionalInfo := map[string]interface{}{
-		"rooms_count":         int64(totalRoomCount),
+		"channels_count":     int64(totalChannelsCount),
 		"totalmessage_count": totalMessagesCount,
 	}
 
-	return rooms, additionalInfo, nil
+	return channels, additionalInfo, nil
 }
 
 func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]Organisation, error) {
@@ -301,12 +301,12 @@ func (o *Organisation) IsOwnerOfOrganisation(db *gorm.DB, requesterID, organisat
 	return count > 0, nil
 }
 
-func (o *Organisation) CountOrganisationRooms(db *gorm.DB, orgId string) (int64, error) {
-	var rs []Room
+func (o *Organisation) CountOrganisationChannelss(db *gorm.DB, orgId string) (int64, error) {
+	var rs []Channels
 
 	err := postgresql.SelectAllFromDb(db, "", &rs, "organisation_id = ?", orgId)
 	if err != nil {
-		return 0, errors.New("error counting rooms in an organisation")
+		return 0, errors.New("error counting channels in an organisation")
 	}
 	return int64(len(rs)), nil
 }
