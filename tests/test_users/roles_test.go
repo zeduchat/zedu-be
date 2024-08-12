@@ -66,7 +66,8 @@ func TestUpdateUserRole(t *testing.T) {
 		Password: "password",
 	}
 
-	auth := auth.Controller{Db: userController.Db, Validator: userController.Validator, Logger: userController.Logger}
+	auth := auth.Controller{Db: userController.Db, Validator: userController.Validator,
+		Logger: userController.Logger, ExtReq: userController.ExtReq}
 	token := tests.GetLoginToken(t, router, auth, loginData)
 
 	t.Run("Successful Update", func(t *testing.T) {

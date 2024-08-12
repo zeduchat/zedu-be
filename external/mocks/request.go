@@ -31,8 +31,8 @@ var (
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
 	switch name {
-	case "ipstack_resolve_ip":
-		return ipstack_mocks.IpstackResolveIp(er.Logger, data)
+	case "ipinfo_resolve_ip":
+		return ipstack_mocks.IpinfoResolveIp(er.Logger, data)
 	default:
 		return nil, fmt.Errorf("request not found")
 	}

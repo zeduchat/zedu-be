@@ -65,6 +65,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
 			Logger:    orgController.Logger,
+			ExtReq:    orgController.ExtReq,
 		}
 
 		return router, &authController
@@ -183,6 +184,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		Name:     "Admin User",
 		Email:    fmt.Sprintf("admin%v@qa.team", currUUID),
 		Password: password,
+		Role:     int(models.RoleIdentity.SuperAdmin),
 	}
 
 	regularUser := models.User{
@@ -190,6 +192,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		Name:     "Regular User",
 		Email:    fmt.Sprintf("user%v@qa.team", currUUID),
 		Password: password,
+		Role:     int(models.RoleIdentity.User),
 	}
 
 	orgID := utility.GenerateUUID()
@@ -222,6 +225,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
 			Logger:    orgController.Logger,
+			ExtReq:    orgController.ExtReq,
 		}
 
 		return router, &authController
