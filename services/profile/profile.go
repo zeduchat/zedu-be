@@ -35,24 +35,17 @@ func GetUserProfile( db *gorm.DB, userID string) (*models.ProfileSummary, int, e
 	return &profileSummary, http.StatusOK, nil
 }
 
-
-func UpdateUserProfile(db *gorm.DB, req models.UpdateUserProfileRequest, userId string) (map[string]interface{}, int, error) {
+func UpdateUserProfile(req models.UpdateUserProfileRequest,db *gorm.DB, userId string) (int, error) {
 	var user models.User
-	var profile models.Profile
+	var userProfile models.Profile
 
-	profileId, err := user.GetProfileID(db, userId)
-	if err != nil {
-		return nil, http.StatusNotFound, err
+	if err := user.UpdateUserEmail(db, req, userId); err != nil {
+		return http.StatusInternalServerError, err
 	}
 
-	if err := user.UpdateUserProfileEmail(db, req, userId); err != nil {
-		return nil, http.StatusInternalServerError, err
+	if err := userProfile.UpdateProfileFields(db, req, userId); err != nil {
+		return http.StatusBadRequest, err
 	}
 
-	if err := profile.UpdateProfileFields(db, req, profileId); err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-
-	responseData := models.PrepareResponseData(req)
-	return responseData, http.StatusOK, nil
+	return http.StatusOK, nil
 }

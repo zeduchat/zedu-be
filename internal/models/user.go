@@ -188,16 +188,17 @@ func (u *User) GetUserByIDsAdmin(db *gorm.DB, userID, requesterID string) (User,
 	return user, nil
 }
 
-func (user *User) UpdateUserProfileEmail(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
-	updates := map[string]interface{}{}
-	if req.Email != nil {
-		updates["email"] = *req.Email
+func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
+
+	userUpdates := User{Email: req.Email}
+	
+    result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+	if err != nil {
+		return err
 	}
 
-	if len(updates) > 0 {
-		if err := db.Model(user).Where("id = ?", userId).Updates(updates).Error; err != nil {
-			return err
-		}
+	if result.RowsAffected == 0 {
+		return errors.New("failed to update user profile")
 	}
 
 	return nil

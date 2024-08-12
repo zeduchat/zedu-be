@@ -70,7 +70,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := profile.UpdateUserProfile(base.Db.Postgresql, req, userId)
+    code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, userId)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -84,6 +84,6 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	base.Logger.Info("Profile updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Profile updated successfully", respData)
+	rd := utility.BuildSuccessResponse(code, "Profile updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
