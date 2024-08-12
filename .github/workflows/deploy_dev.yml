@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build Docker image
-        run: docker build -t telex_be .
+        run: docker build -t telex_be --no-cache .
       - name: Save and compress Docker image
         run: docker save telex_be | gzip > telex_be.tar.gz
       - name: Copy image to server
