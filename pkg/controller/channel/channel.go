@@ -486,3 +486,53 @@ func (base *Controller) SearchChannelsByNames(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "channel names retrieved successfully", channels, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
+
+
+func (base *Controller) GetUsersInChannel(c *gin.Context) {
+	channelID := c.Param("channelId")
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channels id format", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+
+	users, paginationResponse, err := channel.GetUsersInChannel(channelID, userId, base.Db.Postgresql, c)
+
+	if err != nil {
+		switch err.Error() {
+		case "channels not found":
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to retrieve users", nil)
+			c.JSON(http.StatusNotFound, rd)
+		case "user does not have access to the channels":
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to retrieve users", nil)
+			c.JSON(http.StatusNotFound, rd)
+		default:
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve users", err.Error(), nil)
+			c.JSON(http.StatusInternalServerError, rd)
+		}
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(users),
+	}
+
+	base.Logger.Info("users retrieved successfully")
+	response := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationData)
+
+	c.JSON(http.StatusOK, response)
+}
