@@ -2,8 +2,8 @@ package profile
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -12,26 +12,61 @@ import (
 )
 
 
-func GetUserProfile( db *gorm.DB, c *gin.Context) (*models.Profile, int, error) {
-    var user models.Profile
+func GetUserProfile( db *gorm.DB, c *gin.Context) (*models.ProfileSummary, int, error) {
+    var user models.User
 
     userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
 		return nil, http.StatusNotFound, err
 	}
 
-    fmt.Printf("UserID: %s\n", userId)
-
 	userID, ok := userId.(string)
 	if !ok {
 		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	userProfile, err := user.GetUserProfile(db, userID)
+	userProfile, err := user.GetUserWithProfile(db, userID)
 	
 	if err != nil {
          return nil, http.StatusNotFound, err
 	}
+
+	profileSummary := models.ProfileSummary{
+		ID:        userProfile.Profile.ID,
+		Email:     userProfile.Email,
+		Phone:     userProfile.Profile.Phone,
+		FirstName:  userProfile.Profile.FirstName,
+		LastName:  userProfile.Profile.LastName,
+		FullName:  userProfile.Profile.FullName,
+		UserName:  userProfile.Profile.UserName,
+		AvatarURL: userProfile.Profile.AvatarURL,
+		UserId:    userProfile.Profile.Userid,
+		CreatedAt: userProfile.Profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: userProfile.Profile.UpdatedAt.Format(time.RFC3339),
+		DeletedAt: userProfile.Profile.DeletedAt.Time.Format(time.RFC3339), 
+	}
     
-	return &userProfile, http.StatusOK, nil
+	return &profileSummary, http.StatusOK, nil
+}
+
+
+func UpdateUserProfile(db *gorm.DB, req models.UpdateUserProfileRequest, userId string) (map[string]interface{}, int, error) {
+	var user models.User
+	var profile models.Profile
+
+	profileId, err := user.GetProfileID(db, userId)
+	if err != nil {
+		return nil, http.StatusNotFound, err
+	}
+
+	if err := user.UpdateUserProfileEmail(db, req, userId); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if err := profile.UpdateProfileFields(db, req, profileId); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	responseData := models.PrepareResponseData(req)
+	return responseData, http.StatusOK, nil
 }

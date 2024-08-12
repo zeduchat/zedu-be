@@ -1,4 +1,4 @@
-package test_auth
+package test_profile
 
 import (
 	"bytes"
@@ -14,117 +14,80 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/profile"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-// test user signup
-func TestUserSignup(t *testing.T) {
+func StringPtr(s string) *string {
+	return &s
+}
+
+func TestUserProfileFlow(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
 	validatorRef := validator.New()
 	db := storage.Connection()
-	requestURI := url.URL{Path: "/api/v1/auth/users/signup"}
 	currUUID := utility.GenerateUUID()
 
-	tests := []struct {
-		Name         string
-		RequestBody  models.CreateUserRequestModel
-		ExpectedCode int
-		Message      string
-	}{
-		{
-			Name: "Successful user register",
-			RequestBody: models.CreateUserRequestModel{
-				Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
-				PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
-				FirstName:   "test",
-				LastName:    "user",
-				Password:    "password",
-				UserName:    fmt.Sprintf("test_username%v", currUUID),
-			},
-			ExpectedCode: http.StatusCreated,
-			Message:      "user created successfully",
-		}, {
-			Name: "details already exist",
-			RequestBody: models.CreateUserRequestModel{
-				Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
-				PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
-				FirstName:   "test",
-				LastName:    "user",
-				Password:    "password",
-				UserName:    fmt.Sprintf("test_username%v", currUUID),
-			},
-			ExpectedCode: http.StatusBadRequest,
-			Message:      "user already exists with the given email",
-		}, {
-			Name: "invalid email",
-			RequestBody: models.CreateUserRequestModel{
-				Email:       "emailtest",
-				PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
-				FirstName:   "test",
-				LastName:    "user",
-				Password:    "password",
-				UserName:    fmt.Sprintf("test_username%v", currUUID),
-			},
-			ExpectedCode: http.StatusBadRequest,
-			Message:      "email address is invalid",
-		}, {
-			Name: "Validation failed",
-			RequestBody: models.CreateUserRequestModel{
-				PhoneNumber: "090909",
-				FirstName:   "test",
-				LastName:    "user",
-				Password:    "password",
-				UserName:    fmt.Sprintf("test_username%v", currUUID),
-			},
-			ExpectedCode: http.StatusUnprocessableEntity,
-			Message:      "Validation failed",
-		},
+	userSignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "test",
+		LastName:    "user",
+		Password:    "password",
+		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
-
-	for _, test := range tests {
-		r := gin.Default()
-
-		r.POST("/api/v1/auth/users/signup", auth.RegisterUser)
-
-		t.Run(test.Name, func(t *testing.T) {
-			var b bytes.Buffer
-			json.NewEncoder(&b).Encode(test.RequestBody)
-
-			req, err := http.NewRequest(http.MethodPost, requestURI.String(), &b)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			req.Header.Set("Content-Type", "application/json")
-
-			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
-
-			tst.AssertStatusCode(t, rr.Code, test.ExpectedCode)
-
-			data := tst.ParseResponse(rr)
-
-			code := int(data["status_code"].(float64))
-			tst.AssertStatusCode(t, code, test.ExpectedCode)
-
-			if test.Message != "" {
-				message := data["message"]
-				if message != nil {
-					tst.AssertResponseMessage(t, message.(string), test.Message)
-				} else {
-					tst.AssertResponseMessage(t, "", test.Message)
-				}
-
-			}
-
-		})
-
+	loginData := models.LoginRequestModel{
+		Email:    userSignUpData.Email,
+		Password: userSignUpData.Password,
 	}
 
+	authController := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	r := gin.Default()
+
+	tst.SignupUser(t, r, authController, userSignUpData, false)
+
+	token := tst.GetLoginToken(t, r, authController, loginData)
+
+	getProfileURI := url.URL{Path: "/api/v1/profile"}
+	profileController := profile.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	r = gin.Default()
+	r.GET(getProfileURI.Path, middleware.Authorize(db.Postgresql),  profileController.GetUserProfile)
+
+	req, _ := http.NewRequest(http.MethodGet, getProfileURI.String(), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	updateProfileURI := url.URL{Path: "/api/v1/profile"}
+	updateProfileBody := models.UpdateUserProfileRequest{
+		FullName:  StringPtr("Updated Full Name"),
+		UserName:  StringPtr("updated_username"),
+		Phone:     StringPtr("+2348112345678"),
+		AvatarURL: StringPtr("new_avatar_url.png"),
+	}
+
+	r = gin.Default()
+	r.PATCH(updateProfileURI.Path, middleware.Authorize(db.Postgresql), profileController.UpdateProfile)
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(updateProfileBody)
+	req, _ = http.NewRequest(http.MethodPatch, updateProfileURI.String(), &b)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	updateResponse := tst.ParseResponse(rr)
+	tst.AssertResponseMessage(t, updateResponse["message"].(string), "Profile updated successfully")
 }

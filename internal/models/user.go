@@ -188,3 +188,18 @@ func (u *User) GetUserByIDsAdmin(db *gorm.DB, userID, requesterID string) (User,
 
 	return user, nil
 }
+
+func (user *User) UpdateUserProfileEmail(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
+	updates := map[string]interface{}{}
+	if req.Email != nil {
+		updates["email"] = *req.Email
+	}
+
+	if len(updates) > 0 {
+		if err := db.Model(user).Where("id = ?", userId).Updates(updates).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
