@@ -41,6 +41,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		ID:          utility.GenerateUUID(),
 		Name:        strings.ToLower(req.Name),
 		Description: strings.ToLower(req.Description),
+		Location:    strings.ToLower(req.Location),
 		Email:       strings.ToLower(req.Email),
 		Type:        strings.ToLower(req.Type),
 		OwnerID:     userId,
