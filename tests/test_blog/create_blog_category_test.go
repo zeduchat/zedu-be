@@ -36,6 +36,7 @@ func TestCreateBlogCategory(t *testing.T) {
 			Db:        blogController.Db,
 			Validator: blogController.Validator,
 			Logger:    blogController.Logger,
+			ExtReq:    blogController.ExtReq,
 		}
 
 		return router, &authController

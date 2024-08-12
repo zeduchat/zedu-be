@@ -30,7 +30,7 @@ func TestCreateBlog(t *testing.T) {
 
 	blogCategory := models.BlogCategory{
 		ID:   utility.GenerateUUID(),
-		Name: "testCategory",
+		Name: "testCategory" + utility.GenerateUUID(),
 	}
 
 	db.Create(&regularUser)
@@ -42,6 +42,7 @@ func TestCreateBlog(t *testing.T) {
 			Db:        blogController.Db,
 			Validator: blogController.Validator,
 			Logger:    blogController.Logger,
+			ExtReq:    blogController.ExtReq,
 		}
 
 		return router, &authController
@@ -53,7 +54,10 @@ func TestCreateBlog(t *testing.T) {
 		Email:    regularUser.Email,
 		Password: "password",
 	}
+
 	token := tst.GetLoginToken(t, router, *authController, loginData)
+
+	fmt.Print("I AM THE TOKEN HEREEE", token)
 
 	tests := []struct {
 		Name         string
@@ -100,6 +104,7 @@ func TestCreateBlog(t *testing.T) {
 			Message:      "invalid blog id format",
 			Headers: map[string]string{
 				"Content-Type": "application/json",
+				"Authorization": "Bearer " + token,
 			},
 		},
 		{
@@ -113,6 +118,7 @@ func TestCreateBlog(t *testing.T) {
 			Message:      "blog category not found",
 			Headers: map[string]string{
 				"Content-Type": "application/json",
+				"Authorization": "Bearer " + token,
 			},
 		},
 		{

@@ -3,6 +3,7 @@ package test_blog
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/blog"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -20,6 +21,10 @@ func SetupBlogTestRouter() (*gin.Engine, *blog.Controller) {
 		Db:        db,
 		Validator: validator,
 		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
 	}
 
 	r := gin.Default()

@@ -27,7 +27,7 @@ func TestGetBlogs(t *testing.T) {
 
 	blogCategory := models.BlogCategory{
 		ID:   utility.GenerateUUID(),
-		Name: "testCategory",
+		Name: "testCategory"+utility.GenerateUUID(),
 	}
 
 	blog := models.Blog{
