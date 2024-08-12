@@ -34,6 +34,8 @@ require (
 	gorm.io/gorm v1.25.10
 )
 
+require github.com/stripe/stripe-go v70.15.0+incompatible // indirect
+
 require (
 	cloud.google.com/go/compute v1.24.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
