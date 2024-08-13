@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"io"
+	"log"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -17,7 +17,7 @@ func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Cl
 	vsn := configBucket
 	minioClient, err := minio.New(vsn.MinioEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(vsn.AccessKey, vsn.Secret, ""),
-		Secure: false,
+		Secure: true,
 	})
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to initialize MinIO client: %v", err))
@@ -28,34 +28,25 @@ func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Cl
 
 	exists, err := minioClient.BucketExists(context.Background(), vsn.BucketName)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Failed to check if bucket exists: %v", err))
+		log.Fatalf("Failed to check if bucket exists: %v", err)
 		return nil
 	}
 
 	if exists {
 		utility.LogAndPrint(logger, fmt.Sprintf("Bucket %s exists", vsn.BucketName))
 		return nil
+	} else {
+		utility.LogAndPrint(logger, fmt.Sprintf("Bucket %s does not exist, creating it...", vsn.BucketName))
+
+		err = minioClient.MakeBucket(context.Background(), vsn.BucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("Failed to create bucket %s: %v", vsn.BucketName, err))
+		}
+
+		utility.LogAndPrint(logger, fmt.Sprintf("Successfully created bucket %s", vsn.BucketName))
 	}
 
 	storage.DB.Minio = minioClient
-	storage.Logger = logger
 
 	return minioClient
-}
-
-func UploadProfilePic(objectName string, file io.Reader, fileSize int64) (string, error) {
-
-	path1 := "profile_pics/" + objectName
-	url := ""
-	minioClient := storage.DB.Minio
-	bucketName := config.Config.Minio.BucketName
-
-	_, err := minioClient.PutObject(context.Background(), bucketName, path1, file, fileSize, minio.PutObjectOptions{})
-	if err != nil {
-		utility.LogAndPrint(storage.Logger, fmt.Sprintf("failed to upload file to %s: %v", path1, err))
-		return url, fmt.Errorf("failed to upload file to %s: %v", path1, err)
-	}
-	utility.LogAndPrint(storage.Logger, fmt.Sprintf("File uploaded successfully to %s\n", path1))
-	url = fmt.Sprintf("http://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, path1)
-	return url, nil
 }

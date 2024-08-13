@@ -1,17 +1,20 @@
 package profile
 
 import (
+	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/profile"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 type Controller struct {
@@ -60,6 +63,24 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	err = c.Request.ParseMultipartForm(5 << 20)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Parse form error: %v", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Form file error: %v", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	filename := fmt.Sprintf("profile_pic&s")
+
+	defer file.Close()
+
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", err, nil)
@@ -70,7 +91,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-    code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, userId)
+	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, userId)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
