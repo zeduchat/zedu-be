@@ -53,11 +53,7 @@ func (base *Controller) GetAUser(c *gin.Context) {
 
 func (base *Controller) GetAUserOrganisation(c *gin.Context) {
 
-	var (
-		userID = c.Param("user_id")
-	)
-
-	userData, code, err := service.GetAUserOrganisation(userID, base.Db.Postgresql, c)
+	userData, code, err := service.GetAUserOrganisation(base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
