@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -273,13 +274,23 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB) 
 	}
 
 	user, err = user.GetUserByID(db, userId)
-
 	if err != nil {
 		return models.Organisation{}, http.StatusInternalServerError, err
 
 	}
 
-	user.CurrentOrg = req.CurrentOrg
+	exist, err := org.CheckUserIsMemberOfOrg(userId, req.CurrentOrg, db)
+
+	if !exist && err != nil {
+		return models.Organisation{}, http.StatusBadRequest, err
+	}
+
+	user.CurrentOrg, err = uuid.FromString(req.CurrentOrg)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusInternalServerError, err
+	}
+
 	err = user.Update(db)
 
 	if err != nil {
