@@ -5701,9 +5701,9 @@ components:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
-        created_by:
+        username:
           type: string
-          format: uuid
+          format: string
           description: ID of the user who created the channel
 
     ChannelCreateResponseSchema:
