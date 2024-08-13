@@ -809,7 +809,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
   
-  /organisations/{org_id}/roles:
+  /organisations/{orgId}/roles:
     post:
       tags:
         - roles
@@ -818,7 +818,7 @@ paths:
         - bearerAuth: []
       description: Creates a new role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
@@ -871,7 +871,7 @@ paths:
         - bearerAuth: []
       description: Retrieves a list of roles within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
@@ -910,7 +910,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /organisations/{org_id}/roles/{role_id}:
+  /organisations/{orgId}/roles/{roleId}:
     get:
       tags:
         - roles
@@ -919,14 +919,14 @@ paths:
         - bearerAuth: []
       description: Retrieves detailed information about a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -973,14 +973,14 @@ paths:
         - bearerAuth: []
       description: Updates the details of a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1033,14 +1033,14 @@ paths:
         - bearerAuth: []
       description: Deletes a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1085,7 +1085,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /organisations/{org_id}/roles/{role_id}/permissions:
+  /organisations/{orgId}/roles/{roleId}/permissions:
     put:
       tags:
         - roles
@@ -1094,14 +1094,14 @@ paths:
         - bearerAuth: []
       description: Updates the permissions for a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1485,7 +1485,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /users/{userId}/role/{roleId}:
+  /users/{userId}/roles/{roleId}:
     put:
       tags:
         - user
@@ -3221,21 +3221,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
     
-  /users/{user_id}/organisations:
+  /users/organisations:
     get:
       tags:
         - user
       summary: Retrieve a user's organizations
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: user_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          description: The UUID of the user whose organizations are being retrieved.
       description: Retrieve a list of organizations associated with a user
       responses:
         '200':
@@ -3836,7 +3828,7 @@ components:
                 items:
                   type: string
                 nullable: true
-              org_role_id:
+              org_roleId:
                 type: string
                 example: null
               org_role:
