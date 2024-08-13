@@ -206,3 +206,17 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 	return nil
 }
 
+func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
+	userUpdates := User{IsVerified: false}
+
+	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to deactivate user")
+	}
+
+	return nil
+}
