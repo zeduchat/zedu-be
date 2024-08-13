@@ -77,7 +77,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	filename := fmt.Sprintf("profile_pic&s")
+	filename := fmt.Sprintf("profile_pic%s")
 
 	defer file.Close()
 
