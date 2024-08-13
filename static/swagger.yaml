@@ -2832,6 +2832,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+
   /profile:
     get:
       tags:
@@ -3219,6 +3220,7 @@ paths:
                   message:
                     type: string
    
+
 
 components:
 
