@@ -3426,7 +3426,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-    /users/deactivate/{user_id}:
+  /users/deactivate/{user_id}:
       delete:
         tags:
           - user
@@ -3479,7 +3479,7 @@ paths:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
 
-    /users:
+  /users:
     get:
       tags:
         - user
@@ -6014,6 +6014,24 @@ components:
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
 
+    UserDeactivateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+          description: The HTTP status code indicating the outcome of the operation.
+        message:
+          type: string
+          example: "User deactivated successfully"
+          description: A message describing the result of the operation.
+        data:
+          type: object
+          nullable: true
+          description: Additional data related to the response, typically null in this case.
+      required:
+        - status
+        - message 
 
     WebhookHistory:
       type: object
