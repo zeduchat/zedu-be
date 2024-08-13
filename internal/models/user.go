@@ -193,6 +193,7 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 	userUpdates := User{Email: req.Email}
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+
 	if err != nil {
 		return err
 	}

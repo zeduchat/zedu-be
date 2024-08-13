@@ -23,28 +23,27 @@ type Profile struct {
 }
 
 type ProfileSummary struct {
-	ID                string  `json:"id"`
-	Email 		      string  `json:"email"`
-	Phone             string  `json:"phone"`
-	FirstName         string  `json:"first_name"`
-	LastName          string  `json:"last_name"`
-	FullName          string  `json:"full_name"`
-	UserName          string  `json:"user_name"`
-	AvatarURL	      string  `json:"avatar_url"`
-	UserId         	  string  `json:"user_id"`	
-	CreatedAt         string  `json:"created_at"`	
-	UpdatedAt         string  `json:"updated_at"`	
-	DeletedAt         string  `json:"deleted_at"`	
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	FullName  string `json:"full_name"`
+	UserName  string `json:"user_name"`
+	AvatarURL string `json:"avatar_url"`
+	UserId    string `json:"user_id"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+	DeletedAt string `json:"deleted_at"`
 }
 
 type UpdateUserProfileRequest struct {
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
-    FullName  string `json:"full_name"`
-    UserName  string `json:"user_name"`
-    AvatarURL string `json:"avatar_url"`
+	FullName  string `json:"full_name"`
+	UserName  string `json:"user_name"`
+	AvatarURL string `json:"avatar_url"`
 }
-
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, profileId string) error {
 	var userProfile Profile
@@ -73,4 +72,16 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	}
 
 	return nil
+}
+
+func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, error) {
+	var user Profile
+
+	query := db.Where("user_name = ?", userName)
+
+	if err := query.First(&user).Error; err != nil {
+		return user, err
+	}
+
+	return user, nil
 }
