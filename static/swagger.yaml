@@ -4513,12 +4513,8 @@ components:
     RolePermissionsUpdateSchema:
       type: object
       required:
-        - category
         - permission_list
       properties:
-        category:
-          type: string
-          description: Category of permissions being updated.
         permission_list:
           type: object
           additionalProperties:

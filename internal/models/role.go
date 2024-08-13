@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type RoleName string
@@ -59,7 +60,6 @@ type OrgRole struct {
 type Permission struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	RoleID         string         `gorm:"unique;not null" json:"-"`
-	Category       string         `gorm:"not null" json:"category"`
 	PermissionList PermissionList `gorm:"type:jsonb" json:"permission_list"`
 	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
@@ -80,8 +80,28 @@ func (p PermissionList) Value() (driver.Value, error) {
 }
 
 func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
-	err := postgresql.CreateOneRecord(db, &r)
 
+	permissionList := PermissionList{
+		"canViewTransactions":      true,
+		"canViewRefunds":           false,
+		"canLogRefund":             true,
+		"canViewUser":              true,
+		"canEditUser":              true,
+		"canCreateUser":            true,
+		"canBlacklistAndWhiteUser": false,
+	}
+
+	permission := Permission{
+		ID:             utility.GenerateUUID(),
+		RoleID:         r.ID,
+		PermissionList: permissionList,
+	}
+
+	err := postgresql.CreateOneRecord(db, &r)
+	if err != nil {
+		return err
+	}
+	err = postgresql.CreateOneRecord(db, &permission)
 	if err != nil {
 		return err
 	}
