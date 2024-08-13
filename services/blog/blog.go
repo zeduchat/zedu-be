@@ -24,7 +24,7 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 	}
 
 	req.Title = utility.CleanStringInput(req.Title)
-	req.Title = utility.CleanStringInput(req.Content)
+	req.Content = utility.CleanStringInput(req.Content)
 
 	blog := models.Blog{
 		ID:         utility.GenerateUUID(),
@@ -97,4 +97,24 @@ func GetBlogById(blogId string, db *gorm.DB) (models.Blog, error) {
 	blog.Category = &blogCategory
 
 	return blog, nil
+}
+
+func DeleteBlog(blogId string, userId string, db *gorm.DB) error {
+	var blog models.Blog
+	blog.ID = blogId
+
+	err := blog.GetBlogById(db)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("blog not found")
+		}
+		return err
+	}
+
+	if blog.AuthorID != userId {
+		return errors.New("user not authorised to delete blog")
+	}
+
+	return blog.Delete(db)
 }

@@ -37,6 +37,7 @@ func SetupBlogRoutes(r *gin.Engine, blogController *blog.Controller) {
 	blogUrl := r.Group("/api/v1")
 
 	blogAdminUrl.POST("/blogs", blogController.CreateBlog)
+	blogAdminUrl.DELETE("/blogs/:id", blogController.DeleteBlog)
 	blogAdminUrl.POST("/blog_categories", blogController.CreateBlogCategory)
 
 	blogUrl.GET("/blogs", blogController.GetBlogs)
