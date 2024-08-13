@@ -25,6 +25,12 @@ var RoleIdentity = DefaultIdentity{
 	SuperAdmin: 2,
 }
 
+type UserRole struct {
+	Guest RoleId
+	User  RoleId
+	Admin RoleId
+}
+
 var (
 	UserRoleName  RoleName = "user"
 	AdminRoleName RoleName = "admin"
@@ -41,7 +47,7 @@ type Role struct {
 
 type OrgRole struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name           string         `gorm:"unique;not null;type:varchar(20)" json:"name" validate:"required"`
+	Name           string         `gorm:"not null;type:varchar(20)" json:"name" validate:"required"`
 	Description    string         `gorm:"not null" json:"description" validate:"required"`
 	OrganisationID string         `gorm:"not null" json:"-"`
 	Permissions    Permission     `gorm:"foreignKey:RoleID;constraint:OnDelete:CASCADE;" json:"permissions"`
