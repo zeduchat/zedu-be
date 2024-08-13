@@ -29,7 +29,7 @@ tags:
     description: API for centrifuge token related endpoints
   - name: blogs
     description: API for blogs
-  - name: invitations
+  - name: invitation
     description: API for invitations
   - name: webhooks
     description: API for webhooks related endpoints
