@@ -5,9 +5,9 @@ import (
 	"math"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -15,7 +15,7 @@ type Organisation struct {
 	ID                 string `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Name               string `gorm:"type:varchar(255);not null" json:"name"`
 	Description        string `gorm:"type:text" json:"description"`
-	Email              string `gorm:"type:varchar(255);unique" json:"email"`
+	Email              string `gorm:"type:varchar(255)" json:"email"`
 	Type               string `gorm:"type:varchar(255)" json:"type"`
 	Location           string `gorm:"type:varchar(255)" json:"location"`
 	Country            string `gorm:"type:varchar(255)" json:"country"`

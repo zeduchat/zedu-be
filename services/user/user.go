@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -258,4 +258,34 @@ func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	}
 
 	return http.StatusOK, nil
+}
+
+func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB) (models.Organisation, int, error) {
+	var (
+		user models.User
+		org  models.Organisation
+	)
+
+	org, err := org.GetOrgByID(db, req.CurrentOrg)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusBadRequest, err
+	}
+
+	user, err = user.GetUserByID(db, userId)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusInternalServerError, err
+
+	}
+
+	user.CurrentOrg = req.CurrentOrg
+	err = user.Update(db)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusInternalServerError, err
+	}
+
+	return org, http.StatusOK, nil
+
 }

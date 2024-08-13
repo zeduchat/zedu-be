@@ -15,6 +15,7 @@ type User struct {
 	Email         string         `gorm:"column:email; type:varchar(255)" json:"email"`
 	IsVerified    bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
 	IsOnboarded   bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
+	CurrentOrg    string         `gorm:"column:current_org; type:uuid" json:"current_org"`
 	Profile       Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Channelss     []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
@@ -46,6 +47,10 @@ type UpdateUserRequestModel struct {
 type LoginRequestModel struct {
 	Email    string `json:"email" validate:"required"`
 	Password string `json:"password" validate:"required"`
+}
+
+type SwitchUserOrgReqeust struct {
+	CurrentOrg string `json:"current_org" validate:"required"`
 }
 
 func (u *User) AddUserToOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
