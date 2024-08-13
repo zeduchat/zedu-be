@@ -258,7 +258,16 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 }
 
 func (o *Organisation) CheckOrgExists(orgId string, db *gorm.DB) (Organisation, error) {
-	org, err := o.GetOrgByID(db, orgId)
+	var (
+		org Organisation
+	)
+	
+	exists := postgresql.CheckExists(db, &o, "id = ?", orgId)
+	if !exists {
+		return org, errors.New("organisation not found")
+	}
+
+	err, _ := postgresql.SelectOneFromDb(db, &org, "id = ?", orgId)
 	if err != nil {
 		return org, err
 	}

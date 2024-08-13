@@ -1,0 +1,76 @@
+package invitation
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/services/invitation"
+	"github.com/hngprojects/telex_be/utility"
+)
+
+func (base *Controller) CreateInvite(c *gin.Context) {
+	var (
+		inviteReq models.InvitationCreateReq
+		// baseURL   = base.ExtReq.BaseURL
+		baseURL = "http://localhost:8019"
+	)
+
+	if err := c.ShouldBindJSON(&inviteReq); err != nil {
+		base.Logger.Info("Failed to parse request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	err := base.Validator.Struct(&inviteReq)
+	if err != nil {
+		base.Logger.Info("Request Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// call checker validator to check if user is an admin of the organisation and if organisation exists
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq, userId, base.Logger)
+	if err != nil {
+		base.Logger.Info("Failed to validate user", err)
+		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	// generate invitee-token mapping
+	inviteMap, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId)
+	if err != nil {
+		base.Logger.Info("Failed to generate invitation link mapping", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	// save invitations
+	err = invitation.SaveInvitations(base.Db.Postgresql, inviteMap)
+	if err != nil {
+		base.Logger.Info("Failed to save invitations", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to save invitations", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	mapData := invitation.InviteLinkMapper(baseURL, inviteMap)
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", mapData)
+	c.JSON(http.StatusCreated, rd)
+}
