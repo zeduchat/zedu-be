@@ -29,6 +29,8 @@ tags:
     description: API for centrifuge token related endpoints
   - name: blogs
     description: API for blogs
+  - name: invitations
+    description: API for invitations
 
 
 paths:
@@ -2922,6 +2924,295 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'               
               
+  /invite/create:
+    post:
+      tags:
+        - invitation
+      summary: Create a new invitation link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organizationId:
+                  type: string
+                email:
+                  type: string
+              required:
+                - organizationId
+                - email
+      responses:
+        '201':
+          description: Invitation link created and sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invitation link created and sent successfully
+                  data:
+                    type: object
+                    properties:
+                      invitationLink:
+                        type: string
+                        example: string
+                  status_code:
+                    type: integer
+                    example: 201
+        
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /api/v1/organisations/send-invite:
+    post:
+      tags:
+        - invitation
+      summary: Send invitations to join an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                org_id:
+                  type: string
+              required:
+                - emails
+                - org_id
+      responses:
+        '201':
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Invitations sent successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          example: user@example.com
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: 2024-07-29T13:53:02+01:00
+                        organization:
+                          type: string
+                          example: testorg
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /invite/accept:
+    get:
+      tags:
+        - invitation
+      summary: Accept an invitation
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation accepted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invitation accepted, you have been added to the organization
+                  status:
+                    type: integer
+                    example: 200
+        '400':
+          description: Invalid or expired invitation link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid or expired invitation link
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - Invalid invitation link format
+                      - Expired invitation link
+                      - Organization not found
+                  status_code:
+                    type: integer
+                    example: 400
+
+  /api/invite:
+    post:
+      tags:
+        - invitation
+      summary: Accept an invitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invitationLink:
+                  type: string
+              required:
+                - invitationLink
+      responses:
+        '200':
+          description: Invitation accepted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invitation accepted, you have been added to the organization
+                  status:
+                    type: integer
+                    example: 200
+        '400':
+          description: Invalid or expired invitation link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid or expired invitation link
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - Invalid invitation link format
+                      - Expired invitation link
+                      - Organization not found
+                  status_code:
+                    type: integer
+                    example: 400
+
+  /api/v1/organisations/invitations:
+    get:
+      tags:
+        - invitation
+      summary: Retrieve invitations sent by admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Request successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Request successful
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          example: user@example.com
+                        org_id:
+                          type: string
+                          example: aoalj-alhljkdshj345klhsd
+                        status:
+                          type: string
+                          example: pending/approved/rejected
+                        sent_at:
+                          type: string
+                          format: date-time
+                          example: 2023-06-23T00:00:00Z
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: 2023-07-23T00:00:00Z
+                        invitation_token:
+                          type: string
+                          example: invitation-token
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid request
+                  message:
+                    type: string
+   
 
 components:
 
