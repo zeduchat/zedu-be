@@ -2,6 +2,7 @@ package blog
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -44,12 +45,14 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 	return nil
 }
 
-func GetBlogs(db *gorm.DB, c *gin.Context) ([]models.Blog, postgresql.PaginationResponse, error) {
+func GetBlogs(db *gorm.DB, c *gin.Context, categoryID string, searchQuery string) ([]models.Blog, postgresql.PaginationResponse, error) {
 	var (
 		blog         models.Blog
 		blogCategory models.BlogCategory
 	)
-	blogs, paginationResponse, err := blog.GetBlogs(db, c)
+	searchQuery = strings.Trim(searchQuery, `"'`)
+	categoryID = strings.Trim(categoryID, `"'`)
+	blogs, paginationResponse, err := blog.GetBlogs(db, c, categoryID, searchQuery)
 	if err != nil {
 		return nil, paginationResponse, err
 	}

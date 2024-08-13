@@ -75,7 +75,10 @@ func (base *Controller) CreateBlog(c *gin.Context) {
 }
 
 func (base *Controller) GetBlogs(c *gin.Context) {
-	blogs, paginationResponse, err := service.GetBlogs(base.Db.Postgresql, c)
+	categoryID := c.Query("category")
+    searchQuery := c.Query("search")
+
+	blogs, paginationResponse, err := service.GetBlogs(base.Db.Postgresql, c,  categoryID, searchQuery)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "failed to fetch blogs", err, nil)
