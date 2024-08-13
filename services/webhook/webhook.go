@@ -21,9 +21,6 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 		resp    gin.H
 	)
 
-	slug := strings.Split(utility.GenerateUUID(), "-")[4]
-	webhookUrl := config.Config.App.Url + fmt.Sprintf("/webhook/%s", slug)
-
 	webhook = models.Webhook{
 		ID:          utility.GenerateUUID(),
 		EventName:   req.EventName,
@@ -31,9 +28,13 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 		ChannelId:   req.ChannelID,
 		OwnerId:     req.UserID,
 		Status:      "active",
-		WebhookUrl:  webhookUrl,
-		WebhookSlug: slug,
 	}
+
+	slug := strings.Split(webhook.ID, "-")[4]
+	webhookUrl := config.Config.App.Url + fmt.Sprintf("/webhook/channel/%s", slug)
+
+	webhook.WebhookSlug = slug
+	webhook.WebhookUrl = webhookUrl
 
 	err := webhook.CreateWebhook(db)
 
@@ -48,23 +49,10 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 	return resp, http.StatusCreated, nil
 }
 
-func PostWebhook() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
-
-}
 
 func DeleteWebhook(req models.DeleteWebhookRequest, db *gorm.DB) (int, error) {
 
-	var (
-		webhook models.Webhook
-	)
-
-	webhook = models.Webhook{
+	webhook := models.Webhook{
 		ChannelId:   req.ChannelID,
 		WebhookSlug: req.WebhookSlug,
 		OwnerId:     req.UserID,
@@ -140,5 +128,25 @@ func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *
 	}
 
 	return resp, pagResp, http.StatusOK, nil
+
+}
+
+func PostWebhook() (gin.H, int, error) {
+
+	var (
+		resp gin.H
+	)
+
+	return resp, http.StatusCreated, nil
+
+}
+
+func GetWebhook() (gin.H, int, error) {
+
+	var (
+		resp gin.H
+	)
+
+	return resp, http.StatusCreated, nil
 
 }
