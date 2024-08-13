@@ -75,7 +75,7 @@ func GetAUser(userIDStr string, db *gorm.DB, c *gin.Context) (*models.User, int,
 	return &userResp, http.StatusOK, nil
 }
 
-func GetAUserOrganisation(userIDStr string, db *gorm.DB, c *gin.Context) (*[]models.Organisation, int, error) {
+func GetAUserOrganisation(db *gorm.DB, c *gin.Context) (*[]models.Organisation, int, error) {
 	var (
 		orgData models.Organisation
 		orgResp []models.Organisation
@@ -98,7 +98,7 @@ func GetAUserOrganisation(userIDStr string, db *gorm.DB, c *gin.Context) (*[]mod
 
 	isSuperAdmin := user.CheckUserIsAdmin(db)
 	if isSuperAdmin {
-		orgResp, err = orgData.GetOrganisationsByUserID(db, userIDStr)
+		orgResp, err = orgData.GetOrganisationsByUserID(db, userID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return &orgResp, http.StatusNotFound, errors.New("user not found")
@@ -106,7 +106,7 @@ func GetAUserOrganisation(userIDStr string, db *gorm.DB, c *gin.Context) (*[]mod
 			return &orgResp, http.StatusBadRequest, err
 		}
 	} else {
-		orgResp, err = orgData.GetOrganisationsByUserIDs(db, userIDStr, userID)
+		orgResp, err = orgData.GetOrganisationsByUserIDs(db, userID, userID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return &orgResp, http.StatusNotFound, errors.New("user not found")
@@ -219,4 +219,43 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 
 	return users, &paginationResponse, http.StatusOK, nil
 
+}
+
+func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
+	var user models.User
+
+	userID, err := middleware.GetUserClaims(ctx, db, "user_id")
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+
+	currentUserID, ok := userID.(string)
+	if !ok {
+		return http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	currentUser, code, err := GetUser(currentUserID, db)
+	if err != nil {
+		return code, err
+	}
+
+	isSuperAdmin := currentUser.CheckUserIsAdmin(db)
+
+	if !isSuperAdmin {
+		return http.StatusForbidden, errors.New("user does not have permission to deactivate this user")
+	}
+
+	user, err = user.GetUserByID(db, userIDStr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("user not found")
+		}
+		return http.StatusBadRequest, err
+	}
+
+	if err := user.DeactivateUser(db, user.ID); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }

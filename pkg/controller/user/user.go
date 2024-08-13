@@ -8,7 +8,6 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
@@ -54,20 +53,7 @@ func (base *Controller) GetAUser(c *gin.Context) {
 
 func (base *Controller) GetAUserOrganisation(c *gin.Context) {
 
-	userId, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
-	if err != nil {
-		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to retrieve organisations", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to retrieve organisations", nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	userID := userId.(string)
-
-	userData, code, err := service.GetAUserOrganisation(userID, base.Db.Postgresql, c)
+	userData, code, err := service.GetAUserOrganisation(base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -127,5 +113,22 @@ func (base *Controller) UpdateAUser(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User info updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) DeactiveUser(ctx *gin.Context) {
+	var (
+		userID = ctx.Param("user_id")
+	)
+
+	code, err := service.DeactiveUser(userID, base.Db.Postgresql, ctx)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		ctx.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated successfully", nil)
+	ctx.JSON(http.StatusOK, rd)
 
 }

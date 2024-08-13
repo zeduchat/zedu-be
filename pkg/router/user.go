@@ -23,11 +23,13 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.GET("/users/:user_id", user.GetAUser)
 		userUrl.DELETE("/users/:user_id", user.DeleteAUser)
 		userUrl.PUT("/users/:user_id", user.UpdateAUser)
-		userUrl.GET("/organisations", user.GetAUserOrganisation)
+		userUrl.GET("users/organisations", user.GetAUserOrganisation)
+
 		userUrl.PUT("/users/:user_id/roles/:role_id", user.AssignRoleToUser)
 
 		userUrl.GET("/users/:user_id/login-audit", user.GetUserLoginAudit)
 		userUrl.PUT("/users/revoke-session", user.RevokeUserAccessToken)
+		userUrl.DELETE("/users/deactivate/:user_id", user.DeactiveUser)
 		userUrl.GET("/users/:user_id/sessions", user.GetUserSessions)
 	}
 	adminUrl.GET("/users", user.GetAllUsers)
