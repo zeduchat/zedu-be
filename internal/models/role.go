@@ -61,7 +61,7 @@ type Permission struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	RoleID         string         `gorm:"unique;not null" json:"-"`
 	PermissionList PermissionList `gorm:"type:jsonb" json:"permission_list"`
-	Category       string         `gorm:"type:string null" json:"category"`
+	Category       string         `gorm:"type:string" json:"category"`
 	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
