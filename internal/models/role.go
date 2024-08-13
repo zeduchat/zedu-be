@@ -25,6 +25,12 @@ var RoleIdentity = DefaultIdentity{
 	SuperAdmin: 2,
 }
 
+type UserRole struct {
+	Guest RoleId
+	User  RoleId
+	Admin RoleId
+}
+
 var (
 	UserRoleName  RoleName = "user"
 	AdminRoleName RoleName = "admin"
