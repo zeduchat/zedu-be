@@ -6,12 +6,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/profile"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 type Controller struct {
@@ -53,12 +54,26 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	req.Email = c.Request.FormValue("email")
+	req.UserName = c.Request.FormValue("user_name")
+	req.FullName = c.Request.FormValue("full_name")
+	req.Phone = c.Request.FormValue("phone")
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+
+	err = c.Request.ParseMultipartForm(5 << 20)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Parse form error: %v", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	file, header, err := c.Request.FormFile("avatar_url")
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -70,7 +85,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-    code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, userId)
+	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, header, file)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
