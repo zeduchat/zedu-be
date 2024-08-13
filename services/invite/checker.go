@@ -44,13 +44,11 @@ func CheckerPostInvite(base *storage.Database, inviteReq models.InvitationReques
 		return org, http.StatusRequestEntityTooLarge, "Payload too large; email limit exceeded", errors.New("Payload too large; email limit exceeded")
 	}
 
-	// Validate org_id
 	orgId, err := uuid.Parse(inviteReq.OrgID)
 	if err != nil {
 		return org, http.StatusUnprocessableEntity, "Invalid org_id format", err
 	}
 
-	// Check if org_id exists and return organization
 	orgResp, err := org.CheckOrgExists(orgId.String(), base.Postgresql)
 	if err != nil {
 		return org, http.StatusNotFound, "organisation not found", err
@@ -69,7 +67,6 @@ func CheckerPostInvite(base *storage.Database, inviteReq models.InvitationReques
 		return org, statusCode, msg, err
 	}
 
-	// Check if user is a member of the organization
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgResp.ID, base.Postgresql)
 	if err != nil {
 		return org, http.StatusNotFound, "User not a member of the organization", err
@@ -89,7 +86,6 @@ func IteratorPostInvite(c *gin.Context, inviteReq models.InvitationRequest, base
 		return http.StatusBadRequest, "No emails provided", nil
 	}
 
-	// Loop through emails and create invitation
 	for _, email := range inviteReq.Emails {
 		if email == "" {
 			inviteErrors = append(
@@ -143,7 +139,6 @@ func IteratorPostInvite(c *gin.Context, inviteReq models.InvitationRequest, base
 			continue
 		}
 
-		// Send email
 		err = SendEmail(email, org.Name, invitation.ExpiresAt.Format(time.RFC3339))
 		if err != nil {
 			inviteErrors = append(
@@ -176,7 +171,6 @@ func IteratorPostInvite(c *gin.Context, inviteReq models.InvitationRequest, base
 	return http.StatusCreated, "Invitation(s) sent successfully", invitations
 }
 
-// write a dummy sending email functions
 func SendEmail(email string, orgName string, expiresAt string) error {
 	fmt.Println("Sending email to: ", email)
 	return nil

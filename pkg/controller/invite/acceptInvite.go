@@ -11,7 +11,6 @@ import (
 )
 
 func (base *Controller) PostAcceptInvite(c *gin.Context) {
-	// accept invite logic here
 	var inviteReq models.InvitationAcceptReq
 	claims, exists := c.Get("userClaims")
 	userClaims := claims.(jwt.MapClaims)

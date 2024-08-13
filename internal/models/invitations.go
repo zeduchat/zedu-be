@@ -49,7 +49,6 @@ func (i *Invitation) CreateInvitation(db *gorm.DB) error {
 }
 
 func (i *Invitation) GetInvitationsByID(db *gorm.DB, user_id string) ([]Invitation, error) {
-	//get all invitations with the user_id
 	var invitations []Invitation
 
 	err := postgresql.SelectAllFromDb(db.Preload("Organisation"), "", &invitations, "user_id = ?", user_id)
