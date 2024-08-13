@@ -57,7 +57,13 @@ func DeleteWebhook(req models.DeleteWebhookRequest, db *gorm.DB) (int, error) {
 		OwnerId:   req.UserID,
 	}
 
-	err := webhook.DeleteWebhook(db)
+	_, err := webhook.GetWebhookByID(db, webhook.ID, webhook.ChannelId)
+
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	err = webhook.DeleteWebhook(db)
 
 	if err != nil {
 		return http.StatusBadRequest, err

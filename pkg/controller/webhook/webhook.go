@@ -127,22 +127,6 @@ func (base *Controller) DeleteWebhook(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
-		base.Logger.Info("error parsing request body")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	err = base.Validator.Struct(&req)
-	if err != nil {
-		base.Logger.Info("validation failed")
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
 	req.UserID = userId
 	req.ChannelID = channelId
 	req.WebhookID = webhookId
@@ -154,8 +138,8 @@ func (base *Controller) DeleteWebhook(c *gin.Context) {
 		return
 	}
 	base.Logger.Info("webhook deleted successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "webhook deleted successfully", nil)
-	c.JSON(http.StatusCreated, rd)
+	rd := utility.BuildSuccessResponse(code, "webhook deleted successfully", nil)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) UpdateWebhook(c *gin.Context) {
