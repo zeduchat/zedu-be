@@ -115,3 +115,20 @@ func (base *Controller) UpdateAUser(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 
 }
+
+func (base *Controller) DeactiveUser(ctx *gin.Context) {
+	var (
+		userID = ctx.Param("user_id")
+	)
+
+	code, err := service.DeactiveUser(userID, base.Db.Postgresql, ctx)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		ctx.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated successfully", nil)
+	ctx.JSON(http.StatusOK, rd)
+
+}
