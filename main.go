@@ -9,6 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/cronjobs"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -28,6 +29,7 @@ func main() {
 	validatorRef := validator.New()
 
 	db := storage.Connection()
+	models.SeedSubscriptionPlans(db.Postgresql)
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 
