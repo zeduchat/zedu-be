@@ -1,9 +1,7 @@
 package profile
 
 import (
-	"fmt"
 	"net/http"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -56,6 +54,11 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	req.Email = c.Request.FormValue("email")
+	req.UserName = c.Request.FormValue("user_name")
+	req.FullName = c.Request.FormValue("full_name")
+	req.Phone = c.Request.FormValue("phone")
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
@@ -70,16 +73,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	file, header, err := c.Request.FormFile("file")
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Form file error: %v", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	filename := fmt.Sprintf("profile_pic%s")
-
-	defer file.Close()
+	file, header, err := c.Request.FormFile("avatar_url")
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -91,7 +85,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, userId)
+	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, header, file)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

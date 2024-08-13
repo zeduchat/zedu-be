@@ -12,20 +12,20 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func UploadProfilePic(objectName string, file io.Reader, fileSize int64) (string, error) {
+func UploadProfilePic(logger *utility.Logger, objectName string, file io.Reader, fileSize int64) (string, error) {
 
-	path1 := "/public/profile_pics/" + objectName
+	path1 := "public/profile_pics/" + objectName
 	url := ""
 	minioClient := storage.DB.Minio
 	bucketName := config.Config.Minio.BucketName
 
 	_, err := minioClient.PutObject(context.Background(), bucketName, path1, file, fileSize, minio.PutObjectOptions{})
 	if err != nil {
-		utility.LogAndPrint(storage.Logger, fmt.Sprintf("failed to upload file to %s: %v", path1, err))
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", path1, err))
 		return url, fmt.Errorf("failed to upload file to %s: %v", path1, err)
 	}
 
-	utility.LogAndPrint(storage.Logger, fmt.Sprintf("File uploaded successfully to %s\n", path1))
+	(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", path1))
 
 	url = fmt.Sprintf("http://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, path1)
 
