@@ -33,10 +33,10 @@ type WebhookHistory struct {
 	ActionType  string    `gorm:"column:action_type; type:text;null" json:"action_type"`
 	StatusCode  string    `gorm:"column:status_code; type:text;null" json:"status_code"`
 	WebhookID   string    `gorm:"type:uuid;not null" json:"-"`
-	Retries     int64     `gorm:"type:integer;not null" json:"user_id"`
-	CreatedAt   time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"attempted"`
-	UpdatedAt   time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt   time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+	Retries     int64     `gorm:"type:integer;not null" json:"retries"`
+	CreatedAt   time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
+	UpdatedAt   time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"attempted"`
+	DeletedAt   time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"-"`
 }
 
 type CreateWebhookRequest struct {
