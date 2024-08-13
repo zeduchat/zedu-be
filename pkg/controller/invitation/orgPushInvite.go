@@ -10,7 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) CreateInvite(c *gin.Context) {
+func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	var (
 		inviteReq models.InvitationCreateReq
 		// baseURL   = base.ExtReq.BaseURL
@@ -70,6 +70,15 @@ func (base *Controller) CreateInvite(c *gin.Context) {
 	}
 
 	mapData := invitation.InviteLinkMapper(baseURL, inviteMap)
+
+	//integrating send invitation functionality
+	err = invitation.SendInvitationsEmail(mapData)
+	if err != nil {
+		base.Logger.Info("Failed to send invitation email", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", mapData)
 	c.JSON(http.StatusCreated, rd)

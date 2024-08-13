@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -14,6 +15,7 @@ type Invitation struct {
 	Status         string       `gorm:"type:varchar(100);" json:"status"`
 	Role           string       `gorm:"type:varchar(100);" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
+	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
 	Organisation   Organisation `gorm:"foreignKey:OrganisationID"`
 	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	ExpiresAt      time.Time    `gorm:"column:expires_at; not null" json:"expires_at"`
@@ -30,16 +32,23 @@ type InvitationResponse struct {
 	OrgID          string    `json:"org_id"`
 	Status         string    `json:"status"`
 	InviteToken    string    `json:"invite_token"`
+	IsTelexUser    bool      `json:"is_telex_user"`
 	InvitationLink string    `json:"invitation_link"`
 	Sent_At        time.Time `json:"sent_at"`
 	Expires_At     time.Time `json:"expires_at"`
 }
 
-type InvitationAcceptReq struct {
-	InvitationLink string `json:"invitation_link" validate:"required"`
-}
-
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
+	var u User
+
+	//loop through the invitations and check is the user is a telex user
+	for idx, invite := range invitations {
+		exists := postgresql.CheckExists(db, &u, "email = ?", invite.Email)
+		if exists {
+			invitations[idx].IsTelexUser = true
+		}
+	}
+
 
 	err := postgresql.CreateMultipleRecords(db, &invitations, len(invitations))
 	if err != nil {
@@ -57,4 +66,9 @@ func (i *Invitation) GetInvitationsByID(db *gorm.DB, user_id string) ([]Invitati
 		return nil, err
 	}
 	return invitations, nil
+}
+
+func (i *Invitation) ProcessInvitationAcceptance(db *gorm.DB, userID string) (Invitation, error) {
+	
+	return Invitation{}, errors.New("not implemented")
 }

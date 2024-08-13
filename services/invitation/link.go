@@ -55,7 +55,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 		response = append(response, models.InvitationResponse{
 			Email:          invite.Email,
 			OrgID:          invite.OrganisationID,
-			Status:         "active",
+			Status:         "invited",
 			InviteToken:    invite.Token,
 			InvitationLink: GenerateInvitationLink(baseURL, invite.Token),
 			Sent_At:        invite.CreatedAt,
