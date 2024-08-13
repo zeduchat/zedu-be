@@ -60,7 +60,7 @@ func (base *Controller) GetWebhookHistory(c *gin.Context) {
 	)
 
 	channelId = c.Param("channel_id")
-	webhookSlug := c.Param("webhook_id")
+	WebhookID := c.Param("webhook_id")
 
 	if _, err := uuid.Parse(channelId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to delete webhook", nil)
@@ -81,7 +81,7 @@ func (base *Controller) GetWebhookHistory(c *gin.Context) {
 
 	req.UserID = userId
 	req.ChannelID = channelId
-	req.WebhookSlug = webhookSlug
+	req.WebhookID = WebhookID
 
 	respData, additionalInfo, code, err := webhook.GetWebhookHistory(req, c, base.Db.Postgresql)
 	if err != nil {
@@ -102,13 +102,13 @@ func (base *Controller) GetWebhookHistory(c *gin.Context) {
 func (base *Controller) DeleteWebhook(c *gin.Context) {
 
 	var (
-		req         models.DeleteWebhookRequest
-		channelId   string
-		webhookSlug string
+		req       models.DeleteWebhookRequest
+		channelId string
+		webhookId string
 	)
 
 	channelId = c.Param("channel_id")
-	webhookSlug = c.Param("webhook_id")
+	webhookId = c.Param("webhook_id")
 
 	if _, err := uuid.Parse(channelId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to delete webhook", nil)
@@ -145,7 +145,7 @@ func (base *Controller) DeleteWebhook(c *gin.Context) {
 
 	req.UserID = userId
 	req.ChannelID = channelId
-	req.WebhookSlug = webhookSlug
+	req.WebhookID = webhookId
 
 	code, err := webhook.DeleteWebhook(req, base.Db.Postgresql)
 	if err != nil {
@@ -161,13 +161,13 @@ func (base *Controller) DeleteWebhook(c *gin.Context) {
 func (base *Controller) UpdateWebhook(c *gin.Context) {
 
 	var (
-		req         models.UpdateWebhookRequest
-		channelId   string
-		webhookSlug string
+		req       models.UpdateWebhookRequest
+		channelId string
+		webhookID string
 	)
 
 	channelId = c.Param("channel_id")
-	webhookSlug = c.Param("webhook_id")
+	webhookID = c.Param("webhook_id")
 
 	if _, err := uuid.Parse(channelId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to updating webhook", nil)
@@ -204,7 +204,7 @@ func (base *Controller) UpdateWebhook(c *gin.Context) {
 
 	req.UserID = userId
 	req.ChannelID = channelId
-	req.WebhookSlug = webhookSlug
+	req.WebhookID = webhookID
 
 	resp, code, err := webhook.UpdateWebhook(req, base.Db.Postgresql)
 	if err != nil {
@@ -331,12 +331,10 @@ func (base *Controller) ChangeWebhookStatus(c *gin.Context) {
 
 func (base *Controller) PostWebhook(c *gin.Context) {
 
+	// webhookId := c.Param("webhook_id")
 
-	webhookId := c.Param("webhook_id")
-
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "successfully", nil)
-	c.JSON(http.StatusOK, rd)
+	// rd := utility.BuildSuccessResponse(http.StatusOK, "successfully", nil)
+	// c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) GetWebhook(c *gin.Context) {

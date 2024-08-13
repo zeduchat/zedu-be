@@ -49,13 +49,12 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 	return resp, http.StatusCreated, nil
 }
 
-
 func DeleteWebhook(req models.DeleteWebhookRequest, db *gorm.DB) (int, error) {
 
 	webhook := models.Webhook{
-		ChannelId:   req.ChannelID,
-		WebhookSlug: req.WebhookSlug,
-		OwnerId:     req.UserID,
+		ChannelId: req.ChannelID,
+		ID:        req.WebhookID,
+		OwnerId:   req.UserID,
 	}
 
 	err := webhook.DeleteWebhook(db)

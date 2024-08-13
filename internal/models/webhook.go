@@ -46,31 +46,39 @@ type CreateWebhookRequest struct {
 	EventName   string `json:"event_name"`
 }
 
+type CreateWebhookHistoryRequest struct {
+	ChannelID   string `json:"channel_id"`
+	WebhookSlug string `json:"webhook_slug"`
+	ActionType  string `json:"action_type"`
+	StatusCode  string `json:"status_code"`
+	Retries     int64  `json:"user_id"`
+}
+
 type UpdateWebhookRequest struct {
 	ChannelID   string `json:"channel_id"`
 	UserID      string `json:"user_id"`
 	WebhookName string `json:"webhook_name" validate:"required"`
-	WebhookSlug string `json:"webhook_id" validate:"required"`
+	WebhookID   string `json:"webhook_id"`
 	EventName   string `json:"event_name"`
 }
 
 type DeleteWebhookRequest struct {
-	ChannelID   string `json:"channel_id"`
-	WebhookSlug string `json:"webhook_slug"`
-	UserID      string `json:"user_id"`
+	ChannelID string `json:"channel_id"`
+	WebhookID string `json:"webhook_id"`
+	UserID    string `json:"user_id"`
 }
 
 type ChangeWebhookStatusRequest struct {
-	ChannelID   string `json:"channel_id"`
-	WebhookSlug string `json:"webhook_slug"`
-	UserID      string `json:"user_id"`
-	Status      string `json:"webhook_status" validate:"required"`
+	ChannelID string `json:"channel_id"`
+	WebhookID string `json:"webhook_id"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"webhook_status" validate:"required"`
 }
 
 type GetWebhookHistoryRequest struct {
-	ChannelID   string `json:"channel_id"`
-	WebhookSlug string `json:"webhook_slug"`
-	UserID      string `json:"user_id"`
+	ChannelID string `json:"channel_id"`
+	WebhookID string `json:"webhook_id"`
+	UserID    string `json:"user_id"`
 }
 
 func (w *Webhook) CreateWebhook(db *gorm.DB) error {
@@ -114,18 +122,13 @@ func (w *Webhook) UpdateWebhook(db *gorm.DB, req UpdateWebhookRequest) (Webhook,
 		return webhook, errors.New("user not in channel")
 	}
 
-	_, err := postgresql.SaveAllFields(db, &w)
-	if err != nil {
-		return webhook, err
-	}
-
-	_, err = postgresql.UpdateFields(db, &webhook, req, "channel_id = ? AND webhook_slug = ?", req.ChannelID, req.WebhookSlug)
+	_, err := postgresql.UpdateFields(db, &webhook, req, "channel_id = ? AND id = ?", req.ChannelID, req.WebhookID)
 
 	if err != nil {
 		return webhook, err
 	}
 
-	webhook, err = webhook.GetWebhookBySlug(db, w.WebhookSlug, w.ChannelId)
+	webhook, err = webhook.GetWebhookByID(db, w.ID, w.ChannelId)
 
 	if err != nil {
 		return webhook, err
@@ -150,13 +153,13 @@ func (w *Webhook) UpdateWebhookStatus(db *gorm.DB, req ChangeWebhookStatusReques
 		return webhook, err
 	}
 
-	_, err = postgresql.UpdateFields(db, &webhook, req, "channel_id = ? AND webhook_slug = ?", req.ChannelID, req.WebhookSlug)
+	_, err = postgresql.UpdateFields(db, &webhook, req, "channel_id = ? AND id = ?", req.ChannelID, req.WebhookID)
 
 	if err != nil {
 		return webhook, err
 	}
 
-	webhook, err = webhook.GetWebhookBySlug(db, w.WebhookSlug, w.ChannelId)
+	webhook, err = webhook.GetWebhookByID(db, w.ID, w.ChannelId)
 
 	if err != nil {
 		return webhook, err
@@ -165,13 +168,13 @@ func (w *Webhook) UpdateWebhookStatus(db *gorm.DB, req ChangeWebhookStatusReques
 	return webhook, nil
 }
 
-func (r *Webhook) GetWebhookBySlug(db *gorm.DB, webhookSlug, channelId string) (Webhook, error) {
+func (r *Webhook) GetWebhookByID(db *gorm.DB, webhookID, channelId string) (Webhook, error) {
 
 	var webhook Webhook
 
-	_, err := postgresql.SelectOneFromDb(db, &webhook, "webhook_slug = ? AND channel_id = ?", webhookSlug, channelId)
+	_, err := postgresql.SelectOneFromDb(db, &webhook, "id = ? AND channel_id = ?", webhookID, channelId)
 	if err != nil {
-		return webhook, errors.New("error getting webhook by slug: " + err.Error())
+		return webhook, errors.New("error getting webhook by id: " + err.Error())
 	}
 
 	return webhook, nil
@@ -213,7 +216,6 @@ func (wh *WebhookHistory) GetWebHookHistory(db *gorm.DB, c *gin.Context, req Get
 	if !exist {
 		return webhookHistory, postgresql.PaginationResponse{}, http.StatusInternalServerError, errors.New("user not in channel")
 	}
-	
 
 	pagination := postgresql.GetPagination(c)
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
@@ -222,8 +224,8 @@ func (wh *WebhookHistory) GetWebHookHistory(db *gorm.DB, c *gin.Context, req Get
 		"",
 		pagination,
 		&webhookHistory,
-		"webhook_slug = ?",
-		req.WebhookSlug,
+		"webhook_id = ?",
+		req.WebhookID,
 	)
 
 	if err != nil {
@@ -234,4 +236,8 @@ func (wh *WebhookHistory) GetWebHookHistory(db *gorm.DB, c *gin.Context, req Get
 	}
 
 	return webhookHistory, paginationResponse, http.StatusOK, nil
+}
+
+func (wh *WebhookHistory) CreateWebhookHistory(db *gorm.DB, req CreateWebhookHistoryRequest) {
+
 }
