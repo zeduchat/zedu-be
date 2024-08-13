@@ -36,8 +36,6 @@ func (base *Controller) PostAcceptInvite(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	// add user to organisation
-	///check if user from the claims is a member of the organisation
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -55,7 +53,6 @@ func (base *Controller) PostAcceptInvite(c *gin.Context) {
 }
 
 func (base *Controller) GetAcceptInvite(c *gin.Context) {
-	// get accept invite logic here
 	invitationToken := c.Param("t")
 	claims, exists := c.Get("userClaims")
 	userClaims := claims.(jwt.MapClaims)
@@ -72,8 +69,6 @@ func (base *Controller) GetAcceptInvite(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	// add user to organisation
-	///check if user from the claims is a member of the organisation
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)

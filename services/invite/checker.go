@@ -17,7 +17,6 @@ import (
 type mapper map[string]interface{}
 
 func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateReq, userId string, logger *utility.Logger) (models.Organisation, int, string, error) {
-	//check if organisation exists
 	var org models.Organisation
 	orgResp, err := org.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
 	if err != nil {
@@ -37,12 +36,10 @@ func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateR
 func CheckerPostInvite(base *storage.Database, inviteReq models.InvitationRequest, userId string) (models.Organisation, int, string, error) {
 	var org models.Organisation
 
-	// Check if duplicate emails exist
 	if CheckDuplicateEmails(inviteReq) {
 		return org, http.StatusConflict, "Duplicate emails found", errors.New("Duplicate emails found")
 	}
 
-	// Check emails limit
 	if CheckEmailsLimit(inviteReq) {
 		return org, http.StatusRequestEntityTooLarge, "Payload too large; email limit exceeded", errors.New("Payload too large; email limit exceeded")
 	}
