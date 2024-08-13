@@ -1,67 +1,51 @@
 package webhook
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, error) {
 
 	var (
-		resp    gin.H
 		webhook models.Webhook
+		resp    gin.H
 	)
 
+	slug := strings.Split(utility.GenerateUUID(), "-")[4]
+	webhookUrl := config.Config.App.Url + fmt.Sprintf("/webhook/%s", slug)
+
 	webhook = models.Webhook{
-		ID:        utility.GenerateUUID(),
-		EventName: "",
-		ChannelId: req.ChannelID,
-		OwnerId:   req.UserID,
+		ID:          utility.GenerateUUID(),
+		EventName:   req.EventName,
+		WebhookName: req.WebhookName,
+		ChannelId:   req.ChannelID,
+		OwnerId:     req.UserID,
+		Status:      "active",
+		WebhookUrl:  webhookUrl,
+		WebhookSlug: slug,
 	}
 
 	err := webhook.CreateWebhook(db)
 
 	if err != nil {
-		return nil, http.StatusInternalServerError, err
+		return resp, http.StatusBadRequest, err
+	}
+
+	resp = gin.H{
+		"webhook_url": webhookUrl,
 	}
 
 	return resp, http.StatusCreated, nil
-}
-
-
-func GetAllWebhook() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
-
-}
-
-func GetAWebhook() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
-
-}
-
-func GetWebhookHistory() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
-
 }
 
 func PostWebhook() (gin.H, int, error) {
@@ -74,22 +58,87 @@ func PostWebhook() (gin.H, int, error) {
 
 }
 
-func DeleteWebhook() (gin.H, int, error) {
+func DeleteWebhook(req models.DeleteWebhookRequest, db *gorm.DB) (int, error) {
 
 	var (
-		resp gin.H
+		webhook models.Webhook
 	)
 
-	return resp, http.StatusCreated, nil
+	webhook = models.Webhook{
+		ChannelId:   req.ChannelID,
+		WebhookSlug: req.WebhookSlug,
+		OwnerId:     req.UserID,
+	}
+
+	err := webhook.DeleteWebhook(db)
+
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func UpdateWebhook(req models.UpdateWebhookRequest, db *gorm.DB) (models.Webhook, int, error) {
+
+	var (
+		resp models.Webhook
+	)
+
+	resp, err := resp.UpdateWebhook(db, req)
+
+	if err != nil {
+		return resp, http.StatusBadRequest, err
+	}
+
+	return resp, http.StatusOK, nil
+}
+
+func ChangeWebhookStatus(req models.ChangeWebhookStatusRequest, db *gorm.DB) (models.Webhook, int, error) {
+
+	var (
+		resp models.Webhook
+	)
+
+	resp, err := resp.UpdateWebhookStatus(db, req)
+
+	if err != nil {
+		return resp, http.StatusBadRequest, err
+	}
+
+	return resp, http.StatusOK, nil
 
 }
 
-func ChangeWebhookStatus() (gin.H, int, error) {
+func GetAllWebhook(db *gorm.DB, c *gin.Context, channelId string) ([]models.Webhook, postgresql.PaginationResponse, int, error) {
 
 	var (
-		resp gin.H
+		resp     []models.Webhook
+		webhooks models.Webhook
 	)
 
-	return resp, http.StatusCreated, nil
+	resp, pagResp, err := webhooks.GetAllChannelWebhook(db, c, channelId)
+
+	if err != nil {
+		return resp, pagResp, http.StatusBadRequest, err
+	}
+
+	return resp, pagResp, http.StatusOK, nil
+
+}
+
+func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *gorm.DB) ([]models.WebhookHistory, postgresql.PaginationResponse, int, error) {
+
+	var (
+		webhookhistory models.WebhookHistory
+	)
+
+	resp, pagResp, code, err := webhookhistory.GetWebHookHistory(db, c, req)
+
+	if err != nil {
+		return resp, pagResp, code, err
+	}
+
+	return resp, pagResp, http.StatusOK, nil
 
 }

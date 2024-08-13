@@ -1,11 +1,13 @@
 package webhook
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -23,88 +25,48 @@ type Controller struct {
 
 func (base *Controller) GetAllWebhook(c *gin.Context) {
 
-	usersData, paginationResponse, code, err := webhook.GetAllWebhook(base.Db.Postgresql)
+	channelId := c.Param("channel_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		base.Logger.Info("error parsing channel id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org id format", errors.New("failed to parse org id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, additionalInfo, code, err := webhook.GetAllWebhook(base.Db.Postgresql, c, channelId)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Info("error fetching webhooks")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Users retrieved successfully", usersData, paginationResponse)
-	c.JSON(http.StatusOK, rd)
-
-}
-
-func (base *Controller) GetAWebhook(c *gin.Context) {
-
-	var (
-		userID = c.Param("user_id")
-	)
-
-	userData, code, err := webhook.GetAWebhook(userID, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		return
+	response := gin.H{
+		"webhooks":        respData,
+		"additional_info": additionalInfo,
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
-	c.JSON(http.StatusOK, rd)
+	base.Logger.Info("webhooks fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "webhooks fetched successfully", response)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) GetWebhookHistory(c *gin.Context) {
 
 	var (
-		userID = c.Param("user_id")
+		channelId string
+		req       models.GetWebhookHistoryRequest
 	)
 
-	userData, code, err := webhook.GetWebhookHistory(userID, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
+	channelId = c.Param("channel_id")
+	webhookSlug := c.Param("webhook_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to delete webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) PostWebhook(c *gin.Context) {
-
-	var (
-		userID = c.Param("user_id")
-	)
-
-	userData, code, err := webhook.PostWebhook(userID, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) DeleteWebhook(c *gin.Context) {
-
-	var (
-		userID = c.Param("user_id")
-	)
-
-	userData, code, err := webhook.DeleteWebhook(req, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) CreateWebhook(c *gin.Context) {
-	var req models.CreateWebhookRequest
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -113,6 +75,55 @@ func (base *Controller) CreateWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserID = userId
+	req.ChannelID = channelId
+	req.WebhookSlug = webhookSlug
+
+	respData, additionalInfo, code, err := webhook.GetWebhookHistory(req, c, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	response := gin.H{
+		"webhooks_history": respData,
+		"additional_info":  additionalInfo,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) DeleteWebhook(c *gin.Context) {
+
+	var (
+		req         models.DeleteWebhookRequest
+		channelId   string
+		webhookSlug string
+	)
+
+	channelId = c.Param("channel_id")
+	webhookSlug = c.Param("webhook_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to delete webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
@@ -133,6 +144,122 @@ func (base *Controller) CreateWebhook(c *gin.Context) {
 	}
 
 	req.UserID = userId
+	req.ChannelID = channelId
+	req.WebhookSlug = webhookSlug
+
+	code, err := webhook.DeleteWebhook(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+	base.Logger.Info("webhook deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "webhook deleted successfully", nil)
+	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) UpdateWebhook(c *gin.Context) {
+
+	var (
+		req         models.UpdateWebhookRequest
+		channelId   string
+		webhookSlug string
+	)
+
+	channelId = c.Param("channel_id")
+	webhookSlug = c.Param("webhook_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to updating webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.UserID = userId
+	req.ChannelID = channelId
+	req.WebhookSlug = webhookSlug
+
+	resp, code, err := webhook.UpdateWebhook(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+	base.Logger.Info("webhook updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "webhook updated successfully", resp)
+	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) CreateWebhook(c *gin.Context) {
+	var (
+		req       models.CreateWebhookRequest
+		channelId string
+	)
+
+	channelId = c.Param("channel_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to create webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.UserID = userId
+	req.ChannelID = channelId
 
 	respData, code, err := webhook.CreateWebhook(req, base.Db.Postgresql)
 	if err != nil {
@@ -140,16 +267,54 @@ func (base *Controller) CreateWebhook(c *gin.Context) {
 		c.JSON(code, rd)
 		return
 	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", respData)
-	c.JSON(http.StatusOK, rd)
+	base.Logger.Info("webhook created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "webhook created successfully", respData)
+	c.JSON(http.StatusCreated, rd)
 }
 
 func (base *Controller) ChangeWebhookStatus(c *gin.Context) {
 
 	var (
-		userID = c.Param("user_id")
+		req models.ChangeWebhookStatusRequest
 	)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	channelId := c.Param("channel_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to create webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserID = userId
+	req.ChannelID = channelId
 
 	userData, code, err := webhook.ChangeWebhookStatus(req, base.Db.Postgresql)
 	if err != nil {
@@ -158,6 +323,103 @@ func (base *Controller) ChangeWebhookStatus(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
+	base.Logger.Info("webhook status updated successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "webhook status updated successfully", userData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) PostWebhook(c *gin.Context) {
+
+	var (
+		req models.ChangeWebhookStatusRequest
+	)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	channelId := c.Param("channel_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to create webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserID = userId
+	req.ChannelID = channelId
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetWebhook(c *gin.Context) {
+	var (
+		req models.ChangeWebhookStatusRequest
+	)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	channelId := c.Param("channel_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", "failed to create webhook", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserID = userId
+	req.ChannelID = channelId
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
