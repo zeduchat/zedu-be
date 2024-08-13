@@ -809,7 +809,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
   
-  /organisations/{org_id}/roles:
+  /organisations/{orgId}/roles:
     post:
       tags:
         - roles
@@ -818,7 +818,7 @@ paths:
         - bearerAuth: []
       description: Creates a new role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
@@ -871,7 +871,7 @@ paths:
         - bearerAuth: []
       description: Retrieves a list of roles within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
@@ -910,7 +910,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /organisations/{org_id}/roles/{role_id}:
+  /organisations/{orgId}/roles/{roleId}:
     get:
       tags:
         - roles
@@ -919,14 +919,14 @@ paths:
         - bearerAuth: []
       description: Retrieves detailed information about a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -973,14 +973,14 @@ paths:
         - bearerAuth: []
       description: Updates the details of a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1033,14 +1033,14 @@ paths:
         - bearerAuth: []
       description: Deletes a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1085,7 +1085,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /organisations/{org_id}/roles/{role_id}/permissions:
+  /organisations/{orgId}/roles/{roleId}/permissions:
     put:
       tags:
         - roles
@@ -1094,14 +1094,14 @@ paths:
         - bearerAuth: []
       description: Updates the permissions for a specific role within an organization.
       parameters:
-        - name: org_id
+        - name: orgId
           in: path
           required: true
           schema:
             type: string
             format: uuid
           description: ID of the organization containing the role.
-        - name: role_id
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1485,7 +1485,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /users/{userId}/role/{roleId}:
+  /users/{userId}/roles/{roleId}:
     put:
       tags:
         - user
@@ -2794,6 +2794,8 @@ paths:
       summary: List all webhooks
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -2847,7 +2849,8 @@ paths:
       summary: Create a new webhook
       tags:
         - webhooks
-        
+      security:
+        - bearerAuth: []        
       parameters:
         - name: channel_id
           in: path
@@ -2909,6 +2912,8 @@ paths:
       summary: Get a webhook history by ID
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -2996,6 +3001,8 @@ paths:
       summary: Update a webhook
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3078,6 +3085,8 @@ paths:
       summary: Delete a webhook
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3142,6 +3151,8 @@ paths:
       summary: Update webhook status
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3221,21 +3232,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
     
-  /users/{user_id}/organisations:
+  /users/organisations:
     get:
       tags:
         - user
       summary: Retrieve a user's organizations
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: user_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          description: The UUID of the user whose organizations are being retrieved.
       description: Retrieve a list of organizations associated with a user
       responses:
         '200':
@@ -3272,6 +3275,248 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
 
+  /users/{user_id}:
+    get:
+      tags:
+        - user
+      summary: Retrieve a specific user   
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to retrieve.
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+    delete:
+      tags:
+        - user
+      summary: Delete a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to delete.
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDeleteResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    put:
+      tags:
+        - user
+      summary: Update a specific user
+      security:
+        - bearerAuth: []
+      description: Updates the details of a specific user.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateSchema'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserUpdateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+  /users/deactivate/{user_id}:
+      delete:
+        tags:
+          - user
+        summary: Deactivate a specific user
+        security:
+          - bearerAuth: []
+        parameters:
+          - name: user_id
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the user to deactivate.
+        responses:
+          '200':
+            description: User deactivated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserDeactivateResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '403':
+            description: Forbidden
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ForbiddenErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
+
+  /users:
+    get:
+      tags:
+        - user
+      summary: Retrieve a list of users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
   /profile:
     get:
       tags:
@@ -3836,7 +4081,7 @@ components:
                 items:
                   type: string
                 nullable: true
-              org_role_id:
+              org_roleId:
                 type: string
                 example: null
               org_role:
@@ -4521,12 +4766,8 @@ components:
     RolePermissionsUpdateSchema:
       type: object
       required:
-        - category
         - permission_list
       properties:
-        category:
-          type: string
-          description: Category of permissions being updated.
         permission_list:
           type: object
           additionalProperties:
@@ -4714,13 +4955,9 @@ components:
           type: string
         email:
           type: string
-        state:
-          type: string
-        industry:
-          type: string
         type:
           type: string
-        address:
+        location:
           type: string
         country:
           type: string
@@ -5576,6 +5813,29 @@ components:
           next_page_url: null
           prev_page_url: null
           
+    UserResponseSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the user.
+        first_name:
+          type: string
+          description: The user's first name.
+        last_name:
+          type: string
+          description: The user's last name.
+        username:
+          type: string
+          description: The user's username.
+        phone_number:
+          type: string
+          description: The user's phone number (optional).
+      required:
+        - id
+        - first_name
+        - last_name
+        - username
     ChannelUpdateResponseSchema:
       type: object
       properties:
@@ -5585,6 +5845,19 @@ components:
           type: integer
         message:
           type: string
+
+    UserDeleteResponseSchema:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponseSchema'
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "user delete successfully"
+        data: null
+        pagination: null
+
+          
     UserUpdateResponseSchema:
       type: object
       properties:
@@ -5701,6 +5974,23 @@ components:
           format: date-time
           description: Timestamp when the webhook was last updated
 
+    UserUpdateSchema:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          format: phone
+        language:
+          type: string
+
+          
     UserSession:
       type: object
       properties:
@@ -5724,6 +6014,24 @@ components:
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
 
+    UserDeactivateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+          description: The HTTP status code indicating the outcome of the operation.
+        message:
+          type: string
+          example: "User deactivated successfully"
+          description: A message describing the result of the operation.
+        data:
+          type: object
+          nullable: true
+          description: Additional data related to the response, typically null in this case.
+      required:
+        - status
+        - message 
 
     WebhookHistory:
       type: object

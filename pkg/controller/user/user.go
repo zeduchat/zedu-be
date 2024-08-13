@@ -53,11 +53,7 @@ func (base *Controller) GetAUser(c *gin.Context) {
 
 func (base *Controller) GetAUserOrganisation(c *gin.Context) {
 
-	var (
-		userID = c.Param("user_id")
-	)
-
-	userData, code, err := service.GetAUserOrganisation(userID, base.Db.Postgresql, c)
+	userData, code, err := service.GetAUserOrganisation(base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -117,5 +113,22 @@ func (base *Controller) UpdateAUser(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User info updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) DeactiveUser(ctx *gin.Context) {
+	var (
+		userID = ctx.Param("user_id")
+	)
+
+	code, err := service.DeactiveUser(userID, base.Db.Postgresql, ctx)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		ctx.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated successfully", nil)
+	ctx.JSON(http.StatusOK, rd)
 
 }
