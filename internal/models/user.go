@@ -19,6 +19,8 @@ type User struct {
 	Channelss     []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
 	OrgRoleID     *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
+	UserRoleID    *string        `gorm:"type:varchar(100);null;index" json:"user_role_id"`
+	UserRole      UserRole       `gorm:"foreignKey:RoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"user_role"`
 	OrgRole       OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
 	Password      string         `gorm:"column:password; type:text; not null" json:"-"`
 	CreatedAt     time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
@@ -191,8 +193,8 @@ func (u *User) GetUserByIDsAdmin(db *gorm.DB, userID, requesterID string) (User,
 func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
 
 	userUpdates := User{Email: req.Email}
-	
-    result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+
+	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
 	if err != nil {
 		return err
 	}
@@ -203,3 +205,4 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 
 	return nil
 }
+

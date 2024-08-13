@@ -26,11 +26,23 @@ var RoleIdentity = DefaultIdentity{
 	SuperAdmin: 2,
 }
 
-type UserRole struct {
+type UserIdentity struct {
 	Guest RoleId
 	User  RoleId
 	Admin RoleId
 }
+
+var UserRolesIdentity = UserIdentity{
+	Guest: 1,
+	User:  2,
+	Admin: 3,
+}
+
+var (
+	UserRoleIdentity  RoleName = "user"
+	AdminRoleIdentity RoleName = "admin"
+	GuestRoleIdentity RoleName = "guest"
+)
 
 var (
 	UserRoleName  RoleName = "user"
@@ -47,6 +59,17 @@ type Role struct {
 }
 
 type OrgRole struct {
+	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	Name           string         `gorm:"not null;type:varchar(20)" json:"name" validate:"required"`
+	Description    string         `gorm:"not null" json:"description" validate:"required"`
+	OrganisationID string         `gorm:"not null" json:"-"`
+	Permissions    Permission     `gorm:"foreignKey:RoleID;constraint:OnDelete:CASCADE;" json:"permissions"`
+	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type UserRole struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Name           string         `gorm:"not null;type:varchar(20)" json:"name" validate:"required"`
 	Description    string         `gorm:"not null" json:"description" validate:"required"`
@@ -195,6 +218,23 @@ func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId string, roleId string) (*Us
 	}
 
 	user.OrgRoleID = &roleId
+
+	if _, err := postgresql.SaveAllFields(db, &user); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (u *UserRole) UpdateUserIdentity(db *gorm.DB, userId string, roleId string) (*User, error) {
+	var user User
+
+	user, err := user.GetUserByID(db, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	user.UserRoleID = &roleId
 
 	if _, err := postgresql.SaveAllFields(db, &user); err != nil {
 		return nil, err

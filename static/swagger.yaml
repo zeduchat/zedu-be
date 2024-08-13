@@ -3272,8 +3272,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: '#/components/schemas/ServerErrorSchema'         
 
+                
 
   /profile:
     get:
