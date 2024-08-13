@@ -2794,6 +2794,8 @@ paths:
       summary: List all webhooks
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -2847,7 +2849,8 @@ paths:
       summary: Create a new webhook
       tags:
         - webhooks
-        
+      security:
+        - bearerAuth: []        
       parameters:
         - name: channel_id
           in: path
@@ -2909,6 +2912,8 @@ paths:
       summary: Get a webhook history by ID
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -2996,6 +3001,8 @@ paths:
       summary: Update a webhook
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3078,6 +3085,8 @@ paths:
       summary: Delete a webhook
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3142,6 +3151,8 @@ paths:
       summary: Update webhook status
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -4702,13 +4713,9 @@ components:
           type: string
         email:
           type: string
-        state:
-          type: string
-        industry:
-          type: string
         type:
           type: string
-        address:
+        location:
           type: string
         country:
           type: string
