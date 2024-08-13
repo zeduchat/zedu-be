@@ -4,6 +4,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Database struct {
@@ -12,7 +14,10 @@ type Database struct {
 	Minio      *minio.Client
 }
 
-var DB *Database = &Database{}
+var (
+	DB     *Database = &Database{}
+	Logger *utility.Logger
+)
 
 func Connection() *Database {
 	return DB
