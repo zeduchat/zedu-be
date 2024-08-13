@@ -27,7 +27,7 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		webhookUrl.POST("/:channel_id", webhook.CreateWebhook)
 		webhookUrl.DELETE("/:channel_id/:webhook_id", webhook.DeleteWebhook)
 		webhookUrl.PUT("/:channel_id/:webhook_id", webhook.UpdateWebhook)
-		webhookUrl.POST("/:channel_id/:webhook_id/change-status", webhook.ChangeWebhookStatus)
+		webhookUrl.PUT("/:channel_id/:webhook_id/change-status", webhook.ChangeWebhookStatus)
 
 	}
 
