@@ -89,6 +89,8 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 			ID:        utility.GenerateUUID(),
 			FirstName: firstName,
 			LastName:  lastName,
+			FullName:  firstName + " " + lastName,
+			UserName:  username,
 			Phone:     phoneNumber,
 		},
 	}
@@ -219,6 +221,8 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, er
 			ID:        utility.GenerateUUID(),
 			FirstName: firstName,
 			LastName:  lastName,
+			FullName:  firstName + " " + lastName,
+			UserName:  username,
 			Phone:     phoneNumber,
 		},
 	}

@@ -38,6 +38,8 @@ require (
 	gorm.io/gorm v1.25.10
 )
 
+require github.com/stripe/stripe-go v70.15.0+incompatible // indirect
+
 require (
 	github.com/centrifugal/protocol v0.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
