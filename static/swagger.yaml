@@ -28,7 +28,12 @@ tags:
   - name: tokens
     description: API for centrifuge token related endpoints
   - name: blogs
-    description: API for blogs
+    description: API for blogs related endpoints
+  - name: webhooks
+    description: API for webhooks related endpoints
+  - name: messages
+    description: API for message related endpoints
+    
 
 
 paths:
@@ -2779,6 +2784,441 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+# webhooks
+
+
+  /webhooks/{channel_id}:
+    get:
+      summary: List all webhooks
+      tags:
+        - webhooks
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          required: false
+          description: The page number to retrieve. Default is 1.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          required: false
+          description: The number of items per page. Default is 10.
+            
+      responses:
+        '200':
+          description: A list of webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhooks fetched succesfully
+                  data:
+                    type: object
+                    properties:
+                      webhooks:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Webhook'
+    post:
+      summary: Create a new webhook
+      tags:
+        - webhooks
+        
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Webhook object that needs to be created
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhook_name:
+                  type: string
+                  format: string
+                event_name:
+                  type: string
+                  format: string
+              required:
+                - webhook_name
+              
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+  /webhooks/{channel_id}/history/{webhook_id}:
+    get:
+      summary: Get a webhook history by ID
+      tags:
+        - webhooks
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the channel
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the webhook
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          required: false
+          description: The page number to retrieve. Default is 1.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          required: false
+          description: The number of items per page. Default is 10.
+  
+      responses:
+        '200':
+          description: Webhook details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhooks fetched succesfully
+                  data:
+                    type: object
+                    properties:
+                      webhooks_history:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WebhookHistory'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+    
+  /webhooks/{channel_id}/{webhook_id}:
+    put:
+      summary: Update a webhook
+      tags:
+        - webhooks
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the channel
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook
+      requestBody:
+        description: Webhook object with updated information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhook_name:
+                  type: string
+                  description: The name of the webhook.
+                event_name:
+                  type: string
+                  description: The name of the event associated with the webhook.
+              
+      responses:
+        '200':
+          description: Webhook updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhooks updated succesfully
+                  data:
+                    type: object
+                    $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+                
+    delete:
+      summary: Delete a webhook
+      tags:
+        - webhooks
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the channel
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook
+      responses:
+        '204':
+          description: Webhook deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhooks deleted succesfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+  
+  /webhooks/{channel_id}/{webhook_id}/change-status:
+    put:
+      summary: Update webhook status
+      tags:
+        - webhooks
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the channel
+        - name: webhook_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook
+      requestBody:
+        description: Webhook object with updated information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - webhook_status
+              properties:
+                webhook_status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                    - paused
+                  description: The status of the webhook. Can be `active`, `inactive`, or `paused`
+      responses:
+        '200':
+          description: Webhook updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhooks updated succesfully
+                  data:
+                    type: object
+                    $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
     
   /users/{user_id}/organisations:
     get:
@@ -4509,6 +4949,53 @@ components:
             num_users:
               type: integer
               example: 10
+            
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the webhook
+        event_name:
+          type: string
+          nullable: true
+          description: Name of the event associated with the webhook
+        webhook_name:
+          type: string
+          nullable: true
+          description: Name of the webhook
+        status:
+          type: string
+          nullable: true
+          description: Status of the webhook
+        owner_id:
+          type: string
+          format: uuid
+          description: ID of the owner of the webhook
+        webhook_url:
+          type: string
+          description: URL where the webhook will send requests
+        webhook_id:
+          type: string
+          nullable: true
+          description: Slug of the webhook
+        channel_id:
+          type: string
+          format: uuid
+          description: ID of the channel associated with the webhook
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the webhook was created
+        deleted_at:
+          type: string
+          format: date-time
+          description: Timestamp when the webhook was deleted
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the webhook was last updated
 
     UserSession:
       type: object
@@ -4540,6 +5027,35 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserSession'
+
+    WebhookHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the webhook history entry
+        webhook_id:
+          type: string
+          format: uuid
+          description: ID of the associated webhook
+        callback_id:
+          type: string
+          format: uuid
+          description: ID of the associated webhook
+        status_code:
+          type: string
+          description: Status of the webhook at the time of this history entry
+        action_type:
+          type: string
+          description: Status of the webhook at the time of this history entry
+        retries:
+          type: string
+          description: Status of the webhook at the time of this history entr
+        attempted:
+          type: string
+          format: date-time
+          description: Timestamp when the history entry was updated
 
   responses:
     UnauthorizedError:
