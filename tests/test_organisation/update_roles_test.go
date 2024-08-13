@@ -241,7 +241,6 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
 		updatedPermissions := models.Permission{
-			Category: "market",
 			PermissionList: models.PermissionList{
 				"can_view_transactions": true,
 				"can_view_refunds":      false,
@@ -266,7 +265,6 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		router, _ := setup()
 
 		updatedPermissions := models.Permission{
-			Category: "market",
 			PermissionList: models.PermissionList{
 				"can_view_transactions": true,
 				"can_view_refunds":      false,
@@ -297,7 +295,6 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
 		updatedPermissions := models.Permission{
-			Category: "market",
 			PermissionList: models.PermissionList{
 				"can_view_transactions": true,
 				"can_view_refunds":      false,
