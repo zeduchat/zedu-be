@@ -46,7 +46,7 @@ type UpdateUserProfileRequest struct {
 }
 
 
-func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, profileId string) error {
+func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
 	var userProfile Profile
 
 	profileUpdates := Profile{
@@ -58,12 +58,12 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 
 	query := "userid = ?"
 
-	exist := postgresql.CheckExists(db, &userProfile, query, profileId)
+	exist := postgresql.CheckExists(db, &userProfile, query, userId)
 	if !exist {
 		return errors.New("Profile does not exists")
 	}
 
-	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, profileId)
+	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)
 	if err != nil {
 		return err
 	}
