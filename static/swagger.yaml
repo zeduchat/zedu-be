@@ -28,12 +28,13 @@ tags:
   - name: tokens
     description: API for centrifuge token related endpoints
   - name: blogs
-    description: API for blogs related endpoints
+    description: API for blogs
+  - name: invitation
+    description: API for invitations
   - name: webhooks
     description: API for webhooks related endpoints
   - name: messages
     description: API for message related endpoints
-    
 
 
 paths:
@@ -3262,6 +3263,396 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: get user profile  
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "User profile retrieved successfully"
+                statusCode:
+                  type: integer
+                  example: 200
+                data:
+                  type: object
+                  properties:
+                    schema:
+                      $ref: '#/components/schemas/ProfileResponseSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+    patch:
+      tags:
+        - Profile
+      summary: Update user profile
+      description: Allows authenticated users to update their profile information.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            example:
+              email: "newemail@example.com"
+              full_name: "New Full Name"
+              user_name: "new_username"
+              phone: "1234567890"
+              avatar_url: "https://example.com/avatar.jpg"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile updated successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/UpdateProfileResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'               
+              
+  /invite/create:
+    post:
+      tags:
+        - invitation
+      summary: Create a new invitation link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organizationId:
+                  type: string
+                email:
+                  type: string
+              required:
+                - organizationId
+                - email
+      responses:
+        '201':
+          description: Invitation link created and sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invitation link created and sent successfully
+                  data:
+                    type: object
+                    properties:
+                      invitationLink:
+                        type: string
+                        example: string
+                  status_code:
+                    type: integer
+                    example: 201
+        
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /api/v1/organisations/send-invite:
+    post:
+      tags:
+        - invitation
+      summary: Send invitations to join an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                org_id:
+                  type: string
+              required:
+                - emails
+                - org_id
+      responses:
+        '201':
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Invitations sent successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          example: user@example.com
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: 2024-07-29T13:53:02+01:00
+                        organization:
+                          type: string
+                          example: testorg
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /invite/accept:
+    get:
+      tags:
+        - invitation
+      summary: Accept an invitation
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation accepted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invitation accepted, you have been added to the organization
+                  status:
+                    type: integer
+                    example: 200
+        '400':
+          description: Invalid or expired invitation link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid or expired invitation link
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - Invalid invitation link format
+                      - Expired invitation link
+                      - Organization not found
+                  status_code:
+                    type: integer
+                    example: 400
+
+  /api/invite:
+    post:
+      tags:
+        - invitation
+      summary: Accept an invitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invitationLink:
+                  type: string
+              required:
+                - invitationLink
+      responses:
+        '200':
+          description: Invitation accepted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invitation accepted, you have been added to the organization
+                  status:
+                    type: integer
+                    example: 200
+        '400':
+          description: Invalid or expired invitation link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid or expired invitation link
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - Invalid invitation link format
+                      - Expired invitation link
+                      - Organization not found
+                  status_code:
+                    type: integer
+                    example: 400
+
+  /api/v1/organisations/invitations:
+    get:
+      tags:
+        - invitation
+      summary: Retrieve invitations sent by admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Request successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Request successful
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          example: user@example.com
+                        org_id:
+                          type: string
+                          example: aoalj-alhljkdshj345klhsd
+                        status:
+                          type: string
+                          example: pending/approved/rejected
+                        sent_at:
+                          type: string
+                          format: date-time
+                          example: 2023-06-23T00:00:00Z
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: 2023-07-23T00:00:00Z
+                        invitation_token:
+                          type: string
+                          example: invitation-token
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid request
+                  message:
+                    type: string
+   
+
+
 components:
 
   schemas:
@@ -3492,6 +3883,103 @@ components:
             total_pages:
               type: integer
               example: 1
+    
+    UpdateProfileResponse:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Updated email address
+          example: "newemail@example.com"
+        full_name:
+          type: string
+          description: Updated full name
+          example: "New Full Name"
+        user_name:
+          type: string
+          description: Updated username
+          example: "new_username"
+        phone:
+          type: string
+          description: Updated phone number
+          example: "1234567890"
+        avatar_url:
+          type: string
+          format: uri
+          description: Updated avatar URL
+          example: "https://example.com/avatar.jpg"
+    
+    UpdateProfileRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: New email address
+        full_name:
+          type: string
+          description: Full name of the user
+        user_name:
+          type: string
+          description: Username
+        phone:
+          type: string
+          description: Phone number
+        avatar_url:
+          type: string
+          format: uri
+          description: URL to the avatar image
+      example:
+        email: "newemail@example.com"
+        full_name: "New Full Name"
+        user_name: "new_username"
+        phone: "1234567890"
+        avatar_url: "https://example.com/avatar.jpg"
+      description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
+    
+    ProfileResponseSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "019142c8-5408-7a48-8173-f31e6c8e00cd"
+        email:
+          type: string
+          example: "keepStrugle@gmail.com"
+        phone:
+          type: string
+          example: "09099999999"
+        first_name:
+          type: string
+          example: "Test"
+        last_name:
+          type: string
+          example: "Og"
+        full_name:
+          type: string
+          example: "Testinp Update"
+        user_name:
+          type: string
+          example: "What_b_Heck"
+        avatar_url:
+          type: string
+          example: "img898989.png"
+        user_id:
+          type: string
+          example: "019142c8-5408-7a47-b94c-91d674dd8358"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-11T19:51:50+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-12T00:59:39+01:00"
+        deleted_at:
+          type: string
+          format: date-time
+          example: "0001-01-01T00:00:00Z"
 
     NotFoundErrorSchema:
       type: object
@@ -3787,7 +4275,71 @@ components:
         description:
           type: string
         
-
+    UsersListResponseSchema:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: The HTTP status code of the response.
+        status:
+          type: string
+          description: The status of the response (e.g., "success").
+        error:
+          type: string
+          description: Any error message (should be empty on success).
+        message:
+          type: string
+          description: A message describing the outcome (e.g., "Users retrieved successfully").
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSchema'
+          description: The list of users.
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - code
+        - status
+        - message
+        - data
+        - pagination
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "Users retrieved successfully"
+        data:
+          - id: "user_1"
+            name: "John Doe"
+            email: "john.doe@example.com"
+            is_verified: true
+            is_onboarded: true
+            profile:
+              id: "profile_1"
+              first_name: "John"
+              last_name: "Doe"
+              phone: "+123456789"
+            channels:
+              - id: "channel_1"
+                name: "General"
+            organisations:
+              - id: "org_1"
+                name: "Example Organisation"
+            org_role_id: "role_1"
+            org_role:
+              id: "role_1"
+              role_name: "Admin"
+            created_at: "2024-08-12T12:34:56Z"
+            updated_at: "2024-08-12T12:34:56Z"
+            role: 1
+        pagination:
+          total: 100
+          per_page: 10
+          current_page: 1
+          last_page: 10
+          next_page_url: "/api/v1/users?page=2"
+          prev_page_url: null
     RegionSchema:
       type: object
       properties:
@@ -4915,7 +5467,107 @@ components:
               items:
                 type: string
               nullable: true
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+          description: The total number of items.
+        per_page:
+          type: integer
+          format: int32
+          description: The number of items per page.
+        current_page:
+          type: integer
+          format: int32
+          description: The current page number.
+        last_page:
+          type: integer
+          format: int32
+          description: The last page number.
+        next_page_url:
+          type: string
+          description: The URL for the next page.
+        prev_page_url:
+          type: string
+          description: The URL for the previous page.
 
+    AccessToken:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the access token.
+        owner_id:
+          type: string
+          description: The unique identifier for the owner of the access token.
+        is_live:
+          type: boolean
+          description: Indicates if the access token is live.
+        created_at:
+          type: string
+          format: date-time
+          description: The timestamp when the access token was created.
+        updated_at:
+          type: string
+          format: date-time
+          description: The timestamp when the access token was last updated.
+
+    
+    UserSessionsListResponseSchema:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: The HTTP status code of the response.
+        status:
+          type: string
+          description: The status of the response (e.g., "success").
+        error:
+          type: string
+          description: Any error message (should be empty on success).
+        message:
+          type: string
+          description: A message describing the outcome (e.g., "Data retrieved successfully").
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessToken'
+          description: The list of access tokens (user sessions).
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - code
+        - status
+        - message
+        - data
+        - pagination
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "Data retrieved successfully"
+        data:
+          - id: "token_1"
+            owner_id: "user_1"
+            is_live: true
+            created_at: "2024-08-12T12:34:56Z"
+            updated_at: "2024-08-12T12:34:56Z"
+          - id: "token_2"
+            owner_id: "user_1"
+            is_live: false
+            created_at: "2024-08-10T08:22:30Z"
+            updated_at: "2024-08-10T08:22:30Z"
+        pagination:
+          total: 2
+          per_page: 10
+          current_page: 1
+          last_page: 1
+          next_page_url: null
+          prev_page_url: null
+          
     ChannelUpdateResponseSchema:
       type: object
       properties:
@@ -4925,6 +5577,58 @@ components:
           type: integer
         message:
           type: string
+    UserUpdateResponseSchema:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: The HTTP status code of the response.
+        status:
+          type: string
+          description: The status of the response (e.g., "success").
+        error:
+          type: string
+          description: Any error message (should be empty on success).
+        message:
+          type: string
+          description: A message describing the outcome (e.g., "User info updated successfully").
+        data:
+          $ref: '#/components/schemas/UserSchema'
+      required:
+        - code
+        - status
+        - message
+        - data
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "User info updated successfully"
+        data:
+          id: "user_1"
+          name: "John Doe"
+          email: "john.doe@example.com"
+          is_verified: true
+          is_onboarded: true
+          profile:
+            id: "profile_1"
+            first_name: "John"
+            last_name: "Doe"
+            phone: "+123456789"
+          channels:
+            - id: "channel_1"
+              name: "General"
+          organisations:
+            - id: "org_1"
+              name: "Example Organisation"
+          org_role_id: "role_1"
+          org_role:
+            id: "role_1"
+            role_name: "Admin"
+          created_at: "2024-08-12T12:34:56Z"
+          updated_at: "2024-08-12T12:34:56Z"
+          role: 1
 
     NumUsersResponseSchema:
       type: object
@@ -5012,13 +5716,6 @@ components:
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
 
-    UserSessionsListResponseSchema:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserSession'
 
     WebhookHistory:
       type: object
