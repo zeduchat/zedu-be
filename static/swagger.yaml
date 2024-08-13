@@ -1191,48 +1191,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-    get:
-      tags:
-        - organisation
-      summary: Query organisations where a user belongs
-      security:
-        - bearerAuth: []
-      description: Retrieves a list of organisations where the specified user belongs.
-      operationId: getUserorganisations
-      responses:
-        '200':
-          description: A list of organisations
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Organisation'
-        '401':
-          description: Authentication error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '404':
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundErrorSchema'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-                
                 
   /organisations/{orgId}:
     put:
@@ -3262,7 +3220,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
     
-
+  /users/{user_id}/organisations:
+    get:
+      tags:
+        - user
+      summary: Retrieve a user's organizations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The UUID of the user whose organizations are being retrieved.
+      description: Retrieve a list of organizations associated with a user
+      responses:
+        '200':
+          description: Organizations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/organizationGSuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
 components:
 
@@ -4991,6 +4997,36 @@ components:
           format: date-time
           description: Timestamp when the webhook was last updated
 
+    UserSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "0191481e-8a4e-723d-9353-e614ba8b06dd"
+        owner_id:
+          type: string
+          format: uuid
+          example: "0191475b-7a5d-795f-a04b-8c2ff5344778"
+        is_live:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-12T20:44:06.734784+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-12T20:44:06.734784+01:00"
+
+    UserSessionsListResponseSchema:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSession'
 
     WebhookHistory:
       type: object
