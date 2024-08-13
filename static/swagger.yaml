@@ -31,7 +31,6 @@ tags:
     description: API for blogs
   - name: invitations
     description: API for invitations
-    description: API for blogs related endpoints
   - name: webhooks
     description: API for webhooks related endpoints
   - name: messages
@@ -5725,13 +5724,6 @@ components:
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
 
-    UserSessionsListResponseSchema:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserSession'
 
     WebhookHistory:
       type: object
