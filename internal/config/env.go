@@ -14,6 +14,7 @@ type Configuration struct {
 	Centrifuge   Centrifuge
 	Redis        Redis
 	Mail         MAIL
+	Minio        Minio
 }
 
 type BaseConfig struct {
@@ -63,6 +64,11 @@ type BaseConfig struct {
 	REDIS_PORT string `mapstructure:"REDIS_PORT"`
 	REDIS_HOST string `mapstructure:"REDIS_HOST"`
 	REDIS_DB   string `mapstructure:"REDIS_DB"`
+
+	MINIO_ENDPOINT    string `mapstructure:"MINIO_ENDPOINT"`
+	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
+	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
+	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -132,6 +138,13 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			REDIS_PORT: config.REDIS_PORT,
 			REDIS_HOST: config.REDIS_HOST,
 			REDIS_DB:   config.REDIS_DB,
+		},
+
+		Minio: Minio{
+			MinioEndpoint: config.MINIO_ENDPOINT,
+			BucketName:    config.BUCKET_NAME,
+			AccessKey:     config.BUCKET_ACCESS_KEY,
+			Secret:        config.BUKCET_SECRET_KEY,
 		},
 	}
 }
