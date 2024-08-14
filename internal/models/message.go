@@ -24,7 +24,7 @@ type CreateMessageRequest struct {
 	Content    string `json:"content" validate:"required"`
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id" validate:"required"`
+	ThreadId   string `json:"thread_id,omitempty"`
 }
 
 func (m *Message) CreateMessage(db *gorm.DB) error {
