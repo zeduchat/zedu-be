@@ -39,7 +39,7 @@ func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "metrics fetched successfully", countMetricsData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", countMetricsData)
 	c.JSON(http.StatusOK, rd)
 }
 
