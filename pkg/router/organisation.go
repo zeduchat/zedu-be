@@ -32,7 +32,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PUT("/:org_id/roles/:role_id/permissions", organisation.UpdateOrgPermissions)
 		organisationUrl.GET("/:org_id/channels", organisation.GetAllChannelssInOrganisation)
 		
-
+		//User Management Routes
 		organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
 		organisationUrl.GET("/:org_id/metrics", organisation.GetOrganisationCountMetrics)
 		organisationUrl.DELETE("/:org_id/users/:user_id", organisation.RemoveMemberFromOrganisation)

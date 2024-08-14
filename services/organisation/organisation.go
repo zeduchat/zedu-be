@@ -17,8 +17,6 @@ import (
 
 func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (models.CreateOrgRequestModel, int, error) {
 
-	org := models.Organisation{}
-
 	if req.Email != "" {
 		req.Email = strings.ToLower(req.Email)
 		formattedMail, checkBool := utility.EmailValid(req.Email)
@@ -26,13 +24,9 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 			return req, http.StatusUnprocessableEntity, fmt.Errorf("email address is invalid")
 		}
 		req.Email = formattedMail
-		exists := postgresql.CheckExists(db, &org, "email = ?", req.Email)
-		if exists {
-			return req, http.StatusBadRequest, errors.New("organization already exists with the given email")
-		}
-	}
 
-	return req, 0, nil
+	}
+	return req, http.StatusOK, nil
 }
 
 func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string) (*models.Organisation, error) {
@@ -202,9 +196,9 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 
 }
 
-func RemoveMemberFromOrganisation(ownerId , orgId , userId string, db *gorm.DB) error {
+func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (
-		org models.Organisation
+		org    models.Organisation
 		orgmgt models.OrgUserManagement
 	)
 
@@ -227,13 +221,11 @@ func RemoveMemberFromOrganisation(ownerId , orgId , userId string, db *gorm.DB) 
 
 }
 
-
 func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var (
-		org models.Organisation
+		org    models.Organisation
 		orgmgt models.OrgUserManagement
 	)
-
 
 	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
@@ -256,7 +248,7 @@ func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Con
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	usersOrgMgtResponse, err := orgmgt.GetOrgUserManagement(db, users ,orgId)
+	usersOrgMgtResponse, err := orgmgt.GetOrgUserManagement(db, users, orgId)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
