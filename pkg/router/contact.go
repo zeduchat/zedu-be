@@ -1,0 +1,29 @@
+package router
+
+import (
+	"fmt"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/pkg/controller/contact"
+	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/utility"
+)
+
+func Contact(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
+	extReq := request.ExternalRequest{Logger: logger, Test: false}
+	contact := contact.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+
+	contactUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
+	{
+		contactUrl.POST("/contact", contact.AddToContactUs)
+		contactUrl.GET("/contact", middleware.Authorize(db.Postgresql), contact.GetAllContactUs)
+		contactUrl.DELETE("/contact/:id", middleware.Authorize(db.Postgresql), contact.DeleteContactUs)
+		contactUrl.GET("/contact/id/:id", middleware.Authorize(db.Postgresql), contact.GetContactUsById)
+		contactUrl.GET("/contact/email/:email", middleware.Authorize(db.Postgresql), contact.GetContactUsByEmail)
+
+	}
+	return r
+}
