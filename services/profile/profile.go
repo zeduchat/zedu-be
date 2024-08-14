@@ -105,3 +105,13 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 
 	return imageData, ext, nil
 }
+
+func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) (int, error) {
+	var userProfile models.Profile
+
+	if err := userProfile.ReplaceAvatarWithDefault(db, userId); err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	return http.StatusOK, nil
+}

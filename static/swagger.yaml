@@ -41,6 +41,8 @@ tags:
     description: API for user management related endpoints
   - name: threads
     description: API for threads related endpoints
+  - name: Profile
+    description: API for threads related endpoints
 
 
 paths:
@@ -3833,7 +3835,51 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'               
+                $ref: '#/components/schemas/ServerErrorSchema' 
+  /profile/image:
+    
+    delete:
+      tags:
+        - Profile
+      summary: Delete user profile image
+      description: Allows authenticated users to delete their profile image.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile image deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile image deleted successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'                               
               
   /invite/create:
     post:

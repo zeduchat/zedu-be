@@ -57,12 +57,12 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 
 	query := "userid = ?"
 
-	exist := postgresql.CheckExists(db, &userProfile, query, userId)
+	exist := postgresql.CheckExists(db, &userProfile, query, profileId)
 	if !exist {
 		return errors.New("Profile does not exists")
 	}
 
-	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)
+	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, profileId)
 	if err != nil {
 		return err
 	}
@@ -84,4 +84,29 @@ func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, erro
 	}
 
 	return user, nil
+}
+
+func (p *Profile) ReplaceAvatarWithDefault(db *gorm.DB, userId string) error {
+	var userProfile Profile
+
+	exists := postgresql.CheckExists(db, &userProfile, "userid = ?", userId)
+	if !exists {
+		return errors.New("profile does not exist")
+	}
+	
+	defaultAvatarURL := "http://91.229.239.238:7100/telexbucket/public/profile_pics/profile_pic_default25acbe570c2d.png"
+	profileUpdate := Profile{
+		AvatarURL: defaultAvatarURL,
+	}
+
+	result, err := postgresql.UpdateFields(db, &p, profileUpdate, "userid = ?", userId)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to update avatar URL")
+	}
+
+	return nil
 }
