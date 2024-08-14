@@ -5,9 +5,9 @@ import (
 	"math"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 

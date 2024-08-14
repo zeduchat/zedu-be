@@ -9,7 +9,7 @@ services:
       - ../golang_volumes/pgsql_volumes/telex_be/:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U telex_be_user"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 2
 
@@ -29,6 +29,8 @@ services:
         condition: service_started
     env_file:
       - app.env
+    volumes:
+      - ./logs/:/usr/src/app/logs
 
   nginx:
     image: nginx:latest

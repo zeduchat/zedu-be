@@ -100,23 +100,6 @@ func LeaveChannels(db *gorm.DB, channels_id, user_id string) (int, error) {
 
 }
 
-func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message, int, error) {
-
-	message := models.Message{
-		Content:    req.Content,
-		ChannelsID: req.ChannelsId,
-		UserID:     req.UserId,
-	}
-
-	err := message.CreateMessage(db)
-
-	if err != nil {
-		return message, http.StatusBadRequest, err
-	}
-
-	return message, http.StatusCreated, nil
-}
-
 func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId, userId string) (int, error) {
 
 	var ur models.UserChannels
