@@ -11,8 +11,8 @@ import (
 
 type Threads struct {
 	ID           string    `gorm:"type:uuid;primary_key" json:"thread_id"`
-	ChannelsID   string    `gorm:"type:uuid;" json:"channels_id"`
-	UserID       string    `gorm:"type:uuid;" json:"user_id"`
+	ChannelsID   string    `gorm:"type:uuid;index" json:"channels_id"`
+	UserID       string    `gorm:"type:uuid;index" json:"user_id"`
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 	ThreadStatus string    `gorm:"type:varchar(20);" json:"thread_status"`
@@ -21,8 +21,8 @@ type Threads struct {
 
 type Mentions struct {
 	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
-	MessageID string    `gorm:"type:uuid;" json:"message_id"`
-	UserID    string    `gorm:"type:uuid;" json:"user_id"`
+	MessageID string    `gorm:"type:uuid;index" json:"message_id"`
+	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 

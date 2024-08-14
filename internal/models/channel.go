@@ -18,20 +18,21 @@ type Channels struct {
 	Description string `gorm:"column:description; type:text; not null" json:"description"`
 	IsPrivate   bool   `gorm:"column:is_private; type:bool" json:"is_private"`
 
-	OrganisationID string    `gorm:"column:organisation_id; type:uuid" json:"organisation_id"`
-	OwnerId        string    `gorm:"column:owner_id; type:uuid" json:"owner_id"`
+	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
 	Users          []User    `gorm:"many2many:user_channels;" json:"users"`
 	UserCount      int64     `gorm:"-" json:"user_count"`
 	MessageCount   int64     `gorm:"-" json:"message_count"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
+	Messages       []Message `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 }
 
 type UserChannels struct {
 	ChannelsID string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
 	UserID     string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	Username   string    `gorm:"column:username; type:varchar(255)" json:"username"`
+	Username   string    `gorm:"column:username; type:varchar(100)" json:"username"`
 	CreatedAt  time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	DeletedAt  time.Time `gorm:"index" json:"deleted_at"`
 }
