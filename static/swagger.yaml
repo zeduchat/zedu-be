@@ -4204,7 +4204,7 @@ paths:
                   message:
                     type: string
    
-  /threads/users/{userId}/organisations/{orgId}:
+  /threads/organisations/{orgId}:
     get:
       tags:
         - threads
@@ -4212,12 +4212,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
-          schema:
-            type: string
         - name: orgId
           in: path
           required: true
@@ -4256,7 +4250,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/users/{userId}/channels/{channel_id}:
+  /threads/channels/{channel_id}:
     get:
       tags:
         - threads
@@ -4264,12 +4258,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
-          schema:
-            type: string
         - name: channel_id
           in: path
           required: true
@@ -4308,7 +4296,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/{threadId}/users/{userId}:
+  /threads/{threadId}:
     get:
       tags:
         - threads
@@ -4320,12 +4308,6 @@ paths:
           in: path
           required: true
           description: ID of the thread
-          schema:
-            type: string
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
           schema:
             type: string
       responses:
@@ -4371,12 +4353,6 @@ paths:
           in: path
           required: true
           description: ID of the thread
-          schema:
-            type: string
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
           schema:
             type: string
       requestBody:
@@ -4938,9 +4914,6 @@ components:
                   description:
                     type: string
                     example: "this room is meant for hackers"
-                  is_private:
-                    type: boolean
-                    example: false
                   organisation_id:
                     type: string
                     format: uuid
@@ -5563,7 +5536,7 @@ components:
           type: string
         description:
           type: string
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
 
@@ -6091,18 +6064,12 @@ components:
         description:
           type: string
           description: Description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
-        is_dm:
-          type: boolean
-          description: Whether the channel is a direct message channel or not
         userIds:
           type: array
           items:
             type: string
           description: List of user IDs to add to the channel
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
@@ -6142,7 +6109,7 @@ components:
             is_dm:
               type: boolean
               example: false
-            organization_id:
+            organisation_id:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -6194,9 +6161,6 @@ components:
               description:
                 type: string
                 example: "this room is meant for hackers"
-              is_private:
-                type: boolean
-                example: false
               organisation_id:
                 type: string
                 format: uuid
@@ -6467,9 +6431,6 @@ components:
         description:
           type: string
           description: Updated description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
 
     ChannelCreateSchema:
       type: object
@@ -6483,7 +6444,7 @@ components:
         is_private:
           type: boolean
           description: Whether the channel is private or not
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
@@ -6520,7 +6481,7 @@ components:
             is_private:
               type: boolean
               example: false
-            organization_id:
+            organisation_id:
               type: string
               format: uuid
               example: "0191442b-0202-751d-8b35-fdc41b8fbc06"

@@ -13,6 +13,9 @@ type Threads struct {
 	ID           string    `gorm:"type:uuid;primary_key" json:"thread_id"`
 	ChannelsID   string    `gorm:"type:uuid;index" json:"channels_id"`
 	UserID       string    `gorm:"type:uuid;index" json:"user_id"`
+	EventName    string    `gorm:"type:varchar(200);index" json:"event_name"`
+	Username     string    `gorm:"type:varchar(50);index" json:"username"`
+	ActionType   string    `gorm:"type:varchar(200);index" json:"action_type"`
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 	ThreadStatus string    `gorm:"type:varchar(20);" json:"thread_status"`
@@ -79,7 +82,7 @@ func (t *Threads) GetThreadByIds(db *gorm.DB, threadID, userID string) (*Threads
 	return t, nil
 }
 
-func (t *Threads) GetThreadsByChannelUserID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, postgresql.PaginationResponse, error) {
+func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, postgresql.PaginationResponse, error) {
 	var (
 		threads     []Threads
 		ErrNotFound = errors.New("threads not found")
@@ -92,12 +95,15 @@ func (t *Threads) GetThreadsByChannelUserID(c *gin.Context, db *gorm.DB, userId,
 	}
 
 	pagination := postgresql.GetPagination(c)
-	query := db.Where("channels_id = ? AND user_id = ?", channelID, userId).
-		Preload("Messages")
+	query := db.Model(&Threads{}).
+		Select("threads.id, threads.channels_id, threads.user_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.thread_status, COUNT(messages.id) as message_count").
+		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
+		Where("threads.channels_id = ?", channelID).
+		Group("threads.id")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
+		"threads.created_at",
 		"desc",
 		pagination,
 		&threads,
@@ -157,10 +163,14 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 func (t *Threads) GetSingleThreadWithReplies(db *gorm.DB, threadID string) (*Threads, error) {
 	var thread Threads
 
-	err := db.Where("id = ?", threadID).
+	err := db.Model(&Threads{}).
+		Where("threads.id = ?", threadID).
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at ASC").Preload("Mentions")
 		}).
+		Select("threads.*, COUNT(messages.id) as message_count").
+		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
+		Group("threads.id").
 		First(&thread).Error
 
 	if err != nil {
