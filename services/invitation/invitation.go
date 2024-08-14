@@ -128,11 +128,13 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	if err != nil {
 		return err
 	}
+
 	var org models.Organisation
 	org, err = org.GetOrgByID(db, orgID)
 	if err != nil {
 		return err
 	}
+	
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
 	if err != nil {
 		return err
