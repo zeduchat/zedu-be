@@ -113,7 +113,6 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 }
 
 func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
-
 	var (
 		user         = models.User{}
 		responseData gin.H
@@ -127,6 +126,11 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 
 	if !utility.CompareHash(req.Password, user.Password) {
 		return responseData, 400, fmt.Errorf("invalid credentials")
+	}
+
+	user.IsActive = true
+	if err := db.Save(&user).Error; err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: " + err.Error())
 	}
 
 	userData, err := user.GetUserByID(db, user.ID)
@@ -147,19 +151,18 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
 
 	err = access_token.CreateAccessToken(db, tokens)
-
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}
 
 	responseData = gin.H{
-
 		"user": map[string]interface{}{
 			"id":           userData.ID,
 			"email":        userData.Email,
 			"username":     userData.Name,
 			"is_verified":  userData.IsVerified,
 			"is_onboarded": userData.IsOnboarded,
+			"is_active":    userData.IsActive,
 			"first_name":   userData.Profile.FirstName,
 			"last_name":    userData.Profile.LastName,
 			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
@@ -176,22 +179,25 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 }
 
 func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
-
 	var (
 		responseData gin.H
 	)
-
 	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
 
-	// revoke user access_token to invalidate session
-	err := access_token.RevokeAccessToken(db)
-
+	err := db.Model(&access_token).Updates(map[string]interface{}{
+		"is_active": false,
+	}).Error
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error updating access token: %w", err)
+	}
+
+	// revoke user access_token to invalidate session
+	err = access_token.RevokeAccessToken(db)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
 	}
 
 	responseData = gin.H{}
-
 	return responseData, http.StatusOK, nil
 }
 

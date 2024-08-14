@@ -15,6 +15,7 @@ type User struct {
 	Name          string         `gorm:"column:name; type:varchar(255)" json:"name"`
 	Email         string         `gorm:"column:email; type:varchar(255)" json:"email"`
 	IsVerified    bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
+IsActive      bool            `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
 	IsOnboarded   bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
 	CurrentOrg    uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
 	Profile       Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
