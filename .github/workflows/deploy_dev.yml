@@ -46,6 +46,8 @@ jobs:
           action_output_file: "app.env"
           action_true_string_variables: |
             MAIL_PASSWORD
+            BUKCET_SECRET_KEY
+            TYPESENSE_API_KEY
           APP_NAME: "telex_be"
           APP_URL: "https://api-golang.boilerplate.hng.tech"
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
@@ -66,6 +68,12 @@ jobs:
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           HMAC_SECRET: ${{ secrets.HMAC_SECRET }}
           RESET_PASSWORD_DURATION: ${{ secrets.RESET_PASSWORD_DURATION }}
+          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          BUCKET_ACCESS_KEY: ${{ secrets.BUCKET_ACCESS_KEY }}
+          BUKCET_SECRET_KEY: ${{ secrets.BUKCET_SECRET_KEY }}
+          TYPESENSE_API_URL: ${{ secrets.TYPESENSE_API_URL }}
+          TYPESENSE_API_KEY: ${{ secrets.TYPESENSE_API_KEY}}
 
       - name: Copy app.env to server
         run: |
