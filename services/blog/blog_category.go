@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -40,4 +41,20 @@ func GetBlogCategories(db *gorm.DB, c *gin.Context) ([]models.BlogCategory, post
 	}
 
 	return blogCategories, paginationResponse, nil
+}
+
+func GetBlogCategoryById(id string, db *gorm.DB) (models.BlogCategory, error) {
+	var blogCategory models.BlogCategory
+
+	blogCategory.ID = id
+	err := blogCategory.GetBlogCategoryById(db)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.BlogCategory{}, errors.New("blog category not found")
+		}
+		return models.BlogCategory{}, err
+	}
+
+	return blogCategory, nil
+
 }

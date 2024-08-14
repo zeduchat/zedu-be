@@ -47,8 +47,7 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 
 func GetBlogs(db *gorm.DB, c *gin.Context, categoryID string, searchQuery string) ([]models.Blog, postgresql.PaginationResponse, error) {
 	var (
-		blog         models.Blog
-		blogCategory models.BlogCategory
+		blog models.Blog
 	)
 	searchQuery = strings.Trim(searchQuery, `"'`)
 	categoryID = strings.Trim(categoryID, `"'`)
@@ -57,20 +56,7 @@ func GetBlogs(db *gorm.DB, c *gin.Context, categoryID string, searchQuery string
 		return nil, paginationResponse, err
 	}
 
-	var responses []models.Blog
-
-	for _, blog := range blogs {
-		blogCategory.ID = blog.CategoryID
-		err := blogCategory.GetBlogCategoryById(db)
-		if err != nil {
-			return nil, postgresql.PaginationResponse{}, err
-		}
-
-		blog.Category = &blogCategory
-		responses = append(responses, blog)
-	}
-
-	return responses, paginationResponse, nil
+	return blogs, paginationResponse, nil
 
 }
 
@@ -93,6 +79,7 @@ func GetBlogById(blogId string, db *gorm.DB) (models.Blog, error) {
 
 	blogCategory.ID = blog.CategoryID
 	err = blogCategory.GetBlogCategoryById(db)
+	
 	if err != nil {
 		return blog, err
 	}
