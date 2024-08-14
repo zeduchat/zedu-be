@@ -4,48 +4,56 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/stripe/stripe-go/v72"
+	"github.com/stripe/stripe-go/v72/checkout/session"
+	"github.com/stripe/stripe-go/v72/customer"
 	"github.com/stripe/stripe-go/v72/sub"
 	"gorm.io/gorm"
 )
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
-
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
 
-	oneMonthLater := time.Now().AddDate(0, 1, 0).Unix()
-
-	params := &stripe.SubscriptionParams{
-		Customer: stripe.String(req.UserID),
-		Items: []*stripe.SubscriptionItemsParams{
+	stripeCustomerParams := &stripe.CustomerParams{
+		Email: stripe.String(req.Email),
+	}
+	stripeCustomer, err := customer.New(stripeCustomerParams)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create Stripe customer: %v", err)
+	}
+	params := &stripe.CheckoutSessionParams{
+		Customer: stripe.String(stripeCustomer.ID),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price: stripe.String(subscriptionPlan.Name),
+				Price:    stripe.String(subscriptionPlan.StripePriceID),
+				Quantity: stripe.Int64(1),
 			},
 		},
-		TrialEnd: stripe.Int64(oneMonthLater),
-	}
-	Usersub, err := sub.New(params)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
+		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		SuccessURL: stripe.String("https://staging.telex.im/dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String("https://yourwebsite.com/plan/billing/cancel"),
 	}
 
-	if err := db.Model(&models.User{}).Where("id = ?", req.UserID).Update("subscription_plan_id", subscriptionPlan.ID).Error; err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to update user with subscription plan: %v", err)
+	session, err := session.New(params)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create checkout session: %v", err)
+	}
+
+	if err := db.Model(&models.User{}).Where("id = ?", req.UserID).Updates(models.User{
+		StripeCustomerID: stripeCustomer.ID,
+	}).Error; err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to update user with Stripe customer ID: %v", err)
 	}
 
 	responseData := gin.H{
-		"subscription_id": Usersub.ID,
-		"status":          Usersub.Status,
-		"plan":            subscriptionPlan.Name,
-		"start_date":      time.Unix(Usersub.CurrentPeriodStart, 0),
-		"end_date":        time.Unix(oneMonthLater, 0),
+		"checkout_session_id":  session.ID,
+		"checkout_session_url": session.URL,
 	}
 
 	return &responseData, http.StatusOK, nil
