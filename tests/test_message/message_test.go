@@ -67,7 +67,7 @@ func TestMessage(t *testing.T) {
 		Country:     "wakanda",
 	}
 
-	orgId, _ , _:= tst.CreateOrganisation(t, r, db, org, createOrgData, token)
+	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
 	createChannelsData := models.CreateChannelsRequest{
 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
@@ -79,6 +79,14 @@ func TestMessage(t *testing.T) {
 	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
 
 	fmt.Println("Channels ID: ", channelId)
+
+	threads1 := models.Threads{
+		ID:           utility.GenerateUUID(),
+		ChannelsID:   channelId,
+		UserID:       utility.GenerateUUID(),
+		ThreadStatus: "pending",
+	}
+	db.Postgresql.Create(&threads1)
 
 	tests := []struct {
 		Name         string
@@ -92,7 +100,8 @@ func TestMessage(t *testing.T) {
 		{
 			Name: "Add message Successfully",
 			RequestBody: models.CreateMessageRequest{
-				Content: "It's a nice day to check the channel",
+				Content:  "It's a nice day to check the channel",
+				ThreadId: threads1.ID,
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "message added successfully",

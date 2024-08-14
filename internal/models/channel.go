@@ -25,7 +25,6 @@ type Channels struct {
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
-	Messages       []Message `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 }
 
 type UserChannels struct {

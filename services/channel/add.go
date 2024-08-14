@@ -3,6 +3,7 @@ package channel
 import (
 	"net/http"
 
+	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
@@ -11,12 +12,13 @@ import (
 
 func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message, int, error) {
 
+	threadId, _ := uuid.FromString(req.ThreadId)
 	message := models.Message{
 		ID:         utility.GenerateUUID(),
 		Content:    req.Content,
 		ChannelsID: req.ChannelsId,
 		UserID:     req.UserId,
-		ThreadID:   req.ThreadId,
+		ThreadID:   threadId,
 	}
 
 	if err := message.CreateMessage(db); err != nil {
