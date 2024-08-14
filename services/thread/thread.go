@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetAllUserOrgThreads(userIDStr, orgID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *postgresql.PaginationResponse, int, error) {
+func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *postgresql.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
@@ -33,7 +33,7 @@ func GetAllUserOrgThreads(userIDStr, orgID string, db *gorm.DB, c *gin.Context) 
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, userIDStr, orgID)
+	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, userID, orgID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -45,7 +45,7 @@ func GetAllUserOrgThreads(userIDStr, orgID string, db *gorm.DB, c *gin.Context) 
 	return &accessResp, &paginationResponse, http.StatusOK, nil
 }
 
-func GetAllUserChannelThreads(userIDStr, orgID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *postgresql.PaginationResponse, int, error) {
+func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *postgresql.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
@@ -66,7 +66,7 @@ func GetAllUserChannelThreads(userIDStr, orgID string, db *gorm.DB, c *gin.Conte
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetThreadsByChannelUserID(c, db, userIDStr, orgID)
+	accessResp, paginationResponse, err := accessData.GetThreadsByChannelID(c, db, userID, channelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -78,7 +78,7 @@ func GetAllUserChannelThreads(userIDStr, orgID string, db *gorm.DB, c *gin.Conte
 	return &accessResp, &paginationResponse, http.StatusOK, nil
 }
 
-func GetUserSingleThreads(userIDStr, threadID string, db *gorm.DB, c *gin.Context) (*models.Threads, int, error) {
+func GetUserSingleThreads(threadID string, db *gorm.DB, c *gin.Context) (*models.Threads, int, error) {
 	var (
 		accessData models.Threads
 		accessResp *models.Threads
@@ -111,12 +111,27 @@ func GetUserSingleThreads(userIDStr, threadID string, db *gorm.DB, c *gin.Contex
 	return accessResp, http.StatusOK, nil
 }
 
-func UpdateAThread(req models.UpdateThreadStatus, userID, threadID string, db *gorm.DB) (int, error) {
+func UpdateAThread(req models.UpdateThreadStatus, threadID string, db *gorm.DB, c *gin.Context) (int, error) {
 	var (
 		thread models.Threads
 	)
 
-	threadData, err := thread.GetThreadById(db, threadID)
+	userId, err := middleware.GetUserClaims(c, db, "user_id")
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+
+	userID, ok := userId.(string)
+	if !ok {
+		return http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	_, code, err := user.GetUser(userID, db)
+	if err != nil {
+		return code, err
+	}
+
+	threadData, err := thread.GetThreadByIds(db, threadID, userID)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
