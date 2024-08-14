@@ -76,6 +76,10 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 		ext       string
 	)
 
+	if base64Image == "" {
+		return nil, "", nil
+	}
+
 	switch {
 	case strings.HasPrefix(base64Image, "data:image/jpeg;base64,"):
 		ext = ".jpeg"
