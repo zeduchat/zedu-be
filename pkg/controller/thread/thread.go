@@ -128,14 +128,14 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
-	ThreadId, err := service.CreateThreadDummy(req, base.Db.Postgresql)
+	ThreadData, err := service.CreateThreadDummy(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread added successfully", ThreadId)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread added successfully", ThreadData)
 	c.JSON(http.StatusOK, rd)
 
 }

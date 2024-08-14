@@ -12,7 +12,6 @@ import (
 type Threads struct {
 	ID           string    `gorm:"type:uuid;primary_key" json:"thread_id"`
 	ChannelsID   string    `gorm:"type:uuid;index" json:"channels_id"`
-	UserID       string    `gorm:"type:uuid;index" json:"user_id"`
 	EventName    string    `gorm:"type:varchar(200);index" json:"event_name"`
 	Username     string    `gorm:"type:varchar(50);index" json:"username"`
 	ActionType   string    `gorm:"type:varchar(200);index" json:"action_type"`

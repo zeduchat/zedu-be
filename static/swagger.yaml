@@ -4118,15 +4118,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/channels/{channel_id}:
+  /threads/channels/{channelId}:
     get:
       tags:
         - threads
-      summary: Retrieve all threads for a user in a specific channel
+      summary: Retrieve all threads in a specific channel
       security:
         - bearerAuth: []
       parameters:
-        - name: channel_id
+        - name: channelId
           in: path
           required: true
           description: ID of the channel
@@ -4168,7 +4168,7 @@ paths:
     get:
       tags:
         - threads
-      summary: Retrieve a specific thread for a user
+      summary: Retrieve a specific thread
       security:
         - bearerAuth: []
       parameters:

@@ -45,14 +45,12 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 	threads1 := models.Threads{
 		ID:           utility.GenerateUUID(),
 		ChannelsID:   channel.ID,
-		UserID:       adminUser.ID,
 		ThreadStatus: "pending",
 	}
 
 	threads2 := models.Threads{
 		ID:           utility.GenerateUUID(),
 		ChannelsID:   channel.ID,
-		UserID:       adminUser.ID,
 		ThreadStatus: "closed",
 	}
 
