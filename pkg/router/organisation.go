@@ -38,6 +38,8 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.DELETE("/:org_id/users/:user_id", organisation.RemoveMemberFromOrganisation)
 		organisationUrl.PUT("/:org_id/users/:user_id", organisation.UpdateMember)
 		organisationUrl.GET("/:org_id/invites", organisation.GetOrganisationInvites)
+		
+		organisationUrl.POST("/:org_id/users/:user_id", organisation.AddMemberToOrganisation)
 	}
 
 	return r

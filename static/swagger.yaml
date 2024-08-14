@@ -4786,9 +4786,6 @@ components:
                   description:
                     type: string
                     example: "this room is meant for hackers"
-                  is_private:
-                    type: boolean
-                    example: false
                   organisation_id:
                     type: string
                     format: uuid
@@ -5939,12 +5936,6 @@ components:
         description:
           type: string
           description: Description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
-        is_dm:
-          type: boolean
-          description: Whether the channel is a direct message channel or not
         userIds:
           type: array
           items:
@@ -5984,6 +5975,7 @@ components:
             description:
               type: string
               example: General discussion
+            organization_id:
             is_private:
               type: boolean
               example: false
@@ -6042,9 +6034,6 @@ components:
               description:
                 type: string
                 example: "this room is meant for hackers"
-              is_private:
-                type: boolean
-                example: false
               organisation_id:
                 type: string
                 format: uuid
@@ -6315,9 +6304,6 @@ components:
         description:
           type: string
           description: Updated description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
 
     ChannelCreateSchema:
       type: object
@@ -6328,6 +6314,7 @@ components:
         description:
           type: string
           description: Description of the channel
+        organization_id:
         is_private:
           type: boolean
           description: Whether the channel is private or not
@@ -6365,6 +6352,7 @@ components:
             description:
               type: string
               example: "this room is meant for hackers"
+            organization_id:
             is_private:
               type: boolean
               example: false
