@@ -40,7 +40,6 @@ func TestUpdateThread(t *testing.T) {
 		ID:             utility.GenerateUUID(),
 		Name:           "General",
 		Description:    "General discussion channel",
-		IsPrivate:      false,
 		OwnerId:        adminUser.ID,
 		OrganisationID: org.ID,
 	}
