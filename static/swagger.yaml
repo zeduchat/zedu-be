@@ -3452,7 +3452,6 @@ paths:
         - bearerAuth: []
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3497,7 +3496,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
         - name: userId
           in: path
           required: true
@@ -3552,7 +3550,6 @@ paths:
       description: Updates the details of a specific user.
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3605,7 +3602,6 @@ paths:
         security:
           - bearerAuth: []
         parameters:
-          - name: userId
           - name: userId
             in: path
             required: true
@@ -5975,7 +5971,6 @@ components:
             description:
               type: string
               example: General discussion
-            organization_id:
             is_private:
               type: boolean
               example: false
@@ -6314,7 +6309,6 @@ components:
         description:
           type: string
           description: Description of the channel
-        organization_id:
         is_private:
           type: boolean
           description: Whether the channel is private or not
@@ -6352,7 +6346,6 @@ components:
             description:
               type: string
               example: "this room is meant for hackers"
-            organization_id:
             is_private:
               type: boolean
               example: false
