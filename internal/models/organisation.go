@@ -52,12 +52,14 @@ type UpdateOrgRequestModel struct {
 }
 
 type UserInOrgResponse struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	PhoneNumber string `json:"phone_number"`
-	Name        string `json:"name"`
-	Role        int64  `json:"role"`
-	Status      string `json:"status"`
+	ID          string    `json:"id"`
+	Email       string    `json:"email"`
+	PhoneNumber string    `json:"phone_number"`
+	AvatarURL   string    `json:"profile_url"`
+	Name        string    `json:"name"`
+	Role        string    `json:"role"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type AddUserToOrgRequestModel struct {
@@ -231,7 +233,7 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number, profiles.full_name as name").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.full_name as name, profiles.avatar_url as profile_url, users.created_at ").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
 		Joins("JOIN profiles ON profiles.userid = users.id").
 		Where("user_organisations.organisation_id = ?", orgId).
@@ -323,38 +325,27 @@ func (o *Organisation) CountOrganisationChannelss(db *gorm.DB, orgId string) (in
 	return int64(len(rs)), nil
 }
 
-func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]Invitation, postgresql.PaginationResponse, int64 ,error) {
+func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]Invitation, postgresql.PaginationResponse, error) {
 	var (
 		invitations []Invitation
-		cntInv []Invitation
-		guestNo int64
 	)
 
 	exists := postgresql.CheckExists(db, o, "id = ?", orgID)
 	if !exists {
-		return invitations, postgresql.PaginationResponse{}, guestNo ,errors.New("organisation not found")
+		return invitations, postgresql.PaginationResponse{}, errors.New("organisation not found")
 	}
 
 	exists = postgresql.CheckExists(db, &User{}, "id = ?", userID)
 	if !exists {
-		return invitations, postgresql.PaginationResponse{}, guestNo ,errors.New("user not found")
+		return invitations, postgresql.PaginationResponse{}, errors.New("user not found")
 	}
-
-	//count number of guest in the organisation i.e no of invitations with status equals accepted
-	err := postgresql.SelectAllFromDb(db, "", &cntInv, "organisation_id = ? AND status = ?", orgID, "accepted")
-	if err != nil {
-		return invitations, postgresql.PaginationResponse{}, guestNo ,err
-	}
-
-	guestNo = int64(len(cntInv))
-
 
 	isowner, err := o.IsOwnerOfOrganisation(db, userID, orgID)
 	if err != nil {
-		return invitations, postgresql.PaginationResponse{}, guestNo ,err
+		return invitations, postgresql.PaginationResponse{}, err
 	}
 	if !isowner {
-		return invitations, postgresql.PaginationResponse{}, guestNo ,errors.New("user is not the owner of the organisation")
+		return invitations, postgresql.PaginationResponse{}, errors.New("user is not the owner of the organisation")
 	}
 
 	pagination := postgresql.GetPagination(c)
@@ -370,9 +361,9 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return invitations, paginationResponse, guestNo ,errors.New("channel not found")
+			return invitations, paginationResponse, errors.New("channel not found")
 		}
-		return invitations, paginationResponse, guestNo ,err
+		return invitations, paginationResponse, err
 	}
-	return invitations, paginationResponse, guestNo ,nil
+	return invitations, paginationResponse, nil
 }

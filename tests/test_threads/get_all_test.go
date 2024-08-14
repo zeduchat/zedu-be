@@ -38,7 +38,6 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		ID:             utility.GenerateUUID(),
 		Name:           "General",
 		Description:    "General discussion channel",
-		IsPrivate:      false,
 		OwnerId:        adminUser.ID,
 		OrganisationID: org.ID,
 	}
@@ -84,8 +83,7 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
-		nonExistentUserID := utility.GenerateUUID()
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/users/%s/channels/%s", nonExistentUserID, channel.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/channels/%s", channel.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 		resp := httptest.NewRecorder()
@@ -106,7 +104,7 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
 		nonExistentChannelID := utility.GenerateUUID()
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/users/%s/channels/%s", adminUser.ID, nonExistentChannelID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/channels/%s", nonExistentChannelID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 		resp := httptest.NewRecorder()
@@ -120,7 +118,7 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 	t.Run("Unauthorized Access", func(t *testing.T) {
 		router, _ := setup()
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/users/%s/channels/%s", adminUser.ID, channel.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/channels/%s", channel.ID), nil)
 		req.Header.Set("Authorization", "Bearer invalid_token")
 
 		resp := httptest.NewRecorder()

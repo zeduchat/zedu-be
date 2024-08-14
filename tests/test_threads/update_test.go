@@ -40,7 +40,6 @@ func TestUpdateThread(t *testing.T) {
 		ID:             utility.GenerateUUID(),
 		Name:           "General",
 		Description:    "General discussion channel",
-		IsPrivate:      false,
 		OwnerId:        adminUser.ID,
 		OrganisationID: org.ID,
 	}
@@ -83,7 +82,7 @@ func TestUpdateThread(t *testing.T) {
 		}
 		reqBodyJSON, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/users/%s", threads.ID, adminUser.ID), bytes.NewBuffer(reqBodyJSON))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s", threads.ID), bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
@@ -109,7 +108,7 @@ func TestUpdateThread(t *testing.T) {
 		}
 		reqBodyJSON, _ := json.Marshal(invalidReqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/users/%s", threads.ID, adminUser.ID), bytes.NewBuffer(reqBodyJSON))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s", threads.ID), bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
