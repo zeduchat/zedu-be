@@ -1,31 +1,60 @@
 package subscription
 
 import (
-	"github.com/stripe/stripe-go/v79"
-	"github.com/stripe/stripe-go/v79/subscription"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/stripe/stripe-go/v72"
+	"github.com/stripe/stripe-go/v72/sub"
+	"gorm.io/gorm"
 )
 
-func createSubscription(customerID, priceID string) (*stripe.Subscription, error) {
+func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
+	var subscriptionPlan models.SubscriptionPlan
+
+	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
+		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
+	}
+
+	oneMonthLater := time.Now().AddDate(0, 1, 0).Unix()
+
 	params := &stripe.SubscriptionParams{
-		Customer: stripe.String(customerID),
+		Customer: stripe.String(req.UserID),
 		Items: []*stripe.SubscriptionItemsParams{
 			{
-				Price: stripe.String(priceID),
+				Price: stripe.String(subscriptionPlan.Name),
 			},
 		},
+		TrialEnd: stripe.Int64(oneMonthLater),
 	}
-	Usersub, err := subscription.New(params)
+	Usersub, err := sub.New(params)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
-	return Usersub, nil
+
+	if err := db.Model(&models.User{}).Where("id = ?", req.UserID).Update("subscription_plan_id", subscriptionPlan.ID).Error; err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to update user with subscription plan: %v", err)
+	}
+
+	responseData := gin.H{
+		"subscription_id": Usersub.ID,
+		"status":          Usersub.Status,
+		"plan":            subscriptionPlan.Name,
+		"start_date":      time.Unix(Usersub.CurrentPeriodStart, 0),
+		"end_date":        time.Unix(oneMonthLater, 0),
+	}
+
+	return &responseData, http.StatusOK, nil
 }
 
-func listSubscriptions(customerID string) ([]*stripe.Subscription, error) {
+func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	params := &stripe.SubscriptionListParams{
-		Customer: stripe.String(customerID),
+		Customer: customerID,
 	}
-	i := subscription.List(params)
+	i := sub.List(params)
 
 	var subscriptions []*stripe.Subscription
 	for i.Next() {
@@ -33,31 +62,50 @@ func listSubscriptions(customerID string) ([]*stripe.Subscription, error) {
 	}
 
 	if err := i.Err(); err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
-	return subscriptions, nil
+
+	responseData := gin.H{
+		"subscriptions": subscriptions,
+	}
+
+	return &responseData, http.StatusOK, nil
 }
 
-func modifySubscription(subscriptionID, newPriceID string) (*stripe.Subscription, error) {
+func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
+	var subscriptionPlan models.SubscriptionPlan
+	if err := db.Where("id = ?", req.PlanID).First(&subscriptionPlan).Error; err != nil {
+		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
+	}
+
 	params := &stripe.SubscriptionParams{
 		Items: []*stripe.SubscriptionItemsParams{
 			{
-				ID:    stripe.String(subscriptionID),
-				Price: stripe.String(newPriceID),
+				ID:    stripe.String(req.UserID),
+				Price: stripe.String(subscriptionPlan.Name),
 			},
 		},
 	}
-	sub, err := subscription.Update(subscriptionID, params)
+
+	subscription, err := sub.Update(req.UserID, params)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
-	return sub, nil
+
+	responseData := gin.H{
+		"subscription_id": subscription.ID,
+		"status":          subscription.Status,
+		"plan":            subscriptionPlan.Name,
+	}
+
+	return &responseData, http.StatusOK, nil
 }
 
-func deleteSubscription(subscriptionID string) (*stripe.Subscription, error) {
-	sub, err := subscription.Cancel(subscriptionID, nil)
+func DeleteSubscription(req *models.DeleteSubscriptionRequest, db *gorm.DB) (int, error) {
+	_, err := sub.Cancel(req.UserID, nil) // Assuming req.UserID is the subscription ID
 	if err != nil {
-		return nil, err
+		return http.StatusInternalServerError, err
 	}
-	return sub, nil
+
+	return http.StatusOK, nil
 }
