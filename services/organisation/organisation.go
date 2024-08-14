@@ -17,8 +17,6 @@ import (
 
 func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (models.CreateOrgRequestModel, int, error) {
 
-	org := models.Organisation{}
-
 	if req.Email != "" {
 		req.Email = strings.ToLower(req.Email)
 		formattedMail, checkBool := utility.EmailValid(req.Email)
@@ -26,13 +24,9 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 			return req, http.StatusUnprocessableEntity, fmt.Errorf("email address is invalid")
 		}
 		req.Email = formattedMail
-		exists := postgresql.CheckExists(db, &org, "email = ?", req.Email)
-		if exists {
-			return req, http.StatusBadRequest, errors.New("organization already exists with the given email")
-		}
-	}
 
-	return req, 0, nil
+	}
+	return req, http.StatusOK, nil
 }
 
 func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string) (*models.Organisation, error) {
@@ -63,7 +57,12 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	}
 
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
+	if err != nil {
+		return nil, err
+	}
 
+	//add user to organisation management model
+	err = CreateOrgUserManagement(db, user.ID, org.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,8 +196,37 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 
 }
 
+func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
+	var (
+		org    models.Organisation
+		orgmgt models.OrgUserManagement
+	)
+
+	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
+	if err != nil {
+		return err
+	}
+
+	if !isowner {
+		return errors.New("user is not the owner of the organisation")
+	}
+
+	err = orgmgt.RemoveMemberFromOrganisation(db, orgId, userId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
-	var org models.Organisation
+	var (
+		org    models.Organisation
+		orgmgt models.OrgUserManagement
+	)
+
 	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -216,10 +244,14 @@ func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Con
 	}
 
 	users, paginationResponse, err := org.GetUsersInOrganisation(c, db, orgId)
-
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	return users, paginationResponse, nil
+	usersOrgMgtResponse, err := orgmgt.GetOrgUserManagement(db, users, orgId)
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	return usersOrgMgtResponse, paginationResponse, nil
 }

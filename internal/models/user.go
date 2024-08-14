@@ -68,6 +68,16 @@ func (u *User) AddUserToOrganisation(db *gorm.DB, user interface{}, orgs []inter
 	return nil
 }
 
+func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
+
+	err := db.Model(user).Association("Organisations").Delete(orgs...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
 	var user User
 
