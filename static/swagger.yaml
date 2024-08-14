@@ -1704,61 +1704,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-
-  /users/switch-org:
-    put:
-      tags:
-        - user
-      summary: switch to an organisation
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                current_org:
-                  type: string
-                  format: uuid
-
-              required:
-                - current_org
-      responses:
-        '200':
-          description: Organizations switched successfully
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/organizationGSuccessResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
   /channels:
     post:
       tags:
@@ -2677,21 +2622,6 @@ paths:
                         category_id:
                           type: string
                           format: uuid
-                        category:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                            name:
-                              type: string
-                              example: "news"
-                            created_at:
-                              type: string
-                              format: date-time
-                            updated_at:
-                              type: string
-                              format: date-time
                         image_url:
                           type: string
                           format: uri
@@ -2757,21 +2687,6 @@ paths:
                       category_id:
                         type: string
                         format: uuid
-                      category:
-                        type: object
-                        properties:
-                          id:
-                            type: string
-                            format: uuid
-                          name:
-                            type: string
-                            example: "news"
-                          created_at:
-                            type: string
-                            format: date-time
-                          updated_at:
-                            type: string
-                            format: date-time
                       image_url:
                         type: string
                         format: uri
@@ -2804,59 +2719,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema' 
                 
-    delete:
-      tags:
-        - blogs
-      summary: Delete a blog by admin
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: blogId
-          schema:
-            type: string
-            format: uuid
-          required: true
-      
-      responses:
-        '204':
-          description: blog deleted successfully
-
-        '400':
-          description: Invalid orgId format
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-                
-                
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
-                
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NotFoundErrorSchema"
-                
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
                 
     delete:
       tags:
@@ -3030,6 +2892,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+                
+  /blog_categories/{categoryId}:
+    get:
+      tags:
+        - blogs
+      summary: retrieve a single blog category
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Blog category retrieved successfully.   
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                        example: "News"
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
 
 # webhooks
 
@@ -3519,8 +3443,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-
-  /users/{userId}:
   /users/{userId}:
     get:
       tags:
@@ -3675,7 +3597,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  /users/deactivate/{userId}:
   /users/deactivate/{userId}:
       delete:
         tags:
@@ -5007,7 +4928,6 @@ components:
           type: string
           example: "img898989.png"
         userId:
-        userId:
           type: string
           example: "019142c8-5408-7a47-b94c-91d674dd8358"
         created_at:
@@ -5914,7 +5834,6 @@ components:
               format: uuid
               example: 01913139-0969-7ed5-a830-2f20f6b2c4e7
             userId:
-            userId:
               type: string
               format: uuid
               example: 0191289e-fba3-7674-85bb-0c4a63ed8ebf
@@ -5995,7 +5914,6 @@ components:
                 format: uuid
                 example: 019144c2-c330-7db9-adfc-2628b0107740
               userId:
-              userId:
                 type: string
                 format: uuid
                 example: 01913f91-57e0-7875-b795-a25984e7594c
@@ -6025,7 +5943,6 @@ components:
       type: object
       properties:
         userId:
-        userId:
           type: string
           format: uuid
           example: 01913f91-57e0-7875-b795-a25984e7594c
@@ -6053,7 +5970,6 @@ components:
           type: boolean
           description: Whether the channel is a direct message channel or not
         userIds:
-        userIds:
           type: array
           items:
             type: string
@@ -6063,10 +5979,7 @@ components:
           format: uuid
           description: ID of the organization the channel belongs to
         username:
-        username:
           type: string
-          format: string
-          description: username user who created the channel
           format: string
           description: username user who created the channel
         
@@ -6200,16 +6113,13 @@ components:
           format: uuid
           description: ID of the channel the message belongs to
         userId:
-        userId:
           type: string
           format: uuid
           description: ID of the user who sent the message
         threadId:
           type: string
-          format: uuid      threadId:
-          type: string
-          format: uuid
-          description: thread id (optional)description: thread id (optional)
+          format: uuid      
+          description: thread id (optional)
 
     MessageCreateResponseSchema:
       type: object
@@ -6238,14 +6148,9 @@ components:
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
             userId:
-            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
-            threadId:
-              type: string
-              format: uuid
-              example: 89010544-d1e1-7ada-bdac-c761e527ec53
             threadId:
               type: string
               format: uuid
@@ -6276,7 +6181,6 @@ components:
           type: string
           format: uuid
         userId:
-        userId:
           type: string
           format: uuid
         created_at:
@@ -6306,8 +6210,6 @@ components:
               type: string
             description:
               type: string
-
-            userId:
             userId:
               type: string
               format: uuid
@@ -6350,8 +6252,6 @@ components:
               type: string
             description:
               type: string
-
-            userId:
             userId:
               type: string
               format: uuid
@@ -6460,9 +6360,7 @@ components:
           format: uuid
           description: ID of the organization the channel belongs to
         username:
-        username:
           type: string
-          format: string
           format: string
           description: ID of the user who created the channel
 
@@ -6875,15 +6773,6 @@ components:
           type: string
           format: date-time
           description: Timestamp when the history entry was updated
-
-    UpdateThreadStatusRequestSchema:
-      type: object
-      properties:
-        status:
-          type: string
-          example: "completed"
-      required:
-        - status
 
     UpdateThreadStatusRequestSchema:
       type: object
