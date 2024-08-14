@@ -1,31 +1,37 @@
 package thread
 
 import (
+	"fmt"
+	"math/rand"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
 	"gorm.io/gorm"
 )
 
-func CreateThreadDummy(req models.Threads, db *gorm.DB) (string, error) {
+func CreateThreadDummy(req models.Threads, db *gorm.DB) (*models.Threads, error) {
 
 	threadID := utility.GenerateUUID()
+
+	statuses := []string{"failed", "pending", "completed"}
+	randomStatus := statuses[rand.Intn(len(statuses))]
+
 	thread := models.Threads{
 		ID:           threadID,
-		Username:     req.Username,
-		ActionType:   req.ActionType,
-		EventName:    req.EventName,
+		Username:     fmt.Sprintf("User_%s", utility.RandomString(7)),
+		ActionType:   fmt.Sprintf("Action_%s", utility.RandomString(7)),
+		EventName:    fmt.Sprintf("Event_%s", utility.RandomString(7)),
 		ChannelsID:   req.ChannelsID,
-		UserID:       req.UserID,
 		MessageCount: 0,
-		ThreadStatus: req.ThreadStatus,
+		ThreadStatus: randomStatus,
 	}
 
 	if err := thread.CreateThread(db); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return threadID, nil
+	return &thread, nil
 }
 
 func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {

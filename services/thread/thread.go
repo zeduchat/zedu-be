@@ -131,7 +131,7 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID string, db *gorm.DB, 
 		return code, err
 	}
 
-	threadData, err := thread.GetThreadByIds(db, threadID, userID)
+	threadData, err := thread.GetThreadById(db, threadID)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
