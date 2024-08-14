@@ -17,7 +17,7 @@ type Message struct {
 	UserID     string     `gorm:"type:uuid;not null;index" json:"user_id"`
 	Username   string     `gorm:"column:username; type:varchar(100)" json:"username"`
 	CreatedAt  time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	ThreadID   uuid.UUID  `gorm:"type:string;null;index" json:"thread_id"`
+	ThreadID   uuid.UUID  `gorm:"type:uuid;null;index" json:"thread_id"`
 	Mentions   []Mentions `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
 }
 
