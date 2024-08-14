@@ -4,9 +4,10 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -218,5 +219,84 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 	}
 
 	return users, &paginationResponse, http.StatusOK, nil
+
+}
+
+func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
+	var user models.User
+
+	userID, err := middleware.GetUserClaims(ctx, db, "user_id")
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+
+	currentUserID, ok := userID.(string)
+	if !ok {
+		return http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	currentUser, code, err := GetUser(currentUserID, db)
+	if err != nil {
+		return code, err
+	}
+
+	isSuperAdmin := currentUser.CheckUserIsAdmin(db)
+
+	if !isSuperAdmin {
+		return http.StatusForbidden, errors.New("user does not have permission to deactivate this user")
+	}
+
+	user, err = user.GetUserByID(db, userIDStr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("user not found")
+		}
+		return http.StatusBadRequest, err
+	}
+
+	if err := user.DeactivateUser(db, user.ID); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB) (models.Organisation, int, error) {
+	var (
+		user models.User
+		org  models.Organisation
+	)
+
+	org, err := org.GetOrgByID(db, req.CurrentOrg)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusBadRequest, err
+	}
+
+	user, err = user.GetUserByID(db, userId)
+	if err != nil {
+		return models.Organisation{}, http.StatusInternalServerError, err
+
+	}
+
+	exist, err := org.CheckUserIsMemberOfOrg(userId, req.CurrentOrg, db)
+
+	if !exist && err != nil {
+		return models.Organisation{}, http.StatusBadRequest, err
+	}
+
+	user.CurrentOrg, err = uuid.FromString(req.CurrentOrg)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusInternalServerError, err
+	}
+
+	err = user.Update(db)
+
+	if err != nil {
+		return models.Organisation{}, http.StatusInternalServerError, err
+	}
+
+	return org, http.StatusOK, nil
 
 }

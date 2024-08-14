@@ -2,6 +2,7 @@ package blog
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -24,7 +25,7 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 	}
 
 	req.Title = utility.CleanStringInput(req.Title)
-	req.Title = utility.CleanStringInput(req.Content)
+	req.Content = utility.CleanStringInput(req.Content)
 
 	blog := models.Blog{
 		ID:         utility.GenerateUUID(),
@@ -44,30 +45,18 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 	return nil
 }
 
-func GetBlogs(db *gorm.DB, c *gin.Context) ([]models.Blog, postgresql.PaginationResponse, error) {
+func GetBlogs(db *gorm.DB, c *gin.Context, categoryID string, searchQuery string) ([]models.Blog, postgresql.PaginationResponse, error) {
 	var (
-		blog         models.Blog
-		blogCategory models.BlogCategory
+		blog models.Blog
 	)
-	blogs, paginationResponse, err := blog.GetBlogs(db, c)
+	searchQuery = strings.Trim(searchQuery, `"'`)
+	categoryID = strings.Trim(categoryID, `"'`)
+	blogs, paginationResponse, err := blog.GetBlogs(db, c, categoryID, searchQuery)
 	if err != nil {
 		return nil, paginationResponse, err
 	}
 
-	var responses []models.Blog
-
-	for _, blog := range blogs {
-		blogCategory.ID = blog.CategoryID
-		err := blogCategory.GetBlogCategoryById(db)
-		if err != nil {
-			return nil, postgresql.PaginationResponse{}, err
-		}
-
-		blog.Category = &blogCategory
-		responses = append(responses, blog)
-	}
-
-	return responses, paginationResponse, nil
+	return blogs, paginationResponse, nil
 
 }
 
@@ -90,6 +79,7 @@ func GetBlogById(blogId string, db *gorm.DB) (models.Blog, error) {
 
 	blogCategory.ID = blog.CategoryID
 	err = blogCategory.GetBlogCategoryById(db)
+	
 	if err != nil {
 		return blog, err
 	}
@@ -97,4 +87,24 @@ func GetBlogById(blogId string, db *gorm.DB) (models.Blog, error) {
 	blog.Category = &blogCategory
 
 	return blog, nil
+}
+
+func DeleteBlog(blogId string, userId string, db *gorm.DB) error {
+	var blog models.Blog
+	blog.ID = blogId
+
+	err := blog.GetBlogById(db)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("blog not found")
+		}
+		return err
+	}
+
+	if blog.AuthorID != userId {
+		return errors.New("user not authorised to delete blog")
+	}
+
+	return blog.Delete(db)
 }
