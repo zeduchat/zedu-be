@@ -128,7 +128,7 @@ func (base *Controller) UpdateMember(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "role updated successfully", resp)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", resp)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -163,9 +163,8 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 	response := gin.H{
 		"totalnoguests":   guestNo,
 		"invitations":     invitations,
-		"additional_info": paginationResponse,
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "organisation invites fetched successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", response, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 }
