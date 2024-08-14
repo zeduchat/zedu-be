@@ -19,21 +19,21 @@ func SeedSubscriptionPlans(db *gorm.DB) {
 			Price:         20.00,
 			Description:   "The essential tools to produce your best work for clients.",
 			Features:      "Basic features",
-			StripePriceID: "prod_QfAwrdoYzwdxqu",
+			StripePriceID: "price_1Pnqb1JlOh7AbM5NLNQ0UTEs",
 		},
 		{
 			Name:          "Advanced",
 			Price:         50.00,
 			Description:   "The essential tools to produce your best work for clients.",
 			Features:      "Advanced features",
-			StripePriceID: "prod_QfAx2eSRdRDxcf",
+			StripePriceID: "price_1PnqbTJlOh7AbM5NMlbwHHdX",
 		},
 		{
 			Name:          "Premium",
 			Price:         100.00,
 			Description:   "The essential tools to produce your best work for clients.",
 			Features:      "Premium features",
-			StripePriceID: "prod_QfAx45rYkMnx6J",
+			StripePriceID: "price_1PnqbFJlOh7AbM5NzYKR3lC7",
 		},
 	}
 
