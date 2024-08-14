@@ -3,6 +3,7 @@ package migrations
 import (
 	"fmt"
 
+	model "github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"gorm.io/gorm"
 )
@@ -17,6 +18,7 @@ func RunAllMigrations(db *storage.Database) {
 func MigrateModels(db *gorm.DB, models []interface{}, AlterColums []AlterColumn) {
 	_ = db.AutoMigrate(models...)
 
+	model.SeedSubscriptionPlans(db)
 	for _, d := range AlterColums {
 		err := d.UpdateColumnType(db)
 		if err != nil {

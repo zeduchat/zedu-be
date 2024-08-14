@@ -2,8 +2,8 @@ package subscription
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -20,6 +20,11 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gi
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
 
+	if subscriptionPlan.StripePriceID == "" {
+		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %s", req.PlanName)
+	}
+
+	log.Print(subscriptionPlan)
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
@@ -27,6 +32,7 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gi
 	if err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create Stripe customer: %v", err)
 	}
+
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
@@ -118,7 +124,7 @@ func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
 		}
 		return http.StatusInternalServerError, fmt.Errorf("error finding user: %w", err)
 	}
-	_, err := sub.Cancel(strconv.FormatUint(uint64(user.SubscriptionPlan.ID), 10), nil)
+	_, err := sub.Cancel(user.SubscriptionPlanId.String(), nil)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("error cancelling subscription: %w", err)
 	}

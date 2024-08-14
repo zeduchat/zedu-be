@@ -6818,16 +6818,79 @@ components:
     CreateSubscriptionRequest:
       type: object
       required:
-        - user_id
         - plan_name
+        - user_id
+        - email
+        - plan_id
+        - payment_method
+        - currency
+        - billing_cycle
       properties:
-        user_id:
-          type: string
-          description: The ID of the user creating the subscription
         plan_name:
           type: string
-          description: The name of the subscription plan
-        
+          description: "The name of the subscription plan."
+          example: "Premium"
+        user_id:
+          type: string
+          description: "The unique identifier for the user."
+          example: "123456"
+        email:
+          type: string
+          description: "The email address of the user."
+          format: email
+          example: "user@example.com"
+        plan_id:
+          type: string
+          description: "The ID of the subscription plan."
+          example: "plan_ABC123"
+        payment_method:
+          type: string
+          description: "The payment method to be used."
+          example: "card"
+        currency:
+          type: string
+          description: "The currency for the payment."
+          example: "USD"
+        billing_cycle:
+          type: string
+          description: "The billing cycle for the subscription."
+          example: "monthly"
+        address_line1:
+          type: string
+          description: "The first line of the billing address."
+          example: "123 Main St"
+        address_line2:
+          type: string
+          description: "The second line of the billing address."
+          example: "Apt 4B"
+        city:
+          type: string
+          description: "The city of the billing address."
+          example: "New York"
+        state:
+          type: string
+          description: "The state or province of the billing address."
+          example: "NY"
+        postal_code:
+          type: string
+          description: "The postal code of the billing address."
+          example: "10001"
+        country:
+          type: string
+          description: "The country of the billing address."
+          example: "US"
+        coupon_code:
+          type: string
+          description: "A coupon code for a discount, if applicable."
+          example: "DISCOUNT20"
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: "Additional metadata for the subscription."
+          example: 
+            order_id: "ORD_12345"
+            customer_note: "Handle with care"        
     ModifySubscriptionRequest:
       type: object
       required:
