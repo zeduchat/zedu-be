@@ -95,7 +95,7 @@ jobs:
       - name: Restart app
         run: |
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
-            chmod 400 ssh_key.pem
+            chmod 600 ssh_key.pem
             ssh -o StrictHostKeyChecking=no -i ssh_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
             cd ~/deployments/telex_be
             bash ./scripts/update_and_restart_app.sh
