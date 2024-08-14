@@ -40,7 +40,7 @@ func SeedSubscriptionPlans(db *gorm.DB) {
 type CreateSubscriptionRequest struct {
 	UserID   string `json:"user_id" binding:"required"`
 	PlanName string `json:"plan_name" binding:"required"`
-	PlanID   uint   `json:"plan_id" binding:"required"`
+	PlanID   uint   `json:"plan_id" `
 }
 
 type ModifySubscriptionRequest struct {
