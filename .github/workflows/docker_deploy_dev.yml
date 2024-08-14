@@ -2,13 +2,32 @@ name: Docker Dev Deployment
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dev
 
 jobs:
-  update_repo_with_env:
+  build_and_upload_image:
     runs-on: self-hosted
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t telex_be .
+      - name: Save and compress Docker image
+        run: docker save telex_be | gzip > telex_be.tar.gz
+      - name: Copy image to server
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem telex_be.tar.gz ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/telex_be.tar.gz
+          rm ssh_key.pem
+
+  update_repo_and_create_env:
+    runs-on: self-hosted
+    needs: build_and_upload_image
     if: github.event.repository.fork == false
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
@@ -33,6 +52,9 @@ jobs:
           PASSWORD: ${{ secrets.PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_HOST: ${{ secrets.DB_HOST }}
+          POSTGRES_USER: ${{ secrets.USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
           REDIS_PORT: ${{ secrets.REDIS_PORT }}
           REDIS_HOST: ${{ secrets.REDIS_HOST }}
           REDIS_DB: "0"
@@ -55,44 +77,20 @@ jobs:
       - name: Copy app.env to server
         run: |
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
-          chmod 400 ssh_key.pem
+          chmod 600 ssh_key.pem
           scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
           rm ssh_key.pem
 
-  build_binary:
+  run_docker_container:
     runs-on: self-hosted
-    needs: update_repo_with_env
+    needs: [build_and_upload_image, update_repo_and_create_env]
     if: github.event.repository.fork == false
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set Golang
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.22.1"
-      - name: Build the application
-        run: go build -o telex_be
-      - name: Push to server
-        run: |
-          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
-          chmod 400 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem telex_be ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/telex_be
-          rm telex_be
-
-  restart_app:
-    runs-on: self-hosted
-    needs: [build_binary]
-    if: github.event.repository.fork == false
-    env:
-      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_KEY: ${{ secrets.SSH_KEY }}
-    steps:
-      - name: Restart app
+      - name: Restart containers
         run: |
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
             chmod 600 ssh_key.pem
@@ -100,7 +98,9 @@ jobs:
             cd ~/deployments/telex_be
             git reset --hard
             git pull origin dev
-            ~/.nvm/versions/node/v20.15.1/bin/pm2 restart telex_be
+            gunzip -c /tmp/telex_be.tar.gz | docker load
+            rm -f /tmp/telex_be.tar.gz
+            docker compose -f docker-compose.yml up --force-recreate -d
           '
 
       - name: Remove ssh_key
