@@ -3661,12 +3661,369 @@ paths:
                     example: Invalid request
                   message:
                     type: string
-   
 
+  /help-center/category:
+    post:
+      tags:
+        - help center
+      summary: create help center category 
+      security:
+        - bearerAuth: [] 
+      requestBody:
+        description: input valid characters
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  format: string
+                description:
+                  type: string
+                  format: string
+              required:   
+                 - name
+                 - description
+      responses:
+        '201':
+          description: help center category Created successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "User profile retrieved successfully"
+                statusCode:
+                  type: integer
+                  example: 201
+                data:
+                  type: object
+                  properties:
+                    schema:
+                      $ref: '#/components/schemas/CategoryResponseSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
+  /help-center/articles/{category-id}:
+    post:
+      tags:
+        - help center
+      summary: Create help center article
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: input valid characters
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  format: string
+                content:
+                  type: string
+                  format: string
+              required:   
+                 - title
+                 - description      
+      responses:
+        '201':
+          description: Help center article created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Help center article created successfully"
+                  statusCode:
+                    type: integer
+                    example: 201
+                  data:
+                    $ref: '#/components/schemas/ArticleResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /help-center/articles/categories/{category-id}:
+    get:
+      tags:
+        - help center
+      summary: Get paginated articles by category ID
+      parameters:
+        - name: category-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: Paginated articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Paginated articles retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ArticleResponseSchema'
+                      pagination:
+                        type: object
+                        properties:
+                          currentPage:
+                            type: integer
+                            example: 1
+                          totalPages:
+                            type: integer
+                            example: 5
+                          pageCount:
+                            type: integer
+                            example: 10
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /help-center/categories:
+    get:
+      tags:
+        - help center
+      summary: Get all help center categories
+      responses:
+        '200':
+          description: Help center categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Help center categories retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/CategoryResponseSchema'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'                                  
+
+  /help-center/articles/{article-id}:
+    get:
+      tags:
+        - help center
+      summary: Get help center article by ID
+      parameters:
+        - name: article-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Help center article retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Help center article retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/ArticleResponseSchema'
+        '404':
+          description: Article not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+
+  /help-center/articles/search:
+    get:
+      summary: Search Help Center articles
+      description: Searches Help Center topics by title.
+      tags:
+        - Help Center
+      parameters:
+        - in: query
+          name: title
+          schema:
+            type: string
+          required: true
+          description: The search Topic title
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpCenter'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+          
 components:
 
   schemas:
+    CategoryResponseSchema:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          example: "019150d5-1e95-707f-b73e-88e5c58db563"
+        name:
+          type: string
+          example: "Category Example"
+        description:
+          type: string
+          example: "This is a test category"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+
+    ArticleResponseSchema:
+      type: object
+      properties:
+        article_id:
+          type: string
+          format: uuid
+          example: "b8a1bcf2-d8f2-49d4-a42d-21ef9c03b305"
+        title:
+          type: string
+          example: "Article Title"
+        content:
+          type: string
+          example: "This is a test article"
+        category_id:
+          type: string
+          format: uuid
+          example: "019150d5-1e95-707f-b73e-88e5c58db563"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+
     ChannelsFetchResponseSchema:
       type: object
       properties:
