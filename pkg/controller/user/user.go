@@ -1,10 +1,13 @@
 package user
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -112,6 +115,74 @@ func (base *Controller) UpdateAUser(c *gin.Context) {
 	base.Logger.Info("user info updated successfully")
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User info updated successfully", respData)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) DeactiveUser(ctx *gin.Context) {
+	var (
+		userID = ctx.Param("user_id")
+	)
+
+	code, err := service.DeactiveUser(userID, base.Db.Postgresql, ctx)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		ctx.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated successfully", nil)
+	ctx.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) SwitchUserOrg(c *gin.Context) {
+	var (
+		req = models.SwitchUserOrgReqeust{}
+	)
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.CurrentOrg); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	userId := userClaims["user_id"].(string)
+
+	respData, code, err := service.SwitchUserOrg(req, userId, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("user org switched successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User organisation switched successfully", respData)
 	c.JSON(http.StatusOK, rd)
 
 }

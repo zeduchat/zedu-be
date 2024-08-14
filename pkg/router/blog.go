@@ -22,11 +22,13 @@ func Blog(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	{
 		blogsAdminUrl.POST("/blogs", blogs.CreateBlog)
 		blogsAdminUrl.POST("/blog_categories", blogs.CreateBlogCategory)
+		blogsAdminUrl.DELETE("/blogs/:id", blogs.DeleteBlog)
 	}
 
 	{
 		blogsUrl.GET("/blogs", blogs.GetBlogs)
 		blogsUrl.GET("/blog_categories", blogs.GetBlogCategories)
+		blogsUrl.GET("/blog_categories/:id", blogs.GetBlogCategoryById)
 		blogsUrl.GET("/blogs/:id", blogs.GetBlogById)
 	}
 

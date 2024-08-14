@@ -17,7 +17,7 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	webhook := webhook.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	webhookUrl := r.Group(fmt.Sprintf("%v/webhook", ApiVersion), middleware.Authorize(db.Postgresql))
+	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		webhookUrl.GET("/channel/:webhook_id", webhook.GetWebhook)
 		webhookUrl.POST("/channel/:webhook_id", webhook.PostWebhook)

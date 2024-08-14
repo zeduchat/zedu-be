@@ -10,18 +10,21 @@ import (
 )
 
 type Message struct {
-	ID         int       `gorm:"column:id; type:serial; primaryKey" json:"id"`
-	Content    string    `gorm:"column:content; type:text; not null" json:"content"`
-	ChannelsID string    `gorm:"type:uuid;not null" json:"channels_id"`
-	UserID     string    `gorm:"type:uuid;not null" json:"user_id"`
-	Username   string    `gorm:"column:username; type:varchar(255)" json:"username"`
-	CreatedAt  time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ID         string     `gorm:"type:uuid;primary_key" json:"id"`
+	Content    string     `gorm:"column:content; type:text; not null" json:"content"`
+	ChannelsID string     `gorm:"type:uuid;not null;index" json:"channels_id"`
+	UserID     string     `gorm:"type:uuid;not null;index" json:"user_id"`
+	Username   string     `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt  time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ThreadID   string     `gorm:"type:uuid;null;index" json:"thread_id"`
+	Mentions   []Mentions `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
 }
 
 type CreateMessageRequest struct {
 	Content    string `json:"content" validate:"required"`
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
+	ThreadId   string `json:"thread_id,omitempty"`
 }
 
 func (m *Message) CreateMessage(db *gorm.DB) error {

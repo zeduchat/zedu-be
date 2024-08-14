@@ -39,10 +39,27 @@ func (b *Blog) Create(db *gorm.DB) error {
 	return nil
 }
 
-func (b *Blog) GetBlogs(db *gorm.DB, c *gin.Context) ([]Blog, postgresql.PaginationResponse, error) {
+func (b *Blog) GetBlogs(db *gorm.DB, c *gin.Context, categoryID string, searchQuery string) ([]Blog, postgresql.PaginationResponse, error) {
 	var blog []Blog
 
 	pagination := postgresql.GetPagination(c)
+
+	queryConditions := ""
+	queryArgs := []interface{}{}
+
+	if categoryID != "" {
+		queryConditions += "category_id = ?"
+		queryArgs = append(queryArgs, categoryID)
+	}
+
+	if searchQuery != "" {
+		if queryConditions != "" {
+			queryConditions += " AND "
+		}
+		queryConditions += "title LIKE ? OR content LIKE ?"
+		searchPattern := "%" + searchQuery + "%"
+		queryArgs = append(queryArgs, searchPattern, searchPattern)
+	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db,
@@ -50,7 +67,8 @@ func (b *Blog) GetBlogs(db *gorm.DB, c *gin.Context) ([]Blog, postgresql.Paginat
 		"desc",
 		pagination,
 		&blog,
-		nil,
+		queryConditions,
+		queryArgs...,
 	)
 
 	if err != nil {
@@ -62,6 +80,16 @@ func (b *Blog) GetBlogs(db *gorm.DB, c *gin.Context) ([]Blog, postgresql.Paginat
 
 func (b *Blog) GetBlogById(db *gorm.DB) error {
 	err := postgresql.SelectFirstFromDb(db, &b)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Blog) Delete(db *gorm.DB) error {
+	err := postgresql.DeleteRecordFromDb(db, &b)
 
 	if err != nil {
 		return err

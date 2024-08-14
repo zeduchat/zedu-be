@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -15,6 +16,7 @@ type User struct {
 	Email         string         `gorm:"column:email; type:varchar(255)" json:"email"`
 	IsVerified    bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
 	IsOnboarded   bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
+	CurrentOrg    uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
 	Profile       Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Channelss     []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
@@ -48,9 +50,23 @@ type LoginRequestModel struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type SwitchUserOrgReqeust struct {
+	CurrentOrg string `json:"current_org" validate:"required"`
+}
+
 func (u *User) AddUserToOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
 
 	err := db.Model(user).Association("Organisations").Append(orgs...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
+
+	err := db.Model(user).Association("Organisations").Delete(orgs...)
 	if err != nil {
 		return err
 	}
@@ -191,14 +207,30 @@ func (u *User) GetUserByIDsAdmin(db *gorm.DB, userID, requesterID string) (User,
 func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
 
 	userUpdates := User{Email: req.Email}
-	
-    result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+
+	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+
 	if err != nil {
 		return err
 	}
 
 	if result.RowsAffected == 0 {
 		return errors.New("failed to update user profile")
+	}
+
+	return nil
+}
+
+func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
+	userUpdates := User{IsVerified: false}
+
+	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to deactivate user")
 	}
 
 	return nil

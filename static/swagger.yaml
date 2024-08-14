@@ -35,6 +35,12 @@ tags:
     description: API for webhooks related endpoints
   - name: messages
     description: API for message related endpoints
+  - name: threads
+    description: API for threads related endpoints
+  - name: user-management
+    description: API for user management related endpoints
+  - name: threads
+    description: API for threads related endpoints
 
 
 paths:
@@ -1643,6 +1649,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
+
+  /users/switch-org:
+    put:
+      tags:
+        - user
+      summary: switch to an organisation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_org:
+                  type: string
+                  format: uuid
+
+              required:
+                - current_org
+      responses:
+        '200':
+          description: Organizations switched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/organizationGSuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
   /users/{user_id}:
     delete:
       tags:
@@ -2550,6 +2611,28 @@ paths:
         - blogs
       summary: get all blogs from the lastest
       parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the blog category to filter by.
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: The search query to match against blog titles and content.
+        - in: query
+          name: category
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the blog category to filter by.
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: The search query to match against blog titles and content.
         - $ref: '#/components/parameters/PageLimitParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
@@ -2587,21 +2670,6 @@ paths:
                         category_id:
                           type: string
                           format: uuid
-                        category:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                            name:
-                              type: string
-                              example: "news"
-                            created_at:
-                              type: string
-                              format: date-time
-                            updated_at:
-                              type: string
-                              format: date-time
                         image_url:
                           type: string
                           format: uri
@@ -2667,21 +2735,6 @@ paths:
                       category_id:
                         type: string
                         format: uuid
-                      category:
-                        type: object
-                        properties:
-                          id:
-                            type: string
-                            format: uuid
-                          name:
-                            type: string
-                            example: "news"
-                          created_at:
-                            type: string
-                            format: date-time
-                          updated_at:
-                            type: string
-                            format: date-time
                       image_url:
                         type: string
                         format: uri
@@ -2713,6 +2766,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema' 
+                
+                
+    delete:
+      tags:
+        - blogs
+      summary: Delete a blog by admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: blogId
+          schema:
+            type: string
+            format: uuid
+          required: true
+      
+      responses:
+        '204':
+          description: blog deleted successfully
+
+        '400':
+          description: Invalid orgId format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                
+                
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+                
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+                
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /blog_categories:
     post:
@@ -2832,6 +2940,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+                
+  /blog_categories/{categoryId}:
+    get:
+      tags:
+        - blogs
+      summary: retrieve a single blog category
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Blog category retrieved successfully.   
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                        example: "News"
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
 
 # webhooks
 
@@ -2841,6 +3011,8 @@ paths:
       summary: List all webhooks
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -2894,7 +3066,8 @@ paths:
       summary: Create a new webhook
       tags:
         - webhooks
-        
+      security:
+        - bearerAuth: []        
       parameters:
         - name: channel_id
           in: path
@@ -2956,6 +3129,8 @@ paths:
       summary: Get a webhook history by ID
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3043,6 +3218,8 @@ paths:
       summary: Update a webhook
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3125,6 +3302,8 @@ paths:
       summary: Delete a webhook
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3189,6 +3368,8 @@ paths:
       summary: Update webhook status
       tags:
         - webhooks
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -3310,7 +3491,252 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/{userId}:
+    get:
+      tags:
+        - user
+      summary: Retrieve a specific user   
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to retrieve.
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+    delete:
+      tags:
+        - user
+      summary: Delete a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to delete.
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDeleteResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
+    put:
+      tags:
+        - user
+      summary: Update a specific user
+      security:
+        - bearerAuth: []
+      description: Updates the details of a specific user.
+      parameters:
+        - name: userId
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateSchema'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserUpdateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+  /users/deactivate/{userId}:
+      delete:
+        tags:
+          - user
+        summary: Deactivate a specific user
+        security:
+          - bearerAuth: []
+        parameters:
+          - name: userId
+          - name: userId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the user to deactivate.
+        responses:
+          '200':
+            description: User deactivated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserDeactivateResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '403':
+            description: Forbidden
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ForbiddenErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
+
+  /users:
+    get:
+      tags:
+        - user
+      summary: Retrieve a list of users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
   /profile:
     get:
       tags:
@@ -3698,6 +4124,696 @@ paths:
                   message:
                     type: string
    
+  /threads/users/{userId}/organisations/{orgId}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve all threads for a user in a specific organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+        - name: orgId
+          in: path
+          required: true
+          description: ID of the organization
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /threads/users/{userId}/channels/{channel_id}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve all threads for a user in a specific channel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /threads/{threadId}/users/{userId}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve a specific thread for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: ID of the thread
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Thread retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    put:
+      tags:
+        - threads
+      summary: Update the status of a specific thread for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: ID of the thread
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateThreadStatusRequestSchema'
+      responses:
+        '200':
+          description: Thread updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+                
+  /organisations/{org_id}/users:
+    get:
+      tags:
+        - user-management
+      summary: Retrieve users of an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: The page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          description: The number of items per page for pagination
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: users retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        email:
+                          type: string
+                          format: email
+                        phone_number:
+                          type: string
+                        name:
+                          type: string
+                        role:
+                          type: integer
+                          description: The role of the user in the organization
+                        status:
+                          type: string
+                          description: The status of the user (e.g., active, inactive)
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                        page_size:
+                          type: integer
+                        total_items:
+                          type: integer
+                        total_pages:
+                          type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+                
+  /organisations/{org_id}/metrics:
+    get:
+      tags:
+        - user-management
+      summary: Retrieve organization metrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metrics fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: string
+                    example: metrics fetched successfully
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        active_count:
+                          type: integer
+                        inactive_count:
+                          type: integer
+                        total_members:
+                          type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+  
+  /organisations/{org_id}/users/{user_id}:
+    put:
+      tags:
+        - user-management
+      summary: Update a user's role and status in an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: user_id
+          in: path
+          required: true
+          description: The ID of the user
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_id:
+                  type: integer
+                  description: The new role ID for the user
+                status:
+                  type: string
+                  description: The new status for the user (e.g., active, deactivated)
+                  example: deactivated
+      responses:
+        '200':
+          description: User role and status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        format: uuid
+                      organisation_id:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        example: deactivated
+                      role_id:
+                        type: integer
+                      created_at:
+                        type: string
+                        format: date-time
+                      deleted_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+    delete:
+      tags:
+        - user-management
+      summary: Remove a user from an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: user_id
+          in: path
+          required: true
+          description: The ID of the user to be removed
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: string
+                    example: member removed successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+                
+  /organisations/{org_id}/invites:
+    get:
+      tags:
+        - user-management
+      summary: Retrieve invitations for an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: The page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          description: The number of items per page for pagination
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      invitations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            email:
+                              type: string
+                              format: email
+                            token:
+                              type: string
+                            status:
+                              type: string
+                              example: invited
+                            role:
+                              type: string
+                              example: admin
+                            organisation_id:
+                              type: string
+                              format: uuid
+                            is_telex_user:
+                              type: boolean
+                            Organisation:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                name:
+                                  type: string
+                                description:
+                                  type: string
+                                email:
+                                  type: string
+                                  format: email
+                                type:
+                                  type: string
+                                location:
+                                  type: string
+                                country:
+                                  type: string
+                                owner_id:
+                                  type: string
+                                  format: uuid
+                                channels_count:
+                                  type: integer
+                                  example: 0
+                                total_messages_count:
+                                  type: integer
+                                  example: 0
+                                org_roles:
+                                  type: array
+                                  items:
+                                    type: string
+                                Users:
+                                  type: array
+                                  items:
+                                    type: string
+                                created_at:
+                                  type: string
+                                  format: date-time
+                                updated_at:
+                                  type: string
+                                  format: date-time
+                            created_at:
+                              type: string
+                              format: date-time
+                            expires_at:
+                              type: string
+                              format: date-time
+                      totalnoguests:
+                        type: integer
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_count:
+                          type: integer
+                          example: 2
+                        total_pages_count:
+                          type: integer
+                          example: 1
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+                
+                
+  
+
+
+
+
 
 
 components:
@@ -3777,159 +4893,6 @@ components:
                     items:
                       type: string
                     nullable: true
-  
-  
-    ConnectionTokenResponseSchema:
-      type: object
-      properties:
-        token:
-          type: string
-          description: The generated connection token
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-
-    SubscriptionTokenRequestSchema:
-      type: object
-      properties:
-        channel:
-          type: string
-          description: The name of the channel to subscribe to
-          example: "channel_name"
-
-    SubscriptionTokenResponseSchema:
-      type: object
-      properties:
-        token:
-          type: string
-          description: The generated subscription token
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  
-    ChannelUsersResponseSchema:
-      type: object
-      properties:
-        status:
-          type: string
-          example: success
-        status_code:
-          type: integer
-          example: 200
-        message:
-          type: string
-          example: "users retrieved successfully"
-        data:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                format: uuid
-                example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
-              name:
-                type: string
-                example: ""
-              email:
-                type: string
-                example: "mfaith@gmail.com"
-              is_verified:
-                type: boolean
-                example: false
-              is_onboarded:
-                type: boolean
-                example: false
-              profile:
-                type: object
-                properties:
-                  profile_id:
-                    type: string
-                    example: ""
-                  first_name:
-                    type: string
-                    example: ""
-                  last_name:
-                    type: string
-                    example: ""
-                  phone:
-                    type: string
-                    example: ""
-                  avatar_url:
-                    type: string
-                    example: ""
-                  user_id:
-                    type: string
-                    example: ""
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:00:00Z"
-                  updated_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:00:00Z"
-              channels:
-                type: array
-                items:
-                  type: string
-                nullable: true
-              organisations:
-                type: array
-                items:
-                  type: string
-                nullable: true
-              org_roleId:
-                type: string
-                example: null
-              org_role:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    example: ""
-                  name:
-                    type: string
-                    example: ""
-                  description:
-                    type: string
-                    example: ""
-                  permissions:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        example: ""
-                      category:
-                        type: string
-                        example: ""
-                      permission_list:
-                        type: array
-                        items:
-                          type: string
-                        nullable: true
-              created_at:
-                type: string
-                format: date-time
-                example: "0001-01-01T00:00:00Z"
-              updated_at:
-                type: string
-                format: date-time
-                example: "0001-01-01T00:00:00Z"
-              role:
-                type: integer
-                example: 0
-        pagination:
-          type: object
-          properties:
-            current_page:
-              type: integer
-              example: 1
-            page_size:
-              type: integer
-              example: 20
-            total_items:
-              type: integer
-              example: 1
-            total_pages:
-              type: integer
-              example: 1
     
     UpdateProfileResponse:
       type: object
@@ -4012,7 +4975,7 @@ components:
         avatar_url:
           type: string
           example: "img898989.png"
-        user_id:
+        userId:
           type: string
           example: "019142c8-5408-7a47-b94c-91d674dd8358"
         created_at:
@@ -4560,12 +5523,8 @@ components:
     RolePermissionsUpdateSchema:
       type: object
       required:
-        - category
         - permission_list
       properties:
-        category:
-          type: string
-          description: Category of permissions being updated.
         permission_list:
           type: object
           additionalProperties:
@@ -4753,13 +5712,9 @@ components:
           type: string
         email:
           type: string
-        state:
-          type: string
-        industry:
-          type: string
         type:
           type: string
-        address:
+        location:
           type: string
         country:
           type: string
@@ -4926,7 +5881,7 @@ components:
               type: string
               format: uuid
               example: 01913139-0969-7ed5-a830-2f20f6b2c4e7
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 0191289e-fba3-7674-85bb-0c4a63ed8ebf
@@ -5006,7 +5961,7 @@ components:
                 type: string
                 format: uuid
                 example: 019144c2-c330-7db9-adfc-2628b0107740
-              user_id:
+              userId:
                 type: string
                 format: uuid
                 example: 01913f91-57e0-7875-b795-a25984e7594c
@@ -5035,7 +5990,7 @@ components:
     TerminateSessionRequest:
       type: object
       properties:
-        user_id:
+        userId:
           type: string
           format: uuid
           example: 01913f91-57e0-7875-b795-a25984e7594c
@@ -5062,7 +6017,7 @@ components:
         is_dm:
           type: boolean
           description: Whether the channel is a direct message channel or not
-        user_ids:
+        userIds:
           type: array
           items:
             type: string
@@ -5071,10 +6026,10 @@ components:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
-        created_by:
+        username:
           type: string
-          format: uuid
-          description: ID of the user who created the channel
+          format: string
+          description: username user who created the channel
         
     CreateChannelResponseSchema:
       type: object
@@ -5198,7 +6153,6 @@ components:
     MessageCreateSchema:
       type: object
       properties:
-      
         content:
           type: string
           description: Content of the message
@@ -5206,12 +6160,14 @@ components:
           type: string
           format: uuid
           description: ID of the channel the message belongs to
-        user_id:
+        userId:
           type: string
           format: uuid
           description: ID of the user who sent the message
-  
-          
+        threadId:
+          type: string
+          format: uuid      
+          description: thread id (optional)
 
     MessageCreateResponseSchema:
       type: object
@@ -5239,10 +6195,14 @@ components:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            threadId:
+              type: string
+              format: uuid
+              example: 89010544-d1e1-7ada-bdac-c761e527ec53
             created_at:
               type: string
               format: date-time
@@ -5268,7 +6228,7 @@ components:
         channel_id:
           type: string
           format: uuid
-        user_id:
+        userId:
           type: string
           format: uuid
         created_at:
@@ -5298,8 +6258,7 @@ components:
               type: string
             description:
               type: string
-
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -5341,8 +6300,7 @@ components:
               type: string
             description:
               type: string
-
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -5449,9 +6407,9 @@ components:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
-        created_by:
+        username:
           type: string
-          format: uuid
+          format: string
           description: ID of the user who created the channel
 
     ChannelCreateResponseSchema:
@@ -5615,6 +6573,29 @@ components:
           next_page_url: null
           prev_page_url: null
           
+    UserResponseSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the user.
+        first_name:
+          type: string
+          description: The user's first name.
+        last_name:
+          type: string
+          description: The user's last name.
+        username:
+          type: string
+          description: The user's username.
+        phone_number:
+          type: string
+          description: The user's phone number (optional).
+      required:
+        - id
+        - first_name
+        - last_name
+        - username
     ChannelUpdateResponseSchema:
       type: object
       properties:
@@ -5624,6 +6605,19 @@ components:
           type: integer
         message:
           type: string
+
+    UserDeleteResponseSchema:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponseSchema'
+      example:
+        code: 200
+        status: "success"
+        error: ""
+        message: "user delete successfully"
+        data: null
+        pagination: null
+
+          
     UserUpdateResponseSchema:
       type: object
       properties:
@@ -5740,6 +6734,23 @@ components:
           format: date-time
           description: Timestamp when the webhook was last updated
 
+    UserUpdateSchema:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          format: phone
+        language:
+          type: string
+
+          
     UserSession:
       type: object
       properties:
@@ -5763,6 +6774,24 @@ components:
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
 
+    UserDeactivateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+          description: The HTTP status code indicating the outcome of the operation.
+        message:
+          type: string
+          example: "User deactivated successfully"
+          description: A message describing the result of the operation.
+        data:
+          type: object
+          nullable: true
+          description: Additional data related to the response, typically null in this case.
+      required:
+        - status
+        - message 
 
     WebhookHistory:
       type: object
@@ -5793,6 +6822,15 @@ components:
           format: date-time
           description: Timestamp when the history entry was updated
 
+    UpdateThreadStatusRequestSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "completed"
+      required:
+        - status
+
   responses:
     UnauthorizedError:
       description: Authentication information is missing or invalid
@@ -5821,8 +6859,6 @@ components:
               message:
                 type: string
                 example: Not Found      
-
-    
 
   parameters:
     PageLimitParam:

@@ -67,7 +67,7 @@ func TestMessage(t *testing.T) {
 		Country:     "wakanda",
 	}
 
-	orgId, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
+	orgId, _ , _:= tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
 	createChannelsData := models.CreateChannelsRequest{
 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
