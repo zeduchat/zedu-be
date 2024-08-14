@@ -82,11 +82,9 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-// FIX : DeleteSubscription function is missing the user_id parameter
 func (base *Controller) DeleteSubscription(c *gin.Context) {
 
 	var (
-		_   = c.Param("user_id")
 		req *models.DeleteSubscriptionRequest
 	)
 

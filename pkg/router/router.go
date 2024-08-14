@@ -45,6 +45,11 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Webhook(r, ApiVersion, validator, db, logger)
 	Profile(r, ApiVersion, validator, db, logger)
 	Threads(r, ApiVersion, validator, db, logger)
+<<<<<<< Updated upstream
+=======
+	Invite(r, ApiVersion, validator, db, logger)
+	Subscriptions(r, ApiVersion, validator, db, logger)
+>>>>>>> Stashed changes
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

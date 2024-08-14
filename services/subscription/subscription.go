@@ -3,6 +3,7 @@ package subscription
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -101,11 +102,20 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gi
 	return &responseData, http.StatusOK, nil
 }
 
-func DeleteSubscription(req *models.DeleteSubscriptionRequest, db *gorm.DB) (int, error) {
-	_, err := sub.Cancel(req.UserID, nil) // Assuming req.UserID is the subscription ID
-	if err != nil {
-		return http.StatusInternalServerError, err
+func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
+	var user *models.User
+	if err := db.First(&user, "id = ?", userId).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return http.StatusNotFound, fmt.Errorf("user not found")
+		}
+		return http.StatusInternalServerError, fmt.Errorf("error finding user: %w", err)
 	}
-
+	_, err := sub.Cancel(strconv.FormatUint(uint64(user.SubscriptionPlan.ID), 10), nil)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling subscription: %w", err)
+	}
+	if err := db.Model(&user).Association("SubscriptionPlan").Clear(); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("error removing subscription plan: %w", err)
+	}
 	return http.StatusOK, nil
 }

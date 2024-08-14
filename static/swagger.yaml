@@ -41,6 +41,8 @@ tags:
     description: API for user management related endpoints
   - name: threads
     description: API for threads related endpoints
+  - name: subscription
+    description: API for subscriptions related endpoints
 
 
 paths:
@@ -2955,7 +2957,147 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema' 
 
-# webhooks
+
+  /api/v1/subscriptions/create:
+    post:
+      summary: Create a new subscription
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/subscriptions/list/{user_id}:
+    get:
+      summary: List subscriptions for a user
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscriptions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/subscriptions/modify:
+    put:
+      summary: Modify an existing subscription
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifySubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription modified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/subscriptions/delete/{user_id}:
+    delete:
+      summary: Delete a subscription
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the user whose subscription is to be deleted
+      responses:
+        '200':
+          description: Subscription deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 
   /webhooks/{channel_id}:
@@ -6725,6 +6867,51 @@ components:
           type: string
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
+    
+    CreateSubscriptionRequest:
+      type: object
+      required:
+        - user_id
+        - plan_name
+        - plan_id
+      properties:
+        user_id:
+          type: string
+          description: The ID of the user creating the subscription
+        plan_name:
+          type: string
+          description: The name of the subscription plan
+        plan_id:
+          type: integer
+          format: uint
+          description: The ID of the subscription plan
+
+    ModifySubscriptionRequest:
+      type: object
+      required:
+        - user_id
+        - plan_name
+        - plan_id
+      properties:
+        user_id:
+          type: string
+          description: The ID of the user modifying the subscription
+        plan_name:
+          type: string
+          description: The new name of the subscription plan
+        plan_id:
+          type: integer
+          format: uint
+          description: The new ID of the subscription plan
+
+    DeleteSubscriptionRequest:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          description: The ID of the user deleting the subscription
 
     UserDeactivateResponseSchema:
       type: object
