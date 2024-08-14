@@ -74,6 +74,8 @@ jobs:
           BUKCET_SECRET_KEY: ${{ secrets.BUKCET_SECRET_KEY }}
           TYPESENSE_API_URL: ${{ secrets.TYPESENSE_API_URL }}
           TYPESENSE_API_KEY: ${{ secrets.TYPESENSE_API_KEY}}
+          IPSTACK_KEY: ${{ secrets.IPSTACK_KEY }}
+          IPSTACK_BASE_URL: ${{ secrets.IPSTACK_BASE_URL }}
 
       - name: Copy app.env to server
         run: |
