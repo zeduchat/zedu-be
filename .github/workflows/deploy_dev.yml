@@ -100,6 +100,7 @@ jobs:
             cd ~/deployments/telex_be
             git reset --hard
             git pull origin dev
+            source /home/vicradon/.nvm/versions/node/v20.15.1/bin/pm2
             pm2 restart telex_be
           '
 
