@@ -73,7 +73,16 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	file, header, err := c.Request.FormFile("avatar_url")
+	base64Image := c.Request.FormValue("avatar_url")
+
+	file, ext, err := profile.ValidatePicture(base64Image)
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -85,7 +94,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, header, file)
+	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
