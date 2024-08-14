@@ -12,6 +12,9 @@ info:
   version: 1.0.0
 servers:
   # Added by API Auto Mocking Plugin
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/urizennnnnn/HNG/1.0.0
   - url: https://api.staging.telex.im/api/v1
 
 tags:
@@ -35,8 +38,6 @@ tags:
     description: API for webhooks related endpoints
   - name: messages
     description: API for message related endpoints
-  - name: threads
-    description: API for threads related endpoints
   - name: user-management
     description: API for user management related endpoints
   - name: threads
@@ -2566,12 +2567,6 @@ paths:
       summary: get all blogs from the lastest
       parameters:
         - in: query
-          name: category
-          schema:
-            type: string
-            format: uuid
-          description: The ID of the blog category to filter by.
-        - in: query
           name: search
           schema:
             type: string
@@ -2582,11 +2577,6 @@ paths:
             type: string
             format: uuid
           description: The ID of the blog category to filter by.
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: The search query to match against blog titles and content.
         - $ref: '#/components/parameters/PageLimitParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
@@ -3594,7 +3584,6 @@ paths:
         - bearerAuth: []
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3639,7 +3628,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
         - name: userId
           in: path
           required: true
@@ -3694,7 +3682,6 @@ paths:
       description: Updates the details of a specific user.
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3747,7 +3734,6 @@ paths:
         security:
           - bearerAuth: []
         parameters:
-          - name: userId
           - name: userId
             in: path
             required: true
