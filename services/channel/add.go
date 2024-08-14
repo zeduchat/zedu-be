@@ -10,17 +10,13 @@ import (
 )
 
 func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message, int, error) {
-	threadID, err := thread.CreateThreadIfNeeded(req, db)
-	if err != nil {
-		return models.Message{}, http.StatusBadRequest, err
-	}
 
 	message := models.Message{
 		ID:         utility.GenerateUUID(),
 		Content:    req.Content,
 		ChannelsID: req.ChannelsId,
 		UserID:     req.UserId,
-		ThreadID:   threadID,
+		ThreadID:   req.ThreadId,
 	}
 
 	if err := message.CreateMessage(db); err != nil {

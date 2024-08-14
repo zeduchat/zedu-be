@@ -7,34 +7,22 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateThreadIfNeeded(req models.CreateMessageRequest, db *gorm.DB) (string, error) {
-	var threadID string
-	var threadStatus = "pending"
+func CreateThreadDummy(req models.Threads, db *gorm.DB) (string, error) {
 
-	if req.ThreadId == "" {
-		threadID = utility.GenerateUUID()
-		thread := models.Threads{
-			ID:           threadID,
-			ChannelsID:   req.ChannelsId,
-			UserID:       req.UserId,
-			MessageCount: 1,
-			ThreadStatus: threadStatus,
-		}
+	threadID := utility.GenerateUUID()
+	thread := models.Threads{
+		ID:           threadID,
+		Username:     req.Username,
+		ActionType:   req.ActionType,
+		EventName:    req.EventName,
+		ChannelsID:   req.ChannelsID,
+		UserID:       req.UserID,
+		MessageCount: 0,
+		ThreadStatus: req.ThreadStatus,
+	}
 
-		if err := thread.CreateThread(db); err != nil {
-			return "", err
-		}
-	} else {
-		threadID = req.ThreadId
-		var thread models.Threads
-		threadData, err := thread.GetThreadById(db, threadID)
-		if err != nil {
-			return "", err
-		}
-		threadData.MessageCount++
-		if _, err := threadData.UpdateThread(db); err != nil {
-			return "", err
-		}
+	if err := thread.CreateThread(db); err != nil {
+		return "", err
 	}
 
 	return threadID, nil
