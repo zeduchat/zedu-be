@@ -4810,9 +4810,6 @@ components:
                   description:
                     type: string
                     example: "this room is meant for hackers"
-                  is_private:
-                    type: boolean
-                    example: false
                   organisation_id:
                     type: string
                     format: uuid
@@ -5963,12 +5960,6 @@ components:
         description:
           type: string
           description: Description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
-        is_dm:
-          type: boolean
-          description: Whether the channel is a direct message channel or not
         userIds:
           type: array
           items:
@@ -6008,12 +5999,6 @@ components:
             description:
               type: string
               example: General discussion
-            is_private:
-              type: boolean
-              example: false
-            is_dm:
-              type: boolean
-              example: false
             organization_id:
               type: string
               format: uuid
@@ -6066,9 +6051,6 @@ components:
               description:
                 type: string
                 example: "this room is meant for hackers"
-              is_private:
-                type: boolean
-                example: false
               organisation_id:
                 type: string
                 format: uuid
@@ -6339,9 +6321,6 @@ components:
         description:
           type: string
           description: Updated description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
 
     ChannelCreateSchema:
       type: object
@@ -6352,9 +6331,6 @@ components:
         description:
           type: string
           description: Description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
         organization_id:
           type: string
           format: uuid
@@ -6389,9 +6365,6 @@ components:
             description:
               type: string
               example: "this room is meant for hackers"
-            is_private:
-              type: boolean
-              example: false
             organization_id:
               type: string
               format: uuid
