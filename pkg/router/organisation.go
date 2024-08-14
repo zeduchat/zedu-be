@@ -24,15 +24,20 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id", organisation.GetOrganisation)
 		organisationUrl.DELETE("/:org_id", organisation.DeleteOrganisation)
 		organisationUrl.PUT("/:org_id", organisation.UpdateOrganisation)
-		organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
 		organisationUrl.POST("/:org_id/roles", organisation.CreateOrgRole)
 		organisationUrl.GET("/:org_id/roles", organisation.GetOrgRoles)
 		organisationUrl.GET("/:org_id/roles/:role_id", organisation.GetAOrgRole)
 		organisationUrl.DELETE("/:org_id/roles/:role_id", organisation.DeleteOrgRole)
 		organisationUrl.PUT("/:org_id/roles/:role_id", organisation.UpdateOrgRole)
 		organisationUrl.PUT("/:org_id/roles/:role_id/permissions", organisation.UpdateOrgPermissions)
-
 		organisationUrl.GET("/:org_id/channels", organisation.GetAllChannelssInOrganisation)
+		
+
+		organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
+		organisationUrl.GET("/:org_id/metrics", organisation.GetOrganisationCountMetrics)
+		organisationUrl.DELETE("/:org_id/users/:user_id", organisation.RemoveMemberFromOrganisation)
+		organisationUrl.PUT("/:org_id/users/:user_id", organisation.UpdateMember)
+		organisationUrl.GET("/:org_id/invites", organisation.GetOrganisationInvites)
 	}
 
 	return r
