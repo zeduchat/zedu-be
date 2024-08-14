@@ -35,6 +35,8 @@ tags:
     description: API for webhooks related endpoints
   - name: messages
     description: API for message related endpoints
+  - name: threads
+    description: API for threads related endpoints
 
 
 paths:
@@ -3394,7 +3396,7 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
 
-  /users/{user_id}:
+  /users/{userId}:
     get:
       tags:
         - user
@@ -3402,7 +3404,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: user_id
+        - name: userId
           in: path
           required: true
           schema:
@@ -3447,7 +3449,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: user_id
+        - name: userId
           in: path
           required: true
           schema:
@@ -3500,7 +3502,7 @@ paths:
         - bearerAuth: []
       description: Updates the details of a specific user.
       parameters:
-        - name: user_id
+        - name: userId
           in: path
           required: true
           schema:
@@ -3545,7 +3547,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  /users/deactivate/{user_id}:
+  /users/deactivate/{userId}:
       delete:
         tags:
           - user
@@ -3553,7 +3555,7 @@ paths:
         security:
           - bearerAuth: []
         parameters:
-          - name: user_id
+          - name: userId
             in: path
             required: true
             schema:
@@ -4023,6 +4025,218 @@ paths:
                   message:
                     type: string
    
+  /threads/users/{userId}/organisations/{orgId}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve all threads for a user in a specific organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+        - name: orgId
+          in: path
+          required: true
+          description: ID of the organization
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /threads/users/{userId}/channels/{channel_id}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve all threads for a user in a specific channel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /threads/{threadId}/users/{userId}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve a specific thread for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: ID of the thread
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Thread retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    put:
+      tags:
+        - threads
+      summary: Update the status of a specific thread for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: ID of the thread
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateThreadStatusRequestSchema'
+      responses:
+        '200':
+          description: Thread updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
 
 components:
@@ -4179,7 +4393,7 @@ components:
                   avatar_url:
                     type: string
                     example: ""
-                  user_id:
+                  userId:
                     type: string
                     example: ""
                   created_at:
@@ -4337,7 +4551,7 @@ components:
         avatar_url:
           type: string
           example: "img898989.png"
-        user_id:
+        userId:
           type: string
           example: "019142c8-5408-7a47-b94c-91d674dd8358"
         created_at:
@@ -5243,7 +5457,7 @@ components:
               type: string
               format: uuid
               example: 01913139-0969-7ed5-a830-2f20f6b2c4e7
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 0191289e-fba3-7674-85bb-0c4a63ed8ebf
@@ -5323,7 +5537,7 @@ components:
                 type: string
                 format: uuid
                 example: 019144c2-c330-7db9-adfc-2628b0107740
-              user_id:
+              userId:
                 type: string
                 format: uuid
                 example: 01913f91-57e0-7875-b795-a25984e7594c
@@ -5352,7 +5566,7 @@ components:
     TerminateSessionRequest:
       type: object
       properties:
-        user_id:
+        userId:
           type: string
           format: uuid
           example: 01913f91-57e0-7875-b795-a25984e7594c
@@ -5379,7 +5593,7 @@ components:
         is_dm:
           type: boolean
           description: Whether the channel is a direct message channel or not
-        user_ids:
+        userIds:
           type: array
           items:
             type: string
@@ -5515,7 +5729,6 @@ components:
     MessageCreateSchema:
       type: object
       properties:
-      
         content:
           type: string
           description: Content of the message
@@ -5523,12 +5736,14 @@ components:
           type: string
           format: uuid
           description: ID of the channel the message belongs to
-        user_id:
+        userId:
           type: string
           format: uuid
           description: ID of the user who sent the message
-  
-          
+        threadId:
+          type: string
+          format: uuid
+          description: thread id (optional)
 
     MessageCreateResponseSchema:
       type: object
@@ -5556,10 +5771,14 @@ components:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
+            threadId:
+              type: string
+              format: uuid
+              example: 89010544-d1e1-7ada-bdac-c761e527ec53
             created_at:
               type: string
               format: date-time
@@ -5585,7 +5804,7 @@ components:
         channel_id:
           type: string
           format: uuid
-        user_id:
+        userId:
           type: string
           format: uuid
         created_at:
@@ -5616,7 +5835,7 @@ components:
             description:
               type: string
 
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -5659,7 +5878,7 @@ components:
             description:
               type: string
 
-            user_id:
+            userId:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -6181,6 +6400,15 @@ components:
           format: date-time
           description: Timestamp when the history entry was updated
 
+    UpdateThreadStatusRequestSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "completed"
+      required:
+        - status
+
   responses:
     UnauthorizedError:
       description: Authentication information is missing or invalid
@@ -6209,8 +6437,6 @@ components:
               message:
                 type: string
                 example: Not Found      
-
-    
 
   parameters:
     PageLimitParam:
