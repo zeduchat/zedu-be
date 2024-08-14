@@ -85,10 +85,10 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 func (base *Controller) DeleteSubscription(c *gin.Context) {
 
 	var (
-		req *models.DeleteSubscriptionRequest
+		user_id = c.Param("user_id")
 	)
 
-	code, err := service.DeleteSubscription(req, base.Db.Postgresql)
+	code, err := service.DeleteSubscription(user_id, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
