@@ -83,8 +83,8 @@ func (base *Controller) GetArticlesByCategoryID(c *gin.Context) {
 		"total_items":  len(articles),
 	}
 
-	base.Logger.Info("Categories retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Categories retrieved successfully.", articles, paginationData)
+	base.Logger.Info("Articles retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Articles retrieved successfully.", articles, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
 
