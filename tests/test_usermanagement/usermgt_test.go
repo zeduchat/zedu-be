@@ -1,4 +1,4 @@
-package test_tokens
+package test_channel
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
-	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -23,7 +22,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestMessage(t *testing.T) {
+func TestUserManagementEndpoints(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -38,22 +37,19 @@ func TestMessage(t *testing.T) {
 		Password:    "password",
 		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
-
 	loginData := models.LoginRequestModel{
 		Email:    userSignUpData.Email,
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger,
-		ExtReq: request.ExternalRequest{
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
 			Logger: logger,
 			Test:   true,
 		}}
 	r := gin.Default()
-
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
-	channel := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	token := tst.GetLoginToken(t, r, auth, loginData)
@@ -67,22 +63,11 @@ func TestMessage(t *testing.T) {
 		Country:     "wakanda",
 	}
 
-	orgId, _ , _:= tst.CreateOrganisation(t, r, db, org, createOrgData, token)
-
-	createChannelsData := models.CreateChannelsRequest{
-		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
-		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
-		OrganisationID: orgId,
-		Description:    "Some Random description",
-	}
-
-	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
-
-	fmt.Println("Channels ID: ", channelId)
+	orgId, _, owner_id := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
 	tests := []struct {
 		Name         string
-		RequestBody  models.CreateMessageRequest
+		RequestBody  interface{}
 		ExpectedCode int
 		Message      string
 		Method       string
@@ -90,25 +75,44 @@ func TestMessage(t *testing.T) {
 		RequestURI   url.URL
 	}{
 		{
-			Name: "Add message Successfully",
-			RequestBody: models.CreateMessageRequest{
-				Content: "It's a nice day to check the channel",
-			},
-			ExpectedCode: http.StatusCreated,
-			Message:      "message added successfully",
-			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
+			Name:         "Get User In Organisation Action Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "users retrieved successfully",
+			Method:       http.MethodGet,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/users", orgId)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name:         "Successfully Get messages in a channel",
-			RequestBody:  models.CreateMessageRequest{},
+			Name:         "Get Organisation Count Metrics Action",
 			ExpectedCode: http.StatusOK,
-			Message:      "channel messages fetched successfully",
+			Message:      "success",
 			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/metrics", orgId)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token,
+			},
+		}, {
+			Name: "Update Member Action",
+			RequestBody: models.UpdateMemberRequest{
+				Status: "accepted",
+			},
+			ExpectedCode: http.StatusOK,
+			Message:      "success",
+			Method:       http.MethodPut,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/users/%s", orgId, owner_id)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token,
+			},
+		},{
+			Name:         "Remove Member From Organisation Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "success",
+			Method:       http.MethodDelete,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/users/%s", orgId, owner_id)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -116,14 +120,17 @@ func TestMessage(t *testing.T) {
 		},
 	}
 
+	organisation := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+
 	for _, test := range tests {
 		r := gin.Default()
 
-		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
+		organisationUrl := r.Group(fmt.Sprintf("%v", "/api/v1/organisations"), middleware.Authorize(db.Postgresql))
 		{
-			tknUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
-			tknUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
-
+			organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
+			organisationUrl.GET("/:org_id/metrics", organisation.GetOrganisationCountMetrics)
+			organisationUrl.PUT("/:org_id/users/:user_id", organisation.UpdateMember)
+			organisationUrl.DELETE("/:org_id/users/:user_id", organisation.RemoveMemberFromOrganisation)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {
@@ -158,7 +165,6 @@ func TestMessage(t *testing.T) {
 				}
 
 			}
-
 		})
 
 	}

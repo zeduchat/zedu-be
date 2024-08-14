@@ -44,7 +44,7 @@ func initialise(currUUID string, t *testing.T, r *gin.Engine, db *storage.Databa
 		Country:     "wakanda",
 	}
 
-	orgID, _ := tst.CreateOrganisation(t, r, db, org, organisationCreationData, token)
+	orgID, _, _ := tst.CreateOrganisation(t, r, db, org, organisationCreationData, token)
 
 	return orgID, token
 }

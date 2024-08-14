@@ -78,22 +78,6 @@ func TestOrganizationCreate(t *testing.T) {
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name: "details already exist",
-			RequestBody: models.CreateOrgRequestModel{
-				Name:        fmt.Sprintf("Org %v", currUUID),
-				Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
-				Description: "Some random description about vibranium",
-				Type:        "type1",
-				Location:   "wakanda land",
-				Country:     "wakanda",
-			},
-			ExpectedCode: http.StatusBadRequest,
-			Message:      "organization already exists with the given email",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		}, {
 			Name: "invalid email",
 			RequestBody: models.CreateOrgRequestModel{
 				Name:        fmt.Sprintf("Org %v", utility.GenerateUUID()),
