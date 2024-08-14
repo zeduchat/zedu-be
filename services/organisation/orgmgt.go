@@ -14,7 +14,7 @@ func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
 	orgUserManagement := models.OrgUserManagement{
 		UserID:         userID,
 		OrganisationID: orgID,
-		RoleID:         1, //1 is ADMIN
+		RoleID:         "admin", //1 is ADMIN
 		Status:         "active",
 	}
 	fmt.Println("error is here")
@@ -69,15 +69,15 @@ func UpdateMember(db *gorm.DB, ownerId, orgID, userID string, req models.UpdateM
 	return resp, nil
 }
 
-func GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]models.Invitation, postgresql.PaginationResponse, int64 ,error) {
+func GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]models.Invitation, postgresql.PaginationResponse, error) {
 	var (
 		o models.Organisation
 	)
 
-	invitations, paginationResponse, guestNo ,err := o.GetOrganisationInvites(c, db, userID, orgID)
+	invitations, paginationResponse, err := o.GetOrganisationInvites(c, db, userID, orgID)
 	if err != nil {
-		return invitations, paginationResponse, guestNo ,err
+		return invitations, paginationResponse, err
 	}
 
-	return invitations, paginationResponse, guestNo ,nil
+	return invitations, paginationResponse, nil
 }

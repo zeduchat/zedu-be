@@ -43,6 +43,7 @@ func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+
 func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 	userId := c.Param("user_id")
@@ -152,7 +153,7 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
-	invitations, paginationResponse, guestNo, err := organisation.GetOrganisationInvites(c, base.Db.Postgresql, userId, orgId)
+	invitations, paginationResponse, err := organisation.GetOrganisationInvites(c, base.Db.Postgresql, userId, orgId)
 	if err != nil {
 		base.Logger.Error("failed to fetch organisation invites", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch organisation invites", err.Error(), nil)
@@ -160,11 +161,66 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
-	response := gin.H{
-		"totalnoguests":   guestNo,
-		"invitations":     invitations,
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", invitations, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+}
+
+
+func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
+	orgId := c.Param("org_id")
+	userId := c.Param("user_id")
+
+	var createOGMT models.OrgUserCreateRequest
+
+	if err := c.ShouldBindJSON(&createOGMT); err != nil {
+		base.Logger.Error("failed to bind request", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to bind request", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "success", response, paginationResponse)
+	err := base.Validator.Struct(createOGMT)
+	if err != nil {
+		base.Logger.Error("validation error", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "validation error", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to add member", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	ownerId := userClaims["user_id"].(string)
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(userId); err != nil {
+		base.Logger.Error("invalid user id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "failed to decode user id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = organisation.AddMemberToOrganisation(ownerId, orgId, userId, createOGMT.RoleID ,base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to add member", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add member", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "member added successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
