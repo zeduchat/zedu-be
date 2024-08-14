@@ -52,7 +52,6 @@ type HelpCntCategorySummary struct {
 	ArticlesLen         int   `json:"articles_len"`
 }
 
-// help center category func ========================================================================
 func (j *HelpCenterCategory) CreateHelpCenterCategory(db *gorm.DB, name string) error {
     var hnpCntCategory HelpCenterCategory
 
@@ -123,7 +122,7 @@ func (j *HelpCenterCategory) GetArticlesByCategoryID(db *gorm.DB, c *gin.Context
 	
 	return articles, paginationResponse, nil
 }
-// help center article func================================================================
+
 func (j *HelpCenterArticle) CreateHelpCenterArticle(db *gorm.DB, title string) error {
 	var hnpCntArticle HelpCenterArticle
 

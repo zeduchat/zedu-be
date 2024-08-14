@@ -77,26 +77,3 @@ func GetArticlesByCategoryID(c *gin.Context, db *gorm.DB, id string) ([]models.H
 
 	return articles, paginationResponse, nil
 }
-// func GetPaginatedArticles(c *gin.Context, db *gorm.DB) ([]models.HelpCenterArticle, postgresql.PaginationResponse, error) {
-// 	helpCnt := models.HelpCenterArticle{}
-// 	topics, paginationResponse, err := helpCnt.GetAllArticles(db, c)
-
-// 	if err != nil {
-// 		return nil, paginationResponse, err
-// 	}
-
-// 	if len(topics) == 0 {
-// 		return []models.HelpCenterArticle{}, paginationResponse, nil
-// 	}
-	
-// 	var topicSummaries []models.HelpCenterArticle
-// 	for _, Hlp := range topics {
-// 		summary := models.HelpCenterArticle{
-// 			ID: 		 Hlp.ID,
-// 			Title:       Hlp.Title,
-// 		}
-// 		topicSummaries = append(topicSummaries, summary)
-// 	}
-
-// 	return topicSummaries, paginationResponse, nil
-// }
