@@ -19,6 +19,8 @@ github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/centrifugal/centrifuge-go v0.10.2 h1:9DK7YvhlDO553k1kYnsSgowgGjz8EK406VTRLG+Thsk=
 github.com/centrifugal/centrifuge-go v0.10.2/go.mod h1:jYJB6Nony+XVRbMJUZCzL2iDAp9rkJT7SRmf7Y1fQMY=
+github.com/centrifugal/gocent v2.2.0+incompatible h1:49oQLm1CDojd8vgz2w5RrECgW3Ew+Z5muIQGIggI2Vk=
+github.com/centrifugal/gocent v2.2.0+incompatible/go.mod h1:gtbj3+fMApCIcaGmGvk2BinwEauUtGeu8YZPLcedOvQ=
 github.com/centrifugal/protocol v0.10.0 h1:Lac48ATVjVjirYPTHxbSMmiQXXajx7dhARKHy1UOL+A=
 github.com/centrifugal/protocol v0.10.0/go.mod h1:Tq5I1mBpLHkLxNM9gfb3Gth+sTE2kKU5hH3cVgmVs9s=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=

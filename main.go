@@ -26,6 +26,14 @@ func main() {
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
 	minio.ConnectToMinio(logger, configuration.Minio)
+	// centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
+	// centrifuge.NewCentrifugod(logger, configuration.Centrifuge)
+
+	// err := centrifuge.BroadcastChannel(logger, "channel", map[string]interface{}{"input": "yesssss....."})
+
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
 
 	validatorRef := validator.New()
 

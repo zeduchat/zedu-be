@@ -135,23 +135,3 @@ func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *
 	return resp, pagResp, http.StatusOK, nil
 
 }
-
-func PostWebhook() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
-
-}
-
-func GetWebhook() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
-
-}

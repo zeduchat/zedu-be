@@ -27,7 +27,7 @@ type Webhook struct {
 }
 
 type WebhookHistory struct {
-	ID          int       `gorm:"column:id; type:serial; primaryKey" json:"id"`
+	ID          string    `gorm:"column:id; type:serial; primaryKey" json:"id"`
 	CallbackID  string    `gorm:"column:callback_id; type:text;null" json:"callback_id"`
 	WebhookSlug string    `gorm:"column:webhook_slug; type:text;null" json:"webhook_id"`
 	ActionType  string    `gorm:"column:action_type; type:text;null" json:"action_type"`
@@ -44,14 +44,6 @@ type CreateWebhookRequest struct {
 	UserID      string `json:"user_id"`
 	WebhookName string `json:"webhook_name" validate:"required"`
 	EventName   string `json:"event_name"`
-}
-
-type CreateWebhookHistoryRequest struct {
-	ChannelID   string `json:"channel_id"`
-	WebhookSlug string `json:"webhook_slug"`
-	ActionType  string `json:"action_type"`
-	StatusCode  string `json:"status_code"`
-	Retries     int64  `json:"user_id"`
 }
 
 type UpdateWebhookRequest struct {
@@ -238,6 +230,30 @@ func (wh *WebhookHistory) GetWebHookHistory(db *gorm.DB, c *gin.Context, req Get
 	return webhookHistory, paginationResponse, http.StatusOK, nil
 }
 
-func (wh *WebhookHistory) CreateWebhookHistory(db *gorm.DB, req CreateWebhookHistoryRequest) {
+func (wh *WebhookHistory) CreateWebhookHistory(db *gorm.DB) error {
 
+	err := postgresql.CreateOneRecord(db, wh)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, error) {
+
+	var webhook Webhook
+
+	_, err := postgresql.SelectOneFromDb(db, &webhook, "webhook_slug = ?", webhookSlug)
+	if err != nil {
+		return webhook, errors.New("error getting webhook by id: " + err.Error())
+	}
+
+	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
+
+	if !exist {
+		return webhook, errors.New("webhook not found")
+	}
+
+	return webhook, nil
 }

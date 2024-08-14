@@ -54,7 +54,9 @@ type BaseConfig struct {
 	IPSTACK_KEY      string `mapstructure:"IPSTACK_KEY"`
 	IPSTACK_BASE_URL string `mapstructure:"IPSTACK_BASE_URL"`
 
-	HMAC_SECRET string `mapstructure:"HMAC_SECRET"`
+	HMAC_SECRET        string `mapstructure:"HMAC_SECRET"`
+	CENTRIFUGE_URL     string `mapstructure:"CENTRIFUGE_URL"`
+	CENTRIFUGE_API_KEY string `mapstructure:"CENTRIFUGE_API_KEY"`
 
 	MAIL_SERVER   string `mapstructure:"MAIL_SERVER"`
 	MAIL_PASSWORD string `mapstructure:"MAIL_PASSWORD"`
@@ -125,6 +127,8 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 
 		Centrifuge: Centrifuge{
 			Secret: config.HMAC_SECRET,
+			Url:    config.CENTRIFUGE_URL,
+			ApiKey: config.CENTRIFUGE_API_KEY,
 		},
 
 		Mail: MAIL{

@@ -6,6 +6,7 @@ go 1.21
 
 require (
 	github.com/centrifugal/centrifuge-go v0.10.2
+	github.com/centrifugal/gocent v2.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/didip/tollbooth v4.0.2+incompatible
 	github.com/elliotchance/phpserialize v1.4.0
