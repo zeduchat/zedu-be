@@ -15,6 +15,7 @@ type Configuration struct {
 	Redis        Redis
 	Mail         MAIL
 	Minio        Minio
+	Stripe       Stripe
 }
 
 type BaseConfig struct {
@@ -69,6 +70,8 @@ type BaseConfig struct {
 	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
+
+	STRIPE_KEY string `mapstructure:"STRIPE_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -145,6 +148,9 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			BucketName:    config.BUCKET_NAME,
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
+		},
+		Stripe: Stripe{
+			STRIPE_KEY: config.STRIPE_KEY,
 		},
 	}
 }

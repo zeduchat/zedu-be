@@ -18,7 +18,7 @@ type User struct {
 	IsActive         bool             `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
 	IsOnboarded      bool             `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
 	CurrentOrg       uuid.UUID        `gorm:"column:current_org;null; type:uuid" json:"current_org"`
-	SubscriptionPlan SubscriptionPlan `gorm:"foreignKey:SubscriptionPlanID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"subscription_plan"`
+	SubscriptionPlan SubscriptionPlan `gorm:"foreignKey:SubscriptionPlan;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"subscription_plan"`
 	Profile          Profile          `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Channelss        []Channels       `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations    []Organisation   `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
