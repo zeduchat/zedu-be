@@ -40,10 +40,11 @@ tags:
     description: API for message related endpoints
   - name: user-management
     description: API for user management related endpoints
-  - name: threads
+  - name: Profile
     description: API for threads related endpoints
   - name: subscription
     description: API for subscriptions related endpoints
+
 
 
 paths:
@@ -71,8 +72,6 @@ paths:
                 first_name:
                   type: string
                 last_name:
-                  type: string
-                phone_number:
                   type: string
               required:
                 - email
@@ -1707,6 +1706,54 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/{user_id}:
+    delete:
+      tags:
+        - user
+      summary: Delete a user
+      security:
+        - bearerAuth: []
+      description: Deletes a user by their ID.
+      operationId: deleteUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the user to delete
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'             
+                
   /channels:
     post:
       tags:
@@ -3956,7 +4003,51 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'               
+                $ref: '#/components/schemas/ServerErrorSchema' 
+  /profile/image:
+    
+    delete:
+      tags:
+        - Profile
+      summary: Delete user profile image
+      description: Allows authenticated users to delete their profile image.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile image deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile image deleted successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'                               
               
   /invite/create:
     post:
@@ -4989,6 +5080,157 @@ components:
                     items:
                       type: string
                     nullable: true
+    ConnectionTokenResponseSchema:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The generated connection token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    SubscriptionTokenRequestSchema:
+      type: object
+      properties:
+        channel:
+          type: string
+          description: The name of the channel to subscribe to
+          example: "channel_name"
+
+    SubscriptionTokenResponseSchema:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The generated subscription token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ 
+    ChannelUsersResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "users retrieved successfully"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
+              name:
+                type: string
+                example: ""
+              email:
+                type: string
+                example: "mfaith@gmail.com"
+              is_verified:
+                type: boolean
+                example: false
+              is_onboarded:
+                type: boolean
+                example: false
+              profile:
+                type: object
+                properties:
+                  profile_id:
+                    type: string
+                    example: ""
+                  first_name:
+                    type: string
+                    example: ""
+                  last_name:
+                    type: string
+                    example: ""
+                  phone:
+                    type: string
+                    example: ""
+                  avatar_url:
+                    type: string
+                    example: ""
+                  userId:
+                    type: string
+                    example: ""
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "0001-01-01T00:00:00Z"
+                  updated_at:
+                    type: string
+                    format: date-time
+                    example: "0001-01-01T00:00:00Z"
+              channels:
+                type: array
+                items:
+                  type: string
+                nullable: true
+              organisations:
+                type: array
+                items:
+                  type: string
+                nullable: true
+              org_roleId:
+                type: string
+                example: null
+              org_role:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: ""
+                  name:
+                    type: string
+                    example: ""
+                  description:
+                    type: string
+                    example: ""
+                  permissions:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: ""
+                      category:
+                        type: string
+                        example: ""
+                      permission_list:
+                        type: array
+                        items:
+                          type: string
+                        nullable: true
+              created_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              updated_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              role:
+                type: integer
+                example: 0
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 20
+            total_items:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
     
     UpdateProfileResponse:
       type: object
@@ -7110,9 +7352,6 @@ components:
         description:
           type: string
           description: Description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
         organisation_id:
           type: string
           format: uuid
