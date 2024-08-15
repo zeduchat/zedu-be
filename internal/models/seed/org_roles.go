@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func SeedRolesAndPermissions(db *gorm.DB) {
