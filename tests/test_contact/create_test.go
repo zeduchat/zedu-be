@@ -3,6 +3,7 @@ package test_contact
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func TestAddToContactUs(t *testing.T) {
@@ -25,10 +27,12 @@ func TestAddToContactUs(t *testing.T) {
 	t.Run("Successful Create Contact Us", func(t *testing.T) {
 		router := setup()
 
+		currUUID := utility.GenerateUUID()
 		contactData := models.ContactUs{
-			Name:    "John Doe",
-			Email:   "johndoe@example.com",
-			Message: "I would like to know more about your services3.",
+			Name:        "John Doe",
+			Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			Message:     "I would like to know more about your services3.",
 		}
 		payload, _ := json.Marshal(contactData)
 
@@ -72,9 +76,10 @@ func TestAddToContactUs(t *testing.T) {
 		router := setup()
 
 		contactData := models.ContactUs{
-			Name:    "John Doe",
-			Email:   "invalid_email",
-			Message: "message test",
+			Name:        "John Doe",
+			Email:       "invalid_email",
+			PhoneNumber: "8883344444",
+			Message:     "message test",
 		}
 		payload, _ := json.Marshal(contactData)
 

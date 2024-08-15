@@ -19,9 +19,10 @@ func AddToContactUs(contact *models.ContactUs, db *gorm.DB, extReq request.Exter
 	}
 
 	msgReq := models.ContactUs{
-		Email:   contact.Email,
-		Name:    contact.Name,
-		Message: contact.Message,
+		Email:       contact.Email,
+		Name:        contact.Name,
+		PhoneNumber: contact.PhoneNumber,
+		Message:     contact.Message,
 	}
 
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendContactUsMail, msgReq)
