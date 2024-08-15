@@ -139,8 +139,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
     if !invitation.IsTelexUser {
         var user models.User
 
-		// postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
-
         req := models.CreateUserRequestModel{
             Email:     invitation.Email,
             Password:  entry,
