@@ -13,8 +13,6 @@ import (
 func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	var (
 		inviteReq models.InvitationCreateReq
-		// baseURL   = base.ExtReq.BaseURL
-		baseURL = "http://localhost:8019"
 	)
 
 	if err := c.ShouldBindJSON(&inviteReq); err != nil {
@@ -51,8 +49,10 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
+	url := c.Request.Header.Get("Referer")
+
 	// generate invitee-token mapping
-	inviteMap, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId)
+	inviteMap, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
 		base.Logger.Info("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
@@ -69,7 +69,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	mapData := invitation.InviteLinkMapper(baseURL, inviteMap)
+	mapData := invitation.InviteLinkMapper(url, inviteMap)
 
 	//integrating send invitation functionality
 	err = invitation.SendInvitationsEmail(mapData)

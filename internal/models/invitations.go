@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -38,6 +39,15 @@ type InvitationResponse struct {
 	Expires_At     time.Time `json:"expires_at"`
 }
 
+type VerifyInvitationLinkRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+type SendInvitationLink struct {
+	Email          string `json:"email"`
+	InvitationLink string `json:"invitation_link"`
+}
+
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
 	var u User
 
@@ -48,7 +58,6 @@ func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) er
 			invitations[idx].IsTelexUser = true
 		}
 	}
-
 
 	err := postgresql.CreateMultipleRecords(db, &invitations, len(invitations))
 	if err != nil {
@@ -69,6 +78,60 @@ func (i *Invitation) GetInvitationsByID(db *gorm.DB, user_id string) ([]Invitati
 }
 
 func (i *Invitation) ProcessInvitationAcceptance(db *gorm.DB, userID string) (Invitation, error) {
-	
+
 	return Invitation{}, errors.New("not implemented")
+}
+
+func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID string) (map[string]string, bool, error) {
+	var (
+		user  User
+		ogmt  OrgUserManagement
+		creds map[string]string
+	)
+
+	err, _ := postgresql.SelectOneFromDb(db, &user, "email = ?", email)
+	if err != nil {
+		return creds, false, errors.New("user with this email does not exist")
+	}
+
+	err, _ = postgresql.SelectOneFromDb(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
+	if err != nil {
+		return creds, true, errors.New("user is not part of the organisation")
+	}
+
+	creds = map[string]string{
+		"role":   ogmt.RoleID,
+		"status": ogmt.Status,
+	}
+
+	return creds, true, nil
+}
+
+func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, error) {
+	var invitation Invitation
+
+	if err := db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&invitation).Error; err != nil {
+		return invitation, errors.New("invalid or expired token")
+	}
+
+	return invitation, nil
+}
+
+func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
+
+	invites := Invitation{
+		Status: status,
+	}
+
+	result, err := postgresql.UpdateFields(db, i,invites,"email = ?", email )
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no record found")
+	}
+
+	return nil
 }
