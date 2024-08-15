@@ -3046,71 +3046,71 @@ paths:
 
 
   /subscription/complete/{session_id}/{user_id}:
-  get:
-    summary: Complete a subscription and retrieve associated invoices
-    tags:
-      - subscription
-    security:
-      - bearerAuth: []
-    parameters:
-      - in: path
-        name: session_id
-        required: true
-        schema:
-          type: string
-        description: The ID of the session to complete the subscription.
-      - in: path
-        name: user_id
-        required: true
-        schema:
-          type: string
-        description: The ID of the user whose subscription is being completed.
-    responses:
-      '200':
-        description: Subscription completed successfully and invoices retrieved
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                invoice_items:
-                  type: array
-                  items:
-                    type: object
-                    description: Stripe invoice object
-                    properties:
-                      id:
-                        type: string
-                        description: The ID of the invoice
-                      amount_due:
-                        type: integer
-                        description: Amount due on the invoice
-                      status:
-                        type: string
-                        description: Status of the invoice
-                      created:
-                        type: integer
-                        description: Creation timestamp of the invoice
-      '400':
-        description: Bad request, either the session was not paid or no subscription ID found
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                error:
-                  type: string
-                  description: Error message explaining the failure
-      '500':
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                error:
-                  type: string
-                  description: Error message explaining the server failure
+    get:
+      summary: Complete a subscription and retrieve associated invoices
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the session to complete the subscription.
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the user whose subscription is being completed.
+      responses:
+        '200':
+          description: Subscription completed successfully and invoices retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoice_items:
+                    type: array
+                    items:
+                      type: object
+                      description: Stripe invoice object
+                      properties:
+                        id:
+                          type: string
+                          description: The ID of the invoice
+                        amount_due:
+                          type: integer
+                          description: Amount due on the invoice
+                        status:
+                          type: string
+                          description: Status of the invoice
+                        created:
+                          type: integer
+                          description: Creation timestamp of the invoice
+        '400':
+          description: Bad request, either the session was not paid or no subscription ID found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message explaining the failure
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message explaining the server failure
 
   /api/v1/subscriptions/create:
     post:
