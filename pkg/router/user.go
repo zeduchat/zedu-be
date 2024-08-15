@@ -24,6 +24,7 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.DELETE("/users/:user_id", user.DeleteAUser)
 		userUrl.PUT("/users/:user_id", user.UpdateAUser)
 		userUrl.GET("users/organisations", user.GetAUserOrganisation)
+		userUrl.GET("users/organisations/:org_id", user.GetAUserOrganisation)
 
 		userUrl.PUT("/users/:user_id/roles/:role_id", user.AssignRoleToUser)
 

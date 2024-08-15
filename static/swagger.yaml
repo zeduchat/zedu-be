@@ -1496,6 +1496,173 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/organisations/{org_id}:
+    get:
+      summary: Retrieve organisation details by organisation ID
+      tags:
+        - user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+           type: string
+          description: The ID of the organisation whose details are being retrieved.
+      responses:
+        '200':
+          description: Organisation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: success
+                  message:
+                    type: string
+                    description: Message describing the outcome
+                    example: Organisation details retrieved successfully
+                  data:
+                    type: object
+                    description: Organisation details object
+                    properties:
+                      id:
+                        type: string
+                        description: The ID of the organisation
+                      name:
+                        type: string
+                        description: The name of the organisation
+                      description:
+                        type: string
+                        description: The description of the organisation
+                      email:
+                        type: string
+                        description: The contact email of the organisation
+                      type:
+                        type: string
+                        description: The type of organisation
+                      location:
+                        type: string
+                        description: The location of the organisation
+                      country:
+                        type: string
+                        description: The country where the organisation is based
+                      owner_id:
+                        type: string
+                        description: The ID of the organisation's owner
+                      channels_count:
+                        type: integer
+                        description: The number of channels associated with the organisation
+                      total_messages_count:
+                        type: integer
+                        description: The total number of messages within the organisation
+                      org_roles:
+                        type: array
+                        description: List of roles within the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the organisation role
+                            name:
+                              type: string
+                              description: The name of the role
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The creation timestamp of the role
+                      users:
+                        type: array
+                        description: List of users associated with the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the user
+                            username:
+                              type: string
+                              description: The username of the user
+                            email:
+                              type: string
+                              description: The email of the user
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The timestamp when the user was created
+                      channels:
+                        type: array
+                        description: List of channels within the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the channel
+                            name:
+                              type: string
+                              description: The name of the channel
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The creation timestamp of the channel
+                      created_at:
+                        type: string
+                        format: date-time
+                        description: The timestamp when the organisation was created
+                      updated_at:
+                        type: string
+                        format: date-time
+                        description: The timestamp when the organisation was last updated
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining the failure
+        '404':
+          description: Organisation not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining that the organisation was not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining the server failure
+
+
   /users/{userId}/roles/{roleId}:
     put:
       tags:
