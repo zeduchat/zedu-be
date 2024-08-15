@@ -234,3 +234,18 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 
 	return nil
 }
+
+func (user *User) ActivateUser(db *gorm.DB, userId string) error {
+	userUpdates := User{IsVerified: true}
+
+	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to activate user")
+	}
+
+	return nil
+}
