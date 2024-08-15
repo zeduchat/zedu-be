@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/tests"
@@ -39,6 +40,15 @@ func TestGetUserLoginAudit(t *testing.T) {
 	db.Create(&adminUser)
 	db.Create(&regularUser)
 
+	accessT := models.AccessToken{
+		ID:      utility.GenerateUUID(),
+		OwnerID: adminUser.ID,
+		IsLive:  true,
+	}
+	db.Create(&accessT)
+
+	accessId, _ := uuid.FromString(accessT.ID)
+
 	loginAudits := []models.LoginActivity{
 		{
 			ID:        utility.GenerateUUID(),
@@ -47,6 +57,7 @@ func TestGetUserLoginAudit(t *testing.T) {
 			IPAddress: "192.168.1.1",
 			Location:  "Location 1",
 			Device:    "Browser 1",
+			AccessID:  &accessId,
 		},
 		{
 			ID:        utility.GenerateUUID(),
@@ -55,6 +66,7 @@ func TestGetUserLoginAudit(t *testing.T) {
 			IPAddress: "192.168.1.1",
 			Location:  "Location 2",
 			Device:    "Browser 2",
+			AccessID:  &accessId,
 		},
 	}
 
