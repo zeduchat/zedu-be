@@ -10,6 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
+	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -39,6 +40,7 @@ func main() {
 
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
+		seed.SeedRolesAndPermissions(db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

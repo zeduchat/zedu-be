@@ -120,7 +120,7 @@ func TestCreateOrgRole(t *testing.T) {
 		role := models.OrgRole{
 			Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(5)),
 			Description:    "New role description",
-			OrganisationID: orgID,
+			OrganisationID: &orgID,
 		}
 		roleJSON, _ := json.Marshal(role)
 
@@ -147,7 +147,7 @@ func TestCreateOrgRole(t *testing.T) {
 
 		role := models.OrgRole{
 			Description:    "Missing Name",
-			OrganisationID: orgID,
+			OrganisationID: &orgID,
 		}
 		roleJSON, _ := json.Marshal(role)
 

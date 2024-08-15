@@ -43,6 +43,8 @@ tags:
     description: API for user profile related endpoints
   - name: help center
     description: API for help center related endpoints
+  - name: Feed_Webhook
+    description: API for feeding centrifugo server
 
 
 
@@ -1748,54 +1750,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /users/{user_id}:
-    delete:
-      tags:
-        - user
-      summary: Delete a user
-      security:
-        - bearerAuth: []
-      description: Deletes a user by their ID.
-      operationId: deleteUser
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the user to delete
-      responses:
-        '200':
-          description: User deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
-        '401':
-          description: Authentication error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '404':
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundErrorSchema'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'             
-                
   /channels:
     post:
       tags:
@@ -3041,6 +2995,106 @@ paths:
 
   /webhooks/{channel_id}:
     get:
+      summary: Retrieve a channels webhook
+      tags:
+        - webhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            
+      responses:
+        '200':
+          description: Channel webhook
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhook fetched succesfully
+                  data:
+                    type: object
+                    $ref: '#/components/schemas/Webhook'
+    post:
+      summary: Create a new webhook
+      tags:
+        - webhooks
+      security:
+        - bearerAuth: []        
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+              
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhook fetched succesfully
+                  data:
+                    type: object
+                    $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+  /webhooks/{channel_id}/all:
+    get:
       summary: List all webhooks
       tags:
         - webhooks
@@ -3095,67 +3149,7 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Webhook'
-    post:
-      summary: Create a new webhook
-      tags:
-        - webhooks
-      security:
-        - bearerAuth: []        
-      parameters:
-        - name: channel_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        description: Webhook object that needs to be created
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                webhook_name:
-                  type: string
-                  format: string
-                event_name:
-                  type: string
-                  format: string
-              required:
-                - webhook_name
-              
-      responses:
-        '201':
-          description: Webhook created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Webhook'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-        '422':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
 
   /webhooks/{channel_id}/history/{webhook_id}:
     get:
@@ -3481,6 +3475,235 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                
+  
+  /webhooks/feed/backend-queue:
+    post:
+      summary: send data to webhook
+      tags:
+        - Feed_Webhook
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        description: Webhook object with information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - webhook_status
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                action_type:
+                  type: string
+                  format: string
+                event_name:
+                  type: string
+                  format: string
+                username:
+                  type: string
+                  format: string
+      responses:
+        '200':
+          description: Data recieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: data sent succesfully
+                  data:
+                    type: string
+                    example: null
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+  
+  /webhooks/feed/{webhook_slug}:
+    post:
+      summary: send data to webhook
+      tags:
+        - Feed_Webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhook_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: the webhook slug
+
+      responses:
+        '200':
+          description: Data recieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: data sent successfully
+                  data:
+                    type: string
+                    example: null
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    get:
+      summary: send data to webhook
+      tags:
+        - Feed_Webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhook_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            format: string
+          description: the webhook slug
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: cyberguru
+        - name: event_name
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: cyber event
+            
+        - name: action_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: broadcast
+  
+      responses:
+        '200':
+          description: Data recieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: data sent succesfully
+                  data:
+                    type: string
+                    example: null
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+  
     
   /users/organisations:
     get:
@@ -4924,7 +5147,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: category-id
+        - name: category_id
           in: path
           required: true
           schema:
@@ -4997,7 +5220,7 @@ paths:
         - help center
       summary: Get paginated articles that belong to a particular category ID
       parameters:
-        - name: category-id
+        - name: category_id
           in: path
           required: true
           schema:
@@ -5128,7 +5351,7 @@ paths:
         - help center
       summary: Get help center article by ID
       parameters:
-        - name: article-id
+        - name: article_id
           in: path
           required: true
           schema:
@@ -5674,7 +5897,7 @@ components:
             - Bad Request
             - invalid input
           example: Bad Reqeust
-        statuCode:
+        status_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5693,7 +5916,7 @@ components:
             contains field and corresponding error message
           items:
             $ref: "#/components/schemas/UnprocessedEntity"
-        statuCode:
+        status_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5717,7 +5940,7 @@ components:
             - Unauthorized
             - Forbidden
           example: Unauthorized
-        statuCode:
+        status_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5739,7 +5962,7 @@ components:
             - Forbidden
             - Unauthorized
           example: Forbidden
-        statuCode:
+        statu_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -6044,15 +6267,6 @@ components:
         description:
           type: string
           description: Description of the role.
-        location:
-          type: string
-        country:
-          type: string
-        email:
-          type: string
-        type:
-          type: string
-        
 
     OrgRoleCreateResponseSchema:
       type: object
@@ -6987,12 +7201,6 @@ components:
         description:
           type: string
           description: Description of the channel
-<<<<<<< HEAD
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
-=======
->>>>>>> e4a4b3aace1e7383e9fd5c27dd9936615591aac4
         organisation_id:
           type: string
           format: uuid
@@ -7303,7 +7511,7 @@ components:
         webhook_url:
           type: string
           description: URL where the webhook will send requests
-        webhook_id:
+        webhook_slug:
           type: string
           nullable: true
           description: Slug of the webhook

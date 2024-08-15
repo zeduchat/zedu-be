@@ -18,7 +18,7 @@ type Webhook struct {
 	Status         string           `gorm:"column:status; type:text;null" json:"status"`
 	OwnerId        string           `gorm:"column:owner_id; type:uuid" json:"owner_id"`
 	WebhookUrl     string           `gorm:"column:webhook_url; type:text; not null" json:"webhook_url"`
-	WebhookSlug    string           `gorm:"column:webhook_slug; type:text;null" json:"webhook_id"`
+	WebhookSlug    string           `gorm:"column:webhook_slug; type:text;null" json:"webhook_slug"`
 	ChannelId      string           `gorm:"column:channel_id; type:uuid" json:"channel_id"`
 	CreatedAt      time.Time        `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time        `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
@@ -30,7 +30,7 @@ type WebhookHistory struct {
 	ID          string    `gorm:"column:id; type:uuid; primaryKey" json:"id"`
 	CallbackID  string    `gorm:"column:callback_id; type:text;null" json:"callback_id"`
 	EventName   string    `gorm:"column:event_name;type:text;null" json:"event_name"`
-	WebhookSlug string    `gorm:"column:webhook_slug; type:text;null" json:"webhook_id"`
+	WebhookSlug string    `gorm:"column:webhook_slug; type:text;null" json:"webhook_slug"`
 	ActionType  string    `gorm:"column:action_type; type:text;null" json:"action_type"`
 	StatusCode  string    `gorm:"column:status_code; type:text;null" json:"status_code"`
 	WebhookID   string    `gorm:"type:uuid;not null" json:"-"`

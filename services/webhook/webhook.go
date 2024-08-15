@@ -14,17 +14,11 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, error) {
+func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook, int, error) {
 
 	var (
 		webhook models.Webhook
-		resp    gin.H
 	)
-
-	resp = gin.H{
-		"webhook": nil,
-		"status":  false,
-	}
 
 	webhook = models.Webhook{
 		ID:        utility.GenerateUUID(),
@@ -41,15 +35,10 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 	err := webhook.CreateWebhook(db)
 
 	if err != nil {
-		return resp, http.StatusBadRequest, err
+		return webhook, http.StatusBadRequest, err
 	}
 
-	resp = gin.H{
-		"webhook": webhook,
-		"status":  true,
-	}
-
-	return resp, http.StatusCreated, nil
+	return webhook, http.StatusCreated, nil
 }
 
 func DeleteWebhook(req models.DeleteWebhookRequest, db *gorm.DB) (int, error) {
