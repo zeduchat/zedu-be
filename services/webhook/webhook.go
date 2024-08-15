@@ -28,7 +28,7 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook
 	}
 
 	slug := strings.Split(webhook.ID, "-")[4]
-	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/webhooks/feed/%s", slug)
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/api/v1/webhooks/feed/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
 
