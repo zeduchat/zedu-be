@@ -26,6 +26,8 @@ func AuthMigrationModels() []interface{} {
 		models.WebhookHistory{},
 		models.OrgUserManagement{},
 		models.Mentions{},
+		models.HelpCenterCategory{},
+		models.HelpCenterArticle{},
 	} // an array of db models, example: User{}
 }
 
