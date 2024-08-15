@@ -49,7 +49,8 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	// url := c.Request.Header.Get("Referer")
+	url := "yumms"
 
 	// generate invitee-token mapping
 	inviteMap, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
