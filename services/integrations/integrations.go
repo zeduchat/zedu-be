@@ -9,18 +9,19 @@ import (
 )
 
 func CreateIntegrationApp(req models.Integrations, db *gorm.DB) (models.Integrations, error) {
-	intApp := models.Integrations{
-		ID:      		 utility.GenerateUUID(),
-		Name:    		 req.Name,
-		ApiEndpointUrl:  req.ApiEndpointUrl,
-		AuthCredential:  req.AuthCredential,
-	}
+    intApp := models.Integrations{
+        ID:             utility.GenerateUUID(),
+        Name:           req.Name,
+        ApiEndpointUrl: req.ApiEndpointUrl,
+        AuthCredential: req.AuthCredential,
+    }
 
-	if err := intApp.CreateIntegrationApp(db, req.Name); err != nil {
-		return models.Integrations{}, err
-	}
+    err := intApp.CreateIntegrationApp(db, req.Name)
+    if err != nil {
+        return models.Integrations{}, err
+    }
 
-	return intApp, nil
+    return intApp, nil
 }
 
 func GetAllIntegrationApp(c *gin.Context, db *gorm.DB) ([]models.Integrations, postgresql.PaginationResponse, error) {

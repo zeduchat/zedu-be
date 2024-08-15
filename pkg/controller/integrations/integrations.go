@@ -22,33 +22,40 @@ type Controller struct {
 }
 
 func (base *Controller) CreateIntegrationApp(c *gin.Context) {
-	var req models.Integrations
+    var req models.Integrations
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
+    if err := c.ShouldBindJSON(&req); err != nil {
+        rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+        c.JSON(http.StatusBadRequest, rd)
+        return
+    }
 
-	req.Name = utility.CleanStringInput(req.Name)
+    req.Name = utility.CleanStringInput(req.Name)
 
-	if err := base.Validator.Struct(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
+    err := base.Validator.Struct(&req)
+    if err != nil {
+        rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+        c.JSON(http.StatusUnprocessableEntity, rd)
+        return
+    }
 
-	respData, err := integrations.CreateIntegrationApp(req, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to add Article", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
+    respData, err := integrations.CreateIntegrationApp(req, base.Db.Postgresql)
+    if err != nil {
+        if err.Error() == "integration app already exists" {
+            rd := utility.BuildErrorResponse(http.StatusConflict, "error", err.Error(), err, nil)
+            c.JSON(http.StatusConflict, rd)
+            return
+        }
+        rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), err, nil)
+        c.JSON(http.StatusInternalServerError, rd)
+        return
+    }
 
-	base.Logger.Info("Application added successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Application added successfully", respData)
-	c.JSON(http.StatusCreated, rd)
+    base.Logger.Info("Application added successfully")
+    rd := utility.BuildSuccessResponse(http.StatusCreated, "Application added successfully", respData)
+    c.JSON(http.StatusCreated, rd)
 }
+
 
 func GetAllIntegrationApp(c *gin.Context, db *gorm.DB) ([]models.Integrations, postgresql.PaginationResponse, error) {
 	integrations := models.Integrations{}

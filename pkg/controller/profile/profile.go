@@ -142,5 +142,3 @@ func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Profile image deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
-
-// DeleteUserProfileImage
