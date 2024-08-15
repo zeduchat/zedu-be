@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -82,7 +81,7 @@ func (i *Invitation) ProcessInvitationAcceptance(db *gorm.DB, userID string) (In
 	return Invitation{}, errors.New("not implemented")
 }
 
-func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID string) (map[string]string, bool, error) {
+func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID string) (map[string]string, error) {
 	var (
 		user  User
 		ogmt  OrgUserManagement
@@ -91,20 +90,19 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 
 	err, _ := postgresql.SelectOneFromDb(db, &user, "email = ?", email)
 	if err != nil {
-		return creds, false, errors.New("user with this email does not exist")
+		return creds, errors.New("user with this email does not exist")
 	}
 
 	err, _ = postgresql.SelectOneFromDb(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
 	if err != nil {
-		return creds, true, errors.New("user is not part of the organisation")
+		return creds, errors.New("user is not part of the organisation")
 	}
 
 	creds = map[string]string{
 		"role":   ogmt.RoleID,
 		"status": ogmt.Status,
 	}
-
-	return creds, true, nil
+	return creds, nil
 }
 
 func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, error) {
@@ -112,6 +110,11 @@ func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invita
 
 	if err := db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&invitation).Error; err != nil {
 		return invitation, errors.New("invalid or expired token")
+	}
+
+	//check if the invitation has been accepted
+	if invitation.Status == "accepted" {
+		return invitation, errors.New("invitation link already accepted")
 	}
 
 	return invitation, nil
@@ -123,9 +126,8 @@ func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
 		Status: status,
 	}
 
-	result, err := postgresql.UpdateFields(db, i,invites,"email = ?", email )
+	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 

@@ -3,6 +3,7 @@ package storage
 import (
 	"github.com/go-redis/redis/v8"
 	"github.com/minio/minio-go/v7"
+	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/utility"
@@ -12,6 +13,7 @@ type Database struct {
 	Postgresql *gorm.DB
 	Redis      *redis.Client
 	Minio      *minio.Client
+	TypeSense  *typesense.Client
 }
 
 var (

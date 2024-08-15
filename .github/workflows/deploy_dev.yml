@@ -57,8 +57,8 @@ jobs:
           CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
           STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
           STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID }}
-	  STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
-	  STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
+          STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
+          STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
 
       - name: Copy app.env to server
         run: |

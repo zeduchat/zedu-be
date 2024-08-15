@@ -34,6 +34,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 
 	// routers
 	ApiVersion := "api/v1"
+	Contact(r, ApiVersion, validator, db, logger)
 	Blog(r, ApiVersion, validator, db, logger)
 	Health(r, ApiVersion, validator, db, logger)
 	Auth(r, ApiVersion, validator, db, logger)
@@ -45,6 +46,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Webhook(r, ApiVersion, validator, db, logger)
 	Profile(r, ApiVersion, validator, db, logger)
 	Threads(r, ApiVersion, validator, db, logger)
+	WebhookHandler(r, ApiVersion, validator, db, logger)
 	HelpCenter(r, ApiVersion, validator, db, logger)
 	Integrations(r, ApiVersion, validator, db, logger)
 
