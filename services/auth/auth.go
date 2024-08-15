@@ -181,19 +181,25 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
 	var (
 		responseData gin.H
+		user         models.User
 	)
-	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
 
-	err := db.Model(&access_token).Updates(map[string]interface{}{
+	if err := db.Where("id = ?", owner_id).First(&user).Error; err != nil {
+		return responseData, http.StatusNotFound, fmt.Errorf("user not found: %w", err)
+	}
+
+	if err := db.Model(&user).Update("is_active", false).Error; err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error updating user: %w", err)
+	}
+
+	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
+	if err := db.Model(&access_token).Updates(map[string]interface{}{
 		"is_active": false,
-	}).Error
-	if err != nil {
+	}).Error; err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error updating access token: %w", err)
 	}
 
-	// revoke user access_token to invalidate session
-	err = access_token.RevokeAccessToken(db)
-	if err != nil {
+	if err := access_token.RevokeAccessToken(db); err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
 	}
 
