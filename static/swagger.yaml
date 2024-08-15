@@ -5464,7 +5464,7 @@ paths:
                           total_pages:
                             type: integer
                             example: 1   
-  /integration:
+  /integrations:
   
     post:
       summary: Create a new integration application
