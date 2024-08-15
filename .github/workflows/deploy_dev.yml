@@ -28,7 +28,7 @@ jobs:
             TYPESENSE_API_KEY
             CENTRIFUGE_API_KEY
           APP_NAME: "telex_be"
-          APP_URL: "https://api-golang.boilerplate.hng.tech"
+          APP_URL: ${{ secrets.APP_URL }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
