@@ -7,5 +7,6 @@ type IPInfoResponse struct {
 	Country  string `json:"country"`
 	Location string `json:"loc"`
 	Org      string `json:"org"`
-	ASN      string `json:"asn"`
+	Postal   string `json:"postal"`
+	TimeZone string `json:"timezone"`
 }
