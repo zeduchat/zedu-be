@@ -19,70 +19,6 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) GetAllContactUs(c *gin.Context) {
-
-	contactsData, paginationResponse, code, err := service.GetAllContactUs(c, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Messages retrieved successfully", contactsData, paginationResponse)
-	c.JSON(http.StatusOK, rd)
-
-}
-
-func (base *Controller) GetContactUsById(c *gin.Context) {
-
-	var (
-		reqID = c.Param("id")
-	)
-
-	contactData, err := service.GetContactUsById(reqID, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Message retrieved successfully", contactData)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) GetContactUsByEmail(c *gin.Context) {
-
-	var (
-		reqEmail = c.Param("email")
-	)
-
-	contactData, err := service.GetContactUsByEmail(reqEmail, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Messages retrieved successfully", contactData)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) DeleteContactUs(c *gin.Context) {
-
-	var (
-		reqID = c.Param("id")
-	)
-
-	code, err := service.DeleteContactUs(reqID, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Message deleted successfully", nil)
-	c.JSON(http.StatusOK, rd)
-}
 
 func (base *Controller) AddToContactUs(c *gin.Context) {
 	var (
@@ -104,7 +40,7 @@ func (base *Controller) AddToContactUs(c *gin.Context) {
 		return
 	}
 
-	err = service.AddToContactUs(&req, base.Db.Postgresql)
+	err = service.AddToContactUs(&req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
