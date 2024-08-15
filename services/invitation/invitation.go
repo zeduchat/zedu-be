@@ -134,32 +134,3 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
-// func GetInvitations(user models.User, db *gorm.DB) ([]models.InvitationResponse, error) {
-// 	var invitation models.Invitation
-// 	var invResp []models.InvitationResponse
-
-// 	invitations, err := invitation.GetInvitationsByID(db, user.ID)
-// 	if err != nil {
-// 		return invResp, err
-// 	}
-
-// 	for _, inv := range invitations {
-// 		var status string
-// 		switch inv.IsValid {
-// 		case true:
-// 			status = "active"
-// 		default:
-// 			status = "expired"
-// 		}
-
-// 		invResp = append(invResp, models.InvitationResponse{
-// 			Email:       inv.Email,
-// 			OrgID:       inv.OrganisationID,
-// 			Status:      status,
-// 			InviteToken: inv.Token,
-// 			Sent_At:     inv.CreatedAt,
-// 			Expires_At:  inv.ExpiresAt,
-// 		})
-// 	}
-// 	return invResp, nil
-// }

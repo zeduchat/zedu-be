@@ -96,7 +96,6 @@ func (u *User) GetUserByEmail(db *gorm.DB, userEmail string) (User, error) {
 	if err := query.First(&user).Error; err != nil {
 		return user, err
 	}
-
 	return user, nil
 }
 
