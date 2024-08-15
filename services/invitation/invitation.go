@@ -2,6 +2,7 @@ package invitation
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,16 +14,14 @@ import (
 )
 
 func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateReq, userId string, logger *utility.Logger) (int, string, error) {
-	var org models.Organisation
-	_, err := org.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
+	var o models.Organisation
+
+	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
 
-	isAdmin, err := CheckUserIsAdmin(base.Postgresql, userId, inviteReq.OrganisationID)
-	if err != nil {
-		return http.StatusInternalServerError, "Internal server error", err
-	}
+	isAdmin := CheckUserIsAdmin(base.Postgresql, userId, org)
 	if !isAdmin {
 		return http.StatusUnauthorized, "User is not an admin of the organisation", errors.New("User is not an admin of the organisation")
 	}
@@ -42,14 +41,8 @@ func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateR
 	return http.StatusOK, "User validated", nil
 }
 
-func CheckUserIsAdmin(db *gorm.DB, user_id string, org_id string) (bool, error) {
-	var org models.Organisation
-
-	orgResp, err := org.GetOrgByID(db, org_id)
-	if err != nil {
-		return false, err
-	}
-	return orgResp.OwnerID == user_id, nil
+func CheckUserIsAdmin(db *gorm.DB, user_id string, org models.Organisation) bool {
+	return org.OwnerID == user_id
 }
 
 func CheckEmailsLimit(emails []string) bool {
@@ -67,9 +60,8 @@ func CheckDuplicateEmails(emails []string) bool {
 	return false
 }
 
-
-func GenerateInvitationLink(baseurl, token string) string {
-	return baseurl + "/invite/accept/" + token
+func GenerateInvitationLink(baseurl, orgID, token string) string {
+	return baseurl + fmt.Sprintf("/accept_org_invitation&org_id=%s&invitation_token=%s", orgID, token)
 }
 
 func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
@@ -134,7 +126,7 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
 	if err != nil {
 		return err
@@ -142,32 +134,3 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
-// func GetInvitations(user models.User, db *gorm.DB) ([]models.InvitationResponse, error) {
-// 	var invitation models.Invitation
-// 	var invResp []models.InvitationResponse
-
-// 	invitations, err := invitation.GetInvitationsByID(db, user.ID)
-// 	if err != nil {
-// 		return invResp, err
-// 	}
-
-// 	for _, inv := range invitations {
-// 		var status string
-// 		switch inv.IsValid {
-// 		case true:
-// 			status = "active"
-// 		default:
-// 			status = "expired"
-// 		}
-
-// 		invResp = append(invResp, models.InvitationResponse{
-// 			Email:       inv.Email,
-// 			OrgID:       inv.OrganisationID,
-// 			Status:      status,
-// 			InviteToken: inv.Token,
-// 			Sent_At:     inv.CreatedAt,
-// 			Expires_At:  inv.ExpiresAt,
-// 		})
-// 	}
-// 	return invResp, nil
-// }

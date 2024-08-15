@@ -20,6 +20,7 @@ func Profile(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	{
 		profileUrl.GET("/profile", userProfile.GetUserProfile)
 		profileUrl.PATCH("/profile", userProfile.UpdateProfile)
+		profileUrl.DELETE("/profile/image", userProfile.DeleteUserProfileImage )
 	}
 
 	return r

@@ -208,6 +208,11 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB, orgID, userID str
 	}
 
 	//add entries to the org user management table
+	//check if the user is already in the organisation management table
+	exists := postgresql.CheckExists(db, &o, "organisation_id = ? AND user_id = ?", orgID, userID)
+	if exists {
+		return errors.New("user already exists in organisation")
+	}
 	err = postgresql.CreateOneRecord(db, &o)
 	if err != nil {
 		return err

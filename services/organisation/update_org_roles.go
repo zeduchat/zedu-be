@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
-	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
@@ -57,6 +56,10 @@ func UpdateOrgRoles(req models.OrgRole, orgID, roleID string, db *gorm.DB, c *gi
 		return nil, http.StatusBadRequest, err
 	}
 
+	if roleData.IsDefault {
+		return nil, http.StatusForbidden, errors.New("cant update a default role")
+	}
+
 	roleData.Name = req.Name
 	roleData.Description = req.Description
 
@@ -81,6 +84,8 @@ func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.
 		org      models.Organisation
 		roleData models.OrgRole
 		role     models.OrgRole
+		perm     models.Permission
+		permData models.Permission
 		user     models.User
 	)
 
@@ -121,24 +126,21 @@ func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.
 		return http.StatusBadRequest, err
 	}
 
-	if roleData.Permissions.ID == "" {
-		req.ID = utility.GenerateUUID()
-		req.RoleID = roleData.ID
-		if err := req.AddOrgPermissions(db); err != nil {
-			if strings.Contains(err.Error(), "duplicate key value") {
-				return http.StatusConflict, errors.New("permission already exists")
-			}
-			return http.StatusBadRequest, err
+	if roleData.IsDefault {
+		return http.StatusForbidden, errors.New("cant update a default permission")
+	}
+
+	permData, err = perm.GetAOrgPermission(db, roleID)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+	permData.PermissionList = req.PermissionList
+
+	if err := permData.UpdateOrgPermissions(db); err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return http.StatusConflict, errors.New("permission already exists")
 		}
-	} else {
-		req.ID = roleData.Permissions.ID
-		req.RoleID = roleData.Permissions.RoleID
-		if err := req.UpdateOrgPermissions(db); err != nil {
-			if strings.Contains(err.Error(), "duplicate key value") {
-				return http.StatusConflict, errors.New("permission already exists")
-			}
-			return http.StatusBadRequest, err
-		}
+		return http.StatusBadRequest, err
 	}
 
 	return http.StatusOK, nil

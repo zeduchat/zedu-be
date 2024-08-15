@@ -4,68 +4,42 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
-	"github.com/centrifugal/centrifuge-go"
-	"github.com/golang-jwt/jwt"
+	"github.com/centrifugal/gocent"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func NewCentrifugoService(logger *utility.Logger, centrifugoURL string) *centrifuge.Client {
-	client := centrifuge.NewJsonClient(
-		centrifugoURL,
-		centrifuge.Config{
-			GetToken: func(_ centrifuge.ConnectionTokenEvent) (string, error) {
-				utility.LogAndPrint(logger, "Referesh connection event")
-				token := GetConnToken()
-				return token, nil
-			},
-		},
-	)
+func NewCentrifugoService(logger *utility.Logger, config config.Centrifuge) *gocent.Client {
 
-	if err := client.Connect(); err != nil {
-		utility.LogAndPrint(logger, "an error occured while connecting to centrifugo server: ", err)
-		return nil
-	}
+	c := gocent.New(gocent.Config{
+		Addr: config.Url,
+		Key:  config.ApiKey,
+	})
+	Client.C = c
 
-	utility.LogAndPrint(logger, "connected to centrifugo server")
-
-	Client.Client = client
-
-	return client
+	utility.LogAndPrint(logger, fmt.Sprintf("connected to centrifuge server at %s", config.Url))
+	return c
 }
 
-func (s *CentClient) BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload interface{}) error {
+func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload interface{}) error {
 
 	payload, err := json.Marshal(broadcastPayload)
 	if err != nil {
 		return err
 	}
 
-	pubRes, err := s.Client.Publish(context.Background(), channelID, payload)
+	client := Client.C
+
+	err = client.Publish(context.Background(), "0191524f-6adc-7c38-a9fb-9c6d98859fe6", payload)
 
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channel %s: %v", channelID, err))
 		return err
 	}
 
-	utility.LogAndPrint(logger, fmt.Sprintf("published  %v to %s", pubRes, channelID))
+	utility.LogAndPrint(logger, fmt.Sprintf("published to %s", channelID))
 
 	return nil
-}
-
-func GetConnToken() string {
-
-	userClaims := jwt.MapClaims{}
-	userClaims["exp"] = time.Now().Unix() + int64(30)
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims)
-
-	connToken, err := token.SignedString([]byte(config.Config.Centrifuge.Secret))
-	if err != nil {
-		return connToken
-	}
-	return connToken
 }

@@ -29,8 +29,8 @@ tags:
     description: API for centrifuge token related endpoints
   - name: blogs
     description: API for blogs
-  - name: invitation
-    description: API for invitations
+  - name: Organisation-Invitation
+    description: API for inviting a user into an organisation
   - name: webhooks
     description: API for webhooks related endpoints
   - name: messages
@@ -39,8 +39,13 @@ tags:
     description: API for threads related endpoints
   - name: user-management
     description: API for user management related endpoints
-  - name: threads
-    description: API for threads related endpoints
+  - name: Profile
+    description: API for user profile related endpoints
+  - name: help center
+    description: API for help center related endpoints
+  - name: Feed_Webhook
+    description: API for feeding centrifugo server
+
 
 
 paths:
@@ -68,8 +73,6 @@ paths:
                 first_name:
                   type: string
                 last_name:
-                  type: string
-                phone_number:
                   type: string
               required:
                 - email
@@ -1594,6 +1597,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/{userId}/sessions:
+    get:
+      tags:
+        - user
+      summary: Retrieve user login sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: User Sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
   /users/revoke-session:
     put:
       tags:
@@ -2429,7 +2475,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
-  /connection/token:
+  /token/connection:
     get:
       tags:
         - tokens
@@ -2457,7 +2503,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnauthorizedErrorSchema'
   
-  /subscription/token:
+  /token/subscription:
     post:
       tags:
         - tokens
@@ -2563,17 +2609,6 @@ paths:
         - blogs
       summary: get all blogs from the lastest
       parameters:
-        - in: query
-          name: category
-          schema:
-            type: string
-            format: uuid
-          description: The ID of the blog category to filter by.
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: The search query to match against blog titles and content.
         - in: query
           name: category
           schema:
@@ -2960,6 +2995,106 @@ paths:
 
   /webhooks/{channel_id}:
     get:
+      summary: Retrieve a channels webhook
+      tags:
+        - webhooks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            
+      responses:
+        '200':
+          description: Channel webhook
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhook fetched succesfully
+                  data:
+                    type: object
+                    $ref: '#/components/schemas/Webhook'
+    post:
+      summary: Create a new webhook
+      tags:
+        - webhooks
+      security:
+        - bearerAuth: []        
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+              
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: webhook fetched succesfully
+                  data:
+                    type: object
+                    $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+  /webhooks/{channel_id}/all:
+    get:
       summary: List all webhooks
       tags:
         - webhooks
@@ -3014,67 +3149,7 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Webhook'
-    post:
-      summary: Create a new webhook
-      tags:
-        - webhooks
-      security:
-        - bearerAuth: []        
-      parameters:
-        - name: channel_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        description: Webhook object that needs to be created
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                webhook_name:
-                  type: string
-                  format: string
-                event_name:
-                  type: string
-                  format: string
-              required:
-                - webhook_name
-              
-      responses:
-        '201':
-          description: Webhook created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Webhook'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-        '422':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
 
   /webhooks/{channel_id}/history/{webhook_id}:
     get:
@@ -3400,6 +3475,235 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                
+  
+  /webhooks/feed/backend-queue:
+    post:
+      summary: send data to webhook
+      tags:
+        - Feed_Webhook
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        description: Webhook object with information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - webhook_status
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                action_type:
+                  type: string
+                  format: string
+                event_name:
+                  type: string
+                  format: string
+                username:
+                  type: string
+                  format: string
+      responses:
+        '200':
+          description: Data recieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: data sent succesfully
+                  data:
+                    type: string
+                    example: null
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+  
+  /webhooks/feed/{webhook_slug}:
+    post:
+      summary: send data to webhook
+      tags:
+        - Feed_Webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhook_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: the webhook slug
+
+      responses:
+        '200':
+          description: Data recieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: data sent successfully
+                  data:
+                    type: string
+                    example: null
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    get:
+      summary: send data to webhook
+      tags:
+        - Feed_Webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: webhook_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            format: string
+          description: the webhook slug
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: cyberguru
+        - name: event_name
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: cyber event
+            
+        - name: action_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: broadcast
+  
+      responses:
+        '200':
+          description: Data recieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    format: string
+                    example: success
+                  status_code:
+                    type: integer
+                    format: integer
+                    example: 200
+                  message:
+                    type: string
+                    format: string
+                    example: data sent succesfully
+                  data:
+                    type: string
+                    example: null
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+  
     
   /users/organisations:
     get:
@@ -3781,72 +4085,61 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'               
-              
-  /invite/create:
-    post:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+  /profile/image:
+    
+    delete:
       tags:
-        - invitation
-      summary: Create a new invitation link
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                organizationId:
-                  type: string
-                email:
-                  type: string
-              required:
-                - organizationId
-                - email
+        - Profile
+      summary: Delete user profile image
+      description: Allows authenticated users to delete their profile image.
+      security:
+        - bearerAuth: []
       responses:
-        '201':
-          description: Invitation link created and sent successfully
+        '200':
+          description: Profile image deleted successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  status:
+                    type: string
+                    example: "success"
                   message:
                     type: string
-                    example: Invitation link created and sent successfully
-                  data:
-                    type: object
-                    properties:
-                      invitationLink:
-                        type: string
-                        example: string
+                    example: "Profile image deleted successfully"
                   status_code:
                     type: integer
-                    example: 201
-        
+                    example: 200
         '400':
-          description: Invalid input
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
+                $ref: '#/components/schemas/BadRequestErrorSchema'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
         '500':
-          description: Internal server error
+          description: Server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
-  /api/v1/organisations/send-invite:
+                $ref: '#/components/schemas/ServerErrorSchema'                               
+              
+  /invite:
     post:
       tags:
-        - invitation
-      summary: Send invitations to join an organization
+        - Organisation-Invitation
+      summary: Send organization invitations to multiple email addresses
+      security:
+        - bearerAuth: []
+      description: |
+        This endpoint allows an admin to invite multiple users to join an organization. The admin can specify the role that will be assigned to the invited users.
       requestBody:
         required: true
         content:
@@ -3854,18 +4147,27 @@ paths:
             schema:
               type: object
               properties:
+                org_id:
+                  type: string
+                  format: uuid
+                  description: The ID of the organization to which users are being invited.
+                  example: "01915226-2cbc-72d8-857b-1b22dc838170"
                 emails:
                   type: array
                   items:
                     type: string
-                org_id:
+                    format: email
+                  description: A list of email addresses to send the invitations to.
+                  example: 
+                    - "blessing@gmail.com"
+                    - "mshallom@gmail.com"
+                role:
                   type: string
-              required:
-                - emails
-                - org_id
+                  description: The role that will be assigned to the invited users.
+                  example: "member"
       responses:
         '201':
-          description: Invitations sent successfully
+          description: Invitations created successfully
           content:
             application/json:
               schema:
@@ -3873,13 +4175,13 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: success
+                    example: "success"
                   status_code:
                     type: integer
-                    example: 200
+                    example: 201
                   message:
                     type: string
-                    example: Invitations sent successfully
+                    example: "Invitations created successfully"
                   data:
                     type: array
                     items:
@@ -3887,85 +4189,74 @@ paths:
                       properties:
                         email:
                           type: string
-                          example: user@example.com
+                          format: email
+                          description: The email address to which the invitation was sent.
+                          example: "blessing@gmail.com"
+                        org_id:
+                          type: string
+                          format: uuid
+                          description: The ID of the organization.
+                          example: "01915226-2cbc-72d8-857b-1b22dc838170"
+                        status:
+                          type: string
+                          description: The current status of the invitation.
+                          example: "invited"
+                        invite_token:
+                          type: string
+                          description: A unique token associated with the invitation.
+                          example: "0d1f072a48c629397f20329d93ac8621"
+                        is_telex_user:
+                          type: boolean
+                          description: Indicates if the invited user is already registered on the platform.
+                          example: false
+                        invitation_link:
+                          type: string
+                          description: A link to accept the invitation.
+                          example: "http://127.0.0.1:8019/api/v1/invite/accept_org_invitation?org_id=01915226-2cbc-72d8-857b-1b22dc838170?invitation_token=0d1f072a48c629397f20329d93ac8621"
+                        sent_at:
+                          type: string
+                          format: date-time
+                          description: The date and time when the invitation was sent.
+                          example: "2024-08-15T17:59:45.808970985+01:00"
                         expires_at:
                           type: string
                           format: date-time
-                          example: 2024-07-29T13:53:02+01:00
-                        organization:
-                          type: string
-                          example: testorg
+                          description: The date and time when the invitation will expire.
+                          example: "2024-08-16T17:59:45.808198375+01:00"
         '400':
-          description: Invalid input
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
-        '500':
-          description: Internal server error
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
-  /invite/accept:
-    get:
-      tags:
-        - invitation
-      summary: Accept an invitation
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Invitation accepted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Invitation accepted, you have been added to the organization
-                  status:
-                    type: integer
-                    example: 200
-        '400':
-          description: Invalid or expired invitation link
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Invalid or expired invitation link
-                  errors:
-                    type: array
-                    items:
-                      type: string
-                    example:
-                      - Invalid invitation link format
-                      - Expired invitation link
-                      - Organization not found
-                  status_code:
-                    type: integer
-                    example: 400
-
-  /api/invite:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                
+  /invite/verify:
     post:
       tags:
-        - invitation
-      summary: Accept an invitation
+        - Organisation-Invitation
+      summary: Verify an invitation token
+      security:
+        - bearerAuth: []
+      description: |
+        This endpoint verifies an invitation token. Upon successful verification, it returns an access token and user details.
       requestBody:
         required: true
         content:
@@ -3973,104 +4264,124 @@ paths:
             schema:
               type: object
               properties:
-                invitationLink:
+                token:
                   type: string
-              required:
-                - invitationLink
+                  description: The invitation token to be verified.
+                  example: "0d1f072a48c629397f20329d93ac8621"
       responses:
         '200':
-          description: Invitation accepted successfully
+          description: User invited successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  message:
-                    type: string
-                    example: Invitation accepted, you have been added to the organization
                   status:
-                    type: integer
-                    example: 200
-        '400':
-          description: Invalid or expired invitation link
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
                     type: string
-                    example: Invalid or expired invitation link
-                  errors:
-                    type: array
-                    items:
-                      type: string
-                    example:
-                      - Invalid invitation link format
-                      - Expired invitation link
-                      - Organization not found
-                  status_code:
-                    type: integer
-                    example: 400
-
-  /api/v1/organisations/invitations:
-    get:
-      tags:
-        - invitation
-      summary: Retrieve invitations sent by admin
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Request successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
+                    example: "success"
                   status_code:
                     type: integer
                     example: 200
                   message:
                     type: string
-                    example: Request successful
+                    example: "User invited successfully"
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        email:
-                          type: string
-                          example: user@example.com
-                        org_id:
-                          type: string
-                          example: aoalj-alhljkdshj345klhsd
-                        status:
-                          type: string
-                          example: pending/approved/rejected
-                        sent_at:
-                          type: string
-                          format: date-time
-                          example: 2023-06-23T00:00:00Z
-                        expires_at:
-                          type: string
-                          format: date-time
-                          example: 2023-07-23T00:00:00Z
-                        invitation_token:
-                          type: string
-                          example: invitation-token
-        '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Invalid request
-                  message:
-                    type: string
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                        description: The JWT access token.
+                        example: "eyJhbGciE...."
+                      user:
+                        type: object
+                        properties:
+                          avatar_url:
+                            type: string
+                            description: URL of the user's avatar image.
+                            example: ""
+                          created_at:
+                            type: string
+                            format: date-time
+                            description: Timestamp of when the user was created.
+                            example: "1723741256"
+                          email:
+                            type: string
+                            format: email
+                            description: The user's email address.
+                            example: "blessing@gmail.com"
+                          expires_in:
+                            type: string
+                            format: date-time
+                            description: Timestamp of when the access token expires.
+                            example: "1723914056"
+                          first_name:
+                            type: string
+                            description: The user's first name.
+                            example: "Blessing@Gmail.Com"
+                          fullname:
+                            type: string
+                            description: The user's full name.
+                            example: "Blessing@Gmail.Com"
+                          id:
+                            type: string
+                            format: uuid
+                            description: The user's unique identifier.
+                            example: "019156fc-3a25-783c-bb6c-813aa4abd2e9"
+                          is_onboarded:
+                            type: boolean
+                            description: Indicates whether the user has completed onboarding.
+                            example: false
+                          is_verified:
+                            type: boolean
+                            description: Indicates whether the user's email is verified.
+                            example: false
+                          last_name:
+                            type: string
+                            description: The user's last name.
+                            example: ""
+                          password:
+                            type: string
+                            description: The user's password.
+                            example: "telex-707385"
+                          phone:
+                            type: string
+                            description: The user's phone number.
+                            example: ""
+                          updated_at:
+                            type: string
+                            format: date-time
+                            description: Timestamp of the last time the user's information was updated.
+                            example: "1723741256"
+                          username:
+                            type: string
+                            description: The user's username.
+                            example: ""
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BadRequestErrorSchema'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnauthorizedErrorSchema'
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForbiddenErrorSchema'
+      '422':
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+
    
   /threads/organisations/{orgId}:
     get:
@@ -4732,17 +5043,419 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
                 
-                
-  
+  /help-center/category:
+    post:
+      tags:
+        - help center
+      summary: create help center category 
+      security:
+        - bearerAuth: [] 
+      requestBody:
+        description: input valid characters
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  format: string
+                description:
+                  type: string
+                  format: string
+              required:   
+                 - name
+                 - description
+      responses:
+        '201':
+          description: help center category Created successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                statusCode:
+                  type: integer
+                  example: 201
+                message:
+                  type: string
+                  example: "Category added successfully"  
+                data:
+                  type: object
+                  properties:
+                    schema:
+                      $ref: '#/components/schemas/CategoryResponseSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
+  /help-center/articles/{category_id}:
+    post:
+      tags:
+        - help center
+      summary: Create a new help center article
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: input valid characters
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  format: string
+                content:
+                  type: string
+                  format: string
+              required:   
+                 - title
+                 - description      
+      responses:
+        '201':
+          description: Help center article created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  statusCode:
+                    type: integer
+                    example: 201  
+                  message:
+                    type: string
+                    example: "Article added successfully"
+                  data:
+                    $ref: '#/components/schemas/ArticleResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
+  /help-center/articles/categories/{category_id}:
+    get:
+      tags:
+        - help center
+      summary: Get paginated articles that belong to a particular category ID
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: Paginated articles retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Articles retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ArticleResponseSchema'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1 
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
+  /help-center/categories:
+    get:
+      tags:
+        - help center
+      summary: Get all help center categories
+      responses:
+        '200':
+          description: Help center categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200  
+                  message:
+                    type: string
+                    example: "Categories retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryResponseSchema'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1   
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'   
 
+  /help-center/articles/{article_id}:
+    get:
+      tags:
+        - help center
+      summary: Get help center article by ID
+      parameters:
+        - name: article_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: article retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Help center article retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/ArticleResponseSchema'
+        '404':
+          description: Article not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
 
+  /help-center/articles/search: 
+    get:
+      summary: Search Help Center articles
+      description: Searches Help Center topics by title.
+      tags:
+        - help center
+      parameters:
+        - in: query
+          name: title
+          schema:
+            type: string
+          required: true
+          description: The search Topic title
+      responses:
+        '200':
+          description: Articles Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200  
+                  message:
+                    type: string
+                    example: "Articles retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HelpCenter'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1   
 
 components:
 
   schemas:
+    CategoryResponseSchema:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          example: "019150d5-1e95-707f-b73e-88e5c58db563"
+        name:
+          type: string
+          example: "Category Example"
+        description:
+          type: string
+          example: "This is a test category"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+
+    ArticleResponseSchema:
+      type: object
+      properties:
+        article_id:
+          type: string
+          format: uuid
+          example: "b8a1bcf2-d8f2-49d4-a42d-21ef9c03b305"
+        title:
+          type: string
+          example: "Article Title"
+        content:
+          type: string
+          example: "This is a test article"
+        category_id:
+          type: string
+          format: uuid
+          example: "019150d5-1e95-707f-b73e-88e5c58db563"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+
     ChannelsFetchResponseSchema:
       type: object
       properties:
@@ -4814,6 +5527,157 @@ components:
                     items:
                       type: string
                     nullable: true
+    ConnectionTokenResponseSchema:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The generated connection token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    SubscriptionTokenRequestSchema:
+      type: object
+      properties:
+        channel:
+          type: string
+          description: The name of the channel to subscribe to
+          example: "channel_name"
+
+    SubscriptionTokenResponseSchema:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The generated subscription token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ 
+    ChannelUsersResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "users retrieved successfully"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
+              name:
+                type: string
+                example: ""
+              email:
+                type: string
+                example: "mfaith@gmail.com"
+              is_verified:
+                type: boolean
+                example: false
+              is_onboarded:
+                type: boolean
+                example: false
+              profile:
+                type: object
+                properties:
+                  profile_id:
+                    type: string
+                    example: ""
+                  first_name:
+                    type: string
+                    example: ""
+                  last_name:
+                    type: string
+                    example: ""
+                  phone:
+                    type: string
+                    example: ""
+                  avatar_url:
+                    type: string
+                    example: ""
+                  userId:
+                    type: string
+                    example: ""
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "0001-01-01T00:00:00Z"
+                  updated_at:
+                    type: string
+                    format: date-time
+                    example: "0001-01-01T00:00:00Z"
+              channels:
+                type: array
+                items:
+                  type: string
+                nullable: true
+              organisations:
+                type: array
+                items:
+                  type: string
+                nullable: true
+              org_roleId:
+                type: string
+                example: null
+              org_role:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: ""
+                  name:
+                    type: string
+                    example: ""
+                  description:
+                    type: string
+                    example: ""
+                  permissions:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: ""
+                      category:
+                        type: string
+                        example: ""
+                      permission_list:
+                        type: array
+                        items:
+                          type: string
+                        nullable: true
+              created_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              updated_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              role:
+                type: integer
+                example: 0
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 20
+            total_items:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
     
     UpdateProfileResponse:
       type: object
@@ -4996,7 +5860,7 @@ components:
             - Bad Request
             - invalid input
           example: Bad Reqeust
-        statuCode:
+        status_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5015,7 +5879,7 @@ components:
             contains field and corresponding error message
           items:
             $ref: "#/components/schemas/UnprocessedEntity"
-        statuCode:
+        status_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5039,7 +5903,7 @@ components:
             - Unauthorized
             - Forbidden
           example: Unauthorized
-        statuCode:
+        status_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5061,7 +5925,7 @@ components:
             - Forbidden
             - Unauthorized
           example: Forbidden
-        statuCode:
+        statu_code:
           type: integer
           description: >
             The HTTP status code. Usually missing if `error` is present.
@@ -5366,15 +6230,6 @@ components:
         description:
           type: string
           description: Description of the role.
-        location:
-          type: string
-        country:
-          type: string
-        email:
-          type: string
-        type:
-          type: string
-        
 
     OrgRoleCreateResponseSchema:
       type: object
@@ -6309,9 +7164,6 @@ components:
         description:
           type: string
           description: Description of the channel
-        is_private:
-          type: boolean
-          description: Whether the channel is private or not
         organisation_id:
           type: string
           format: uuid
@@ -6622,7 +7474,7 @@ components:
         webhook_url:
           type: string
           description: URL where the webhook will send requests
-        webhook_id:
+        webhook_slug:
           type: string
           nullable: true
           description: Slug of the webhook

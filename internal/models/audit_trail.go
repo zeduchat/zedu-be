@@ -5,22 +5,25 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type LoginActivity struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	UserID         string         `gorm:"type:varchar(100);not null;index" json:"user_id"`
 	OrganisationID *string        `gorm:"type:varchar(100);null;index" json:"-"`
-	AccessID       string         `gorm:"type:varchar(100);not null;index" json:"access_token_id"`
-	LoginAt        time.Time      `gorm:"type:timestamp;not null" json:"login_at"`
+	AccessID       *uuid.UUID     `gorm:"type:uuid;null;index" json:"access_token_id"`
+	LoginAt        time.Time      `gorm:"type:timestamp;null" json:"login_at"`
 	IPAddress      string         `gorm:"type:varchar(45);not null" json:"ip_address"`
 	Location       string         `gorm:"type:varchar(100)" json:"location"`
 	Device         string         `gorm:"type:varchar(50)" json:"device"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"-"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+	IsLive         bool           `gorm:"column:is_live" json:"is_live"`
 }
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
@@ -50,12 +53,14 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	query := db.Model(&LoginActivity{})
+	query := db.Model(&LoginActivity{}).
+		Select("login_activities.*, (access_tokens.is_live) AS is_live").
+		Joins("LEFT JOIN access_tokens ON access_tokens.id = login_activities.access_id")
 
 	if isOwner || isSuperAdmin {
-		query = query.Where("user_id = ?", userID)
+		query = query.Where("login_activities.user_id = ?", userID)
 	} else if requesterID == userID {
-		query = query.Where("user_id = ? AND user_id = ?", userID, requesterID)
+		query = query.Where("login_activities.user_id = ? AND login_activities.user_id = ?", userID, requesterID)
 	} else {
 		return nil, postgresql.PaginationResponse{}, ErrNotFound
 	}
@@ -63,7 +68,7 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 	pagination := postgresql.GetPagination(c)
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"login_at",
+		"login_activities.login_at",
 		"desc",
 		pagination,
 		&loginActivities,

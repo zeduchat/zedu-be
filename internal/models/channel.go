@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -36,10 +36,10 @@ type UserChannels struct {
 }
 
 type CreateChannelsRequest struct {
-	OrganisationID string `json:"organisation_id"`
+	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
-	Name           string `json:"name"`
-	Description    string `json:"description"`
+	Name           string `json:"name" validate:"required"`
+	Description    string `json:"description" validate:"required"`
 }
 
 type GetChannelsRequest struct {
@@ -64,7 +64,7 @@ type UpdateChannelsUserNameReq struct {
 func (r *Channels) CreateChannels(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
-		return errors.New("could not create channel")
+		return errors.New("could not create channel, invalid organisation id")
 	}
 	return nil
 }

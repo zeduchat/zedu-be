@@ -28,7 +28,8 @@ jobs:
             TYPESENSE_API_KEY
             CENTRIFUGE_API_KEY
           APP_NAME: "telex_be"
-          APP_URL: "https://api-golang.boilerplate.hng.tech"
+          APP_URL: ${{ secrets.APP_URL }}
+          APP_WEBHOOK_URL: ${{ secrets.APP_WEBHOOK_URL }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
@@ -54,6 +55,10 @@ jobs:
           IPSTACK_BASE_URL: ${{ secrets.IPSTACK_BASE_URL }}
           CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
           CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
+          STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID }}
+          STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
+          STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
 
       - name: Copy app.env to server
         run: |

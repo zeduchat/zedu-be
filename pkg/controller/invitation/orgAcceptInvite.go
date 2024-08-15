@@ -1,55 +1,47 @@
 package invitation
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) OrganisationAcceptInvite(c *gin.Context) {
-	// get accept invite logic here
-	invitationToken := c.Param("t")
-	claims, exists := c.Get("userClaims")
-	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
+func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
+	var (
+		req = models.VerifyInvitationLinkRequest{}
+	)
 
-	_, err := uuid.Parse(invitationToken)
+	err := c.ShouldBind(&req)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid invitation token", err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	invite, msg, err := invitation.AcceptInvitationLink(userId, invitationToken, base.Db.Postgresql)
+	err = base.Validator.Struct(&req)
 	if err != nil {
-		rd := utility.BuildErrorResponse(
-			http.StatusBadRequest,
-			"error",
-			msg,
-			err,
-			nil,
-		)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-	// add user to organisation
-	///check if user from the claims is a member of the organisation
-	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	err = invitation.AddUserToOrganisation(base.Db.Postgresql, invite.OrganisationID, userId)
+	
+
+	fmt.Println("Calling VerifyInvitation")
+	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to add user to organisation", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "A server error occurred", nil, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
 	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Invitation accepted successfully", nil)
+
+	base.Logger.Info("user invited successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", respData)
 	c.JSON(http.StatusOK, rd)
+
 }
