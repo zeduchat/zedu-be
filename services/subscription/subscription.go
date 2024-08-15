@@ -119,7 +119,12 @@ func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
 		}
 		return http.StatusInternalServerError, fmt.Errorf("error finding user: %w", err)
 	}
-	_, err := sub.Cancel(user.SubscriptionPlanId.String(), nil)
+
+	if user.SubscriptionPlanId == "" {
+		return http.StatusBadRequest, fmt.Errorf("user has no subscription plan")
+	}
+
+	_, err := sub.Cancel(user.SubscriptionPlanId, nil)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("error cancelling subscription: %w", err)
 	}
@@ -129,22 +134,37 @@ func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
 	return http.StatusOK, nil
 }
 
-func CompleteSubscription(session_id string) (*gin.H, int, error, *stripe.Invoice) {
+func CompleteSubscription(session_id, user_id string, db *gorm.DB) (*gin.H, int, error, *stripe.Invoice) {
+	var user models.User
+	if err := db.First(&user, "id = ?", user_id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, http.StatusNotFound, fmt.Errorf("user not found"), nil
+		}
+		return nil, http.StatusInternalServerError, fmt.Errorf("error finding user: %w", err), nil
+	}
+
 	sesh, err := session.Get(session_id, nil)
 	if err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("error getting session: %w", err), nil
 	}
+
 	if sesh.PaymentStatus != "paid" {
 		return nil, http.StatusBadRequest, fmt.Errorf("session not paid"), nil
 	}
 
-	subscriptionId := sesh.Subscription.ID
-	if subscriptionId == "" {
+	if sesh.Subscription == nil || sesh.Subscription.ID == "" {
 		return nil, http.StatusBadRequest, fmt.Errorf("no subscription ID found"), nil
 	}
 
+	user.SubscriptionPlanId = sesh.Subscription.ID
+	user.StripeCustomerID = sesh.Customer.ID
+
+	if err := db.Save(&user).Error; err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("error updating user subscription: %w", err), nil
+	}
+
 	params := &stripe.InvoiceListParams{
-		Subscription: stripe.String(subscriptionId),
+		Subscription: stripe.String(sesh.Subscription.ID),
 	}
 
 	i := invoice.List(params)
@@ -164,5 +184,4 @@ func CompleteSubscription(session_id string) (*gin.H, int, error, *stripe.Invoic
 	}
 
 	return &responseData, http.StatusOK, nil, invoiceItems[0]
-
 }

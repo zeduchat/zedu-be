@@ -6,11 +6,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 )
 
 func DownloadInvoice(sessionID string, c *gin.Context) error {
-
-	_, _, err, inv := CompleteSubscription(sessionID)
+	var db *storage.Database
+	_, _, err, inv := CompleteSubscription(sessionID, "", db.Postgresql)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return err

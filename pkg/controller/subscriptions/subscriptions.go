@@ -103,9 +103,10 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 
 	var (
 		session_id = c.Param("session_id")
+		user_id    = c.Param("user_id")
 	)
 
-	subscriptionData, code, err, _ := service.CompleteSubscription(session_id)
+	subscriptionData, code, err, _ := service.CompleteSubscription(session_id, user_id, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)

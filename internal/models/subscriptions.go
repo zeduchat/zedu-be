@@ -13,7 +13,7 @@ type SubscriptionPlan struct {
 	StripePriceID string  `gorm:"type:varchar(255);not null"`
 }
 
-func SeedSubscriptionPlans(db *gorm.DB, stripe *config.Stripe) {
+func SeedSubscriptionPlans(db *gorm.DB, stripe config.Stripe) {
 	plans := []SubscriptionPlan{
 		{
 			Name:          "Basic",

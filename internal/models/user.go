@@ -18,7 +18,7 @@ type User struct {
 	IsActive           bool           `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
 	IsOnboarded        bool           `gorm:"column:is_onboarded; type:bool" json:"is_onboarded"`
 	CurrentOrg         uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
-	SubscriptionPlanId uuid.UUID      `gorm:"column:subscription_plan_id; type:uuid" json:"subscription_plan_id"` // Changed to uuid.UUID
+	SubscriptionPlanId string         `gorm:"column:subscription_plan_id; type:varchar(255)" json:"subscription_plan_id"`
 	Profile            Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Channelss          []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations      []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`
@@ -30,7 +30,7 @@ type User struct {
 	UpdatedAt          time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 	StripeCustomerID   string         `gorm:"column:stripe_customer_id; type:varchar(255)" json:"stripe_customer_id"`
-	Role               int            `gorm:"column:role" json:"role"` // Changed to remove foreignKey and references tags
+	Role               int            `gorm:"column:role" json:"role"`
 }
 
 type CreateUserRequestModel struct {
