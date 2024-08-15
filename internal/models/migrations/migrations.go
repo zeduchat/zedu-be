@@ -33,5 +33,18 @@ func AuthMigrationModels() []interface{} {
 }
 
 func AlterColumnModels() []AlterColumn {
-	return []AlterColumn{}
+	return []AlterColumn{
+		{
+			Model:     &models.OrgRole{},
+			TableName: "org_roles",
+			Column:    "organisation_id",
+			Type:      "uuid",
+		},
+		{
+			Model:     &models.Permission{},
+			TableName: "permissions",
+			Column:    "category",
+			Type:      "varchar",
+		},
+	}
 }
