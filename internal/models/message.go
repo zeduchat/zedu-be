@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
-	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
