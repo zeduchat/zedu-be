@@ -74,7 +74,7 @@ type BaseConfig struct {
 	CLIENT_ID     string `mapstructure:"CLIENT_ID"`
 	CLIENT_SECRET string `mapstructure:"CLIENT_SECRET"`
 	REDIRECT_URI  string `mapstructure:"REDIRECT_URI"`
-	OAUTH_API     string `mapstructure:"OAUTH_API"`
+	BASE_URL      string `mapstructure:"BASE_URL"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -157,7 +157,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ClientId:     config.CLIENT_ID,
 			ClientSecret: config.CLIENT_SECRET,
 			RedirectURI:  config.REDIRECT_URI,
-			OauthAPI:     config.OAUTH_API,
+			BaseUrl:      config.BASE_URL,
 		},
 	}
 }

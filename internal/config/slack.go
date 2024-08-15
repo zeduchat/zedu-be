@@ -4,5 +4,5 @@ type Slack struct {
 	ClientId     string
 	ClientSecret string
 	RedirectURI  string
-	OauthAPI     string
+	BaseUrl      string
 }

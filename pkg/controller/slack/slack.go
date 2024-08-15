@@ -29,7 +29,7 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := service.ExchangeSlackOAuthToken(req)
+	accessToken, err := service.ExchangeSlackOAuthToken(req, base.ExtReq)
     if err != nil {
         rd := utility.BuildErrorResponse(http.StatusInternalServerError, "Slack OAuth token exchange failed", err.Error(), nil, nil)
         c.JSON(http.StatusInternalServerError, rd)

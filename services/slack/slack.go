@@ -1,55 +1,28 @@
 package slack
 
 import (
-	"encoding/json"
-	"errors"
-	"net/http"
-	"net/url"
-	"strings"
+	"fmt"
 
-	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/external/external_models"
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 )
 
-func ExchangeSlackOAuthToken(reqBody models.SlackTelex) (string, error) {
-	var (
-		config = config.GetConfig()
-	)
+func ExchangeSlackOAuthToken(req models.SlackTelex, extReq request.ExternalRequest) (string, error) {
 
-	form := url.Values{}
-	form.Add("client_id", config.Slack.ClientId)
-	form.Add("client_secret", config.Slack.ClientSecret)
-	form.Add("code", reqBody.OauthCode)
-	form.Add("redirect_uri", config.Slack.RedirectURI)
-
-	req, err := http.NewRequest("POST", "https://slack.com/api/oauth.v2.access", strings.NewReader(form.Encode()))
+	response, err := extReq.SendExternalRequest(request.SlackOAuthExchange, req.OauthCode)
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var responseBody struct {
-		AccessToken string `json:"access_token"`
-		Ok          bool   `json:"ok"`
-		Error       string `json:"error"`
+	slackResponse, ok := response.(external_models.SlackOAuthResponse)
+	if !ok {
+		return "", fmt.Errorf("invalid response format")
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&responseBody)
-	if err != nil {
-		return "", err
+	if slackResponse.Error != "" {
+		return "", fmt.Errorf("slack error: %v", slackResponse.Error)
 	}
 
-	if !responseBody.Ok {
-		return "", errors.New(responseBody.Error)
-	}
-
-	return responseBody.AccessToken, nil
+	return slackResponse.AccessToken, nil
 }
