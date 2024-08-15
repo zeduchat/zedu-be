@@ -39,6 +39,7 @@ func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 
 	browser := c.GetHeader("User-Agent")
 	accessId, _ := uuid.FromString(accessID)
+
 	loginActivity := &models.LoginActivity{
 		ID:             utility.GenerateUUID(),
 		UserID:         userID,
@@ -47,7 +48,7 @@ func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 		LoginAt:        GetCurrentTime(),
 		IPAddress:      ipAddress,
 		Location:       location,
-		Device:         browser,
+		Device:         getBrowserName(browser),
 		IsLive:         true,
 	}
 
@@ -89,4 +90,29 @@ func isPrivateIP(ip string) bool {
 		}
 	}
 	return false
+}
+
+func getBrowserName(userAgent string) string {
+	userAgent = strings.ToLower(userAgent)
+
+	switch {
+	case strings.Contains(userAgent, "brave"):
+		return "Brave"
+	case strings.Contains(userAgent, "opr") || strings.Contains(userAgent, "opera"):
+		return "Opera"
+	case strings.Contains(userAgent, "vivaldi"):
+		return "Vivaldi"
+	case strings.Contains(userAgent, "chrome"):
+		return "Chrome"
+	case strings.Contains(userAgent, "firefox"):
+		return "Firefox"
+	case strings.Contains(userAgent, "safari") && !strings.Contains(userAgent, "chrome"):
+		return "Safari"
+	case strings.Contains(userAgent, "edg"):
+		return "Edge"
+	case strings.Contains(userAgent, "msie") || strings.Contains(userAgent, "trident"):
+		return "Internet Explorer"
+	default:
+		return "Unknown"
+	}
 }

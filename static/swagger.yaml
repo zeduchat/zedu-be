@@ -4441,7 +4441,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-
    
   /threads/organisations/{orgId}:
     get:
