@@ -3043,6 +3043,73 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema' 
 
 
+  /subscription/complete/{session_id}/{user_id}:
+  get:
+    summary: Complete a subscription and retrieve associated invoices
+    tags:
+      - subscription
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: session_id
+        required: true
+        schema:
+          type: string
+        description: The ID of the session to complete the subscription.
+      - in: path
+        name: user_id
+        required: true
+        schema:
+          type: string
+        description: The ID of the user whose subscription is being completed.
+    responses:
+      '200':
+        description: Subscription completed successfully and invoices retrieved
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invoice_items:
+                  type: array
+                  items:
+                    type: object
+                    description: Stripe invoice object
+                    properties:
+                      id:
+                        type: string
+                        description: The ID of the invoice
+                      amount_due:
+                        type: integer
+                        description: Amount due on the invoice
+                      status:
+                        type: string
+                        description: Status of the invoice
+                      created:
+                        type: integer
+                        description: Creation timestamp of the invoice
+      '400':
+        description: Bad request, either the session was not paid or no subscription ID found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  description: Error message explaining the failure
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  description: Error message explaining the server failure
+
   /api/v1/subscriptions/create:
     post:
       summary: Create a new subscription
@@ -3079,71 +3146,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 
-  /subscription/complete:
-    post:
-      tags:
-        - subscription
-      summary: Complete a subscription and retrieve associated invoices
-      description: Completes a subscription using the provided session ID and retrieves all associated invoices.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                session_id:
-                  type: string
-                  description: The ID of the session to complete the subscription.
-              required:
-                - session_id
-      responses:
-        '200':
-          description: Subscription completed successfully and invoices retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  invoice_items:
-                    type: array
-                    items:
-                      type: object
-                      description: Stripe invoice object
-                      properties:
-                        id:
-                          type: string
-                          description: The ID of the invoice
-                        amount_due:
-                          type: integer
-                          description: Amount due on the invoice
-                        status:
-                          type: string
-                          description: Status of the invoice
-                        created:
-                          type: integer
-                          description: Creation timestamp of the invoice
-        '400':
-          description: Bad request, either the session was not paid or no subscription ID found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Error message explaining the failure
-        '500':
-          description: Server error, something went wrong while completing the subscription
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    description: Error message explaining the server failure              
 
+   
   /subscriptions/list/{user_id}:
     get:
       summary: List subscriptions for a user
@@ -3214,7 +3218,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /invoice/download/session_id:
+  /invoice/download/session_id/user_id:
     get:
       summary: Complete a subscription and retrieve invoice items
       description: This endpoint completes a subscription based on the provided session ID and returns the associated invoice items.
@@ -3227,6 +3231,12 @@ paths:
           schema:
             type: string
           description: The ID of the Stripe Checkout Session
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the user whose subscription is being completed
       responses:
         '200':
           description: Successful operation

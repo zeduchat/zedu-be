@@ -21,7 +21,7 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		subscriptionUrl.PUT("/modify", subscription.ModifySubscription)
 		subscriptionUrl.DELETE("/delete", subscription.DeleteSubscription)
 		subscriptionUrl.GET("/session/:session_id/:user_id", subscription.CompleteSubscription)
-		subscriptionUrl.GET("/invoice/download/:session_id", subscription.DownloadInvoice)
+		subscriptionUrl.GET("/invoice/download/:session_id/:user_id", subscription.DownloadInvoice)
 	}
 	return r
 }

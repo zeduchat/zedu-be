@@ -61,8 +61,15 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gi
 }
 
 func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
+	var user models.User
+	if err := db.First(&user, "id = ?", customerID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, http.StatusNotFound, fmt.Errorf("user not found")
+		}
+	}
+
 	params := &stripe.SubscriptionListParams{
-		Customer: customerID,
+		Customer: user.StripeCustomerID,
 	}
 	i := sub.List(params)
 
@@ -88,24 +95,45 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gi
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
 
-	params := &stripe.SubscriptionParams{
-		Items: []*stripe.SubscriptionItemsParams{
-			{
-				ID:    stripe.String(req.UserID),
-				Price: stripe.String(subscriptionPlan.Name),
-			},
-		},
+	if subscriptionPlan.StripePriceID == "" {
+		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %v", req.PlanID)
 	}
 
-	subscription, err := sub.Update(req.UserID, params)
+	var user models.User
+	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
+		return nil, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
+	}
+
+	if user.StripeCustomerID == "" {
+		return nil, http.StatusInternalServerError, fmt.Errorf("user does not have a Stripe customer ID")
+	}
+
+	params := &stripe.CheckoutSessionParams{
+		Customer: stripe.String(user.StripeCustomerID),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				Price:    stripe.String(subscriptionPlan.StripePriceID),
+				Quantity: stripe.Int64(1),
+			},
+		},
+		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		SuccessURL: stripe.String("https://staging.telex.im/dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String("https://yourwebsite.com/plan/billing/cancel"),
+	}
+
+	session, err := session.New(params)
 	if err != nil {
-		return nil, http.StatusInternalServerError, err
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create checkout session: %v", err)
+	}
+
+	user.SubscriptionPlanId = user.SubscriptionPlanId
+	if err := db.Save(&user).Error; err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("error updating user subscription: %v", err)
 	}
 
 	responseData := gin.H{
-		"subscription_id": subscription.ID,
-		"status":          subscription.Status,
-		"plan":            subscriptionPlan.Name,
+		"checkout_session_id":  session.ID,
+		"checkout_session_url": session.URL,
 	}
 
 	return &responseData, http.StatusOK, nil
