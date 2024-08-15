@@ -40,7 +40,9 @@ tags:
   - name: user-management
     description: API for user management related endpoints
   - name: Profile
-    description: API for threads related endpoints
+    description: API for user profile related endpoints
+  - name: help center
+    description: API for help center related endpoints
 
 
 
@@ -4914,7 +4916,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /help-center/articles/{category-id}:
+  /help-center/articles/{category_id}:
     post:
       tags:
         - help center
@@ -4989,7 +4991,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /help-center/articles/categories/{category-id}:
+  /help-center/articles/categories/{category_id}:
     get:
       tags:
         - help center
@@ -5120,7 +5122,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'   
 
-  /help-center/articles/{article-id}:
+  /help-center/articles/{article_id}:
     get:
       tags:
         - help center
