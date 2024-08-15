@@ -15,6 +15,7 @@ type Configuration struct {
 	Redis        Redis
 	Mail         MAIL
 	Minio        Minio
+	Slack        Slack
 }
 
 type BaseConfig struct {
@@ -69,6 +70,11 @@ type BaseConfig struct {
 	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
+
+	CLIENT_ID     string `mapstructure:"CLIENT_ID"`
+	CLIENT_SECRET string `mapstructure:"CLIENT_SECRET"`
+	REDIRECT_URI  string `mapstructure:"REDIRECT_URI"`
+	OAUTH_API     string `mapstructure:"OAUTH_API"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -145,6 +151,13 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			BucketName:    config.BUCKET_NAME,
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
+		},
+
+		Slack: Slack{
+			ClientId:     config.CLIENT_ID,
+			ClientSecret: config.CLIENT_SECRET,
+			RedirectURI:  config.REDIRECT_URI,
+			OauthAPI:     config.OAUTH_API,
 		},
 	}
 }
