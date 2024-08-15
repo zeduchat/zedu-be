@@ -1,9 +1,11 @@
 package user
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	service "github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
@@ -14,6 +16,13 @@ func (base *Controller) GetUserLoginAudit(c *gin.Context) {
 	var (
 		userID = c.Param("user_id")
 	)
+
+	if _, err := uuid.Parse(userID); err != nil {
+		base.Logger.Info("error parsing user id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	usersData, paginationResponse, code, err := service.GetAUserLoginActivity(userID, base.Db.Postgresql, c)
 	if err != nil {
@@ -32,6 +41,13 @@ func (base *Controller) GetUserSessions(c *gin.Context) {
 	var (
 		userID = c.Param("user_id")
 	)
+
+	if _, err := uuid.Parse(userID); err != nil {
+		base.Logger.Info("error parsing user id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	usersData, paginationResponse, code, err := service.GetAUserSessions(userID, base.Db.Postgresql, c)
 	if err != nil {
