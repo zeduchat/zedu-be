@@ -118,7 +118,6 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		responseData gin.H
 	)
 
-	// Check if the user email exists
 	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
 	if !exists {
 		return responseData, 400, fmt.Errorf("invalid credentials")
@@ -193,11 +192,6 @@ func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
 	}
 
 	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
-	if err := db.Model(&access_token).Updates(map[string]interface{}{
-		"is_active": false,
-	}).Error; err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error updating access token: %w", err)
-	}
 
 	if err := access_token.RevokeAccessToken(db); err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
