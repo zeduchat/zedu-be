@@ -45,6 +45,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Webhook(r, ApiVersion, validator, db, logger)
 	Profile(r, ApiVersion, validator, db, logger)
 	Threads(r, ApiVersion, validator, db, logger)
+	HelpCenter(r, ApiVersion, validator, db, logger)
 	Integrations(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {

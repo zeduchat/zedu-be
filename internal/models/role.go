@@ -1,10 +1,7 @@
 package models
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -39,7 +36,7 @@ var (
 
 type Role struct {
 	ID          int            `gorm:"primaryKey;type:int" json:"id"`
-	Name        string         `gorm:"unique;not null;type:varchar(20)" json:"name" validate:"required"`
+	Name        string         `gorm:"unique;not null;type:varchar(50)" json:"name" validate:"required"`
 	Description string         `gorm:"unique;not null" json:"description" validate:"required"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -48,54 +45,25 @@ type Role struct {
 
 type OrgRole struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name           string         `gorm:"not null;type:varchar(20)" json:"name" validate:"required"`
-	Description    string         `gorm:"not null" json:"description" validate:"required"`
-	OrganisationID string         `gorm:"not null" json:"-"`
+	Name           string         `gorm:"null;type:varchar(20)" json:"name" validate:"required"`
+	Description    string         `gorm:"null" json:"description" validate:"required"`
+	OrganisationID *string        `gorm:"type:uuid;null" json:"organisation_id"`
+	IsDefault      bool           `gorm:"type:bool" json:"is_default"`
 	Permissions    Permission     `gorm:"foreignKey:RoleID;constraint:OnDelete:CASCADE;" json:"permissions"`
 	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-type Permission struct {
-	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	RoleID         string         `gorm:"unique;not null" json:"-"`
-	PermissionList PermissionList `gorm:"type:jsonb" json:"permission_list"`
-	Category       string         `gorm:"type:string" json:"category"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-type PermissionList map[string]bool
-
-func (p *PermissionList) Scan(value interface{}) error {
-	if b, ok := value.([]byte); ok {
-		return json.Unmarshal(b, &p)
-	}
-	return fmt.Errorf("type assertion to []byte failed")
-}
-
-func (p PermissionList) Value() (driver.Value, error) {
-	return json.Marshal(p)
-}
-
 func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
 
-	permissionList := PermissionList{
-		"canViewTransactions":      true,
-		"canViewRefunds":           false,
-		"canLogRefund":             true,
-		"canViewUser":              true,
-		"canEditUser":              true,
-		"canCreateUser":            true,
-		"canBlacklistAndWhiteUser": false,
-	}
+	permissionList := PermissionList{}
 
 	permission := Permission{
 		ID:             utility.GenerateUUID(),
 		RoleID:         r.ID,
 		PermissionList: permissionList,
+		IsDefault:      false,
 	}
 
 	err := postgresql.CreateOneRecord(db, &r)
@@ -124,20 +92,15 @@ func (r *OrgRole) UpdateOrgRole(db *gorm.DB) error {
 	return err
 }
 
-func (rp *Permission) AddOrgPermissions(db *gorm.DB) error {
-	_, err := postgresql.SaveAllFields(db, &rp)
-	return err
-}
-
 func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
-	_, err := postgresql.UpdateFields(db, rp, rp, "id = ?", rp.ID)
+	_, err := postgresql.SaveAllFields(db, &rp)
 	return err
 }
 
 func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 	var orgRoles []OrgRole
 
-	query := db.Where("organisation_id = ?", orgID)
+	query := db.Where("organisation_id = ? OR is_default = ?", orgID, true)
 	query = postgresql.PreloadEntities(query, &orgRoles, "Permissions")
 	err := query.Find(&orgRoles).Error
 
@@ -154,7 +117,7 @@ func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 func (r *OrgRole) GetAOrgRole(db *gorm.DB, orgID, roleID string) (OrgRole, error) {
 	var orgRole OrgRole
 
-	query := db.Where("organisation_id = ?", orgID).Where("id = ?", roleID)
+	query := db.Where("organisation_id = ? OR is_default = ?", orgID, true).Where("id = ?", roleID)
 	query = postgresql.PreloadEntities(query, &orgRole, "Permissions")
 
 	err := query.First(&orgRole).Error
@@ -175,15 +138,6 @@ func GetRoleName(roleId RoleId) RoleName {
 	default:
 		return "unknown"
 	}
-}
-
-func OrgUserHasAnyPermission(orgRole OrgRole, permissions ...string) bool {
-	for _, permission := range permissions {
-		if allowed, exists := orgRole.Permissions.PermissionList[permission]; exists && allowed {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId string, roleId string) (*User, error) {

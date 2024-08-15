@@ -51,7 +51,8 @@ func CreateOrgRoles(req models.OrgRole, orgID string, db *gorm.DB, c *gin.Contex
 	}
 
 	req.ID = utility.GenerateUUID()
-	req.OrganisationID = orgData.ID
+	req.OrganisationID = &orgData.ID
+	req.IsDefault = false
 
 	if err := req.CreateOrgRole(db); err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
@@ -210,10 +211,16 @@ func DeleteOrgRole(db *gorm.DB, orgID, roleID string, c *gin.Context) (int, erro
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
+
+	if roleData.IsDefault {
+		return http.StatusForbidden, errors.New("cant delete default role")
+	}
+
 	err = roleData.DeleteOrgRole(db)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
+
 	return http.StatusOK, nil
 
 }
