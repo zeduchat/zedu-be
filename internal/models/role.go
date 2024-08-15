@@ -23,23 +23,11 @@ var RoleIdentity = DefaultIdentity{
 	SuperAdmin: 2,
 }
 
-type UserIdentity struct {
+type UserRole struct {
 	Guest RoleId
 	User  RoleId
 	Admin RoleId
 }
-
-var UserRolesIdentity = UserIdentity{
-	Guest: 1,
-	User:  2,
-	Admin: 3,
-}
-
-var (
-	UserRoleIdentity  RoleName = "user"
-	AdminRoleIdentity RoleName = "admin"
-	GuestRoleIdentity RoleName = "guest"
-)
 
 var (
 	UserRoleName  RoleName = "user"
@@ -65,41 +53,6 @@ type OrgRole struct {
 	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-
-type UserRole struct {
-	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name           string         `gorm:"not null;type:varchar(20)" json:"name" validate:"required"`
-	Description    string         `gorm:"not null" json:"description" validate:"required"`
-	OrganisationID string         `gorm:"not null" json:"-"`
-	Permissions    Permission     `gorm:"foreignKey:RoleID;constraint:OnDelete:CASCADE;" json:"permissions"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-type Permission struct {
-	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	RoleID         string         `gorm:"unique;not null" json:"-"`
-	PermissionList PermissionList `gorm:"type:jsonb" json:"permission_list"`
-	Category       string         `gorm:"type:string" json:"category"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"-"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"-"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-type PermissionList map[string]bool
-
-func (p *PermissionList) Scan(value interface{}) error {
-	if b, ok := value.([]byte); ok {
-		return json.Unmarshal(b, &p)
-	}
-	return fmt.Errorf("type assertion to []byte failed")
-}
-
-func (p PermissionList) Value() (driver.Value, error) {
-	return json.Marshal(p)
 }
 
 func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
