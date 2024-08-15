@@ -2,7 +2,6 @@ package seed
 
 import (
 	"fmt"
-	"log"
 
 	"gorm.io/gorm"
 
@@ -10,14 +9,15 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SeedRolesAndPermissions(db *gorm.DB) {
+func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
 	var count int64
 	if err := db.Model(&models.OrgRole{}).Where("name IN ?", []string{"Project Lead", "Manager"}).Count(&count).Error; err != nil {
 		fmt.Println(err)
+		logger.Error("org role seeding: " + err.Error())
 	}
 
 	if count > 0 {
-		log.Println("Roles 'Project Lead' or 'Manager' already exist, skipping seeding...")
+		logger.Error("Roles 'Project Lead' or 'Manager' already exist, skipping seeding...")
 		fmt.Println("Roles 'Project Lead' or 'Manager' already exist, skipping seeding...")
 	} else {
 		roles := []models.OrgRole{
@@ -128,14 +128,14 @@ func SeedRolesAndPermissions(db *gorm.DB) {
 
 		for _, role := range roles {
 			if err := db.Create(&role).Error; err != nil {
-				log.Printf("Failed to seed role: %s, error: %v", role.Name, err)
+				logger.Error(fmt.Sprintf("Failed to seed role: %s, error: %v", role.Name, err))
 				fmt.Printf("Failed to seed role: %s, error: %v", role.Name, err)
 			}
 		}
 
 		for _, permission := range permissions {
 			if err := db.Create(&permission).Error; err != nil {
-				log.Printf("Failed to seed permission for role: %s, error: %v", permission.RoleID, err)
+				logger.Error(fmt.Sprintf("Failed to seed permission for role: %s, error: %v", permission.RoleID, err))
 				fmt.Printf("Failed to seed permission for role: %s, error: %v", permission.RoleID, err)
 			}
 		}
