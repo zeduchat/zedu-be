@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/hngprojects/telex_be/internal/config"
 	"gorm.io/gorm"
 )
 
@@ -12,28 +13,28 @@ type SubscriptionPlan struct {
 	StripePriceID string  `gorm:"type:varchar(255);not null"`
 }
 
-func SeedSubscriptionPlans(db *gorm.DB) {
+func SeedSubscriptionPlans(db *gorm.DB, stripe *config.Stripe) {
 	plans := []SubscriptionPlan{
 		{
 			Name:          "Basic",
 			Price:         20.00,
 			Description:   "The essential tools to produce your best work for clients.",
 			Features:      "Basic features",
-			StripePriceID: "price_1Pnqb1JlOh7AbM5NLNQ0UTEs", // Should be replaced with the price id of the plan created in stripe
+			StripePriceID: stripe.BASIC_ID,
 		},
 		{
 			Name:          "Advanced",
 			Price:         50.00,
 			Description:   "The essential tools to produce your best work for clients.",
 			Features:      "Advanced features",
-			StripePriceID: "price_1PnqbTJlOh7AbM5NMlbwHHdX", // Should be replaced with the price id of the plan created in stripe
+			StripePriceID: stripe.ADVANCED_ID,
 		},
 		{
 			Name:          "Premium",
 			Price:         100.00,
 			Description:   "The essential tools to produce your best work for clients.",
 			Features:      "Premium features",
-			StripePriceID: "price_1PnqbFJlOh7AbM5NzYKR3lC7", // Should be replaced with the price id of the plan created in stripe
+			StripePriceID: stripe.PREMIUM_ID,
 		},
 	}
 

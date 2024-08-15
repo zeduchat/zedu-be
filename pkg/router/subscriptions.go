@@ -18,6 +18,7 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	{
 		subscriptionUrl.POST("/create", subscription.CreateSubscription)
 		subscriptionUrl.GET("/list/:user_id", subscription.ListSubscriptions)
+		subscriptionUrl.POST("/complete", subscription.CompleteSubscription)
 		subscriptionUrl.PUT("/modify", subscription.ModifySubscription)
 		subscriptionUrl.DELETE("/delete", subscription.DeleteSubscription)
 		subscriptionUrl.GET("session/:session_id", subscription.CompleteSubscription)

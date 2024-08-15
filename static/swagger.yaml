@@ -3030,7 +3030,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/subscriptions/list/{user_id}:
+
+  /subscription/complete:
+    post:
+      tags:
+        - subscription
+      summary: Complete a subscription and retrieve associated invoices
+      description: Completes a subscription using the provided session ID and retrieves all associated invoices.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  description: The ID of the session to complete the subscription.
+              required:
+                - session_id
+      responses:
+        '200':
+          description: Subscription completed successfully and invoices retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoice_items:
+                    type: array
+                    items:
+                      type: object
+                      description: Stripe invoice object
+                      properties:
+                        id:
+                          type: string
+                          description: The ID of the invoice
+                        amount_due:
+                          type: integer
+                          description: Amount due on the invoice
+                        status:
+                          type: string
+                          description: Status of the invoice
+                        created:
+                          type: integer
+                          description: Creation timestamp of the invoice
+        '400':
+          description: Bad request, either the session was not paid or no subscription ID found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message explaining the failure
+        '500':
+          description: Server error, something went wrong while completing the subscription
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message explaining the server failure              
+
+  /subscriptions/list/{user_id}:
     get:
       summary: List subscriptions for a user
       tags:

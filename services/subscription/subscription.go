@@ -52,12 +52,6 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gi
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create checkout session: %v", err)
 	}
 
-	if err := db.Model(&models.User{}).Where("id = ?", req.UserID).Updates(models.User{
-		StripeCustomerID: stripeCustomer.ID,
-	}).Error; err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to update user with Stripe customer ID: %v", err)
-	}
-
 	responseData := gin.H{
 		"checkout_session_id":  session.ID,
 		"checkout_session_url": session.URL,

@@ -71,7 +71,10 @@ type BaseConfig struct {
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
 
-	STRIPE_KEY string `mapstructure:"STRIPE_KEY"`
+	STRIPE_KEY  string `mapstructure:"STRIPE_KEY"`
+	BASIC_ID    string `mapstructure:"BASIC_ID"`
+	PREMIUM_ID  string `mapstructure:"PREMIUM_ID"`
+	ADVANCED_ID string `mapstructure:"ADVANCED_ID"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -150,7 +153,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			Secret:        config.BUKCET_SECRET_KEY,
 		},
 		Stripe: Stripe{
-			STRIPE_KEY: config.STRIPE_KEY,
+			STRIPE_KEY:  config.STRIPE_KEY,
+			BASIC_ID:    config.BASIC_ID,
+			PREMIUM_ID:  config.PREMIUM_ID,
+			ADVANCED_ID: config.ADVANCED_ID,
 		},
 	}
 }
