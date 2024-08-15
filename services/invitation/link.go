@@ -124,12 +124,13 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
 	}
 
 	otp, _ := utility.GenerateOTP(6)
+	entry := "telex-"+strconv.Itoa(int(otp))
 	if !invitation.IsTelexUser {
 		var user models.User
 
 		req := models.CreateUserRequestModel{
 			Email:     invitation.Email,
-			Password:  "telex-" + string(otp),
+			Password:  entry,
 			FirstName: invitation.Email,
 		}
 
@@ -192,7 +193,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
 			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
-			"password":     "telex-" + string(otp),
+			"password":     entry,
 		},
 		"access_token": tokenData.AccessToken,
 	}
