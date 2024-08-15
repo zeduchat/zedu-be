@@ -25,6 +25,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	webhook, err := webhook.CheckExistBySlug(db, req.WebhookSlug)
 
 	if err != nil {
+		logger.Error("invalid webhook" + err.Error())
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
 	}
 
@@ -39,6 +40,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	}
 	err = webhookHistory.CreateWebhookHistory(db)
 	if err != nil {
+		logger.Error("failed to create webhook history" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create webhook history")
 	}
 
@@ -52,6 +54,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	}
 	err = thread.CreateThread(db)
 	if err != nil {
+		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
 	}
 
@@ -90,6 +93,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	err := thread.CreateThread(db)
 	if err != nil {
+		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
 	}
 
