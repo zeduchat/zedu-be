@@ -18,7 +18,7 @@ type Webhook struct {
 	Status         string           `gorm:"column:status; type:text;null" json:"status"`
 	OwnerId        string           `gorm:"column:owner_id; type:uuid" json:"owner_id"`
 	WebhookUrl     string           `gorm:"column:webhook_url; type:text; not null" json:"webhook_url"`
-	WebhookSlug    string           `gorm:"column:webhook_slug; type:text;null" json:"webhook_id"`
+	WebhookSlug    string           `gorm:"column:webhook_slug; type:text;null" json:"webhook_slug"`
 	ChannelId      string           `gorm:"column:channel_id; type:uuid" json:"channel_id"`
 	CreatedAt      time.Time        `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time        `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
@@ -27,9 +27,10 @@ type Webhook struct {
 }
 
 type WebhookHistory struct {
-	ID          int       `gorm:"column:id; type:serial; primaryKey" json:"id"`
+	ID          string    `gorm:"column:id; type:uuid; primaryKey" json:"id"`
 	CallbackID  string    `gorm:"column:callback_id; type:text;null" json:"callback_id"`
-	WebhookSlug string    `gorm:"column:webhook_slug; type:text;null" json:"webhook_id"`
+	EventName   string    `gorm:"column:event_name;type:text;null" json:"event_name"`
+	WebhookSlug string    `gorm:"column:webhook_slug; type:text;null" json:"webhook_slug"`
 	ActionType  string    `gorm:"column:action_type; type:text;null" json:"action_type"`
 	StatusCode  string    `gorm:"column:status_code; type:text;null" json:"status_code"`
 	WebhookID   string    `gorm:"type:uuid;not null" json:"-"`
@@ -40,18 +41,8 @@ type WebhookHistory struct {
 }
 
 type CreateWebhookRequest struct {
-	ChannelID   string `json:"channel_id"`
-	UserID      string `json:"user_id"`
-	WebhookName string `json:"webhook_name" validate:"required"`
-	EventName   string `json:"event_name"`
-}
-
-type CreateWebhookHistoryRequest struct {
-	ChannelID   string `json:"channel_id"`
-	WebhookSlug string `json:"webhook_slug"`
-	ActionType  string `json:"action_type"`
-	StatusCode  string `json:"status_code"`
-	Retries     int64  `json:"user_id"`
+	ChannelID string `json:"channel_id"`
+	UserID    string `json:"user_id"`
 }
 
 type UpdateWebhookRequest struct {
@@ -82,11 +73,20 @@ type GetWebhookHistoryRequest struct {
 }
 
 func (w *Webhook) CreateWebhook(db *gorm.DB) error {
-	var userChannel UserChannels
+	var (
+		userChannel UserChannels
+		webhook     Webhook
+	)
 
 	exist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", w.ChannelId, w.OwnerId)
 	if !exist {
 		return errors.New("user not in channel")
+	}
+
+	exist = postgresql.CheckExists(db, &webhook, "channel_id = ?", w.ChannelId)
+
+	if exist {
+		return errors.New("webhook already exists")
 	}
 
 	err := postgresql.CreateOneRecord(db, w)
@@ -238,6 +238,44 @@ func (wh *WebhookHistory) GetWebHookHistory(db *gorm.DB, c *gin.Context, req Get
 	return webhookHistory, paginationResponse, http.StatusOK, nil
 }
 
-func (wh *WebhookHistory) CreateWebhookHistory(db *gorm.DB, req CreateWebhookHistoryRequest) {
+func (wh *WebhookHistory) CreateWebhookHistory(db *gorm.DB) error {
 
+	err := postgresql.CreateOneRecord(db, wh)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, error) {
+
+	var webhook Webhook
+
+	_, err := postgresql.SelectOneFromDb(db, &webhook, "webhook_slug = ?", webhookSlug)
+	if err != nil {
+		return webhook, errors.New("error getting webhook by id: " + err.Error())
+	}
+
+	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
+
+	if !exist {
+		return webhook, errors.New("webhook not found")
+	}
+
+	return webhook, nil
+}
+
+func (r *Webhook) GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (Webhook, error) {
+	var (
+		webhook Webhook
+	)
+
+	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", channelId)
+
+	if !exist {
+		return webhook, errors.New("webhook not found")
+	}
+
+	return webhook, nil
 }

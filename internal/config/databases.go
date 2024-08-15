@@ -17,3 +17,8 @@ type Redis struct {
 	REDIS_HOST string
 	REDIS_DB   string
 }
+
+type TypeSense struct {
+	TypeSense_API_URL string
+	TypeSense_API_KEY string
+}

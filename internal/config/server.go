@@ -15,4 +15,5 @@ type App struct {
 	Url                   string
 	MagicLinkDuration     int
 	ResetPasswordDuration int
+	WebhookApiUrl         string
 }
