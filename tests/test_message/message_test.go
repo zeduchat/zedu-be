@@ -83,7 +83,6 @@ func TestMessage(t *testing.T) {
 	threads1 := models.Threads{
 		ID:           utility.GenerateUUID(),
 		ChannelsID:   channelId,
-		UserID:       utility.GenerateUUID(),
 		ThreadStatus: "pending",
 	}
 	db.Postgresql.Create(&threads1)

@@ -45,7 +45,6 @@ func TestGetUserSingleThreads(t *testing.T) {
 	threads := models.Threads{
 		ID:           utility.GenerateUUID(),
 		ChannelsID:   channel.ID,
-		UserID:       adminUser.ID,
 		ThreadStatus: "pending",
 	}
 
