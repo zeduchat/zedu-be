@@ -3,9 +3,10 @@ package seed
 import (
 	"fmt"
 
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
