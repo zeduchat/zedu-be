@@ -6,10 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,

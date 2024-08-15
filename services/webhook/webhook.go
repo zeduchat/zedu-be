@@ -14,39 +14,31 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, error) {
+func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook, int, error) {
 
 	var (
 		webhook models.Webhook
-		resp    gin.H
 	)
 
 	webhook = models.Webhook{
-		ID:          utility.GenerateUUID(),
-		EventName:   req.EventName,
-		WebhookName: req.WebhookName,
-		ChannelId:   req.ChannelID,
-		OwnerId:     req.UserID,
-		Status:      "active",
+		ID:        utility.GenerateUUID(),
+		ChannelId: req.ChannelID,
+		OwnerId:   req.UserID,
+		Status:    "active",
 	}
 
 	slug := strings.Split(webhook.ID, "-")[4]
-	webhookUrl := config.Config.App.Url + fmt.Sprintf("/webhook/channel/%s", slug)
-
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/webhooks/feed/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
 
 	err := webhook.CreateWebhook(db)
 
 	if err != nil {
-		return resp, http.StatusBadRequest, err
+		return webhook, http.StatusBadRequest, err
 	}
 
-	resp = gin.H{
-		"webhook_url": webhookUrl,
-	}
-
-	return resp, http.StatusCreated, nil
+	return webhook, http.StatusCreated, nil
 }
 
 func DeleteWebhook(req models.DeleteWebhookRequest, db *gorm.DB) (int, error) {
@@ -136,22 +128,19 @@ func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *
 
 }
 
-func PostWebhook() (gin.H, int, error) {
+func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (models.Webhook, int, error) {
 
 	var (
-		resp gin.H
+		resp     models.Webhook
+		webhooks models.Webhook
 	)
 
-	return resp, http.StatusCreated, nil
+	resp, err := webhooks.GetChannelWebhook(db, c, channelId)
 
-}
+	if err != nil {
+		return resp, http.StatusBadRequest, err
+	}
 
-func GetWebhook() (gin.H, int, error) {
-
-	var (
-		resp gin.H
-	)
-
-	return resp, http.StatusCreated, nil
+	return resp, http.StatusOK, nil
 
 }

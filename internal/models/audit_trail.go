@@ -6,8 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type LoginActivity struct {

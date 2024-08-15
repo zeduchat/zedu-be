@@ -64,7 +64,7 @@ type UpdateChannelsUserNameReq struct {
 func (r *Channels) CreateChannels(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
-		return errors.New("could not create channel")
+		return errors.New("could not create channel, invalid organisation id")
 	}
 	return nil
 }
