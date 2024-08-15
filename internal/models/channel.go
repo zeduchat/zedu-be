@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -16,7 +16,6 @@ type Channels struct {
 	ID          string `gorm:"type:uuid;primary_key" json:"channels_id"`
 	Name        string `gorm:"column:name;unique type:text; not null" json:"name"`
 	Description string `gorm:"column:description; type:text; not null" json:"description"`
-	IsPrivate   bool   `gorm:"column:is_private; type:bool" json:"is_private"`
 
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
@@ -26,7 +25,6 @@ type Channels struct {
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
-	Messages       []Message `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 }
 
 type UserChannels struct {
@@ -38,10 +36,10 @@ type UserChannels struct {
 }
 
 type CreateChannelsRequest struct {
-	OrganisationID string `json:"organisation_id"`
+	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
-	Name           string `json:"name"`
-	Description    string `json:"description"`
+	Name           string `json:"name" validate:"required"`
+	Description    string `json:"description" validate:"required"`
 }
 
 type GetChannelsRequest struct {
@@ -57,7 +55,6 @@ type JoinChannelsRequest struct {
 type UpdateChannelsRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	IsPrivate   bool   `json:"is_private"`
 }
 
 type UpdateChannelsUserNameReq struct {

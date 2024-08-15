@@ -51,13 +51,13 @@ func TestGetOrgRoles(t *testing.T) {
 			ID:             utility.GenerateUUID(),
 			Name:           fmt.Sprintf("Admin Role-%v", utility.GetRandomNumbersInRange(3, 7)),
 			Description:    "Administrator role",
-			OrganisationID: orgID,
+			OrganisationID: &orgID,
 		},
 		{
 			ID:             utility.GenerateUUID(),
 			Name:           fmt.Sprintf("User Role -%v", utility.GetRandomNumbersInRange(3, 7)),
 			Description:    "Regular user role",
-			OrganisationID: orgID,
+			OrganisationID: &orgID,
 		},
 	}
 
@@ -174,7 +174,7 @@ func TestGetAOrgRole(t *testing.T) {
 		ID:             roleID,
 		Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(6)),
 		Description:    "Administrator role",
-		OrganisationID: orgID,
+		OrganisationID: &orgID,
 	}
 
 	db.Create(&role)

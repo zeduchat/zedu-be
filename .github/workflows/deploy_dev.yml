@@ -1,4 +1,4 @@
-name: Docker Dev Deployment
+name: Dev Deployment
 
 on:
   workflow_dispatch:
@@ -26,8 +26,10 @@ jobs:
             MAIL_PASSWORD
             BUKCET_SECRET_KEY
             TYPESENSE_API_KEY
+            CENTRIFUGE_API_KEY
           APP_NAME: "telex_be"
-          APP_URL: "https://api-golang.boilerplate.hng.tech"
+          APP_URL: ${{ secrets.APP_URL }}
+          APP_WEBHOOK_URL: ${{ secrets.APP_WEBHOOK_URL }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
@@ -51,6 +53,12 @@ jobs:
           TYPESENSE_API_KEY: ${{ secrets.TYPESENSE_API_KEY}}
           IPSTACK_KEY: ${{ secrets.IPSTACK_KEY }}
           IPSTACK_BASE_URL: ${{ secrets.IPSTACK_BASE_URL }}
+          CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
+          CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
+          STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID }}
+	  STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
+	  STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
 
       - name: Copy app.env to server
         run: |
@@ -59,33 +67,9 @@ jobs:
           scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
           rm ssh_key.pem
 
-  build_binary:
+  build_and_restart_app:
     runs-on: self-hosted
-    needs: update_repo_with_env
-    if: github.event.repository.fork == false
-    env:
-      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_KEY: ${{ secrets.SSH_KEY }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set Golang
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.22.1"
-      - name: Build the application
-        run: go build -o telex_be
-      - name: Push to server
-        run: |
-          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
-          chmod 400 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem telex_be ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/telex_be
-          rm telex_be
-
-  restart_app:
-    runs-on: self-hosted
-    needs: [build_binary]
+    needs: [update_repo_with_env]
     if: github.event.repository.fork == false
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
@@ -100,6 +84,7 @@ jobs:
             cd ~/deployments/telex_be
             git reset --hard
             git pull origin dev
+            go build -o telex_be
             pm2 restart telex_be
           '
 

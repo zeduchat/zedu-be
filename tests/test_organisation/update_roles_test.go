@@ -54,7 +54,8 @@ func TestUpdateOrgRole(t *testing.T) {
 		ID:             roleID,
 		Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(5)),
 		Description:    "Administrator role",
-		OrganisationID: orgID,
+		OrganisationID: &orgID,
+		IsDefault:      false,
 	}
 
 	db.Create(&role)
@@ -214,10 +215,27 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		ID:             roleID,
 		Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(5)),
 		Description:    "Administrator role",
-		OrganisationID: orgID,
+		OrganisationID: &orgID,
+		IsDefault:      false,
+	}
+
+	perm := models.Permission{
+		ID:        utility.GenerateUUID(),
+		RoleID:    role.ID,
+		IsDefault: false,
+		PermissionList: models.PermissionList{
+			CanViewTransactions:       true,
+			CanViewRefunds:            true,
+			CanLogRefund:              true,
+			CanViewUser:               true,
+			CanEditUser:               true,
+			CanCreateUser:             false,
+			CanBlacklistWhitelistUser: false,
+		},
 	}
 
 	db.Create(&role)
+	db.Create(&perm)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
 		router, orgController := SetupOrgTestRouter()
@@ -240,13 +258,12 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
-		updatedPermissions := models.Permission{
-			PermissionList: models.PermissionList{
-				"can_view_transactions": true,
-				"can_view_refunds":      false,
-				"can_edit_transactions": true,
-			},
+		updatedPermissions := models.PermissionList{
+			CanViewTransactions: true,
+			CanViewRefunds:      false,
+			CanLogRefund:        true,
 		}
+
 		permissionsJSON, _ := json.Marshal(updatedPermissions)
 
 		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/organisations/%s/roles/%s/permissions", orgID, roleID), bytes.NewBuffer(permissionsJSON))
@@ -266,9 +283,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{
-				"can_view_transactions": true,
-				"can_view_refunds":      false,
-				"can_edit_transactions": true,
+				CanViewTransactions: true,
+				CanViewRefunds:      false,
+				CanLogRefund:        true,
 			},
 		}
 		permissionsJSON, _ := json.Marshal(updatedPermissions)
@@ -296,9 +313,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{
-				"can_view_transactions": true,
-				"can_view_refunds":      false,
-				"can_edit_transactions": true,
+				CanViewTransactions: true,
+				CanViewRefunds:      false,
+				CanLogRefund:        true,
 			},
 		}
 		permissionsJSON, _ := json.Marshal(updatedPermissions)
@@ -325,7 +342,6 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
 		invalidPermissions := map[string]interface{}{
-			"category":        "market",
 			"permission_list": "invalid_permissions",
 		}
 		permissionsJSON, _ := json.Marshal(invalidPermissions)

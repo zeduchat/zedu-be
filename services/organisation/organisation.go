@@ -160,8 +160,11 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 }
 
 func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db *gorm.DB) error {
-	var user models.User
-	var org models.Organisation
+	var (
+		org  models.Organisation
+		user models.User
+	)
+
 	org, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -186,39 +189,14 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 		return errors.New("user already added to organisation")
 	}
 
+
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
 
 	if err != nil {
 		return err
 	}
-
+	
 	return nil
-
-}
-
-func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
-	var (
-		org    models.Organisation
-		orgmgt models.OrgUserManagement
-	)
-
-	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
-	if err != nil {
-		return err
-	}
-
-	if !isowner {
-		return errors.New("user is not the owner of the organisation")
-	}
-
-	err = orgmgt.RemoveMemberFromOrganisation(db, orgId, userId)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-
 }
 
 func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
@@ -254,4 +232,57 @@ func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Con
 	}
 
 	return usersOrgMgtResponse, paginationResponse, nil
+}
+
+func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
+	var (
+		org    models.Organisation
+		orgmgt models.OrgUserManagement
+	)
+
+	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
+	if err != nil {
+		return err
+	}
+
+	if !isowner {
+		return errors.New("user is not the owner of the organisation")
+	}
+
+	err = orgmgt.RemoveMemberFromOrganisation(db, orgId, userId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddMemberToOrganisation(ownerId, orgId, userId string, role string ,db *gorm.DB) error {
+	var (
+		org    models.Organisation
+		orgmgt models.OrgUserManagement
+	)
+
+	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
+	if err != nil {
+		return err
+	}
+
+	if !isowner {
+		return errors.New("user is not the owner of the organisation")
+	}
+
+	orgmgt.RoleID = role
+	orgmgt.UserID = userId
+	orgmgt.OrganisationID = orgId
+	orgmgt.Status = "active"
+
+	err = orgmgt.AddUserToOrganisation(db, orgId, userId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

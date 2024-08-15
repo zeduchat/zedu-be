@@ -5,6 +5,9 @@ import (
 	"sync"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
 )
 
 type InvitationDetail struct {
@@ -46,8 +49,18 @@ func SendInvitationsEmail(invitationResponseMap []models.InvitationResponse) err
 	return nil
 }
 
-// Mock function to simulate sending an email
 func sendEmail(email, link string) error {
-	fmt.Printf("Sending invitation to %s with link: %s\n", email, link)
+	reqData := models.SendInvitationLink{
+		Email:          email,
+		InvitationLink: link,
+	}
+
+	fmt.Sprintf("Sending invitation email to %s with link %s ", email, link)
+
+	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
