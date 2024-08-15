@@ -3502,7 +3502,6 @@ paths:
         - bearerAuth: []
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3547,7 +3546,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
         - name: userId
           in: path
           required: true
@@ -3602,7 +3600,6 @@ paths:
       description: Updates the details of a specific user.
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3655,7 +3652,6 @@ paths:
         security:
           - bearerAuth: []
         parameters:
-          - name: userId
           - name: userId
             in: path
             required: true
@@ -4170,7 +4166,7 @@ paths:
                   message:
                     type: string
    
-  /threads/users/{userId}/organisations/{orgId}:
+  /threads/organisations/{orgId}:
     get:
       tags:
         - threads
@@ -4178,12 +4174,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
-          schema:
-            type: string
         - name: orgId
           in: path
           required: true
@@ -4222,21 +4212,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/users/{userId}/channels/{channel_id}:
+  /threads/channels/{channelId}:
     get:
       tags:
         - threads
-      summary: Retrieve all threads for a user in a specific channel
+      summary: Retrieve all threads in a specific channel
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
-          schema:
-            type: string
-        - name: channel_id
+        - name: channelId
           in: path
           required: true
           description: ID of the channel
@@ -4274,11 +4258,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/{threadId}/users/{userId}:
+  /threads/{threadId}:
     get:
       tags:
         - threads
-      summary: Retrieve a specific thread for a user
+      summary: Retrieve a specific thread
       security:
         - bearerAuth: []
       parameters:
@@ -4286,12 +4270,6 @@ paths:
           in: path
           required: true
           description: ID of the thread
-          schema:
-            type: string
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
           schema:
             type: string
       responses:
@@ -4337,12 +4315,6 @@ paths:
           in: path
           required: true
           description: ID of the thread
-          schema:
-            type: string
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
           schema:
             type: string
       requestBody:
@@ -5526,7 +5498,7 @@ components:
           type: string
         description:
           type: string
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
 
@@ -6059,7 +6031,7 @@ components:
           items:
             type: string
           description: List of user IDs to add to the channel
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
@@ -6093,7 +6065,13 @@ components:
             description:
               type: string
               example: General discussion
-            organization_id:
+            is_private:
+              type: boolean
+              example: false
+            is_dm:
+              type: boolean
+              example: false
+            organisation_id:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -6425,7 +6403,10 @@ components:
         description:
           type: string
           description: Description of the channel
-        organization_id:
+        is_private:
+          type: boolean
+          description: Whether the channel is private or not
+        organisation_id:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
@@ -6459,7 +6440,10 @@ components:
             description:
               type: string
               example: "this room is meant for hackers"
-            organization_id:
+            is_private:
+              type: boolean
+              example: false
+            organisation_id:
               type: string
               format: uuid
               example: "0191442b-0202-751d-8b35-fdc41b8fbc06"

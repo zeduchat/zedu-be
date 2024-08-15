@@ -45,7 +45,6 @@ func TestGetUserSingleThreads(t *testing.T) {
 	threads := models.Threads{
 		ID:           utility.GenerateUUID(),
 		ChannelsID:   channel.ID,
-		UserID:       adminUser.ID,
 		ThreadStatus: "pending",
 	}
 
@@ -75,7 +74,7 @@ func TestGetUserSingleThreads(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/users/%s", threads.ID, adminUser.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s", threads.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 		resp := httptest.NewRecorder()
@@ -94,7 +93,7 @@ func TestGetUserSingleThreads(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
 		nonExistentThreadID := utility.GenerateUUID()
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/users/%s", nonExistentThreadID, adminUser.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s", nonExistentThreadID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 		resp := httptest.NewRecorder()
@@ -108,7 +107,7 @@ func TestGetUserSingleThreads(t *testing.T) {
 	t.Run("Unauthorized Access", func(t *testing.T) {
 		router, _ := setup()
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/users/%s", threads.ID, adminUser.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s", threads.ID), nil)
 		req.Header.Set("Authorization", "Bearer invalid_token")
 
 		resp := httptest.NewRecorder()

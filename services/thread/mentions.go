@@ -1,43 +1,37 @@
 package thread
 
 import (
+	"fmt"
+	"math/rand"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
 	"gorm.io/gorm"
 )
 
-func CreateThreadIfNeeded(req models.CreateMessageRequest, db *gorm.DB) (string, error) {
-	var threadID string
-	var threadStatus = "pending"
+func CreateThreadDummy(req models.Threads, db *gorm.DB) (*models.Threads, error) {
 
-	if req.ThreadId == "" {
-		threadID = utility.GenerateUUID()
-		thread := models.Threads{
-			ID:           threadID,
-			ChannelsID:   req.ChannelsId,
-			UserID:       req.UserId,
-			MessageCount: 1,
-			ThreadStatus: threadStatus,
-		}
+	threadID := utility.GenerateUUID()
 
-		if err := thread.CreateThread(db); err != nil {
-			return "", err
-		}
-	} else {
-		threadID = req.ThreadId
-		var thread models.Threads
-		threadData, err := thread.GetThreadById(db, threadID)
-		if err != nil {
-			return "", err
-		}
-		threadData.MessageCount++
-		if _, err := threadData.UpdateThread(db); err != nil {
-			return "", err
-		}
+	statuses := []string{"failed", "pending", "completed"}
+	randomStatus := statuses[rand.Intn(len(statuses))]
+
+	thread := models.Threads{
+		ID:           threadID,
+		Username:     fmt.Sprintf("User_%s", utility.RandomString(7)),
+		ActionType:   fmt.Sprintf("Action_%s", utility.RandomString(7)),
+		EventName:    fmt.Sprintf("Event_%s", utility.RandomString(7)),
+		ChannelsID:   req.ChannelsID,
+		MessageCount: 0,
+		ThreadStatus: randomStatus,
 	}
 
-	return threadID, nil
+	if err := thread.CreateThread(db); err != nil {
+		return nil, err
+	}
+
+	return &thread, nil
 }
 
 func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {
