@@ -98,3 +98,20 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) CompleteSubscription(c *gin.Context) {
+
+	var (
+		session_id = c.Param("session_id")
+	)
+
+	subscriptionData, code, err, _ := service.CompleteSubscription(session_id)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription completed successfully", subscriptionData)
+	c.JSON(http.StatusOK, rd)
+}

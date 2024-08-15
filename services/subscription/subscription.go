@@ -10,6 +10,7 @@ import (
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/customer"
+	"github.com/stripe/stripe-go/v72/invoice"
 	"github.com/stripe/stripe-go/v72/sub"
 	"gorm.io/gorm"
 )
@@ -132,4 +133,42 @@ func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
 		return http.StatusInternalServerError, fmt.Errorf("error removing subscription plan: %w", err)
 	}
 	return http.StatusOK, nil
+}
+
+func CompleteSubscription(session_id string) (*gin.H, int, error, *stripe.Invoice) {
+	sesh, err := session.Get(session_id, nil)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("error getting session: %w", err), nil
+	}
+	if sesh.PaymentStatus != "paid" {
+		return nil, http.StatusBadRequest, fmt.Errorf("session not paid"), nil
+	}
+
+	subscriptionId := sesh.Subscription.ID
+	if subscriptionId == "" {
+		return nil, http.StatusBadRequest, fmt.Errorf("no subscription ID found"), nil
+	}
+
+	params := &stripe.InvoiceListParams{
+		Subscription: stripe.String(subscriptionId),
+	}
+
+	i := invoice.List(params)
+
+	var invoiceItems []*stripe.Invoice
+
+	for i.Next() {
+		invoiceItems = append(invoiceItems, i.Invoice())
+	}
+
+	if err := i.Err(); err != nil {
+		return nil, http.StatusInternalServerError, err, nil
+	}
+
+	responseData := gin.H{
+		"invoice_items": invoiceItems,
+	}
+
+	return &responseData, http.StatusOK, nil, invoiceItems[0]
+
 }
