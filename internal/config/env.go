@@ -30,6 +30,7 @@ type BaseConfig struct {
 	APP_URL                 string `mapstructure:"APP_URL"`
 	MAGIC_LINK_DURATION     int    `mapstructure:"MAGIC_LINK_DURATION"`
 	RESET_PASSWORD_DURATION int    `mapstructure:"RESET_PASSWORD_DURATION"`
+	WEBHOOK_API_URL         string `mapstructure:"WEBHOOK_API_URL"`
 
 	DB_HOST       string `mapstructure:"DB_HOST"`
 	DB_PORT       string `mapstructure:"DB_PORT"`
@@ -96,6 +97,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			Url:                   config.APP_URL,
 			MagicLinkDuration:     config.MAGIC_LINK_DURATION,
 			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,
+			WebhookApiUrl:         config.WEBHOOK_API_URL,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,

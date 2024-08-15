@@ -25,7 +25,6 @@ func NewCentrifugoService(logger *utility.Logger, config config.Centrifuge) *goc
 	return c
 }
 
-
 func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload interface{}) error {
 
 	payload, err := json.Marshal(broadcastPayload)
@@ -42,14 +41,13 @@ func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload
 		return err
 	}
 
-	(*utility.Logger).Info(logger, fmt.Sprintf("published to %s", channelID))
+	utility.LogAndPrint(logger, fmt.Sprintf("published to %s", channelID))
 
 	return nil
 }
 
 func NewCentrifugod(logger *utility.Logger, config config.Centrifuge) *centrifuge.Client {
 	centrifugoURL := fmt.Sprintf("ws://%s/connection/websocket", config.Url)
-	fmt.Println(centrifugoURL)
 	client := centrifuge.NewJsonClient(
 		centrifugoURL,
 		centrifuge.Config{
@@ -151,29 +149,6 @@ func NewCentrifugod(logger *utility.Logger, config config.Centrifuge) *centrifug
 		log.Printf("Someone left %s: user id %s, client id %s", sub.Channel, e.User, e.Client)
 	})
 
-	err = sub.Subscribe()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	channelID := "public"
-	broadcastPayload := map[string]interface{}{
-		"something": "here",
-	}
-
-	payload, err := json.Marshal(broadcastPayload)
-	if err != nil {
-		panic(err)
-	}
-
-	pubRes, err := sub.Publish(context.Background(), payload)
-
-	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channel %s: %v", channelID, err))
-		panic(err)
-	}
-
-	utility.LogAndPrint(logger, fmt.Sprintf("published  %v to %s", pubRes, channelID))
-
 	return nil
 }
 
@@ -194,7 +169,7 @@ func GetConnToken() string {
 
 func GetSubConnToken(channelName string) string {
 
-	userClaims := jwt.MapClaims{"sub": "user1"}
+	userClaims := jwt.MapClaims{"sub": "user2"}
 	userClaims["exp"] = time.Now().Unix() + int64(30)
 	userClaims["channel"] = channelName
 

@@ -102,7 +102,7 @@ func (base *Controller) GetBlogById(c *gin.Context) {
 	blogID := c.Param("id")
 
 	if _, err := uuid.Parse(blogID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid blog id format", "failed to delete blog", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid blog id format", "failed to retrieve blog", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

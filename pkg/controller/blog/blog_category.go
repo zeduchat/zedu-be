@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	service "github.com/hngprojects/telex_be/services/blog"
 	"github.com/hngprojects/telex_be/utility"
@@ -64,3 +65,29 @@ func (base *Controller) GetBlogCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetBlogCategoryById(c *gin.Context) {
+	ID := c.Param("id")
+
+	if _, err := uuid.Parse(ID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid category id format", "failed to retrieve blog category", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	blog, err := service.GetBlogCategoryById(ID, base.Db.Postgresql)
+
+	if err != nil {
+		if err.Error() == "blog category not found" {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to retrieve blog category", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve blog category", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("blog retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "blog category retrieved successfully", blog)
+	c.JSON(http.StatusOK, rd)
+}

@@ -15,7 +15,7 @@ type Organisation struct {
 	ID                 string `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Name               string `gorm:"type:varchar(255);not null" json:"name"`
 	Description        string `gorm:"type:text" json:"description"`
-	Email              string `gorm:"type:varchar(255)" json:"email"`
+	Email              string `gorm:"type:varchar(255);not null" json:"email"`
 	Type               string `gorm:"type:varchar(255)" json:"type"`
 	Location           string `gorm:"type:varchar(255)" json:"location"`
 	Country            string `gorm:"type:varchar(255)" json:"country"`
@@ -52,10 +52,14 @@ type UpdateOrgRequestModel struct {
 }
 
 type UserInOrgResponse struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	PhoneNumber string `json:"phone_number"`
-	Name        string `json:"name"`
+	ID          string    `json:"id"`
+	Email       string    `json:"email"`
+	PhoneNumber string    `json:"phone_number"`
+	AvatarURL   string    `json:"profile_url"`
+	Name        string    `json:"name"`
+	Role        string    `json:"role"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type AddUserToOrgRequestModel struct {
@@ -63,6 +67,7 @@ type AddUserToOrgRequestModel struct {
 }
 
 func (c *Organisation) CreateOrganisation(db *gorm.DB) error {
+
 	err := postgresql.CreateOneRecord(db, &c)
 	if err != nil {
 		return err
@@ -228,7 +233,7 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number , users.name").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.full_name as name, profiles.avatar_url as profile_url, users.created_at ").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
 		Joins("JOIN profiles ON profiles.userid = users.id").
 		Where("user_organisations.organisation_id = ?", orgId).
@@ -258,7 +263,16 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 }
 
 func (o *Organisation) CheckOrgExists(orgId string, db *gorm.DB) (Organisation, error) {
-	org, err := o.GetOrgByID(db, orgId)
+	var (
+		org Organisation
+	)
+
+	exists := postgresql.CheckExists(db, &o, "id = ?", orgId)
+	if !exists {
+		return org, errors.New("organisation not found")
+	}
+
+	err, _ := postgresql.SelectOneFromDb(db, &org, "id = ?", orgId)
 	if err != nil {
 		return org, err
 	}
@@ -309,4 +323,47 @@ func (o *Organisation) CountOrganisationChannelss(db *gorm.DB, orgId string) (in
 		return 0, errors.New("error counting channels in an organisation")
 	}
 	return int64(len(rs)), nil
+}
+
+func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]Invitation, postgresql.PaginationResponse, error) {
+	var (
+		invitations []Invitation
+	)
+
+	exists := postgresql.CheckExists(db, o, "id = ?", orgID)
+	if !exists {
+		return invitations, postgresql.PaginationResponse{}, errors.New("organisation not found")
+	}
+
+	exists = postgresql.CheckExists(db, &User{}, "id = ?", userID)
+	if !exists {
+		return invitations, postgresql.PaginationResponse{}, errors.New("user not found")
+	}
+
+	isowner, err := o.IsOwnerOfOrganisation(db, userID, orgID)
+	if err != nil {
+		return invitations, postgresql.PaginationResponse{}, err
+	}
+	if !isowner {
+		return invitations, postgresql.PaginationResponse{}, errors.New("user is not the owner of the organisation")
+	}
+
+	pagination := postgresql.GetPagination(c)
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		db,
+		"",
+		"desc",
+		pagination,
+		&invitations,
+		"organisation_id = ?",
+		orgID,
+	)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return invitations, paginationResponse, errors.New("channel not found")
+		}
+		return invitations, paginationResponse, err
+	}
+	return invitations, paginationResponse, nil
 }

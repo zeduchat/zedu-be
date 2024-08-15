@@ -3,13 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/cronjobs"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -26,14 +29,22 @@ func main() {
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
 	minio.ConnectToMinio(logger, configuration.Minio)
-	// centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
-	// centrifuge.NewCentrifugod(logger, configuration.Centrifuge)
+	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
+	centrifuge.NewCentrifugod(logger, configuration.Centrifuge)
 
-	// err := centrifuge.BroadcastChannel(logger, "channel", map[string]interface{}{"input": "yesssss....."})
+	d := models.FeedWebHookRequest{
+		EventName: "testtt",
+		UserName:  "cyberguru",
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		ActionType: "action_test",
+		ChannelID: "0191524f-6adc-7c38-a9fb-9c6d98859fe6",
+	}
 
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
+	err := centrifuge.BroadcastChannel(logger, "0191524f-6adc-7c38-a9fb-9c6d98859fe6", d)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	validatorRef := validator.New()
 

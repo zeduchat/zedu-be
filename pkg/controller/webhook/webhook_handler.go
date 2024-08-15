@@ -32,7 +32,7 @@ func (base *Controller) PostWebhook(c *gin.Context) {
 		return
 	}
 
-	req.WebhookSlug = c.Param("webhook_id")
+	req.WebhookSlug = c.Param("webhook_slug")
 
 	if err != nil {
 		base.Logger.Info("invalid webhook")
@@ -49,7 +49,7 @@ func (base *Controller) PostWebhook(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to channel successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -111,7 +111,6 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-
 
 	if err != nil {
 		base.Logger.Info("invalid webhook")

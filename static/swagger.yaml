@@ -39,6 +39,14 @@ tags:
     description: API for threads related endpoints
   - name: user-management
     description: API for user management related endpoints
+<<<<<<< HEAD
+=======
+  - name: Profile
+    description: API for user profile related endpoints
+  - name: help center
+    description: API for help center related endpoints
+
+>>>>>>> e4a4b3aace1e7383e9fd5c27dd9936615591aac4
 
 
 paths:
@@ -1590,6 +1598,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/{userId}/sessions:
+    get:
+      tags:
+        - user
+      summary: Retrieve user login sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: User Sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
   /users/revoke-session:
     put:
       tags:
@@ -1700,6 +1751,54 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/{user_id}:
+    delete:
+      tags:
+        - user
+      summary: Delete a user
+      security:
+        - bearerAuth: []
+      description: Deletes a user by their ID.
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the user to delete
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'             
+                
   /channels:
     post:
       tags:
@@ -2425,7 +2524,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
-  /connection/token:
+  /token/connection:
     get:
       tags:
         - tokens
@@ -2453,7 +2552,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnauthorizedErrorSchema'
   
-  /subscription/token:
+  /token/subscription:
     post:
       tags:
         - tokens
@@ -3766,7 +3865,51 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'               
+                $ref: '#/components/schemas/ServerErrorSchema' 
+  /profile/image:
+    
+    delete:
+      tags:
+        - Profile
+      summary: Delete user profile image
+      description: Allows authenticated users to delete their profile image.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile image deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile image deleted successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'                               
               
   /invite/create:
     post:
@@ -4717,17 +4860,428 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
                 
+<<<<<<< HEAD
                 
   
 
 
 
 
+=======
+  /help-center/category:
+    post:
+      tags:
+        - help center
+      summary: create help center category 
+      security:
+        - bearerAuth: [] 
+      requestBody:
+        description: input valid characters
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  format: string
+                description:
+                  type: string
+                  format: string
+              required:   
+                 - name
+                 - description
+      responses:
+        '201':
+          description: help center category Created successfully
+          content:
+           application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                statusCode:
+                  type: integer
+                  example: 201
+                message:
+                  type: string
+                  example: "Category added successfully"  
+                data:
+                  type: object
+                  properties:
+                    schema:
+                      $ref: '#/components/schemas/CategoryResponseSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+>>>>>>> e4a4b3aace1e7383e9fd5c27dd9936615591aac4
 
+  /help-center/articles/{category_id}:
+    post:
+      tags:
+        - help center
+      summary: Create a new help center article
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: input valid characters
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  format: string
+                content:
+                  type: string
+                  format: string
+              required:   
+                 - title
+                 - description      
+      responses:
+        '201':
+          description: Help center article created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  statusCode:
+                    type: integer
+                    example: 201  
+                  message:
+                    type: string
+                    example: "Article added successfully"
+                  data:
+                    $ref: '#/components/schemas/ArticleResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /help-center/articles/categories/{category_id}:
+    get:
+      tags:
+        - help center
+      summary: Get paginated articles that belong to a particular category ID
+      parameters:
+        - name: category-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: Paginated articles retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Articles retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ArticleResponseSchema'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1 
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /help-center/categories:
+    get:
+      tags:
+        - help center
+      summary: Get all help center categories
+      responses:
+        '200':
+          description: Help center categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200  
+                  message:
+                    type: string
+                    example: "Categories retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryResponseSchema'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1   
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'   
+
+  /help-center/articles/{article_id}:
+    get:
+      tags:
+        - help center
+      summary: Get help center article by ID
+      parameters:
+        - name: article-id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: article retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Help center article retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: '#/components/schemas/ArticleResponseSchema'
+        '404':
+          description: Article not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema' 
+
+  /help-center/articles/search: 
+    get:
+      summary: Search Help Center articles
+      description: Searches Help Center topics by title.
+      tags:
+        - help center
+      parameters:
+        - in: query
+          name: title
+          schema:
+            type: string
+          required: true
+          description: The search Topic title
+      responses:
+        '200':
+          description: Articles Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200  
+                  message:
+                    type: string
+                    example: "Articles retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HelpCenter'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1   
 
 components:
 
   schemas:
+    CategoryResponseSchema:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          example: "019150d5-1e95-707f-b73e-88e5c58db563"
+        name:
+          type: string
+          example: "Category Example"
+        description:
+          type: string
+          example: "This is a test category"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+
+    ArticleResponseSchema:
+      type: object
+      properties:
+        article_id:
+          type: string
+          format: uuid
+          example: "b8a1bcf2-d8f2-49d4-a42d-21ef9c03b305"
+        title:
+          type: string
+          example: "Article Title"
+        content:
+          type: string
+          example: "This is a test article"
+        category_id:
+          type: string
+          format: uuid
+          example: "019150d5-1e95-707f-b73e-88e5c58db563"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T13:20:29.9743151+01:00"
+
     ChannelsFetchResponseSchema:
       type: object
       properties:
@@ -6445,9 +6999,12 @@ components:
         description:
           type: string
           description: Description of the channel
+<<<<<<< HEAD
         is_private:
           type: boolean
           description: Whether the channel is private or not
+=======
+>>>>>>> e4a4b3aace1e7383e9fd5c27dd9936615591aac4
         organisation_id:
           type: string
           format: uuid

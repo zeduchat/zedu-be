@@ -29,7 +29,7 @@ func (base *Controller) GetAllWebhook(c *gin.Context) {
 
 	if _, err := uuid.Parse(channelId); err != nil {
 		base.Logger.Info("error parsing channel id")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org id format", errors.New("failed to parse org id"), nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -226,22 +226,6 @@ func (base *Controller) CreateWebhook(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
-		base.Logger.Info("error parsing request body")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	err = base.Validator.Struct(&req)
-	if err != nil {
-		base.Logger.Info("validation failed")
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
 	req.UserID = userId
 	req.ChannelID = channelId
 
@@ -311,4 +295,28 @@ func (base *Controller) ChangeWebhookStatus(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "webhook status updated successfully", userData)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetChannelWebhook(c *gin.Context) {
+
+	channelId := c.Param("channel_id")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		base.Logger.Info("error parsing channel id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := webhook.GetChannelWebhook(base.Db.Postgresql, c, channelId)
+	if err != nil {
+		base.Logger.Info("error fetching webhooks")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("webhook fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "webhook fetched successfully", respData)
+	c.JSON(code, rd)
 }

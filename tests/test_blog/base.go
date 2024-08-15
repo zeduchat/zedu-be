@@ -42,5 +42,6 @@ func SetupBlogRoutes(r *gin.Engine, blogController *blog.Controller) {
 
 	blogUrl.GET("/blogs", blogController.GetBlogs)
 	blogUrl.GET("/blog_categories", blogController.GetBlogCategories)
+	blogUrl.GET("/blog_categories/:id", blogController.GetBlogCategoryById)
 	blogUrl.GET("/blogs/:id", blogController.GetBlogById)
 }

@@ -51,6 +51,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		UserName:   req.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
+		Status:     "success",
 	}
 
 	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)

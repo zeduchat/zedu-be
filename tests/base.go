@@ -160,7 +160,7 @@ func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db 
 	return channelID, channelName
 }
 
-func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org organisation.Controller, orgData models.CreateOrgRequestModel, token string) (string, string) {
+func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org organisation.Controller, orgData models.CreateOrgRequestModel, token string) (string, string, string) {
 	var (
 		orgPath = "/api/v1/organisations"
 		orgURI  = url.URL{Path: orgPath}
@@ -186,5 +186,6 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	dataM := data["data"].(map[string]interface{})
 	orgID := dataM["id"].(string)
 	orgName := dataM["name"].(string)
-	return orgID, orgName
+	ownerID := dataM["owner_id"].(string)
+	return orgID, orgName, ownerID
 }

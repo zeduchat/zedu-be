@@ -40,10 +40,8 @@ type WebhookHistory struct {
 }
 
 type CreateWebhookRequest struct {
-	ChannelID   string `json:"channel_id"`
-	UserID      string `json:"user_id"`
-	WebhookName string `json:"webhook_name" validate:"required"`
-	EventName   string `json:"event_name"`
+	ChannelID string `json:"channel_id"`
+	UserID    string `json:"user_id"`
 }
 
 type UpdateWebhookRequest struct {
@@ -74,11 +72,20 @@ type GetWebhookHistoryRequest struct {
 }
 
 func (w *Webhook) CreateWebhook(db *gorm.DB) error {
-	var userChannel UserChannels
+	var (
+		userChannel UserChannels
+		webhook     Webhook
+	)
 
 	exist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", w.ChannelId, w.OwnerId)
 	if !exist {
 		return errors.New("user not in channel")
+	}
+
+	exist = postgresql.CheckExists(db, &webhook, "channel_id = ?", w.ChannelId)
+
+	if exist {
+		return errors.New("webhook already exists")
 	}
 
 	err := postgresql.CreateOneRecord(db, w)
@@ -250,6 +257,20 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 	}
 
 	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
+
+	if !exist {
+		return webhook, errors.New("webhook not found")
+	}
+
+	return webhook, nil
+}
+
+func (r *Webhook) GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (Webhook, error) {
+	var (
+		webhook Webhook
+	)
+
+	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", channelId)
 
 	if !exist {
 		return webhook, errors.New("webhook not found")

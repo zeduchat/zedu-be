@@ -21,18 +21,20 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 		resp    gin.H
 	)
 
+	resp = gin.H{
+		"webhook": nil,
+		"status":  false,
+	}
+
 	webhook = models.Webhook{
-		ID:          utility.GenerateUUID(),
-		EventName:   req.EventName,
-		WebhookName: req.WebhookName,
-		ChannelId:   req.ChannelID,
-		OwnerId:     req.UserID,
-		Status:      "active",
+		ID:        utility.GenerateUUID(),
+		ChannelId: req.ChannelID,
+		OwnerId:   req.UserID,
+		Status:    "active",
 	}
 
 	slug := strings.Split(webhook.ID, "-")[4]
-	webhookUrl := config.Config.App.Url + fmt.Sprintf("/webhook/channel/%s", slug)
-
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/webhooks/feed/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
 
@@ -43,7 +45,8 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (gin.H, int, er
 	}
 
 	resp = gin.H{
-		"webhook_url": webhookUrl,
+		"webhook": webhook,
+		"status":  true,
 	}
 
 	return resp, http.StatusCreated, nil
@@ -133,5 +136,22 @@ func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *
 	}
 
 	return resp, pagResp, http.StatusOK, nil
+
+}
+
+func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (models.Webhook, int, error) {
+
+	var (
+		resp     models.Webhook
+		webhooks models.Webhook
+	)
+
+	resp, err := webhooks.GetChannelWebhook(db, c, channelId)
+
+	if err != nil {
+		return resp, http.StatusBadRequest, err
+	}
+
+	return resp, http.StatusOK, nil
 
 }
