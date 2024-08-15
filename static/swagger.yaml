@@ -4017,7 +4017,7 @@ paths:
                   $ref: '#/components/schemas/ServerErrorSchema'
               
   /users/activate/{userId}:
-      delete:
+      put:
         tags:
           - user
         summary: Activate  a specific user
