@@ -111,3 +111,36 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Profile updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
+	
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	code, err := profile.DeleteUserProfileImage(base.Db.Postgresql, base.Logger, userId)
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Profile not found", err, nil)
+			c.JSON(http.StatusNotFound, rd)
+		} else {
+			rd := utility.BuildErrorResponse(code, "error", "Failed to update Profile", err, nil)
+			c.JSON(http.StatusInternalServerError, rd)
+		}
+		return
+	}
+
+	base.Logger.Info("Profile image deleted successfully")
+	rd := utility.BuildSuccessResponse(code, "Profile image deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+// DeleteUserProfileImage

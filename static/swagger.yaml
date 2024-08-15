@@ -39,10 +39,9 @@ tags:
     description: API for threads related endpoints
   - name: user-management
     description: API for user management related endpoints
-  - name: threads
+  - name: Profile
     description: API for threads related endpoints
-  - name: help center
-    description:  API for user help center operations  
+
 
 
 paths:
@@ -70,8 +69,6 @@ paths:
                 first_name:
                   type: string
                 last_name:
-                  type: string
-                phone_number:
                   type: string
               required:
                 - email
@@ -1706,6 +1703,54 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/{user_id}:
+    delete:
+      tags:
+        - user
+      summary: Delete a user
+      security:
+        - bearerAuth: []
+      description: Deletes a user by their ID.
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the user to delete
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'             
+                
   /channels:
     post:
       tags:
@@ -2565,17 +2610,6 @@ paths:
         - blogs
       summary: get all blogs from the lastest
       parameters:
-        - in: query
-          name: category
-          schema:
-            type: string
-            format: uuid
-          description: The ID of the blog category to filter by.
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: The search query to match against blog titles and content.
         - in: query
           name: category
           schema:
@@ -3454,7 +3488,6 @@ paths:
         - bearerAuth: []
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3499,7 +3532,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
         - name: userId
           in: path
           required: true
@@ -3554,7 +3586,6 @@ paths:
       description: Updates the details of a specific user.
       parameters:
         - name: userId
-        - name: userId
           in: path
           required: true
           schema:
@@ -3607,7 +3638,6 @@ paths:
         security:
           - bearerAuth: []
         parameters:
-          - name: userId
           - name: userId
             in: path
             required: true
@@ -3787,7 +3817,51 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'               
+                $ref: '#/components/schemas/ServerErrorSchema' 
+  /profile/image:
+    
+    delete:
+      tags:
+        - Profile
+      summary: Delete user profile image
+      description: Allows authenticated users to delete their profile image.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile image deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile image deleted successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'                               
               
   /invite/create:
     post:
@@ -4078,7 +4152,7 @@ paths:
                   message:
                     type: string
    
-  /threads/users/{userId}/organisations/{orgId}:
+  /threads/organisations/{orgId}:
     get:
       tags:
         - threads
@@ -4086,12 +4160,6 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
-          schema:
-            type: string
         - name: orgId
           in: path
           required: true
@@ -4130,21 +4198,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/users/{userId}/channels/{channel_id}:
+  /threads/channels/{channelId}:
     get:
       tags:
         - threads
-      summary: Retrieve all threads for a user in a specific channel
+      summary: Retrieve all threads in a specific channel
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
-          schema:
-            type: string
-        - name: channel_id
+        - name: channelId
           in: path
           required: true
           description: ID of the channel
@@ -4182,11 +4244,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/{threadId}/users/{userId}:
+  /threads/{threadId}:
     get:
       tags:
         - threads
-      summary: Retrieve a specific thread for a user
+      summary: Retrieve a specific thread
       security:
         - bearerAuth: []
       parameters:
@@ -4194,12 +4256,6 @@ paths:
           in: path
           required: true
           description: ID of the thread
-          schema:
-            type: string
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
           schema:
             type: string
       responses:
@@ -4245,12 +4301,6 @@ paths:
           in: path
           required: true
           description: ID of the thread
-          schema:
-            type: string
-        - name: userId
-          in: path
-          required: true
-          description: ID of the user
           schema:
             type: string
       requestBody:
@@ -5246,8 +5296,6 @@ components:
                     items:
                       type: string
                     nullable: true
-  
-  
     ConnectionTokenResponseSchema:
       type: object
       properties:
@@ -5271,7 +5319,7 @@ components:
           type: string
           description: The generated subscription token
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  
+ 
     ChannelUsersResponseSchema:
       type: object
       properties:
@@ -5323,7 +5371,7 @@ components:
                   avatar_url:
                     type: string
                     example: ""
-                  user_id:
+                  userId:
                     type: string
                     example: ""
                   created_at:
@@ -5352,49 +5400,53 @@ components:
                 properties:
                   id:
                     type: string
-                    format: uuid
-                    example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+                    example: ""
                   name:
                     type: string
-                    example: "hackers"
+                    example: ""
                   description:
                     type: string
-                    example: "this room is meant for hackers"
-                  is_private:
-                    type: boolean
-                    example: false
-                  organisation_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
-                  owner_id:
-                    type: string
-                    format: uuid
-                    example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
-                  users:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
-                  user_count:
-                    type: integer
-                    example: 0
-                  message_count:
-                    type: integer
-                    example: 0
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2024-08-12T15:23:56.147736+01:00"
-                  deleted_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:13:35+00:13"
-                  messages:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
+                    example: ""
+                  permissions:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: ""
+                      category:
+                        type: string
+                        example: ""
+                      permission_list:
+                        type: array
+                        items:
+                          type: string
+                        nullable: true
+              created_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              updated_at:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              role:
+                type: integer
+                example: 0
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 20
+            total_items:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
     
     UpdateProfileResponse:
       type: object
@@ -5985,7 +6037,7 @@ components:
           type: string
         description:
           type: string
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
 
@@ -6518,7 +6570,7 @@ components:
           items:
             type: string
           description: List of user IDs to add to the channel
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
@@ -6552,7 +6604,13 @@ components:
             description:
               type: string
               example: General discussion
-            organization_id:
+            is_private:
+              type: boolean
+              example: false
+            is_dm:
+              type: boolean
+              example: false
+            organisation_id:
               type: string
               format: uuid
               example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -6884,7 +6942,7 @@ components:
         description:
           type: string
           description: Description of the channel
-        organization_id:
+        organisation_id:
           type: string
           format: uuid
           description: ID of the organization the channel belongs to
@@ -6918,7 +6976,10 @@ components:
             description:
               type: string
               example: "this room is meant for hackers"
-            organization_id:
+            is_private:
+              type: boolean
+              example: false
+            organisation_id:
               type: string
               format: uuid
               example: "0191442b-0202-751d-8b35-fdc41b8fbc06"
