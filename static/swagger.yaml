@@ -4356,31 +4356,30 @@ paths:
                             type: string
                             description: The user's username.
                             example: ""
-      '400':
-        description: Bad request
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BadRequestErrorSchema'
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UnauthorizedErrorSchema'
-      '403':
-        description: Forbidden
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ForbiddenErrorSchema'
-      '422':
-        description: Validation error
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
    
   /threads/organisations/{orgId}:
