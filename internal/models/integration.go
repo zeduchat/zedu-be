@@ -12,6 +12,7 @@ import (
 type Integrations struct {
 	ID             string 		`gorm:"type:uuid;primary_key" json:"id"`
 	Name           string 		`gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
+	LogoUrl        string		`gorm:"colume:logo_url; type:varchar(255);" json:"logo_url"`
 	ApiEndpointUrl string		`gorm:"column:api_endpoint_url; type:varchar(255);" json:"api_endpoint_url"`
 	AuthCredential string		`gorm:"column:auth_credential; type:varchar(255);" json:"auth_credential"`
 	CreatedAt      time.Time	`gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`

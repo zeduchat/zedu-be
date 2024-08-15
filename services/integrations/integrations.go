@@ -1,6 +1,9 @@
 package integrations
 
 import (
+	"log"
+
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -9,19 +12,32 @@ import (
 )
 
 func CreateIntegrationApp(req models.Integrations, db *gorm.DB) (models.Integrations, error) {
-    intApp := models.Integrations{
-        ID:             utility.GenerateUUID(),
-        Name:           req.Name,
-        ApiEndpointUrl: req.ApiEndpointUrl,
-        AuthCredential: req.AuthCredential,
-    }
+	intApp := models.Integrations{
+		ID:             utility.GenerateUUID(),
+		Name:           req.Name,
+		ApiEndpointUrl: req.ApiEndpointUrl,
+		AuthCredential: req.AuthCredential,
+	}
 
-    err := intApp.CreateIntegrationApp(db, req.Name)
-    if err != nil {
-        return models.Integrations{}, err
-    }
+	doc, err := goquery.NewDocument(req.ApiEndpointUrl)
+	if err != nil {
+		return models.Integrations{}, err
+	}
 
-    return intApp, nil
+	ogImage, exists := doc.Find("meta[property='og:image']").Attr("content")
+	
+	if exists {
+		intApp.LogoUrl = ogImage 
+	} else {
+		log.Println("No og:image found in the provided URL")
+	}
+
+	err = intApp.CreateIntegrationApp(db, req.Name)
+	if err != nil {
+		return models.Integrations{}, err
+	}
+
+	return intApp, nil
 }
 
 func GetAllIntegrationApp(c *gin.Context, db *gorm.DB) ([]models.Integrations, postgresql.PaginationResponse, error) {
