@@ -7730,9 +7730,7 @@ components:
         - user_id
         - email
         - plan_id
-        - payment_method
         - currency
-        - billing_cycle
       properties:
         plan_name:
           type: string
@@ -7759,46 +7757,10 @@ components:
           type: string
           description: "The currency for the payment."
           example: "USD"
-        billing_cycle:
-          type: string
-          description: "The billing cycle for the subscription."
-          example: "monthly"
-        address_line1:
-          type: string
-          description: "The first line of the billing address."
-          example: "123 Main St"
-        address_line2:
-          type: string
-          description: "The second line of the billing address."
-          example: "Apt 4B"
-        city:
-          type: string
-          description: "The city of the billing address."
-          example: "New York"
-        state:
-          type: string
-          description: "The state or province of the billing address."
-          example: "NY"
-        postal_code:
-          type: string
-          description: "The postal code of the billing address."
-          example: "10001"
-        country:
-          type: string
-          description: "The country of the billing address."
-          example: "US"
         coupon_code:
           type: string
           description: "A coupon code for a discount, if applicable."
           example: "DISCOUNT20"
-        metadata:
-          type: object
-          additionalProperties:
-            type: string
-          description: "Additional metadata for the subscription."
-          example: 
-            order_id: "ORD_12345"
-            customer_note: "Handle with care"        
     ModifySubscriptionRequest:
       type: object
       required:
@@ -7935,3 +7897,4 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
+

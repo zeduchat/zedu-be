@@ -43,21 +43,13 @@ func SeedSubscriptionPlans(db *gorm.DB) {
 }
 
 type CreateSubscriptionRequest struct {
-	PlanName      string            `json:"plan_name" binding:"required"`
-	UserID        string            `json:"user_id" binding:"required"`
-	Email         string            `json:"email" binding:"required,email"`
-	PlanID        string            `json:"plan_id" binding:"required"`
-	PaymentMethod string            `json:"payment_method" binding:"required"`
-	Currency      string            `json:"currency" binding:"required"`
-	BillingCycle  string            `json:"billing_cycle" binding:"required"`
-	AddressLine1  string            `json:"address_line1,omitempty"`
-	AddressLine2  string            `json:"address_line2,omitempty"`
-	City          string            `json:"city,omitempty"`
-	State         string            `json:"state,omitempty"`
-	PostalCode    string            `json:"postal_code,omitempty"`
-	Country       string            `json:"country,omitempty"`
-	CouponCode    string            `json:"coupon_code,omitempty"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
+	PlanName      string `json:"plan_name" binding:"required"`
+	UserID        string `json:"user_id" binding:"required"`
+	Email         string `json:"email" binding:"required,email"`
+	PlanID        string `json:"plan_id" binding:"required"`
+	PaymentMethod string `json:"payment_method" binding:"required"`
+	Currency      string `json:"currency" binding:"required"`
+	CouponCode    string `json:"coupon_code,omitempty"`
 }
 
 type ModifySubscriptionRequest struct {
