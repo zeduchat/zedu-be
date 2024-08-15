@@ -2521,7 +2521,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
-  /connection/token:
+  /token/connection:
     get:
       tags:
         - tokens
@@ -2549,7 +2549,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnauthorizedErrorSchema'
   
-  /subscription/token:
+  /token/subscription:
     post:
       tags:
         - tokens
