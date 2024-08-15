@@ -34,7 +34,7 @@ func TestIntegrationFlow(t *testing.T) {
 	db.Create(&regularUser)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, _ := SetupIntegrationTestRouter()
+		router, integrationController := SetupIntegrationTestRouter()
 		authController := auth.Controller{
 			Db:        integrationController.Db,
 			Validator: integrationController.Validator,
