@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
@@ -13,7 +14,7 @@ type LoginActivity struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	UserID         string         `gorm:"type:varchar(100);not null;index" json:"user_id"`
 	OrganisationID *string        `gorm:"type:varchar(100);null;index" json:"-"`
-	AccessID       *string        `gorm:"type:uuid;null;index" json:"access_token_id"`
+	AccessID       *uuid.UUID     `gorm:"type:uuid;null;index" json:"access_token_id"`
 	LoginAt        time.Time      `gorm:"type:timestamp;null" json:"login_at"`
 	IPAddress      string         `gorm:"type:varchar(45);not null" json:"ip_address"`
 	Location       string         `gorm:"type:varchar(100)" json:"location"`

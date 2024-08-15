@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
@@ -42,12 +43,12 @@ func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 	}
 
 	browser := c.GetHeader("User-Agent")
-
+	accessId, _ := uuid.FromString(accessID)
 	loginActivity := &models.LoginActivity{
 		ID:             utility.GenerateUUID(),
 		UserID:         userID,
 		OrganisationID: &organisationID,
-		AccessID:       &accessID,
+		AccessID:       &accessId,
 		LoginAt:        GetCurrentTime(),
 		IPAddress:      ipAddress,
 		Location:       location,
