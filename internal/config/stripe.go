@@ -1,8 +1,8 @@
 package config
 
 type Stripe struct {
-	STRIPE_KEY  string
-	BASIC_ID    string
-	PREMIUM_ID  string
-	ADVANCED_ID string
+	STRIPE_KEY         string
+	STRIPE_BASIC_ID    string
+	STRIPE_PREMIUM_ID  string
+	STRIPE_ADVANCED_ID string
 }
