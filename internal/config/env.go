@@ -15,6 +15,7 @@ type Configuration struct {
 	Redis        Redis
 	Mail         MAIL
 	Minio        Minio
+	TypeSense    TypeSense
 }
 
 type BaseConfig struct {
@@ -72,6 +73,8 @@ type BaseConfig struct {
 	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
+	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
+	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -151,6 +154,11 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			BucketName:    config.BUCKET_NAME,
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
+		},
+
+		TypeSense: TypeSense{
+			TypeSense_API_URL: config.TYPESENSE_API_URL,
+			TypeSense_API_KEY: config.TYPESENSE_API_KEY,
 		},
 	}
 }

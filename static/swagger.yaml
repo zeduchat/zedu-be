@@ -39,14 +39,11 @@ tags:
     description: API for threads related endpoints
   - name: user-management
     description: API for user management related endpoints
-<<<<<<< HEAD
-=======
   - name: Profile
     description: API for user profile related endpoints
   - name: help center
     description: API for help center related endpoints
 
->>>>>>> e4a4b3aace1e7383e9fd5c27dd9936615591aac4
 
 
 paths:
@@ -4860,14 +4857,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
                 
-<<<<<<< HEAD
-                
-  
-
-
-
-
-=======
   /help-center/category:
     post:
       tags:
@@ -4926,7 +4915,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
->>>>>>> e4a4b3aace1e7383e9fd5c27dd9936615591aac4
 
   /help-center/articles/{category_id}:
     post:

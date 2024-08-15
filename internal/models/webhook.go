@@ -27,8 +27,9 @@ type Webhook struct {
 }
 
 type WebhookHistory struct {
-	ID          string    `gorm:"column:id; type:serial; primaryKey" json:"id"`
+	ID          string    `gorm:"column:id; type:uuid; primaryKey" json:"id"`
 	CallbackID  string    `gorm:"column:callback_id; type:text;null" json:"callback_id"`
+	EventName   string    `gorm:"column:event_name;type:text;null" json:"event_name"`
 	WebhookSlug string    `gorm:"column:webhook_slug; type:text;null" json:"webhook_id"`
 	ActionType  string    `gorm:"column:action_type; type:text;null" json:"action_type"`
 	StatusCode  string    `gorm:"column:status_code; type:text;null" json:"status_code"`

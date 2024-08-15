@@ -17,7 +17,7 @@ import (
 func (base *Controller) CreateOrganisation(c *gin.Context) {
 
 	var (
-		req        = models.CreateOrgRequestModel{}
+		req = models.CreateOrgRequestModel{}
 	)
 
 	err := c.ShouldBind(&req)
@@ -324,5 +324,3 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
-
-
