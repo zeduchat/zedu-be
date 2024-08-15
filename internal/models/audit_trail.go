@@ -13,8 +13,8 @@ type LoginActivity struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	UserID         string         `gorm:"type:varchar(100);not null;index" json:"user_id"`
 	OrganisationID *string        `gorm:"type:varchar(100);null;index" json:"-"`
-	AccessID       *string        `gorm:"type:uuid;not null;index" json:"access_token_id"`
-	LoginAt        time.Time      `gorm:"type:timestamp;not null" json:"login_at"`
+	AccessID       *string        `gorm:"type:uuid;null;index" json:"access_token_id"`
+	LoginAt        time.Time      `gorm:"type:timestamp;null" json:"login_at"`
 	IPAddress      string         `gorm:"type:varchar(45);not null" json:"ip_address"`
 	Location       string         `gorm:"type:varchar(100)" json:"location"`
 	Device         string         `gorm:"type:varchar(50)" json:"device"`
