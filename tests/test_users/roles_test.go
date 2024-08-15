@@ -49,14 +49,14 @@ func TestUpdateUserRole(t *testing.T) {
 		ID:             utility.GenerateUUID(),
 		Name:           fmt.Sprintf("Admin-%v", utility.RandomString(7)),
 		Description:    "Super Administrator Role",
-		OrganisationID: orgID,
+		OrganisationID: &orgID,
 	}
 
 	userRole := models.OrgRole{
 		ID:             utility.GenerateUUID(),
 		Name:           fmt.Sprintf("Vendor-%v", utility.RandomString(5)),
 		Description:    "Standard User Role",
-		OrganisationID: orgID,
+		OrganisationID: &orgID,
 	}
 	db.Create(&superAdminRole)
 	db.Create(&userRole)

@@ -52,7 +52,7 @@ func TestDeleteOrgRole(t *testing.T) {
 		ID:             roleID,
 		Name:           fmt.Sprintf("Admin Role-%v", utility.RandomString(5)),
 		Description:    "Administrator role",
-		OrganisationID: orgID,
+		OrganisationID: &orgID,
 	}
 
 	db.Create(&role)
