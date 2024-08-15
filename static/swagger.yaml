@@ -1754,6 +1754,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+
   /users/{user_id}:
     delete:
       tags:
@@ -1802,6 +1803,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'             
                 
+
   /channels:
     post:
       tags:
@@ -6920,15 +6922,6 @@ components:
         description:
           type: string
           description: Description of the role.
-        location:
-          type: string
-        country:
-          type: string
-        email:
-          type: string
-        type:
-          type: string
-        
 
     OrgRoleCreateResponseSchema:
       type: object
