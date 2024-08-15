@@ -1,6 +1,8 @@
 package audit_utility
 
 import (
+	"net"
+
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -11,6 +13,14 @@ import (
 func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 	userID, accessID string, Organisations []models.Organisation) error {
 	ipAddress := c.ClientIP()
+	if isPrivateIP(ipAddress) {
+		ipAddress = c.GetHeader("X-Forwarded-For")
+		if ipAddress == "" {
+			ipAddress = c.GetHeader("X-Real-IP")
+		}
+
+	}
+
 	var location, organisationID string
 	response, err := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
 	if err != nil {
@@ -45,4 +55,21 @@ func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 	}
 
 	return loginActivity.Create(db)
+}
+
+func isPrivateIP(ip string) bool {
+	privateIPBlocks := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+	}
+
+	for _, block := range privateIPBlocks {
+		_, cidr, _ := net.ParseCIDR(block)
+		parsedIP := net.ParseIP(ip)
+		if cidr.Contains(parsedIP) {
+			return true
+		}
+	}
+	return false
 }
