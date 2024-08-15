@@ -16,6 +16,7 @@ type Threads struct {
 	EventName    string    `gorm:"type:varchar(200);index" json:"event_name"`
 	Username     string    `gorm:"type:varchar(50);index" json:"username"`
 	ActionType   string    `gorm:"type:varchar(200);index" json:"action_type"`
+	Status       string    `gorm:"type:varchar(200);index" json:"status"`
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 	ThreadStatus string    `gorm:"type:varchar(20);" json:"thread_status"`

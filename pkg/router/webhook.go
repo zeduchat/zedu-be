@@ -19,11 +19,9 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		webhookUrl.GET("/channel/:webhook_id", webhook.GetWebhook)
-		webhookUrl.POST("/channel/:webhook_id", webhook.PostWebhook)
-
 		webhookUrl.GET("/:channel_id/history/:webhook_id", webhook.GetWebhookHistory)
-		webhookUrl.GET("/:channel_id", webhook.GetAllWebhook)
+		webhookUrl.GET("/:channel_id/all", webhook.GetAllWebhook)
+		webhookUrl.GET("/:channel_id", webhook.GetChannelWebhook)
 		webhookUrl.POST("/:channel_id", webhook.CreateWebhook)
 		webhookUrl.DELETE("/:channel_id/:webhook_id", webhook.DeleteWebhook)
 		webhookUrl.PUT("/:channel_id/:webhook_id", webhook.UpdateWebhook)
@@ -31,5 +29,10 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 	}
 
+	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
+	{
+		incomingUrl.GET("/feed/:webhook_slug", webhook.GetWebhook)
+		incomingUrl.POST("/feed/:webhook_slug", webhook.PostWebhook)
+	}
 	return r
 }

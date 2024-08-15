@@ -16,6 +16,7 @@ type Configuration struct {
 	Mail         MAIL
 	Minio        Minio
 	Stripe       Stripe
+	TypeSense    TypeSense
 }
 
 type BaseConfig struct {
@@ -31,6 +32,7 @@ type BaseConfig struct {
 	APP_URL                 string `mapstructure:"APP_URL"`
 	MAGIC_LINK_DURATION     int    `mapstructure:"MAGIC_LINK_DURATION"`
 	RESET_PASSWORD_DURATION int    `mapstructure:"RESET_PASSWORD_DURATION"`
+	WEBHOOK_API_URL         string `mapstructure:"WEBHOOK_API_URL"`
 
 	DB_HOST       string `mapstructure:"DB_HOST"`
 	DB_PORT       string `mapstructure:"DB_PORT"`
@@ -55,7 +57,9 @@ type BaseConfig struct {
 	IPSTACK_KEY      string `mapstructure:"IPSTACK_KEY"`
 	IPSTACK_BASE_URL string `mapstructure:"IPSTACK_BASE_URL"`
 
-	HMAC_SECRET string `mapstructure:"HMAC_SECRET"`
+	HMAC_SECRET        string `mapstructure:"HMAC_SECRET"`
+	CENTRIFUGE_URL     string `mapstructure:"CENTRIFUGE_URL"`
+	CENTRIFUGE_API_KEY string `mapstructure:"CENTRIFUGE_API_KEY"`
 
 	MAIL_SERVER   string `mapstructure:"MAIL_SERVER"`
 	MAIL_PASSWORD string `mapstructure:"MAIL_PASSWORD"`
@@ -75,6 +79,8 @@ type BaseConfig struct {
 	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
 	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
 	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
+	TYPESENSE_API_URL  string `mapstructure:"TYPESENSE_API_URL"`
+	TYPESENSE_API_KEY  string `mapstructure:"TYPESENSE_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -100,6 +106,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			Url:                   config.APP_URL,
 			MagicLinkDuration:     config.MAGIC_LINK_DURATION,
 			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,
+			WebhookApiUrl:         config.WEBHOOK_API_URL,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,
@@ -131,6 +138,8 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 
 		Centrifuge: Centrifuge{
 			Secret: config.HMAC_SECRET,
+			Url:    config.CENTRIFUGE_URL,
+			ApiKey: config.CENTRIFUGE_API_KEY,
 		},
 
 		Mail: MAIL{
@@ -157,6 +166,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
 			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
 			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
+		},
+		TypeSense: TypeSense{
+			TypeSense_API_URL: config.TYPESENSE_API_URL,
+			TypeSense_API_KEY: config.TYPESENSE_API_KEY,
 		},
 	}
 }

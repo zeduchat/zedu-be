@@ -11,15 +11,14 @@ import (
 
 func SeedRolesAndPermissions(db *gorm.DB) {
 	var count int64
-	if err := db.Model(&models.OrgRole{}).Count(&count).Error; err != nil {
+	if err := db.Model(&models.OrgRole{}).Where("name IN ?", []string{"Project Lead", "Manager"}).Count(&count).Error; err != nil {
 		fmt.Println(err)
 	}
 
 	if count > 0 {
-		log.Println("Roles already seeded, skipping...")
-		fmt.Println("Roles already seeded, skipping...")
+		log.Println("Roles 'Project Lead' or 'Manager' already exist, skipping seeding...")
+		fmt.Println("Roles 'Project Lead' or 'Manager' already exist, skipping seeding...")
 	} else {
-
 		roles := []models.OrgRole{
 			{
 				ID:          utility.GenerateUUID(),
@@ -140,5 +139,4 @@ func SeedRolesAndPermissions(db *gorm.DB) {
 			}
 		}
 	}
-
 }
