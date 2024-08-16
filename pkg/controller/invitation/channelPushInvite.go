@@ -1,7 +1,6 @@
 package invitation
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -79,7 +78,6 @@ func (base *Controller) ChannelCreateInvite(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
-
 
 	base.Logger.Info("channel invitation link sent to email")
 
