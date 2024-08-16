@@ -294,6 +294,7 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	return channel, nil
 }
 
+
 func (r *Channels) RemoveUserFromChannels(db *gorm.DB, channelID, userID string) error {
 	var userChannels UserChannels
 

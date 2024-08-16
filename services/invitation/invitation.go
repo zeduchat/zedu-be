@@ -64,6 +64,9 @@ func CheckDuplicateEmails(emails []string) bool {
 func GenerateInvitationLink(baseurl, orgID, token string) string {
 	return baseurl + fmt.Sprintf("/accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
+func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
+	return baseurl + fmt.Sprintf("/accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
+}
 
 func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
 	var (
