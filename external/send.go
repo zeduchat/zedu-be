@@ -56,27 +56,20 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		err    error
 	)
 
-	var req *http.Request
-	client := &http.Client{}
-
-	if r.Method == http.MethodGet {
-		req, err = http.NewRequest(r.Method, r.Path, nil)
-	} else {
-		switch r.Headers["Content-Type"] {
-		case "application/x-www-form-urlencoded":
-			// data is expected to be a io.Reader (like *strings.Reader)
-			req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
-		default:
-			buf := new(bytes.Buffer)
-			err = json.NewEncoder(buf).Encode(data)
-			if err != nil {
-				logger.Error("encoding error", name, err.Error())
-				return err
-			}
-			req, err = http.NewRequest(r.Method, r.Path, buf)
-		}
+	buf := new(bytes.Buffer)
+	err = json.NewEncoder(buf).Encode(data)
+	if err != nil {
+		logger.Error("encoding error", name, err.Error())
 	}
 
+	logger.Info("before prefix", name, r.Path, data, buf)
+	if r.UrlPrefix != "" {
+		r.Path += r.UrlPrefix
+	}
+	logger.Info("after prefix", name, r.Path, data, buf)
+
+	client := &http.Client{}
+	req, err := http.NewRequest(r.Method, r.Path, data.(io.Reader))  //revisit later
 	if err != nil {
 		logger.Error("request creation error", name, err.Error())
 		return err
@@ -86,22 +79,20 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		req.Header.Add(key, value)
 	}
 
-	fmt.Println("request", name, r.Path, r.Method, r.Headers)
+	logger.Info("request", name, r.Path, r.Method, r.Headers)
+	fmt.Println("READERSSSS", name, r.Path, r.Method, r.Headers, data, buf)
 
 	res, err := client.Do(req)
 	if err != nil {
 		logger.Error("client do", name, err.Error())
 		return err
 	}
-	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		logger.Error("reading body error", name, err.Error())
+		logger.Error("readin body error", name, err.Error())
 		return err
 	}
-
-	logger.Info("response body raw", name, r.Path, string(body))
 
 	if r.DecodeMethod != PhpSerializerMethod {
 		err = json.Unmarshal(body, response)
@@ -111,7 +102,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		}
 	}
 
-	fmt.Println("response body", name, r.Path, string(body))
+	logger.Info("response body", name, r.Path, string(body))
 
 	if r.DecodeMethod == PhpSerializerMethod {
 		err := phpserialize.Unmarshal(body, response)
@@ -121,6 +112,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		}
 	}
 
+	defer res.Body.Close()
 	ResponseCode = res.StatusCode
 
 	if res.StatusCode == r.SuccessCode {
