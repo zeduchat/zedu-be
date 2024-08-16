@@ -158,7 +158,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense)
+	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
