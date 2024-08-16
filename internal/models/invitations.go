@@ -42,10 +42,6 @@ type VerifyInvitationLinkRequest struct {
 	Token string `json:"token" validate:"required"`
 }
 
-type SendInvitationLink struct {
-	Email          string `json:"email"`
-	InvitationLink string `json:"invitation_link"`
-}
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
 	var u User

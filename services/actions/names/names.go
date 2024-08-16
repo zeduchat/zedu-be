@@ -17,7 +17,7 @@ const (
 	SendMagicLink             NotificationName = "send_magic_link"
 	SendSqueeze               NotificationName = "send_squeeze"
 	SendContactUsMail         NotificationName = "send_contact_us"
-	SendInvitationLink        NotificationName = "send_magic_link" //change this later
+	SendInvitationLink        NotificationName = "send_invitation"
 )
 
 func Check() {
