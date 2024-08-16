@@ -19,7 +19,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	var (
 		resp           gin.H
 		webhook        models.Webhook
-		webhookHistory models.WebhookHistory
+		HistoryWebhook models.HistoryWebhook
 	)
 
 	webhook, err := webhook.CheckExistBySlug(db, req.WebhookSlug)
@@ -29,7 +29,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
 	}
 
-	webhookHistory = models.WebhookHistory{
+	HistoryWebhook = models.HistoryWebhook{
 		ID:          utility.GenerateUUID(),
 		EventName:   req.EventName,
 		WebhookID:   webhook.ID,
@@ -38,7 +38,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		StatusCode:  "200",
 		Retries:     int64(0),
 	}
-	err = webhookHistory.CreateWebhookHistory(db)
+	err = HistoryWebhook.CreateWebhookHistory(db)
 	if err != nil {
 		logger.Error("failed to create webhook history" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create webhook history")
