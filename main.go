@@ -17,8 +17,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
-	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
 	"github.com/hngprojects/telex_be/pkg/router"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -38,13 +38,13 @@ func main() {
 	validatorRef := validator.New()
 
 	db := storage.Connection()
-	products.SetUpProducts(db, configuration.Stripe)
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
+		products.SetUpProducts(db, configuration.Stripe)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
