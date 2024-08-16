@@ -16,6 +16,7 @@ import (
 func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateReq, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
+
 	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err

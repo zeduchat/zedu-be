@@ -20,7 +20,7 @@ func AuthMigrationModels() []interface{} {
 		models.OrgRole{},
 		models.LoginActivity{},
 		models.Threads{},
-		models.Invitation{},
+		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},
 		models.WebhookHistory{},

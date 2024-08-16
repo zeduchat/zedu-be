@@ -35,6 +35,11 @@ type SendResetPassword struct {
 	Token int    `json:"token"  validate:"required"`
 }
 
+type SendInvitationLink struct {
+	Email          string `json:"email" validate:"required"`
+	InvitationLink string `json:"invitation_link" validate:"required"`
+}
+
 type SendMagicLink struct {
 	Email     string `json:"email"  validate:"required"`
 	MagicLink string `json:"magic_link"  validate:"required"`
@@ -74,6 +79,7 @@ func (n *NotificationRecord) PopFromQueue(rdb *redis.Client) (NotificationRecord
 	if err != nil {
 		return rec, fmt.Errorf("error marshaling map: %v", err)
 	}
+
 
 	err = json.Unmarshal(resJSON, &rec)
 	if err != nil {

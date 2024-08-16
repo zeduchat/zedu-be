@@ -16,6 +16,7 @@ type InvitationDetail struct {
 }
 
 func SendInvitationsEmail(invitationResponseMap []models.InvitationResponse) error {
+
 	var wg sync.WaitGroup
 	errorChannel := make(chan error, len(invitationResponseMap))
 
@@ -55,7 +56,8 @@ func sendEmail(email, link string) error {
 		InvitationLink: link,
 	}
 
-	fmt.Sprintf("Sending invitation email to %s with link %s ", email, link)
+	send := fmt.Sprintf("Sending invitation email to %s with link %s ", email, link)
+	fmt.Println(send)
 
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
 	if err != nil {
