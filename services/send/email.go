@@ -47,6 +47,7 @@ func SendEmail(extReq request.ExternalRequest, to string, subject, templateFileN
 		return fmt.Errorf("error getting email request, %v", err)
 	}
 
+
 	err = mailRequest.Send()
 	if err != nil {
 		return fmt.Errorf("error sending email, %v", err)
@@ -55,6 +56,7 @@ func SendEmail(extReq request.ExternalRequest, to string, subject, templateFileN
 }
 
 func (e EmailRequest) validate() error {
+	fmt.Println(e.Subject)
 	if e.Subject == "" {
 		return fmt.Errorf("EMAIL::validate ==> subject is required")
 	}
@@ -80,8 +82,9 @@ func (e EmailRequest) validate() error {
 }
 
 func (e *EmailRequest) Send() error {
-
+	
 	if err := e.validate(); err != nil {
+		fmt.Println("============================", err)
 		return err
 	}
 

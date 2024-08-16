@@ -29,7 +29,6 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-	
 
 	fmt.Println("Calling VerifyInvitation")
 	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql)
