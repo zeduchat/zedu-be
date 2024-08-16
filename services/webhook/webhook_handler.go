@@ -18,8 +18,8 @@ import (
 func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
 
 	var (
-		resp           gin.H
-		webhook        models.Webhook
+		resp    gin.H
+		webhook models.Webhook
 		HistoryWebhook models.HistoryWebhook
 	)
 
@@ -42,7 +42,6 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	err = HistoryWebhook.CreateWebhookHistory(db)
 	if err != nil {
 		logger.Error("failed to create webhook history" + err.Error())
-		return nil, http.StatusBadRequest, errors.New("failed to create webhook history")
 	}
 
 	thread := models.Threads{
