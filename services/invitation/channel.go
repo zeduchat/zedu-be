@@ -4,12 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 	"gorm.io/gorm"
 )
 
@@ -106,7 +111,7 @@ func ChannelInviteLinkMapper(baseURL string, invitations []models.ChannelInvitat
 			Status:         "invited",
 			ChannelID:      invite.ChannelID,
 			InviteToken:    invite.Token,
-			InvitationLink: GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
+			InvitationLink: GenerateChannelInvitationLink(baseURL, invite.ChannelID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
 		})
@@ -125,7 +130,6 @@ func SendChannelsInvitationsEmail(invitationResponseMap []models.ChannelInvitati
 		go func(invite models.ChannelInvitationResponse) {
 			defer wg.Done()
 
-			// Simulate sending an email
 			err := sendEmail(invite.Email, invite.InvitationLink)
 			if err != nil {
 				errorChannel <- fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
@@ -149,19 +153,77 @@ func SendChannelsInvitationsEmail(invitationResponseMap []models.ChannelInvitati
 	return nil
 }
 
-// func sendEmail(email, link string) error {
-// 	reqData := models.SendInvitationLink{
-// 		Email:          email,
-// 		InvitationLink: link,
-// 	}
+func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
-// 	send := fmt.Sprintf("Sending invitation email to %s with link %s ", email, link)
-// 	fmt.Println(send)
+	var (
+		user              = models.User{}
+		responseData      gin.H
+		channelInvitation = models.ChannelInvitation{}
+		channel           = models.Channels{}
+	)
 
-// 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
-// 	if err != nil {
-// 		return err
-// 	}
+	exist, err := channelInvitation.GetChannelInvitationLinkByToken(db, req.Token)
+	if err != nil {
+		return responseData, http.StatusUnauthorized, errors.New("invalid or expired token")
+	}
 
-// 	return nil
-// }
+	userData, err := user.GetUserByEmail(db, exist.Email)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("user to be added to channel must be a telex user")
+	}
+
+	tokenData, err := middleware.CreateToken(userData)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("error saving token")
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	// add the user to the channel
+	reqs := models.JoinChannelsRequest{
+		UserID:     userData.ID,
+		ChannelsID: exist.ChannelID,
+		Username:   userData.Name,
+	}
+
+	_, err = channel.AddUserToChannels(db, reqs)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, err
+	}
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
+
+	fmt.Printf("Saving access token for user: %s\n", userData.Email)
+	err = access_token.CreateAccessToken(db, tokens)
+	if err != nil {
+		fmt.Println("Error saving access token:", err)
+		return responseData, http.StatusInternalServerError, errors.New("error saving token")
+	}
+
+	responseData = gin.H{
+
+		"user": map[string]interface{}{
+			"id":           userData.ID,
+			"email":        userData.Email,
+			"username":     userData.Name,
+			"is_onboarded": userData.IsOnboarded,
+			"is_verified":  userData.IsVerified,
+			"first_name":   userData.Profile.FirstName,
+			"last_name":    userData.Profile.LastName,
+			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":        userData.Profile.Phone,
+			"avatar_url":   userData.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+		},
+		"access_token": tokenData.AccessToken,
+	}
+
+	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
+
+	return responseData, http.StatusOK, nil
+}

@@ -176,7 +176,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
         return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
     }
 
-    fmt.Println("Creating token for user:", userData.Email)
     tokenData, err := middleware.CreateToken(userData)
     if err != nil {
         fmt.Println("Error creating token:", err)
@@ -188,6 +187,8 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
         "exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
     }
 
+
+	fmt.Printf("Token data: %v\n", tokenData)
     access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
 
     fmt.Println("Saving access token for user:", userData.Email)

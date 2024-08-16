@@ -68,7 +68,7 @@ func (i *ChannelInvitation) GetMagicLinkByEmail(db *gorm.DB, email string) (*Cha
 }
 
 func (i *ChannelInvitation) DeleteChannelInviteLink(db *gorm.DB) error {
-	err := postgresql.DeleteRecordFromDb(db, i)
+	err := postgresql.DeleteRecordFromDb(db, &i)
 	if err != nil {
 		return err
 	}
@@ -92,3 +92,20 @@ func (i *ChannelInvitation) CheckForChannelPresence(db *gorm.DB, email string, c
 	}
 	return nil
 }
+
+
+func (c *ChannelInvitation) GetChannelInvitationLinkByToken(db *gorm.DB, token string) (ChannelInvitation, error) {
+	var invitation ChannelInvitation
+
+	if err := db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&invitation).Error; err != nil {
+		return invitation, errors.New("invalid or expired token")
+	}
+
+	//check if the invitation has been accepted
+	if invitation.Status == "accepted" {
+		return invitation, errors.New("invitation link already accepted")
+	}
+
+	return invitation, nil
+}
+
