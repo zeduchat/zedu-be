@@ -16,7 +16,7 @@ import (
 func WebhookHandler(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	webhook := webhook.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql))
+	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 
 	{
 		webhookUrl.POST("/feed/backend-queue", webhook.PostFeedWebhook)

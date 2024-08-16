@@ -225,28 +225,7 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
 	var user models.User
 
-	userID, err := middleware.GetUserClaims(ctx, db, "user_id")
-	if err != nil {
-		return http.StatusNotFound, err
-	}
-
-	currentUserID, ok := userID.(string)
-	if !ok {
-		return http.StatusBadRequest, errors.New("user_id is not of type string")
-	}
-
-	currentUser, code, err := GetUser(currentUserID, db)
-	if err != nil {
-		return code, err
-	}
-
-	isSuperAdmin := currentUser.CheckUserIsAdmin(db)
-
-	if !isSuperAdmin {
-		return http.StatusForbidden, errors.New("user does not have permission to deactivate this user")
-	}
-
-	user, err = user.GetUserByID(db, userIDStr)
+	user, err := user.GetUserByID(db, userIDStr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return http.StatusNotFound, errors.New("user not found")
