@@ -118,39 +118,36 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 }
 
 func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]User, postgresql.PaginationResponse, error) {
-	var users []User
-	pagination := postgresql.GetPagination(c)
+    var users []User
+    pagination := postgresql.GetPagination(c)
 
-	offset := (pagination.Page - 1) * pagination.Limit
+    offset := (pagination.Page - 1) * pagination.Limit
 
-	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number , users.name").
-		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Offset(offset).
-		Limit(pagination.Limit).
-		Find(&users).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
-	}
+    if err := db.Preload("Profile").
+        Joins("JOIN user_channels ON user_channels.user_id = users.id").
+        Where("user_channels.channels_id = ?", channelId).
+        Offset(offset).
+        Limit(pagination.Limit).
+        Find(&users).Error; err != nil {
+        return nil, postgresql.PaginationResponse{}, err
+    }
 
-	var totalUsers int64
-	if err := db.Table("users").
-		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Count(&totalUsers).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
-	}
+    var totalUsers int64
+    if err := db.Table("users").
+        Joins("JOIN user_channels ON user_channels.user_id = users.id").
+        Where("user_channels.channels_id = ?", channelId).
+        Count(&totalUsers).Error; err != nil {
+        return nil, postgresql.PaginationResponse{}, err
+    }
 
-	totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     pagination.Page,
-		PageCount:       pagination.Limit,
-		TotalPagesCount: totalPages,
-	}
+    totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
+    paginationResponse := postgresql.PaginationResponse{
+        CurrentPage:     pagination.Page,
+        PageCount:       pagination.Limit,
+        TotalPagesCount: totalPages,
+    }
 
-	return users, paginationResponse, nil
+    return users, paginationResponse, nil
 }
 
 func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, error) {

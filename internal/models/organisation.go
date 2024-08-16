@@ -386,13 +386,6 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-// the organization id (this one I’m already getting from url)
-// the organization name
-// the organization email
-// the organization owner id
-// the organization owner name
-// the organization users array (so I can show how many users have already joined the org)
-
 type OrgMetricsResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
