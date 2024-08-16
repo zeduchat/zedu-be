@@ -76,6 +76,18 @@ func GetAUser(userIDStr string, db *gorm.DB, c *gin.Context) (*models.User, int,
 	return &userResp, http.StatusOK, nil
 }
 
+func GetOrganisationDetails(db *gorm.DB, c *gin.Context, org_id string) (*models.Organisation, int, error) {
+	var orgData models.Organisation
+	orgResp, err := orgData.GetOrganisationDetails(db, org_id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &orgResp, http.StatusNotFound, errors.New("organisation not found")
+		}
+		return &orgResp, http.StatusBadRequest, err
+	}
+	return &orgResp, http.StatusOK, nil
+}
+
 func GetAUserOrganisation(db *gorm.DB, c *gin.Context) (*[]models.Organisation, int, error) {
 	var (
 		orgData models.Organisation
@@ -220,6 +232,24 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 
 	return users, &paginationResponse, http.StatusOK, nil
 
+}
+
+func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
+	var user models.User
+
+	user, err := user.GetUserByID(db, userIDStr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("user not found")
+		}
+		return http.StatusBadRequest, err
+	}
+
+	if err := user.ActivateUser(db, user.ID); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }
 
 func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {

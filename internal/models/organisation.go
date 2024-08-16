@@ -367,3 +367,21 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 	}
 	return invitations, paginationResponse, nil
 }
+
+func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organisation, error) {
+	var org Organisation
+
+	err := db.Where("id = ?", orgID).First(&org).Error
+	if err != nil {
+		return org, err
+	}
+
+	channelsCount, err := o.CountOrganisationChannelss(db, orgID)
+	if err != nil {
+		return org, err
+	}
+
+	org.ChannelssCount = channelsCount
+
+	return org, nil
+}
