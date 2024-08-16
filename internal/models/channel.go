@@ -69,6 +69,12 @@ func (r *Channels) CreateChannels(db *gorm.DB) error {
 	return nil
 }
 
+func (c *Channels) CheckChannelExistsInOrg(db *gorm.DB, channelID, organisationID string) bool {
+	var channel Channels
+	exists := postgresql.CheckExists(db, &channel, "channels_id = ? AND organisation_id = ?", channelID, organisationID)
+	return exists
+}
+
 func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, error) {
 	var users []User
 
