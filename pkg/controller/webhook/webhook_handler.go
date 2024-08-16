@@ -40,7 +40,7 @@ func (base *Controller) PostWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req)
+	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "post to channel failed", err, nil)
@@ -70,7 +70,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req)
+	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -111,7 +111,7 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.PostFeedWebhook(base.Db.Postgresql, base.Logger, req)
+	respData, code, err := webhook.PostFeedWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

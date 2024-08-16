@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/v2/typesense"
+	"github.com/typesense/typesense-go/v2/typesense/api"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
 
 type Channels struct {
@@ -61,11 +64,30 @@ type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
 }
 
-func (r *Channels) CreateChannels(db *gorm.DB) error {
+func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
 		return errors.New("could not create channel, invalid organisation id")
 	}
+
+	fields := []api.Field{
+		{Name: "id", Type: "string"},
+		{Name: "type", Type: "string"},
+		{Name: "channels_id", Type: "string"},
+		{Name: "thread_id", Type: "string"},
+		{Name: "event_name", Type: "string"},
+		{Name: "username", Type: "string"},
+		{Name: "action_type", Type: "string"},
+		{Name: "status", Type: "string"},
+		{Name: "content", Type: "string"},
+		{Name: "created_at", Type: "int64"},
+	}
+
+	err = tydb.CreateCollection(typesenseDb, r.ID, fields)
+	if err != nil {
+		return errors.New("could not create channel collection in Typesense")
+	}
+
 	return nil
 }
 
@@ -315,12 +337,17 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 	return nil
 }
 
-func (c *Channels) Delete(db *gorm.DB) error {
+func (c *Channels) Delete(db *gorm.DB, typesenseDb *typesense.Client) error {
 
 	err := db.Model(UserChannels{}).Where("channels_id = ?", c.ID).Delete(UserChannels{}).Error
 
 	if err != nil {
 		return errors.New("error removing users in channel")
+	}
+
+	err = tydb.DeleteCollection(typesenseDb, c.ID)
+	if err != nil {
+		return errors.New("could not delete channel collection in Typesense")
 	}
 
 	err = postgresql.DeleteRecordFromDb(db, &c)

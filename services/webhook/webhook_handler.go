@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -14,7 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest) (gin.H, int, error) {
+func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
 
 	var (
 		resp           gin.H
@@ -51,7 +52,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		ActionType: req.ActionType,
 		Status:     "success",
 	}
-	err = thread.CreateThread(db)
+	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
@@ -74,7 +75,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	return resp, http.StatusOK, nil
 }
 
-func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest) (gin.H, int, error) {
+func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
 
 	var (
 		resp    gin.H
@@ -89,7 +90,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		Status:     "success",
 	}
 
-	err := thread.CreateThread(db)
+	err := thread.CreateThread(db, typesenseDb)
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")

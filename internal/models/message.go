@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
 
 type Message struct {
@@ -28,7 +30,7 @@ type CreateMessageRequest struct {
 	ThreadId   string `json:"thread_id,omitempty"`
 }
 
-func (m *Message) CreateMessage(db *gorm.DB) error {
+func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) error {
 	var userChannels UserChannels
 
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
@@ -42,6 +44,29 @@ func (m *Message) CreateMessage(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+
+	threadId := m.ThreadID.String()
+	messageDocument := ChannelDocument{
+		ID:           m.ID,
+		Type:         "message",
+		ChannelsID:   m.ChannelsID,
+		ThreadID:     threadId,
+		UserID:       m.UserID,
+		Username:     m.Username,
+		Content:      m.Content,
+		CreatedAt:    m.CreatedAt.Unix(),
+		EventName:    "",
+		ActionType:   "",
+		Status:       "",
+		ThreadStatus: "",
+		MessageCount: 0,
+	}
+
+	err = tydb.InsertDocument(typesenseDb, m.ChannelsID, messageDocument)
+	if err != nil {
+		return errors.New("could not create message document in Typesense")
+	}
+
 	return nil
 }
 

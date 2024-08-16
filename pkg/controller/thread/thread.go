@@ -128,7 +128,7 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
-	ThreadData, err := service.CreateThreadDummy(req, base.Db.Postgresql)
+	ThreadData, err := service.CreateThreadDummy(req, base.Db.Postgresql, base.Db.TypeSense)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -136,6 +136,25 @@ func (base *Controller) AddAThread(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread added successfully", ThreadData)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) SearchChannel(c *gin.Context) {
+
+	var (
+		channelID = c.Param("channel_id")
+		searching = c.Param("searching")
+	)
+
+	usersData, code, err := service.SearchChannel(channelID, searching, base.Db.Postgresql, c, base.Db.TypeSense)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData)
 	c.JSON(http.StatusOK, rd)
 
 }
