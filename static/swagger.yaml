@@ -8824,7 +8824,6 @@ components:
       required:
         - user_id
         - plan_name
-        - plan_id
       properties:
         user_id:
           type: string
@@ -8832,11 +8831,7 @@ components:
         plan_name:
           type: string
           description: The new name of the subscription plan
-        plan_id:
-          type: integer
-          format: uint
-          description: The new ID of the subscription plan
-
+        
     DeleteSubscriptionRequest:
       type: object
       required:

@@ -52,7 +52,6 @@ type CreateSubscriptionRequest struct {
 type ModifySubscriptionRequest struct {
 	UserID   string `json:"user_id" binding:"required"`
 	PlanName string `json:"plan_name" binding:"required"`
-	PlanID   uint   `json:"plan_id" binding:"required"`
 }
 
 type DeleteSubscriptionRequest struct {
