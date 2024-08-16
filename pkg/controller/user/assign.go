@@ -22,3 +22,18 @@ func (base *Controller) AssignRoleToUser(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Role updated successfully", userData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) UpdateUserIdentity(ctx *gin.Context) {
+	userID := ctx.Param("user_id")
+	roleID := ctx.Param("role_id")
+
+	userData, code, err := service.UpdateUserIdentity(userID, roleID, base.Db.Postgresql, ctx)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), nil, nil)
+		ctx.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Role updated successfully", userData)
+	ctx.JSON(code, rd)
+}
