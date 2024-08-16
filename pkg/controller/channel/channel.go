@@ -53,7 +53,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId, base.Db.TypeSense)
 	if err != nil {
 		base.Logger.Info("error creating channel")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -158,7 +158,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql)
+	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -332,7 +332,7 @@ func (base *Controller) DeleteChannels(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId)
+	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId, base.Db.TypeSense)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -487,7 +487,6 @@ func (base *Controller) SearchChannelsByNames(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-
 func (base *Controller) GetUsersInChannel(c *gin.Context) {
 	channelID := c.Param("channelId")
 
@@ -505,7 +504,6 @@ func (base *Controller) GetUsersInChannel(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
 
 	users, paginationResponse, err := channel.GetUsersInChannel(channelID, userId, base.Db.Postgresql, c)
 
