@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
 
 type Threads struct {
@@ -23,6 +25,22 @@ type Threads struct {
 	MessageCount int64     `gorm:"type:int;" json:"message_count"`
 }
 
+type ChannelDocument struct {
+	ID           string `json:"id"`
+	Type         string `json:"type"`
+	ChannelsID   string `json:"channels_id"`
+	ThreadID     string `json:"thread_id"`
+	UserID       string `json:"user_id"`
+	Username     string `json:"username"`
+	Content      string `json:"content"`
+	CreatedAt    int64  `json:"created_at"`
+	EventName    string `json:"event_name"`
+	ActionType   string `json:"action_type"`
+	Status       string `json:"status"`
+	ThreadStatus string `json:"thread_status"`
+	MessageCount int64  `json:"message_count"`
+}
+
 type Mentions struct {
 	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
 	MessageID string    `gorm:"type:uuid;index" json:"message_id"`
@@ -34,12 +52,34 @@ type UpdateThreadStatus struct {
 	ThreadStatus string `json:"status" validate:"required"`
 }
 
-func (t *Threads) CreateThread(db *gorm.DB) error {
+func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error {
 
 	err := postgresql.CreateOneRecord(db, t)
 	if err != nil {
 		return err
 	}
+
+	threadDocument := ChannelDocument{
+		ID:           t.ID,
+		Type:         "thread",
+		ChannelsID:   t.ChannelsID,
+		ThreadID:     "",
+		UserID:       "",
+		Username:     t.Username,
+		Content:      "",
+		CreatedAt:    t.CreatedAt.Unix(),
+		EventName:    t.EventName,
+		ActionType:   t.ActionType,
+		Status:       t.Status,
+		ThreadStatus: t.ThreadStatus,
+		MessageCount: t.MessageCount,
+	}
+
+	err = tydb.InsertDocument(typesenseDb, t.ChannelsID, threadDocument)
+	if err != nil {
+		return errors.New("could not create thread document in Typesense")
+	}
+
 	return nil
 }
 

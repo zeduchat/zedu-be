@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -74,7 +75,7 @@ func TestChannelsEndpoints(t *testing.T) {
 		Description:    "Some Random description",
 	}
 
-	channels_id, _:= tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
+	channels_id, _ := tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
 	webhook_path := fmt.Sprintf("/api/v1/webhooks/%s", channels_id)
 
 	tests := []struct {
@@ -120,12 +121,20 @@ func TestChannelsEndpoints(t *testing.T) {
 		},
 	}
 
+	defer func() {
+		err := tydb.DeleteCollection(db.TypeSense, channels_id)
+		if err != nil {
+			t.Fatalf("failed to delete collection: %v", err)
+		}
+		fmt.Printf("deleted collection: %v", channels_id)
+	}()
+
 	for _, test := range tests {
 		r := gin.Default()
 
 		webhook := webhook.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
-		webhookUrl := r.Group(fmt.Sprintf("%v/webhooks","/api/v1"), middleware.Authorize(db.Postgresql))
+		webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", "/api/v1"), middleware.Authorize(db.Postgresql))
 		{
 			webhookUrl.GET("/:channel_id/history/:webhook_id", webhook.GetWebhookHistory)
 			webhookUrl.GET("/:channel_id/all", webhook.GetAllWebhook)

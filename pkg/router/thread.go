@@ -24,6 +24,7 @@ func Threads(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		threadUrl.GET("/:thread_id", thread.GetUserSingleThreads)
 		threadUrl.PUT("/:thread_id", middleware.CheckIsDeactivated(db.Postgresql), thread.UpdateAThread)
 		threadUrl.POST("", thread.AddAThread)
+		threadUrl.GET("/channels/:channel_id/:searching", thread.SearchChannel)
 	}
 
 	return r

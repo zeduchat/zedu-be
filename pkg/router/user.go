@@ -25,13 +25,12 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.PUT("/users/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.UpdateAUser)
 		userUrl.GET("users/organisations", user.GetAUserOrganisation)
 
-		userUrl.PUT("/users/:user_id/roles/:role_id", middleware.CheckIsDeactivated(db.Postgresql), user.AssignRoleToUser)
-
 		userUrl.GET("/users/:user_id/login-audit", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserLoginAudit)
 		userUrl.PUT("/users/revoke-session", middleware.CheckIsDeactivated(db.Postgresql), user.RevokeUserAccessToken)
 		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
 		userUrl.GET("/users/:user_id/sessions", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserSessions)
 		userUrl.PUT("/users/switch-org", middleware.CheckIsDeactivated(db.Postgresql), user.SwitchUserOrg)
+		userUrl.PUT("/users/:user_id/roles/:role_id", middleware.CheckIsDeactivated(db.Postgresql), user.AssignRoleToUser)
 	}
 	adminUrl.GET("/users", user.GetAllUsers)
 
