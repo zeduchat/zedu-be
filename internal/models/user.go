@@ -21,6 +21,7 @@ type User struct {
 	Channelss     []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
 	OrgRoleID     *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
+	Deactivated   bool           `gorm:"column:deactivated;default:false" json:"deactivated"`
 	OrgRole       OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
 	Password      string         `gorm:"column:password; type:text; not null" json:"-"`
 	CreatedAt     time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
@@ -221,7 +222,7 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 }
 
 func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
-	userUpdates := User{IsVerified: false}
+	userUpdates := User{Deactivated: true}
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
 	if err != nil {
