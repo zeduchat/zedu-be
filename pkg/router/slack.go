@@ -18,7 +18,7 @@ func Slack(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	slackUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		slackUrl.POST("/create-access-token", slack.SlackOauth)
+		slackUrl.POST("/slack/access-token", slack.SlackOauth)
 	}
 
 	return r
