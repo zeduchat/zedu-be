@@ -286,3 +286,17 @@ func AddMemberToOrganisation(ownerId, orgId, userId string, role string ,db *gor
 
 	return nil
 }
+
+
+func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
+	var (
+		o models.Organisation
+		ogm models.OrgMetricsResponse
+	)
+	
+	metrics, err := o.LoadOrganisationMetrics(db, orgId)
+	if err != nil {
+		return ogm, err
+	}
+	return metrics, nil
+}

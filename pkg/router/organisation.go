@@ -42,5 +42,10 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.POST("/:org_id/users/:user_id", organisation.AddMemberToOrganisation)
 	}
 
+	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
+	{
+		testOrganisationUrl.GET("/:org_id/load-metrics", organisation.GetLoadingMetrics)
+	}
+
 	return r
 }
