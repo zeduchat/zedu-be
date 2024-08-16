@@ -412,7 +412,7 @@ func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMe
 		return ogm, errors.New("organisation not found")
 	}
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("User"), &org, "id = ?", orgID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &org, "id = ?", orgID)
 	if err != nil {
 		return ogm, err
 	}
