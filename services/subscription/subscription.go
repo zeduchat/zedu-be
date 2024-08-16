@@ -91,12 +91,12 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 
 func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
-	if err := db.Where("id = ?", req.PlanID).First(&subscriptionPlan).Error; err != nil {
+	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
-		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %v", req.PlanID)
+		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %v", req.PlanName)
 	}
 
 	var user models.User
