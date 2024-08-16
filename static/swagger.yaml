@@ -3800,7 +3800,7 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
+            format: string
           description: the webhook slug
 
       responses:
