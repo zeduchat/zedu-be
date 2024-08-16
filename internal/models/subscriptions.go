@@ -44,13 +44,9 @@ func SeedSubscriptionPlans(db *gorm.DB, stripe config.Stripe) {
 }
 
 type CreateSubscriptionRequest struct {
-	PlanName      string `json:"plan_name" binding:"required"`
-	UserID        string `json:"user_id" binding:"required"`
-	Email         string `json:"email" binding:"required,email"`
-	PlanID        string `json:"plan_id" binding:"required"`
-	PaymentMethod string `json:"payment_method" binding:"required"`
-	Currency      string `json:"currency" binding:"required"`
-	CouponCode    string `json:"coupon_code,omitempty"`
+	PlanName string `json:"plan_name" binding:"required"`
+	UserID   string `json:"user_id" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
 }
 
 type ModifySubscriptionRequest struct {
