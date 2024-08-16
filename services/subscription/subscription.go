@@ -15,10 +15,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
+func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
+	}
+	var url string
+	if env == "prod" {
+		url = "https://telex.im/"
+	} else {
+		env = "http://localhost:3000/"
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
@@ -43,8 +49,8 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gi
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String("https://staging.telex.im/dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String("https://staging.telex.im/dashboard/plan/billing"),
+		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "dashboard/plan/billing"),
 	}
 
 	session, err := session.New(params)

@@ -23,6 +23,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	var (
 		req *models.CreateSubscriptionRequest
+		env = c.Param("env")
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -31,7 +32,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 		return
 	}
 
-	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql)
+	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, env)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
