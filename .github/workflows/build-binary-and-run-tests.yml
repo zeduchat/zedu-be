@@ -34,6 +34,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+      - name: Validate swagger.yaml
+        uses: GrantBirki/json-yaml-validate@v3.1.0
+        with:
+          files: ./static/swagger.yaml
       - name: Set Golang
         uses: actions/setup-go@v4
         with:
