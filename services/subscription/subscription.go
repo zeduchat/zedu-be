@@ -43,8 +43,8 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB) (*gi
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String("https://staging.telex.im/dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String("https://yourwebsite.com/plan/billing/cancel"),
+		SuccessURL: stripe.String("https://staging.telex.im/dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String("https://staging.telex.im/dashboard/plan/billing"),
 	}
 
 	session, err := session.New(params)
