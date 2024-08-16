@@ -3,8 +3,8 @@ package mocks
 import (
 	"fmt"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/external/mocks/ipstack_mocks"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/external/mocks/ipstack_mocks"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type ExternalRequest struct {
@@ -31,8 +31,8 @@ var (
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
 	switch name {
-	case "ipstack_resolve_ip":
-		return ipstack_mocks.IpstackResolveIp(er.Logger, data)
+	case "ipinfo_resolve_ip":
+		return ipstack_mocks.IpinfoResolveIp(er.Logger, data)
 	default:
 		return nil, fmt.Errorf("request not found")
 	}

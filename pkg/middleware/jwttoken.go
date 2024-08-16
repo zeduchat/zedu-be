@@ -9,9 +9,9 @@ import (
 	"github.com/golang-jwt/jwt"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/config"
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type TokenDetailDTO struct {
@@ -96,5 +96,17 @@ func GetUserClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, e
 	}
 
 	return userValue, nil
+
+}
+
+func GetAllUserClaims(c *gin.Context) jwt.MapClaims {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return nil
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	return userClaims
 
 }

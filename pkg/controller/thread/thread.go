@@ -1,0 +1,160 @@
+package thread
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	service "github.com/hngprojects/telex_be/services/thread"
+	"github.com/hngprojects/telex_be/utility"
+)
+
+type Controller struct {
+	Db        *storage.Database
+	Validator *validator.Validate
+	Logger    *utility.Logger
+	ExtReq    request.ExternalRequest
+}
+
+func (base *Controller) GetAllUserOrgThreads(c *gin.Context) {
+
+	var (
+		orgID = c.Param("org_id")
+	)
+
+	usersData, paginationResponse, code, err := service.GetAllUserOrgThreads(orgID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) GetAllChannelThreads(c *gin.Context) {
+
+	var (
+		channelID = c.Param("channel_id")
+	)
+
+	usersData, paginationResponse, code, err := service.GetAllChannelThreads(channelID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) GetUserSingleThreads(c *gin.Context) {
+
+	var (
+		threadID = c.Param("thread_id")
+	)
+
+	usersData, code, err := service.GetUserSingleThreads(threadID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) UpdateAThread(c *gin.Context) {
+
+	var (
+		threadID = c.Param("thread_id")
+		req      = models.UpdateThreadStatus{}
+	)
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := service.UpdateAThread(req, threadID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) AddAThread(c *gin.Context) {
+
+	var (
+		req = models.Threads{}
+	)
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	ThreadData, err := service.CreateThreadDummy(req, base.Db.Postgresql, base.Db.TypeSense)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread added successfully", ThreadData)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) SearchChannel(c *gin.Context) {
+
+	var (
+		channelID = c.Param("channel_id")
+		searching = c.Param("searching")
+	)
+
+	usersData, code, err := service.SearchChannel(channelID, searching, base.Db.Postgresql, c, base.Db.TypeSense)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData)
+	c.JSON(http.StatusOK, rd)
+
+}

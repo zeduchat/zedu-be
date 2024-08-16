@@ -12,6 +12,11 @@ type Configuration struct {
 	App          App
 	IPStack      IPStack
 	Centrifuge   Centrifuge
+	Redis        Redis
+	Mail         MAIL
+	Minio        Minio
+	Stripe       Stripe
+	TypeSense    TypeSense
 }
 
 type BaseConfig struct {
@@ -22,9 +27,12 @@ type BaseConfig struct {
 	TRUSTED_PROXIES                  string  `mapstructure:"TRUSTED_PROXIES"`
 	EXEMPT_FROM_THROTTLE             string  `mapstructure:"EXEMPT_FROM_THROTTLE"`
 
-	APP_NAME string `mapstructure:"APP_NAME"`
-	APP_MODE string `mapstructure:"APP_MODE"`
-	APP_URL  string `mapstructure:"APP_URL"`
+	APP_NAME                string `mapstructure:"APP_NAME"`
+	APP_MODE                string `mapstructure:"APP_MODE"`
+	APP_URL                 string `mapstructure:"APP_URL"`
+	MAGIC_LINK_DURATION     int    `mapstructure:"MAGIC_LINK_DURATION"`
+	RESET_PASSWORD_DURATION int    `mapstructure:"RESET_PASSWORD_DURATION"`
+	WEBHOOK_API_URL         string `mapstructure:"WEBHOOK_API_URL"`
 
 	DB_HOST       string `mapstructure:"DB_HOST"`
 	DB_PORT       string `mapstructure:"DB_PORT"`
@@ -49,7 +57,30 @@ type BaseConfig struct {
 	IPSTACK_KEY      string `mapstructure:"IPSTACK_KEY"`
 	IPSTACK_BASE_URL string `mapstructure:"IPSTACK_BASE_URL"`
 
-	HMAC_SECRET string `mapstructure:"HMAC_SECRET"`
+	HMAC_SECRET        string `mapstructure:"HMAC_SECRET"`
+	CENTRIFUGE_URL     string `mapstructure:"CENTRIFUGE_URL"`
+	CENTRIFUGE_API_KEY string `mapstructure:"CENTRIFUGE_API_KEY"`
+
+	MAIL_SERVER   string `mapstructure:"MAIL_SERVER"`
+	MAIL_PASSWORD string `mapstructure:"MAIL_PASSWORD"`
+	MAIL_USERNAME string `mapstructure:"MAIL_USERNAME"`
+	MAIL_PORT     string `mapstructure:"MAIL_PORT"`
+
+	REDIS_PORT string `mapstructure:"REDIS_PORT"`
+	REDIS_HOST string `mapstructure:"REDIS_HOST"`
+	REDIS_DB   string `mapstructure:"REDIS_DB"`
+
+	MINIO_ENDPOINT    string `mapstructure:"MINIO_ENDPOINT"`
+	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
+	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
+	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
+
+	STRIPE_KEY         string `mapstructure:"STRIPE_KEY"`
+	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
+	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
+	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
+	TYPESENSE_API_URL  string `mapstructure:"TYPESENSE_API_URL"`
+	TYPESENSE_API_KEY  string `mapstructure:"TYPESENSE_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -70,9 +101,12 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ExemptFromThrottle:        exemptFromThrottle,
 		},
 		App: App{
-			Name: config.APP_NAME,
-			Mode: config.APP_MODE,
-			Url:  config.APP_URL,
+			Name:                  config.APP_NAME,
+			Mode:                  config.APP_MODE,
+			Url:                   config.APP_URL,
+			MagicLinkDuration:     config.MAGIC_LINK_DURATION,
+			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,
+			WebhookApiUrl:         config.WEBHOOK_API_URL,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,
@@ -104,6 +138,38 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 
 		Centrifuge: Centrifuge{
 			Secret: config.HMAC_SECRET,
+			Url:    config.CENTRIFUGE_URL,
+			ApiKey: config.CENTRIFUGE_API_KEY,
+		},
+
+		Mail: MAIL{
+			Server:   config.MAIL_SERVER,
+			Password: config.MAIL_PASSWORD,
+			Port:     config.MAIL_PORT,
+			Username: config.MAIL_USERNAME,
+		},
+
+		Redis: Redis{
+			REDIS_PORT: config.REDIS_PORT,
+			REDIS_HOST: config.REDIS_HOST,
+			REDIS_DB:   config.REDIS_DB,
+		},
+
+		Minio: Minio{
+			MinioEndpoint: config.MINIO_ENDPOINT,
+			BucketName:    config.BUCKET_NAME,
+			AccessKey:     config.BUCKET_ACCESS_KEY,
+			Secret:        config.BUKCET_SECRET_KEY,
+		},
+		Stripe: Stripe{
+			STRIPE_KEY:         config.STRIPE_KEY,
+			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
+			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
+			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
+		},
+		TypeSense: TypeSense{
+			TypeSense_API_URL: config.TYPESENSE_API_URL,
+			TypeSense_API_KEY: config.TYPESENSE_API_KEY,
 		},
 	}
 }

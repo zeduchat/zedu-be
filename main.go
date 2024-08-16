@@ -5,26 +5,46 @@ import (
 	"log"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/config"
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models/migrations"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/router"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/stripe/stripe-go/v72"
+
+	"github.com/hngprojects/telex_be/cronjobs"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models/migrations"
+	"github.com/hngprojects/telex_be/internal/models/seed"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
+	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	"github.com/hngprojects/telex_be/pkg/router"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func main() {
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the app
 
 	configuration := config.Setup(logger, "./app")
-
+	//connect to stripe
+	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
+	redis.ConnectToRedis(logger, configuration.Redis)
+	minio.ConnectToMinio(logger, configuration.Minio)
+	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
+	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
+
 	validatorRef := validator.New()
 
 	db := storage.Connection()
+	products.SetUpProducts(db, configuration.Stripe)
+
+	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
+		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

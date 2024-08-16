@@ -12,13 +12,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/controller/auth"
-	tkn "github.com/hngprojects/hng_boilerplate_golang_web/pkg/controller/token"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/middleware"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage"
-	tst "github.com/hngprojects/hng_boilerplate_golang_web/tests"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	tkn "github.com/hngprojects/telex_be/pkg/controller/token"
+	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func TestToken(t *testing.T) {
@@ -41,7 +42,11 @@ func TestToken(t *testing.T) {
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 

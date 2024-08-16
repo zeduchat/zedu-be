@@ -1,14 +1,22 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage/postgresql"
+	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
+
+type TerminateSessionRequest struct {
+	UserID            *string `json:"user_id"`
+	GlobalTermination bool    `json:"global_termination"`
+	AccessToken       *string `json:"access_token_id"`
+}
 
 type AccessToken struct {
 	ID                        string    `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
@@ -95,4 +103,83 @@ func (a *AccessToken) RevokeAccessToken(db *gorm.DB) error {
 	a.IsLive = false
 	_, err := postgresql.SaveAllFields(db, &a)
 	return err
+}
+
+func (a *AccessToken) RevokeUserTokens(db *gorm.DB) (int, error) {
+	statusCode, err := a.GetLatestByOwnerIDAndIsLive(db)
+	if err != nil {
+		return statusCode, fmt.Errorf("failed to retrieve user tokens: %v", err)
+	}
+
+	if err := a.RevokeAccessToken(db); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to revoke user token: %v", err)
+	}
+	return http.StatusOK, nil
+}
+
+func (a *AccessToken) RevokeAllTokens(db *gorm.DB) error {
+	err := db.Model(&a).
+		Where("is_live = ?", true).
+		Update("is_live", false).Error
+	if err != nil {
+		return fmt.Errorf("failed to revoke all tokens: %v", err)
+	}
+	return nil
+}
+
+func (a *AccessToken) FetchAllUserSessions(db *gorm.DB, c *gin.Context, userID, requesterID string, isSuperAdmin bool) ([]AccessToken, postgresql.PaginationResponse, error) {
+	var (
+		sessions    []AccessToken
+		ErrNotFound = errors.New("sessions not found")
+	)
+
+	var isOwner bool
+	err := db.Model(&Organisation{}).
+		Select("count(*) > 0").
+		Where("owner_id = ? AND id IN (SELECT organisation_id FROM user_organisations WHERE user_id = ?)", requesterID, userID).
+		Find(&isOwner).
+		Error
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	query := db.Model(&AccessToken{})
+	if isOwner || isSuperAdmin {
+		query = query.Where("owner_id = ?", userID)
+	} else if requesterID == userID {
+		query = query.Where("owner_id = ? AND owner_id = ?", userID, requesterID)
+	} else {
+		return nil, postgresql.PaginationResponse{}, ErrNotFound
+	}
+
+	pagination := postgresql.GetPagination(c)
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&sessions,
+		nil,
+	)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, paginationResponse, ErrNotFound
+		}
+		return nil, paginationResponse, err
+	}
+
+	return sessions, paginationResponse, nil
+}
+
+func (a *AccessToken) GetAccessTokenByID(db *gorm.DB, tokenID string) (AccessToken, error) {
+
+	query := db.Where("id = ?", tokenID)
+
+	err := query.First(&a).Error
+
+	if err != nil {
+		return *a, err
+	}
+
+	return *a, nil
 }

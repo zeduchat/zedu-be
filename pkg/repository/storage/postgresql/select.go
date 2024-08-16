@@ -252,6 +252,6 @@ func SelectUsersFromDb(db *gorm.DB, order string, receiver interface{}, query in
 	if order == "" {
 		order = "desc"
 	}
-	tx := db.Order("room_id "+order).Where(query, args...).Find(receiver)
+	tx := db.Order("channels_id "+order).Where(query, args...).Find(receiver)
 	return tx.Error
 }

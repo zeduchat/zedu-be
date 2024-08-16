@@ -7,11 +7,11 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/external/request"
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage"
-	"github.com/hngprojects/hng_boilerplate_golang_web/services/auth"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/auth"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Controller struct {
@@ -48,6 +48,43 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 	respData, code, err := auth.CreateUser(reqData, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		base.Logger.Error("error saving user: ", err.Error())
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("user created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "user created successfully", respData)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) CreateAdmin(c *gin.Context) {
+	var req models.CreateUserRequestModel
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	reqData, err := auth.ValidateCreateUserRequest(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := auth.CreateAdmin(reqData, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -74,7 +111,7 @@ func (base *Controller) LoginUser(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := auth.LoginUser(req, base.Db.Postgresql)
+	respData, code, err := auth.LoginUser(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -97,7 +134,7 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 
-	access_uuid, ok := userClaims["access_uuid"].(string)
+	access_uuid, _ := userClaims["access_uuid"].(string)
 	owner_id, ok := userClaims["user_id"].(string)
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access id", nil, nil)
@@ -115,5 +152,66 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 	base.Logger.Info("user logout successfully")
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user logout successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetOnboardStatus(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	owner_id, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := auth.GetOnboardStatus(owner_id, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("user status fetch successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user status fetch successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateOnboardStatus(c *gin.Context) {
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+
+	owner_id, ok := userClaims["user_id"].(string)
+
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	respData, code, err := auth.UpdateOnboardStatus(owner_id, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("user onboarding status updated successfully")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user onboarding status updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
