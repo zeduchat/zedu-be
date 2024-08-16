@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -19,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
@@ -78,7 +80,7 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 	return "success", http.StatusOK, nil
 }
 
-func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB) (gin.H, int, error) {
+func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
@@ -142,6 +144,8 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB) (gin.H
 		},
 		"access_token": tokenData.AccessToken,
 	}
+
+	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
 	return responseData, http.StatusOK, nil
 }
