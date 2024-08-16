@@ -16,6 +16,7 @@ type Configuration struct {
 	Mail         MAIL
 	Minio        Minio
 	Slack        Slack
+	Stripe       Stripe
 	TypeSense    TypeSense
 }
 
@@ -82,6 +83,11 @@ type BaseConfig struct {
 
 	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
 	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
+
+	STRIPE_KEY         string `mapstructure:"STRIPE_KEY"`
+	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
+	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
+	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -169,7 +175,14 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			RedirectURI:  config.REDIRECT_URI,
 			BaseUrl:      config.BASE_URL,
 		},
-		
+
+		Stripe: Stripe{
+			STRIPE_KEY:         config.STRIPE_KEY,
+			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
+			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
+			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
+		},
+
 		TypeSense: TypeSense{
 			TypeSense_API_URL: config.TYPESENSE_API_URL,
 			TypeSense_API_KEY: config.TYPESENSE_API_KEY,

@@ -367,3 +367,65 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 	}
 	return invitations, paginationResponse, nil
 }
+
+func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organisation, error) {
+	var org Organisation
+
+	err := db.Where("id = ?", orgID).First(&org).Error
+	if err != nil {
+		return org, err
+	}
+
+	channelsCount, err := o.CountOrganisationChannelss(db, orgID)
+	if err != nil {
+		return org, err
+	}
+
+	org.ChannelssCount = channelsCount
+
+	return org, nil
+}
+
+type OrgMetricsResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	OwnerID   string `json:"owner_id"`
+	OwnerName string `json:"owner_name"`
+	Users     []User `json:"users"`
+}
+
+// get organisation by organisation id
+func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMetricsResponse, error) {
+	var org Organisation
+	var ogm OrgMetricsResponse
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return ogm, errors.New("organisation not found")
+	}
+
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &org, "id = ?", orgID)
+	if err != nil {
+		return ogm, err
+	}
+
+	//get the owner of the organisation
+	var owner User
+
+	err, _ = postgresql.SelectOneFromDb(db.Preload("Profile"), &owner, "id = ?", org.OwnerID)
+	if err != nil {
+		return ogm, err
+	}
+
+	response := OrgMetricsResponse{
+		ID:        org.ID,
+		Name:      org.Name,
+		Email:     org.Email,
+		OwnerID:   org.OwnerID,
+		OwnerName: owner.Profile.FullName,
+		Users:     org.Users,
+	}
+
+	return response, nil
+}

@@ -18,7 +18,7 @@ func SendNotifications(extReq request.ExternalRequest, db storage.Database) {
 		if strings.Contains(err.Error(), "could not pop from Redis queue: redis: nil") {
 			return
 		}
-		extReq.Logger.Error("error getting notificatin records: ", err.Error())
+		extReq.Logger.Error("error getting notification records: ", err.Error())
 		return
 	}
 

@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/v2/typesense"
+	"github.com/typesense/typesense-go/v2/typesense/api"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
 
 type Channels struct {
@@ -61,12 +64,37 @@ type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
 }
 
-func (r *Channels) CreateChannels(db *gorm.DB) error {
+func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
 		return errors.New("could not create channel, invalid organisation id")
 	}
+
+	fields := []api.Field{
+		{Name: "id", Type: "string"},
+		{Name: "type", Type: "string"},
+		{Name: "channels_id", Type: "string"},
+		{Name: "thread_id", Type: "string"},
+		{Name: "event_name", Type: "string"},
+		{Name: "username", Type: "string"},
+		{Name: "action_type", Type: "string"},
+		{Name: "status", Type: "string"},
+		{Name: "content", Type: "string"},
+		{Name: "created_at", Type: "int64"},
+	}
+
+	err = tydb.CreateCollection(typesenseDb, r.ID, fields)
+	if err != nil {
+		return errors.New("could not create channel collection in Typesense")
+	}
+
 	return nil
+}
+
+func (c *Channels) CheckChannelExistsInOrg(db *gorm.DB, channelID, organisationID string) bool {
+	var channel Channels
+	exists := postgresql.CheckExists(db, &channel, "channels_id = ? AND organisation_id = ?", channelID, organisationID)
+	return exists
 }
 
 func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, error) {
@@ -90,39 +118,36 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 }
 
 func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]User, postgresql.PaginationResponse, error) {
-	var users []User
-	pagination := postgresql.GetPagination(c)
+    var users []User
+    pagination := postgresql.GetPagination(c)
 
-	offset := (pagination.Page - 1) * pagination.Limit
+    offset := (pagination.Page - 1) * pagination.Limit
 
-	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number , users.name").
-		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Offset(offset).
-		Limit(pagination.Limit).
-		Find(&users).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
-	}
+    if err := db.Preload("Profile").
+        Joins("JOIN user_channels ON user_channels.user_id = users.id").
+        Where("user_channels.channels_id = ?", channelId).
+        Offset(offset).
+        Limit(pagination.Limit).
+        Find(&users).Error; err != nil {
+        return nil, postgresql.PaginationResponse{}, err
+    }
 
-	var totalUsers int64
-	if err := db.Table("users").
-		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Count(&totalUsers).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
-	}
+    var totalUsers int64
+    if err := db.Table("users").
+        Joins("JOIN user_channels ON user_channels.user_id = users.id").
+        Where("user_channels.channels_id = ?", channelId).
+        Count(&totalUsers).Error; err != nil {
+        return nil, postgresql.PaginationResponse{}, err
+    }
 
-	totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     pagination.Page,
-		PageCount:       pagination.Limit,
-		TotalPagesCount: totalPages,
-	}
+    totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
+    paginationResponse := postgresql.PaginationResponse{
+        CurrentPage:     pagination.Page,
+        PageCount:       pagination.Limit,
+        TotalPagesCount: totalPages,
+    }
 
-	return users, paginationResponse, nil
+    return users, paginationResponse, nil
 }
 
 func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, error) {
@@ -266,6 +291,7 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	return channel, nil
 }
 
+
 func (r *Channels) RemoveUserFromChannels(db *gorm.DB, channelID, userID string) error {
 	var userChannels UserChannels
 
@@ -309,12 +335,17 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 	return nil
 }
 
-func (c *Channels) Delete(db *gorm.DB) error {
+func (c *Channels) Delete(db *gorm.DB, typesenseDb *typesense.Client) error {
 
 	err := db.Model(UserChannels{}).Where("channels_id = ?", c.ID).Delete(UserChannels{}).Error
 
 	if err != nil {
 		return errors.New("error removing users in channel")
+	}
+
+	err = tydb.DeleteCollection(typesenseDb, c.ID)
+	if err != nil {
+		return errors.New("could not delete channel collection in Typesense")
 	}
 
 	err = postgresql.DeleteRecordFromDb(db, &c)

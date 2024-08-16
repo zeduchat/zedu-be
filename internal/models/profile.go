@@ -2,8 +2,10 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
@@ -94,7 +96,8 @@ func (p *Profile) ReplaceAvatarWithDefault(db *gorm.DB, userId string) error {
 		return errors.New("profile does not exist")
 	}
 	
-	defaultAvatarURL := "http://91.229.239.238:7100/telexbucket/public/profile_pics/profile_pic_default25acbe570c2d.png"
+	defaultAvatarURL := fmt.Sprintf("http://%s/telexbucket/public/profile_pics/profile_pic_default25acbe570c2d.png", config.Config.Minio.MinioEndpoint)
+	
 	profileUpdate := Profile{
 		AvatarURL: defaultAvatarURL,
 	}

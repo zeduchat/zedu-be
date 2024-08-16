@@ -16,6 +16,7 @@ import (
 func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateReq, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
+
 	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
@@ -62,6 +63,9 @@ func CheckDuplicateEmails(emails []string) bool {
 
 func GenerateInvitationLink(baseurl, orgID, token string) string {
 	return baseurl + fmt.Sprintf("/accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
+}
+func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
+	return baseurl + fmt.Sprintf("/accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
 }
 
 func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {

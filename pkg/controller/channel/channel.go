@@ -53,7 +53,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId, base.Db.TypeSense)
 	if err != nil {
 		base.Logger.Info("error creating channel")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -158,7 +158,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql)
+	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -332,7 +332,7 @@ func (base *Controller) DeleteChannels(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId)
+	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId, base.Db.TypeSense)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -487,7 +487,6 @@ func (base *Controller) SearchChannelsByNames(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-
 func (base *Controller) GetUsersInChannel(c *gin.Context) {
 	channelID := c.Param("channelId")
 
@@ -505,7 +504,6 @@ func (base *Controller) GetUsersInChannel(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
 
 	users, paginationResponse, err := channel.GetUsersInChannel(channelID, userId, base.Db.Postgresql, c)
 
@@ -535,4 +533,34 @@ func (base *Controller) GetUsersInChannel(c *gin.Context) {
 	response := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationData)
 
 	c.JSON(http.StatusOK, response)
+}
+
+
+func (base *Controller) AddMembersToChannel(c *gin.Context){
+	var req models.JoinChannelsRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+
+	if _, err := uuid.Parse(req.ChannelsID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	response, err := channel.AddMembersToChannel(base.Db.Postgresql, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("members added to channel successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "members added to channel successfully", response)
+	c.JSON(http.StatusOK, rd)
 }

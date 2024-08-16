@@ -22,14 +22,18 @@ func AuthMigrationModels() []interface{} {
 		models.OrgRole{},
 		models.LoginActivity{},
 		models.Threads{},
-		models.Invitation{},
+		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},
+		models.HistoryWebhook{},
+		models.SubscriptionPlan{},
 		models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
 		models.HelpCenterCategory{},
 		models.HelpCenterArticle{},
+		models.Integrations{},
+		models.IntegrationsSettings{},
 	} // an array of db models, example: User{}
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -12,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string) (models.Channels, int, error) {
+func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string, typesenseDb *typesense.Client) (models.Channels, int, error) {
 	var joinChannelsReq models.JoinChannelsRequest
 
 	channel := models.Channels{
@@ -27,7 +28,7 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = req.Username
 
-	err := channel.CreateChannels(db)
+	err := channel.CreateChannels(db, typesenseDb)
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
@@ -112,7 +113,7 @@ func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId
 	return http.StatusOK, nil
 }
 
-func DeleteChannels(db *gorm.DB, channelId, userId string) (int, error) {
+func DeleteChannels(db *gorm.DB, channelId, userId string, typesenseDb *typesense.Client) (int, error) {
 	var r models.Channels
 
 	channel, err := r.GetChannelsByID(db, channelId)
@@ -125,7 +126,7 @@ func DeleteChannels(db *gorm.DB, channelId, userId string) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	err = channel.Delete(db)
+	err = channel.Delete(db, typesenseDb)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -191,4 +192,16 @@ func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Cont
 	}
 
 	return users, paginationResponse, nil
+}
+
+
+
+func AddMembersToChannel(db *gorm.DB , req models.JoinChannelsRequest) (models.Channels, error) {
+	var ch models.Channels
+
+	channels, err := ch.AddUserToChannels(db, req)
+	if err != nil {
+		return channels, err
+	}
+	return channels, nil
 }
