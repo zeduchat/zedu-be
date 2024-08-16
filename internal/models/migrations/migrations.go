@@ -24,7 +24,7 @@ func AuthMigrationModels() []interface{} {
 		models.Invitation{},
 		models.Invitation{},
 		models.Webhook{},
-		models.WebhookHistory{},
+		models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
 		models.HelpCenterCategory{},
@@ -34,11 +34,5 @@ func AuthMigrationModels() []interface{} {
 
 func AlterColumnModels() []AlterColumn {
 	return []AlterColumn{
-		{
-			Model:     &models.WebhookHistory{},
-			TableName: "webhook_histories",
-			Column:    "id",
-			Type:      "uuid",
-		},
 	}
 }
