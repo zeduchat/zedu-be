@@ -11,6 +11,7 @@ import (
 	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -18,9 +19,10 @@ import (
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
-func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB) (gin.H, int, error) {
+func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
 	var (
 		userClaims   map[string]interface{}
@@ -100,16 +102,16 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB) (gin.H, int, e
 
 	responseData = gin.H{
 		"user": map[string]interface{}{
-			"id":          user.ID,
-			"email":       user.Email,
-			"username":    user.Name,
-			"fullname":    user.Name,
-			"is_verified": user.IsVerified,
+			"id":           user.ID,
+			"email":        user.Email,
+			"username":     user.Name,
+			"fullname":     user.Name,
+			"is_verified":  user.IsVerified,
 			"is_onboarded": user.IsOnboarded,
-			"avatar_url":  user.Profile.AvatarURL,
-			"expires_in":  strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":  strconv.Itoa(int(user.CreatedAt.Unix())),
-			"updated_at":  strconv.Itoa(int(user.UpdatedAt.Unix())),
+			"avatar_url":   user.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}
@@ -123,6 +125,8 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB) (gin.H, int, e
 			return responseData, http.StatusInternalServerError, err
 		}
 	}
+
+	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
 	return responseData, http.StatusCreated, nil
 }
