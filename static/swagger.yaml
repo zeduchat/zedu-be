@@ -12,6 +12,9 @@ info:
   version: 1.0.0
 servers:
   # Added by API Auto Mocking Plugin
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/urizennnnnn/HNG/1.0.0
   - url: https://api.staging.telex.im/api/v1
 
 tags:
@@ -39,14 +42,19 @@ tags:
     description: API for message related endpoints
   - name: threads
     description: API for threads related endpoints
+
   - name: user-management
     description: API for user management related endpoints
   - name: Profile
     description: API for user profile related endpoints
+  - name: subscription
+    description: API for subscriptions related endpoints
   - name: help center
     description: API for help center related endpoints
   - name: Feed_Webhook
     description: API for feeding centrifugo server
+  - name: Integrations
+    description:  API for user integrations operations  
 
 
 
@@ -1496,6 +1504,173 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /users/organisations/{org_id}:
+    get:
+      summary: Retrieve organisation details by organisation ID
+      tags:
+        - user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+           type: string
+          description: The ID of the organisation whose details are being retrieved.
+      responses:
+        '200':
+          description: Organisation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: success
+                  message:
+                    type: string
+                    description: Message describing the outcome
+                    example: Organisation details retrieved successfully
+                  data:
+                    type: object
+                    description: Organisation details object
+                    properties:
+                      id:
+                        type: string
+                        description: The ID of the organisation
+                      name:
+                        type: string
+                        description: The name of the organisation
+                      description:
+                        type: string
+                        description: The description of the organisation
+                      email:
+                        type: string
+                        description: The contact email of the organisation
+                      type:
+                        type: string
+                        description: The type of organisation
+                      location:
+                        type: string
+                        description: The location of the organisation
+                      country:
+                        type: string
+                        description: The country where the organisation is based
+                      owner_id:
+                        type: string
+                        description: The ID of the organisation's owner
+                      channels_count:
+                        type: integer
+                        description: The number of channels associated with the organisation
+                      total_messages_count:
+                        type: integer
+                        description: The total number of messages within the organisation
+                      org_roles:
+                        type: array
+                        description: List of roles within the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the organisation role
+                            name:
+                              type: string
+                              description: The name of the role
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The creation timestamp of the role
+                      users:
+                        type: array
+                        description: List of users associated with the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the user
+                            username:
+                              type: string
+                              description: The username of the user
+                            email:
+                              type: string
+                              description: The email of the user
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The timestamp when the user was created
+                      channels:
+                        type: array
+                        description: List of channels within the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the channel
+                            name:
+                              type: string
+                              description: The name of the channel
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The creation timestamp of the channel
+                      created_at:
+                        type: string
+                        format: date-time
+                        description: The timestamp when the organisation was created
+                      updated_at:
+                        type: string
+                        format: date-time
+                        description: The timestamp when the organisation was last updated
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining the failure
+        '404':
+          description: Organisation not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining that the organisation was not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining the server failure
+
+
   /users/{userId}/roles/{roleId}:
     put:
       tags:
@@ -1580,49 +1755,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginAuditResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
-  /users/{userId}/sessions:
-    get:
-      tags:
-        - user
-      summary: Retrieve user login sessions
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-
-        - $ref: '#/components/parameters/PageLimitParam'
-        - $ref: '#/components/parameters/LimitParam'
-      responses:
-        '200':
-          description: User Sessions retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
         '400':
           description: Bad request
           content:
@@ -1751,6 +1883,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
+
+    
+                
+
+                 
 
   /channels:
     post:
@@ -2612,16 +2749,16 @@ paths:
       summary: get all blogs from the lastest
       parameters:
         - in: query
+          name: search
+          schema:
+            type: string
+          description: The search query to match against blog titles and content.
+        - in: query
           name: category
           schema:
             type: string
             format: uuid
           description: The ID of the blog category to filter by.
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: The search query to match against blog titles and content.
         - $ref: '#/components/parameters/PageLimitParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
@@ -3050,7 +3187,266 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-# webhooks
+
+  /subscription/complete/{session_id}/{user_id}:
+    get:
+      summary: Complete a subscription and retrieve associated invoices
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the session to complete the subscription.
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the user whose subscription is being completed.
+      responses:
+        '200':
+          description: Subscription completed successfully and invoices retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoice_items:
+                    type: array
+                    items:
+                      type: object
+                      description: Stripe invoice object
+                      properties:
+                        id:
+                          type: string
+                          description: The ID of the invoice
+                        amount_due:
+                          type: integer
+                          description: Amount due on the invoice
+                        status:
+                          type: string
+                          description: Status of the invoice
+                        created:
+                          type: integer
+                          description: Creation timestamp of the invoice
+        '400':
+          description: Bad request, either the session was not paid or no subscription ID found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message explaining the failure
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message explaining the server failure
+
+  /api/v1/subscriptions/create:
+    post:
+      summary: Create a new subscription
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+
+   
+  /subscriptions/list/{user_id}:
+    get:
+      summary: List subscriptions for a user
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscriptions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subscriptions/modify:
+    put:
+      summary: Modify an existing subscription
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifySubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription modified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /invoice/download/session_id/user_id:
+    get:
+      summary: Complete a subscription and retrieve invoice items
+      description: This endpoint completes a subscription based on the provided session ID and returns the associated invoice items.
+      tags:
+        - subscription
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the Stripe Checkout Session
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the user whose subscription is being completed
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoice_items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InvoiceResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string              
+  /api/v1/subscriptions/delete/{user_id}:
+    delete:
+      summary: Delete a subscription
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the user whose subscription is to be deleted
+      responses:
+        '200':
+          description: Subscription deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 
   /webhooks/{channel_id}:
@@ -3980,6 +4376,59 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/UserDeactivateResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '403':
+            description: Forbidden
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ForbiddenErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
+              
+  /users/activate/{userId}:
+      put:
+        tags:
+          - user
+        summary: Activate  a specific user
+        security:
+          - bearerAuth: []
+        parameters:
+          - name: userId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the user to activate.
+        responses:
+          '200':
+            description: User deactivated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserActivateResponseSchema'
           '400':
             description: Bad request
             content:
@@ -5102,7 +5551,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
                 
-  /help-center/category:
+  /help-center/categories:
     post:
       tags:
         - help center
@@ -5160,6 +5609,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
+
+    get:
+      tags:
+        - help center
+      summary: Get all help center categories
+      responses:
+        '200':
+          description: Help center categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200  
+                  message:
+                    type: string
+                    example: "Categories retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      articles:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryResponseSchema'
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_size:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+                          total_pages:
+                            type: integer
+                            example: 1   
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'            
 
   /help-center/articles/{category_id}:
     post:
@@ -5308,64 +5813,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
-  /help-center/categories:
-    get:
-      tags:
-        - help center
-      summary: Get all help center categories
-      responses:
-        '200':
-          description: Help center categories retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  status_code:
-                    type: integer
-                    example: 200  
-                  message:
-                    type: string
-                    example: "Categories retrieved successfully."
-                  data:
-                    type: object
-                    properties:
-                      articles:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/CategoryResponseSchema'
-                      pagination:
-                        type: object
-                        properties:
-                          current_page:
-                            type: integer
-                            example: 1
-                          page_size:
-                            type: integer
-                            example: 1
-                          total_items:
-                            type: integer
-                            example: 1
-                          total_pages:
-                            type: integer
-                            example: 1   
-        '404':
-          description: Category not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'   
+                $ref: '#/components/schemas/ServerErrorSchema'  
 
   /help-center/articles/{article_id}:
     get:
@@ -5463,10 +5911,141 @@ paths:
                           total_pages:
                             type: integer
                             example: 1   
+  /integrations:
+  
+    post:
+      summary: Create a new integration application
+      security:
+        - bearerAuth: [] 
+      description: This endpoint allows the creation of a new integration application.
+      tags:
+        - Integrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIntegrationAppRequest'
+      responses:
+        '201':
+          description: Application added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationAppResponse'
+        '401':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '409':
+          description: Integration app already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    get:
+      summary: Get all integration applications
+      security:
+        - bearerAuth: [] 
+      description: Retrieve a paginated list of all integration applications.
+      tags:
+        - Integrations
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: The page number to retrieve.
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+          description: The number of items per page.
+      responses:
+        '200':
+          description: Topics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAllIntegrationAppResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'                          
 
 components:
 
   schemas:
+    GetAllIntegrationAppResponse:
+      type: object
+      properties:
+        integrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntegrationAppResponse'
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 10
+            page_size:
+              type: integer
+              example: 20
+            total_items:
+              type: integer
+              example: 200
+    CreateIntegrationAppRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "IntegrationApp1"
+        api_endpoint_url:
+          type: string
+          example: "http://api.endpoint.com"
+        auth_credential:
+          type: string
+          example: "some-auth-credential"
+
+    IntegrationAppResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "uuid-integration-app"
+        name:
+          type: string
+          example: "IntegrationApp1"
+        logo_url:
+          type: string
+          example: "http://api.endpoint.com.png"  
+        api_endpoint_url:
+          type: string
+          example: "http://api.endpoint.com"
+        auth_credential:
+          type: string
+          example: "some-auth-credential"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-08-14T12:34:56Z"  
     CategoryResponseSchema:
       type: object
       properties:
@@ -5949,7 +6528,618 @@ components:
         message:
           type: string
           example: "Validation failed"
-        
+
+
+    InvoiceResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        status_code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            invoice_items:
+              type: array
+              items:
+                type: object
+                properties:
+                  account_country:
+                    type: string
+                  account_name:
+                    type: string
+                  account_tax_ids:
+                    type: object
+                    nullable: true
+                  amount_due:
+                    type: integer
+                  amount_paid:
+                    type: integer
+                  amount_remaining:
+                    type: integer
+                  application:
+                    type: object
+                    nullable: true
+                  application_fee_amount:
+                    type: integer
+                  attempt_count:
+                    type: integer
+                  attempted:
+                    type: boolean
+                  auto_advance:
+                    type: boolean
+                  automatic_tax:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                      status:
+                        type: string
+                  billing_reason:
+                    type: string
+                  charge:
+                    type: object
+                    properties:
+                      amount:
+                        type: integer
+                      amount_captured:
+                        type: integer
+                      amount_refunded:
+                        type: integer
+                      application:
+                        type: object
+                        nullable: true
+                      application_fee:
+                        type: object
+                        nullable: true
+                      application_fee_amount:
+                        type: integer
+                      authorization_code:
+                        type: string
+                      balance_transaction:
+                        type: object
+                        nullable: true
+                      billing_details:
+                        type: object
+                        nullable: true
+                      calculated_statement_descriptor:
+                        type: string
+                      captured:
+                        type: boolean
+                      created:
+                        type: integer
+                      currency:
+                        type: string
+                      customer:
+                        type: object
+                        nullable: true
+                      description:
+                        type: string
+                      destination:
+                        type: object
+                        nullable: true
+                      dispute:
+                        type: object
+                        nullable: true
+                      disputed:
+                        type: boolean
+                      failure_balance_transaction:
+                        type: object
+                        nullable: true
+                      failure_code:
+                        type: string
+                      failure_message:
+                        type: string
+                      fraud_details:
+                        type: object
+                        nullable: true
+                      id:
+                        type: string
+                      invoice:
+                        type: object
+                        nullable: true
+                      level3:
+                        type: object
+                        properties:
+                          customer_reference:
+                            type: string
+                          line_items:
+                            type: object
+                            nullable: true
+                          merchant_reference:
+                            type: string
+                          shipping_address_zip:
+                            type: string
+                          shipping_amount:
+                            type: integer
+                          shipping_from_zip:
+                            type: string
+                      livemode:
+                        type: boolean
+                      metadata:
+                        type: object
+                        nullable: true
+                      object:
+                        type: string
+                      on_behalf_of:
+                        type: object
+                        nullable: true
+                      order:
+                        type: object
+                        nullable: true
+                      outcome:
+                        type: object
+                        nullable: true
+                      paid:
+                        type: boolean
+                      payment_intent:
+                        type: object
+                        nullable: true
+                      payment_method:
+                        type: string
+                      payment_method_details:
+                        type: object
+                        nullable: true
+                      radar_options:
+                        type: object
+                        nullable: true
+                      receipt_email:
+                        type: string
+                      receipt_number:
+                        type: string
+                      receipt_url:
+                        type: string
+                      refunded:
+                        type: boolean
+                      refunds:
+                        type: object
+                        nullable: true
+                      review:
+                        type: object
+                        nullable: true
+                      shipping:
+                        type: object
+                        nullable: true
+                      source:
+                        type: object
+                        nullable: true
+                      source_transfer:
+                        type: object
+                        nullable: true
+                      statement_descriptor:
+                        type: string
+                      statement_descriptor_suffix:
+                        type: string
+                      status:
+                        type: string
+                      transfer:
+                        type: object
+                        nullable: true
+                      transfer_data:
+                        type: object
+                        nullable: true
+                      transfer_group:
+                        type: string
+                  collection_method:
+                    type: string
+                  created:
+                    type: integer
+                  currency:
+                    type: string
+                  customer:
+                    type: object
+                    properties:
+                      address:
+                        type: object
+                        properties:
+                          city:
+                            type: string
+                          country:
+                            type: string
+                          line1:
+                            type: string
+                          line2:
+                            type: string
+                          postal_code:
+                            type: string
+                          state:
+                            type: string
+                      balance:
+                        type: integer
+                      cash_balance:
+                        type: object
+                        nullable: true
+                      created:
+                        type: integer
+                      currency:
+                        type: string
+                      default_currency:
+                        type: string
+                      default_source:
+                        type: object
+                        nullable: true
+                      deleted:
+                        type: boolean
+                      delinquent:
+                        type: boolean
+                      description:
+                        type: string
+                      discount:
+                        type: object
+                        nullable: true
+                      email:
+                        type: string
+                      id:
+                        type: string
+                      invoice_credit_balance:
+                        type: object
+                        nullable: true
+                      invoice_prefix:
+                        type: string
+                      invoice_settings:
+                        type: object
+                        nullable: true
+                      livemode:
+                        type: boolean
+                      metadata:
+                        type: object
+                        nullable: true
+                      name:
+                        type: string
+                      next_invoice_sequence:
+                        type: integer
+                      object:
+                        type: string
+                      phone:
+                        type: string
+                      preferred_locales:
+                        type: object
+                        nullable: true
+                      shipping:
+                        type: object
+                        nullable: true
+                      sources:
+                        type: object
+                        nullable: true
+                      subscriptions:
+                        type: object
+                        nullable: true
+                      tax:
+                        type: object
+                        nullable: true
+                      tax_exempt:
+                        type: string
+                      tax_ids:
+                        type: object
+                        nullable: true
+                      test_clock:
+                        type: object
+                        nullable: true
+                  customer_address:
+                    type: object
+                    nullable: true
+                  customer_email:
+                    type: string
+                  customer_name:
+                    type: object
+                    nullable: true
+                  customer_phone:
+                    type: object
+                    nullable: true
+                  customer_shipping:
+                    type: object
+                    nullable: true
+                  customer_tax_exempt:
+                    type: string
+                  customer_tax_ids:
+                    type: array
+                    items:
+                      type: object
+                  custom_fields:
+                    type: object
+                    nullable: true
+                  default_payment_method:
+                    type: object
+                    nullable: true
+                  default_source:
+                    type: object
+                    nullable: true
+                  default_tax_rates:
+                    type: array
+                    items:
+                      type: object
+                  deleted:
+                    type: boolean
+                  description:
+                    type: string
+                  discount:
+                    type: object
+                    nullable: true
+                  discounts:
+                    type: array
+                    items:
+                      type: object
+                  due_date:
+                    type: integer
+                  ending_balance:
+                    type: integer
+                  footer:
+                    type: string
+                  hosted_invoice_url:
+                    type: string
+                  id:
+                    type: string
+                  invoice_pdf:
+                    type: string
+                  last_finalization_error:
+                    type: object
+                    nullable: true
+                  lines:
+                    type: object
+                    properties:
+                      has_more:
+                        type: boolean
+                      url:
+                        type: string
+                      total_count:
+                        type: integer
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            amount:
+                              type: integer
+                            amount_excluding_tax:
+                              type: integer
+                            currency:
+                              type: string
+                            description:
+                              type: string
+                            discountable:
+                              type: boolean
+                            discount_amounts:
+                              type: array
+                              items:
+                                type: object
+                            discounts:
+                              type: array
+                              items:
+                                type: object
+                            id:
+                              type: string
+                            invoice_item:
+                              type: string
+                            livemode:
+                              type: boolean
+                            metadata:
+                              type: object
+                            object:
+                              type: string
+                            period:
+                              type: object
+                              properties:
+                                end:
+                                  type: integer
+                                start:
+                                  type: integer
+                            plan:
+                              type: object
+                              properties:
+                                active:
+                                  type: boolean
+                                aggregate_usage:
+                                  type: string
+                                amount:
+                                  type: integer
+                                amount_decimal:
+                                  type: string
+                                billing_scheme:
+                                  type: string
+                                created:
+                                  type: integer
+                                currency:
+                                  type: string
+                                deleted:
+                                  type: boolean
+                                id:
+                                  type: string
+                                interval:
+                                  type: string
+                                interval_count:
+                                  type: integer
+                                livemode:
+                                  type: boolean
+                                metadata:
+                                  type: object
+                                nickname:
+                                  type: string
+                                object:
+                                  type: string
+                                product:
+                                  type: object
+                                  properties:
+                                    active:
+                                      type: boolean
+                                    attributes:
+                                      type: object
+                                      nullable: true
+                                    caption:
+                                      type: string
+                                    created:
+                                      type: integer
+                                    deactivate_on:
+                                      type: object
+                                      nullable: true
+                                    default_price:
+                                      type: object
+                                      nullable: true
+                                    deleted:
+                                      type: boolean
+                                    description:
+                                      type: string
+                                    id:
+                                      type: string
+                                    images:
+                                      type: object
+                                      nullable: true
+                                    livemode:
+                                      type: boolean
+                                    metadata:
+                                      type: object
+                                    name:
+                                      type: string
+                                    object:
+                                      type: string
+                                    package_dimensions:
+                                      type: object
+                                      nullable: true
+                                    shippable:
+                                      type: boolean
+                                    statement_descriptor:
+                                      type: string
+                                    statement_descriptor_suffix:
+                                      type: string
+                                    tax_code:
+                                      type: object
+                                      nullable: true
+                                    type:
+                                      type: string
+                                    unit_label:
+                                      type: string
+                                    updated:
+                                      type: integer
+                                    url:
+                                      type: string
+                                tiers_mode:
+                                  type: object
+                                  nullable: true
+                                transform_usage:
+                                  type: object
+                                  nullable: true
+                                trial_period_days:
+                                  type: integer
+                                usage_type:
+                                  type: string
+                            proration:
+                              type: boolean
+                            quantity:
+                              type: integer
+                            subscription:
+                              type: string
+                            subscription_item:
+                              type: string
+                            tax_amounts:
+                              type: array
+                              items:
+                                type: object
+                            tax_rates:
+                              type: array
+                              items:
+                                type: object
+                            type:
+                              type: string
+                            unit_amount:
+                              type: integer
+                            unit_amount_decimal:
+                              type: string
+                    required:
+                      - has_more
+                      - url
+                      - total_count
+                  livemode:
+                    type: boolean
+                  metadata:
+                    type: object
+                    nullable: true
+                  next_payment_attempt:
+                    type: integer
+                  number:
+                    type: string
+                  object:
+                    type: string
+                  on_behalf_of:
+                    type: object
+                    nullable: true
+                  paid:
+                    type: boolean
+                  paid_out_of_band:
+                    type: boolean
+                  payment_intent:
+                    type: object
+                    nullable: true
+                  payment_settings:
+                    type: object
+                    nullable: true
+                  period_end:
+                    type: integer
+                  period_start:
+                    type: integer
+                  post_payment_credit_notes_amount:
+                    type: integer
+                  pre_payment_credit_notes_amount:
+                    type: integer
+                  quote:
+                    type: object
+                    nullable: true
+                  receipt_number:
+                    type: string
+                  rendering_options:
+                    type: object
+                    nullable: true
+                  starting_balance:
+                    type: integer
+                  statement_descriptor:
+                    type: object
+                    nullable: true
+                  status:
+                    type: string
+                  status_transitions:
+                    type: object
+                    properties:
+                      finalized_at:
+                        type: integer
+                      marked_uncollectible_at:
+                        type: object
+                        nullable: true
+                      paid_at:
+                        type: integer
+                      voided_at:
+                        type: object
+                        nullable: true
+                  subscription:
+                    type: string
+                  subtotal:
+                    type: integer
+                  subtotal_excluding_tax:
+                    type: integer
+                  tax:
+                    type: integer
+                  test_clock:
+                    type: object
+                    nullable: true
+                  total:
+                    type: integer
+                  total_discount_amounts:
+                    type: array
+                    items:
+                      type: object
+                  total_excluding_tax:
+                    type: integer
+                  total_tax_amounts:
+                    type: array
+                    items:
+                      type: object
+                  transfer_data:
+                    type: object
+                    nullable: true
+                  webhooks_delivered_at:
+                    type: integer
+
+
     UnauthorizedErrorSchema:
       type: object
       properties:
@@ -6975,7 +8165,22 @@ components:
                 items:
                   type: string
                 nullable: true
-
+    SubscriptionResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        status_code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            checkout_session_id:
+              type: string
+            checkout_session_url:
+              type: string 
     MessageCreateSchema:
       type: object
       properties:
@@ -7593,7 +8798,72 @@ components:
           type: string
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
+    
+    CreateSubscriptionRequest:
+      type: object
+      required:
+        - plan_name
+        - user_id
+        - email
+      properties:
+        plan_name:
+          type: string
+          description: "The name of the subscription plan."
+          example: "Premium"
+        user_id:
+          type: string
+          description: "The unique identifier for the user."
+          example: "123456"
+        email:
+          type: string
+          description: "The email address of the user."
+          format: email
+          example: "user@example.com"
+    ModifySubscriptionRequest:
+      type: object
+      required:
+        - user_id
+        - plan_name
+        - plan_id
+      properties:
+        user_id:
+          type: string
+          description: The ID of the user modifying the subscription
+        plan_name:
+          type: string
+          description: The new name of the subscription plan
+        plan_id:
+          type: integer
+          format: uint
+          description: The new ID of the subscription plan
 
+    DeleteSubscriptionRequest:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          description: The ID of the user deleting the subscription
+
+    UserActivateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+          description: The HTTP status code indicating the outcome of the operation.
+        message:
+          type: string
+          example: "User activated successfully"
+          description: A message describing the result of the operation.
+        data:
+          type: object
+          nullable: true
+          description: Additional data related to the response, typically null in this case.
+      required:
+        - status
+        - message
     UserDeactivateResponseSchema:
       type: object
       properties:
@@ -7703,3 +8973,4 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
+

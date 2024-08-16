@@ -19,8 +19,8 @@ func Profile(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	profileUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		profileUrl.GET("/profile", userProfile.GetUserProfile)
-		profileUrl.PATCH("/profile", userProfile.UpdateProfile)
-		profileUrl.DELETE("/profile/image", userProfile.DeleteUserProfileImage )
+		profileUrl.PATCH("/profile", middleware.CheckIsDeactivated(db.Postgresql), userProfile.UpdateProfile)
+		profileUrl.DELETE("/profile/image", userProfile.DeleteUserProfileImage)
 	}
 
 	return r

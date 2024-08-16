@@ -22,6 +22,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -31,6 +32,7 @@ func Setup() *utility.Logger {
 
 	postgresql.ConnectToDatabase(logger, config.TestDatabase)
 	redis.ConnectToRedis(logger, config.Redis)
+	typesense.ConnectToTypeSense(logger, config.TypeSense)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)

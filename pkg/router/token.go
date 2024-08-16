@@ -17,7 +17,7 @@ func TokenGen(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	token := token.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	tokenUrl := r.Group(fmt.Sprintf("%v/token", ApiVersion), middleware.Authorize(db.Postgresql))
+	tokenUrl := r.Group(fmt.Sprintf("%v/token", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 	{
 		tokenUrl.GET("/connection", token.GetConnToken)
 		tokenUrl.POST("/subscription", token.GetSubToken)

@@ -15,6 +15,7 @@ type Configuration struct {
 	Redis        Redis
 	Mail         MAIL
 	Minio        Minio
+	Stripe       Stripe
 	TypeSense    TypeSense
 }
 
@@ -73,8 +74,13 @@ type BaseConfig struct {
 	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
-	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
-	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
+
+	STRIPE_KEY         string `mapstructure:"STRIPE_KEY"`
+	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
+	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
+	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
+	TYPESENSE_API_URL  string `mapstructure:"TYPESENSE_API_URL"`
+	TYPESENSE_API_KEY  string `mapstructure:"TYPESENSE_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -155,7 +161,12 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
 		},
-
+		Stripe: Stripe{
+			STRIPE_KEY:         config.STRIPE_KEY,
+			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
+			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
+			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
+		},
 		TypeSense: TypeSense{
 			TypeSense_API_URL: config.TYPESENSE_API_URL,
 			TypeSense_API_KEY: config.TYPESENSE_API_KEY,

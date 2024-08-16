@@ -19,22 +19,22 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		channelUrl.POST("/", channel.CreateChannels)
-		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
+		channelUrl.POST("/", middleware.CheckIsDeactivated(db.Postgresql), channel.CreateChannels)
+		channelUrl.POST("/:channelId/messages", middleware.CheckIsDeactivated(db.Postgresql), channel.AddChannelsMsg)
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
-		channelUrl.POST("/:channelId/join", channel.JoinChannels)
+		channelUrl.POST("/:channelId/join", middleware.CheckIsDeactivated(db.Postgresql), channel.JoinChannels)
 		channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
-		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
-		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
+		channelUrl.DELETE("/:channelId", middleware.CheckIsDeactivated(db.Postgresql), channel.DeleteChannels)
+		channelUrl.PATCH("/:channelId/username", middleware.CheckIsDeactivated(db.Postgresql), channel.UpdateUsername)
 		channelUrl.GET("/:channelId", channel.GetChannels)
 		channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 		channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
-		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
+		channelUrl.PATCH("/:channelId", middleware.CheckIsDeactivated(db.Postgresql), channel.UpdateChannels)
 
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)
 		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
 	}
-	
+
 	return r
 }

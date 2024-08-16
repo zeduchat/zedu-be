@@ -2,45 +2,30 @@ package typesense
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	"github.com/typesense/typesense-go/v2/typesense"
 	"github.com/typesense/typesense-go/v2/typesense/api"
-	"github.com/typesense/typesense-go/v2/typesense/api/pointer"
 )
 
-func CreateDocument(client *typesense.Client) {
+func CreateCollection(client *typesense.Client, collectionName string, fields []api.Field) error {
 
-	newDocument1 := struct {
-		ID           string `json:"id"`
-		CompanyName  string `json:"company_name"`
-		NumEmployees int    `json:"num_employees"`
-		Country      string `json:"country"`
-	}{
-		ID:           "482",
-		CompanyName:  "MF Legion",
-		NumEmployees: 232,
-		Country:      "Barbados",
+	collectionSchema := api.CollectionSchema{
+		Name:   collectionName,
+		Fields: fields,
 	}
 
-	_, err := client.Collection("companies").Documents().Upsert(context.Background(), newDocument1)
+	_, err := client.Collections().Create(context.Background(), &collectionSchema)
 	if err != nil {
-		log.Printf("Document upsert error: %v", err)
+		return err
 	}
 
-	searchParams := &api.SearchCollectionParams{
-		Q:       pointer.String("*"),
-		QueryBy: pointer.String("company_name"),
-	}
+	return nil
+}
 
-	searchResult, err := client.Collection("companies").Documents().Search(context.Background(), searchParams)
+func InsertDocument(client *typesense.Client, collectionName string, document interface{}) error {
+	_, err := client.Collection(collectionName).Documents().Create(context.Background(), document)
 	if err != nil {
-		log.Fatalf("Error searching documents: %v", err)
+		return err
 	}
-
-	for _, hit := range *searchResult.Hits {
-		fmt.Printf("Document found: %+v\n", hit.Document)
-	}
-
+	return nil
 }
