@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -123,6 +124,14 @@ func TestMessage(t *testing.T) {
 			},
 		},
 	}
+
+	defer func() {
+		err := tydb.DeleteCollection(db.TypeSense, channelId)
+		if err != nil {
+			t.Fatalf("failed to delete collection: %v", err)
+		}
+		fmt.Printf("deleted collection: %v", channelId)
+	}()
 
 	for _, test := range tests {
 		r := gin.Default()

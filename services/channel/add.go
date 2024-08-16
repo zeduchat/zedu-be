@@ -7,10 +7,11 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 )
 
-func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Message, int, error) {
+func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *typesense.Client) (models.Message, int, error) {
 
 	threadId, _ := uuid.FromString(req.ThreadId)
 	message := models.Message{
@@ -21,7 +22,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB) (models.Messag
 		ThreadID:   threadId,
 	}
 
-	if err := message.CreateMessage(db); err != nil {
+	if err := message.CreateMessage(db, typesenseDb); err != nil {
 		return message, http.StatusBadRequest, err
 	}
 

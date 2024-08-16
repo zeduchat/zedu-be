@@ -33,6 +33,6 @@ func AuthMigrationModels() []interface{} {
 }
 
 func AlterColumnModels() []AlterColumn {
-	return []AlterColumn{
-	}
+
+	return []AlterColumn{}
 }
