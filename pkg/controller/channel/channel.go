@@ -534,3 +534,33 @@ func (base *Controller) GetUsersInChannel(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+
+func (base *Controller) AddMembersToChannel(c *gin.Context){
+	var req models.JoinChannelsRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+
+	if _, err := uuid.Parse(req.ChannelsID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	response, err := channel.AddMembersToChannel(base.Db.Postgresql, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("members added to channel successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "members added to channel successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
