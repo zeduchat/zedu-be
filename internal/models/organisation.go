@@ -385,3 +385,54 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 
 	return org, nil
 }
+
+// the organization id (this one I’m already getting from url)
+// the organization name
+// the organization email
+// the organization owner id
+// the organization owner name
+// the organization users array (so I can show how many users have already joined the org)
+
+type OrgMetricsResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	OwnerID   string `json:"owner_id"`
+	OwnerName string `json:"owner_name"`
+	Users     []User `json:"users"`
+}
+
+// get organisation by organisation id
+func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMetricsResponse, error) {
+	var org Organisation
+	var ogm OrgMetricsResponse
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return ogm, errors.New("organisation not found")
+	}
+
+	err, _ := postgresql.SelectOneFromDb(db.Preload("User"), &org, "id = ?", orgID)
+	if err != nil {
+		return ogm, err
+	}
+
+	//get the owner of the organisation
+	var owner User
+
+	err, _ = postgresql.SelectOneFromDb(db.Preload("Profile"), &owner, "id = ?", org.OwnerID)
+	if err != nil {
+		return ogm, err
+	}
+
+	response := OrgMetricsResponse{
+		ID:        org.ID,
+		Name:      org.Name,
+		Email:     org.Email,
+		OwnerID:   org.OwnerID,
+		OwnerName: owner.Profile.FullName,
+		Users:     org.Users,
+	}
+
+	return response, nil
+}
