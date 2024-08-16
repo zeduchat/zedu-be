@@ -29,7 +29,7 @@ jobs:
             BUKCET_SECRET_KEY
             TYPESENSE_API_KEY
             CENTRIFUGE_API_KEY
-          APP_NAME: "telex_be"
+          APP_NAME: "telex_be_staging"
           APP_URL: ${{ secrets.APP_URL_STAGING }}
           WEBHOOK_API_URL: ${{ secrets.WEBHOOK_API_URL_STAGING }}
           SERVER_PORT: ${{ secrets.SERVER_PORT_STAGING }}
@@ -63,7 +63,8 @@ jobs:
         run: |
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
           chmod 400 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env \
+          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be_staging/app.env
           rm ssh_key.pem
 
   build_and_restart_app:
