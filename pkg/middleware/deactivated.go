@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
@@ -12,18 +15,15 @@ func CheckIsDeactivated(db *gorm.DB) gin.HandlerFunc {
 		owner_id, _ := GetIdFromToken(c)
 		user, err := user.GetUserByID(db, owner_id)
 		if err != nil {
-			c.JSON(400, gin.H{
-				"error": "User not found",
-			})
-			c.Abort()
+			r := utility.BuildErrorResponse(http.StatusNotFound, "error", "User not Found", "Unauthorized", nil)
+			c.AbortWithStatusJSON(http.StatusNotFound, r)
 			return
 		}
 		if user.Deactivated {
-			c.JSON(400, gin.H{
-				"error": "User is deactivated",
-			})
-
-			c.Next()
+			r := utility.BuildErrorResponse(http.StatusForbidden, "error", "User is deactivated", "Forbidden", nil)
+			c.AbortWithStatusJSON(http.StatusForbidden, r)
+			return
 		}
+		c.Next()
 	}
 }
