@@ -20,11 +20,12 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env 
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
+
 	var url string
 	if env == "prod" {
 		url = "https://telex.im/"
 	} else {
-		env = "http://localhost:3000/"
+		url = "http://localhost:3000/"
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
