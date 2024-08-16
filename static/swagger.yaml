@@ -8819,7 +8819,7 @@ components:
           description: "The email address of the user."
           format: email
           example: "user@example.com"
-      ModifySubscriptionRequest:
+    ModifySubscriptionRequest:
       type: object
       required:
         - user_id
