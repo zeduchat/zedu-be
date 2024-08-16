@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/invitation"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
@@ -33,6 +34,7 @@ func Setup() *utility.Logger {
 	postgresql.ConnectToDatabase(logger, config.TestDatabase)
 	redis.ConnectToRedis(logger, config.Redis)
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
+	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)
