@@ -8,6 +8,10 @@ on:
 jobs:
   build_and_test:
     runs-on: self-hosted
+    strategy:
+      matrix:
+        typesense-version: ['0.25.2', '26.0']
+        typesense-port: ['8108:8108'] # matches the app-sample.env
     env:
       TEST_USERNAME: postgres
       TEST_PASSWORD: password
@@ -30,16 +34,26 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      typesense:
+        image: typesense/typesense:${{ matrix.typesense-version }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set Golang
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.22.1"
       - name: Create app config file
         run: cp app-sample.env app.env
+      - name: Start Typesense
+        run: |
+          docker run -d \
+          --name typesense \
+          -p ${{ matrix.typesense-port }} \
+          -v /tmp/typesense:/data \
+          typesense/typesense:${{ matrix.typesense-version}} \
+          --api-key=typesensetestapikey \
+          --data-dir /data \
+          --enable-cors
+      - name: Curl Typesense
+        run: sleep 1 && curl http://localhost:8108/health
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
