@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
@@ -20,18 +21,14 @@ func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 	var location, organisationID string
 	response, err := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
 	if err != nil {
-		location = "unknown"
-	} else {
-		if respMap, ok := response.(map[string]interface{}); ok {
-			if city, ok := respMap["city"].(string); ok {
-				location = city
-			} else {
-				location = "unknown"
-			}
-		} else {
-			location = "error"
-		}
+		location = "error"
 	}
+
+	info, ok := response.(external_models.IPInfoResponse)
+	if !ok {
+		location = "error"
+	}
+	location = info.City
 
 	if len(Organisations) > 0 {
 		organisationID = Organisations[0].ID

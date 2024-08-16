@@ -28,7 +28,7 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook
 	}
 
 	slug := strings.Split(webhook.ID, "-")[4]
-	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/webhooks/feed/%s", slug)
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/api/v1/webhooks/feed/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
 
@@ -112,13 +112,13 @@ func GetAllWebhook(db *gorm.DB, c *gin.Context, channelId string) ([]models.Webh
 
 }
 
-func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *gorm.DB) ([]models.WebhookHistory, postgresql.PaginationResponse, int, error) {
+func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *gorm.DB) ([]models.HistoryWebhook, postgresql.PaginationResponse, int, error) {
 
 	var (
-		webhookhistory models.WebhookHistory
+		HistoryWebhook models.HistoryWebhook
 	)
 
-	resp, pagResp, code, err := webhookhistory.GetWebHookHistory(db, c, req)
+	resp, pagResp, code, err := HistoryWebhook.GetWebHookHistory(db, c, req)
 
 	if err != nil {
 		return resp, pagResp, code, err

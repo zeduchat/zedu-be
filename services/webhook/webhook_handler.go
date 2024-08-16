@@ -17,18 +17,19 @@ import (
 func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest) (gin.H, int, error) {
 
 	var (
-		resp           gin.H
-		webhook        models.Webhook
-		webhookHistory models.WebhookHistory
+		resp    gin.H
+		webhook models.Webhook
+		HistoryWebhook models.HistoryWebhook
 	)
 
 	webhook, err := webhook.CheckExistBySlug(db, req.WebhookSlug)
 
 	if err != nil {
+		logger.Error("invalid webhook" + err.Error())
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
 	}
 
-	webhookHistory = models.WebhookHistory{
+	HistoryWebhook = models.HistoryWebhook{
 		ID:          utility.GenerateUUID(),
 		EventName:   req.EventName,
 		WebhookID:   webhook.ID,
@@ -37,9 +38,9 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		StatusCode:  "200",
 		Retries:     int64(0),
 	}
-	err = webhookHistory.CreateWebhookHistory(db)
+	err = HistoryWebhook.CreateWebhookHistory(db)
 	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("failed to create webhook history")
+		logger.Error("failed to create webhook history" + err.Error())
 	}
 
 	thread := models.Threads{
@@ -52,6 +53,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	}
 	err = thread.CreateThread(db)
 	if err != nil {
+		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
 	}
 
@@ -90,6 +92,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	err := thread.CreateThread(db)
 	if err != nil {
+		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
 	}
 

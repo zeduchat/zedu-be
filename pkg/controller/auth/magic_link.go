@@ -66,7 +66,7 @@ func (base *Controller) VerifyMagicLink(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := service.VerifyMagicLinkToken(req, base.Db.Postgresql)
+	respData, code, err := service.VerifyMagicLinkToken(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)

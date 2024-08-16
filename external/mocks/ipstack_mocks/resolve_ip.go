@@ -27,7 +27,7 @@ func IpinfoResolveIp(logger *utility.Logger, idata interface{}) (external_models
 	outBoundResponse.Country = "Sample Country"
 	outBoundResponse.Location = "40.7128,-74.0060"
 	outBoundResponse.Org = "Example ISP"
-	outBoundResponse.ASN = "AS12345"
+	outBoundResponse.TimeZone = "AS12345"
 
 	path := "/" + ip + "?token=" + key
 	logger.Info("ipinfo resolve ip", ip, path)
