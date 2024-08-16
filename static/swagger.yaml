@@ -4415,7 +4415,7 @@ paths:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
               
-  /users/activate/{userId}:
+  /users/reactivate/{userId}:
       put:
         tags:
           - user
