@@ -44,7 +44,7 @@ func main() {
 
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
-		seed.SeedRolesAndPermissions(db.Postgresql)
+		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

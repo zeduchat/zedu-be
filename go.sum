@@ -283,8 +283,6 @@ github.com/toolkits/file v0.0.0-20160325033739-a5b3c5147e07 h1:d/VUIMNTk65Xz69ht
 github.com/toolkits/file v0.0.0-20160325033739-a5b3c5147e07/go.mod h1:FbXpUxsx5in7z/OrWFDdhYetOy3/VGIJsVHN9G7RUPA=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
-github.com/typesense/typesense-go v1.1.0 h1:QocehDarVXRArMIosPIdawiVFZZbnRkPJxwnAGOFkzw=
-github.com/typesense/typesense-go v1.1.0/go.mod h1:KcPODU7ltrcUFC/gygMTkAAfZ9M8/q6ayrdl1MnE1kI=
 github.com/typesense/typesense-go/v2 v2.0.0 h1:+MksOnrVioDqsGpz8RXkOUqhVN+yFxZwJlGDQHr/64I=
 github.com/typesense/typesense-go/v2 v2.0.0/go.mod h1:7V1ZBSfmdciL6yb2bPtWha+W53gV5WZhyOSpVgDJfao=
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=

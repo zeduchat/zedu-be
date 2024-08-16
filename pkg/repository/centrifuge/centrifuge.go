@@ -32,7 +32,7 @@ func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload
 
 	client := Client.C
 
-	err = client.Publish(context.Background(), "0191524f-6adc-7c38-a9fb-9c6d98859fe6", payload)
+	err = client.Publish(context.Background(), channelID, payload)
 
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channel %s: %v", channelID, err))

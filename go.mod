@@ -33,7 +33,6 @@ require (
 	github.com/stripe/stripe-go/v72 v72.122.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
-	github.com/typesense/typesense-go v1.1.0
 	github.com/typesense/typesense-go/v2 v2.0.0
 	golang.org/x/crypto v0.24.0
 	google.golang.org/api v0.171.0

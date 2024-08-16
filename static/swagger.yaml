@@ -32,6 +32,8 @@ tags:
     description: API for centrifuge token related endpoints
   - name: blogs
     description: API for blogs
+  - name: contact
+    description: API for contact 
   - name: Organisation-Invitation
     description: API for inviting a user into an organisation
   - name: webhooks
@@ -3045,6 +3047,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema' 
+                
+                
+  /contact:
+    post:
+      tags:
+        - contact
+      summary: Add a new message
+      description: Adds a new messages to the contact us list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "johndoe@example.com"
+                phone_number:
+                  type: string
+                  example: "090567892"
+                message:
+                  type: string
+                  example: "I would like to know more about your services1 with html content here</br><script>?</script>.3"
+              required:
+                - name
+                - email
+                - phone_number
+                - message
+      responses:
+        '201':
+          description: Contact added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema2'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
 
   /subscription/complete/{session_id}/{user_id}:
@@ -4671,31 +4731,30 @@ paths:
                             type: string
                             description: The user's username.
                             example: ""
-      '400':
-        description: Bad request
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BadRequestErrorSchema'
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UnauthorizedErrorSchema'
-      '403':
-        description: Forbidden
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ForbiddenErrorSchema'
-      '422':
-        description: Validation error
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
    
   /threads/organisations/{orgId}:
