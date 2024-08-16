@@ -3188,7 +3188,7 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
 
-  /subscription/complete/{session_id}/{user_id}:
+  /subscriptions/complete/{session_id}/{user_id}:
     get:
       summary: Complete a subscription and retrieve associated invoices
       tags:
