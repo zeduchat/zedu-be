@@ -137,7 +137,7 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.user_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.thread_status, COUNT(messages.id) as message_count").
+		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.thread_status, COUNT(messages.id) as message_count").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
 		Where("threads.channels_id = ?", channelID).
 		Group("threads.id")
