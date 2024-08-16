@@ -8805,8 +8805,6 @@ components:
         - plan_name
         - user_id
         - email
-        - plan_id
-        - currency
       properties:
         plan_name:
           type: string
@@ -8821,23 +8819,7 @@ components:
           description: "The email address of the user."
           format: email
           example: "user@example.com"
-        plan_id:
-          type: string
-          description: "The ID of the subscription plan."
-          example: "plan_ABC123"
-        payment_method:
-          type: string
-          description: "The payment method to be used."
-          example: "card"
-        currency:
-          type: string
-          description: "The currency for the payment."
-          example: "USD"
-        coupon_code:
-          type: string
-          description: "A coupon code for a discount, if applicable."
-          example: "DISCOUNT20"
-    ModifySubscriptionRequest:
+      ModifySubscriptionRequest:
       type: object
       required:
         - user_id
