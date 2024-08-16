@@ -45,7 +45,7 @@ type Role struct {
 
 type OrgRole struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name           string         `gorm:"null;type:varchar(20)" json:"name" validate:"required"`
+	Name           string         `gorm:"null;type:varchar(20);unique" json:"name" validate:"required"`
 	Description    string         `gorm:"null" json:"description" validate:"required"`
 	OrganisationID *string        `gorm:"type:uuid;null" json:"organisation_id"`
 	IsDefault      bool           `gorm:"type:bool" json:"is_default"`

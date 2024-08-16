@@ -31,7 +31,7 @@ func (base *Controller) GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := auth.CreateGoogleUser(req, base.Db.Postgresql)
+	respData, code, err := auth.CreateGoogleUser(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)

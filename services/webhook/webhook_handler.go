@@ -19,16 +19,17 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	var (
 		resp           gin.H
 		webhook        models.Webhook
-		webhookHistory models.WebhookHistory
+		HistoryWebhook models.HistoryWebhook
 	)
 
 	webhook, err := webhook.CheckExistBySlug(db, req.WebhookSlug)
 
 	if err != nil {
+		logger.Error("invalid webhook" + err.Error())
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
 	}
 
-	webhookHistory = models.WebhookHistory{
+	HistoryWebhook = models.HistoryWebhook{
 		ID:          utility.GenerateUUID(),
 		EventName:   req.EventName,
 		WebhookID:   webhook.ID,
@@ -37,21 +38,22 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		StatusCode:  "200",
 		Retries:     int64(0),
 	}
-	err = webhookHistory.CreateWebhookHistory(db)
+	err = HistoryWebhook.CreateWebhookHistory(db)
 	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("failed to create webhook history")
+		logger.Error("failed to create webhook history" + err.Error())
 	}
 
 	thread := models.Threads{
 		ID:         utility.GenerateUUID(),
 		ChannelsID: webhook.ChannelId,
-		EventName:  webhook.EventName,
+		EventName:  req.EventName,
 		Username:   req.UserName,
 		ActionType: req.ActionType,
 		Status:     "success",
 	}
 	err = thread.CreateThread(db)
 	if err != nil {
+		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
 	}
 
@@ -76,13 +78,12 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	var (
 		resp    gin.H
-		webhook models.Webhook
 	)
 
 	thread := models.Threads{
 		ID:         utility.GenerateUUID(),
-		ChannelsID: webhook.ChannelId,
-		EventName:  webhook.EventName,
+		ChannelsID: req.ChannelID,
+		EventName:  req.EventName,
 		Username:   req.UserName,
 		ActionType: req.ActionType,
 		Status:     "success",
@@ -90,25 +91,26 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	err := thread.CreateThread(db)
 	if err != nil {
+		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
 	}
 
 	feed := models.FeedWebHookRequest{
-		ChannelID:  webhook.ChannelId,
-		EventName:  webhook.EventName,
+		ChannelID:  req.ChannelID,
+		EventName:  req.EventName,
 		UserName:   req.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     "success",
 	}
 
-	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
+	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelID, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", webhook.ChannelId))
+	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", req.ChannelID))
 
 	return resp, http.StatusOK, nil
 }

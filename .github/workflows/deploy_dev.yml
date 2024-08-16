@@ -29,7 +29,7 @@ jobs:
             CENTRIFUGE_API_KEY
           APP_NAME: "telex_be"
           APP_URL: ${{ secrets.APP_URL }}
-          APP_WEBHOOK_URL: ${{ secrets.APP_WEBHOOK_URL }}
+          WEBHOOK_API_URL: ${{ secrets.WEBHOOK_API_URL }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
