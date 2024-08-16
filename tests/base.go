@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
+	"github.com/hngprojects/telex_be/pkg/controller/invitation"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -192,4 +193,38 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	orgName := dataM["name"].(string)
 	ownerID := dataM["owner_id"].(string)
 	return orgID, orgName, ownerID
+}
+
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, orgID string, emails []string) string{
+	var (
+		invitePath = "/api/v1/invite"
+		inviteURI  = url.URL{Path: invitePath}
+	)
+	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1/invite"), middleware.Authorize(db.Postgresql))
+	{
+		inviteUrl.POST("/", invite.OrganisationCreateInvite)
+	}
+
+	inviteData := models.InvitationCreateReq{
+		OrganisationID: orgID,
+		Emails:         emails,
+		Role:           "admin",
+	}
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(inviteData)
+	req, err := http.NewRequest(http.MethodPost, inviteURI.String(), &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	data := ParseResponse(rr)
+	dataM := data["data"].(map[string]interface{})
+	token := dataM["invite_token"].(string)
+	return token
+
 }
