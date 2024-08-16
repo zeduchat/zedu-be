@@ -30,7 +30,7 @@ func (n NotificationObject) SendInvitationLink() error {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}
 
-	err = send.SendEmail(n.ExtReq, user.Email, subject, templateFileName, baseTemplateFileName, data)
+	err = send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
 	if err != nil {
 		errs = append(errs, err.Error())
 	}

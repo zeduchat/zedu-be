@@ -2,7 +2,6 @@ package invitation
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -15,39 +14,16 @@ type InvitationDetail struct {
 	Link  string
 }
 
+// use for loops with a sleep perid of 0.5 seconds to send emails concurrently.. do not use goroutine
 func SendInvitationsEmail(invitationResponseMap []models.InvitationResponse) error {
-
-	var wg sync.WaitGroup
-	errorChannel := make(chan error, len(invitationResponseMap))
-
-	// Iterate through the map and send invitations concurrently
 	for _, invite := range invitationResponseMap {
-		wg.Add(1)
-		go func(invite models.InvitationResponse) {
-			defer wg.Done()
-
-			// Simulate sending an email
-			err := sendEmail(invite.Email, invite.InvitationLink)
-			if err != nil {
-				errorChannel <- fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
-			}
-		}(invite)
-	}
-
-	// Wait for all Goroutines to finish
-	wg.Wait()
-	close(errorChannel)
-
-	// Check for errors
-	if len(errorChannel) > 0 {
-		var errMsg string
-		for err := range errorChannel {
-			errMsg += fmt.Sprintf("%v\n", err)
+		err := sendEmail(invite.Email, invite.InvitationLink)
+		if err != nil {
+			return fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
 		}
-		return fmt.Errorf("some invitations failed to send: \n%s", errMsg)
 	}
-
 	return nil
+
 }
 
 func sendEmail(email, link string) error {
