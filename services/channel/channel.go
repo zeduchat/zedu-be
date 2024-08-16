@@ -193,3 +193,15 @@ func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Cont
 
 	return users, paginationResponse, nil
 }
+
+
+
+func AddMembersToChannel(db *gorm.DB , req models.JoinChannelsRequest) (models.Channels, error) {
+	var ch models.Channels
+
+	channels, err := ch.AddUserToChannels(db, req)
+	if err != nil {
+		return channels, err
+	}
+	return channels, nil
+}
