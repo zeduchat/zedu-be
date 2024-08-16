@@ -19,6 +19,7 @@ func Slack(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 
 	{
 		slackUrl.POST("/slack/access-token", slack.SlackOauth)
+		slackUrl.GET("/slack/channels", slack.GetSlackChannels)
 	}
 
 	return r

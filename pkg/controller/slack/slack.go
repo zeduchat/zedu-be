@@ -30,13 +30,14 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 		return
 	}
 
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to create blog", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -52,5 +53,33 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 
 	response := map[string]string{"access_token": accessToken}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Slack OAuth token exchange successful", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+
+func (base *Controller) GetSlackChannels(c *gin.Context) {
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to retrieve user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	organisationID := c.Query("organisation_id")
+	if organisationID == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "organisation_id query param is required", "failed to fetch slack channels", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	channels, err := service.GetSlackChannels(base.Db.Postgresql, base.ExtReq, userId, organisationID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch slack channels", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Slack channels fetched successfully", channels)
 	c.JSON(http.StatusOK, rd)
 }

@@ -33,12 +33,37 @@ func (r *RequestObj) ExchangeSlackOAuthToken() (external_models.SlackOAuthRespon
 	params.Add("code", code)
 	params.Add("redirect_uri", config.Slack.RedirectURI)
 
-	fmt.Println("THIS CODE", params.Encode())
-
-	logger.Info("slack oauth", code)
 	err := r.getNewSendRequestObject(strings.NewReader(params.Encode()), headers, "/api/oauth.v2.access").SendRequest(&outBoundResponse)
 	if err != nil {
 		logger.Error("slack oauth", outBoundResponse, err.Error())
+		return outBoundResponse, err
+	}
+
+	return outBoundResponse, nil
+}
+
+func (r *RequestObj) GetSlackChannels() (external_models.SlackChannelResponse, error) {
+	var (
+		outBoundResponse external_models.SlackChannelResponse
+		logger           = r.Logger
+		idata            = r.RequestData
+	)
+
+	accessToken, ok := idata.(string)
+	if !ok {
+		logger.Error("slack get channels", idata, "request data format error")
+		return outBoundResponse, fmt.Errorf("request data format error")
+	}
+
+	headers := map[string]string{
+		"Authorization": "Bearer " + accessToken,
+	}
+
+	path := "/api/conversations.list"
+
+	err := r.getNewSendRequestObject(nil, headers, path).SendRequest(&outBoundResponse)
+	if err != nil {
+		logger.Error("slack get channels", outBoundResponse, err.Error())
 		return outBoundResponse, err
 	}
 

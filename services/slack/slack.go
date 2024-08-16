@@ -11,7 +11,7 @@ import (
 )
 
 func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.ExternalRequest, userId string) (string, error) {
-
+	var slackTelex models.SlackTelex
 	response, err := extReq.SendExternalRequest(request.SlackOAuthExchange, req.OauthCode)
 	if err != nil {
 		return "", err
@@ -26,15 +26,40 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 		return "", fmt.Errorf("slack error: %v", slackResponse.Error)
 	}
 
-	var slackTelex models.SlackTelex
-
 	slackTelex = models.SlackTelex{
-		ID:          utility.GenerateUUID(),
-		UserID:      userId,
-		AccessToken: slackResponse.AccessToken,
+		ID:             utility.GenerateUUID(),
+		UserID:         userId,
+		AccessToken:    slackResponse.AccessToken,
+		OrganisationID: req.OrganisationID,
 	}
 
 	err = slackTelex.Create(db)
 
+	if err != nil {
+		return "", err
+	}
+
 	return slackResponse.AccessToken, nil
+}
+
+func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string, organisationId string) ([]external_models.SlackChannel, error) {
+	var slackTelex models.SlackTelex
+	slackTelex.UserID = userId
+
+	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
+	if err != nil {
+		return nil, fmt.Errorf("could not find SlackTelex record: %v", err)
+	}
+
+	response, err := extReq.SendExternalRequest(request.SlackGetChannels, slackTelex.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	slackResponse, ok := response.(external_models.SlackChannelResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response format")
+	}
+
+	return slackResponse.Channels, nil
 }

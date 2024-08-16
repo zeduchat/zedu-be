@@ -20,6 +20,7 @@ var (
 	PhpSerializerMethod string = "phpserializer"
 	IpinfoResolveIp     string = "ipinfo_resolve_ip"
 	SlackOAuthExchange  string = "slack_oauth_exchange"
+	SlackGetChannels    string = "slack_get_channels"
 )
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
@@ -50,6 +51,17 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				Logger:       er.Logger,
 			}
 			return obj.ExchangeSlackOAuthToken()
+		case SlackGetChannels:
+			obj := slack.RequestObj{
+				Name:         name,
+				Path:         fmt.Sprintf("%v", config.Slack.BaseUrl),
+				Method:       "GET",
+				SuccessCode:  200,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data,
+				Logger:       er.Logger,
+			}
+			return obj.GetSlackChannels()
 		default:
 			return nil, fmt.Errorf("request not found")
 		}
