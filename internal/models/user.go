@@ -15,6 +15,7 @@ type User struct {
 	Name          string         `gorm:"column:name; type:varchar(255)" json:"name"`
 	Email         string         `gorm:"column:email; type:varchar(255)" json:"email"`
 	IsVerified    bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
+	Deactivated   bool           `gorm:"column:deactivated;default:false" json:"deactivated"`
 	IsOnboarded   bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
 	CurrentOrg    uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
 	Profile       Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
@@ -236,7 +237,7 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 }
 
 func (user *User) ActivateUser(db *gorm.DB, userId string) error {
-	userUpdates := User{IsVerified: true}
+	userUpdates := User{Deactivated: false}
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
 	if err != nil {
