@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/stripe/stripe-go/v72"
 
 	"github.com/hngprojects/telex_be/cronjobs"
 	"github.com/hngprojects/telex_be/external/request"
@@ -16,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
+	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/pkg/router"
 	"github.com/hngprojects/telex_be/utility"
@@ -25,7 +27,8 @@ func main() {
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the app
 
 	configuration := config.Setup(logger, "./app")
-
+	//connect to stripe
+	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
 	minio.ConnectToMinio(logger, configuration.Minio)
@@ -35,6 +38,7 @@ func main() {
 	validatorRef := validator.New()
 
 	db := storage.Connection()
+	products.SetUpProducts(db, configuration.Stripe)
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 
