@@ -24,7 +24,7 @@ func AuthMigrationModels() []interface{} {
 		models.Invitation{},
 		models.Invitation{},
 		models.Webhook{},
-		models.WebhookHistory{},
+		models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
 		models.HelpCenterCategory{},
@@ -35,18 +35,5 @@ func AuthMigrationModels() []interface{} {
 }
 
 func AlterColumnModels() []AlterColumn {
-	return []AlterColumn{
-		{
-			Model:     &models.OrgRole{},
-			TableName: "org_roles",
-			Column:    "organisation_id",
-			Type:      "uuid",
-		},
-		{
-			Model:     &models.Permission{},
-			TableName: "permissions",
-			Column:    "category",
-			Type:      "varchar",
-		},
-	}
+	return []AlterColumn{}
 }

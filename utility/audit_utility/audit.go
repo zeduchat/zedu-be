@@ -16,7 +16,7 @@ import (
 
 func LogUserLogin(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest,
 	userID, accessID string, Organisations []models.Organisation) error {
-	ipAddress := "197.210.76.54"
+	ipAddress := GetClientIP(c)
 
 	var location, organisationID string
 	response, err := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
