@@ -324,3 +324,26 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+
+
+func (base *Controller) GetLoadingMetrics(c *gin.Context) {
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve loading metrics", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	loadingMetrics, err := organisation.LoadOrganisationMetrics(orgId, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve loading metrics", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("loading metrics retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "loading metrics retrieved successfully", loadingMetrics)
+	c.JSON(http.StatusOK, rd)
+}
