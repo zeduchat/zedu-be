@@ -63,6 +63,6 @@ func SetupIntegrationTestRouter() (*gin.Engine, *integrations.Controller) {
 func SetupIntegrationRoutes(r *gin.Engine, integrationController *integrations.Controller) {
 	integrationUrl := r.Group("/api/v1",
 		middleware.Authorize(integrationController.Db.Postgresql))
-	integrationUrl.POST("/integration", integrationController.CreateIntegrationApp)
-	integrationUrl.GET("/integration", integrationController.GetAllIntegrationApp)
+	integrationUrl.POST("/integrations", integrationController.CreateIntegrationApp)
+	integrationUrl.GET("/integrations", integrationController.GetAllIntegrationApp)
 }

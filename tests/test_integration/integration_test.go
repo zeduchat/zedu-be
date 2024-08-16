@@ -56,13 +56,13 @@ func TestIntegrationFlow(t *testing.T) {
 
 		integrationApp := models.Integrations{
 			Name:           fmt.Sprintf("IntegrationApp%v", currUUID),
-			ApiEndpointUrl: "http://api.endpoint.com",
+			ApiEndpointUrl: "https://slack.com/api/",
 			AuthCredential: "some-auth-credential",
 		}
 
 		integrationAppJSON, _ := json.Marshal(integrationApp)
 
-		req, err := http.NewRequest(http.MethodPost, "/api/v1/integration", bytes.NewBuffer(integrationAppJSON))
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/integrations", bytes.NewBuffer(integrationAppJSON))
 		if err != nil {
 			t.Fatalf("Failed to create new request: %v", err)
 		}
@@ -85,7 +85,7 @@ func TestIntegrationFlow(t *testing.T) {
 
 		token := tests.GetLoginToken(t, router, *authController, loginData)
 
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/integration", nil)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/integrations", nil)
 		if err != nil {
 			t.Fatalf("Failed to create new request: %v", err)
 		}
