@@ -1,6 +1,7 @@
 package invitation
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -49,7 +50,7 @@ func (base *Controller) ChannelCreateInvite(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := c.Request.Header.Get("Base-Url")
 
 	inviteMap, err := invitation.ChannelInvitationLinkGenerator(base.Db, req, userId, url)
 	if err != nil {
