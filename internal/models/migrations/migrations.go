@@ -24,7 +24,7 @@ func AuthMigrationModels() []interface{} {
 		models.Invitation{},
 		models.Invitation{},
 		models.Webhook{},
-		models.WebhookHistory{},
+		models.HistoryWebhook{},
 		models.SubscriptionPlan{},
 		models.HistoryWebhook{},
 		models.OrgUserManagement{},
