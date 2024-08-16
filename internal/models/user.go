@@ -11,22 +11,27 @@ import (
 )
 
 type User struct {
-	ID            string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name          string         `gorm:"column:name; type:varchar(255)" json:"name"`
-	Email         string         `gorm:"column:email; type:varchar(255)" json:"email"`
-	IsVerified    bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
-	IsOnboarded   bool           `gorm:"column:is_onboarded; type:bool" json:"is_onbarded"`
-	CurrentOrg    uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
-	Profile       Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
-	Channelss     []Channels     `gorm:"many2many:user_channels;" json:"channels"`
-	Organisations []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations" `
-	OrgRoleID     *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
-	OrgRole       OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
-	Password      string         `gorm:"column:password; type:text; not null" json:"-"`
-	CreatedAt     time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt     time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
-	Role          int            `gorm:"foreignKey:RoleID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"role"`
+	ID                 string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	Name               string         `gorm:"column:name; type:varchar(255)" json:"name"`
+	Email              string         `gorm:"column:email; type:varchar(255)" json:"email"`
+	IsVerified         bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
+	Deactivated        bool           `gorm:"column:deactivated; type:bool" json:"deactivated"`
+	IsActive           bool           `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
+	IsOnboarded        bool           `gorm:"column:is_onboarded; type:bool" json:"is_onboarded"`
+	CurrentOrg         uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
+	SubscriptionPlanId string         `gorm:"column:subscription_plan_id; type:varchar(255)" json:"subscription_plan_id"`
+	Profile            Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
+	Channelss          []Channels     `gorm:"many2many:user_channels;" json:"channels"`
+	Organisations      []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`
+	OrgRoleID          *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
+	UserRoleID         *string        `gorm:"type:varchar(100);null;index" json:"user_role_id"`
+	OrgRole            OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
+	Password           string         `gorm:"column:password; type:text; not null" json:"-"`
+	CreatedAt          time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+	StripeCustomerID   string         `gorm:"column:stripe_customer_id; type:varchar(255)" json:"stripe_customer_id"`
+	Role               int            `gorm:"column:role" json:"role"`
 }
 
 type CreateUserRequestModel struct {
@@ -208,7 +213,6 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 	userUpdates := User{Email: req.Email}
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
-
 	if err != nil {
 		return err
 	}
@@ -221,7 +225,7 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 }
 
 func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
-	userUpdates := User{IsVerified: false}
+	userUpdates := User{Deactivated: true}
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
 	if err != nil {
@@ -230,6 +234,21 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 
 	if result.RowsAffected == 0 {
 		return errors.New("failed to deactivate user")
+	}
+
+	return nil
+}
+
+func (user *User) ActivateUser(db *gorm.DB, userId string) error {
+	userUpdates := User{Deactivated: false}
+
+	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to activate user")
 	}
 
 	return nil
