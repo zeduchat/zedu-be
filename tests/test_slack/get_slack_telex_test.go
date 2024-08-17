@@ -14,7 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestGetBlogCategories(t *testing.T) {
+func TestGetSlackAccessInfo(t *testing.T) {
 	_, slackTelexController := SetupSlackTelexTestRouter()
 
 	db := slackTelexController.Db.Postgresql
