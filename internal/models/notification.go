@@ -51,10 +51,10 @@ type SendSqueeze struct {
 	LastName  string `json:"last_name" validate:"required"`
 }
 type SendContactUsMail struct {
-	Name    string `json:"name"  validate:"required"`
-	Email   string `json:"email" `
-	Subject string `son:"subject" validate:"required"`
-	Message string `json:"message" validate:"required"`
+	Name        string `json:"name"  validate:"required"`
+	Email       string `json:"email" validate:"required"`
+	PhoneNumber string `json:"phone_number" validate:"required"`
+	Message     string `json:"message" validate:"required"`
 }
 
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {
@@ -79,7 +79,6 @@ func (n *NotificationRecord) PopFromQueue(rdb *redis.Client) (NotificationRecord
 	if err != nil {
 		return rec, fmt.Errorf("error marshaling map: %v", err)
 	}
-
 
 	err = json.Unmarshal(resJSON, &rec)
 	if err != nil {
