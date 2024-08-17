@@ -23,7 +23,7 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env 
 
 	var url string
 	if env == "prod" {
-		url = "https://telex.im/"
+		url = "http://staging.telex.im"
 	} else {
 		url = "http://localhost:3000/"
 	}
