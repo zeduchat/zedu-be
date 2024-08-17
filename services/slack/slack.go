@@ -3,6 +3,7 @@ package slack
 import (
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -10,20 +11,20 @@ import (
 	"gorm.io/gorm"
 )
 
-func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.ExternalRequest, userId string) (string, error) {
+func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.ExternalRequest, userId string) (gin.H, error) {
 	var slackTelex models.SlackTelex
 	response, err := extReq.SendExternalRequest(request.SlackOAuthExchange, req.OauthCode)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	slackResponse, ok := response.(external_models.SlackOAuthResponse)
 	if !ok {
-		return "", fmt.Errorf("invalid response format")
+		return nil, fmt.Errorf("invalid response format")
 	}
 
 	if slackResponse.Error != "" {
-		return "", fmt.Errorf("slack error: %v", slackResponse.Error)
+		return nil, fmt.Errorf("slack error: %v", slackResponse.Error)
 	}
 
 	slackTelex = models.SlackTelex{
@@ -36,10 +37,15 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 	err = slackTelex.Create(db)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return slackResponse.AccessToken, nil
+	result := gin.H{
+		"access_token":     slackResponse.AccessToken,
+		"incoming_webhook": slackResponse.IncomingWebHook,
+	}
+
+	return result, nil
 }
 
 func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string, organisationId string) ([]external_models.SlackChannel, error) {

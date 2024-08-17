@@ -44,18 +44,16 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	accessToken, err := service.ExchangeSlackOAuthToken(base.Db.Postgresql, req, base.ExtReq, userId)
+	response, err := service.ExchangeSlackOAuthToken(base.Db.Postgresql, req, base.ExtReq, userId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "Slack OAuth token exchange failed", err.Error(), nil, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	response := map[string]string{"access_token": accessToken}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Slack OAuth token exchange successful", response)
 	c.JSON(http.StatusOK, rd)
 }
-
 
 func (base *Controller) GetSlackChannels(c *gin.Context) {
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
