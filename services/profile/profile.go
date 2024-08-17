@@ -81,18 +81,8 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 		return nil, "", nil
 	}
 
-	if strings.HasPrefix(base64Image, "http://") || strings.HasPrefix(base64Image, "https://") {
-		fmt.Printf("Image URL detected: %s\n", base64Image)
-		if strings.HasSuffix(base64Image, ".jpeg") {
-			ext = ".jpeg"
-		} else if strings.HasSuffix(base64Image, ".jpg") {
-			ext = ".jpg"
-		} else if strings.HasSuffix(base64Image, ".png") {
-			ext = ".png"
-		} else {
-			return nil, "", fmt.Errorf("invalid URL: only PNG, JPEG, or JPG images are allowed")
-		}
-		return nil, "", nil
+	if isURLPrefix(base64Image) {
+    	return nil, "", nil
 	}
 
 	switch {
@@ -133,4 +123,14 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 	}
 
 	return http.StatusOK, nil
+}
+
+func isURLPrefix(url string) bool {
+    supportedPrefixes := []string{"http://", "https://", "blob:", "ipfs://", "ftp:"}
+    for _, prefix := range supportedPrefixes {
+        if strings.HasPrefix(url, prefix) {
+            return true
+        }
+    }
+    return false
 }
