@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -11,7 +12,9 @@ import (
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/customer"
 	"github.com/stripe/stripe-go/v72/invoice"
+	"github.com/stripe/stripe-go/v72/product"
 	"github.com/stripe/stripe-go/v72/sub"
+
 	"gorm.io/gorm"
 )
 
@@ -21,18 +24,16 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env 
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
 
-	var url string
-	if env == "prod" {
-		url = "http://staging.telex.im/"
-	} else {
-		url = "http://localhost:3000/"
+	if subscriptionPlan.Name == "" {
+		return nil, http.StatusInternalServerError, fmt.Errorf("subscription plan name is missing")
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
 		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %s", req.PlanName)
 	}
 
-	log.Print(subscriptionPlan)
+	log.Printf("Subscription Plan: %v", subscriptionPlan)
+
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
@@ -41,6 +42,12 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env 
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create Stripe customer: %v", err)
 	}
 
+	var url string
+	if env == "prod" {
+		url = "http://staging.telex.im/"
+	} else {
+		url = "http://localhost:3000/"
+	}
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
@@ -73,26 +80,46 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 		if err == gorm.ErrRecordNotFound {
 			return nil, http.StatusNotFound, fmt.Errorf("user not found")
 		}
-	}
-
-	params := &stripe.SubscriptionListParams{
-		Customer: user.StripeCustomerID,
-	}
-	i := sub.List(params)
-
-	var subscriptions []*stripe.Subscription
-	for i.Next() {
-		subscriptions = append(subscriptions, i.Subscription())
-	}
-
-	if err := i.Err(); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
-	responseData := gin.H{
-		"subscriptions": subscriptions,
+	subscription, err := sub.Get(user.SubscriptionPlanId, nil)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve subscription: %v", err)
 	}
 
+	var subscriptionInfo gin.H
+	if len(subscription.Items.Data) > 0 {
+		item := subscription.Items.Data[0]
+		productID := item.Price.Product.ID
+		product, err := product.Get(productID, nil)
+		if err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve product: %v", err)
+		}
+
+		startDate := time.Unix(subscription.StartDate, 0).Format("January 2, 2006")
+		var endDate string
+		if subscription.CancelAt > 0 {
+			endDate = time.Unix(subscription.CancelAt, 0).Format("January 2, 2006")
+		} else if subscription.CurrentPeriodEnd > 0 {
+			endDate = time.Unix(subscription.CurrentPeriodEnd, 0).Format("January 2, 2006")
+		} else {
+			endDate = "Not set"
+		}
+
+		subscriptionInfo = gin.H{
+			"name":            product.Name,
+			"start_date":      startDate,
+			"end_date":        endDate,
+			"subscription_id": subscription.ID,
+		}
+	} else {
+		return nil, http.StatusNotFound, fmt.Errorf("no subscription items found")
+	}
+
+	responseData := gin.H{
+		"subscription": subscriptionInfo,
+	}
 	return &responseData, http.StatusOK, nil
 }
 
