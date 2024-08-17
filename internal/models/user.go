@@ -240,7 +240,9 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 }
 
 func (user *User) ActivateUser(db *gorm.DB, userId string) error {
-	userUpdates := User{Deactivated: false}
+	userUpdates := map[string]interface{}{
+        "deactivated": false,
+    }
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
 	if err != nil {

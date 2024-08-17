@@ -33,6 +33,7 @@ func GetUserProfile(db *gorm.DB, userID string) (*models.ProfileSummary, int, er
 		UserName:  userProfile.Profile.UserName,
 		AvatarURL: userProfile.Profile.AvatarURL,
 		UserId:    userProfile.Profile.Userid,
+		Deactivated: userProfile.Deactivated,
 		CreatedAt: userProfile.Profile.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: userProfile.Profile.UpdatedAt.Format(time.RFC3339),
 		DeletedAt: userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
@@ -77,6 +78,20 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 	)
 
 	if base64Image == "" {
+		return nil, "", nil
+	}
+
+	if strings.HasPrefix(base64Image, "http://") || strings.HasPrefix(base64Image, "https://") {
+		fmt.Printf("Image URL detected: %s\n", base64Image)
+		if strings.HasSuffix(base64Image, ".jpeg") {
+			ext = ".jpeg"
+		} else if strings.HasSuffix(base64Image, ".jpg") {
+			ext = ".jpg"
+		} else if strings.HasSuffix(base64Image, ".png") {
+			ext = ".png"
+		} else {
+			return nil, "", fmt.Errorf("invalid URL: only PNG, JPEG, or JPG images are allowed")
+		}
 		return nil, "", nil
 	}
 

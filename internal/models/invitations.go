@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -112,6 +113,8 @@ func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invita
 	if invitation.Status == "accepted" {
 		return invitation, errors.New("invitation link already accepted")
 	}
+
+	fmt.Println("I am a friend")
 
 	return invitation, nil
 }
