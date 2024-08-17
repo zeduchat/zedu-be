@@ -114,15 +114,6 @@ func (t *Threads) GetThreadById(db *gorm.DB, ID string) (*Threads, error) {
 	return t, nil
 }
 
-func (t *Threads) GetThreadByIds(db *gorm.DB, threadID, userID string) (*Threads, error) {
-
-	err, nerr := postgresql.SelectOneFromDb(db, &t, "id = ? AND user_id = ?", threadID, userID)
-	if nerr != nil {
-		return t, err
-	}
-	return t, nil
-}
-
 func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, postgresql.PaginationResponse, error) {
 	var (
 		threads     []Threads
