@@ -15,7 +15,7 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 		req = models.VerifyInvitationLinkRequest{}
 	)
 
-	err := c.ShouldBind(&req)
+	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)

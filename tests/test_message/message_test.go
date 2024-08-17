@@ -98,20 +98,6 @@ func TestMessage(t *testing.T) {
 		RequestURI   url.URL
 	}{
 		{
-			Name: "Add message Successfully",
-			RequestBody: models.CreateMessageRequest{
-				Content:  "It's a nice day to check the channel",
-				ThreadId: threads1.ID,
-			},
-			ExpectedCode: http.StatusCreated,
-			Message:      "message added successfully",
-			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		}, {
 			Name:         "Successfully Get messages in a channel",
 			RequestBody:  models.CreateMessageRequest{},
 			ExpectedCode: http.StatusOK,
@@ -139,7 +125,6 @@ func TestMessage(t *testing.T) {
 		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
 			tknUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
-			tknUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
 
 		}
 

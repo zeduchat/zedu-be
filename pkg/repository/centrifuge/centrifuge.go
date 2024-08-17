@@ -43,3 +43,24 @@ func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload
 
 	return nil
 }
+
+func BroadcastToThreadSubChannel(logger *utility.Logger, channelID string, threadID string, broadcastPayload interface{}) error {
+
+	subChannelID := fmt.Sprintf("%s:%s", channelID, threadID)
+	payload, err := json.Marshal(broadcastPayload)
+	if err != nil {
+		return err
+	}
+
+	client := Client.C
+	err = client.Publish(context.Background(), subChannelID, payload)
+
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to sub-channel %s: %v", subChannelID, err))
+		return err
+	}
+
+	utility.LogAndPrint(logger, fmt.Sprintf("Published to sub-channel %s", subChannelID))
+
+	return nil
+}
