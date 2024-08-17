@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func AddToContactUs(contact *models.ContactUs, db *gorm.DB, extReq request.ExternalRequest) error {
+func AddToContactUs(contact models.ContactUs, db *gorm.DB, extReq request.ExternalRequest) error {
 
 	contact.Message = utility.CleanStringInput(contact.Message)
 
@@ -18,7 +18,7 @@ func AddToContactUs(contact *models.ContactUs, db *gorm.DB, extReq request.Exter
 		return err
 	}
 
-	msgReq := models.ContactUs{
+	msgReq := models.SendContactUsMail{
 		Email:       contact.Email,
 		Name:        contact.Name,
 		PhoneNumber: contact.PhoneNumber,
