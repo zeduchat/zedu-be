@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -42,7 +41,6 @@ type InvitationResponse struct {
 type VerifyInvitationLinkRequest struct {
 	Token string `json:"token" validate:"required"`
 }
-
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
 	var u User
@@ -105,35 +103,21 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, error) {
 	var invitation Invitation
 
-	if err := db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&invitation).Error; err != nil {
-		return invitation, errors.New("invalid or expired token")
+	err, _ := postgresql.SelectOneFromDb(db, &invitation, "token = ?", token)
+	if err != nil {
+		return invitation, errors.New("token does not exist")
 	}
 
-	//check if the invitation has been accepted
-	if invitation.Status == "accepted" {
-		return invitation, errors.New("invitation link already accepted")
+	if invitation.ExpiresAt.Before(time.Now()) {
+		return invitation, errors.New("invitation link has expired")
 	}
 
-	fmt.Println("I am a friend")
-
-	return invitation, nil
-}
-
-func (i *Invitation) GetChannelInvitationLinkByToken(db *gorm.DB, token string) (ChannelInvitation, error) {
-	var invitation ChannelInvitation
-
-	if err := db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&invitation).Error; err != nil {
-		return invitation, errors.New("invalid or expired token")
-	}
-
-	//check if the invitation has been accepted
 	if invitation.Status == "accepted" {
 		return invitation, errors.New("invitation link already accepted")
 	}
 
 	return invitation, nil
 }
-
 
 func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
 
