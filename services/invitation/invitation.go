@@ -42,8 +42,8 @@ func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateR
 	return http.StatusOK, "User validated", nil
 }
 
-func CheckUserIsAdmin(db *gorm.DB, user_id string, org models.Organisation) bool {
-	return org.OwnerID == user_id
+func CheckUserIsAdmin(db *gorm.DB, owner_id string, org models.Organisation) bool {
+	return org.OwnerID == owner_id
 }
 
 func CheckEmailsLimit(emails []string) bool {

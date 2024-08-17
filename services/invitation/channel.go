@@ -18,10 +18,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, userId string, logger *utility.Logger) (int, string, error) {
+func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, owner_id string, logger *utility.Logger) (int, string, error) {
 	var (
 		o models.Organisation
-		c models.Channels
+		// c models.Channels
 	)
 
 	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
@@ -29,12 +29,12 @@ func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInv
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
 
-	exists := c.CheckChannelExistsInOrg(base.Postgresql, inviteReq.ChannelID, inviteReq.OrganisationID)
-	if !exists {
-		return http.StatusNotFound, "Channel does not exist in the organisation", errors.New("Channel does not exist in the organisation")
-	}
+	// exists := c.CheckChannelExistsInOrg(base.Postgresql, inviteReq.ChannelID, inviteReq.OrganisationID)
+	// if !exists {
+	// 	return http.StatusNotFound, "Channel does not exist in the organisation", errors.New("Channel does not exist in the organisation")
+	// }
 
-	isAdmin := CheckUserIsAdmin(base.Postgresql, userId, org)
+	isAdmin := CheckUserIsAdmin(base.Postgresql, owner_id, org)
 	if !isAdmin {
 		return http.StatusUnauthorized, "User is not an admin of the organisation", errors.New("User is not an admin of the organisation")
 	}
@@ -56,6 +56,7 @@ func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInv
 
 func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, userId, url string) ([]models.ChannelInvitation, error) {
 	//batch create invitations
+
 	var (
 		emails             = inviteReq.Emails
 		c                  models.ChannelInvitation
@@ -66,9 +67,10 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 		token, _ := GenerateInvitationToken()
 
 		//remember: lets check if the email of the user already exists in the organisation so as not to override their roles and status
-		err := c.CheckForChannelPresence(base.Postgresql, email, inviteReq.OrganisationID)
+		err := c.ChannelInvitationValidator(base.Postgresql, email, inviteReq)
 		if err != nil {
-			fmt.Println("Error checking for channel presence", err)
+			fmt.Println("Error processing some invitations", err)
+			continue
 		}
 
 		invitation := CreateChannelInvitation(email, token, "invited", inviteReq)
@@ -94,6 +96,10 @@ func SaveChannelInvitations(db *gorm.DB, invitationsMap []models.ChannelInvitati
 		c models.ChannelInvitation
 	)
 
+	if len(invitationsMap) == 0 {
+		return errors.New("no invitations to save")
+	}
+
 	err := c.CreateChannelInvitations(db, invitationsMap)
 	if err != nil {
 		return err
@@ -103,6 +109,7 @@ func SaveChannelInvitations(db *gorm.DB, invitationsMap []models.ChannelInvitati
 
 func ChannelInviteLinkMapper(baseURL string, invitations []models.ChannelInvitation) []models.ChannelInvitationResponse {
 	var response []models.ChannelInvitationResponse
+
 
 	for _, invite := range invitations {
 		response = append(response, models.ChannelInvitationResponse{
