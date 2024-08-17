@@ -38,10 +38,11 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *t
 		return &message, http.StatusBadRequest, err
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ChannelsId, message)
+	err = centrifuge.BroadcastToThreadSubChannel(logger, req.ChannelsId, req.ThreadId, message)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error broadcasting message %s to channel %s: %v", message.Content, req.ChannelsId, err.Error()))
-		return &message, http.StatusBadRequest, errors.New("failed to broadcast message")
+		utility.LogAndPrint(logger, fmt.Sprintf("Error broadcasting message %s to sub:channel %s:%s -- %v",
+			message.Content, req.ChannelsId, req.ThreadId, err.Error()))
+		return &message, http.StatusBadRequest, errors.New("failed to broadcast message to sub channels")
 	}
 
 	return &message, http.StatusCreated, nil
