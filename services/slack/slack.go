@@ -28,10 +28,16 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 	}
 
 	slackTelex = models.SlackTelex{
-		ID:             utility.GenerateUUID(),
-		UserID:         userId,
-		AccessToken:    slackResponse.AccessToken,
-		OrganisationID: req.OrganisationID,
+		ID:               utility.GenerateUUID(),
+		UserID:           userId,
+		OrganisationID:   req.OrganisationID,
+		AccessToken:      slackResponse.AccessToken,
+		TeamID:           slackResponse.Team.ID,
+		TeamName:         slackResponse.Team.Name,
+		Channel:          slackResponse.IncomingWebHook.Channel,
+		ChannelID:        slackResponse.IncomingWebHook.ChannelId,
+		ConfigurationURL: slackResponse.IncomingWebHook.ConfigurationUrl,
+		URL:              slackResponse.IncomingWebHook.Url,
 	}
 
 	err = slackTelex.Create(db)
@@ -46,6 +52,18 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 	}
 
 	return result, nil
+}
+
+func GetSlackAccessToken(db *gorm.DB, userId string, organisationId string) (models.SlackTelex, error) {
+	var slackTelex models.SlackTelex
+	slackTelex.UserID = userId
+
+	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
+	if err != nil {
+		return models.SlackTelex{}, fmt.Errorf("could not find SlackTelex record: %v", err)
+	}
+
+	return slackTelex, nil
 }
 
 func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string, organisationId string) ([]external_models.SlackChannel, error) {

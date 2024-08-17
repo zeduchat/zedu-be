@@ -1,4 +1,4 @@
-package test_blog
+package test_slack
 
 import (
 	"github.com/gin-gonic/gin"
@@ -36,6 +36,7 @@ func SetupSlackTelexRoutes(r *gin.Engine, slackController *slack.Controller) {
 	slackUrl := r.Group("/api/v1", middleware.Authorize(slackController.Db.Postgresql))
 
 	slackUrl.POST("/slack/access-token", slackController.SlackOauth)
+	slackUrl.GET("/slack/access-token", slackController.GetSlackAccessToken)
 	slackUrl.GET("/slack/channels", slackController.GetSlackChannels)
 
 }
