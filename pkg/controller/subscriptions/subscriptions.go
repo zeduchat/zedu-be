@@ -64,6 +64,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 
 	var (
 		req *models.ModifySubscriptionRequest
+		env = c.Param("env")
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,7 +73,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 		return
 	}
 
-	subscriptionData, code, err := service.ModifySubscription(req, base.Db.Postgresql)
+	subscriptionData, code, err := service.ModifySubscription(req, base.Db.Postgresql, env)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)

@@ -3332,13 +3332,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /subscriptions/modify:
+  /subscriptions/modify/env:
     put:
       summary: Modify an existing subscription
       tags:
         - subscription
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: env
+          required: true
+          schema:
+            type: string
+            enum: [dev, prod]
+          description: The environment to modify the subscription in
       requestBody:
         required: true
         content:

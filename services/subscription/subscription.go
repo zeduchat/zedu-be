@@ -123,10 +123,16 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	return &responseData, http.StatusOK, nil
 }
 
-func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
+func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, env string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
+	}
+	var url string
+	if env == "prod" {
+		url = "http://staging.telex.im/"
+	} else {
+		url = "http://localhost:3000/"
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
@@ -151,8 +157,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gi
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String("https://staging.telex.im/dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String("https://yourwebsite.com/plan/billing/cancel"),
+		SuccessURL: stripe.String(url + "dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "dashboard/plan/billing/"),
 	}
 
 	session, err := session.New(params)
