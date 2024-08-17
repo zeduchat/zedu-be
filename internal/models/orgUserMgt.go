@@ -72,13 +72,6 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 	var response []UserInOrgResponse
 
 	for _, user := range users {
-		_, _ = postgresql.SelectOneFromDb(db, &orgUserManagement, "organisation_id = ? AND user_id = ?", orgID, user.ID)
-		user.Role = orgUserManagement.RoleID
-		user.Status = orgUserManagement.Status
-
-		response = append(response, user)
-	}
-	for _, user := range users {
 		_, _ = postgresql.SelectOneFromDb(db, &org, "organisation_id = ? AND user_id = ?", orgID, user.ID)
 		user.Role = orgUserManagement.RoleID
 		user.Status = orgUserManagement.Status
