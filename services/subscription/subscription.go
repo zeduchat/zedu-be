@@ -92,6 +92,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	if len(subscription.Items.Data) > 0 {
 		item := subscription.Items.Data[0]
 		productID := item.Price.Product.ID
+		price := item.Price.UnitAmountDecimal
 		product, err := product.Get(productID, nil)
 		if err != nil {
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve product: %v", err)
@@ -112,6 +113,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 			"start_date":      startDate,
 			"end_date":        endDate,
 			"subscription_id": subscription.ID,
+			"price":           price,
 		}
 	} else {
 		return nil, http.StatusNotFound, fmt.Errorf("no subscription items found")
