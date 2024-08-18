@@ -86,6 +86,7 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 	return response, nil
 }
 
+
 func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetricsResponse, error) {
 	var (
 		inv Invitation
