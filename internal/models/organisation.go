@@ -261,6 +261,8 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 	return users, paginationResponse, nil
 }
 
+
+
 func (o *Organisation) CheckOrgExists(orgId string, db *gorm.DB) (Organisation, error) {
 	var (
 		org Organisation

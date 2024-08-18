@@ -3,6 +3,7 @@ package organisation
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 
@@ -189,22 +190,19 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 		return errors.New("user already added to organisation")
 	}
 
-
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
 
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
-func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
-	var (
-		org    models.Organisation
-		orgmgt models.OrgUserManagement
-	)
+func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
+	var org models.Organisation
 
+	// Check if organisation exists
 	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -213,6 +211,7 @@ func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Con
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
+	// Check if the user is a member of the organisation
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -221,18 +220,51 @@ func GetUsersInOrganisation(orgId string, userId string, db *gorm.DB, c *gin.Con
 		return nil, postgresql.PaginationResponse{}, errors.New("user does not have access to the organisation")
 	}
 
-	users, paginationResponse, err := org.GetUsersInOrganisation(c, db, orgId)
+	// Fetch users and their organisation management details in a single query
+	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, db, c)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	usersOrgMgtResponse, err := orgmgt.GetOrgUserManagement(db, users, orgId)
-	if err != nil {
-		return nil, postgresql.PaginationResponse{}, err
-	}
-
-	return usersOrgMgtResponse, paginationResponse, nil
+	return users, paginationResponse, nil
 }
+
+func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
+	var users []models.UserInOrgResponse
+	pagination := postgresql.GetPagination(c)
+	offset := (pagination.Page - 1) * pagination.Limit
+
+	if err := db.Table("users AS u").
+		Select(`u.id, u.email, p.phone AS phone_number, p.full_name AS name, 
+			p.avatar_url AS avatar_url, u.created_at, o.status, o.role_id AS role`).
+		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
+		Joins("JOIN profiles AS p ON p.userid = u.id").
+		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
+		Where("uo.organisation_id = ?", orgId).
+		Offset(offset).
+		Limit(pagination.Limit).
+		Find(&users).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	var totalUsers int64
+	if err := db.Table("users AS u").
+		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
+		Where("uo.organisation_id = ?", orgId).
+		Count(&totalUsers).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       pagination.Limit,
+		TotalPagesCount: totalPages,
+	}
+
+	return users, paginationResponse, nil
+}
+
 
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (
@@ -258,7 +290,7 @@ func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) er
 	return nil
 }
 
-func AddMemberToOrganisation(ownerId, orgId, userId string, role string ,db *gorm.DB) error {
+func AddMemberToOrganisation(ownerId, orgId, userId string, role string, db *gorm.DB) error {
 	var (
 		org    models.Organisation
 		orgmgt models.OrgUserManagement
@@ -287,13 +319,12 @@ func AddMemberToOrganisation(ownerId, orgId, userId string, role string ,db *gor
 	return nil
 }
 
-
 func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
 	var (
-		o models.Organisation
+		o   models.Organisation
 		ogm models.OrgMetricsResponse
 	)
-	
+
 	metrics, err := o.LoadOrganisationMetrics(db, orgId)
 	if err != nil {
 		return ogm, err
