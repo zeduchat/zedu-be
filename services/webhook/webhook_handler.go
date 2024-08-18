@@ -50,7 +50,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		EventName:  req.EventName,
 		Username:   req.UserName,
 		ActionType: req.ActionType,
-		Status:     "success",
+		Status:     req.Status,
 	}
 	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
@@ -64,7 +64,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		UserName:   req.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
-		Status:     "success",
+		Status:     req.Status,
 	}
 	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
 	if err != nil {
@@ -87,7 +87,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		EventName:  req.EventName,
 		Username:   req.UserName,
 		ActionType: req.ActionType,
-		Status:     "success",
+		Status:     req.Status,
 	}
 
 	err := thread.CreateThread(db, typesenseDb)
@@ -102,7 +102,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		UserName:   req.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
-		Status:     "success",
+		Status:     req.Status,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)

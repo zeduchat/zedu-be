@@ -3966,6 +3966,9 @@ paths:
                 event_name:
                   type: string
                   format: string
+                status:
+                  type: string
+                  format: string
                 username:
                   type: string
                   format: string
@@ -4032,6 +4035,28 @@ paths:
             type: string
             format: string
           description: the webhook slug
+      requestBody:
+        description: Webhook object with information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - webhook_status
+              properties:
+                action_type:
+                  type: string
+                  format: string
+                event_name:
+                  type: string
+                  format: string
+                status:
+                  type: string
+                  format: string
+                username:
+                  type: string
+                  format: string
 
       responses:
         '200':
@@ -4109,7 +4134,6 @@ paths:
             type: string
             format: string
             example: cyber event
-            
         - name: action_type
           in: query
           required: true
@@ -4117,6 +4141,13 @@ paths:
             type: string
             format: string
             example: broadcast
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: success
   
       responses:
         '200':
