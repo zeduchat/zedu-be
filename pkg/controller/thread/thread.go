@@ -158,3 +158,25 @@ func (base *Controller) SearchChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 
 }
+
+func (base *Controller) GetChannelCountInfo(c *gin.Context) {
+	var (
+		orgID = c.Param("org_id")
+	)
+
+	usersData, channelMetrics ,err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	response := gin.H{
+		"channel_count_info": usersData,
+		"channel_metrics": channelMetrics,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", response)
+	c.JSON(http.StatusOK, rd)
+
+}

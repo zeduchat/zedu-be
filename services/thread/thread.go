@@ -111,6 +111,7 @@ func GetUserSingleThreads(threadID string, db *gorm.DB, c *gin.Context) (*models
 	return accessResp, http.StatusOK, nil
 }
 
+
 func UpdateAThread(req models.UpdateThreadStatus, threadID string, db *gorm.DB, c *gin.Context) (int, error) {
 	var (
 		thread models.Threads
@@ -144,3 +145,34 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID string, db *gorm.DB, 
 
 	return http.StatusOK, nil
 }
+
+
+func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.ChannelCountInfo, []models.ChannelMetrics ,error){
+	var (
+		channel models.ChannelCountInfo
+		t models.Threads
+		o models.Organisation
+		cm []models.ChannelMetrics
+	)
+
+	userId, err := middleware.GetUserClaims(c, db , "user_id")
+	if err != nil {
+		return channel, cm, err
+	}
+	user_id, _ := userId.(string)
+
+	isOwner, err := o.IsOwnerOfOrganisation(db, user_id, org_id)
+	if err != nil {
+		return channel, cm, err
+	}
+
+	if !isOwner{
+		return channel, cm ,errors.New("User is not the owner of this organisation")
+	}
+
+	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id)
+	if err != nil {
+		return channel, cm, err
+	}
+	return response, channelInfoMetrics, nil
+}	
