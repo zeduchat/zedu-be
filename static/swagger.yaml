@@ -4032,6 +4032,25 @@ paths:
             type: string
             format: string
           description: the webhook slug
+      requestBody:
+        description: Webhook object with information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - webhook_status
+              properties:
+                action_type:
+                  type: string
+                  format: string
+                event_name:
+                  type: string
+                  format: string
+                username:
+                  type: string
+                  format: string
 
       responses:
         '200':
