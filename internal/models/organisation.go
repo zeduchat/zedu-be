@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -225,8 +226,6 @@ func (u *Organisation) GetOrganisationsByUserIDs(db *gorm.DB, userID, requesterI
 	return organisations, nil
 }
 
-
-
 func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId string) ([]UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var users []UserInOrgResponse
 	pagination := postgresql.GetPagination(c)
@@ -234,7 +233,7 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number, profiles.full_name as name, profiles.avatar_url as profile_url, users.created_at ").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at ").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
 		Joins("JOIN profiles ON profiles.userid = users.id").
 		Where("user_organisations.organisation_id = ?", orgId).
