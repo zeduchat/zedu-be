@@ -76,10 +76,10 @@ type BaseConfig struct {
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
 
-	CLIENT_ID     string `mapstructure:"CLIENT_ID"`
-	CLIENT_SECRET string `mapstructure:"CLIENT_SECRET"`
-	REDIRECT_URI  string `mapstructure:"REDIRECT_URI"`
-	BASE_URL      string `mapstructure:"BASE_URL"`
+	SLACK_CLIENT_ID     string `mapstructure:"SLACK_CLIENT_ID"`
+	SLACK_CLIENT_SECRET string `mapstructure:"SLACK_CLIENT_SECRET"`
+	SLACK_REDIRECT_URI  string `mapstructure:"SLACK_REDIRECT_URI"`
+	SLACK_BASE_URL      string `mapstructure:"SLACK_BASE_URL"`
 
 	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
 	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
@@ -170,10 +170,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		},
 
 		Slack: Slack{
-			ClientId:     config.CLIENT_ID,
-			ClientSecret: config.CLIENT_SECRET,
-			RedirectURI:  config.REDIRECT_URI,
-			BaseUrl:      config.BASE_URL,
+			ClientId:     config.SLACK_CLIENT_ID,
+			ClientSecret: config.SLACK_CLIENT_SECRET,
+			RedirectURI:  config.SLACK_REDIRECT_URI,
+			BaseUrl:      config.SLACK_BASE_URL,
 		},
 
 		Stripe: Stripe{
