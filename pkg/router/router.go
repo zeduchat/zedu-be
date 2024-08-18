@@ -34,6 +34,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 
 	// routers
 	ApiVersion := "api/v1"
+	Slack(r, ApiVersion, validator, db, logger)
 	Contact(r, ApiVersion, validator, db, logger)
 	Blog(r, ApiVersion, validator, db, logger)
 	Health(r, ApiVersion, validator, db, logger)

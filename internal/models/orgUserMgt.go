@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type OrgUserManagement struct {
@@ -67,12 +68,16 @@ func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 }
 
 func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgResponse, orgID string) ([]UserInOrgResponse, error) {
-	var orgUserManagement OrgUserManagement
 	var response []UserInOrgResponse
 
 	for _, user := range users {
+		var orgUserManagement OrgUserManagement
+		var userstable User
+		var org_role OrgRole
 		_, _ = postgresql.SelectOneFromDb(db, &orgUserManagement, "organisation_id = ? AND user_id = ?", orgID, user.ID)
-		user.Role = orgUserManagement.RoleID
+		_, _ = postgresql.SelectOneFromDb(db, &userstable, "id = ?", user.ID)
+		_, _ = postgresql.SelectOneFromDb(db, &org_role, "id = ?", userstable.OrgRoleID)
+		user.Role = org_role.Name
 		user.Status = orgUserManagement.Status
 
 		response = append(response, user)

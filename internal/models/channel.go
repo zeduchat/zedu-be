@@ -64,6 +64,19 @@ type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
 }
 
+type UserMsgProfile struct {
+	FullName  string `json:"full_name"`
+	AvatarURL string `json:"avatar_url"`
+	Email     string `json:"email"`
+}
+
+type MessagesResp []struct {
+	Message   string    `json:"message"`
+	Username  string    `json:"user_name"`
+	CreatedAt time.Time `json:"created_at"`
+	UserMsgProfile
+}
+
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
@@ -209,6 +222,7 @@ func (r *Channels) CountChannelsMessages(db *gorm.DB, channelID string) (int64, 
 		count   int64
 		message Message
 	)
+
 	err := db.Model(&message).Where("channels_id = ?", channelID).Count(&count).Error
 	if err != nil {
 		return 0, errors.New("could not count messages in channel")
@@ -226,30 +240,29 @@ func (r *Channels) CountTeamChannelss(db *gorm.DB, teamId string) (int64, error)
 	return int64(len(rs)), nil
 }
 
-func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) ([]Message, error) {
+func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (MessagesResp, error) {
 
 	var (
-		messages     []Message
 		userChannels UserChannels
+		messagesResp MessagesResp
 	)
 
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	if !exist {
-		return messages, errors.New("user not in channel")
+		return messagesResp, errors.New("user not in channel")
 	}
 
-	err := postgresql.SelectAllFromDb(
-		db.Where("channels_id = ?", channelID),
-		"",
-		&messages,
-		"channels_id = ?",
-		channelID,
-	)
+	var err = db.Table("messages").
+		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
+		Joins("left join profiles on profiles.userid = messages.user_id").
+		Joins("left join users on users.id = messages.user_id").
+		Where("messages.channels_id = ?", channelID).
+		Scan(&messagesResp).Error
 	if err != nil {
-		return messages, err
+		return messagesResp, err
 	}
 
-	return messages, nil
+	return messagesResp, nil
 }
 
 func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Channels, error) {

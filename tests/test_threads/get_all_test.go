@@ -43,15 +43,15 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 	}
 
 	threads1 := models.Threads{
-		ID:           utility.GenerateUUID(),
-		ChannelsID:   channel.ID,
-		ThreadStatus: "pending",
+		ID:         utility.GenerateUUID(),
+		ChannelsID: channel.ID,
+		Status:     "pending",
 	}
 
 	threads2 := models.Threads{
-		ID:           utility.GenerateUUID(),
-		ChannelsID:   channel.ID,
-		ThreadStatus: "closed",
+		ID:         utility.GenerateUUID(),
+		ChannelsID: channel.ID,
+		Status:     "closed",
 	}
 
 	db.Create(&adminUser)

@@ -58,7 +58,6 @@ func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) erro
 		EventName:    "",
 		ActionType:   "",
 		Status:       "",
-		ThreadStatus: "",
 		MessageCount: 0,
 	}
 
