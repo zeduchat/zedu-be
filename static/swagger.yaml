@@ -3966,6 +3966,9 @@ paths:
                 event_name:
                   type: string
                   format: string
+                status:
+                  type: string
+                  format: string
                 username:
                   type: string
                   format: string
@@ -4048,6 +4051,9 @@ paths:
                 event_name:
                   type: string
                   format: string
+                status:
+                  type: string
+                  format: string
                 username:
                   type: string
                   format: string
@@ -4128,7 +4134,6 @@ paths:
             type: string
             format: string
             example: cyber event
-            
         - name: action_type
           in: query
           required: true
@@ -4136,6 +4141,13 @@ paths:
             type: string
             format: string
             example: broadcast
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: success
   
       responses:
         '200':
