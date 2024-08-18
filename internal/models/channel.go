@@ -64,6 +64,19 @@ type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
 }
 
+type UserMsgProfile struct {
+	FullName  string `json:"full_name"`
+	AvatarURL string `json:"avatar_url"`
+	Email     string `json:"email"`
+}
+
+type MessagesResp []struct {
+	Message   string    `json:"message"`
+	Username  string    `json:"user_name"`
+	CreatedAt time.Time `json:"created_at"`
+	UserMsgProfile
+}
+
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
 	err := postgresql.CreateOneRecord(db, r)
 	if err != nil {
@@ -108,7 +121,6 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 		channelID,
 	)
 
-
 	postgresql.SelectAllFromDb(db, "", &users, "channels_id = ?", channelID)
 
 	if err != nil {
@@ -119,36 +131,36 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 }
 
 func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]User, postgresql.PaginationResponse, error) {
-    var users []User
-    pagination := postgresql.GetPagination(c)
+	var users []User
+	pagination := postgresql.GetPagination(c)
 
-    offset := (pagination.Page - 1) * pagination.Limit
+	offset := (pagination.Page - 1) * pagination.Limit
 
-    if err := db.Preload("Profile").
-        Joins("JOIN user_channels ON user_channels.user_id = users.id").
-        Where("user_channels.channels_id = ?", channelId).
-        Offset(offset).
-        Limit(pagination.Limit).
-        Find(&users).Error; err != nil {
-        return nil, postgresql.PaginationResponse{}, err
-    }
+	if err := db.Preload("Profile").
+		Joins("JOIN user_channels ON user_channels.user_id = users.id").
+		Where("user_channels.channels_id = ?", channelId).
+		Offset(offset).
+		Limit(pagination.Limit).
+		Find(&users).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
 
-    var totalUsers int64
-    if err := db.Table("users").
-        Joins("JOIN user_channels ON user_channels.user_id = users.id").
-        Where("user_channels.channels_id = ?", channelId).
-        Count(&totalUsers).Error; err != nil {
-        return nil, postgresql.PaginationResponse{}, err
-    }
+	var totalUsers int64
+	if err := db.Table("users").
+		Joins("JOIN user_channels ON user_channels.user_id = users.id").
+		Where("user_channels.channels_id = ?", channelId).
+		Count(&totalUsers).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
 
-    totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
-    paginationResponse := postgresql.PaginationResponse{
-        CurrentPage:     pagination.Page,
-        PageCount:       pagination.Limit,
-        TotalPagesCount: totalPages,
-    }
+	totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       pagination.Limit,
+		TotalPagesCount: totalPages,
+	}
 
-    return users, paginationResponse, nil
+	return users, paginationResponse, nil
 }
 
 func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, error) {
@@ -210,6 +222,7 @@ func (r *Channels) CountChannelsMessages(db *gorm.DB, channelID string) (int64, 
 		count   int64
 		message Message
 	)
+
 	err := db.Model(&message).Where("channels_id = ?", channelID).Count(&count).Error
 	if err != nil {
 		return 0, errors.New("could not count messages in channel")
@@ -227,30 +240,29 @@ func (r *Channels) CountTeamChannelss(db *gorm.DB, teamId string) (int64, error)
 	return int64(len(rs)), nil
 }
 
-func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) ([]Message, error) {
+func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (MessagesResp, error) {
 
 	var (
-		messages     []Message
 		userChannels UserChannels
+		messagesResp MessagesResp
 	)
 
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	if !exist {
-		return messages, errors.New("user not in channel")
+		return messagesResp, errors.New("user not in channel")
 	}
 
-	err := postgresql.SelectAllFromDb(
-		db.Where("channels_id = ?", channelID),
-		"",
-		&messages,
-		"channels_id = ?",
-		channelID,
-	)
+	var err = db.Table("messages").
+		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
+		Joins("left join profiles on profiles.userid = messages.user_id").
+		Joins("left join users on users.id = messages.user_id").
+		Where("messages.channels_id = ?", channelID).
+		Scan(&messagesResp).Error
 	if err != nil {
-		return messages, err
+		return messagesResp, err
 	}
 
-	return messages, nil
+	return messagesResp, nil
 }
 
 func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Channels, error) {
@@ -291,7 +303,6 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 
 	return channel, nil
 }
-
 
 func (r *Channels) RemoveUserFromChannels(db *gorm.DB, channelID, userID string) error {
 	var userChannels UserChannels

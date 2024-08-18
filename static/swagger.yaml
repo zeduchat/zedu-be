@@ -5143,6 +5143,8 @@ paths:
           description: ID of the organization
           schema:
             type: string
+            format: uuid
+            
       responses:
         '200':
           description: Threads retrieved successfully
@@ -5221,11 +5223,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/{threadId}:
+  /threads/{threadId}/channels/{channelId}:
     get:
       tags:
         - threads
-      summary: Retrieve a specific thread
+      summary: Retrieve a specific thread messages
       security:
         - bearerAuth: []
       parameters:
@@ -5235,6 +5237,15 @@ paths:
           description: ID of the thread
           schema:
             type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
       responses:
         '200':
           description: Thread retrieved successfully
@@ -5280,6 +5291,15 @@ paths:
           description: ID of the thread
           schema:
             type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
       requestBody:
         required: true
         content:

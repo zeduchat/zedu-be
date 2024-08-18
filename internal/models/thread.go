@@ -21,7 +21,6 @@ type Threads struct {
 	Status       string    `gorm:"type:varchar(200);index" json:"status"`
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	ThreadStatus string    `gorm:"type:varchar(20);" json:"thread_status"`
 	MessageCount int64     `gorm:"type:int;" json:"message_count"`
 }
 
@@ -37,7 +36,6 @@ type ChannelDocument struct {
 	EventName    string `json:"event_name"`
 	ActionType   string `json:"action_type"`
 	Status       string `json:"status"`
-	ThreadStatus string `json:"thread_status"`
 	MessageCount int64  `json:"message_count"`
 }
 
@@ -49,7 +47,7 @@ type Mentions struct {
 }
 
 type UpdateThreadStatus struct {
-	ThreadStatus string `json:"status" validate:"required"`
+	Status string `json:"status" validate:"required"`
 }
 
 func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -71,7 +69,6 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 		EventName:    t.EventName,
 		ActionType:   t.ActionType,
 		Status:       t.Status,
-		ThreadStatus: t.ThreadStatus,
 		MessageCount: t.MessageCount,
 	}
 
@@ -105,9 +102,9 @@ func (m *Mentions) CreateMention(db *gorm.DB) error {
 	return nil
 }
 
-func (t *Threads) GetThreadById(db *gorm.DB, ID string) (*Threads, error) {
+func (t *Threads) GetThreadById(db *gorm.DB, ChannelID, threadID string) (*Threads, error) {
 
-	err, nerr := postgresql.SelectOneFromDb(db, &t, "id = ?", ID)
+	err, nerr := postgresql.SelectOneFromDb(db, &t, "id = ? and channels_id = ?", threadID, ChannelID)
 	if nerr != nil {
 		return t, err
 	}
@@ -128,7 +125,7 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.thread_status, COUNT(messages.id) as message_count").
+		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.status, COUNT(messages.id) as message_count").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
 		Where("threads.channels_id = ?", channelID).
 		Group("threads.id")
@@ -192,7 +189,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	return threads, paginationResponse, nil
 }
 
-func (t *Threads) GetSingleThreadWithReplies(db *gorm.DB, threadID string) (*Threads, error) {
+func (t *Threads) GetSingleThreadWithRepliesFull(db *gorm.DB, ChannelID, threadID string) (*Threads, error) {
 	var thread Threads
 
 	err := db.Model(&Threads{}).
@@ -213,4 +210,39 @@ func (t *Threads) GetSingleThreadWithReplies(db *gorm.DB, threadID string) (*Thr
 	}
 
 	return &thread, nil
+}
+
+func (r *Threads) GetSingleThreadWithReplies(db *gorm.DB, c *gin.Context, userID, channelID, ThreadID string) (MessagesResp, postgresql.PaginationResponse, error) {
+
+	var (
+		userChannels    UserChannels
+		messagesResp    MessagesResp
+		ErrNotInChannel = errors.New("user not in channel")
+	)
+
+	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
+	if !exist {
+		return messagesResp, postgresql.PaginationResponse{}, ErrNotInChannel
+	}
+
+	pagination := postgresql.GetPagination(c)
+	query := db.Table("messages").
+		Select("messages.content AS message, messages.username, messages.created_at, profiles.full_name, profiles.avatar_url, users.email").
+		Joins("left join profiles on profiles.userid = messages.user_id").
+		Joins("left join users on users.id = messages.user_id").
+		Where("messages.thread_id = ?", ThreadID)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"messages.created_at",
+		"desc",
+		pagination,
+		&messagesResp,
+		nil,
+	)
+	if err != nil {
+		return messagesResp, paginationResponse, err
+	}
+
+	return messagesResp, paginationResponse, nil
 }

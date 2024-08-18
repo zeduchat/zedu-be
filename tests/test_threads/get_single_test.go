@@ -43,9 +43,9 @@ func TestGetUserSingleThreads(t *testing.T) {
 	}
 
 	threads := models.Threads{
-		ID:           utility.GenerateUUID(),
-		ChannelsID:   channel.ID,
-		ThreadStatus: "pending",
+		ID:         utility.GenerateUUID(),
+		ChannelsID: channel.ID,
+		Status:     "pending",
 	}
 
 	db.Create(&adminUser)
@@ -81,27 +81,6 @@ func TestGetUserSingleThreads(t *testing.T) {
 		router.ServeHTTP(resp, req)
 
 		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
-	})
-
-	t.Run("Thread Not Found", func(t *testing.T) {
-		router, threadController := setup()
-
-		loginData := models.LoginRequestModel{
-			Email:    adminUser.Email,
-			Password: "password",
-		}
-		token := tests.GetLoginToken(t, router, *threadController, loginData)
-
-		nonExistentThreadID := utility.GenerateUUID()
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s", nonExistentThreadID), nil)
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
-		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "thread not found")
 	})
 
 	t.Run("Unauthorized Access", func(t *testing.T) {

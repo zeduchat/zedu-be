@@ -60,13 +60,13 @@ func GetChannelsByName(db *gorm.DB, name string) ([]models.Channels, int, error)
 	return channel, http.StatusOK, nil
 }
 
-func GetChannelsMsg(channelId, userID string, db *gorm.DB) ([]models.Message, int, error) {
-	var m models.Message
+func GetChannelsMsg(channelId, userID string, db *gorm.DB) (models.MessagesResp, int, error) {
+	var c models.Channels
 
-	resp, err := m.GetMessagesByChannelsID(db, userID, channelId)
+	resp, err := c.GetChannelsMessages(db, userID, channelId)
 
 	if err != nil {
-		return []models.Message{}, http.StatusBadRequest, err
+		return models.MessagesResp{}, http.StatusBadRequest, err
 	}
 
 	return resp, http.StatusOK, nil
@@ -194,9 +194,7 @@ func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Cont
 	return users, paginationResponse, nil
 }
 
-
-
-func AddMembersToChannel(db *gorm.DB , req models.JoinChannelsRequest) (models.Channels, error) {
+func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels, error) {
 	var ch models.Channels
 
 	channels, err := ch.AddUserToChannels(db, req)
