@@ -78,40 +78,40 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) (*[]mod
 	return &accessResp, &paginationResponse, http.StatusOK, nil
 }
 
-func GetUserSingleThreads(threadID string, db *gorm.DB, c *gin.Context) (*models.Threads, int, error) {
+func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*models.MessagesResp, *postgresql.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
-		accessResp *models.Threads
+		accessResp models.MessagesResp
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
-		return nil, http.StatusNotFound, err
+		return nil, nil, http.StatusNotFound, err
 	}
 
 	userID, ok := userId.(string)
 	if !ok {
-		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
+		return nil, nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
 	_, code, err := user.GetUser(userID, db)
 	if err != nil {
-		return nil, code, err
+		return nil, nil, code, err
 	}
 
-	accessResp, err = accessData.GetSingleThreadWithReplies(db, threadID)
+	accessResp, paginationResponse, err := accessData.GetSingleThreadWithReplies(db, c, userID, channelID, threadID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return accessResp, http.StatusNoContent, nil
+			return &accessResp, nil, http.StatusNoContent, nil
 		}
-		return accessResp, http.StatusBadRequest, err
+		return &accessResp, nil, http.StatusBadRequest, err
 
 	}
 
-	return accessResp, http.StatusOK, nil
+	return &accessResp, &paginationResponse, http.StatusOK, nil
 }
 
-func UpdateAThread(req models.UpdateThreadStatus, threadID string, db *gorm.DB, c *gin.Context) (int, error) {
+func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db *gorm.DB, c *gin.Context) (int, error) {
 	var (
 		thread models.Threads
 	)
@@ -131,12 +131,12 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID string, db *gorm.DB, 
 		return code, err
 	}
 
-	threadData, err := thread.GetThreadById(db, threadID)
+	threadData, err := thread.GetThreadById(db, channelID, threadID)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
 
-	threadData.ThreadStatus = req.ThreadStatus
+	threadData.Status = req.Status
 
 	if _, err := threadData.UpdateThread(db); err != nil {
 		return http.StatusBadRequest, err

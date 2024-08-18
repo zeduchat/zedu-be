@@ -28,7 +28,7 @@ func CreateThreadDummy(req models.Threads, db *gorm.DB, typesenseDb *typesense.C
 		EventName:    fmt.Sprintf("Event_%s", utility.RandomString(7)),
 		ChannelsID:   req.ChannelsID,
 		MessageCount: 0,
-		ThreadStatus: randomStatus,
+		Status:       randomStatus,
 	}
 
 	if err := thread.CreateThread(db, typesenseDb); err != nil {

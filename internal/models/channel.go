@@ -66,12 +66,14 @@ type UpdateChannelsUserNameReq struct {
 
 type UserMsgProfile struct {
 	FullName  string `json:"full_name"`
-	UserName  string `json:"user_name"`
 	AvatarURL string `json:"avatar_url"`
 	Email     string `json:"email"`
 }
+
 type MessagesResp []struct {
-	Message
+	Message   string    `json:"message"`
+	Username  string    `json:"user_name"`
+	CreatedAt time.Time `json:"created_at"`
 	UserMsgProfile
 }
 
@@ -220,7 +222,7 @@ func (r *Channels) CountChannelsMessages(db *gorm.DB, channelID string) (int64, 
 		count   int64
 		message Message
 	)
-	
+
 	err := db.Model(&message).Where("channels_id = ?", channelID).Count(&count).Error
 	if err != nil {
 		return 0, errors.New("could not count messages in channel")
@@ -254,7 +256,7 @@ func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (M
 		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
 		Joins("left join profiles on profiles.userid = messages.user_id").
 		Joins("left join users on users.id = messages.user_id").
-		Where("messages.channels_id = ?", channelID,).
+		Where("messages.channels_id = ?", channelID).
 		Scan(&messagesResp).Error
 	if err != nil {
 		return messagesResp, err

@@ -82,9 +82,9 @@ func TestMessage(t *testing.T) {
 	fmt.Println("Channels ID: ", channelId)
 
 	threads1 := models.Threads{
-		ID:           utility.GenerateUUID(),
-		ChannelsID:   channelId,
-		ThreadStatus: "pending",
+		ID:         utility.GenerateUUID(),
+		ChannelsID: channelId,
+		Status:     "pending",
 	}
 	db.Postgresql.Create(&threads1)
 

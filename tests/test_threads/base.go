@@ -34,7 +34,7 @@ func SetupThreadsTestRouter() (*gin.Engine, *thread.Controller) {
 
 func SetupThreadsRoutes(r *gin.Engine, threadController *thread.Controller) {
 
-	r.PUT("/api/v1/threads/:thread_id", middleware.Authorize(threadController.Db.Postgresql),
+	r.PUT("/api/v1/threads/:thread_id/channels/:channel_id", middleware.Authorize(threadController.Db.Postgresql),
 		threadController.UpdateAThread)
 	r.GET("/api/v1/threads/:thread_id", middleware.Authorize(threadController.Db.Postgresql),
 		threadController.GetUserSingleThreads)
