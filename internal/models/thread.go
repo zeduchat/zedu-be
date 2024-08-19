@@ -39,6 +39,70 @@ type ChannelDocument struct {
 	MessageCount int64  `json:"message_count"`
 }
 
+type ChannelCountInfo struct {
+	TotalThreads         int64 `json:"total_threads"`
+	TotalErrorThreads    int64 `json:"total_error_threads"`
+	TotalMembers         int64 `json:"total_members"`
+	TotalResolvedThreads int64 `json:"total_resolved_threads"`
+}
+type ChannelMetrics struct {
+	ChannelName  string `json:"channel_name"`
+	ThreadCount  int64  `json:"thread_count"`
+	SuccessCount int64  `json:"success_count"`
+	ErrorCount   int64  `json:"error_count"`
+	OtherCount   int64  `json:"other_count"`
+}
+
+func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string) (ChannelCountInfo, []ChannelMetrics, error) {
+	var (
+		cc ChannelCountInfo
+		om OrgUserManagement
+	)
+
+	//channel count info
+	_ = db.Model(&t).
+		Joins("JOIN channels ON channels.id = threads.channels_id").
+		Where("channels.organisation_id = ?", orgId).
+		Count(&cc.TotalThreads).Error
+	_ = db.Model(&t).
+		Joins("JOIN channels ON channels.id = threads.channels_id").
+		Where("channels.organisation_id = ? AND threads.status = ?", orgId, "failed").
+		Count(&cc.TotalErrorThreads).Error
+	_ = db.Model(&t).
+		Joins("JOIN channels ON channels.id = threads.channels_id").
+		Where("channels.organisation_id = ? AND threads.status = ?", orgId, "success").
+		Count(&cc.TotalResolvedThreads).Error
+	_ = db.Model(&om).
+		Where("organisation_id = ?", orgId).
+		Count(&cc.TotalMembers).Error
+
+	//channel metrics
+	//this one loops through all the channels in a organisation and get the metrics for each channel
+	var channels []Channels
+	var channelThreadInfo []ChannelMetrics
+
+	_ = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", orgId)
+
+	for _, channel := range channels {
+		cm, _ := t.ChannelMetrics(db, channel)
+		channelThreadInfo = append(channelThreadInfo, cm)
+	}
+	return cc, channelThreadInfo, nil
+}
+
+func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels) (ChannelMetrics, error) {
+	var (
+		cm ChannelMetrics
+	)
+
+	cm.ChannelName = channel.Name
+	_ = db.Where("channels_id = ?", channel.ID).Model(&t).Count(&cm.ThreadCount).Error
+	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "success").Model(&t).Count(&cm.SuccessCount).Error
+	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "failed").Model(&t).Count(&cm.ErrorCount).Error
+	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "other").Model(&t).Count(&cm.OtherCount).Error
+	return cm, nil
+}
+
 type Mentions struct {
 	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
 	MessageID string    `gorm:"type:uuid;index" json:"message_id"`

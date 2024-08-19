@@ -52,7 +52,9 @@ tags:
   - name: Feed_Webhook
     description: API for feeding centrifugo server
   - name: Integrations
-    description:  API for user integrations operations  
+    description:  API for user integrations operations
+  - name: Overview
+    description: API for overview operations
 
 
 
@@ -6240,7 +6242,105 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'                          
+                $ref: '#/components/schemas/ServerErrorSchema' 
+                
+  /threads/organisations/{orgId}/metrics:
+    get:
+      tags:
+      - Overview
+      summary: Retrieve Metrics for Organisation Threads
+      description: Retrieve various metrics for threads within an organisation, including channel-specific metrics.
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          description: ID of the organisation to retrieve metrics for.
+          schema:
+            type: string
+            example: "01915ec5-5880-72b7-8956-8a43dbc36a8b"
+      responses:
+        200:
+          description: Data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      channel_count_info:
+                        type: object
+                        properties:
+                          total_threads:
+                            type: integer
+                            example: 18
+                          total_error_threads:
+                            type: integer
+                            example: 5
+                          total_members:
+                            type: integer
+                            example: 2
+                          total_resolved_threads:
+                            type: integer
+                            example: 2
+                      channel_metrics:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            channel_name:
+                              type: string
+                              example: readers
+                            thread_count:
+                              type: integer
+                              example: 14
+                            success_count:
+                              type: integer
+                              example: 1
+                            error_count:
+                              type: integer
+                              example: 2
+                            other_count:
+                              type: integer
+                              example: 0
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '404':
+          description: Organisation not found
+        '500':
+          description: Internal server error
 
 components:
 
