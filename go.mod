@@ -5,6 +5,7 @@ go 1.21
 // toolchain go1.22.4
 
 require (
+	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/centrifugal/gocent v2.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/didip/tollbooth v4.0.2+incompatible
@@ -41,7 +42,6 @@ require (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.9.2 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
