@@ -68,5 +68,4 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 	}
 
 	return nil
-
 }

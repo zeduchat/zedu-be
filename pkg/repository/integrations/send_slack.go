@@ -14,17 +14,24 @@ func SendSlacKNotification(req models.SendSlackRequest, logger *utility.Logger) 
 	attachment := slack.Attachment{
 		Fallback:   "",
 		Color:      req.Color,
-		PreText:    fmt.Sprintf("_%s_", req.PretextChannel),
-		AuthorName: req.AuthorName,
-		Title:      req.TitleEvent,
+		PreText:    fmt.Sprintf("_Telex Channel: %s_", req.PretextChannel),
+		AuthorName: fmt.Sprintf("%s", req.AuthorName),
+		Title:      fmt.Sprintf(":bell: %s", req.TitleEvent),
 		TitleLink:  req.TitleLink,
 	}
 
 	attachment.AddField(slack.Field{
-		Title: req.TitleAction,
-		Value: req.StatusValue,
-		Short: false,
+		Title: "Action",
+		Value: req.TitleAction,
+		Short: true,
 	})
+
+	attachment.AddField(slack.Field{
+		Title: "Status",
+		Value: req.StatusValue,
+		Short: true,
+	})
+
 	attachment.AddAction(slack.Action{
 		Type:  "button",
 		Text:  "Go to Channel",
@@ -33,7 +40,7 @@ func SendSlacKNotification(req models.SendSlackRequest, logger *utility.Logger) 
 	})
 
 	msg := slack.Message{
-		Text:        fmt.Sprintf("*%s*", req.OrgName),
+		Text:        fmt.Sprintf("*Telex Organization: %s*", req.OrgName),
 		Attachments: []slack.Attachment{attachment},
 		Markdown:    true,
 	}
