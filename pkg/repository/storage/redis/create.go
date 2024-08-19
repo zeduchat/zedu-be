@@ -16,6 +16,14 @@ func RedisSet(rdb *redis.Client, key string, value interface{}) error {
 	return rdb.Set(Ctx, key, serialized, 24*time.Hour).Err()
 }
 
+func RedisSetPerm(rdb *redis.Client, key string, value interface{}) error {
+	serialized, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return rdb.Set(Ctx, key, serialized, 1*time.Hour).Err()
+}
+
 func PushToQueue(rdb *redis.Client, value interface{}) error {
 	jsonValue, err := json.Marshal(value)
 	if err != nil {

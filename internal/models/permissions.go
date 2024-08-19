@@ -20,13 +20,14 @@ type Permission struct {
 }
 
 type PermissionList struct {
-	CanViewTransactions       bool `json:"can_view_transactions"`
-	CanViewRefunds            bool `json:"can_view_refunds"`
-	CanLogRefund              bool `json:"can_log_refund"`
-	CanViewUser               bool `json:"can_view_user"`
-	CanEditUser               bool `json:"can_edit_user"`
-	CanCreateUser             bool `json:"can_create_user"`
-	CanBlacklistWhitelistUser bool `json:"can_blacklist_whitelist_user"`
+	CanRemovePeopleFromOrganization bool `json:"can_remove_people_from_organization"`
+	CanInviteMembers                bool `json:"can_invite_members"`
+	CanCreateCustomRole             bool `json:"can_create_custom_role"`
+	CanCreateChannel                bool `json:"can_create_channel"`
+	CanCommentOnThreads             bool `json:"can_comment_on_threads"`
+	CanViewBilling                  bool `json:"can_view_billing"`
+	CanCreateWebhooks               bool `json:"can_create_webhooks"`
+	CanViewChannels                 bool `json:"can_view_channels"`
 }
 
 func (p *PermissionList) Scan(value interface{}) error {
@@ -52,40 +53,21 @@ func (p *Permission) GetAOrgPermission(db *gorm.DB, roleID string) (Permission, 
 	return perm, nil
 }
 
-func OrgUserHasAnyPermission(orgRole OrgRole, permissions ...string) bool {
-	for _, permission := range permissions {
-		switch permission {
-		case "can_view_transactions":
-			if orgRole.Permissions.PermissionList.CanViewTransactions {
-				return true
-			}
-		case "can_view_refunds":
-			if orgRole.Permissions.PermissionList.CanViewRefunds {
-				return true
-			}
-		case "can_log_refund":
-			if orgRole.Permissions.PermissionList.CanLogRefund {
-				return true
-			}
-		case "can_view_user":
-			if orgRole.Permissions.PermissionList.CanViewUser {
-				return true
-			}
-		case "can_edit_user":
-			if orgRole.Permissions.PermissionList.CanEditUser {
-				return true
-			}
-		case "can_create_user":
-			if orgRole.Permissions.PermissionList.CanCreateUser {
-				return true
-			}
-		case "can_blacklist_whitelist_user":
-			if orgRole.Permissions.PermissionList.CanBlacklistWhitelistUser {
-				return true
-			}
-		default:
-			return false
-		}
+func OrgUserHasPermission(permissionList PermissionList, permission string) bool {
+	permissionMap := map[string]bool{
+		"can_remove_people_from_organization": permissionList.CanRemovePeopleFromOrganization,
+		"can_invite_members":                  permissionList.CanInviteMembers,
+		"can_create_custom_role":              permissionList.CanCreateCustomRole,
+		"can_create_channel":                  permissionList.CanCreateChannel,
+		"can_comment_on_threads":              permissionList.CanCommentOnThreads,
+		"can_view_billing":                    permissionList.CanViewBilling,
+		"can_create_webhooks":                 permissionList.CanCreateWebhooks,
+		"can_view_channels":                   permissionList.CanViewChannels,
 	}
+
+	if allowed, exists := permissionMap[permission]; exists && allowed {
+		return true
+	}
+
 	return false
 }

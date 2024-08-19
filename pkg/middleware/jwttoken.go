@@ -38,6 +38,7 @@ func CreateToken(user models.User) (*TokenDetailDTO, error) {
 	// specify user claims
 	userClaims["user_id"] = user.ID
 	userClaims["access_uuid"] = tokenData.AccessUuid
+	userClaims["role_id"] = user.OrgRoleID
 	userClaims["exp"] = tokenData.ExpiresAt.Unix()
 	userClaims["authorised"] = true
 
@@ -96,17 +97,5 @@ func GetUserClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, e
 	}
 
 	return userValue, nil
-
-}
-
-func GetAllUserClaims(c *gin.Context) jwt.MapClaims {
-	claims, exists := c.Get("userClaims")
-	if !exists {
-		return nil
-	}
-
-	userClaims := claims.(jwt.MapClaims)
-
-	return userClaims
 
 }

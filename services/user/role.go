@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func ReplaceUserRole(userID string, roleID string, db *gorm.DB) (*models.User, error) {
+func ReplaceUserRole(userID string, roleID string, db *gorm.DB, c *gin.Context) (*models.User, error) {
 
 	var (
 		user = models.User{}
@@ -29,7 +29,7 @@ func ReplaceUserRole(userID string, roleID string, db *gorm.DB) (*models.User, e
 		return nil, errors.New("invalid role")
 	}
 
-	userData, err := role.UpdateUserRole(db, userID, roleID)
+	userData, err := role.UpdateUserRole(db, userID, roleID, c)
 	if err != nil {
 		return nil, fmt.Errorf(err.Error())
 	}

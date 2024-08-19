@@ -12,7 +12,7 @@ func (base *Controller) AssignRoleToUser(c *gin.Context) {
 	userID := c.Param("user_id")
 	roleID := c.Param("role_id")
 
-	userData, err := service.ReplaceUserRole(userID, roleID, base.Db.Postgresql)
+	userData, err := service.ReplaceUserRole(userID, roleID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusNotFound, rd)
