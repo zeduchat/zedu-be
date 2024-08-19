@@ -8,7 +8,7 @@ type CreateWebhookHistoryRequest struct {
 	EventName   string `json:"event_name" validate:"required"`
 	UserName    string `json:"username" validate:"required"`
 	Retries     int64  `json:"user_id"`
-	Status      string `json:"status" validate:"required,oneof=Success success error Error"`
+	Status      string `json:"status" validate:"required,oneof=success error"`
 }
 
 type FeedWebHookRequest struct {

@@ -15,14 +15,14 @@ func SendSlacKNotification(req models.SendSlackRequest, logger *utility.Logger) 
 		Fallback:   "",
 		Color:      req.Color,
 		PreText:    fmt.Sprintf("_Telex Channel: %s_", req.PretextChannel),
-		AuthorName: fmt.Sprintf("%s", req.AuthorName),
+		AuthorName: req.AuthorName,
 		Title:      fmt.Sprintf(":bell: %s", req.TitleEvent),
 		TitleLink:  req.TitleLink,
 	}
 
 	attachment.AddField(slack.Field{
 		Title: "Action",
-		Value: req.TitleAction,
+		Value: fmt.Sprintf("%s...", req.TitleAction[:20]),
 		Short: true,
 	})
 
