@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/integrations"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -72,13 +73,19 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
+	err = integrations.BuildSlackRequest(feed, db, logger)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error sending to slack, channelid: %s, error: %v", webhook.ChannelId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to send to slack, error: " + err.Error())
+	}
+
 	return resp, http.StatusOK, nil
 }
 
 func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
 
 	var (
-		resp    gin.H
+		resp gin.H
 	)
 
 	thread := models.Threads{
@@ -112,6 +119,12 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 	}
 
 	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", req.ChannelID))
+
+	err = integrations.BuildSlackRequest(feed, db, logger)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error sending to slack, channelid: %s, error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to send to slack, error: " + err.Error())
+	}
 
 	return resp, http.StatusOK, nil
 }
