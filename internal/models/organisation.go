@@ -66,6 +66,11 @@ type AddUserToOrgRequestModel struct {
 	UserId string `json:"user_id" validate:"required"`
 }
 
+type ChannelResp []struct {
+	Channels
+	ThreadCount int64 `json:"thread_count"`
+}
+
 func (c *Organisation) CreateOrganisation(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &c)
@@ -121,35 +126,29 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 	return org, nil
 }
 
-func (o *Organisation) GetAllChannelssInOrganisation(db *gorm.DB, orgID string) ([]Channels, map[string]interface{}, error) {
+func (o *Organisation) GetAllChannelssInOrganisation(db *gorm.DB, orgID string) (ChannelResp, error) {
 	var (
-		channels []Channels
+		channels Channels
+		thread   Threads
+		chanResp ChannelResp
 	)
 
 	exists := postgresql.CheckExists(db, &o, "id = ?", orgID)
 	if !exists {
-		return channels, map[string]interface{}{}, errors.New("organisation does not exist")
+		return chanResp, errors.New("organisation does not exist")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "desc", &channels, "organisation_id = ?", orgID)
-	if err != nil {
-		return channels, map[string]interface{}{}, err
+	threadCountSubquery := db.Model(&thread).Select("count(*)").Where("threads.channels_id = channels.id")
+
+	if err := db.Model(&channels).
+		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count",
+			threadCountSubquery).
+		Where("channels.organisation_id = ?", orgID).
+		Scan(&chanResp).Error; err != nil {
+		return nil, errors.New("error fetching channels")
 	}
 
-	totalChannelsCount := len(channels)
-	totalMessagesCount := int64(0)
-
-	for _, channel := range channels {
-		count, _ := channel.CountChannelsMessages(db, channel.ID)
-		totalMessagesCount += int64(count)
-	}
-
-	additionalInfo := map[string]interface{}{
-		"channels_count":     int64(totalChannelsCount),
-		"totalmessage_count": totalMessagesCount,
-	}
-
-	return channels, additionalInfo, nil
+	return chanResp, nil
 }
 
 func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]Organisation, error) {
@@ -260,8 +259,6 @@ func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId
 
 	return users, paginationResponse, nil
 }
-
-
 
 func (o *Organisation) CheckOrgExists(orgId string, db *gorm.DB) (Organisation, error) {
 	var (
