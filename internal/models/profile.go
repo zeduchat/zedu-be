@@ -2,10 +2,8 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
@@ -89,28 +87,24 @@ func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, erro
 	return user, nil
 }
 
-func (p *Profile) ReplaceAvatarWithDefault(db *gorm.DB, userId string) error {
+func (p *Profile) UpdateUserProfileImage(db *gorm.DB, userId string) error {
 	var userProfile Profile
 
 	exists := postgresql.CheckExists(db, &userProfile, "userid = ?", userId)
+
 	if !exists {
 		return errors.New("profile does not exist")
 	}
-	
-	defaultAvatarURL := fmt.Sprintf("http://%s/telexbucket/public/profile_pics/profile_pic_default25acbe570c2d.png", config.Config.Minio.MinioEndpoint)
-	
-	profileUpdate := Profile{
-		AvatarURL: defaultAvatarURL,
-	}
 
-	result, err := postgresql.UpdateFields(db, &p, profileUpdate, "userid = ?", userId)
-	if err != nil {
-		return err
-	}
+	result := db.Model(&Profile{}).Where("userid = ?", userId).Update("avatar_url", "")
 
-	if result.RowsAffected == 0 {
-		return errors.New("failed to update avatar URL")
-	}
+    if result.Error != nil {
+        return result.Error
+    }
+
+    if result.RowsAffected == 0 {
+        return errors.New("failed to update avatar URL")
+    }
 
 	return nil
 }

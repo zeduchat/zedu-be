@@ -81,7 +81,7 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 		return nil, "", nil
 	}
 
-	if isURLPrefix(base64Image) {
+	if unsupportedURLPrefix(base64Image) {
     	return nil, "", nil
 	}
 
@@ -116,16 +116,38 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 }
 
 func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) (int, error) {
-	var userProfile models.Profile
+	var user models.User
+	var Profile models.Profile
 
-	if err := userProfile.ReplaceAvatarWithDefault(db, userId); err != nil {
-		return http.StatusBadRequest, err
+	userProfile, err := user.GetUserWithProfile(db, userId)
+	if err != nil {
+		logger.Error("Failed to retrieve user profile", "error", err)
+		return http.StatusInternalServerError, err
+	}
+
+	if userProfile.Profile.AvatarURL == "" {
+		return http.StatusBadRequest, nil
+	}
+
+	urlParts := strings.Split(userProfile.Profile.AvatarURL, "/")
+	objectName := urlParts[len(urlParts)-1]
+
+	err = minio.DeleteProfilePic(logger, objectName)
+	if err != nil {
+		logger.Error("Failed to delete profile picture from MinIO", "error", err)
+		return http.StatusInternalServerError, err
+	}
+
+	err = Profile.UpdateUserProfileImage(db, userId)
+	if err != nil {
+		logger.Error("Failed to update user profile avatar URL in database", "error", err)
+		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusOK, nil
 }
 
-func isURLPrefix(url string) bool {
+func unsupportedURLPrefix(url string) bool {
     supportedPrefixes := []string{"http://", "https://", "blob:", "ipfs://", "ftp:"}
     for _, prefix := range supportedPrefixes {
         if strings.HasPrefix(url, prefix) {
