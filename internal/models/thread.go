@@ -301,7 +301,7 @@ func (r *Threads) GetSingleThreadWithReplies(db *gorm.DB, c *gin.Context, userID
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Table("messages").
-		Select("messages.content AS message, messages.id, messages.username, messages.created_at, messages.edited, profiles.full_name, profiles.avatar_url, users.email").
+		Select("messages.content AS message, messages.id, messages.username, messages.created_at, messages.updated_at, messages.edited, profiles.full_name, profiles.avatar_url, users.email").
 		Joins("left join profiles on profiles.userid = messages.user_id").
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.thread_id = ?", ThreadID)
