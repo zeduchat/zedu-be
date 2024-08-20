@@ -198,9 +198,9 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 		Where("threads.channels_id = ?", channelID).
 		Group("threads.id").
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Select("messages.*, profiles.avatar_url").
+			return db.Select("DISTINCT ON (messages.user_id) messages.*, profiles.avatar_url").
 				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
-				Order("messages.created_at DESC").
+				Order("messages.user_id, messages.created_at DESC").
 				Limit(5)
 		})
 
