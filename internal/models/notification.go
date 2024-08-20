@@ -57,6 +57,10 @@ type SendContactUsMail struct {
 	Message     string `json:"message" validate:"required"`
 }
 
+type SendNewsletterSubscriptionMail struct {
+	Email string `json:"email"  validate:"required"`
+}
+
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {
 	err := dbRedis.PushToQueue(rdb, &n)
 
