@@ -78,10 +78,6 @@ type MessagesResp []struct {
 }
 
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
-	err := postgresql.CreateOneRecord(db, r)
-	if err != nil {
-		return errors.New("could not create channel, invalid organisation id")
-	}
 
 	fields := []api.Field{
 		{Name: "id", Type: "string"},
@@ -96,9 +92,14 @@ func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) er
 		{Name: "created_at", Type: "int64"},
 	}
 
-	err = tydb.CreateCollection(typesenseDb, r.ID, fields)
+	err := tydb.CreateCollection(typesenseDb, r.ID, fields)
 	if err != nil {
 		return errors.New("could not create channel collection in Typesense")
+	}
+
+	err = postgresql.CreateOneRecord(db, r)
+	if err != nil {
+		return errors.New("could not create channel, invalid organisation id")
 	}
 
 	return nil

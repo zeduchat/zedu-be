@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
@@ -85,7 +86,7 @@ func RevokeUserAccessToken(userData models.TerminateSessionRequest, db *gorm.DB,
 		currentUser models.User
 		accessToken models.AccessToken
 	)
-	userClaims := middleware.GetAllUserClaims(c)
+	userClaims := common.GetAllUserClaims(c)
 
 	currentUserID, ok := userClaims["user_id"].(string)
 	if !ok {
