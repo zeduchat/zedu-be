@@ -60,5 +60,5 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, typesenseDb *ty
 		return nil, http.StatusBadRequest, err
 	}
 
-	return newMsg, http.StatusCreated, nil
+	return newMsg, http.StatusOK, nil
 }
