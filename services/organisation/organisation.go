@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
-	"github.com/jinzhu/copier"
 )
 
 func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (models.CreateOrgRequestModel, int, error) {
@@ -93,15 +93,15 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	return &org, nil
 }
 
-func GetAllChannelssInTeam(db *gorm.DB, orgID string) ([]models.Channels, map[string]interface{}, error) {
+func GetAllChannelssInTeam(db *gorm.DB, orgID string) (models.ChannelResp, error) {
 	var o models.Organisation
 
-	channels, additionalInfo, err := o.GetAllChannelssInOrganisation(db, orgID)
+	channels, err := o.GetAllChannelssInOrganisation(db, orgID)
 	if err != nil {
-		return channels, map[string]interface{}{}, err
+		return channels, err
 	}
 
-	return channels, additionalInfo, nil
+	return channels, nil
 }
 
 func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB) (*models.Organisation, error) {
@@ -264,7 +264,6 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 
 	return users, paginationResponse, nil
 }
-
 
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (

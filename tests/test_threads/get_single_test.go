@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/tests"
@@ -48,10 +49,17 @@ func TestGetUserSingleThreads(t *testing.T) {
 		Status:     "pending",
 	}
 
+	userChan := models.UserChannels{
+		UserID:     adminUser.ID,
+		ChannelsID: channel.ID,
+		Username:   adminUser.Name,
+	}
+
 	db.Create(&adminUser)
 	db.Create(&org)
 	db.Create(&channel)
 	db.Create(&threads)
+	db.Create(&userChan)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
 		router, threadController := SetupThreadsTestRouter()
@@ -74,7 +82,7 @@ func TestGetUserSingleThreads(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s", threads.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 		resp := httptest.NewRecorder()
@@ -86,7 +94,7 @@ func TestGetUserSingleThreads(t *testing.T) {
 	t.Run("Unauthorized Access", func(t *testing.T) {
 		router, _ := setup()
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s", threads.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), nil)
 		req.Header.Set("Authorization", "Bearer invalid_token")
 
 		resp := httptest.NewRecorder()
