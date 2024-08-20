@@ -10,31 +10,11 @@ import (
 )
 
 func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
-	var existingRoles []models.OrgRole
 
-	if err := db.Where("name IN ?", []string{"Manager", "Project Lead"}).Find(&existingRoles).Error; err != nil {
+	if err := db.Exec("DELETE FROM org_roles").Error; err != nil {
 		fmt.Println(err)
-		logger.Error("org role seeding: " + err.Error())
+		logger.Error("Failed to delete all records from OrgRole: " + err.Error())
 		return
-	}
-
-	if len(existingRoles) > 0 {
-		roleIDs := []string{}
-		for _, role := range existingRoles {
-			roleIDs = append(roleIDs, role.ID)
-		}
-
-		if err := db.Where("role_id IN ?", roleIDs).Delete(&models.Permission{}).Error; err != nil {
-			fmt.Println(err)
-			logger.Error("Failed to delete existing permissions: " + err.Error())
-			return
-		}
-
-		if err := db.Where("id IN ?", roleIDs).Delete(&models.OrgRole{}).Error; err != nil {
-			fmt.Println(err)
-			logger.Error("Failed to delete existing roles: " + err.Error())
-			return
-		}
 	}
 
 	roles := []models.OrgRole{
