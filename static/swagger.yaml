@@ -2028,6 +2028,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
+    put:
+      tags:
+        - messages
+      summary: Edit a message
+      security:
+        - bearerAuth: []
+      description: Edit a message within a thread.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreateSchema'
+      responses:
+        '201':
+          description: Message created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageCreateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
     get:
       tags:
         - messages
@@ -8539,24 +8592,29 @@ components:
               type: string
             checkout_session_url:
               type: string 
+
     MessageCreateSchema:
       type: object
       properties:
         content:
           type: string
           description: Content of the message
-        channel_id:
+        channels_id:
           type: string
           format: uuid
           description: ID of the channel the message belongs to
-        userId:
+        user_id:
           type: string
           format: uuid
           description: ID of the user who sent the message
-        threadId:
+        thread_id:
           type: string
           format: uuid      
-          description: thread id (optional)
+          description: thread id
+        message_id:
+          type: string
+          format: uuid      
+          description: message id(optional)
 
     MessageCreateResponseSchema:
       type: object
