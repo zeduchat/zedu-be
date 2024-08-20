@@ -82,7 +82,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		}
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}

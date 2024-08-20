@@ -5,8 +5,8 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func GetAllUserClaims(c *gin.Context) jwt.MapClaims {
-	claims, exists := c.Get("userClaims")
+func GetAllUserClaims(c *gin.Context, theClaim string) jwt.MapClaims {
+	claims, exists := c.Get(theClaim)
 	if !exists {
 		return nil
 	}

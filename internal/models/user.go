@@ -105,9 +105,11 @@ func (u *User) GetUserByEmail(db *gorm.DB, userEmail string) (User, error) {
 }
 
 func (u *User) CreateUser(db *gorm.DB) error {
+
 	if u.OrgRoleID != nil && *u.OrgRoleID == "" {
 		u.OrgRoleID = nil
 	}
+
 	err := postgresql.CreateOneRecord(db, &u)
 	if err != nil {
 		return err

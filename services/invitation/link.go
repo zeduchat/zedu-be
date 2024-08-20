@@ -98,30 +98,29 @@ func ExtractTokenFromInvitationLink(invitationLink string) string {
 	return splitLink[len(splitLink)-1]
 }
 
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.H, int, error) {
+	var (
+		user         = models.User{}
+		responseData gin.H
+		i            = models.Invitation{}
+		orgmgt       = models.OrgUserManagement{}
+	)
 
-    var (
-        user         = models.User{}
-        responseData gin.H
-        i            = models.Invitation{}
-		orgmgt	   = models.OrgUserManagement{}
-    )
+	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
+	if err != nil {
+		return responseData, http.StatusUnauthorized, errors.New("invalid or expired token or token has been used. Proceed to signup!!!!")
+	}
 
-    invitation, err := i.GetInvitationLinkByToken(db, req.Token)
-    if err != nil {
-        return responseData, http.StatusUnauthorized, errors.New("invalid or expired token or token has been used. Proceed to signup!!!!")
-    }
-
-    if invitation.IsTelexUser {
-        exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
-        if !exists {
-            return responseData, http.StatusBadRequest, errors.New("invalid credentials")
-        }
-        err = i.UpdateInvitation(db, invitation.Email, "accepted")
-        if err != nil {
-            return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
-        }
+	if invitation.IsTelexUser {
+		exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
+		if !exists {
+			return responseData, http.StatusBadRequest, errors.New("invalid credentials")
+		}
+		err = i.UpdateInvitation(db, invitation.Email, "accepted")
+		if err != nil {
+			return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
+		}
 
 		orgmgt.RoleID = invitation.Role
 		orgmgt.Status = "active"
@@ -132,34 +131,34 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
 		if err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
-    }
+	}
 
-    otp, _ := utility.GenerateOTP(6)
-    entry := "telex-" + strconv.Itoa(int(otp))
+	otp, _ := utility.GenerateOTP(6)
+	entry := "telex-" + strconv.Itoa(int(otp))
 
-    if !invitation.IsTelexUser {
-        var user models.User
+	if !invitation.IsTelexUser {
+		var user models.User
 
-        req := models.CreateUserRequestModel{
-            Email:     invitation.Email,
-            Password:  entry,
-            FirstName: invitation.Email,
-        }
+		req := models.CreateUserRequestModel{
+			Email:     invitation.Email,
+			Password:  entry,
+			FirstName: invitation.Email,
+		}
 
-        _, _, err := auth.CreateUser(req, db)
-        if err != nil {
-            return responseData, http.StatusInternalServerError, errors.New("error creating user")
-        }
+		_, _, err := auth.CreateUser(req, db)
+		if err != nil {
+			return responseData, http.StatusInternalServerError, errors.New("error creating user")
+		}
 
-        err = i.UpdateInvitation(db, invitation.Email, "accepted")
-        if err != nil {
-            return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
-        }
+		err = i.UpdateInvitation(db, invitation.Email, "accepted")
+		if err != nil {
+			return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
+		}
 
-        userData, err := user.GetUserByEmail(db, invitation.Email)
-        if err != nil {
-            return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
-        }
+		userData, err := user.GetUserByEmail(db, invitation.Email)
+		if err != nil {
+			return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
+		}
 
 		orgmgt.RoleID = invitation.Role
 		orgmgt.Status = "active"
@@ -170,54 +169,53 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
 		if err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
-    }
+	}
 
-    userData, err := user.GetUserByEmail(db, invitation.Email)
-    if err != nil {
-        return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
-    }
+	userData, err := user.GetUserByEmail(db, invitation.Email)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
+	}
 
-    tokenData, err := middleware.CreateToken(userData)
-    if err != nil {
-        fmt.Println("Error creating token:", err)
-        return responseData, http.StatusInternalServerError, errors.New("error creating token")
-    }
+	tokenData, err := middleware.CreateToken(userData, c)
+	if err != nil {
+		fmt.Println("Error creating token:", err)
+		return responseData, http.StatusInternalServerError, errors.New("error creating token")
+	}
 
-    tokens := map[string]string{
-        "access_token": tokenData.AccessToken,
-        "exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-    }
-
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
 
 	fmt.Printf("Token data: %v\n", tokenData)
-    access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
 
-    fmt.Println("Saving access token for user:", userData.Email)
-    err = access_token.CreateAccessToken(db, tokens)
-    if err != nil {
-        fmt.Println("Error saving access token:", err)
-        return responseData, http.StatusInternalServerError, errors.New("error saving token")
-    }
+	fmt.Println("Saving access token for user:", userData.Email)
+	err = access_token.CreateAccessToken(db, tokens)
+	if err != nil {
+		fmt.Println("Error saving access token:", err)
+		return responseData, http.StatusInternalServerError, errors.New("error saving token")
+	}
 
-    responseData = gin.H{
-        "user": map[string]interface{}{
-            "id":           userData.ID,
-            "email":        userData.Email,
-            "username":     userData.Name,
-            "is_onboarded": userData.IsOnboarded,
-            "is_verified":  userData.IsVerified,
-            "first_name":   userData.Profile.FirstName,
-            "last_name":    userData.Profile.LastName,
-            "fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
-            "phone":        userData.Profile.Phone,
-            "avatar_url":   userData.Profile.AvatarURL,
-            "expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-            "created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
-            "updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
-            "password":     entry,
-        },
-        "access_token": tokenData.AccessToken,
-    }
+	responseData = gin.H{
+		"user": map[string]interface{}{
+			"id":           userData.ID,
+			"email":        userData.Email,
+			"username":     userData.Name,
+			"is_onboarded": userData.IsOnboarded,
+			"is_verified":  userData.IsVerified,
+			"first_name":   userData.Profile.FirstName,
+			"last_name":    userData.Profile.LastName,
+			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":        userData.Profile.Phone,
+			"avatar_url":   userData.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"password":     entry,
+		},
+		"access_token": tokenData.AccessToken,
+	}
 
-    return responseData, http.StatusOK, nil
+	return responseData, http.StatusOK, nil
 }

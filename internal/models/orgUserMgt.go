@@ -66,8 +66,6 @@ func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 	return nil
 }
 
-
-
 func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgResponse, orgID string) ([]UserInOrgResponse, error) {
 	var response []UserInOrgResponse
 	var orgUserManagement OrgUserManagement
@@ -86,9 +84,6 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 
 	return response, nil
 }
-
-
-
 
 func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetricsResponse, error) {
 	var (
@@ -112,6 +107,16 @@ func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetr
 		TotalGuests:   totalGuests,
 	}
 	return countData, nil
+}
+
+func (o *OrgUserManagement) GetByIDs(db *gorm.DB, userID, orgID string) (OrgUserManagement, error) {
+
+	query := db.Where("user_id = ? AND organisation_id = ?", userID, orgID)
+	if err := query.First(&o).Error; err != nil {
+		return *o, err
+	}
+
+	return *o, nil
 }
 
 func (o *OrgUserManagement) UpdateMember(db *gorm.DB, orgID, userID string, req UpdateMemberRequest) (OrgUserManagement, error) {
@@ -154,7 +159,6 @@ func (o *OrgUserManagement) UpdateMember(db *gorm.DB, orgID, userID string, req 
 	return oum, nil
 }
 
-
 func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, userID string) error {
 
 	var (
@@ -194,7 +198,6 @@ func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, use
 
 	return nil
 }
-
 
 // now a function that adds a user to an organisation
 func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB, orgID, userID string) error {

@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
@@ -16,12 +15,17 @@ import (
 func PermissionMiddleware(db *gorm.DB, rdb *redis.Client, requiredPermission string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		userClaims := common.GetAllUserClaims(c)
-		roleID, ok := userClaims["role_id"].(string)
+		roleId, exists := c.Get("userRoleClaims")
+		if !exists {
+			r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "unable to get user role ID", nil)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, r)
+			return
+		}
 
+		roleID, ok := roleId.(string)
 		if !ok {
-			r := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Missing role", nil)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, r)
+			r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "invalid role ID type", nil)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, r)
 			return
 		}
 

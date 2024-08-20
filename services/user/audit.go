@@ -86,7 +86,7 @@ func RevokeUserAccessToken(userData models.TerminateSessionRequest, db *gorm.DB,
 		currentUser models.User
 		accessToken models.AccessToken
 	)
-	userClaims := common.GetAllUserClaims(c)
+	userClaims := common.GetAllUserClaims(c, "userClaims")
 
 	currentUserID, ok := userClaims["user_id"].(string)
 	if !ok {

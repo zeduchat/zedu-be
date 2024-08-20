@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -270,14 +271,19 @@ func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	return http.StatusOK, nil
 }
 
-func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB) (models.Organisation, int, error) {
+func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB, c *gin.Context) (models.Organisation, int, error) {
 	var (
-		user models.User
-		org  models.Organisation
+		user   models.User
+		org    models.Organisation
+		orgMgt models.OrgUserManagement
 	)
 
-	org, err := org.GetOrgByID(db, req.CurrentOrg)
+	orgMgt, err := orgMgt.GetByIDs(db, userId, req.CurrentOrg)
+	if err != nil {
+		return models.Organisation{}, http.StatusBadRequest, err
+	}
 
+	org, err = org.GetOrgByID(db, req.CurrentOrg)
 	if err != nil {
 		return models.Organisation{}, http.StatusBadRequest, err
 	}
@@ -289,19 +295,30 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB) 
 	}
 
 	exist, err := org.CheckUserIsMemberOfOrg(userId, req.CurrentOrg, db)
-
 	if !exist && err != nil {
 		return models.Organisation{}, http.StatusBadRequest, err
 	}
 
 	user.CurrentOrg, err = uuid.FromString(req.CurrentOrg)
+	user.OrgRoleID = &orgMgt.RoleID
 
 	if err != nil {
 		return models.Organisation{}, http.StatusInternalServerError, err
 	}
 
-	err = user.Update(db)
+	roleID, exists := c.Get("userRoleClaims")
+	if !exists {
+		return models.Organisation{}, http.StatusBadRequest, errors.New("unable to get user role ID")
+	}
 
+	newRoleID := orgMgt.RoleID
+	fmt.Println("Old Role ID:", roleID)
+	roleID = newRoleID
+	fmt.Println("New Role ID:", newRoleID)
+
+	c.Set("userRoleClaims", roleID)
+
+	err = user.Update(db)
 	if err != nil {
 		return models.Organisation{}, http.StatusInternalServerError, err
 	}

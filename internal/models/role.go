@@ -146,6 +146,19 @@ func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
 	return orgRole, nil
 }
 
+func (r *OrgRole) GetAOrgRoleByName(db *gorm.DB, roleName string) (OrgRole, error) {
+	var orgRole OrgRole
+
+	query := db.Where("name = ?", roleName)
+	err := query.First(&orgRole).Error
+
+	if err != nil {
+		return orgRole, err
+	}
+
+	return orgRole, nil
+}
+
 func GetRoleName(roleId RoleId) RoleName {
 	switch roleId {
 	case RoleIdentity.User:
