@@ -27,7 +27,7 @@ func UploadProfilePic(logger *utility.Logger, objectName string, file io.Reader,
 
 	(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", path1))
 
-	url = fmt.Sprintf("http://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, path1)
+	url = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, path1)
 
 	return url, nil
 }
