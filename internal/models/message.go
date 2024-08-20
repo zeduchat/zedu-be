@@ -21,6 +21,7 @@ type Message struct {
 	CreatedAt  time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	ThreadID   uuid.UUID  `gorm:"type:uuid;null;index" json:"thread_id"`
 	Mentions   []Mentions `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
+	AvatarURL  string     `json:"avatar_url,omitempty"`
 }
 
 type CreateMessageRequest struct {

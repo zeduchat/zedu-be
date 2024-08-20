@@ -3,6 +3,7 @@ package test_threads
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -36,7 +37,7 @@ func SetupThreadsRoutes(r *gin.Engine, threadController *thread.Controller) {
 
 	r.PUT("/api/v1/threads/:thread_id/channels/:channel_id", middleware.Authorize(threadController.Db.Postgresql),
 		threadController.UpdateAThread)
-	r.GET("/api/v1/threads/:thread_id", middleware.Authorize(threadController.Db.Postgresql),
+	r.GET("/api/v1/threads/:thread_id/channels/:channel_id", middleware.Authorize(threadController.Db.Postgresql),
 		threadController.GetUserSingleThreads)
 	r.GET("/api/v1/threads/channels/:channel_id", middleware.Authorize(threadController.Db.Postgresql),
 		threadController.GetAllChannelThreads)
