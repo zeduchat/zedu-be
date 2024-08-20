@@ -31,3 +31,18 @@ func UploadProfilePic(logger *utility.Logger, objectName string, file io.Reader,
 
 	return url, nil
 }
+
+func DeleteProfilePic(logger *utility.Logger, objectName string) error {
+	path := "public/profile_pics/" + objectName
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+
+	err := minioClient.RemoveObject(context.Background(), bucketName, path, minio.RemoveObjectOptions{})
+
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to delete file %s: %v", path, err))
+		return fmt.Errorf("failed to delete file %s: %v", path, err)
+	}
+	
+	return nil
+}

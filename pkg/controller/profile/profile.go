@@ -133,12 +133,12 @@ func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
 			c.JSON(http.StatusNotFound, rd)
 		} else {
 			rd := utility.BuildErrorResponse(code, "error", "Failed to update Profile", err, nil)
-			c.JSON(http.StatusInternalServerError, rd)
+			c.JSON(code, rd)
 		}
 		return
 	}
 
 	base.Logger.Info("Profile image deleted successfully")
 	rd := utility.BuildSuccessResponse(code, "Profile image deleted successfully", nil)
-	c.JSON(http.StatusOK, rd)
+	c.JSON(code, rd)
 }
