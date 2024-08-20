@@ -71,6 +71,8 @@ type UserMsgProfile struct {
 }
 
 type MessagesResp []struct {
+	ID        string    `json:"id"`
+	Edited    bool      `json:"edited"`
 	Message   string    `json:"message"`
 	Username  string    `json:"user_name"`
 	CreatedAt time.Time `json:"created_at"`

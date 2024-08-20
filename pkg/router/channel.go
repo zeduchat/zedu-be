@@ -22,6 +22,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/", middleware.PermissionMiddleware(db.Postgresql, db.Redis, "can_create_channel"),
 			channel.CreateChannels)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
+		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.POST("/:channelId/join", channel.JoinChannels)

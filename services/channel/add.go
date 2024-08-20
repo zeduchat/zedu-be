@@ -38,3 +38,27 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *t
 
 	return &message, http.StatusCreated, nil
 }
+
+func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, typesenseDb *typesense.Client,
+	logger *utility.Logger) (*models.Message, int, error) {
+
+	var message models.Message
+
+	theMessage, err := message.GetMessageByID(db, req.MessageId)
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("invalid message ID")
+	}
+
+	theMessage.Content = req.Content
+	theMessage.Edited = true
+	newMsg, err := theMessage.UpdateMessage(db)
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	if err := thread.DetectAndAddMentions(theMessage.ID, req.Content, db); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	return newMsg, http.StatusCreated, nil
+}
