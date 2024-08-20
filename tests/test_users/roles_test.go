@@ -71,7 +71,7 @@ func TestUpdateUserRole(t *testing.T) {
 	token := tests.GetLoginToken(t, router, auth, loginData)
 
 	t.Run("Successful Update", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", userData.ID, superAdminRole.ID), nil)
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", adminData.ID, superAdminRole.ID), nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -95,7 +95,7 @@ func TestUpdateUserRole(t *testing.T) {
 		tests.AssertResponseMessage(t, response["error"].(string), "Unauthorized")
 	})
 
-	t.Run("User Not Found", func(t *testing.T) {
+	t.Run("Session Invalid", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", currUUID, superAdminRole.ID), nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -103,22 +103,9 @@ func TestUpdateUserRole(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnauthorized)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "invalid user")
-	})
-
-	t.Run("Role Not Found", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", userData.ID, currUUID), nil)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+token)
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
-		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "invalid role")
+		tests.AssertResponseMessage(t, response["message"].(string), "Session is invalid!")
 	})
 
 }

@@ -183,3 +183,18 @@ func (a *AccessToken) GetAccessTokenByID(db *gorm.DB, tokenID string) (AccessTok
 
 	return *a, nil
 }
+
+func (a *User) GetLatestAccessTokenByUserID(db *gorm.DB, userID string) (AccessToken, error) {
+	var latestAccessToken AccessToken
+
+	err := db.Where("owner_id = ?", userID).
+		Order("created_at DESC").
+		First(&latestAccessToken).
+		Error
+
+	if err != nil {
+		return latestAccessToken, err
+	}
+
+	return latestAccessToken, nil
+}
