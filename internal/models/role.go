@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -178,10 +177,7 @@ func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId string, roleId string, c *g
 	user.OrgRoleID = &roleId
 	user.OrgRole = orgRole
 
-	userClaims := common.GetAllUserClaims(c)
-	accessTokenId, _ := userClaims["access_uuid"].(string)
-
-	accessToken, err = accessToken.GetAccessTokenByID(db, accessTokenId)
+	accessToken, err = user.GetLatestAccessTokenByUserID(db, userId)
 	if err != nil {
 		return nil, err
 	}

@@ -71,7 +71,7 @@ func TestUpdateUserRole(t *testing.T) {
 	token := tests.GetLoginToken(t, router, auth, loginData)
 
 	t.Run("Successful Update", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", userData.ID, superAdminRole.ID), nil)
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", adminData.ID, superAdminRole.ID), nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
