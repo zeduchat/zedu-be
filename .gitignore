@@ -30,4 +30,5 @@ app.env
 tmp/
 .idea/
 
+temp
 telex_be
