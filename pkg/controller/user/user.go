@@ -206,7 +206,7 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := service.SwitchUserOrg(req, userId, base.Db.Postgresql)
+	respData, code, err := service.SwitchUserOrg(req, userId, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)

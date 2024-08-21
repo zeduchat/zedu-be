@@ -31,7 +31,7 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 	}
 
 	fmt.Println("Calling VerifyInvitation")
-	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql)
+	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)

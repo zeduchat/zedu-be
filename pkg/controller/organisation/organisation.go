@@ -49,7 +49,6 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	}
 
 	userClaims := claims.(jwt.MapClaims)
-
 	userId := userClaims["user_id"].(string)
 
 	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId)

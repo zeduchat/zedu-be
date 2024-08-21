@@ -2,7 +2,9 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -270,42 +273,92 @@ func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	return http.StatusOK, nil
 }
 
-func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string, db *gorm.DB) (models.Organisation, int, error) {
+func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
+	db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 	var (
-		user models.User
-		org  models.Organisation
+		user            models.User
+		org             models.Organisation
+		orgMgt          models.OrgUserManagement
+		accessToken     models.AccessToken
+		accessTokenData models.AccessToken
+		orgRole         models.OrgRole
 	)
 
-	org, err := org.GetOrgByID(db, req.CurrentOrg)
+	userClaims := common.GetAllUserClaims(c)
+	accessTokenID, ok := userClaims["access_uuid"].(string)
+	if !ok {
+		return gin.H{}, http.StatusBadGateway, fmt.Errorf("error getting access token id")
+	}
 
+	orgMgt, err := orgMgt.GetByIDs(db, userId, req.CurrentOrg)
 	if err != nil {
-		return models.Organisation{}, http.StatusBadRequest, err
+		return gin.H{}, http.StatusBadRequest, err
+	}
+
+	orgRole, err = orgRole.GetAOrgRoleById(db, orgMgt.RoleID)
+	if err != nil {
+		return gin.H{}, http.StatusBadRequest, err
+	}
+
+	org, err = org.GetOrgByID(db, req.CurrentOrg)
+	if err != nil {
+		return gin.H{}, http.StatusBadRequest, err
 	}
 
 	user, err = user.GetUserByID(db, userId)
 	if err != nil {
-		return models.Organisation{}, http.StatusInternalServerError, err
+		return gin.H{}, http.StatusInternalServerError, err
 
 	}
 
 	exist, err := org.CheckUserIsMemberOfOrg(userId, req.CurrentOrg, db)
-
 	if !exist && err != nil {
-		return models.Organisation{}, http.StatusBadRequest, err
+		return gin.H{}, http.StatusBadRequest, err
 	}
 
 	user.CurrentOrg, err = uuid.FromString(req.CurrentOrg)
-
 	if err != nil {
-		return models.Organisation{}, http.StatusInternalServerError, err
+		return gin.H{}, http.StatusInternalServerError, err
+	}
+
+	user.OrgRoleID = &orgMgt.RoleID
+	user.OrgRole = orgRole
+
+	accessTokenData, err = accessToken.GetAccessTokenByID(db, accessTokenID)
+	if err != nil {
+		return gin.H{}, http.StatusNotFound, err
+	}
+
+	if err := accessTokenData.RevokeAccessTokenDelete(db); err != nil {
+		return gin.H{}, http.StatusBadRequest, fmt.Errorf("error revoking user session: %v", err)
+	}
+
+	token, err := middleware.CreateToken(user, c)
+	if err != nil {
+		return gin.H{}, http.StatusBadRequest, err
+	}
+
+	tokens := map[string]string{
+		"access_token": token.AccessToken,
+		"exp":          strconv.Itoa(int(token.ExpiresAt.Unix())),
+	}
+
+	access_token := models.AccessToken{ID: token.AccessUuid, OwnerID: user.ID}
+	err = access_token.CreateAccessToken(db, tokens)
+	if err != nil {
+		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}
 
 	err = user.Update(db)
-
 	if err != nil {
-		return models.Organisation{}, http.StatusInternalServerError, err
+		return gin.H{}, http.StatusInternalServerError, err
 	}
 
-	return org, http.StatusOK, nil
+	theData := gin.H{
+		"organisation": org,
+		"access_token": token.AccessToken,
+	}
+
+	return theData, http.StatusOK, nil
 
 }

@@ -103,7 +103,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("error saving token")
 	}

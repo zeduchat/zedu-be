@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
+	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/invitation"
@@ -38,6 +39,7 @@ func Setup() *utility.Logger {
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)
+		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 	}
 	return logger
 }
@@ -177,6 +179,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(orgData)
 	req, err := http.NewRequest(http.MethodPost, orgURI.String(), &b)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,19 +198,19 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	return orgID, orgName, ownerID
 }
 
-func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, orgID string, emails []string) string{
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) string {
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}
 	)
-	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1/invite"), middleware.Authorize(db.Postgresql))
+	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
-		inviteUrl.POST("/", invite.OrganisationCreateInvite)
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
 	}
 
 	inviteData := models.InvitationCreateReq{
-		OrganisationID: orgID,
-		Emails:         emails,
+		OrganisationID: invitereq.OrganisationID,
+		Emails:         invitereq.Emails,
 		Role:           "admin",
 	}
 
@@ -218,13 +221,13 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
 	dataM := data["data"].(map[string]interface{})
-	token := dataM["invite_token"].(string)
-	return token
-
+	invite_token := dataM["invite_token"].(string)
+	return invite_token
 }

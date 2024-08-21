@@ -110,7 +110,6 @@ func SaveChannelInvitations(db *gorm.DB, invitationsMap []models.ChannelInvitati
 func ChannelInviteLinkMapper(baseURL string, invitations []models.ChannelInvitation) []models.ChannelInvitationResponse {
 	var response []models.ChannelInvitationResponse
 
-
 	for _, invite := range invitations {
 		response = append(response, models.ChannelInvitationResponse{
 			Email:          invite.Email,
@@ -179,7 +178,7 @@ func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB
 		return responseData, http.StatusInternalServerError, errors.New("user to be added to channel must be a telex user")
 	}
 
-	tokenData, err := middleware.CreateToken(userData)
+	tokenData, err := middleware.CreateToken(userData, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("error saving token")
 	}
