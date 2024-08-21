@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	net "net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env string) (*gin.H, int, error) {
+func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, page string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
@@ -43,11 +44,17 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env 
 	}
 
 	var url string
-	if env == "prod" {
-		url = "http://staging.telex.im/"
-	} else {
-		url = "http://localhost:3000/"
+	parsedUrl, err := net.Parse(page)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("error parsing Referer URL: %v", err)
 	}
+
+	if parsedUrl.Hostname() == "localhost" {
+		url = "http://localhost:3000/"
+	} else {
+		url = "http://staging.telex.im/"
+	}
+
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
@@ -125,16 +132,21 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	return &responseData, http.StatusOK, nil
 }
 
-func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, env string) (*gin.H, int, error) {
+func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, page string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
 	}
 	var url string
-	if env == "prod" {
-		url = "http://staging.telex.im/"
-	} else {
+	parsedUrl, err := net.Parse(page)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("error parsing Referer URL: %v", err)
+	}
+
+	if parsedUrl.Hostname() == "localhost" {
 		url = "http://localhost:3000/"
+	} else {
+		url = "http://staging.telex.im/"
 	}
 
 	if subscriptionPlan.StripePriceID == "" {

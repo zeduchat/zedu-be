@@ -23,7 +23,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	var (
 		req *models.CreateSubscriptionRequest
-		env = c.Param("env")
+		url = c.Request.Header.Get("Referer")
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -32,7 +32,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 		return
 	}
 
-	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, env)
+	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -64,7 +64,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 
 	var (
 		req *models.ModifySubscriptionRequest
-		env = c.Param("env")
+		url = c.Request.Header.Get("Referer")
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -73,7 +73,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 		return
 	}
 
-	subscriptionData, code, err := service.ModifySubscription(req, base.Db.Postgresql, env)
+	subscriptionData, code, err := service.ModifySubscription(req, base.Db.Postgresql, url)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
