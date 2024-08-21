@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +17,6 @@ func PermissionMiddleware(db *gorm.DB, rdb *redis.Client, requiredPermission str
 	return func(c *gin.Context) {
 
 		userClaims := common.GetAllUserClaims(c)
-		fmt.Println(userClaims)
 		roleID, ok := userClaims["role_id"].(string)
 
 		if !ok {
