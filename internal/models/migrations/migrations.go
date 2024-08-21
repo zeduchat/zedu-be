@@ -9,6 +9,7 @@ func AuthMigrationModels() []interface{} {
 		models.TelexSlackChannelMapping{},
 		models.SlackTelex{},
 		models.ContactUs{},
+		models.BlogFeedback{},
 		models.BlogCategory{},
 		models.Blog{},
 		models.User{},
