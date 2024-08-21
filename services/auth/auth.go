@@ -47,9 +47,7 @@ func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (
 		if exists {
 			return req, errors.New("user already exists with the given phone")
 		}
-
 	}
-
 	return req, nil
 }
 
