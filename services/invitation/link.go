@@ -140,10 +140,14 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
     if !invitation.IsTelexUser {
         var user models.User
 
+		//use the email to get the first name
+		arr := strings.Split(invitation.Email, "@")
+		email := utility.SplitEmailString(arr[0])
+
         req := models.CreateUserRequestModel{
             Email:     invitation.Email,
             Password:  entry,
-            FirstName: invitation.Email,
+            FirstName:  strings.TrimSpace(strings.ToLower(email)),
         }
 
         _, _, err := auth.CreateUser(req, db)

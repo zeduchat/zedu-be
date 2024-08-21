@@ -195,19 +195,19 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	return orgID, orgName, ownerID
 }
 
-func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, orgID string, emails []string) string{
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) string {
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}
 	)
-	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1/invite"), middleware.Authorize(db.Postgresql))
+	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
-		inviteUrl.POST("/", invite.OrganisationCreateInvite)
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
 	}
 
 	inviteData := models.InvitationCreateReq{
-		OrganisationID: orgID,
-		Emails:         emails,
+		OrganisationID: invitereq.OrganisationID,
+		Emails:         invitereq.Emails,
 		Role:           "admin",
 	}
 
@@ -218,13 +218,13 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
 	dataM := data["data"].(map[string]interface{})
-	token := dataM["invite_token"].(string)
-	return token
-
+	invite_token := dataM["invite_token"].(string)
+	return invite_token
 }
