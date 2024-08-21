@@ -45,6 +45,8 @@ func SendSlacKNotification(req models.SendSlackRequest, logger *utility.Logger) 
 		Markdown:    true,
 	}
 
+	logger.Info("Sending to slack webhook: " + req.WebhookUrl)
+
 	err := slack.Send(req.WebhookUrl, msg)
 
 	if err != nil {
