@@ -135,7 +135,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}
@@ -199,7 +199,7 @@ func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
 	return responseData, http.StatusOK, nil
 }
 
-func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
+func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 
 	var (
 		email        = strings.ToLower(req.Email)
@@ -236,7 +236,7 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, er
 		return nil, http.StatusInternalServerError, err
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}

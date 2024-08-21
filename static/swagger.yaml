@@ -1673,27 +1673,34 @@ paths:
                     description: Error message explaining the server failure
 
 
-  /users/{userId}/roles/{roleId}:
+  /users/switch-roles:
     put:
       tags:
         - user
       summary: Assign user to another role
       security:
         - bearerAuth: []
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                org_id:
+                  type: string
+                  format: uuid
+                role_id:
+                  type: string
+                  format: uuid
 
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+              required:
+                - user_id
+                - org_id
+                - role_id
 
       responses:
         '200':
@@ -1732,6 +1739,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                
 
   /users/{userId}/login-audit:
     get:
@@ -3310,21 +3318,13 @@ paths:
                     type: string
                     description: Error message explaining the server failure
 
-  /api/v1/subscriptions/create/{env}:
+  /api/v1/subscriptions/create:
     post:
       summary: Create a new subscription
       tags:
         - subscription
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: env
-          required: true
-          schema:
-            type: string
-            enum: [dev, prod]
-          description: The environment to create the subscription in
       requestBody:
         required: true
         content:
