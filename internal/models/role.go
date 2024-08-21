@@ -2,10 +2,12 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -129,6 +131,21 @@ func (r *OrgRole) GetAOrgRole(db *gorm.DB, orgID, roleID string) (OrgRole, error
 	return orgRole, nil
 }
 
+func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
+	var orgRole OrgRole
+
+	query := db.Where("id = ?", roleID)
+	query = postgresql.PreloadEntities(query, &orgRole, "Permissions")
+
+	err := query.First(&orgRole).Error
+
+	if err != nil {
+		return orgRole, err
+	}
+
+	return orgRole, nil
+}
+
 func GetRoleName(roleId RoleId) RoleName {
 	switch roleId {
 	case RoleIdentity.User:
@@ -140,15 +157,34 @@ func GetRoleName(roleId RoleId) RoleName {
 	}
 }
 
-func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId string, roleId string) (*User, error) {
-	var user User
+func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId string, roleId string, c *gin.Context) (*User, error) {
+	var (
+		user        User
+		orgRole     OrgRole
+		accessToken AccessToken
+	)
 
 	user, err := user.GetUserByID(db, userId)
 	if err != nil {
 		return nil, err
 	}
 
+	orgRole, err = orgRole.GetAOrgRoleById(db, roleId)
+	if err != nil {
+		return nil, err
+	}
+
 	user.OrgRoleID = &roleId
+	user.OrgRole = orgRole
+
+	accessToken, err = user.GetLatestAccessTokenByUserID(db, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := accessToken.RevokeAccessToken(db); err != nil {
+		return nil, fmt.Errorf("error revoking user session: %v", err)
+	}
 
 	if _, err := postgresql.SaveAllFields(db, &user); err != nil {
 		return nil, err

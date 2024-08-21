@@ -40,7 +40,6 @@ tags:
     description: API for message related endpoints
   - name: threads
     description: API for threads related endpoints
-
   - name: user-management
     description: API for user management related endpoints
   - name: Profile
@@ -52,7 +51,12 @@ tags:
   - name: Feed_Webhook
     description: API for feeding centrifugo server
   - name: Integrations
-    description:  API for user integrations operations  
+    description:  API for user integrations operations
+  - name: Overview
+    description: API for overview operations
+  - name: newsletter
+    description: API for newsletter related operations
+
 
 
 
@@ -1980,6 +1984,59 @@ paths:
       security:
         - bearerAuth: []
       description: Creates a new message within a channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreateSchema'
+      responses:
+        '201':
+          description: Message created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageCreateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    put:
+      tags:
+        - messages
+      summary: Edit a message
+      security:
+        - bearerAuth: []
+      description: Edit a message within a thread.
       parameters:
         - name: channel_id
           in: path
@@ -3974,6 +4031,9 @@ paths:
                 event_name:
                   type: string
                   format: string
+                status:
+                  type: string
+                  format: string
                 username:
                   type: string
                   format: string
@@ -4040,6 +4100,28 @@ paths:
             type: string
             format: string
           description: the webhook slug
+      requestBody:
+        description: Webhook object with information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - webhook_status
+              properties:
+                action_type:
+                  type: string
+                  format: string
+                event_name:
+                  type: string
+                  format: string
+                status:
+                  type: string
+                  format: string
+                username:
+                  type: string
+                  format: string
 
       responses:
         '200':
@@ -4117,7 +4199,6 @@ paths:
             type: string
             format: string
             example: cyber event
-            
         - name: action_type
           in: query
           required: true
@@ -4125,6 +4206,13 @@ paths:
             type: string
             format: string
             example: broadcast
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: success
   
       responses:
         '200':
@@ -5120,6 +5208,8 @@ paths:
           description: ID of the organization
           schema:
             type: string
+            format: uuid
+            
       responses:
         '200':
           description: Threads retrieved successfully
@@ -5198,11 +5288,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/{threadId}:
+  /threads/{threadId}/channels/{channelId}:
     get:
       tags:
         - threads
-      summary: Retrieve a specific thread
+      summary: Retrieve a specific thread messages
       security:
         - bearerAuth: []
       parameters:
@@ -5212,6 +5302,15 @@ paths:
           description: ID of the thread
           schema:
             type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
       responses:
         '200':
           description: Thread retrieved successfully
@@ -5257,6 +5356,15 @@ paths:
           description: ID of the thread
           schema:
             type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
       requestBody:
         required: true
         content:
@@ -6197,7 +6305,275 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'                          
+                $ref: '#/components/schemas/ServerErrorSchema' 
+                
+  /slack/access-token:
+    post:
+      tags:
+      - Integrations
+      summary: slack oauth code to access token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oauth_code:
+                  type: string
+                organisation_id:
+                  type: string
+                  format: uuid
+              required:
+                - oauth_code
+                - organisation_id
+      
+      responses:
+        '200':
+          description: Slack OAuth token exchange successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Slack OAuth token exchange successful"
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      incoming_webhook:
+                        type: object
+                        properties:
+                          channel:
+                            type: string
+                          channel_id:
+                            type: string
+                          configuration_url:
+                            type: string
+                          url:
+                            type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+    get:
+      tags:
+      - Integrations
+      summary: Get slack access information
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: organisation_id
+          schema:
+            type: string
+            format: uuid
+          description: The ID of organisation.
+      responses:
+        '200':
+          description: Slack access info fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "slack access info fetched successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      organisation_id:
+                        type: string
+                        format: uuid
+                      access_token:
+                        type: string
+                      team_id:
+                        type: string
+                      team_name:
+                        type: string
+                      channel:
+                        type: string
+                      channel_id:
+                        type: string
+                      configuration_url:
+                        type: string
+                      url:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+  /threads/organisations/{orgId}/metrics:
+    get:
+      tags:
+      - Overview
+      summary: Retrieve Metrics for Organisation Threads
+      description: Retrieve various metrics for threads within an organisation, including channel-specific metrics.
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          description: ID of the organisation to retrieve metrics for.
+          schema:
+            type: string
+            example: "01915ec5-5880-72b7-8956-8a43dbc36a8b"
+      responses:
+        200:
+          description: Data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      channel_count_info:
+                        type: object
+                        properties:
+                          total_threads:
+                            type: integer
+                            example: 18
+                          total_error_threads:
+                            type: integer
+                            example: 5
+                          total_members:
+                            type: integer
+                            example: 2
+                          total_resolved_threads:
+                            type: integer
+                            example: 2
+                      channel_metrics:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            channel_name:
+                              type: string
+                              example: readers
+                            thread_count:
+                              type: integer
+                              example: 14
+                            success_count:
+                              type: integer
+                              example: 1
+                            error_count:
+                              type: integer
+                              example: 2
+                            other_count:
+                              type: integer
+                              example: 0
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '404':
+          description: Organisation not found
+        '500':
+          description: Internal server error
+          
+  /newsletter:
+    post:
+      tags:
+        - newsletter
+      summary: Add new email to newsletter
+      description: Add a new email entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewsletterSchema'
+      responses:
+        '201':
+          description: Email added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema2'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
 components:
 
@@ -8396,24 +8772,29 @@ components:
               type: string
             checkout_session_url:
               type: string 
+
     MessageCreateSchema:
       type: object
       properties:
         content:
           type: string
           description: Content of the message
-        channel_id:
+        channels_id:
           type: string
           format: uuid
           description: ID of the channel the message belongs to
-        userId:
+        user_id:
           type: string
           format: uuid
           description: ID of the user who sent the message
-        threadId:
+        thread_id:
           type: string
           format: uuid      
-          description: thread id (optional)
+          description: thread id
+        message_id:
+          type: string
+          format: uuid      
+          description: message id(optional)
 
     MessageCreateResponseSchema:
       type: object

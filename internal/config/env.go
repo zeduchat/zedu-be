@@ -15,6 +15,7 @@ type Configuration struct {
 	Redis        Redis
 	Mail         MAIL
 	Minio        Minio
+	Slack        Slack
 	Stripe       Stripe
 	TypeSense    TypeSense
 }
@@ -33,6 +34,7 @@ type BaseConfig struct {
 	MAGIC_LINK_DURATION     int    `mapstructure:"MAGIC_LINK_DURATION"`
 	RESET_PASSWORD_DURATION int    `mapstructure:"RESET_PASSWORD_DURATION"`
 	WEBHOOK_API_URL         string `mapstructure:"WEBHOOK_API_URL"`
+	FRONTEND_URL            string `mapstructure:"FRONTEND_URL"`
 
 	DB_HOST       string `mapstructure:"DB_HOST"`
 	DB_PORT       string `mapstructure:"DB_PORT"`
@@ -75,12 +77,18 @@ type BaseConfig struct {
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
 
+	SLACK_CLIENT_ID     string `mapstructure:"SLACK_CLIENT_ID"`
+	SLACK_CLIENT_SECRET string `mapstructure:"SLACK_CLIENT_SECRET"`
+	SLACK_REDIRECT_URI  string `mapstructure:"SLACK_REDIRECT_URI"`
+	SLACK_BASE_URL      string `mapstructure:"SLACK_BASE_URL"`
+
+	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
+	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
+
 	STRIPE_KEY         string `mapstructure:"STRIPE_KEY"`
 	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
 	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
 	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
-	TYPESENSE_API_URL  string `mapstructure:"TYPESENSE_API_URL"`
-	TYPESENSE_API_KEY  string `mapstructure:"TYPESENSE_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -107,6 +115,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			MagicLinkDuration:     config.MAGIC_LINK_DURATION,
 			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,
 			WebhookApiUrl:         config.WEBHOOK_API_URL,
+			FRONTEND_URL:          config.FRONTEND_URL,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,
@@ -161,12 +170,21 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
 		},
+
+		Slack: Slack{
+			ClientId:     config.SLACK_CLIENT_ID,
+			ClientSecret: config.SLACK_CLIENT_SECRET,
+			RedirectURI:  config.SLACK_REDIRECT_URI,
+			BaseUrl:      config.SLACK_BASE_URL,
+		},
+
 		Stripe: Stripe{
 			STRIPE_KEY:         config.STRIPE_KEY,
 			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
 			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
 			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
 		},
+
 		TypeSense: TypeSense{
 			TypeSense_API_URL: config.TYPESENSE_API_URL,
 			TypeSense_API_KEY: config.TYPESENSE_API_KEY,

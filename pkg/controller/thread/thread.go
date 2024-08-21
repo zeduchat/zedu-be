@@ -1,10 +1,13 @@
 package thread
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -25,6 +28,12 @@ func (base *Controller) GetAllUserOrgThreads(c *gin.Context) {
 		orgID = c.Param("org_id")
 	)
 
+	if _, err := uuid.Parse(orgID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org id format", errors.New("failed to parse org id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	usersData, paginationResponse, code, err := service.GetAllUserOrgThreads(orgID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
@@ -43,7 +52,45 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 		channelID = c.Param("channel_id")
 	)
 
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	usersData, paginationResponse, code, err := service.GetAllChannelThreads(channelID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
+
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) GetUserSingleThreads(c *gin.Context) {
+
+	var (
+		threadID  = c.Param("thread_id")
+		channelID = c.Param("channel_id")
+	)
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(threadID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	usersData, paginationResponse, code, err := service.GetUserSingleThreads(threadID, channelID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -55,30 +102,25 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 }
 
-func (base *Controller) GetUserSingleThreads(c *gin.Context) {
-
-	var (
-		threadID = c.Param("thread_id")
-	)
-
-	usersData, code, err := service.GetUserSingleThreads(threadID, base.Db.Postgresql, c)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData)
-	c.JSON(http.StatusOK, rd)
-
-}
-
 func (base *Controller) UpdateAThread(c *gin.Context) {
 
 	var (
-		threadID = c.Param("thread_id")
-		req      = models.UpdateThreadStatus{}
+		threadID  = c.Param("thread_id")
+		channelID = c.Param("channel_id")
+		req       = models.UpdateThreadStatus{}
 	)
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(threadID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -95,7 +137,7 @@ func (base *Controller) UpdateAThread(c *gin.Context) {
 		return
 	}
 
-	code, err := service.UpdateAThread(req, threadID, base.Db.Postgresql, c)
+	code, err := service.UpdateAThread(req, threadID, channelID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -147,6 +189,12 @@ func (base *Controller) SearchChannel(c *gin.Context) {
 		searching = c.Param("searching")
 	)
 
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	usersData, code, err := service.SearchChannel(channelID, searching, base.Db.Postgresql, c, base.Db.TypeSense)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
@@ -155,6 +203,28 @@ func (base *Controller) SearchChannel(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) GetChannelCountInfo(c *gin.Context) {
+	var (
+		orgID = c.Param("org_id")
+	)
+
+	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	response := gin.H{
+		"channel_count_info": usersData,
+		"channel_metrics":    channelMetrics,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", response)
 	c.JSON(http.StatusOK, rd)
 
 }

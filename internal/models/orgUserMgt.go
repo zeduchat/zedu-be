@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type OrgUserManagement struct {
@@ -62,25 +63,20 @@ func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgResponse, orgID string) ([]UserInOrgResponse, error) {
-	var orgUserManagement OrgUserManagement
-	var org Organisation
 	var response []UserInOrgResponse
+	var orgUserManagement OrgUserManagement
+	var userstable User
+	var org_role OrgRole
 
 	for _, user := range users {
 		_, _ = postgresql.SelectOneFromDb(db, &orgUserManagement, "organisation_id = ? AND user_id = ?", orgID, user.ID)
-		user.Role = orgUserManagement.RoleID
-		user.Status = orgUserManagement.Status
-
-		response = append(response, user)
-	}
-	for _, user := range users {
-		_, _ = postgresql.SelectOneFromDb(db, &org, "organisation_id = ? AND user_id = ?", orgID, user.ID)
-		user.Role = orgUserManagement.RoleID
+		_, _ = postgresql.SelectOneFromDb(db, &userstable, "id = ?", user.ID)
+		_, _ = postgresql.SelectOneFromDb(db, &org_role, "id = ?", userstable.OrgRoleID)
+		user.Role = org_role.Name
 		user.Status = orgUserManagement.Status
 
 		response = append(response, user)
@@ -103,11 +99,6 @@ func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetr
 	inactiveCount, _ := postgresql.CountSpecificRecords(db, o, "organisation_id = ? AND status = ?", orgID, "inactive")
 	totalMembers, _ := postgresql.CountSpecificRecords(db, o, "organisation_id = ?", orgID)
 	totalGuests, _ := postgresql.CountSpecificRecords(db, inv, "organisation_id = ? AND status = ?", orgID, "accepted")
-
-	// err := postgresql.SelectAllFromDb(db, "", &cntInv, "organisation_id = ? AND status = ?", orgID, "accepted")
-	// if err != nil {
-	// 	return OrgUserMetricsResponse{}, err
-	// }
 
 	countData := OrgUserMetricsResponse{
 		ActiveCount:   activeCount,

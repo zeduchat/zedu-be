@@ -224,13 +224,14 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		RoleID:    role.ID,
 		IsDefault: false,
 		PermissionList: models.PermissionList{
-			CanViewTransactions:       true,
-			CanViewRefunds:            true,
-			CanLogRefund:              true,
-			CanViewUser:               true,
-			CanEditUser:               true,
-			CanCreateUser:             false,
-			CanBlacklistWhitelistUser: false,
+			CanRemovePeopleFromOrganization: false,
+			CanInviteMembers:                true,
+			CanCreateCustomRole:             false,
+			CanCreateChannel:                true,
+			CanCommentOnThreads:             true,
+			CanViewBilling:                  false,
+			CanCreateWebhooks:               false,
+			CanViewChannels:                 true,
 		},
 	}
 
@@ -259,9 +260,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
 		updatedPermissions := models.PermissionList{
-			CanViewTransactions: true,
-			CanViewRefunds:      false,
-			CanLogRefund:        true,
+			CanRemovePeopleFromOrganization: false,
+			CanInviteMembers:                true,
+			CanCreateCustomRole:             false,
 		}
 
 		permissionsJSON, _ := json.Marshal(updatedPermissions)
@@ -283,9 +284,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{
-				CanViewTransactions: true,
-				CanViewRefunds:      false,
-				CanLogRefund:        true,
+				CanRemovePeopleFromOrganization: true,
+				CanInviteMembers:                true,
+				CanCreateCustomRole:             false,
 			},
 		}
 		permissionsJSON, _ := json.Marshal(updatedPermissions)
@@ -313,9 +314,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{
-				CanViewTransactions: true,
-				CanViewRefunds:      false,
-				CanLogRefund:        true,
+				CanRemovePeopleFromOrganization: false,
+				CanInviteMembers:                true,
+				CanCreateCustomRole:             false,
 			},
 		}
 		permissionsJSON, _ := json.Marshal(updatedPermissions)

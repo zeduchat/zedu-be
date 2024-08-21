@@ -98,6 +98,7 @@ func ExtractTokenFromInvitationLink(invitationLink string) string {
 	return splitLink[len(splitLink)-1]
 }
 
+
 func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.H, int, error) {
 
     var (
@@ -123,7 +124,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
         }
 
 		orgmgt.RoleID = invitation.Role
-		orgmgt.Status = "accepted"
+		orgmgt.Status = "active"
 		orgmgt.UserID = user.ID
 		orgmgt.OrganisationID = invitation.OrganisationID
 
@@ -161,7 +162,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB) (gin.
         }
 
 		orgmgt.RoleID = invitation.Role
-		orgmgt.Status = "accepted"
+		orgmgt.Status = "active"
 		orgmgt.UserID = userData.ID
 		orgmgt.OrganisationID = invitation.OrganisationID
 

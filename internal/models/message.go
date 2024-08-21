@@ -13,21 +13,33 @@ import (
 )
 
 type Message struct {
-	ID         string     `gorm:"type:uuid;primary_key" json:"id"`
-	Content    string     `gorm:"column:content; type:text; not null" json:"content"`
-	ChannelsID string     `gorm:"type:uuid;not null;index" json:"channels_id"`
-	UserID     string     `gorm:"type:uuid;not null;index" json:"user_id"`
-	Username   string     `gorm:"column:username; type:varchar(100)" json:"username"`
-	CreatedAt  time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	ThreadID   uuid.UUID  `gorm:"type:uuid;null;index" json:"thread_id"`
-	Mentions   []Mentions `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
+	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
+	Content    string         `gorm:"column:content; type:text; not null" json:"content"`
+	ChannelsID string         `gorm:"type:uuid;not null;index" json:"channels_id"`
+	UserID     string         `gorm:"type:uuid;not null;index" json:"user_id"`
+	Username   string         `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
+	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
+	AvatarURL  string         `json:"avatar_url,omitempty"`
+	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
 type CreateMessageRequest struct {
 	Content    string `json:"content" validate:"required"`
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id,omitempty"`
+	ThreadId   string `json:"thread_id"`
+}
+
+type EditMessageRequest struct {
+	Content    string `json:"content" validate:"required"`
+	UserId     string `json:"user_id"`
+	ChannelsId string `json:"channels_id"`
+	ThreadId   string `json:"thread_id"`
+	MessageId  string `json:"message_id" validate:"required"`
 }
 
 func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -58,7 +70,6 @@ func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) erro
 		EventName:    "",
 		ActionType:   "",
 		Status:       "",
-		ThreadStatus: "",
 		MessageCount: 0,
 	}
 
@@ -68,6 +79,19 @@ func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) erro
 	}
 
 	return nil
+}
+
+func (m *Message) UpdateMessage(db *gorm.DB) (*Message, error) {
+	result, err := postgresql.SaveAllFields(db, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, errors.New("failed to update message")
+	}
+
+	return m, nil
 }
 
 func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string) ([]Message, error) {
@@ -89,7 +113,7 @@ func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string)
 func (m *Message) GetMessageByID(db *gorm.DB, messageID string) (Message, error) {
 	var message Message
 
-	err, nerr := postgresql.SelectOneFromDb(db, &message, "message_id = ?", messageID)
+	err, nerr := postgresql.SelectOneFromDb(db, &message, "id = ?", messageID)
 	if err != nil {
 		return message, nerr
 	}

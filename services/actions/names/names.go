@@ -18,6 +18,7 @@ const (
 	SendSqueeze               NotificationName = "send_squeeze"
 	SendContactUsMail         NotificationName = "send_contact_us"
 	SendInvitationLink        NotificationName = "send_invitation"
+	SendNewsletterMail        NotificationName = "send_newsletter"
 )
 
 func Check() {
