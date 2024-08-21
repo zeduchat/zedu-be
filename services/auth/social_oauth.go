@@ -71,6 +71,8 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			Email:      email,
 			IsVerified: true,
 			Profile: models.Profile{
+				FullName:  username,
+				UserName:  username,
 				ID:        utility.GenerateUUID(),
 				AvatarURL: userClaims["picture"].(string),
 			},

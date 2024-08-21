@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env string) (*gin.H, int, error) {
+func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
@@ -42,12 +42,6 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, env 
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create Stripe customer: %v", err)
 	}
 
-	var url string
-	if env == "prod" {
-		url = "http://staging.telex.im/"
-	} else {
-		url = "http://localhost:3000/"
-	}
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
@@ -92,6 +86,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	if len(subscription.Items.Data) > 0 {
 		item := subscription.Items.Data[0]
 		productID := item.Price.Product.ID
+		price := item.Price.UnitAmountDecimal
 		product, err := product.Get(productID, nil)
 		if err != nil {
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve product: %v", err)
@@ -112,6 +107,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 			"start_date":      startDate,
 			"end_date":        endDate,
 			"subscription_id": subscription.ID,
+			"price":           price,
 		}
 	} else {
 		return nil, http.StatusNotFound, fmt.Errorf("no subscription items found")
@@ -123,7 +119,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	return &responseData, http.StatusOK, nil
 }
 
-func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gin.H, int, error) {
+func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
@@ -151,8 +147,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB) (*gi
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String("https://staging.telex.im/dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String("https://yourwebsite.com/plan/billing/cancel"),
+		SuccessURL: stripe.String(url + "dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "dashboard/plan/billing/"),
 	}
 
 	session, err := session.New(params)
