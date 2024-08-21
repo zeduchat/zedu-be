@@ -3310,21 +3310,13 @@ paths:
                     type: string
                     description: Error message explaining the server failure
 
-  /api/v1/subscriptions/create/{env}:
+  /api/v1/subscriptions/create:
     post:
       summary: Create a new subscription
       tags:
         - subscription
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: env
-          required: true
-          schema:
-            type: string
-            enum: [dev, prod]
-          description: The environment to create the subscription in
       requestBody:
         required: true
         content:
