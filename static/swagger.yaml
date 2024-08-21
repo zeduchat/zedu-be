@@ -1673,27 +1673,34 @@ paths:
                     description: Error message explaining the server failure
 
 
-  /users/{userId}/roles/{roleId}:
+  /users/switch-roles:
     put:
       tags:
         - user
       summary: Assign user to another role
       security:
         - bearerAuth: []
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                org_id:
+                  type: string
+                  format: uuid
+                role_id:
+                  type: string
+                  format: uuid
 
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+              required:
+                - user_id
+                - org_id
+                - role_id
 
       responses:
         '200':
@@ -1732,6 +1739,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                
 
   /users/{userId}/login-audit:
     get:

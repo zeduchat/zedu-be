@@ -20,7 +20,7 @@ type TokenDetailDTO struct {
 	ExpiresAt   time.Time
 }
 
-func CreateToken(user models.User) (*TokenDetailDTO, error) {
+func CreateToken(user models.User, c *gin.Context) (*TokenDetailDTO, error) {
 
 	var (
 		tokenData = &TokenDetailDTO{}
@@ -48,6 +48,8 @@ func CreateToken(user models.User) (*TokenDetailDTO, error) {
 	if err != nil {
 		return tokenData, err
 	}
+
+	c.Set("userRoleClaims", user.OrgRoleID)
 
 	return tokenData, nil
 }

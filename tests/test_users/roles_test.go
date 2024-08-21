@@ -1,6 +1,8 @@
 package test_users
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -36,14 +39,27 @@ func TestUpdateUserRole(t *testing.T) {
 	}
 	db.Create(&userData)
 
-	orgID := utility.GenerateUUID()
-	org := models.Organisation{
-		ID:      orgID,
-		Name:    fmt.Sprintf("Org comp%v", currUUID),
-		Email:   fmt.Sprintf("orgtest%v@qa.team", currUUID),
-		OwnerID: adminData.ID,
+	loginData := models.LoginRequestModel{
+		Email:    adminData.Email,
+		Password: "password",
 	}
-	db.Create(&org)
+
+	org := organisation.Controller{Db: userController.Db, Validator: userController.Validator,
+		Logger: userController.Logger}
+	auth := auth.Controller{Db: userController.Db, Validator: userController.Validator,
+		Logger: userController.Logger, ExtReq: userController.ExtReq}
+	token := tests.GetLoginToken(t, router, auth, loginData)
+
+	createOrgData := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("TestTeam%s", currUUID),
+		Description: "Some Random description",
+		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}
+
+	orgID, _, _ := tests.CreateOrganisation(t, router, userController.Db, org, createOrgData, token)
 
 	superAdminRole := models.OrgRole{
 		ID:             utility.GenerateUUID(),
@@ -61,17 +77,16 @@ func TestUpdateUserRole(t *testing.T) {
 	db.Create(&superAdminRole)
 	db.Create(&userRole)
 
-	loginData := models.LoginRequestModel{
-		Email:    adminData.Email,
-		Password: "password",
-	}
-
-	auth := auth.Controller{Db: userController.Db, Validator: userController.Validator,
-		Logger: userController.Logger, ExtReq: userController.ExtReq}
-	token := tests.GetLoginToken(t, router, auth, loginData)
-
 	t.Run("Successful Update", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", adminData.ID, superAdminRole.ID), nil)
+
+		reqBody := models.SwitchUserRoleRequest{
+			UserId: adminData.ID,
+			OrgId:  orgID,
+			RoleId: superAdminRole.ID,
+		}
+		reqBodyJSON, _ := json.Marshal(reqBody)
+
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/users/switch-roles", bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -84,7 +99,7 @@ func TestUpdateUserRole(t *testing.T) {
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", userData.ID, superAdminRole.ID), nil)
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/users/switch-roles", nil)
 		req.Header.Set("Content-Type", "application/json")
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
@@ -96,16 +111,23 @@ func TestUpdateUserRole(t *testing.T) {
 	})
 
 	t.Run("Session Invalid", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/users/%s/roles/%s", currUUID, superAdminRole.ID), nil)
+		reqBody := models.SwitchUserRoleRequest{
+			UserId: adminData.ID,
+			OrgId:  orgID,
+			RoleId: superAdminRole.ID,
+		}
+		reqBodyJSON, _ := json.Marshal(reqBody)
+
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/users/switch-roles", bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusUnauthorized)
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "Session is invalid!")
+		tests.AssertResponseMessage(t, response["message"].(string), "Token is invalid!")
 	})
 
 }

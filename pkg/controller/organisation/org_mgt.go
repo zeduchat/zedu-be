@@ -43,7 +43,6 @@ func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-
 func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 	userId := c.Param("user_id")
@@ -161,11 +160,9 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", invitations, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 }
-
 
 func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
@@ -188,6 +185,12 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(createOGMT.RoleID); err != nil {
+		base.Logger.Error("invalid role id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid role id format", "failed to decode role id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -213,7 +216,7 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
-	err = organisation.AddMemberToOrganisation(ownerId, orgId, userId, createOGMT.RoleID ,base.Db.Postgresql)
+	err = organisation.AddMemberToOrganisation(ownerId, orgId, userId, createOGMT.RoleID, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("failed to add member", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add member", err.Error(), nil)

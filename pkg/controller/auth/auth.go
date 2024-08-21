@@ -82,7 +82,7 @@ func (base *Controller) CreateAdmin(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := auth.CreateAdmin(reqData, base.Db.Postgresql)
+	respData, code, err := auth.CreateAdmin(reqData, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -195,7 +195,6 @@ func (base *Controller) UpdateOnboardStatus(c *gin.Context) {
 	}
 
 	userClaims := claims.(jwt.MapClaims)
-
 	owner_id, ok := userClaims["user_id"].(string)
 
 	if !ok {

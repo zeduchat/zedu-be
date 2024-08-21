@@ -49,7 +49,7 @@ func TestUpdateThread(t *testing.T) {
 		ChannelsID: channel.ID,
 		Status:     "pending",
 	}
-	fmt.Println(threads.ID)
+
 	db.Create(&adminUser)
 	db.Create(&org)
 	db.Create(&channel)

@@ -101,8 +101,21 @@ func (a *AccessToken) RevokeAccessToken(db *gorm.DB) error {
 		return fmt.Errorf("access token id not provided to revoke access token")
 	}
 	a.IsLive = false
+
 	_, err := postgresql.SaveAllFields(db, &a)
 	return err
+}
+
+func (a *AccessToken) RevokeAccessTokenDelete(db *gorm.DB) error {
+	if a.ID == "" {
+		return fmt.Errorf("access token id not provided to revoke access token")
+	}
+
+	if err := postgresql.HardDeleteRecordFromDb(db, a); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *AccessToken) RevokeUserTokens(db *gorm.DB) (int, error) {

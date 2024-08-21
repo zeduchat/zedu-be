@@ -47,7 +47,7 @@ func CheckUserIsAdmin(db *gorm.DB, owner_id string, org models.Organisation) boo
 }
 
 func CheckEmailsLimit(emails []string) bool {
-	return len(emails) > 5 // limit to 5 emails for testing
+	return len(emails) > 50
 }
 
 func CheckDuplicateEmails(emails []string) bool {
