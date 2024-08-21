@@ -10,11 +10,11 @@ import (
 	"github.com/hngprojects/telex_be/services/send"
 )
 
-func (n NotificationObject) SendContactUsMail() error {
+func (n NotificationObject) SendNewsletterMail() error {
 	var (
-		notificationData     = models.SendContactUsMail{}
-		subject              = "Subject: Thank You for Contacting Us😇"
-		templateFileName     = "contact_us.html"
+		notificationData     = models.SendNewsletterSubscriptionMail{}
+		subject              = "Subject: Welcome to Our Newsletter! Your Subscription is Confirmed😃"
+		templateFileName     = "newsletter.html"
 		baseTemplateFileName = ""
 		configData           = config.GetConfig()
 	)
@@ -24,14 +24,13 @@ func (n NotificationObject) SendContactUsMail() error {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	helpCenterUrl := fmt.Sprintf("%v/help", configData.App.Url)
+	blogUrl := fmt.Sprintf("%v/blogs", configData.App.Url)
+	contactUrl := fmt.Sprintf("%v/contact", configData.App.Url)
 
 	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname":       thisOrThatStr(notificationData.Name, notificationData.Email),
-		"phone_number":    notificationData.PhoneNumber,
-		"email":           notificationData.Email,
-		"message":         notificationData.Message,
-		"help_center_url": helpCenterUrl,
+		"firstname":   thisOrThatStr(notificationData.Email, "there!"),
+		"blog_url":    blogUrl,
+		"contact_url": contactUrl,
 	})
 
 	if err != nil {

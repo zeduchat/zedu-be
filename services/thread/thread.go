@@ -5,11 +5,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/user"
-	"gorm.io/gorm"
 )
 
 func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *postgresql.PaginationResponse, int, error) {
@@ -45,7 +46,7 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.
 	return &accessResp, &paginationResponse, http.StatusOK, nil
 }
 
-func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *postgresql.PaginationResponse, int, error) {
+func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, postgresql.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
@@ -53,29 +54,29 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) (*[]mod
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
-		return nil, nil, http.StatusNotFound, err
+		return nil, postgresql.PaginationResponse{}, http.StatusNotFound, err
 	}
 
 	userID, ok := userId.(string)
 	if !ok {
-		return nil, nil, http.StatusBadRequest, errors.New("user_id is not of type string")
+		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
 	_, code, err := user.GetUser(userID, db)
 	if err != nil {
-		return nil, nil, code, err
+		return nil, postgresql.PaginationResponse{}, code, err
 	}
 
 	accessResp, paginationResponse, err := accessData.GetThreadsByChannelID(c, db, userID, channelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &accessResp, nil, http.StatusNoContent, nil
+			return accessResp, postgresql.PaginationResponse{}, http.StatusNoContent, nil
 		}
-		return &accessResp, nil, http.StatusBadRequest, err
+		return accessResp, postgresql.PaginationResponse{}, http.StatusBadRequest, err
 
 	}
 
-	return &accessResp, &paginationResponse, http.StatusOK, nil
+	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
 func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*models.MessagesResp, *postgresql.PaginationResponse, int, error) {
@@ -145,16 +146,15 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 	return http.StatusOK, nil
 }
 
-
-func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.ChannelCountInfo, []models.ChannelMetrics ,error){
+func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
 	var (
 		channel models.ChannelCountInfo
-		t models.Threads
-		o models.Organisation
-		cm []models.ChannelMetrics
+		t       models.Threads
+		o       models.Organisation
+		cm      []models.ChannelMetrics
 	)
 
-	userId, err := middleware.GetUserClaims(c, db , "user_id")
+	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
 		return channel, cm, err
 	}
@@ -165,8 +165,8 @@ func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.Channe
 		return channel, cm, err
 	}
 
-	if !isOwner{
-		return channel, cm ,errors.New("User is not the owner of this organisation")
+	if !isOwner {
+		return channel, cm, errors.New("User is not the owner of this organisation")
 	}
 
 	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id)
@@ -174,4 +174,4 @@ func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.Channe
 		return channel, cm, err
 	}
 	return response, channelInfoMetrics, nil
-}	
+}

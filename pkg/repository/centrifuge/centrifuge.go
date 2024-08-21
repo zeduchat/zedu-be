@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/centrifugal/gocent"
 
@@ -13,10 +16,25 @@ import (
 
 func NewCentrifugoService(logger *utility.Logger, config config.Centrifuge) *gocent.Client {
 
+	httpClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+
 	c := gocent.New(gocent.Config{
-		Addr: config.Url,
-		Key:  config.ApiKey,
+		Addr:       config.Url,
+		Key:        config.ApiKey,
+		HTTPClient: httpClient,
 	})
+
 	Client.C = c
 
 	utility.LogAndPrint(logger, fmt.Sprintf("connected to centrifuge server at %s", config.Url))
@@ -39,7 +57,7 @@ func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload
 		return err
 	}
 
-	utility.LogAndPrint(logger, fmt.Sprintf("published to %s", channelID))
+	logger.Info(fmt.Sprintf("published to %s", channelID))
 
 	return nil
 }
@@ -60,7 +78,7 @@ func BroadcastToThreadSubChannel(logger *utility.Logger, channelID string, threa
 		return err
 	}
 
-	utility.LogAndPrint(logger, fmt.Sprintf("Published to sub-channel %s", subChannelID))
+	logger.Info(fmt.Sprintf("Published to sub-channel %s", subChannelID))
 
 	return nil
 }

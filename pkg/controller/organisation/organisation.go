@@ -119,7 +119,7 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 		return
 	}
 
-	respData, additionalInfo, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
+	respData, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
 	if err != nil {
 		base.Logger.Info("error fetching channels")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -128,8 +128,7 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"channels":        respData,
-		"additional_info": additionalInfo,
+		"channels": respData,
 	}
 
 	base.Logger.Info("channels fetched successfully")
@@ -324,8 +323,6 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
-
-
 
 func (base *Controller) GetLoadingMetrics(c *gin.Context) {
 	orgId := c.Param("org_id")

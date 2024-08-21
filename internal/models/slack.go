@@ -3,8 +3,9 @@ package models
 import (
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type OAuth struct {
@@ -27,6 +28,18 @@ type SlackTelex struct {
 	UpdatedAt        time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
+type SendSlackRequest struct {
+	OrgName        string `json:"org_name"`
+	AuthorName     string `json:"author_name"`
+	TitleEvent     string `json:"title_event"`
+	TitleAction    string `json:"title_action"`
+	TitleLink      string `json:"title_link"`
+	PretextChannel string `json:"pretext_channel"`
+	StatusValue    string `json:"status_value"`
+	WebhookUrl     string `json:"webhook_url"`
+	Color          string `json:"color"`
+}
+
 func (s *SlackTelex) Create(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, &s)
 
@@ -39,6 +52,16 @@ func (s *SlackTelex) Create(db *gorm.DB) error {
 
 func (s *SlackTelex) GetSlackAccessToken(db *gorm.DB, userId string, orgId string) error {
 	err, _ := postgresql.SelectOneFromDb(db, &s, "user_id = ? AND organisation_id = ?", userId, orgId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SlackTelex) GetSlackWebhookUrl(db *gorm.DB, orgId string) error {
+	err, _ := postgresql.SelectOneFromDb(db, &s, "organisation_id = ?", orgId)
 
 	if err != nil {
 		return err
