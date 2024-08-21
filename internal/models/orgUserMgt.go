@@ -109,6 +109,16 @@ func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetr
 	return countData, nil
 }
 
+func (o *OrgUserManagement) GetByIDs(db *gorm.DB, userID, orgID string) (OrgUserManagement, error) {
+
+	query := db.Where("user_id = ? AND organisation_id = ?", userID, orgID)
+	if err := query.First(&o).Error; err != nil {
+		return *o, err
+	}
+
+	return *o, nil
+}
+
 func (o *OrgUserManagement) UpdateMember(db *gorm.DB, orgID, userID string, req UpdateMemberRequest) (OrgUserManagement, error) {
 	var oum OrgUserManagement
 

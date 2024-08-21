@@ -12,16 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func ReplaceUserRole(userID string, roleID string, db *gorm.DB, c *gin.Context) (*models.User, error) {
+func ReplaceUserRole(userID, orgID, roleID string, db *gorm.DB, c *gin.Context) (*models.User, error) {
 
 	var (
-		user = models.User{}
-		role = models.OrgRole{}
+		role   = models.OrgRole{}
+		orgMgt = models.OrgUserManagement{}
 	)
 
-	userExists := postgresql.CheckExists(db, &user, "id = ?", userID)
+	userExists := postgresql.CheckExists(db, &orgMgt, "user_id = ? AND organisation_id = ?", userID, orgID)
 	if !userExists {
-		return nil, errors.New("invalid user")
+		return nil, errors.New("user not in organization")
 	}
 
 	roleExists := postgresql.CheckExists(db, &role, "id = ?", roleID)
@@ -29,7 +29,7 @@ func ReplaceUserRole(userID string, roleID string, db *gorm.DB, c *gin.Context) 
 		return nil, errors.New("invalid role")
 	}
 
-	userData, err := role.UpdateUserRole(db, userID, roleID, c)
+	userData, err := role.UpdateUserRole(db, userID, orgID, roleID, c)
 	if err != nil {
 		return nil, fmt.Errorf(err.Error())
 	}

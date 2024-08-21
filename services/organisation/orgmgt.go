@@ -2,7 +2,6 @@ package organisation
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -11,14 +10,21 @@ import (
 )
 
 func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
+	var orgRole models.OrgRole
+
+	orgRole, err := orgRole.GetAOrgRoleByName(db, "Administrator")
+	if err != nil {
+		return err
+	}
+
 	orgUserManagement := models.OrgUserManagement{
 		UserID:         userID,
 		OrganisationID: orgID,
-		RoleID:         "admin", //1 is ADMIN
+		RoleID:         orgRole.ID,
 		Status:         "active",
 	}
-	fmt.Println("error is here")
-	err := orgUserManagement.CreateOrgUserManagement(db)
+
+	err = orgUserManagement.CreateOrgUserManagement(db)
 	if err != nil {
 		return err
 	}

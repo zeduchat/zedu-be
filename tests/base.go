@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
+	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/invitation"
@@ -38,6 +39,7 @@ func Setup() *utility.Logger {
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)
+		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 	}
 	return logger
 }
@@ -177,6 +179,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(orgData)
 	req, err := http.NewRequest(http.MethodPost, orgURI.String(), &b)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +198,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	return orgID, orgName, ownerID
 }
 
-func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, orgID string, emails []string) string{
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, orgID string, emails []string) string {
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}

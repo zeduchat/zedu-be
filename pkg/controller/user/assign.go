@@ -1,32 +1,35 @@
 package user
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"github.com/hngprojects/telex_be/internal/models"
 	service "github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func (base *Controller) AssignRoleToUser(c *gin.Context) {
-	userID := c.Param("user_id")
-	roleID := c.Param("role_id")
+	var (
+		req = models.SwitchUserRoleRequest{}
+	)
 
-	if _, err := uuid.Parse(userID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if _, err := uuid.Parse(roleID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid role id format", errors.New("failed to parse role id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	userData, err := service.ReplaceUserRole(userID, roleID, base.Db.Postgresql, c)
+	userData, err := service.ReplaceUserRole(req.UserId, req.OrgId, req.RoleId, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusNotFound, rd)

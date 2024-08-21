@@ -52,7 +52,6 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	var user models.User
 
 	user, err = user.GetUserByID(db, userId)
-
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +61,6 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-	//add user to organisation management model
 	err = CreateOrgUserManagement(db, user.ID, org.ID)
 	if err != nil {
 		return nil, err
@@ -236,10 +234,11 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 
 	if err := db.Table("users AS u").
 		Select(`u.id, u.email, p.phone AS phone_number, p.full_name AS name, 
-			p.avatar_url AS avatar_url, u.created_at, o.status, o.role_id AS role`).
+			p.avatar_url AS avatar_url, u.created_at, o.status, org.name AS role`).
 		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
 		Joins("JOIN profiles AS p ON p.userid = u.id").
 		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
+		Joins("JOIN org_roles AS org ON org.id = o.role_id::uuid").
 		Where("uo.organisation_id = ?", orgId).
 		Offset(offset).
 		Limit(pagination.Limit).
@@ -289,7 +288,7 @@ func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) er
 	return nil
 }
 
-func AddMemberToOrganisation(ownerId, orgId, userId string, role string, db *gorm.DB) error {
+func AddMemberToOrganisation(ownerId, orgId, userId string, roleId string, db *gorm.DB) error {
 	var (
 		org    models.Organisation
 		orgmgt models.OrgUserManagement
@@ -304,7 +303,7 @@ func AddMemberToOrganisation(ownerId, orgId, userId string, role string, db *gor
 		return errors.New("user is not the owner of the organisation")
 	}
 
-	orgmgt.RoleID = role
+	orgmgt.RoleID = roleId
 	orgmgt.UserID = userId
 	orgmgt.OrganisationID = orgId
 	orgmgt.Status = "active"
