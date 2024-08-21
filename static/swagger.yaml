@@ -4984,7 +4984,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  /invite/channels/:
+  /invite/channel/:
     post:
       tags:
         - Channel-Invitation
