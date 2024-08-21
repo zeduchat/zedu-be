@@ -59,6 +59,12 @@ type SwitchUserOrgReqeust struct {
 	CurrentOrg string `json:"current_org" validate:"required"`
 }
 
+type SwitchUserRoleRequest struct {
+	UserId string `json:"user_id" validate:"required,uuid"`
+	OrgId  string `json:"org_id" validate:"required,uuid"`
+	RoleId string `json:"role_id" validate:"required,uuid"`
+}
+
 func (u *User) AddUserToOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
 
 	err := db.Model(user).Association("Organisations").Append(orgs...)
