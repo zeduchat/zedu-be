@@ -1,0 +1,14 @@
+{
+  "name": "telex_test_be",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "cypress:run": "cypress run --e2e",
+    "cypress:open": "cypress open",
+    "cypress:report": "npx cypress run --e2e && npx mochawesome-merge --reportDir cypress/reports/index.html > cypress/reports/index.html/mochawesome.json && npx mochawesome-report-generator --reportDir cypress/reports/index.html"
+  },
+  "devDependencies": {
+    "cypress": "^13.13.3",
+    "cypress-mochawesome-reporter": "^3.8.2"
+  }
+}
