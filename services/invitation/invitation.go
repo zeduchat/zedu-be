@@ -13,11 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateReq, userId string, logger *utility.Logger) (int, string, error) {
+func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
-
-	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
+	org, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
@@ -27,27 +26,20 @@ func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateR
 		return http.StatusUnauthorized, "User is not an admin of the organisation", errors.New("User is not an admin of the organisation")
 	}
 
-	if len(inviteReq.Emails) == 0 {
+	if len(Emails) == 0 {
 		return http.StatusBadRequest, "No emails provided", errors.New("No emails provided")
 	}
 
-	if CheckEmailsLimit(inviteReq.Emails) {
-		return http.StatusBadRequest, "Emails limit exceeded", errors.New("Emails limit exceeded")
-	}
-
-	if CheckDuplicateEmails(inviteReq.Emails) {
+	if CheckDuplicateEmails(Emails) {
 		return http.StatusBadRequest, "Duplicate emails detected", errors.New("Duplicate emails detected")
 	}
 
 	return http.StatusOK, "User validated", nil
 }
 
+
 func CheckUserIsAdmin(db *gorm.DB, owner_id string, org models.Organisation) bool {
 	return org.OwnerID == owner_id
-}
-
-func CheckEmailsLimit(emails []string) bool {
-	return len(emails) > 5 // limit to 5 emails for testing
 }
 
 func CheckDuplicateEmails(emails []string) bool {
@@ -138,3 +130,33 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
+func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest, userId string) ([]models.Invitation, error) {
+
+	var (
+		emails      = req.Emails
+		i           models.Invitation
+		invitations []models.Invitation
+	)
+
+	for _, email := range emails {
+		invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email)
+
+		if !pending {
+			logger.Info("No pending invitations for email", email)
+			continue
+		}
+
+		//update the expiry time of the invitation
+		invite.ExpiresAt = time.Now().Add(24 * time.Hour)
+		invitations = append(invitations, invite)
+
+		err := i.UpdateResendInvitation(base.Postgresql, email, invite.ExpiresAt)
+		if err != nil {
+			logger.Error("Failed to update invitation", err)
+			continue
+		}
+
+	}
+
+	return invitations, nil
+}
