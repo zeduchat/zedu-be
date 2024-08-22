@@ -195,7 +195,6 @@ func (base *Controller) UpdateOnboardStatus(c *gin.Context) {
 	}
 
 	userClaims := claims.(jwt.MapClaims)
-
 	owner_id, ok := userClaims["user_id"].(string)
 
 	if !ok {
