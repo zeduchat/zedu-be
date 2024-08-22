@@ -5496,7 +5496,8 @@ paths:
                         name:
                           type: string
                         role:
-                          type: integer
+                          type: string
+                          format: uuid
                           description: The role of the user in the organization
                         status:
                           type: string
