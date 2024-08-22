@@ -205,15 +205,15 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	)
 	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
-		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql) ,invite.OrganisationCreateInvite)
 	}
 
 	inviteData := models.InvitationCreateReq{
 		OrganisationID: invitereq.OrganisationID,
 		Emails:         invitereq.Emails,
-		Role:           "admin",
+		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
-
+	
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(inviteData)
 	req, err := http.NewRequest(http.MethodPost, inviteURI.String(), &b)
@@ -222,12 +222,12 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
-
+	
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
-	dataM := data["data"].(map[string]interface{})
-	invite_token := dataM["invite_token"].(string)
+	dataM := data["data"]
+	invite_token := dataM.([]interface{})[0].(map[string]interface{})["invite_token"].(string)
 	return invite_token
 }
