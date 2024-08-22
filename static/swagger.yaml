@@ -3190,7 +3190,46 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+  /blogs/feedback:
+    post:
+      tags:
+        - blogs
+      summary: submit blog feedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                blog_id:
+                  type: string
+                  format: uuid
+                feedback:
+                  type: boolean
+                  example: true
+              required:
+                - blog_id
+                - feedback
+      responses:
+        '200':
+          description: Blog feedback submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "blog feedback submitted successfully"
                 
                 
   /contact:

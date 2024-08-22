@@ -16,7 +16,7 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	subscription := subscriptions.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	subscriptionUrl := r.Group(fmt.Sprintf("%v/subscriptions", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		subscriptionUrl.POST("/create/:env", subscription.CreateSubscription)
+		subscriptionUrl.POST("/create", subscription.CreateSubscription)
 		subscriptionUrl.GET("/list/:user_id", subscription.ListSubscriptions)
 		subscriptionUrl.PUT("/modify", subscription.ModifySubscription)
 		subscriptionUrl.DELETE("/delete", subscription.DeleteSubscription)

@@ -129,7 +129,7 @@ func (j *HelpCenterArticle) CreateHelpCenterArticle(db *gorm.DB, title string) e
 	exists := postgresql.CheckExists(db, &hnpCntArticle, "title = ?", title)
 
 	if exists {
-		return errors.New("help center category already exists")
+		return errors.New("help center article already exists")
 	}
 	err := postgresql.CreateOneRecord(db, &j)
 
@@ -176,7 +176,7 @@ func (h *HelpCenterArticle) SearchHelpCenterArticles(db *gorm.DB, c *gin.Context
 
 	pagination := postgresql.GetPagination(c)
 	searchQuery := "%" + query + "%"
-	whereClause := "title ILIKE ?"
+	whereClause := "title ILIKE ? OR content ILIKE ?"
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db.Preload("Category"),
 		"created_at",
@@ -184,6 +184,7 @@ func (h *HelpCenterArticle) SearchHelpCenterArticles(db *gorm.DB, c *gin.Context
 		pagination,
 		&helpCntArticles,
 		whereClause,
+		searchQuery,
 		searchQuery,
 	)
 	if err != nil {
