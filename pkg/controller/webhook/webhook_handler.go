@@ -60,6 +60,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 	req.EventName = c.Query("event_name")
 	req.UserName = c.Query("username")
 	req.ActionType = c.Query("action_type")
+	req.Status = c.Query("status")
 	req.WebhookSlug = c.Param("webhook_slug")
 
 	err := base.Validator.Struct(&req)

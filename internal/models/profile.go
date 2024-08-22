@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type Profile struct {
@@ -23,19 +24,19 @@ type Profile struct {
 }
 
 type ProfileSummary struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	Phone     string `json:"phone"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	FullName  string `json:"full_name"`
-	UserName  string `json:"user_name"`
-	AvatarURL string `json:"avatar_url"`
-	UserId    string `json:"user_id"`
-	Deactivated bool `json:"deactivated"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-	DeletedAt string `json:"deleted_at"`
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	FullName    string `json:"full_name"`
+	UserName    string `json:"user_name"`
+	AvatarURL   string `json:"avatar_url"`
+	UserId      string `json:"user_id"`
+	Deactivated bool   `json:"deactivated"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	DeletedAt   string `json:"deleted_at"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -98,13 +99,24 @@ func (p *Profile) UpdateUserProfileImage(db *gorm.DB, userId string) error {
 
 	result := db.Model(&Profile{}).Where("userid = ?", userId).Update("avatar_url", "")
 
-    if result.Error != nil {
-        return result.Error
-    }
+	if result.Error != nil {
+		return result.Error
+	}
 
-    if result.RowsAffected == 0 {
-        return errors.New("failed to update avatar URL")
-    }
+	if result.RowsAffected == 0 {
+		return errors.New("failed to update avatar URL")
+	}
+
+	return nil
+}
+
+func (p *Profile) GetProfileByUserId(db *gorm.DB, userId string) error {
+
+	query := db.Where("userid = ?", userId)
+
+	if err := query.First(&p).Error; err != nil {
+		return err
+	}
 
 	return nil
 }
