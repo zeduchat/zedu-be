@@ -70,9 +70,8 @@ func TestOrganisationInvitation(t *testing.T) {
 		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	fmt.Println(token)
 
-	_ = tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
+	invite_token := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
 
 	tests := []struct {
 		Name         string
@@ -98,6 +97,33 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			RequestURI: url.URL{Path: "/api/v1/invite"},
+		}, {
+			Name: "Organization Accept Invite Action",
+			RequestBody: models.VerifyInvitationLinkRequest{
+				Token: invite_token,
+			},
+			RequestURI:   url.URL{Path: "/api/v1/invite/verify"},
+			ExpectedCode: http.StatusOK,
+			Message:      "User invited successfully",
+			Method:       http.MethodPost,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
+		}, {
+			Name: "Organization Resend Invite Action",
+			RequestBody: models.ResendInvitationRequest{
+				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				OrganisationID: orgId,
+			},
+			RequestURI:   url.URL{Path: "/api/v1/invite/resend"},
+			ExpectedCode: http.StatusOK,
+			Message:      "success",
+			Method:       http.MethodPost,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
 		},
 	}
 
@@ -107,6 +133,8 @@ func TestOrganisationInvitation(t *testing.T) {
 		invitationURL := r.Group("/api/v1/invite")
 		{
 			invitationURL.POST("", middleware.Authorize(db.Postgresql), invitation.OrganisationCreateInvite)
+			invitationURL.POST("/verify", invitation.OrganisationVerifyInvite)
+			invitationURL.POST("/resend", middleware.Authorize(db.Postgresql), invitation.ResendInvitation)
 
 		}
 
