@@ -22,6 +22,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		resp           gin.H
 		webhook        models.Webhook
 		HistoryWebhook models.HistoryWebhook
+		profile        models.Profile
 	)
 
 	webhook, err := webhook.CheckExistBySlug(db, req.WebhookSlug)
@@ -29,6 +30,15 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	if err != nil {
 		logger.Error("invalid webhook" + err.Error())
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
+	}
+
+	owner_id := webhook.OwnerId
+
+	err = profile.GetProfileByUserId(db, owner_id)
+
+	if err != nil {
+		logger.Error("error getting webhook owner\nerr: " + err.Error())
+		return nil, http.StatusNotFound, errors.New("error getting webhook owner")
 	}
 
 	HistoryWebhook = models.HistoryWebhook{
@@ -52,6 +62,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		Username:   req.UserName,
 		ActionType: req.ActionType,
 		Status:     req.Status,
+		AvatarURL:  profile.AvatarURL,
 	}
 	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
@@ -66,6 +77,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     req.Status,
+		AvatarURL:  profile.AvatarURL,
 	}
 	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
 	if err != nil {
@@ -85,8 +97,26 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
 
 	var (
-		resp gin.H
+		resp    gin.H
+		webhook models.Webhook
+		profile models.Profile
 	)
+
+	webhook, err := webhook.GetChannelWebhook(db, req.ChannelID)
+
+	if err != nil {
+		logger.Error("error getting channel webhook \nerr: " + err.Error())
+		return nil, http.StatusNotFound, errors.New("error getting channel webhook")
+	}
+
+	owner_id := webhook.OwnerId
+
+	err = profile.GetProfileByUserId(db, owner_id)
+
+	if err != nil {
+		logger.Error("error getting webhook owner\nerr: " + err.Error())
+		return nil, http.StatusNotFound, errors.New("error getting webhook owner")
+	}
 
 	thread := models.Threads{
 		ID:         utility.GenerateUUID(),
@@ -95,9 +125,10 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		Username:   req.UserName,
 		ActionType: req.ActionType,
 		Status:     req.Status,
+		AvatarURL:  profile.AvatarURL,
 	}
 
-	err := thread.CreateThread(db, typesenseDb)
+	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
@@ -110,6 +141,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     req.Status,
+		AvatarURL: profile.AvatarURL,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)

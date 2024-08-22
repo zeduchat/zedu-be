@@ -266,7 +266,7 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 	return webhook, nil
 }
 
-func (r *Webhook) GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (Webhook, error) {
+func (r *Webhook) GetChannelWebhook(db *gorm.DB, channelId string) (Webhook, error) {
 	var (
 		webhook Webhook
 	)

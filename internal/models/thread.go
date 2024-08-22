@@ -23,6 +23,7 @@ type Threads struct {
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 	MessageCount int64     `gorm:"type:int;" json:"message_count"`
 	LastReply    time.Time `json:"last_reply,omitempty"`
+	AvatarURL    string    `json:"avatar_url,omitempty"`
 }
 
 type ChannelDocument struct {
