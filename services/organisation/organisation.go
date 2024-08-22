@@ -264,6 +264,8 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 	return users, paginationResponse, nil
 }
 
+
+
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (
 		org    models.Organisation
