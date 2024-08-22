@@ -12,10 +12,6 @@ type NotifyOption struct {
 	Option string
 }
 
-type AppearanceOption struct {
-	Position string
-}
-
 var (
 	NotifyAllMessages    = NotifyOption{Option: "all_new_messages"}
 	NotifyDirectMentions = NotifyOption{Option: "direct_messages_mentions"}
