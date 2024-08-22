@@ -32,3 +32,7 @@ tmp/
 
 temp
 telex_be
+cypress_tests/node_modules
+cypress_tests/cypress.env.json
+cypress_tests/cypress/screenshots
+cypress_tests/cypress/reports
