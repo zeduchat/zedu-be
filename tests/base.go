@@ -199,11 +199,12 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 }
 
 func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) string {
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) string {
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}
 	)
-	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1/invite"), middleware.Authorize(db.Postgresql))
+	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
 		inviteUrl.POST("", invite.OrganisationCreateInvite)
 	}
