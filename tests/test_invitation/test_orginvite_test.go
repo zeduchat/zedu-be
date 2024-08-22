@@ -64,14 +64,25 @@ func TestOrganisationInvitation(t *testing.T) {
 	}
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
+	role := models.OrgRole{
+		ID:          utility.GenerateUUID(),
+		Name:        "Admin",
+		Description: "Admin",
+		OrganisationID: &orgId,
+	}
+
+	db.Postgresql.Create(&role)
+
 	createInviteData := models.InvitationCreateReq{
 		Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
 		OrganisationID: orgId,
-		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
+		Role:           role.ID,
 	}
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	invite_token := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
+
+
 
 	tests := []struct {
 		Name         string
