@@ -4805,8 +4805,9 @@ paths:
                     - "mshallom@gmail.com"
                 role:
                   type: string
+                  format: uuid
                   description: The role that will be assigned to the invited users.
-                  example: "member"
+                  example: "123jjfj-nfndjn2-nfjnjn-nnndnfl-fndn"
       responses:
         '201':
           description: Invitations created successfully
@@ -5496,7 +5497,8 @@ paths:
                         name:
                           type: string
                         role:
-                          type: integer
+                          type: string
+                          format: uuid
                           description: The role of the user in the organization
                         status:
                           type: string
