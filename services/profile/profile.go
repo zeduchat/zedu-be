@@ -24,19 +24,19 @@ func GetUserProfile(db *gorm.DB, userID string) (*models.ProfileSummary, int, er
 	}
 
 	profileSummary := models.ProfileSummary{
-		ID:        userProfile.Profile.ID,
-		Email:     userProfile.Email,
-		Phone:     userProfile.Profile.Phone,
-		FirstName: userProfile.Profile.FirstName,
-		LastName:  userProfile.Profile.LastName,
-		FullName:  userProfile.Profile.FullName,
-		UserName:  userProfile.Profile.UserName,
-		AvatarURL: userProfile.Profile.AvatarURL,
-		UserId:    userProfile.Profile.Userid,
+		ID:          userProfile.Profile.ID,
+		Email:       userProfile.Email,
+		Phone:       userProfile.Profile.Phone,
+		FirstName:   userProfile.Profile.FirstName,
+		LastName:    userProfile.Profile.LastName,
+		FullName:    userProfile.Profile.FullName,
+		UserName:    userProfile.Profile.UserName,
+		AvatarURL:   userProfile.Profile.AvatarURL,
+		UserId:      userProfile.Profile.Userid,
 		Deactivated: userProfile.Deactivated,
-		CreatedAt: userProfile.Profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: userProfile.Profile.UpdatedAt.Format(time.RFC3339),
-		DeletedAt: userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
+		CreatedAt:   userProfile.Profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   userProfile.Profile.UpdatedAt.Format(time.RFC3339),
+		DeletedAt:   userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
 	}
 
 	return &profileSummary, http.StatusOK, nil
@@ -82,7 +82,7 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 	}
 
 	if unsupportedURLPrefix(base64Image) {
-    	return nil, "", nil
+		return nil, "", nil
 	}
 
 	switch {
@@ -148,11 +148,11 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 }
 
 func unsupportedURLPrefix(url string) bool {
-    supportedPrefixes := []string{"http://", "https://", "blob:", "ipfs://", "ftp:"}
-    for _, prefix := range supportedPrefixes {
-        if strings.HasPrefix(url, prefix) {
-            return true
-        }
-    }
-    return false
+	supportedPrefixes := []string{"http://", "https://", "blob:", "ipfs://", "ftp:"}
+	for _, prefix := range supportedPrefixes {
+		if strings.HasPrefix(url, prefix) {
+			return true
+		}
+	}
+	return false
 }

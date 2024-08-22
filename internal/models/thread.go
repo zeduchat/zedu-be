@@ -38,6 +38,7 @@ type ChannelDocument struct {
 	ActionType   string `json:"action_type"`
 	Status       string `json:"status"`
 	MessageCount int64  `json:"message_count"`
+	AvatarURL    string `json:"avatar_url"`
 }
 
 type ChannelCountInfo struct {
@@ -126,7 +127,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 		ID:           t.ID,
 		Type:         "thread",
 		ChannelsID:   t.ChannelsID,
-		ThreadID:     "",
+		ThreadID:     t.ID,
 		UserID:       "",
 		Username:     t.Username,
 		Content:      "",
