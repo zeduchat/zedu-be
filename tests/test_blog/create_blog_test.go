@@ -57,8 +57,6 @@ func TestCreateBlog(t *testing.T) {
 
 	token := tst.GetLoginToken(t, router, *authController, loginData)
 
-	fmt.Print("I AM THE TOKEN HEREEE", token)
-
 	tests := []struct {
 		Name         string
 		RequestBody  models.BlogCreateReq

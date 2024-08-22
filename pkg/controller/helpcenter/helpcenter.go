@@ -44,7 +44,7 @@ func (base *Controller) CreateHelpCenterArticle(c *gin.Context) {
 
 	respData, err := service.CreateHelpCenterArticle(req, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to add Article", err, nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
