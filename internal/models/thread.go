@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -56,53 +57,56 @@ type ChannelMetrics struct {
 	OtherCount   int64  `json:"other_count"`
 }
 
-func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string) (ChannelCountInfo, []ChannelMetrics, error) {
+func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
 		cc ChannelCountInfo
 		om OrgUserManagement
 	)
 
-	//channel count info
+	// Determine the date condition based on the range
+	dateCondition := fmt.Sprintf("created_at >= NOW() - INTERVAL '%d days'", days)
+
+	// Channel count info
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ?", orgId).
+		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
 		Count(&cc.TotalThreads).Error
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.status = ?", orgId, "failed").
+		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "failed").
 		Count(&cc.TotalErrorThreads).Error
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.status = ?", orgId, "success").
+		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "success").
 		Count(&cc.TotalResolvedThreads).Error
 	_ = db.Model(&om).
 		Where("organisation_id = ?", orgId).
 		Count(&cc.TotalMembers).Error
 
-	//channel metrics
-	//this one loops through all the channels in a organisation and get the metrics for each channel
+	// Channel metrics
 	var channels []Channels
 	var channelThreadInfo []ChannelMetrics
 
 	_ = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", orgId)
 
 	for _, channel := range channels {
-		cm, _ := t.ChannelMetrics(db, channel)
+		cm, _ := t.ChannelMetrics(db, channel, dateCondition)
 		channelThreadInfo = append(channelThreadInfo, cm)
 	}
 	return cc, channelThreadInfo, nil
 }
 
-func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels) (ChannelMetrics, error) {
+
+func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels, dateCondition string) (ChannelMetrics, error) {
 	var (
 		cm ChannelMetrics
 	)
 
 	cm.ChannelName = channel.Name
-	_ = db.Where("channels_id = ?", channel.ID).Model(&t).Count(&cm.ThreadCount).Error
-	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "success").Model(&t).Count(&cm.SuccessCount).Error
-	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "failed").Model(&t).Count(&cm.ErrorCount).Error
-	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "other").Model(&t).Count(&cm.OtherCount).Error
+	_ = db.Where("channels_id = ? AND "+dateCondition, channel.ID).Model(&t).Count(&cm.ThreadCount).Error
+	_ = db.Where("channels_id = ? AND status = ? AND "+dateCondition, channel.ID, "success").Model(&t).Count(&cm.SuccessCount).Error
+	_ = db.Where("channels_id = ? AND status = ? AND "+dateCondition, channel.ID, "failed").Model(&t).Count(&cm.ErrorCount).Error
+	_ = db.Where("channels_id = ? AND status = ? AND "+dateCondition, channel.ID, "other").Model(&t).Count(&cm.OtherCount).Error
 	return cm, nil
 }
 
