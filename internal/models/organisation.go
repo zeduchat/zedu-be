@@ -20,6 +20,7 @@ type Organisation struct {
 	Location           string `gorm:"type:varchar(255)" json:"location"`
 	Country            string `gorm:"type:varchar(255)" json:"country"`
 	OwnerID            string `gorm:"type:uuid;" json:"owner_id"`
+	LogoURL            string `gorm:"type:varchar(255)" json:"logo_url"`
 	ChannelssCount     int64  `gorm:"-" json:"channels_count"`
 	TotalMessagesCount int64  `gorm:"-" json:"total_messages_count"`
 
@@ -40,6 +41,7 @@ type CreateOrgRequestModel struct {
 	Type        string `json:"type" validate:"required"`
 	Location    string `json:"location" validate:"required"`
 	Country     string `json:"country" validate:"required"`
+	LogoURL     string `json:"logo_url" `
 }
 
 type UpdateOrgRequestModel struct {
@@ -49,6 +51,7 @@ type UpdateOrgRequestModel struct {
 	Type        string `json:"type"`
 	Location    string `json:"location"`
 	Country     string `json:"country"`
+	LogoURL     string `json:"logo_url"`
 }
 
 type UserInOrgResponse struct {

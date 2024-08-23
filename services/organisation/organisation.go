@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -41,6 +43,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		Type:        strings.ToLower(req.Type),
 		OwnerID:     userId,
 		Country:     strings.ToLower(req.Country),
+		LogoURL:     req.LogoURL,
 	}
 
 	err := org.CreateOrganisation(db)
@@ -328,4 +331,18 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 		return ogm, err
 	}
 	return metrics, nil
+}
+
+func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {
+    if file != nil {
+        logoId := strings.Split(uniqueId, "-")[4]
+        filename := fmt.Sprintf("org_logo_%s%s", logoId, ext)
+
+        picUrl, err := minio.UploadProfilePic(logger, filename, bytes.NewReader(file), int64(len(file)))
+        if err != nil {
+            return "", err
+        }
+        return picUrl, nil
+    }
+    return "", nil
 }
