@@ -8346,10 +8346,14 @@ components:
     addUserToOrganizationReq:
       type: object
       properties:
-        userId:
+        user_id:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec91
+        role_Id:
+          type: string
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c761e527ec92
           
           
     createOrganizationReq:
