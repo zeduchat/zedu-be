@@ -50,26 +50,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-
-	file, ext, err := utility.ValidatePicture(req.LogoURL)
-
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}	
-
-	picUrl, err := service.UploadOrganisationLogo(base.Logger, userId, file, ext)
-
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	reqData.LogoURL = picUrl
-
-	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId)
+	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId, base.Logger)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -184,25 +165,9 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
-	}
-	file, ext, err := utility.ValidatePicture(updateReq.LogoURL)
-
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
 	}	
 
-	picUrl, err := service.UploadOrganisationLogo(base.Logger, orgId, file, ext)
-
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}	
-    updateReq.LogoURL = picUrl
-    
-	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql)
+	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 
 	if err != nil {
 		switch err.Error() {

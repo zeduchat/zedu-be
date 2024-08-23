@@ -40,10 +40,23 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 	return req, http.StatusOK, nil
 }
 
-func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string) (*models.Organisation, error) {
+func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string, logger *utility.Logger) (*models.Organisation, error) {
+
+	orgId := utility.GenerateUUID()
+	file, ext, err := utility.ValidatePicture(req.LogoURL)
+
+	if err != nil {
+		return nil, errors.New("failed to validate organisation logo")
+	}	
+
+	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
+
+	if err != nil {
+		return nil, errors.New("failed to upload organisation logo")
+	}
 
 	org := models.Organisation{
-		ID:          utility.GenerateUUID(),
+		ID:          orgId,
 		Name:        strings.ToLower(req.Name),
 		Description: strings.ToLower(req.Description),
 		Location:    strings.ToLower(req.Location),
@@ -51,10 +64,10 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		Type:        strings.ToLower(req.Type),
 		OwnerID:     userId,
 		Country:     strings.ToLower(req.Country),
-		LogoURL:     req.LogoURL,
+		LogoURL:     picUrl,
 	}
 
-	err := org.CreateOrganisation(db)
+	err = org.CreateOrganisation(db)
 
 	if err != nil {
 		return nil, err
@@ -113,7 +126,7 @@ func GetAllChannelssInTeam(db *gorm.DB, orgID string) (models.ChannelResp, error
 	return channels, nil
 }
 
-func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB) (*models.Organisation, error) {
+func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB, logger *utility.Logger) (*models.Organisation, error) {
 	var org models.Organisation
 	org, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
@@ -143,6 +156,19 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 			return nil, errors.New("organisation already exists with the given email")
 		}
 	}
+	file, ext, err := utility.ValidatePicture(updateReq.LogoURL)
+
+	if err != nil {
+		return nil, errors.New("failed to validate organisation logo")
+	}	
+
+	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
+
+	if err != nil {
+		return nil, errors.New("failed to upload organisation logo")
+	}	
+
+    updateReq.LogoURL = picUrl
 
 	copier.Copy(&org, &updateReq)
 	return org.Update(db)
