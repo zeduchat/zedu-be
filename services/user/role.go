@@ -8,33 +8,44 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
 
-func ReplaceUserRole(userID, orgID, roleID string, db *gorm.DB, c *gin.Context) (*models.User, error) {
+func ReplaceUserRole(userID, orgID, roleID string, db *gorm.DB, c *gin.Context) (*models.User, int, error) {
 
 	var (
 		role   = models.OrgRole{}
 		orgMgt = models.OrgUserManagement{}
 	)
 
+	userClaims := common.GetAllUserClaims(c)
+	userid, ok := userClaims["user_id"].(string)
+	if !ok {
+		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	if userid == userID {
+		return nil, http.StatusForbidden, errors.New("admin cannot change roles")
+	}
+
 	userExists := postgresql.CheckExists(db, &orgMgt, "user_id = ? AND organisation_id = ?", userID, orgID)
 	if !userExists {
-		return nil, errors.New("user not in organization")
+		return nil, http.StatusBadRequest, errors.New("user not in organization")
 	}
 
 	roleExists := postgresql.CheckExists(db, &role, "id = ?", roleID)
 	if !roleExists {
-		return nil, errors.New("invalid role")
+		return nil, http.StatusNotFound, errors.New("invalid role")
 	}
 
 	userData, err := role.UpdateUserRole(db, userID, orgID, roleID, c)
 	if err != nil {
-		return nil, fmt.Errorf(err.Error())
+		return nil, http.StatusBadRequest, fmt.Errorf(err.Error())
 	}
 
-	return userData, nil
+	return userData, http.StatusOK, nil
 }
 
 func UpdateUserIdentity(userID string, roleID string, db *gorm.DB, c *gin.Context) (*models.User, int, error) {
