@@ -21,7 +21,6 @@ import (
 func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, owner_id string, logger *utility.Logger) (int, string, error) {
 	var (
 		o models.Organisation
-		// c models.Channels
 	)
 
 	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
@@ -41,10 +40,6 @@ func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInv
 
 	if len(inviteReq.Emails) == 0 {
 		return http.StatusBadRequest, "No emails provided", errors.New("No emails provided")
-	}
-
-	if CheckEmailsLimit(inviteReq.Emails) {
-		return http.StatusBadRequest, "Emails limit exceeded", errors.New("Emails limit exceeded")
 	}
 
 	if CheckDuplicateEmails(inviteReq.Emails) {
@@ -78,6 +73,7 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 	}
 	return channelInvitations, nil
 }
+
 
 func CreateChannelInvitation(email, token, status string, inviteReq models.ChannelInvitationCreateReq) models.ChannelInvitation {
 	return models.ChannelInvitation{

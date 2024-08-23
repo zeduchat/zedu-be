@@ -13,7 +13,7 @@ type OrgUserManagement struct {
 	UserID         string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
 	OrganisationID string    `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
 	Status         string    `gorm:"type:varchar(255)" json:"status"`
-	RoleID         string    `gorm:"type:varchar(255);not null" json:"role_id"`
+	RoleID         string    `gorm:"type:uuid;null" json:"role_id"`
 	CreatedAt      time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"index" json:"deleted_at"`
 }
@@ -81,9 +81,9 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 
 		response = append(response, user)
 	}
-
 	return response, nil
 }
+
 
 func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetricsResponse, error) {
 	var (

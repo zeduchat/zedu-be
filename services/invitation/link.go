@@ -44,7 +44,6 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 	for _, email := range emails {
 		token, _ := GenerateInvitationToken()
 
-		//remember: lets check if the email of the user already exists in the organisation so as not to override their roles and status
 		creds, err := i.CheckForTelexPresence(base.Postgresql, email, inviteReq.OrganisationID)
 		if err != nil {
 			fmt.Println("Error checking for telex presence", err)

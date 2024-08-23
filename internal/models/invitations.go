@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -36,6 +37,11 @@ type InvitationResponse struct {
 	InvitationLink string    `json:"invitation_link"`
 	Sent_At        time.Time `json:"sent_at"`
 	Expires_At     time.Time `json:"expires_at"`
+}
+
+type ResendInvitationRequest struct {
+	Emails         []string `json:"emails" validate:"required"`
+	OrganisationID string   `json:"org_id" validate:"required,uuid"`
 }
 
 type VerifyInvitationLinkRequest struct {
@@ -100,6 +106,17 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 	return creds, nil
 }
 
+func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email string) (Invitation, bool, error) {
+	var inv Invitation
+
+	//check invitation exists
+	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ?", email, "invited")
+	if exists {
+		return inv, true, nil
+	}
+	return inv, false, errors.New("no pending invitations")
+}
+
 func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, error) {
 	var invitation Invitation
 
@@ -128,6 +145,24 @@ func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
 	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
 	if err != nil {
 		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no record found")
+	}
+
+	return nil
+}
+
+func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string, expiry time.Time) error {
+	
+	invites := Invitation{
+		ExpiresAt: expiry,
+	}
+
+	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
+	if err != nil {
+		return fmt.Errorf("error updating %s's invitation: %v", email ,err)
 	}
 
 	if result.RowsAffected == 0 {
