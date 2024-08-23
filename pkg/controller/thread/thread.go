@@ -235,7 +235,7 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		"channel_metrics":    channelMetrics,
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Data retrieved successfully for %s days", days), response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", response)
 	c.JSON(http.StatusOK, rd)
 
 }
