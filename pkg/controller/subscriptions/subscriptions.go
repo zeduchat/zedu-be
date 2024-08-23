@@ -37,8 +37,8 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
 	if err != nil {
 		log.Print(err)
-		base.Logger.Error(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
@@ -57,6 +57,7 @@ func (base *Controller) ListSubscriptions(c *gin.Context) {
 	if err != nil {
 		log.Print(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
@@ -75,6 +76,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Print(err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -83,6 +85,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 	if err != nil {
 		base.Logger.Error(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
@@ -100,6 +103,7 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 	if err != nil {
 		log.Print(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
@@ -119,6 +123,7 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 	if err != nil {
 		log.Print(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
