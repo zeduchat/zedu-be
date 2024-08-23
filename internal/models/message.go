@@ -43,7 +43,10 @@ type EditMessageRequest struct {
 }
 
 func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) error {
-	var userChannels UserChannels
+	var (
+		userChannels UserChannels
+		profile      Profile
+	)
 
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	if !exist {
@@ -53,6 +56,11 @@ func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) erro
 	m.Username = userChannels.Username
 
 	err := postgresql.CreateOneRecord(db, m)
+	if err != nil {
+		return err
+	}
+
+	err = profile.GetProfileByUserId(db, m.UserID)
 	if err != nil {
 		return err
 	}
@@ -71,6 +79,7 @@ func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) erro
 		ActionType:   "",
 		Status:       "",
 		MessageCount: 0,
+		AvatarURL:    profile.AvatarURL,
 	}
 
 	err = tydb.InsertDocument(typesenseDb, m.ChannelsID, messageDocument)

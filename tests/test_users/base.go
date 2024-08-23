@@ -48,4 +48,8 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 	r.GET("/api/v1/users/:user_id/organisations",
 		middleware.Authorize(userController.Db.Postgresql),
 		userController.GetAUserOrganisation)
+	r.GET("/api/v1/users/notification-preferences", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetUserNotificationSettings)
+	r.PUT("/api/v1/users/notification-preferences", middleware.Authorize(userController.Db.Postgresql),
+		userController.UpdateUserNotificationSettings)
 }

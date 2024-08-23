@@ -6,6 +6,7 @@ import "github.com/hngprojects/telex_be/internal/models"
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
 		models.Testimonial{},
+		models.APIStatus{},
 		models.NewsLetter{},
 		models.TelexSlackChannelMapping{},
 		models.SlackTelex{},
@@ -38,9 +39,23 @@ func AuthMigrationModels() []interface{} {
 		models.HelpCenterArticle{},
 		models.Integrations{},
 		models.IntegrationsSettings{},
+		models.NotificationPreferences{},
 	} // an array of db models, example: User{}
 }
 
 func AlterColumnModels() []AlterColumn {
-	return []AlterColumn{}
+	return []AlterColumn{
+		// {
+		// 	Model: models.OrgUserManagement{},
+		// 	TableName: "org_user_managements",
+		// 	Column: "role_id",
+		// },
+		// {
+		// 	Model: models.OrgUserManagement{},
+		// 	TableName: "org_user_managements",
+		// 	Column: "role_id",
+		// 	Type:  "uuid",
+
+		// },
+	}
 }

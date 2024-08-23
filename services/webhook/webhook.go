@@ -16,11 +16,7 @@ import (
 
 func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook, int, error) {
 
-	var (
-		webhook models.Webhook
-	)
-
-	webhook = models.Webhook{
+	webhook := models.Webhook{
 		ID:        utility.GenerateUUID(),
 		ChannelId: req.ChannelID,
 		OwnerId:   req.UserID,
@@ -28,7 +24,7 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook
 	}
 
 	slug := strings.Split(webhook.ID, "-")[4]
-	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/api/v1/webhooks/feed/%s", slug)
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
 
@@ -135,7 +131,7 @@ func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (models.We
 		webhooks models.Webhook
 	)
 
-	resp, err := webhooks.GetChannelWebhook(db, c, channelId)
+	resp, err := webhooks.GetChannelWebhook(db, channelId)
 
 	if err != nil {
 		return resp, http.StatusBadRequest, err

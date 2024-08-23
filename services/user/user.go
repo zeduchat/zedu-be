@@ -107,28 +107,12 @@ func GetAUserOrganisation(db *gorm.DB, c *gin.Context) (*[]models.Organisation, 
 		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	user, code, err := GetUser(userID, db)
+	orgResp, err = orgData.GetUserOrganisations(db, userID)
 	if err != nil {
-		return nil, code, err
-	}
-
-	isSuperAdmin := user.CheckUserIsAdmin(db)
-	if isSuperAdmin {
-		orgResp, err = orgData.GetOrganisationsByUserID(db, userID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return &orgResp, http.StatusNotFound, errors.New("user not found")
-			}
-			return &orgResp, http.StatusBadRequest, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &orgResp, http.StatusNotFound, errors.New("user not found")
 		}
-	} else {
-		orgResp, err = orgData.GetOrganisationsByUserIDs(db, userID, userID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return &orgResp, http.StatusNotFound, errors.New("user not found")
-			}
-			return &orgResp, http.StatusBadRequest, err
-		}
+		return &orgResp, http.StatusBadRequest, err
 	}
 
 	return &orgResp, http.StatusOK, nil
@@ -282,6 +266,7 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 		accessToken     models.AccessToken
 		accessTokenData models.AccessToken
 		orgRole         models.OrgRole
+		getOrgRole      models.OrgRole
 	)
 
 	userClaims := common.GetAllUserClaims(c)
@@ -294,6 +279,14 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 	if err != nil {
 		return gin.H{}, http.StatusBadRequest, err
 	}
+
+	getOrgRole, err = getOrgRole.GetAOrgRoleByName(db, "Administrator")
+	if err != nil {
+		return gin.H{}, http.StatusBadRequest, err
+	}
+
+	orgMgt.RoleID = getOrgRole.ID
+	orgMgt.Update(db)
 
 	orgRole, err = orgRole.GetAOrgRoleById(db, orgMgt.RoleID)
 	if err != nil {

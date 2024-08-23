@@ -1676,7 +1676,7 @@ paths:
   /users/switch-roles:
     put:
       tags:
-        - user
+        - roles
       summary: Assign user to another role
       security:
         - bearerAuth: []
@@ -4805,8 +4805,9 @@ paths:
                     - "mshallom@gmail.com"
                 role:
                   type: string
+                  format: uuid
                   description: The role that will be assigned to the invited users.
-                  example: "member"
+                  example: "123jjfj-nfndjn2-nfjnjn-nnndnfl-fndn"
       responses:
         '201':
           description: Invitations created successfully
@@ -5023,7 +5024,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  /invite/channels/:
+  /invite/channel/:
     post:
       tags:
         - Channel-Invitation
@@ -5496,7 +5497,8 @@ paths:
                         name:
                           type: string
                         role:
-                          type: integer
+                          type: string
+                          format: uuid
                           description: The role of the user in the organization
                         status:
                           type: string
@@ -5533,7 +5535,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
                 
-  /organisations/{org_id}/metrics:
+  /organisations/{org_id}/metrics?days={days}:
     get:
       tags:
         - user-management
@@ -6599,6 +6601,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+  
+  /users/notification-preferences:
+    get:
+      tags:
+        - user
+      summary: Get user notification preferences
+      security:
+        - bearerAuth: []
+      description: Retrieves the notification preferences for a specific user.
+      responses:
+        '200':
+          description: User notification preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserNotificationPreferencesResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    put:
+      tags:
+        - user
+      summary: Update user notification preferences
+      security:
+        - bearerAuth: []
+      description: Updates the notification preferences for a specific user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserNotificationPreferencesUpdateSchema'
+      responses:
+        '200':
+          description: User notification preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserNotificationPreferencesResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
         '500':
           description: Server error
           content:
@@ -8344,10 +8431,14 @@ components:
     addUserToOrganizationReq:
       type: object
       properties:
-        userId:
+        user_id:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec91
+        role_Id:
+          type: string
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c761e527ec92
           
           
     createOrganizationReq:
@@ -9542,6 +9633,59 @@ components:
           example: "completed"
       required:
         - status
+
+    UserNotificationPreferencesResponseSchema:
+      type: object
+      properties:
+        notify_about:
+          type: object
+          properties:
+            option:
+              type: string
+              enum: ["all_new_messages", "direct_messages_mentions", "nothing"]
+        notification_schedule:
+          type: boolean
+        from_hour:
+          type: string
+          format: time
+        to_hour:
+          type: string
+          format: time
+        notification_method_email:
+          type: boolean
+      required:
+        - notify_about
+        - notification_schedule
+        - from_hour
+        - to_hour
+        - notification_method_email
+
+    UserNotificationPreferencesUpdateSchema:
+      type: object
+      properties:
+        notify_about:
+          type: object
+          properties:
+            option:
+              type: string
+              enum: ["all_new_messages", "direct_messages_mentions", "nothing"]
+        notification_schedule:
+          type: boolean
+        from_hour:
+          type: string
+          format: time
+        to_hour:
+          type: string
+          format: time
+        notification_method_email:
+          type: boolean
+      required:
+        - notify_about
+        - notification_schedule
+        - from_hour
+        - to_hour
+        - appearance
+        - notification_method_email
 
   responses:
     UnauthorizedError:
