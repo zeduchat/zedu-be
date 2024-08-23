@@ -64,6 +64,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 	err = SendSlacKNotification(slackReq, logger)
 
 	if err != nil {
+		logger.Error("sending notification to slack failed: " + err.Error())
 		return err
 	}
 
