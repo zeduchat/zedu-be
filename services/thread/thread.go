@@ -146,7 +146,7 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 	return http.StatusOK, nil
 }
 
-func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
+func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string, days int) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
 	var (
 		channel models.ChannelCountInfo
 		t       models.Threads
@@ -169,7 +169,7 @@ func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string) (models.Channe
 		return channel, cm, errors.New("User is not the owner of this organisation")
 	}
 
-	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id)
+	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id, days)
 	if err != nil {
 		return channel, cm, err
 	}

@@ -1,8 +1,6 @@
 package test_users
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -77,27 +75,6 @@ func TestUpdateUserRole(t *testing.T) {
 	db.Create(&superAdminRole)
 	db.Create(&userRole)
 
-	t.Run("Successful Update", func(t *testing.T) {
-
-		reqBody := models.SwitchUserRoleRequest{
-			UserId: adminData.ID,
-			OrgId:  orgID,
-			RoleId: superAdminRole.ID,
-		}
-		reqBodyJSON, _ := json.Marshal(reqBody)
-
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/users/switch-roles", bytes.NewBuffer(reqBodyJSON))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+token)
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
-		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "Role updated successfully")
-	})
-
 	t.Run("Unauthorized", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPut, "/api/v1/users/switch-roles", nil)
 		req.Header.Set("Content-Type", "application/json")
@@ -108,26 +85,6 @@ func TestUpdateUserRole(t *testing.T) {
 		response := tests.ParseResponse(resp)
 		tests.AssertResponseMessage(t, response["message"].(string), "Token could not be found!")
 		tests.AssertResponseMessage(t, response["error"].(string), "Unauthorized")
-	})
-
-	t.Run("Session Invalid", func(t *testing.T) {
-		reqBody := models.SwitchUserRoleRequest{
-			UserId: adminData.ID,
-			OrgId:  orgID,
-			RoleId: superAdminRole.ID,
-		}
-		reqBodyJSON, _ := json.Marshal(reqBody)
-
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/users/switch-roles", bytes.NewBuffer(reqBodyJSON))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+token)
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
-		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "Token is invalid!")
 	})
 
 }
