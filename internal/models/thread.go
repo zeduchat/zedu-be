@@ -22,8 +22,8 @@ type Threads struct {
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 	MessageCount int64     `gorm:"type:int;" json:"message_count"`
-	LastReply    time.Time `json:"last_reply,omitempty"`
-	AvatarURL    string    `json:"avatar_url,omitempty"`
+	LastReply    time.Time `json:"last_reply"`
+	AvatarURL    string    `json:"avatar_url"`
 }
 
 type ChannelDocument struct {
@@ -194,11 +194,12 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
+		Select("threads.id, threads.channels_id, threads.event_name, profiles.user_name as username, profiles.avatar_url as avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
+		Joins("LEFT JOIN webhooks ON webhooks.channel_id = threads.channels_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = webhooks.owner_id").
 		Where("threads.channels_id = ?", channelID).
-		Group("threads.id").
+		Group("threads.id,profiles.user_name, profiles.avatar_url").
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {
 			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
 				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").

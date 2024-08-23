@@ -73,12 +73,13 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	feed := models.FeedWebHookRequest{
 		ChannelID:  webhook.ChannelId,
 		EventName:  req.EventName,
-		UserName:   req.UserName,
+		UserName:   profile.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     req.Status,
 		AvatarURL:  profile.AvatarURL,
 	}
+
 	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
@@ -137,11 +138,11 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 	feed := models.FeedWebHookRequest{
 		ChannelID:  req.ChannelID,
 		EventName:  req.EventName,
-		UserName:   req.UserName,
+		UserName:   profile.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     req.Status,
-		AvatarURL: profile.AvatarURL,
+		AvatarURL:  profile.AvatarURL,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)

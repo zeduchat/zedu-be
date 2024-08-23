@@ -68,7 +68,6 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		email       = strings.ToLower(req.Email)
 		firstName   = strings.Title(strings.ToLower(req.FirstName))
 		lastName    = strings.Title(strings.ToLower(req.LastName))
-		username    = strings.ToLower(req.UserName)
 		phoneNumber = req.PhoneNumber
 		password    = req.Password
 	)
@@ -78,9 +77,11 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		return nil, http.StatusInternalServerError, err
 	}
 
+	name := strings.Split(email, "@")[0]
+
 	user := models.User{
 		ID:       utility.GenerateUUID(),
-		Name:     username,
+		Name:     name,
 		Email:    email,
 		Password: password,
 		Profile: models.Profile{
@@ -88,7 +89,7 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 			FirstName: firstName,
 			LastName:  lastName,
 			FullName:  firstName + " " + lastName,
-			UserName:  username,
+			UserName:  name,
 			Phone:     phoneNumber,
 		},
 	}
