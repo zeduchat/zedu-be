@@ -33,6 +33,9 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.PUT("/users/switch-org", middleware.CheckIsDeactivated(db.Postgresql), user.SwitchUserOrg)
 		userUrl.PUT("/users/switch-roles", middleware.CheckIsDeactivated(db.Postgresql), user.AssignRoleToUser)
 		userUrl.PUT("/users/reactivate/:user_id", user.ActivateUser)
+
+		userUrl.GET("/users/notification-preferences", user.GetUserNotificationSettings)
+		userUrl.PUT("/users/notification-preferences", user.UpdateUserNotificationSettings)
 	}
 	adminUrl.GET("/users", user.GetAllUsers)
 

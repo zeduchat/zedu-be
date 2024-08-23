@@ -1,4 +1,4 @@
-describe("Update organisations API Tests", () => {
+describe("Delete organisations API Tests", () => {
   const baseUrl = Cypress.env("baseURL");
   let authToken;
   let organisationId;
@@ -46,7 +46,7 @@ describe("Update organisations API Tests", () => {
     });
   });
 
-  it("should update organisation successfully", () => {
+  it("should delete organisation successfully", () => {
     let createData = {
       name: "Organisation1",
       description: "Organisation1 Desc",
@@ -70,26 +70,16 @@ describe("Update organisations API Tests", () => {
       expect(response.status).to.eq(201);
       organisationId = response.body.data.id;
 
-      let updateData = {
-        name: "Update Organisation1",
-        description: "Update Organisation1 Desc",
-        email: orgEmail,
-        type: "Update OrganisationType",
-        location: "Update OrganisationLocation",
-        country: "Update OrganisationCountry",
-      };
-
       cy.request({
-        method: "PUT",
+        method: "DELETE",
         url: `${baseUrl}/organisations/${organisationId}`,
-        body: updateData,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
       }).then((response) => {
-        // Assert that the response status code is 200 (OK)
-        expect(response.status).to.eq(200);
+        // Assert that the response status code is 204 (No content)
+        expect(response.status).to.eq(204);
       });
     });
   });
@@ -118,68 +108,9 @@ describe("Update organisations API Tests", () => {
       expect(response.status).to.eq(201);
       organisationId = response.body.data.id;
 
-      let updateData = {
-        name: "Update Organisation1",
-        description: "Update Organisation1 Desc",
-        email: orgEmail,
-        type: "Update OrganisationType",
-        location: "Update OrganisationLocation",
-        country: "Update OrganisationCountry",
-      };
-
       cy.request({
-        method: "PUT",
+        method: "DELETE",
         url: `${baseUrl}/organisations/${organisationId}`,
-        body: updateData,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer`,
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        // Assert that the response status code is 401 (Unauthorized)
-        expect(response.status).to.eq(401);
-      });
-    });
-  });
-
-  it("should return an error if unauthorized user", () => {
-    let createData = {
-      name: "Organisation1",
-      description: "Organisation1 Desc",
-      email: orgEmail,
-      type: "OrganisationType",
-      location: "OrganisationLocation",
-      country: "OrganisationCountry",
-    };
-
-    // Make a POST request to the API endpoint
-    cy.request({
-      method: "POST",
-      url: `${baseUrl}/organisations`,
-      body: createData,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-    }).then((response) => {
-      // Assert that the response status code is 201 (Created)
-      expect(response.status).to.eq(201);
-      organisationId = response.body.data.id;
-
-      let updateData = {
-        name: "Update Organisation1",
-        description: "Update Organisation1 Desc",
-        email: orgEmail,
-        type: "Update OrganisationType",
-        location: "Update OrganisationLocation",
-        country: "Update OrganisationCountry",
-      };
-
-      cy.request({
-        method: "PUT",
-        url: `${baseUrl}/organisations/${organisationId}`,
-        body: updateData,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer`,
@@ -216,19 +147,9 @@ describe("Update organisations API Tests", () => {
       expect(response.status).to.eq(201);
       organisationId = response.body.data.id;
 
-      let updateData = {
-        name: "Update Organisation1",
-        description: "Update Organisation1 Desc",
-        email: orgEmail,
-        type: "Update OrganisationType",
-        location: "Update OrganisationLocation",
-        country: "Update OrganisationCountry",
-      };
-
       cy.request({
-        method: "PUT",
+        method: "DELETE",
         url: `${baseUrl}/organisations/`,
-        body: updateData,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
@@ -241,7 +162,7 @@ describe("Update organisations API Tests", () => {
     });
   });
 
-  it("should return an error if when data is incorrect", () => {
+  it("should return an error if when request is bad", () => {
     let createData = {
       name: "Organisation1",
       description: "Organisation1 Desc",
@@ -265,27 +186,17 @@ describe("Update organisations API Tests", () => {
       expect(response.status).to.eq(201);
       organisationId = response.body.data.id;
 
-      let updateData = {
-        name: "Update Organisation1",
-        description: "Update Organisation1 Desc",
-        email: "email.com",
-        type: "Update OrganisationType",
-        location: "Update OrganisationLocation",
-        country: "Update OrganisationCountry",
-      };
-
       cy.request({
-        method: "PUT",
-        url: `${baseUrl}/organisations/${organisationId}`,
-        body: updateData,
+        method: "DELETE",
+        url: `${baseUrl}/organisations/${organisationId}%`,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
         failOnStatusCode: false,
       }).then((response) => {
-        // Assert that the response status code is 500 (Internal Server error)
-        expect(response.status).to.eq(500);
+        // Assert that the response status code is 400 (Bad Request error)
+        expect(response.status).to.eq(400);
       });
     });
   });

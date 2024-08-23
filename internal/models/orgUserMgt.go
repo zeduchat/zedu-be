@@ -85,7 +85,6 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 	return response, nil
 }
 
-
 func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetricsResponse, error) {
 	var (
 		inv Invitation
@@ -118,6 +117,11 @@ func (o *OrgUserManagement) GetByIDs(db *gorm.DB, userID, orgID string) (OrgUser
 	}
 
 	return *o, nil
+}
+
+func (o *OrgUserManagement) Update(db *gorm.DB) error {
+	_, err := postgresql.SaveAllFields(db, &o)
+	return err
 }
 
 func (o *OrgUserManagement) UpdateMember(db *gorm.DB, orgID, userID string, req UpdateMemberRequest) (OrgUserManagement, error) {
