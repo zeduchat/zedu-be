@@ -173,6 +173,26 @@ func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]O
 
 	return organisations, nil
 }
+
+func (o *Organisation) GetUserOrganisations(db *gorm.DB, userID string) ([]Organisation, error) {
+	var (
+		orgs []Organisation
+	)
+
+	// Join the organisations table with the org_user_managements table to get the organisations the user belongs to
+	err := db.Table("organisations AS org").
+		Select("org.*").
+		Joins("JOIN org_user_managements AS oum ON org.id = oum.organisation_id").
+		Where("oum.user_id = ?", userID).
+		Find(&orgs).Error
+
+	if err != nil {
+		return orgs, err
+	}
+
+	return orgs, nil
+}
+
 func (u *Organisation) GetOrganisationsByUserIDs(db *gorm.DB, userID, requesterID string) ([]Organisation, error) {
 
 	var (
@@ -201,13 +221,11 @@ func (u *Organisation) GetOrganisationsByUserIDs(db *gorm.DB, userID, requesterI
 
 				return organisations, ErrNotFound
 			}
-
 			return organisations, err
 		}
 		if len(organisations) == 0 {
 			return organisations, ErrNotFound
 		}
-
 		return organisations, nil
 	}
 

@@ -264,8 +264,6 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 	return users, paginationResponse, nil
 }
 
-
-
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (
 		org    models.Organisation
@@ -290,7 +288,7 @@ func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) er
 	return nil
 }
 
-func AddMemberToOrganisation(ownerId, orgId, userId string, roleId string, db *gorm.DB) error {
+func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequest, db *gorm.DB) error {
 	var (
 		org    models.Organisation
 		orgmgt models.OrgUserManagement
@@ -305,12 +303,12 @@ func AddMemberToOrganisation(ownerId, orgId, userId string, roleId string, db *g
 		return errors.New("user is not the owner of the organisation")
 	}
 
-	orgmgt.RoleID = roleId
-	orgmgt.UserID = userId
+	orgmgt.RoleID = req.RoleID
+	orgmgt.UserID = req.UserID
 	orgmgt.OrganisationID = orgId
 	orgmgt.Status = "active"
 
-	err = orgmgt.AddUserToOrganisation(db, orgId, userId)
+	err = orgmgt.AddUserToOrganisation(db, orgId, req.UserID)
 
 	if err != nil {
 		return err
