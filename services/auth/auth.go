@@ -86,7 +86,7 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		Password: password,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),
-			FirstName: firstName,
+			FirstName: name,
 			LastName:  lastName,
 			FullName:  firstName + " " + lastName,
 			UserName:  name,
