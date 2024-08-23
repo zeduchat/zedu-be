@@ -28,6 +28,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -35,10 +36,11 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
-
+	base.Logger.Info("subscription created")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Subscription created successfully", subscriptionData)
 	c.JSON(http.StatusCreated, rd)
 }
@@ -52,6 +54,7 @@ func (base *Controller) ListSubscriptions(c *gin.Context) {
 	subscriptionsData, code, err := service.ListSubscriptions(userID, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
@@ -68,18 +71,21 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	subscriptionData, code, err := service.ModifySubscription(req, base.Db.Postgresql, url)
 	if err != nil {
+		base.Logger.Error(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription modified successfully", subscriptionData)
 	c.JSON(http.StatusOK, rd)
 }
@@ -92,7 +98,9 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 
 	code, err := service.DeleteSubscription(user_id, base.Db.Postgresql)
 	if err != nil {
+
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
@@ -110,11 +118,14 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 
 	subscriptionData, code, err, _ := service.CompleteSubscription(session_id, user_id, base.Db.Postgresql)
 	if err != nil {
+
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(err)
 		c.JSON(code, rd)
 		return
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription completed successfully", subscriptionData)
 	c.JSON(http.StatusOK, rd)
+
 }

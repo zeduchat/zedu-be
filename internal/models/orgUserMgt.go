@@ -13,13 +13,14 @@ type OrgUserManagement struct {
 	UserID         string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
 	OrganisationID string    `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
 	Status         string    `gorm:"type:varchar(255)" json:"status"`
-	RoleID         string    `gorm:"type:varchar(255);not null" json:"role_id"`
+	RoleID         string    `gorm:"type:uuid;null" json:"role_id"`
 	CreatedAt      time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"index" json:"deleted_at"`
 }
 
 type OrgUserCreateRequest struct {
 	RoleID string `json:"role_id" validate:"required"`
+	UserID string `json:"user_id" validate:"required"`
 }
 
 type OrgUserManagementResponse struct {
@@ -81,7 +82,6 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 
 		response = append(response, user)
 	}
-
 	return response, nil
 }
 
@@ -117,6 +117,11 @@ func (o *OrgUserManagement) GetByIDs(db *gorm.DB, userID, orgID string) (OrgUser
 	}
 
 	return *o, nil
+}
+
+func (o *OrgUserManagement) Update(db *gorm.DB) error {
+	_, err := postgresql.SaveAllFields(db, &o)
+	return err
 }
 
 func (o *OrgUserManagement) UpdateMember(db *gorm.DB, orgID, userID string, req UpdateMemberRequest) (OrgUserManagement, error) {

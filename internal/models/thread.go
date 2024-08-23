@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,8 @@ type Threads struct {
 	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
 	MessageCount int64     `gorm:"type:int;" json:"message_count"`
-	LastReply    time.Time `json:"last_reply,omitempty"`
+	LastReply    time.Time `json:"last_reply"`
+	AvatarURL    string    `json:"avatar_url"`
 }
 
 type ChannelDocument struct {
@@ -55,53 +57,56 @@ type ChannelMetrics struct {
 	OtherCount   int64  `json:"other_count"`
 }
 
-func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string) (ChannelCountInfo, []ChannelMetrics, error) {
+func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
 		cc ChannelCountInfo
 		om OrgUserManagement
 	)
 
-	//channel count info
+	// Determine the date condition based on the range
+	dateCondition := fmt.Sprintf("created_at >= NOW() - INTERVAL '%d days'", days)
+
+	// Channel count info
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ?", orgId).
+		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
 		Count(&cc.TotalThreads).Error
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.status = ?", orgId, "failed").
+		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "failed").
 		Count(&cc.TotalErrorThreads).Error
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.status = ?", orgId, "success").
+		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "success").
 		Count(&cc.TotalResolvedThreads).Error
 	_ = db.Model(&om).
 		Where("organisation_id = ?", orgId).
 		Count(&cc.TotalMembers).Error
 
-	//channel metrics
-	//this one loops through all the channels in a organisation and get the metrics for each channel
+	// Channel metrics
 	var channels []Channels
 	var channelThreadInfo []ChannelMetrics
 
 	_ = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", orgId)
 
 	for _, channel := range channels {
-		cm, _ := t.ChannelMetrics(db, channel)
+		cm, _ := t.ChannelMetrics(db, channel, dateCondition)
 		channelThreadInfo = append(channelThreadInfo, cm)
 	}
 	return cc, channelThreadInfo, nil
 }
 
-func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels) (ChannelMetrics, error) {
+
+func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels, dateCondition string) (ChannelMetrics, error) {
 	var (
 		cm ChannelMetrics
 	)
 
 	cm.ChannelName = channel.Name
-	_ = db.Where("channels_id = ?", channel.ID).Model(&t).Count(&cm.ThreadCount).Error
-	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "success").Model(&t).Count(&cm.SuccessCount).Error
-	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "failed").Model(&t).Count(&cm.ErrorCount).Error
-	_ = db.Where("channels_id = ? AND status = ?", channel.ID, "other").Model(&t).Count(&cm.OtherCount).Error
+	_ = db.Where("channels_id = ? AND "+dateCondition, channel.ID).Model(&t).Count(&cm.ThreadCount).Error
+	_ = db.Where("channels_id = ? AND status = ? AND "+dateCondition, channel.ID, "success").Model(&t).Count(&cm.SuccessCount).Error
+	_ = db.Where("channels_id = ? AND status = ? AND "+dateCondition, channel.ID, "failed").Model(&t).Count(&cm.ErrorCount).Error
+	_ = db.Where("channels_id = ? AND status = ? AND "+dateCondition, channel.ID, "other").Model(&t).Count(&cm.OtherCount).Error
 	return cm, nil
 }
 
@@ -193,11 +198,12 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
+		Select("threads.id, threads.channels_id, threads.event_name, profiles.user_name as username, profiles.avatar_url as avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
+		Joins("LEFT JOIN webhooks ON webhooks.channel_id = threads.channels_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = webhooks.owner_id").
 		Where("threads.channels_id = ?", channelID).
-		Group("threads.id").
+		Group("threads.id,profiles.user_name, profiles.avatar_url").
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {
 			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
 				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").

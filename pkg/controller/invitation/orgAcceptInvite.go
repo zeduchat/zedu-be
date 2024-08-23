@@ -1,7 +1,6 @@
 package invitation
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +29,6 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("Calling VerifyInvitation")
 	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

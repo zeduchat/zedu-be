@@ -18,6 +18,8 @@ import (
 
 func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (models.CreateOrgRequestModel, int, error) {
 
+	org := models.Organisation{}
+
 	if req.Email != "" {
 		req.Email = strings.ToLower(req.Email)
 		formattedMail, checkBool := utility.EmailValid(req.Email)
@@ -27,6 +29,12 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 		req.Email = formattedMail
 
 	}
+
+	exists := postgresql.CheckExists(db, &org, "name = ?", strings.ToLower(req.Name))
+	if exists {
+		return req, http.StatusConflict, fmt.Errorf("organisation already exists with the given name")
+	}
+
 	return req, http.StatusOK, nil
 }
 
@@ -288,7 +296,7 @@ func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) er
 	return nil
 }
 
-func AddMemberToOrganisation(ownerId, orgId, userId string, roleId string, db *gorm.DB) error {
+func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequest, db *gorm.DB) error {
 	var (
 		org    models.Organisation
 		orgmgt models.OrgUserManagement
@@ -303,12 +311,12 @@ func AddMemberToOrganisation(ownerId, orgId, userId string, roleId string, db *g
 		return errors.New("user is not the owner of the organisation")
 	}
 
-	orgmgt.RoleID = roleId
-	orgmgt.UserID = userId
+	orgmgt.RoleID = req.RoleID
+	orgmgt.UserID = req.UserID
 	orgmgt.OrganisationID = orgId
 	orgmgt.Status = "active"
 
-	err = orgmgt.AddUserToOrganisation(db, orgId, userId)
+	err = orgmgt.AddUserToOrganisation(db, orgId, req.UserID)
 
 	if err != nil {
 		return err

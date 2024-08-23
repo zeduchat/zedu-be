@@ -38,9 +38,23 @@ func AuthMigrationModels() []interface{} {
 		models.HelpCenterArticle{},
 		models.Integrations{},
 		models.IntegrationsSettings{},
+		models.NotificationPreferences{},
 	} // an array of db models, example: User{}
 }
 
 func AlterColumnModels() []AlterColumn {
-	return []AlterColumn{}
+	return []AlterColumn{
+		// {
+		// 	Model: models.OrgUserManagement{},
+		// 	TableName: "org_user_managements",
+		// 	Column: "role_id",
+		// },
+		// {
+		// 	Model: models.OrgUserManagement{},
+		// 	TableName: "org_user_managements",
+		// 	Column: "role_id",
+		// 	Type:  "uuid",
+
+		// },
+	}
 }

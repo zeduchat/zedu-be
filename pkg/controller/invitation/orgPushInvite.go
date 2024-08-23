@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/utility"
@@ -41,6 +40,14 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
+	inviteReq, err = invitation.UpdateRoleName(inviteReq, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Info("Cant update role name", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "cant update rolename", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
 	if err != nil {
 		base.Logger.Info("Failed to validate user", err)
@@ -56,13 +63,6 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		base.Logger.Info("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	if _, err := uuid.Parse(inviteReq.Role); err != nil {
-		base.Logger.Error("invalid role id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid role id format", "failed to decode role id", nil)
-		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 

@@ -131,7 +131,7 @@ func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (models.We
 		webhooks models.Webhook
 	)
 
-	resp, err := webhooks.GetChannelWebhook(db, c, channelId)
+	resp, err := webhooks.GetChannelWebhook(db, channelId)
 
 	if err != nil {
 		return resp, http.StatusBadRequest, err
