@@ -31,7 +31,7 @@ func TestCreateTestimonial(t *testing.T) {
 	db.Create(&user)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, _:= SetupTestimonialTestRouter()
+		router, testimonialController := SetupTestimonialTestRouter()
 		authController := auth.Controller{
 			Db:        testimonialController.Db,
 			Validator: testimonialController.Validator,
