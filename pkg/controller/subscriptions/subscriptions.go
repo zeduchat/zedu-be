@@ -1,7 +1,6 @@
 package subscriptions
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +35,6 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
 	if err != nil {
-		log.Print(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		base.Logger.Error(err)
 		c.JSON(code, rd)
@@ -55,7 +53,6 @@ func (base *Controller) ListSubscriptions(c *gin.Context) {
 
 	subscriptionsData, code, err := service.ListSubscriptions(userID, base.Db.Postgresql)
 	if err != nil {
-		log.Print(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		base.Logger.Error(err)
 		c.JSON(code, rd)
@@ -74,7 +71,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Print(err)
+
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		base.Logger.Error(err)
 		c.JSON(http.StatusBadRequest, rd)
@@ -101,7 +98,7 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 
 	code, err := service.DeleteSubscription(user_id, base.Db.Postgresql)
 	if err != nil {
-		log.Print(err)
+
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		base.Logger.Error(err)
 		c.JSON(code, rd)
@@ -121,7 +118,7 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 
 	subscriptionData, code, err, _ := service.CompleteSubscription(session_id, user_id, base.Db.Postgresql)
 	if err != nil {
-		log.Print(err)
+
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		base.Logger.Error(err)
 		c.JSON(code, rd)
