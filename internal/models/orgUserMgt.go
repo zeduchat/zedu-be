@@ -20,6 +20,7 @@ type OrgUserManagement struct {
 
 type OrgUserCreateRequest struct {
 	RoleID string `json:"role_id" validate:"required"`
+	UserID string `json:"user_id" validate:"required"`
 }
 
 type OrgUserManagementResponse struct {
