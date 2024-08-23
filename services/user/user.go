@@ -303,6 +303,8 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
+	orgMgt.RoleID = "01917c5b-c884-7519-9961-8df785c3920e"
+
 	orgRole, err = orgRole.GetAOrgRoleById(db, orgMgt.RoleID)
 	if err != nil {
 		return gin.H{}, http.StatusBadRequest, err
@@ -327,6 +329,11 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 	user.CurrentOrg, err = uuid.FromString(req.CurrentOrg)
 	if err != nil {
 		return gin.H{}, http.StatusInternalServerError, err
+	}
+
+	//manual fix for the null role id column in db
+	if orgMgt.RoleID == "" {
+		orgMgt.RoleID = "01917c5b-c884-7519-9961-8df785c3920e"
 	}
 
 	user.OrgRoleID = &orgMgt.RoleID
