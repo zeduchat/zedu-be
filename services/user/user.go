@@ -285,10 +285,8 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
-	if orgMgt.RoleID == "" {
-		orgMgt.RoleID = getOrgRole.ID
-		orgMgt.Update(db)
-	}
+	orgMgt.RoleID = getOrgRole.ID
+	orgMgt.Update(db)
 
 	orgRole, err = orgRole.GetAOrgRoleById(db, orgMgt.RoleID)
 	if err != nil {
