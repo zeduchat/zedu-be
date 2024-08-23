@@ -13,6 +13,18 @@ import (
 	"gorm.io/gorm"
 )
 
+func UpdateRoleName(req models.InvitationCreateReq, db *gorm.DB) (models.InvitationCreateReq, error) {
+	var getOrgRole models.OrgRole
+	getOrgRole, err := getOrgRole.GetAOrgRoleByName(db, "Guest")
+	if err != nil {
+		return req, err
+	}
+
+	req.Role = getOrgRole.ID
+
+	return req, nil
+}
+
 func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
@@ -36,7 +48,6 @@ func CheckerValidator(base *storage.Database, Emails []string, OrganisationID st
 
 	return http.StatusOK, "User validated", nil
 }
-
 
 func CheckUserIsAdmin(db *gorm.DB, owner_id string, org models.Organisation) bool {
 	return org.OwnerID == owner_id

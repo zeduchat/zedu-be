@@ -25,7 +25,7 @@ type Invitation struct {
 type InvitationCreateReq struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
-	Role           string   `json:"role" validate:"required"`
+	Role           string   `json:"role"`
 }
 
 type InvitationResponse struct {
@@ -155,14 +155,14 @@ func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
 }
 
 func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string, expiry time.Time) error {
-	
+
 	invites := Invitation{
 		ExpiresAt: expiry,
 	}
 
 	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
 	if err != nil {
-		return fmt.Errorf("error updating %s's invitation: %v", email ,err)
+		return fmt.Errorf("error updating %s's invitation: %v", email, err)
 	}
 
 	if result.RowsAffected == 0 {
