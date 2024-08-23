@@ -79,7 +79,7 @@ func (base *Controller) GetTestimonials(c *gin.Context) {
 	}
 
 	base.Logger.Info("testimonials retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "blog categories retrieved successfully", testimonials, paginationData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "testimonials retrieved successfully", testimonials, paginationData)
 	c.JSON(http.StatusOK, rd)
 
 }
