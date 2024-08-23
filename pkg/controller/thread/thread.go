@@ -3,6 +3,7 @@ package thread
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -212,7 +213,16 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		orgID = c.Param("org_id")
 	)
 
-	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID)
+	// Parse days query parameter
+	daysStr := c.DefaultQuery("days", "7")
+	days, err := strconv.Atoi(daysStr)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid days parameter", err.Error(), nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID, days)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusInternalServerError, rd)
