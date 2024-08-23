@@ -2,7 +2,6 @@ package apistatus
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -11,14 +10,11 @@ import (
 )
 
 func UpdateAPIStatus(db *gorm.DB, data []byte) error {
-	fmt.Println("BEFORE PARSING")
 	var request models.StatusRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("AFTER PARSING", request.APIGroup.Item[0].Name)
 
 	return nil
 }

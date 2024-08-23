@@ -17,16 +17,34 @@ type APIStatus struct {
 	Details        string    `gorm:"type:text" json:"details"`
 }
 
+type StatusRequest struct {
+	APIGroup APIGroup `json:"collection"`
+}
+
 type APIGroup struct {
 	Item []Item `json:"item"`
 }
 
 type Item struct {
-	Name string `json:"name"`
+	Name string    `json:"name"`
+	Item []SubItem `json:"item"`
 }
 
-type StatusRequest struct {
-	APIGroup APIGroup `json:"collection"`
+type SubItem struct {
+	Name     string     `json:"name"`
+	Response []Response `json:"response"`
+}
+
+type Response struct {
+	Name       string       `json:"name"`
+	StatusCode int          `json:"code"`
+	Body       ResponseBody `json:"body"`
+}
+
+type ResponseBody struct {
+	Status     string `json:"status"`
+	Message    string `json:"message"`
+	StatusCode int    `json:"status_code"`
 }
 
 func (a *APIStatus) Create(db *gorm.DB) error {
