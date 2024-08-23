@@ -107,30 +107,6 @@ func GetAUserOrganisation(db *gorm.DB, c *gin.Context) (*[]models.Organisation, 
 		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	// user, code, err := GetUser(userID, db)
-	// if err != nil {
-	// 	return nil, code, err
-	// }
-
-	// isSuperAdmin := user.CheckUserIsAdmin(db)
-	// if isSuperAdmin {
-	// 	orgResp, err = orgData.GetOrganisationsByUserID(db, userID)
-	// 	if err != nil {
-	// 		if errors.Is(err, gorm.ErrRecordNotFound) {
-	// 			return &orgResp, http.StatusNotFound, errors.New("user not found")
-	// 		}
-	// 		return &orgResp, http.StatusBadRequest, err
-	// 	}
-	// } else {
-	// 	orgResp, err = orgData.GetOrganisationsByUserIDs(db, userID, userID)
-	// 	if err != nil {
-	// 		if errors.Is(err, gorm.ErrRecordNotFound) {
-	// 			return &orgResp, http.StatusNotFound, errors.New("user not found")
-	// 		}
-	// 		return &orgResp, http.StatusBadRequest, err
-	// 	}
-	// }
-	// orgResp, err = orgData.GetOrganisationsByUserIDs(db, userID, userID)
 	orgResp, err = orgData.GetUserOrganisations(db, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
