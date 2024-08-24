@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -38,10 +40,23 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 	return req, http.StatusOK, nil
 }
 
-func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string) (*models.Organisation, error) {
+func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string, logger *utility.Logger) (*models.Organisation, error) {
+
+	orgId := utility.GenerateUUID()
+	file, ext, err := utility.ValidatePicture(req.LogoURL)
+
+	if err != nil {
+		return nil, errors.New("failed to validate organisation logo")
+	}	
+
+	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
+
+	if err != nil {
+		return nil, errors.New("failed to upload organisation logo")
+	}
 
 	org := models.Organisation{
-		ID:          utility.GenerateUUID(),
+		ID:          orgId,
 		Name:        strings.ToLower(req.Name),
 		Description: strings.ToLower(req.Description),
 		Location:    strings.ToLower(req.Location),
@@ -49,9 +64,10 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		Type:        strings.ToLower(req.Type),
 		OwnerID:     userId,
 		Country:     strings.ToLower(req.Country),
+		LogoURL:     picUrl,
 	}
 
-	err := org.CreateOrganisation(db)
+	err = org.CreateOrganisation(db)
 
 	if err != nil {
 		return nil, err
@@ -110,7 +126,7 @@ func GetAllChannelssInTeam(db *gorm.DB, orgID string) (models.ChannelResp, error
 	return channels, nil
 }
 
-func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB) (*models.Organisation, error) {
+func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB, logger *utility.Logger) (*models.Organisation, error) {
 	var org models.Organisation
 	org, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
@@ -140,6 +156,19 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 			return nil, errors.New("organisation already exists with the given email")
 		}
 	}
+	file, ext, err := utility.ValidatePicture(updateReq.LogoURL)
+
+	if err != nil {
+		return nil, errors.New("failed to validate organisation logo")
+	}	
+
+	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
+
+	if err != nil {
+		return nil, errors.New("failed to upload organisation logo")
+	}	
+
+    updateReq.LogoURL = picUrl
 
 	copier.Copy(&org, &updateReq)
 	return org.Update(db)
@@ -336,4 +365,18 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 		return ogm, err
 	}
 	return metrics, nil
+}
+
+func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {
+    if file != nil {
+        logoId := strings.Split(uniqueId, "-")[4]
+        filename := fmt.Sprintf("org_logo_%s%s", logoId, ext)
+
+        picUrl, err := minio.UploadProfilePic(logger, filename, bytes.NewReader(file), int64(len(file)))
+        if err != nil {
+            return "", err
+        }
+        return picUrl, nil
+    }
+    return "", nil
 }
