@@ -29,10 +29,10 @@ func (base *Controller) AssignRoleToUser(c *gin.Context) {
 		return
 	}
 
-	userData, err := service.ReplaceUserRole(req.UserId, req.OrgId, req.RoleId, base.Db.Postgresql, c)
+	userData, code, err := service.ReplaceUserRole(req.UserId, req.OrgId, req.RoleId, base.Db.Postgresql, c)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), nil, nil)
-		c.JSON(http.StatusNotFound, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
 		return
 	}
 

@@ -9,6 +9,8 @@ type CreateWebhookHistoryRequest struct {
 	UserName    string `json:"username"`
 	Retries     int64  `json:"retries"`
 	Status      string `json:"status" validate:"required,oneof=success error"`
+	AvatarURL   string `json:"avatar_url"`
+	Content     string `json:"content"`
 }
 
 type FeedWebHookRequest struct {
@@ -19,4 +21,6 @@ type FeedWebHookRequest struct {
 	CreatedAt  string `json:"created_at"`
 	Status     string `json:"status"`
 	AvatarURL  string `json:"avatar_url,omitempty"`
+	Type       string `json:"type"`
+	Content    string `json:"content"`
 }
