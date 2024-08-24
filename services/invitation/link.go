@@ -53,6 +53,13 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		exists := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
 		isTelexUser := exists
 
+		//check if the user's email has a pending invitation for that organisation
+		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ?", email, inviteReq.OrganisationID)
+		if invitationExists {
+			fmt.Println("Invitation already exists for user:", email)
+			continue
+		}
+
 		if creds["RoleID"] != "" || creds["Status"] != "" {
 			invitation := CreateInvitation(email, token, creds["RoleID"], creds["Status"], isTelexUser, inviteReq.OrganisationID)
 			invitations = append(invitations, invitation)

@@ -54,10 +54,15 @@ func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) er
 
 	//loop through the invitations and check is the user is a telex user
 	for idx, invite := range invitations {
+
 		exists := postgresql.CheckExists(db, &u, "email = ?", invite.Email)
 		if exists {
 			invitations[idx].IsTelexUser = true
 		}
+	}
+
+	if len(invitations) == 0 {
+		return errors.New("no invitations to create")
 	}
 
 	err := postgresql.CreateMultipleRecords(db, &invitations, len(invitations))
