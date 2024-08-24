@@ -11,7 +11,7 @@ import (
 
 func (n NotificationObject) SendPasswordChangeConfirmationMail() error {
 	var (
-		notificationData     models.SendResetPassword
+		notificationData     models.SendPasswordChangeConfirmationMail
 		subject              = "Password Change Confirmation"
 		templateFileName     = "password_reset_done_mail.html"
 		baseTemplateFileName = ""
