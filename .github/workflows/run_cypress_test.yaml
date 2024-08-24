@@ -33,11 +33,15 @@ jobs:
           cd cypress_tests
           xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' npx cypress run --e2e --reporter cypress-mochawesome-reporter
 
+      - name: Move report html to root directory
+        run: |
+          cp cypress_tests/cypress/reports/html/index.html index.html
+
       - name: Copy artifacts
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USERNAME }}
           key: ${{ env.SSH_KEY }}
-          source: "cypress_tests/cypress/reports/html/index.html"
-          target: "/home/vicradon/deployments/cypress-report/telex-fe"
+          source: "index.html"
+          target: "/var/www/html/cypress-report/"
