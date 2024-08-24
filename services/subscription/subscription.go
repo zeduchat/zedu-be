@@ -1,7 +1,7 @@
 package subscription
 
 import (
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -14,23 +14,22 @@ import (
 	"github.com/stripe/stripe-go/v72/invoice"
 	"github.com/stripe/stripe-go/v72/product"
 	"github.com/stripe/stripe-go/v72/sub"
-
 	"gorm.io/gorm"
 )
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
-	fmt.Printf("This the url %v", url)
+
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
-		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
+		return nil, http.StatusNotFound, errors.New("subscription plan not found")
 	}
 
 	if subscriptionPlan.Name == "" {
-		return nil, http.StatusInternalServerError, fmt.Errorf("subscription plan name is missing")
+		return nil, http.StatusInternalServerError, errors.New("subscription plan name is missing")
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
-		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %s", req.PlanName)
+		return nil, http.StatusInternalServerError, errors.New("missing StripePriceID for subscription plan")
 	}
 
 	log.Printf("Subscription Plan: %v", subscriptionPlan)
@@ -40,7 +39,8 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 	}
 	stripeCustomer, err := customer.New(stripeCustomerParams)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create Stripe customer: %v", err)
+		log.Printf("Error creating Stripe customer: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to create Stripe customer")
 	}
 
 	params := &stripe.CheckoutSessionParams{
@@ -52,20 +52,20 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing"),
+		SuccessURL: stripe.String(url + "/dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "/dashboard/plan/billing"),
 	}
 
 	session, err := session.New(params)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create checkout session: %v", err)
+		log.Printf("Error creating Stripe checkout session: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to create checkout session")
 	}
 
 	responseData := gin.H{
 		"checkout_session_id":  session.ID,
 		"checkout_session_url": session.URL,
 	}
-
 	return &responseData, http.StatusOK, nil
 }
 
@@ -73,14 +73,14 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	var user models.User
 	if err := db.First(&user, "id = ?", customerID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, http.StatusNotFound, fmt.Errorf("user not found")
+			return nil, http.StatusNotFound, errors.New("user not found")
 		}
-		return nil, http.StatusInternalServerError, err
+		return nil, http.StatusInternalServerError, errors.New("internal server error")
 	}
 
 	subscription, err := sub.Get(user.SubscriptionPlanId, nil)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve subscription: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to retrieve subscription")
 	}
 
 	var subscriptionInfo gin.H
@@ -90,7 +90,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 		price := item.Price.UnitAmountDecimal
 		product, err := product.Get(productID, nil)
 		if err != nil {
-			return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve product: %v", err)
+			return nil, http.StatusInternalServerError, errors.New("failed to retrieve product")
 		}
 
 		startDate := time.Unix(subscription.StartDate, 0).Format("January 2, 2006")
@@ -111,7 +111,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 			"price":           price,
 		}
 	} else {
-		return nil, http.StatusNotFound, fmt.Errorf("no subscription items found")
+		return nil, http.StatusNotFound, errors.New("no subscription items found")
 	}
 
 	responseData := gin.H{
@@ -123,20 +123,20 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
-		return nil, http.StatusNotFound, fmt.Errorf("subscription plan not found: %v", err)
+		return nil, http.StatusNotFound, errors.New("subscription plan not found")
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
-		return nil, http.StatusInternalServerError, fmt.Errorf("missing StripePriceID for subscription plan: %v", req.PlanName)
+		return nil, http.StatusInternalServerError, errors.New("missing StripePriceID for subscription plan")
 	}
 
 	var user models.User
 	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
-		return nil, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
+		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if user.StripeCustomerID == "" {
-		return nil, http.StatusInternalServerError, fmt.Errorf("user does not have a Stripe customer ID")
+		return nil, http.StatusInternalServerError, errors.New("user does not have a Stripe customer ID")
 	}
 
 	params := &stripe.CheckoutSessionParams{
@@ -148,18 +148,18 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing/"),
+		SuccessURL: stripe.String(url + "/dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "/dashboard/plan/billing/"),
 	}
 
 	session, err := session.New(params)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to create checkout session: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to create checkout session")
 	}
 
-	user.SubscriptionPlanId = user.SubscriptionPlanId
+	user.SubscriptionPlanId = subscriptionPlan.StripePriceID
 	if err := db.Save(&user).Error; err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error updating user subscription: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("error updating user subscription")
 	}
 
 	responseData := gin.H{
@@ -171,55 +171,57 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 }
 
 func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
-	var user *models.User
+	var user models.User
 	if err := db.First(&user, "id = ?", userId).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return http.StatusNotFound, fmt.Errorf("user not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("user not found")
 		}
-		return http.StatusInternalServerError, fmt.Errorf("error finding user: %w", err)
+		return http.StatusInternalServerError, errors.New("internal server error")
 	}
 
 	if user.SubscriptionPlanId == "" {
-		return http.StatusBadRequest, fmt.Errorf("user has no subscription plan")
+		return http.StatusBadRequest, errors.New("user has no subscription plan")
 	}
 
 	_, err := sub.Cancel(user.SubscriptionPlanId, nil)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("error cancelling subscription: %w", err)
+		log.Printf("Error cancelling subscription: %v", err)
+		return http.StatusInternalServerError, errors.New("error cancelling subscription")
 	}
-	if err := db.Model(&user).Association("SubscriptionPlan").Clear(); err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("error removing subscription plan: %w", err)
+
+	user.SubscriptionPlanId = ""
+
+	if err := db.Save(&user).Error; err != nil {
+		return http.StatusInternalServerError, errors.New("error updating user subscription plan")
 	}
+
 	return http.StatusOK, nil
 }
 
 func CompleteSubscription(session_id, user_id string, db *gorm.DB) (*gin.H, int, error, *stripe.Invoice) {
 	var user models.User
 	if err := db.First(&user, "id = ?", user_id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, http.StatusNotFound, fmt.Errorf("user not found"), nil
-		}
-		return nil, http.StatusInternalServerError, fmt.Errorf("error finding user: %w", err), nil
+		return nil, http.StatusInternalServerError, errors.New("error finding user"), nil
 	}
 
 	sesh, err := session.Get(session_id, nil)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error getting session: %w", err), nil
+		return nil, http.StatusInternalServerError, errors.New("error getting session"), nil
 	}
 
 	if sesh.PaymentStatus != "paid" {
-		return nil, http.StatusBadRequest, fmt.Errorf("session not paid"), nil
+		return nil, http.StatusBadRequest, errors.New("session not paid"), nil
 	}
 
 	if sesh.Subscription == nil || sesh.Subscription.ID == "" {
-		return nil, http.StatusBadRequest, fmt.Errorf("no subscription ID found"), nil
+		return nil, http.StatusBadRequest, errors.New("no subscription ID found"), nil
 	}
 
 	user.SubscriptionPlanId = sesh.Subscription.ID
 	user.StripeCustomerID = sesh.Customer.ID
 
 	if err := db.Save(&user).Error; err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error updating user subscription: %w", err), nil
+		return nil, http.StatusInternalServerError, errors.New("error updating user subscription"), nil
 	}
 
 	params := &stripe.InvoiceListParams{
@@ -235,7 +237,7 @@ func CompleteSubscription(session_id, user_id string, db *gorm.DB) (*gin.H, int,
 	}
 
 	if err := i.Err(); err != nil {
-		return nil, http.StatusInternalServerError, err, nil
+		return nil, http.StatusInternalServerError, errors.New("error retrieving invoice"), nil
 	}
 
 	responseData := gin.H{
