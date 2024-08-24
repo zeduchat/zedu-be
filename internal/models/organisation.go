@@ -141,7 +141,9 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *gorm.DB, orgID string) 
 		return chanResp, errors.New("organisation does not exist")
 	}
 
-	threadCountSubquery := db.Model(&thread).Select("count(*)").Where("threads.channels_id = channels.id")
+	threadCountSubquery := db.Model(&thread).Select("count(*)").
+		Where("threads.channels_id = channels.id").
+		Where("threads.type = 'thread'")
 
 	if err := db.Model(&channels).
 		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count",

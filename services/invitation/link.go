@@ -29,7 +29,7 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 		Role:           role,
 		IsTelexUser:    isTelexUser,
 		OrganisationID: orgID,
-		ExpiresAt:      time.Now().Add(24 * time.Hour),
+		ExpiresAt:      time.Now().Add(48 * time.Hour),
 	}
 }
 
@@ -79,6 +79,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 
 	for _, invite := range invitations {
 		response = append(response, models.InvitationResponse{
+			ID:             invite.ID,
 			Email:          invite.Email,
 			OrgID:          invite.OrganisationID,
 			Status:         "invited",
@@ -135,18 +136,18 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	otp, _ := utility.GenerateOTP(6)
 	entry := "telex-" + strconv.Itoa(int(otp))
 
-    if !invitation.IsTelexUser {
-        var user models.User
+	if !invitation.IsTelexUser {
+		var user models.User
 
 		//use the email to get the first name
 		arr := strings.Split(invitation.Email, "@")
 		email := utility.SplitEmailString(arr[0])
 
-        req := models.CreateUserRequestModel{
-            Email:     invitation.Email,
-            Password:  entry,
-            FirstName:  strings.TrimSpace(strings.ToLower(email)),
-        }
+		req := models.CreateUserRequestModel{
+			Email:     invitation.Email,
+			Password:  entry,
+			FirstName: strings.TrimSpace(strings.ToLower(email)),
+		}
 
 		_, _, err := auth.CreateUser(req, db)
 		if err != nil {
