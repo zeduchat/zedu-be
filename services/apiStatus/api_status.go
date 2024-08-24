@@ -16,6 +16,10 @@ func UpdateAPIStatus(db *gorm.DB, data []byte) error {
 		return err
 	}
 
+	for _, data := range request.APIGroup.Item{
+		
+	}
+
 	return nil
 }
 
