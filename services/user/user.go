@@ -242,6 +242,16 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
 	var user models.User
 
+	userClaims := common.GetAllUserClaims(ctx)
+	userid, ok := userClaims["user_id"].(string)
+	if !ok {
+		return http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	if userid == userIDStr {
+		return http.StatusForbidden, errors.New("admin cannot deactivate their self")
+	}
+
 	user, err := user.GetUserByID(db, userIDStr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
