@@ -65,6 +65,14 @@ func TestGetOrgRoles(t *testing.T) {
 		db.Create(&role)
 	}
 
+	orgUserManagement := models.OrgUserManagement{
+		UserID:         adminUser.ID,
+		OrganisationID: orgID,
+		RoleID:         roles[0].ID,
+		Status:         "active",
+	}
+	db.Create(&orgUserManagement)
+
 	setup := func() (*gin.Engine, *auth.Controller) {
 		router, orgController := SetupOrgTestRouter()
 		authController := auth.Controller{
@@ -113,7 +121,7 @@ func TestGetOrgRoles(t *testing.T) {
 		tests.AssertResponseMessage(t, response["message"].(string), "Token is invalid!")
 	})
 
-	t.Run("Forbidden Access - Regular User Trying to Get Org Roles", func(t *testing.T) {
+	t.Run("Non user of organisation", func(t *testing.T) {
 		router, orgController := setup()
 
 		loginData := models.LoginRequestModel{
@@ -129,9 +137,9 @@ func TestGetOrgRoles(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "not organization owner")
+		tests.AssertResponseMessage(t, response["message"].(string), "record not found")
 	})
 }
 
