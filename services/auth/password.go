@@ -60,11 +60,11 @@ func UpdateUserPassword(c *gin.Context, req models.ChangePasswordRequestModel, d
 		return nil, http.StatusBadRequest, err
 	}
 
-	resetReq := models.SendOTP{
+	passChgConfirmReq := models.SendPasswordChangeConfirmationMail{
 		Email:    userDataExist.Email,
 	}
 
-	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendPasswordChangeConfirmationMail, resetReq)
+	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendPasswordChangeConfirmationMail, passChgConfirmReq)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
