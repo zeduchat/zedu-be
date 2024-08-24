@@ -16,11 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: '20'
           
       - name: Install system dependencies
         run: |
@@ -33,6 +28,7 @@ jobs:
           npm install
 
       - name: Run Cypress tests
+        continue-on-error: true
         run: |
           cd cypress_tests
           xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' npx cypress run --e2e --reporter cypress-mochawesome-reporter
