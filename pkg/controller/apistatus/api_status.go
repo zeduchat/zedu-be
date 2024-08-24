@@ -38,7 +38,12 @@ func (base *Controller) UpdateAPIStatus(c *gin.Context) {
 	defer file.Close()
 
 	tempDir := "./tmp"
-	os.MkdirAll(tempDir, os.ModePerm)
+	err = os.MkdirAll(tempDir, os.ModePerm)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create temp directory", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
 	tempFilePath := filepath.Join(tempDir, header.Filename)
 
 	tempFile, err := os.Create(tempFilePath)
@@ -69,7 +74,6 @@ func (base *Controller) UpdateAPIStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
-
 
 	data, err := os.ReadFile(tempFilePath)
 	if err != nil {

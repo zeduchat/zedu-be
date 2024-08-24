@@ -19,16 +19,27 @@ type APIStatus struct {
 }
 
 type StatusRequest struct {
-	APIGroup APIGroup `json:"collection"`
+	Run Run `json:"run"`
+}
+type Run struct {
+	Executions []Exec `json:"executions"`
 }
 
-type APIGroup struct {
-	Item []Item `json:"item"`
+type Exec struct {
+	Request  Request      `json:"request"`
+	Response ResponseTime `json:"response"`
 }
 
-type Item struct {
-	Name string    `json:"name"`
-	Item []SubItem `json:"item"`
+type Request struct {
+	URL URL `json:"url"`
+}
+
+type URL struct {
+	Path []string `json:"path"`
+}
+
+type ResponseTime struct {
+	ResponseTime int `json:"responseTime"`
 }
 
 type SubItem struct {
