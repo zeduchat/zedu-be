@@ -61,6 +61,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 	req.UserName = c.Query("username")
 	req.ActionType = c.Query("action_type")
 	req.Status = c.Query("status")
+	req.Message = c.Query("message")
 	req.WebhookSlug = c.Param("webhook_slug")
 
 	err := base.Validator.Struct(&req)
@@ -79,7 +80,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to channel successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
 
