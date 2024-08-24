@@ -205,7 +205,7 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	)
 	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
-		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql) ,invite.OrganisationCreateInvite)
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
 	}
 
 	inviteData := models.InvitationCreateReq{
@@ -213,7 +213,7 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 		Emails:         invitereq.Emails,
 		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
-	
+
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(inviteData)
 	req, err := http.NewRequest(http.MethodPost, inviteURI.String(), &b)
@@ -222,15 +222,24 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
-	
+
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
-	dataM := data["data"]
-	fmt.Println(dataM)
-	invite_token := dataM.([]interface{})[0].(map[string]interface{})["invite_token"].(string)
-	invite_id := dataM.([]interface{})[0].(map[string]interface{})["id"].(string)
+	// dataM := data["data"]
+	// fmt.Println(dataM)
+	// invite_token := dataM.([]interface{})[0].(map[string]interface{})["invitations"]["invite_token"].(string)
+	// invite_id := dataM.([]interface{})[0].(map[string]interface{})["invitations"]["id"].(string)
+
+	// Extract the data slice
+	dataM := data["data"].(map[string]interface{})
+	// Get the invitations data as a slice of maps
+	invitations := dataM["invitations"].([]interface{})
+
+	// Index the first invitation map and access the fields
+	invite_token := invitations[0].(map[string]interface{})["invite_token"].(string)
+	invite_id := invitations[0].(map[string]interface{})["id"].(string)
 
 	return invite_token, invite_id
 }
