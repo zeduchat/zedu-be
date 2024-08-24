@@ -96,7 +96,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organisation Invite Creation Action",
 			RequestBody: models.InvitationCreateReq{
-				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				Emails:         []string{fmt.Sprintf("test%s%s@example.com", currUUID, currUUID)},
 				OrganisationID: orgId,
 				Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
 			},
