@@ -3,7 +3,6 @@ package apistatus
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -57,7 +56,7 @@ func UpdateAPIStatus(db *gorm.DB, data []byte) error {
 			APIGroup:       fmt.Sprintf("%s API", apiGroup),
 			Status:         status,
 			LastChecked:    time.Now().UTC(),
-			ResponseTimeMs: strconv.Itoa(averageResponseTime),
+			ResponseTimeMs: fmt.Sprintf("%dms", averageResponseTime),
 			Details:        details,
 		}
 
