@@ -34,10 +34,12 @@ jobs:
 
       - name: Run Cypress tests
         run: |
+          cd cypress_tests
           xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' npx cypress run --e2e --reporter cypress-mochawesome-reporter
 
       - name: Generate Mochawesome report
         run: |
+          cd cypress_tests
           npx mochawesome-merge cypress/reports/*.json > cypress/reports/mochawesome.json
           npx mochawesome-report-generator cypress/reports/mochawesome.json --reportDir cypress/reports/html
 
