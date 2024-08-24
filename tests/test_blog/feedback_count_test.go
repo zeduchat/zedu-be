@@ -1,8 +1,6 @@
 package test_blog
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestSubmitFeedback(t *testing.T) {
+func TestFeedbackCount(t *testing.T) {
 	_, blogController := SetupBlogTestRouter()
 	db := blogController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
@@ -40,9 +38,23 @@ func TestSubmitFeedback(t *testing.T) {
 		AuthorID:   regularUser.ID,
 	}
 
+	feedback1 := models.BlogFeedback{
+		ID: utility.GenerateUUID(),
+		BlogID: blog.ID,
+		Feedback: true,
+	}
+
+	feedback2 := models.BlogFeedback{
+		ID: utility.GenerateUUID(),
+		BlogID: blog.ID,
+		Feedback: false,
+	}
+
 	db.Create(&regularUser)
 	db.Create(&blogCategory)
 	db.Create(&blog)
+	db.Create(&feedback1)
+	db.Create(&feedback2)
 
 	setup := func() *gin.Engine {
 		router, _ := SetupBlogTestRouter()
@@ -53,29 +65,23 @@ func TestSubmitFeedback(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		RequestBody  models.BlogFeedbackReq
+		BlogId       string
 		ExpectedCode int
 		Message      string
 		Headers      map[string]string
 	}{
 		{
-			Name: "Successful feedback submission",
-			RequestBody: models.BlogFeedbackReq{
-				BlogID:   blog.ID,
-				Feedback: true,
-			},
+			Name:         "Successful Retrieval of Feedback Count",
+			BlogId:       blog.ID,
 			ExpectedCode: http.StatusOK,
-			Message:      "blog feedback submitted successfully",
+			Message:      "blog feedback counts retrieved successfully",
 			Headers: map[string]string{
 				"Content-Type": "application/json",
 			},
 		},
 		{
-			Name: "Invalid blog id format",
-			RequestBody: models.BlogFeedbackReq{
-				BlogID:   "someting-soething",
-				Feedback: true,
-			},
+			Name:         "Invalid blog id format",
+			BlogId:       "invalid-blog-id",
 			ExpectedCode: http.StatusBadRequest,
 			Message:      "invalid blog id format",
 			Headers: map[string]string{
@@ -86,10 +92,8 @@ func TestSubmitFeedback(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			var b bytes.Buffer
-			json.NewEncoder(&b).Encode(test.RequestBody)
 
-			req, _ := http.NewRequest(http.MethodPost, "/api/v1/blogs/feedback", &b)
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/blogs/%s/feedback/count", test.BlogId), nil)
 
 			for i, v := range test.Headers {
 				req.Header.Set(i, v)
