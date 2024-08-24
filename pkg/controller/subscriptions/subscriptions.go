@@ -25,7 +25,6 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 		req *models.CreateSubscriptionRequest
 		url = c.Request.Header.Get("Referer")
 	)
-	println(url)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
@@ -118,7 +117,6 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 
 	subscriptionData, code, err, _ := service.CompleteSubscription(session_id, user_id, base.Db.Postgresql)
 	if err != nil {
-		print(err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		base.Logger.Error(err)

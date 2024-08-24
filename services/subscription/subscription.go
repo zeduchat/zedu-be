@@ -2,7 +2,6 @@ package subscription
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -19,7 +18,6 @@ import (
 )
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
-	fmt.Printf("This the url: %v\n", url)
 
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
