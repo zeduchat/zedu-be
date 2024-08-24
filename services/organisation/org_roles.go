@@ -73,10 +73,9 @@ func CreateOrgRoles(req models.OrgRole, orgID string, db *gorm.DB, c *gin.Contex
 
 func GetOrgRoles(db *gorm.DB, orgID string, c *gin.Context) ([]models.OrgRole, int, error) {
 	var (
-		org       models.Organisation
+		orgMgt    models.OrgUserManagement
 		role      models.OrgRole
 		rolesData []models.OrgRole
-		user      models.User
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -89,26 +88,9 @@ func GetOrgRoles(db *gorm.DB, orgID string, c *gin.Context) ([]models.OrgRole, i
 		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	currentUser, err := user.GetUserByID(db, currentUserID)
+	orgMgt, err = orgMgt.GetByIDs(db, currentUserID, orgID)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
-	}
-
-	orgData, err := org.CheckOrgExists(orgID, db)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, http.StatusNotFound, errors.New("organisation not found")
-		}
-		return nil, http.StatusBadRequest, err
-	}
-
-	isOwner, err := org.IsOwnerOfOrganisation(db, currentUser.ID, orgData.ID)
-	if err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-
-	if !isOwner {
-		return nil, http.StatusForbidden, errors.New("not organization owner")
 	}
 
 	rolesData, err = role.GetOrgRoles(db, orgID)
