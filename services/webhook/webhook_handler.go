@@ -53,7 +53,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		ActionType:    req.ActionType,
 		Status:        req.Status,
 		AvatarURL:     req.AvatarURL,
-		Type:          "Notification",
+		Type:          "thread",
 		Content:       req.Message,
 		CurrentStatus: "pending",
 	}

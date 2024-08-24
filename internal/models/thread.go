@@ -29,6 +29,8 @@ type Threads struct {
 	Content       string    `gorm:"type:text;index" json:"content"`
 	ChannelName   string    `json:"channel_name"`
 	CurrentStatus string    `json:"current_status"`
+	FullName      string    `json:"full_name"`
+	Email         string    `json:"email"`
 }
 
 type ChannelDocument struct {
