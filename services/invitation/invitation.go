@@ -171,3 +171,32 @@ func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req mod
 
 	return invitations, nil
 }
+
+func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
+	var (
+		i   models.Invitation
+		org models.Organisation
+	)
+
+	invitation, err := i.GetInvitationByID(db, inviteID)
+	if err != nil {
+		return err
+	}
+
+	orgID := invitation.OrganisationID
+	org, err = org.GetOrgByID(db, orgID)
+	if err != nil {
+		return err
+	}
+
+	if org.OwnerID != userID {
+		return errors.New("User is not an admin of the organisation")
+	}
+
+	err = i.UpdateInvitation(db, invitation.Email, "cancelled")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

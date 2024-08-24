@@ -30,6 +30,8 @@ tags:
     description: API for blogs
   - name: contact
     description: API for contact 
+  - name: testimonials
+    description: API for testimomials
   - name: Channel-Invitation
     description: API for inviting a user into a channel
   - name: Organisation-Invitation
@@ -3230,6 +3232,151 @@ paths:
                   message:
                     type: string
                     example: "blog feedback submitted successfully"
+                    
+  /testimonials:
+    post:
+        tags:
+          - testimonials
+        summary: Create a new testimonial
+        description: Creates a new testimonial.
+        security:
+        - bearerAuth: []
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company_name:
+                    type: string
+                    example: "paystack"
+                  content:
+                    type: string
+                    example: "The service is fantastic, great experience."
+                required:
+                  - company_name
+                  - content
+        responses:
+          '201':
+            description: Testimonial created successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: "success"
+                    message:
+                      type: string
+                      example: "Testimonial created successfully"
+                    data:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                        user_id:
+                          type: string
+                          format: uuid
+                          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+                        company_name:
+                          type: string
+                          example: "paystack"
+                        image_url:
+                          type: string
+                          example: "https://image.com"
+                        name:
+                          type: string
+                          example: "Charles Ugberaese"
+                        content:
+                          type: string
+                          example: "The service is fantastic, great experience."
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-07-18T00:00:00Z"
+          '400':
+              description: Bad Request
+              content:
+               application/json:
+                  schema:
+                    $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Authentication error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                 $ref: '#/components/schemas/ServerErrorSchema'
+                 
+    get:
+      tags:
+        - testimonials
+      summary: get all testimonials
+      parameters:
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A list of all testimonials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: testimonials retrieved successfully.   
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                        user_id:
+                          type: string
+                          format: uuid
+                          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+                        company_name:
+                          type: string
+                          example: "paystack"
+                        image_url:
+                          type: string
+                          example: "https://image.com"
+                        name:
+                          type: string
+                          example: "Charles Ugberaese"
+                        content:
+                          type: string
+                          example: "The service is fantastic, great experience."
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-07-18T00:00:00Z"
+
+        '400':
+          description: Failed to fetch all blogs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
                 
                 
   /contact:
@@ -5023,6 +5170,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                
+  /invite/{invite_id}:
+    delete:
+      tags:
+        - Organisation-Invitation
+      summary: Cancel an invitation
+      description: Deletes an invitation with the specified `invite_id`.
+      parameters:
+        - in: path
+          name: invite_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the invitation to be canceled.
+      responses:
+        '200':
+          description: Invitation canceled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "invitation cancelled successfully"
+
+  /invite/resend:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Resend invitation emails
+      description: Resends invitations to the specified email addresses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                  example: ["micahshallom1@gmail.com"]
+                org_id:
+                  type: string
+                  format: uuid
+                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+      responses:
+        '200':
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: string
+                    example: "Invitations sent successfully"
 
   /invite/channel/:
     post:
