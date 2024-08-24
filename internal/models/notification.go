@@ -64,6 +64,9 @@ type SendNewsletterSubscriptionMail struct {
 type SendPasswordChangeConfirmationMail struct {
 	Email string `json:"email"  validate:"required"`
 }
+type SendLoginAlertMail struct {
+	Email string `json:"email"  validate:"required"`
+}
 
 
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {

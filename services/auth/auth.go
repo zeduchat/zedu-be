@@ -173,6 +173,16 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		"access_token": tokenData.AccessToken,
 	}
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
+	
+	loginAlertReq := models.SendLoginAlertMail{
+		Email:    userData.Email,
+	}
+
+	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendLoginAlertMail, loginAlertReq)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
 	return responseData, http.StatusOK, nil
 }
 
