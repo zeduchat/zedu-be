@@ -31,6 +31,7 @@ func Blog(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		blogsUrl.GET("/blog_categories", blogs.GetBlogCategories)
 		blogsUrl.GET("/blog_categories/:id", blogs.GetBlogCategoryById)
 		blogsUrl.GET("/blogs/:id", blogs.GetBlogById)
+		blogsUrl.GET("/blogs/:id/feedback/count", blogs.GetFeedbackCount)
 	}
 
 	return r
