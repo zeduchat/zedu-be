@@ -108,7 +108,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			RequestURI: url.URL{Path: "/api/v1/invite"},
-		}, {
+		}, 
+		{
 			Name: "Organization Accept Invite Action",
 			RequestBody: models.VerifyInvitationLinkRequest{
 				Token: invite_token,
@@ -121,7 +122,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		}, {
+		}, 
+		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
 				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
@@ -135,7 +137,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		},{
+		},
+		{
 			Name: "Organisation Invite Cancellation Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "invitation cancelled successfully",
