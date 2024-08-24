@@ -3,6 +3,7 @@ package apistatus
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,38 +20,54 @@ func UpdateAPIStatus(db *gorm.DB, data []byte) error {
 		return err
 	}
 
+	responseTimes := make(map[string][]int)
+
 	for _, item := range request.APIGroup.Item {
-		for _, subItem := range item.Item {
-			for _, response := range subItem.Response {
-				var status string
-				var details string
-				if response.StatusCode >= 200 && response.StatusCode < 300 {
-					status = "operational"
-					details = "All test passed"
-				} else if response.StatusCode >= 400 && response.StatusCode < 500 {
-					status = "degraded"
-					details = "High response time detected"
-				} else if response.StatusCode >= 500 {
-					status = "down"
-					details = "API not responding (HTTP 503)"
-				}
+		for range item.Item {
+			for _, exec := range request.Run.Executions {
+				if len(exec.Request.URL.Path) > 2 {
+					apiGroup := exec.Request.URL.Path[2]
 
-				apistatus := models.APIStatus{
-					ID:             utility.GenerateUUID(),
-					APIGroup:       fmt.Sprintf("%s API", item.Name),
-					Status:         status,
-					LastChecked:    time.Now().UTC(),
-					ResponseTimeMs: "",
-					Details:        details,
-				}
-
-				err := apistatus.Create(db)
-
-				if err != nil {
-					return err
+					if exec.Response.ResponseTime > 0 {
+						responseTimes[apiGroup] = append(responseTimes[apiGroup], exec.Response.ResponseTime)
+					}
 				}
 			}
+		}
+	}
 
+	for apiGroup, times := range responseTimes {
+		var totalResponseTime int
+		for _, time := range times {
+			totalResponseTime += time
+		}
+
+		averageResponseTime := totalResponseTime / len(times)
+
+		var status, details string
+		if averageResponseTime < 300 {
+			status = "operational"
+			details = "All tests passed"
+		} else if averageResponseTime >= 300 && averageResponseTime < 500 {
+			status = "degraded"
+			details = "High response time detected"
+		} else {
+			status = "down"
+			details = "API not responding (HTTP 503)"
+		}
+
+		apistatus := models.APIStatus{
+			ID:             utility.GenerateUUID(),
+			APIGroup:       fmt.Sprintf("%s API", apiGroup),
+			Status:         status,
+			LastChecked:    time.Now().UTC(),
+			ResponseTimeMs: strconv.Itoa(averageResponseTime),
+			Details:        details,
+		}
+
+		err := apistatus.Create(db)
+		if err != nil {
+			return err
 		}
 	}
 
