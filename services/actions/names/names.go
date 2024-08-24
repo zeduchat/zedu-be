@@ -19,6 +19,8 @@ const (
 	SendContactUsMail         NotificationName = "send_contact_us"
 	SendInvitationLink        NotificationName = "send_invitation"
 	SendNewsletterMail        NotificationName = "send_newsletter"
+	SendPasswordChangeConfirmationMail    NotificationName = "send_password_change_confirmation_mail"
+
 )
 
 func Check() {
