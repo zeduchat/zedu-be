@@ -42,5 +42,4 @@ func (b *BlogFeedback) CountFeedback(id string, db *gorm.DB) (int64, int64, erro
 	}
 
 	return positiveCount, negativeCount, nil
-
 }
