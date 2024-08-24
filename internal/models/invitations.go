@@ -29,6 +29,7 @@ type InvitationCreateReq struct {
 }
 
 type InvitationResponse struct {
+	ID             string    `json:"id"`
 	Email          string    `json:"email"`
 	OrgID          string    `json:"org_id"`
 	Status         string    `json:"status"`
@@ -75,6 +76,22 @@ func (i *Invitation) GetInvitationsByID(db *gorm.DB, user_id string) ([]Invitati
 		return nil, err
 	}
 	return invitations, nil
+}
+
+func (i *Invitation) GetInvitationByID(db *gorm.DB, id string) (Invitation, error) {
+	var invitation Invitation
+	err, _ := postgresql.SelectOneFromDb(db, &invitation, "id = ?", id)
+	if err != nil {
+		return invitation, errors.New("invitation does not exist")
+	}
+	return invitation, nil
+}
+func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
+	result := db.Delete(i, id)
+	if result.RowsAffected == 0 {
+		return errors.New("no record found")
+	}
+	return nil
 }
 
 func (i *Invitation) ProcessInvitationAcceptance(db *gorm.DB, userID string) (Invitation, error) {

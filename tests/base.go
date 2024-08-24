@@ -198,7 +198,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	return orgID, orgName, ownerID
 }
 
-func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) string {
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) (string, string) {
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}
@@ -228,6 +228,9 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 
 	data := ParseResponse(rr)
 	dataM := data["data"]
+	fmt.Println(dataM)
 	invite_token := dataM.([]interface{})[0].(map[string]interface{})["invite_token"].(string)
-	return invite_token
+	invite_id := dataM.([]interface{})[0].(map[string]interface{})["id"].(string)
+
+	return invite_token, invite_id
 }
