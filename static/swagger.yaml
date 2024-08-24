@@ -4197,16 +4197,14 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - webhook_status
               properties:
                 channel_id:
                   type: string
                   format: uuid
-                action_type:
+                event_name:
                   type: string
                   format: string
-                event_name:
+                message:
                   type: string
                   format: string
                 status:
@@ -4215,6 +4213,11 @@ paths:
                 username:
                   type: string
                   format: string
+              required:
+                - username
+                - message
+                - event_name
+                - status
       responses:
         '200':
           description: Data recieved successfully
@@ -4285,13 +4288,11 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - webhook_status
               properties:
-                action_type:
+                event_name:
                   type: string
                   format: string
-                event_name:
+                message:
                   type: string
                   format: string
                 status:
@@ -4300,6 +4301,11 @@ paths:
                 username:
                   type: string
                   format: string
+              required:
+                - username
+                - message
+                - event_name
+                - status
 
       responses:
         '200':
@@ -4377,7 +4383,7 @@ paths:
             type: string
             format: string
             example: cyber event
-        - name: action_type
+        - name: message
           in: query
           required: true
           schema:
@@ -5495,7 +5501,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/channels/{channelId}:
+  /threads/channels/{channelId}/messages:
+    get:
+      tags:
+        - threads
+      summary: Retrieve all messages in a specific channel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /threads/channels/{channelId}/threads:
     get:
       tags:
         - threads
@@ -7439,14 +7491,97 @@ components:
           example: "success"
         status_code:
           type: integer
-          description: >
-            The HTTP status code. Usually 200 , 201, 204 etc
           example: 200
         message:
           type: string
-          description: >
-            A basic message describing a request was processed successfully.
-            example: "Successfully"
+          example: "Data retrieved successfully"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              thread_id:
+                type: string
+                example: "01916ea9-a37d-7b73-828c-f54f03ba3243"
+              channels_id:
+                type: string
+                example: "01916476-b76b-7588-b9f5-2e8094088dc3"
+              event_name:
+                type: string
+                example: "strawhat"
+              username:
+                type: string
+                example: "cyberguru"
+              action_type:
+                type: string
+                example: "some action for guru"
+              status:
+                type: string
+                example: "success"
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-20T02:21:36.893485-05:00"
+              messages:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      example: "3bcc7d41-a960-4006-b9fc-923a241a9003"
+                    content:
+                      type: string
+                      example: "some content2"
+                    channels_id:
+                      type: string
+                      example: "01916476-b76b-7588-b9f5-2e8094088dc3"
+                    user_id:
+                      type: string
+                      example: "01916474-ab82-7587-ae01-847d103b7ee3"
+                    username:
+                      type: string
+                      example: "cyberguru"
+                    created_at:
+                      type: string
+                      format: date-time
+                      example: "2024-09-27T10:45:24.361-05:00"
+                    updated_at:
+                      type: string
+                      format: date-time
+                      example: "2024-08-22T07:38:57.922988Z"
+                    thread_id:
+                      type: string
+                      example: "01916b4d-babc-7aa9-a430-c420e3290578"
+                    mentions:
+                      type: string
+                      nullable: true
+                      example: null
+                    avatar_url:
+                      type: string
+                      example: "http://91.229.239.238:7100/telex-dev-bucket/public/profile_pics/profile_pic_18ff64dd6692.jpeg"
+              message_count:
+                type: integer
+                example: 0
+              last_reply:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              avatar_url:
+                type: string
+                example: ""
+              type:
+                type: string
+                example: ""
+              content:
+                type: string
+                example: ""
+              channel_name:
+                type: string
+                example: ""
+              current_status:
+                type: string
+                example: ""
 
     SuccessResponseSchema2:
       type: object

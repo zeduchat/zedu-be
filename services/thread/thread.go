@@ -79,6 +79,39 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
+func GetAllChannelMessages(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, postgresql.PaginationResponse, int, error) {
+	var (
+		accessData models.Threads
+		accessResp []models.Threads
+	)
+
+	userId, err := middleware.GetUserClaims(c, db, "user_id")
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, http.StatusNotFound, err
+	}
+
+	userID, ok := userId.(string)
+	if !ok {
+		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	_, code, err := user.GetUser(userID, db)
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, code, err
+	}
+
+	accessResp, paginationResponse, err := accessData.GetMessagesByChannelID(c, db, userID, channelID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return accessResp, postgresql.PaginationResponse{}, http.StatusNoContent, nil
+		}
+		return accessResp, postgresql.PaginationResponse{}, http.StatusBadRequest, err
+
+	}
+
+	return accessResp, paginationResponse, http.StatusOK, nil
+}
+
 func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*models.MessagesResp, *postgresql.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads

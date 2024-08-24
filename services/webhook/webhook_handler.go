@@ -54,7 +54,7 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		Status:        req.Status,
 		AvatarURL:     req.AvatarURL,
 		Type:          "Notification",
-		Content:       req.Content,
+		Content:       req.Message,
 		CurrentStatus: "pending",
 	}
 	err = thread.CreateThread(db, typesenseDb)
@@ -71,8 +71,8 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     req.Status,
 		AvatarURL:  req.AvatarURL,
-		Type:       "Notification",
-		Content:    req.Content,
+		Type:       "thread",
+		Content:    req.Message,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
@@ -113,7 +113,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		Status:        req.Status,
 		AvatarURL:     req.AvatarURL,
 		Type:          "thread",
-		Content:       req.Content,
+		Content:       req.Message,
 		CurrentStatus: "pending",
 	}
 
@@ -131,8 +131,8 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Status:     req.Status,
 		AvatarURL:  req.AvatarURL,
-		Type:       "Notification",
-		Content:    req.Content,
+		Type:       "thread",
+		Content:    req.Message,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)
