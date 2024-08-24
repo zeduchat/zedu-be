@@ -54,10 +54,15 @@ func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) er
 
 	//loop through the invitations and check is the user is a telex user
 	for idx, invite := range invitations {
+
 		exists := postgresql.CheckExists(db, &u, "email = ?", invite.Email)
 		if exists {
 			invitations[idx].IsTelexUser = true
 		}
+	}
+
+	if len(invitations) == 0 {
+		return errors.New("no invitations to create")
 	}
 
 	err := postgresql.CreateMultipleRecords(db, &invitations, len(invitations))
@@ -108,12 +113,12 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 
 	err, _ := postgresql.SelectOneFromDb(db, &user, "email = ?", email)
 	if err != nil {
-		return creds, errors.New("user with this email does not exist")
+		return creds, fmt.Errorf("user with email %s does not exist", email)
 	}
 
 	err, _ = postgresql.SelectOneFromDb(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
 	if err != nil {
-		return creds, errors.New("user is not part of the organisation")
+		return creds, fmt.Errorf("user with email %s is not a member of the organisation", email)
 	}
 
 	creds = map[string]string{

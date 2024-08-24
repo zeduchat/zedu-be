@@ -33,12 +33,13 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 	}
 }
 
-func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, error) {
+func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string , error) {
 	//batch create invitations
 	var (
 		emails      = inviteReq.Emails
 		i           models.Invitation
 		invitations []models.Invitation
+		errors []string
 	)
 
 	for _, email := range emails {
@@ -47,11 +48,19 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		creds, err := i.CheckForTelexPresence(base.Postgresql, email, inviteReq.OrganisationID)
 		if err != nil {
 			fmt.Println("Error checking for telex presence", err)
+			errors = append(errors, fmt.Sprintf("Error checking for telex presence: %s", err))
 		}
 
 		//check if the user is a telex user
 		exists := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
 		isTelexUser := exists
+
+		//check if the user's email has a pending invitation for that organisation with a pending status
+		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ? AND status = ?", email, inviteReq.OrganisationID, "invited")
+		if invitationExists {
+			errors = append(errors, fmt.Sprintf("An invitation has already been sent to %s", email))
+			continue
+		}
 
 		if creds["RoleID"] != "" || creds["Status"] != "" {
 			invitation := CreateInvitation(email, token, creds["RoleID"], creds["Status"], isTelexUser, inviteReq.OrganisationID)
@@ -62,7 +71,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		invitation := CreateInvitation(email, token, inviteReq.Role, "invited", isTelexUser, inviteReq.OrganisationID)
 		invitations = append(invitations, invitation)
 	}
-	return invitations, nil
+	return invitations, errors ,nil
 }
 
 func GenerateInvitationToken() (string, error) {

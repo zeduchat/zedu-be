@@ -64,19 +64,10 @@ func TestOrganisationInvitation(t *testing.T) {
 	}
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
-	role := models.OrgRole{
-		ID:          utility.GenerateUUID(),
-		Name:        "Admin",
-		Description: "Admin",
-		OrganisationID: &orgId,
-	}
-
-	db.Postgresql.Create(&role)
-
 	createInviteData := models.InvitationCreateReq{
 		Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
 		OrganisationID: orgId,
-		Role:           role.ID,
+		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
@@ -96,7 +87,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organisation Invite Creation Action",
 			RequestBody: models.InvitationCreateReq{
-				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				Emails:         []string{fmt.Sprintf("test%s%s@example.com", currUUID, currUUID)},
 				OrganisationID: orgId,
 				Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
 			},
@@ -108,7 +99,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			RequestURI: url.URL{Path: "/api/v1/invite"},
-		}, {
+		}, 
+		{
 			Name: "Organization Accept Invite Action",
 			RequestBody: models.VerifyInvitationLinkRequest{
 				Token: invite_token,
@@ -121,7 +113,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		}, {
+		}, 
+		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
 				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
@@ -135,7 +128,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		},{
+		},
+		{
 			Name: "Organisation Invite Cancellation Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "invitation cancelled successfully",

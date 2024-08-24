@@ -4930,11 +4930,8 @@ paths:
     post:
       tags:
         - Organisation-Invitation
-      summary: Send organization invitations to multiple email addresses
-      security:
-        - bearerAuth: []
-      description: |
-        This endpoint allows an admin to invite multiple users to join an organization. The admin can specify the role that will be assigned to the invited users.
+      summary: Create and send invitations
+      description: Sends invitations to the specified email addresses to join the organization.
       requestBody:
         required: true
         content:
@@ -4945,25 +4942,21 @@ paths:
                 org_id:
                   type: string
                   format: uuid
-                  description: The ID of the organization to which users are being invited.
-                  example: "01915226-2cbc-72d8-857b-1b22dc838170"
+                  description: The ID of the organization to which the users are being invited.
+                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
                 emails:
                   type: array
                   items:
                     type: string
-                    format: email
-                  description: A list of email addresses to send the invitations to.
-                  example: 
-                    - "blessing@gmail.com"
-                    - "mshallom@gmail.com"
+                  description: A list of email addresses to send invitations to.
+                  example: ["micahshallom@gmail.com", "micahshallom24@gmail.com"]
                 role:
                   type: string
-                  format: uuid
-                  description: The role that will be assigned to the invited users.
-                  example: "123jjfj-nfndjn2-nfjnjn-nnndnfl-fndn"
+                  description: The role assigned to the invited users within the organization.
+                  example: "member"
       responses:
         '201':
-          description: Invitations created successfully
+          description: Invitations created and sent successfully
           content:
             application/json:
               schema:
@@ -4979,70 +4972,61 @@ paths:
                     type: string
                     example: "Invitations created successfully"
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        email:
+                    type: object
+                    properties:
+                      errors:
+                        type: array
+                        items:
                           type: string
-                          format: email
-                          description: The email address to which the invitation was sent.
-                          example: "blessing@gmail.com"
-                        org_id:
-                          type: string
-                          format: uuid
-                          description: The ID of the organization.
-                          example: "01915226-2cbc-72d8-857b-1b22dc838170"
-                        status:
-                          type: string
-                          description: The current status of the invitation.
-                          example: "invited"
-                        invite_token:
-                          type: string
-                          description: A unique token associated with the invitation.
-                          example: "0d1f072a48c629397f20329d93ac8621"
-                        is_telex_user:
-                          type: boolean
-                          description: Indicates if the invited user is already registered on the platform.
-                          example: false
-                        invitation_link:
-                          type: string
-                          description: A link to accept the invitation.
-                          example: "http://127.0.0.1:8019/api/v1/invite/accept_org_invitation?org_id=01915226-2cbc-72d8-857b-1b22dc838170?invitation_token=0d1f072a48c629397f20329d93ac8621"
-                        sent_at:
-                          type: string
-                          format: date-time
-                          description: The date and time when the invitation was sent.
-                          example: "2024-08-15T17:59:45.808970985+01:00"
-                        expires_at:
-                          type: string
-                          format: date-time
-                          description: The date and time when the invitation will expire.
-                          example: "2024-08-16T17:59:45.808198375+01:00"
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-        '422':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                        description: A list of errors encountered during the invitation process.
+                        example: 
+                          - "An invitation has already been sent to micahshallom@gmail.com"
+                          - "Error checking for telex presence: user with email micahshallom24@gmail.com does not exist"
+                      invitations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                              description: The unique identifier for the invitation.
+                              example: "019185b0-8fb4-767f-bd9d-d612e588f465"
+                            email:
+                              type: string
+                              description: The email address to which the invitation was sent.
+                              example: "micahshallom24@gmail.com"
+                            org_id:
+                              type: string
+                              format: uuid
+                              description: The ID of the organization to which the user is invited.
+                              example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+                            status:
+                              type: string
+                              description: The status of the invitation.
+                              example: "invited"
+                            invite_token:
+                              type: string
+                              description: The unique token associated with the invitation.
+                              example: "a351f47cea15f91ca16a3b18a04a8c22"
+                            is_telex_user:
+                              type: boolean
+                              description: Indicates whether the invited user is already a Telex user.
+                              example: false
+                            invitation_link:
+                              type: string
+                              description: The link provided to the invited user for accepting the invitation.
+                              example: "http://127.0.0.1:8019/api/v1/invite/accept_org_invitation?org_id=01918214-55e5-791b-9ebd-fa8d92d69fa1&invitation_token=a351f47cea15f91ca16a3b18a04a8c22"
+                            sent_at:
+                              type: string
+                              format: date-time
+                              description: The timestamp when the invitation was sent.
+                              example: "2024-08-24T19:40:26.548569958+01:00"
+                            expires_at:
+                              type: string
+                              format: date-time
+                              description: The expiration timestamp of the invitation.
+                              example: "2024-08-26T19:40:26.548423408+01:00"
                 
   /invite/verify:
     post:
