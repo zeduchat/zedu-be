@@ -43,6 +43,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 		ChannelsID:   req.ChannelsID,
 		Type:         "message",
 		MessageCount: 0,
+		AvatarURL:    profile.AvatarURL,
 	}
 
 	if err = thread.CreateThread(db, typesenseDb); err != nil {
