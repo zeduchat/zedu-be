@@ -194,13 +194,14 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	ThreadData, err := service.CreateThreadMessage(req, base.Db.Postgresql, base.Db.TypeSense)
 	if err != nil {
+		base.Logger.Info("some error occurred while creating thread: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread added successfully", ThreadData)
-	c.JSON(http.StatusOK, rd)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
+	c.JSON(http.StatusCreated, rd)
 
 }
 
