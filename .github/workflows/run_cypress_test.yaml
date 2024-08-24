@@ -1,0 +1,43 @@
+name: Run Cypress Tests Every 15 Minutes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *' # Every 15 minutes
+
+jobs:
+  run-e2e-tests:
+    runs-on: self-hosted
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Npm
+        run: npm install
+
+      - name: Install Dependencies
+        run: npm install cypress cypress-mochawesome-reporter
+
+      - name: Run Cypress tests
+        id: cypress
+        run: |
+          npx cypress run --e2e && npx mochawesome-merge --reportDir cypress/reports/index.html > cypress/reports/index.html/mochawesome.json && npx mochawesome-report-generator --reportDir cypress/reports/index.html
+        
+      - name: Copy artifacts
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          key: ${{ env.SSH_KEY }}
+          source: "cypress/reports"
+          target: "/home/vicradon/deployments/cypress-report/telex-fe"  
