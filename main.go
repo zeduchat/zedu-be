@@ -12,12 +12,9 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
-	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
 	"github.com/hngprojects/telex_be/pkg/router"
 	"github.com/hngprojects/telex_be/utility"
@@ -31,9 +28,9 @@ func main() {
 	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
-	minio.ConnectToMinio(logger, configuration.Minio)
-	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
-	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
+	// minio.ConnectToMinio(logger, configuration.Minio)
+	// centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
+	// typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 
 	validatorRef := validator.New()
 

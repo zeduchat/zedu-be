@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -153,12 +154,19 @@ func (base *Controller) UpdateAThread(c *gin.Context) {
 func (base *Controller) AddAThread(c *gin.Context) {
 
 	var (
-		req = models.Threads{}
+		req       = models.CreateThreadMsgReq{}
+		channelID = c.Param("channel_id")
 	)
 
 	err := c.ShouldBind(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -171,7 +179,20 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
-	ThreadData, err := service.CreateThreadDummy(req, base.Db.Postgresql, base.Db.TypeSense)
+	req.ChannelsID = channelID
+
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+
+	ThreadData, err := service.CreateThreadMessage(req, base.Db.Postgresql, base.Db.TypeSense)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
