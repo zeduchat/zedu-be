@@ -80,7 +80,7 @@ func TestOrganisationInvitation(t *testing.T) {
 	}
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
-	invite_token := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
+	invite_token, invite_id := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
 
 
 
@@ -135,6 +135,16 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
+		},{
+			Name: "Organisation Invite Cancellation Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "invitation cancelled successfully",
+			Method:       http.MethodDelete,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/invite/%s", invite_id)},
 		},
 	}
 
@@ -146,6 +156,7 @@ func TestOrganisationInvitation(t *testing.T) {
 			invitationURL.POST("", middleware.Authorize(db.Postgresql), invitation.OrganisationCreateInvite)
 			invitationURL.POST("/verify", invitation.OrganisationVerifyInvite)
 			invitationURL.POST("/resend", middleware.Authorize(db.Postgresql), invitation.ResendInvitation)
+			invitationURL.DELETE("/:invite_id", middleware.Authorize(db.Postgresql), invitation.CancelInvitation)
 
 		}
 

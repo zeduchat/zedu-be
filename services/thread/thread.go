@@ -137,7 +137,7 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 		return http.StatusBadRequest, err
 	}
 
-	threadData.Status = req.Status
+	threadData.CurrentStatus = req.Status
 
 	if _, err := threadData.UpdateThread(db); err != nil {
 		return http.StatusBadRequest, err

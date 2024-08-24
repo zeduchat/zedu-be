@@ -26,7 +26,6 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
@@ -51,7 +50,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId)
+	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId, base.Logger)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -161,7 +160,14 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		return
 	}
 
-	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql)
+	err := base.Validator.Struct(&updateReq)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}	
+
+	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 
 	if err != nil {
 		switch err.Error() {
