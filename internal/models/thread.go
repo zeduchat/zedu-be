@@ -18,7 +18,7 @@ type Threads struct {
 	ChannelsID    string    `gorm:"type:uuid;index" json:"channels_id"`
 	EventName     string    `gorm:"type:varchar(200);index" json:"event_name"`
 	Username      string    `gorm:"type:varchar(50);index" json:"username"`
-	ActionType    string    `gorm:"type:varchar(200);index" json:"action_type"`
+	ActionType    string    `gorm:"type:text;index" json:"action_type"`
 	Status        string    `gorm:"type:varchar(200);index" json:"status"`
 	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages      []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
@@ -26,9 +26,11 @@ type Threads struct {
 	LastReply     time.Time `json:"last_reply"`
 	AvatarURL     string    `json:"avatar_url"`
 	Type          string    `gorm:"default:thread" json:"type"`
-	Content       string    `json:"content"`
+	Content       string    `gorm:"type:text;index" json:"content"`
 	ChannelName   string    `json:"channel_name"`
 	CurrentStatus string    `json:"current_status"`
+	FullName      string    `json:"full_name"`
+	Email         string    `json:"email"`
 }
 
 type ChannelDocument struct {
@@ -81,14 +83,17 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 		Joins("JOIN channels ON channels.id = threads.channels_id").
 		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
 		Count(&cc.TotalThreads).Error
+
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
 		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "failed").
 		Count(&cc.TotalErrorThreads).Error
+
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
 		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "success").
 		Count(&cc.TotalResolvedThreads).Error
+
 	_ = db.Model(&om).
 		Where("organisation_id = ?", orgId).
 		Count(&cc.TotalMembers).Error
@@ -105,6 +110,7 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 	}
 	return cc, channelThreadInfo, nil
 }
+
 
 func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels, dateCondition string) (ChannelMetrics, error) {
 	var (
@@ -150,6 +156,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 		ActionType:   t.ActionType,
 		Status:       t.Status,
 		MessageCount: t.MessageCount,
+		AvatarURL:    t.AvatarURL,
 	}
 
 	err = tydb.InsertDocument(typesenseDb, t.ChannelsID, threadDocument)
@@ -209,6 +216,53 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	query := db.Model(&Threads{}).
 		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
+		Where("threads.type = ? OR threads.type IS NULL", "thread").
+		Where("threads.channels_id = ?", channelID).
+		Group("threads.id").
+		Preload("Messages", func(db *gorm.DB) *gorm.DB {
+			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
+				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
+				Order("messages.thread_id, messages.user_id, messages.created_at DESC").
+				Limit(5)
+		})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"threads.created_at",
+		"desc",
+		pagination,
+		&threads,
+		nil,
+	)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, paginationResponse, ErrNotFound
+		}
+		return nil, paginationResponse, errors.New("failed to fetch record")
+	}
+
+	return threads, paginationResponse, nil
+}
+
+func (t *Threads) GetMessagesByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, postgresql.PaginationResponse, error) {
+	var (
+		threads            []Threads
+		ErrNotFound        = errors.New("threads not found")
+		paginationResponse postgresql.PaginationResponse
+	)
+
+	var userChannels UserChannels
+	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userId)
+	if !exist {
+		return nil, postgresql.PaginationResponse{}, errors.New("user not in channel")
+	}
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&Threads{}).
+		Select("threads.id, threads.channels_id, threads.full_name, threads.email, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
+		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
+		Where("threads.type = ?", "message").
 		Where("threads.channels_id = ?", channelID).
 		Group("threads.id").
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {

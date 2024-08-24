@@ -18,8 +18,8 @@ import (
 func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *typesense.Client) (*models.Threads, error) {
 
 	var (
-		profile  models.Profile
-		username string
+		profile models.Profile
+		user    models.User
 	)
 
 	err := profile.GetProfileByUserId(db, req.UserId)
@@ -28,22 +28,24 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 		return nil, errors.New("failed to get user profile")
 	}
 
-	username = profile.UserName
+	user, err = user.GetUserByID(db, req.UserId)
 
-	if username == "" {
-		username = profile.FirstName
+	if err != nil {
+		return nil, errors.New("failed to get user")
 	}
 
 	threadID := utility.GenerateUUID()
 
 	thread := models.Threads{
 		ID:           threadID,
-		Username:     username,
+		Username:     profile.UserName,
 		Content:      req.Content,
 		ChannelsID:   req.ChannelsID,
 		Type:         "message",
 		MessageCount: 0,
 		AvatarURL:    profile.AvatarURL,
+		FullName:     profile.FullName,
+		Email:        user.Email,
 	}
 
 	if err = thread.CreateThread(db, typesenseDb); err != nil {

@@ -73,6 +73,32 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 }
 
+func (base *Controller) GetAllChannelMessages(c *gin.Context) {
+
+	var (
+		channelID = c.Param("channel_id")
+	)
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	usersData, paginationResponse, code, err := service.GetAllChannelMessages(channelID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
+
+	c.JSON(http.StatusOK, rd)
+
+}
+
+
 func (base *Controller) GetUserSingleThreads(c *gin.Context) {
 
 	var (
