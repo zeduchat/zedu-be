@@ -150,6 +150,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 		ActionType:   t.ActionType,
 		Status:       t.Status,
 		MessageCount: t.MessageCount,
+		AvatarURL:    t.AvatarURL,
 	}
 
 	err = tydb.InsertDocument(typesenseDb, t.ChannelsID, threadDocument)
