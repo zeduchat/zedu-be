@@ -5434,7 +5434,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
+
+  /threads/{channelId}:
+    post:
+      tags:
+        - threads
+      summary: Post a thread messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: string
+                  description: Message Content
+                  example: some sample message from client
+        
+      responses:
+        '200':
+          description: Thread retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+  
   /organisations/{org_id}/users:
     get:
       tags:
@@ -5535,7 +5596,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
                 
-  /organisations/{org_id}/metrics?days={days}:
+  /organisations/{org_id}/metrics:
     get:
       tags:
         - user-management
@@ -5550,6 +5611,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: days
+          in: query
+          required: true
+          description: number of days
+          schema:
+            type: integer
+            default: 7
       responses:
         '200':
           description: Metrics fetched successfully
