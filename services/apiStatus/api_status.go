@@ -22,16 +22,12 @@ func UpdateAPIStatus(db *gorm.DB, data []byte) error {
 
 	responseTimes := make(map[string][]int)
 
-	for _, item := range request.APIGroup.Item {
-		for range item.Item {
-			for _, exec := range request.Run.Executions {
-				if len(exec.Request.URL.Path) > 2 {
-					apiGroup := exec.Request.URL.Path[2]
+	for _, exec := range request.Run.Executions {
+		if len(exec.Request.URL.Path) > 2 {
+			apiGroup := exec.Request.URL.Path[2]
 
-					if exec.Response.ResponseTime > 0 {
-						responseTimes[apiGroup] = append(responseTimes[apiGroup], exec.Response.ResponseTime)
-					}
-				}
+			if exec.Response.ResponseTime > 0 {
+				responseTimes[apiGroup] = append(responseTimes[apiGroup], exec.Response.ResponseTime)
 			}
 		}
 	}
