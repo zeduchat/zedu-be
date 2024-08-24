@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,12 +19,12 @@ func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, user string)
 
 	pdfURL := inv.InvoicePDF
 	if pdfURL == "" {
-		return fmt.Errorf("PDF not available for this invoice")
+		return errors.New("PDF not available for this invoice")
 	}
 
 	resp, err := http.Get(pdfURL)
 	if err != nil {
-		return fmt.Errorf("failed to download PDF: %v", err)
+		return errors.New("failed to download PDF")
 	}
 	defer resp.Body.Close()
 
@@ -37,7 +38,7 @@ func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, user string)
 
 	_, err = io.Copy(c.Writer, resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to stream PDF: %v", err)
+		return errors.New("failed to stream PDF")
 	}
 
 	return nil
