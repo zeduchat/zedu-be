@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-e2e-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: cd into cypress directory
+        run: cd cypress_tests
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
