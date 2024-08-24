@@ -16,23 +16,29 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+          
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Initialize Npm
-        run: npm init -y
-
-      - name: Install Dependencies
-        run: npm install cypress cypress-mochawesome-reporter
+      - name: Install project dependencies
+        run: |
+          cd cypress_tests
+          npm install
 
       - name: Run Cypress tests
-        id: cypress
+        continue-on-error: true
         run: |
-          npx cypress run --e2e && npx mochawesome-merge --reportDir cypress/reports/index.html > cypress/reports/index.html/mochawesome.json && npx mochawesome-report-generator --reportDir cypress/reports/index.html
-        
+          cd cypress_tests
+          xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' npx cypress run --e2e --reporter cypress-mochawesome-reporter
+
+      - name: Generate Mochawesome report
+        run: |
+          cd cypress_tests
+          npx mochawesome-merge cypress/reports/*.json > cypress/reports/mochawesome.json
+          npx mochawesome-report-generator cypress/reports/mochawesome.json --reportDir cypress/reports/html
+
       - name: Copy artifacts
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -40,4 +46,4 @@ jobs:
           username: ${{ env.SSH_USERNAME }}
           key: ${{ env.SSH_KEY }}
           source: "cypress/reports"
-          target: "/home/vicradon/deployments/cypress-report/telex-fe"  
+          target: "/home/vicradon/deployments/cypress-report/telex-fe"

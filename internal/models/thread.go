@@ -83,14 +83,17 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 		Joins("JOIN channels ON channels.id = threads.channels_id").
 		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
 		Count(&cc.TotalThreads).Error
+
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
 		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "failed").
 		Count(&cc.TotalErrorThreads).Error
+
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
 		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "success").
 		Count(&cc.TotalResolvedThreads).Error
+
 	_ = db.Model(&om).
 		Where("organisation_id = ?", orgId).
 		Count(&cc.TotalMembers).Error
@@ -107,6 +110,7 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 	}
 	return cc, channelThreadInfo, nil
 }
+
 
 func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels, dateCondition string) (ChannelMetrics, error) {
 	var (
