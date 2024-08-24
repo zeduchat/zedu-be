@@ -22,8 +22,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Npm
-        run: npm install
+      - name: Initialize Npm
+        run: npm init -y
 
       - name: Install Dependencies
         run: npm install cypress cypress-mochawesome-reporter
