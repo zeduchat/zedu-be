@@ -14,17 +14,21 @@ import (
 )
 
 type Threads struct {
-	ID           string    `gorm:"type:uuid;primary_key" json:"thread_id"`
-	ChannelsID   string    `gorm:"type:uuid;index" json:"channels_id"`
-	EventName    string    `gorm:"type:varchar(200);index" json:"event_name"`
-	Username     string    `gorm:"type:varchar(50);index" json:"username"`
-	ActionType   string    `gorm:"type:varchar(200);index" json:"action_type"`
-	Status       string    `gorm:"type:varchar(200);index" json:"status"`
-	CreatedAt    time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages     []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	MessageCount int64     `gorm:"type:int;" json:"message_count"`
-	LastReply    time.Time `json:"last_reply"`
-	AvatarURL    string    `json:"avatar_url"`
+	ID            string    `gorm:"type:uuid;primary_key" json:"thread_id"`
+	ChannelsID    string    `gorm:"type:uuid;index" json:"channels_id"`
+	EventName     string    `gorm:"type:varchar(200);index" json:"event_name"`
+	Username      string    `gorm:"type:varchar(50);index" json:"username"`
+	ActionType    string    `gorm:"type:varchar(200);index" json:"action_type"`
+	Status        string    `gorm:"type:varchar(200);index" json:"status"`
+	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Messages      []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	MessageCount  int64     `gorm:"type:int;" json:"message_count"`
+	LastReply     time.Time `json:"last_reply"`
+	AvatarURL     string    `json:"avatar_url"`
+	Type          string    `gorm:"default:thread" json:"type"`
+	Content       string    `json:"content"`
+	ChannelName   string    `json:"channel_name"`
+	CurrentStatus string    `json:"current_status"`
 }
 
 type ChannelDocument struct {
@@ -55,6 +59,12 @@ type ChannelMetrics struct {
 	SuccessCount int64  `json:"success_count"`
 	ErrorCount   int64  `json:"error_count"`
 	OtherCount   int64  `json:"other_count"`
+}
+
+type CreateThreadMsgReq struct {
+	Content    string `json:"content" validate:"required"`
+	ChannelsID string `json:"channels_id"`
+	UserId     string `json:"user_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -96,7 +106,6 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 	return cc, channelThreadInfo, nil
 }
 
-
 func (t *Threads) ChannelMetrics(db *gorm.DB, channel Channels, dateCondition string) (ChannelMetrics, error) {
 	var (
 		cm ChannelMetrics
@@ -118,7 +127,7 @@ type Mentions struct {
 }
 
 type UpdateThreadStatus struct {
-	Status string `json:"status" validate:"required"`
+	Status string `json:"status" validate:"required,oneof=pending completed"`
 }
 
 func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -135,7 +144,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 		ThreadID:     t.ID,
 		UserID:       "",
 		Username:     t.Username,
-		Content:      "",
+		Content:      t.Content,
 		CreatedAt:    t.CreatedAt.Unix(),
 		EventName:    t.EventName,
 		ActionType:   t.ActionType,
@@ -198,12 +207,10 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.event_name, profiles.user_name as username, profiles.avatar_url as avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
+		Select("threads.id, threads.channels_id, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Joins("LEFT JOIN webhooks ON webhooks.channel_id = threads.channels_id").
-		Joins("LEFT JOIN profiles ON profiles.userid = webhooks.owner_id").
 		Where("threads.channels_id = ?", channelID).
-		Group("threads.id,profiles.user_name, profiles.avatar_url").
+		Group("threads.id").
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {
 			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
 				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
@@ -235,22 +242,21 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		ErrNotFound = errors.New("threads not found")
 	)
 
-	var userChannels []UserChannels
-	err := db.Joins("JOIN channels ON channels.id = user_channels.channels_id").
-		Where("user_channels.user_id = ? AND channels.organisation_id = ?", userId, organisationID).
-		Find(&userChannels).Error
-	if err != nil {
-		return nil, postgresql.PaginationResponse{}, errors.New("failed to retrieve user channels within the organization")
-	}
-
-	channelIDs := make([]string, len(userChannels))
-	for i, uc := range userChannels {
-		channelIDs[i] = uc.ChannelsID
-	}
+	query := db.Model(&Threads{}).
+		Select("threads.id, threads.channels_id, threads.event_name, threads.type, threads.content, threads.current_status, channels.name as channel_name, threads.username, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
+		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
+		Joins("LEFT JOIN channels ON threads.channels_id = channels.id").
+		Where("channels.organisation_id = ?", organisationID).
+		Where("(threads.type <> ?  OR threads.type IS NULL)", "message").
+		Group("threads.id, channels.name").
+		Preload("Messages", func(db *gorm.DB) *gorm.DB {
+			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
+				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
+				Order("messages.thread_id, messages.user_id, messages.created_at DESC").
+				Limit(5)
+		})
 
 	pagination := postgresql.GetPagination(c)
-	query := db.Where("channels_id IN (?)", channelIDs).
-		Preload("Messages")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
