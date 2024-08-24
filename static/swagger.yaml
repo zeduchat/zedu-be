@@ -8880,6 +8880,8 @@ components:
           type: string
         country:
           type: string
+        logo_url:
+          type: string
     
     
           
@@ -8887,7 +8889,7 @@ components:
       type: object
       description: Object describing the organisation data
       properties:
-        organisation_id:
+        id:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -8900,18 +8902,31 @@ components:
         email:
           type: string
           example: org@gmail.com
-        state: 
+        country: 
           type: string
-          example: lagos
+          example: some Country
         industry:
           type: string
           example: tech
-        type: 
+        location: 
           type: string
-          example: sometype
-        address: 
+          example: lagos
+        owner_id: 
           type: string
-          example: somewhere somewhere
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c76167489ng7
+        logo_url: 
+          type: string
+          example: some url of org logo
+        channels_count: 
+          type: number
+          example: 3
+        total_messages_count: 
+          type: number
+          example: 45      
+        org_role: 
+          type: string
+          example: null
         created_at:
           type: string
           format: date-time
