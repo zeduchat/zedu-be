@@ -5023,6 +5023,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                
+  /invite/{invite_id}:
+    delete:
+      tags:
+        - Organisation-Invitation
+      summary: Cancel an invitation
+      description: Deletes an invitation with the specified `invite_id`.
+      parameters:
+        - in: path
+          name: invite_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the invitation to be canceled.
+      responses:
+        '200':
+          description: Invitation canceled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "invitation cancelled successfully"
+
+  /invite/resend:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Resend invitation emails
+      description: Resends invitations to the specified email addresses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                  example: ["micahshallom1@gmail.com"]
+                org_id:
+                  type: string
+                  format: uuid
+                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+      responses:
+        '200':
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: string
+                    example: "Invitations sent successfully"
 
   /invite/channel/:
     post:
