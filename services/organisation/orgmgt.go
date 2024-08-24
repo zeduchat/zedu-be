@@ -34,17 +34,7 @@ func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
 func CountMetrics(db *gorm.DB, userID, orgID string) (models.OrgUserMetricsResponse, error) {
 	var (
 		oum models.OrgUserManagement
-		o   models.Organisation
 	)
-
-	isowner, err := o.IsOwnerOfOrganisation(db, userID, orgID)
-	if err != nil {
-		return models.OrgUserMetricsResponse{}, err
-	}
-
-	if !isowner {
-		return models.OrgUserMetricsResponse{}, errors.New("user is not the owner of the organisation")
-	}
 
 	countMetricsData, err := oum.CountMetrics(db, orgID)
 	if err != nil {
