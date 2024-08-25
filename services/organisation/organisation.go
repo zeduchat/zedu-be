@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
 
@@ -47,7 +48,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	if err != nil {
 		return nil, errors.New("failed to validate organisation logo")
-	}	
+	}
 
 	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
 
@@ -76,6 +77,16 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	var user models.User
 
 	user, err = user.GetUserByID(db, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	user.CurrentOrg, err = uuid.FromString(org.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = user.Update(db)
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +171,15 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 
 	if err != nil {
 		return nil, errors.New("failed to validate organisation logo")
-	}	
+	}
 
 	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
 
 	if err != nil {
 		return nil, errors.New("failed to upload organisation logo")
-	}	
+	}
 
-    updateReq.LogoURL = picUrl
+	updateReq.LogoURL = picUrl
 
 	copier.Copy(&org, &updateReq)
 	return org.Update(db)
@@ -368,15 +379,15 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 }
 
 func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {
-    if file != nil {
-        logoId := strings.Split(uniqueId, "-")[4]
-        filename := fmt.Sprintf("org_logo_%s%s", logoId, ext)
+	if file != nil {
+		logoId := strings.Split(uniqueId, "-")[4]
+		filename := fmt.Sprintf("org_logo_%s%s", logoId, ext)
 
-        picUrl, err := minio.UploadProfilePic(logger, filename, bytes.NewReader(file), int64(len(file)))
-        if err != nil {
-            return "", err
-        }
-        return picUrl, nil
-    }
-    return "", nil
+		picUrl, err := minio.UploadProfilePic(logger, filename, bytes.NewReader(file), int64(len(file)))
+		if err != nil {
+			return "", err
+		}
+		return picUrl, nil
+	}
+	return "", nil
 }
