@@ -155,6 +155,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 			Email:     invitation.Email,
 			Password:  entry,
 			FirstName: strings.TrimSpace(strings.ToLower(email)),
+			IsOnboarded: true,
 		}
 
 		_, _, err := auth.CreateUser(req, db)
