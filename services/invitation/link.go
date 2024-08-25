@@ -47,7 +47,6 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 
 		creds, err := i.CheckForTelexPresence(base.Postgresql, email, inviteReq.OrganisationID)
 		if err != nil {
-			fmt.Println("Error checking for telex presence", err)
 			errors = append(errors, fmt.Sprintf("Error checking for telex presence: %s", err))
 		}
 
@@ -156,6 +155,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 			Email:     invitation.Email,
 			Password:  entry,
 			FirstName: strings.TrimSpace(strings.ToLower(email)),
+			IsOnboarded: true,
 		}
 
 		_, _, err := auth.CreateUser(req, db)
@@ -191,7 +191,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 
 	tokenData, err := middleware.CreateToken(userData, c)
 	if err != nil {
-		fmt.Println("Error creating token:", err)
 		return responseData, http.StatusInternalServerError, errors.New("error creating token")
 	}
 
@@ -203,10 +202,8 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	fmt.Printf("Token data: %v\n", tokenData)
 	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
 
-	fmt.Println("Saving access token for user:", userData.Email)
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		fmt.Println("Error saving access token:", err)
 		return responseData, http.StatusInternalServerError, errors.New("error saving token")
 	}
 

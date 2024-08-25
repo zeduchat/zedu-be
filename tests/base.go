@@ -227,17 +227,9 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
-	// dataM := data["data"]
-	// fmt.Println(dataM)
-	// invite_token := dataM.([]interface{})[0].(map[string]interface{})["invitations"]["invite_token"].(string)
-	// invite_id := dataM.([]interface{})[0].(map[string]interface{})["invitations"]["id"].(string)
 
-	// Extract the data slice
 	dataM := data["data"].(map[string]interface{})
-	// Get the invitations data as a slice of maps
 	invitations := dataM["invitations"].([]interface{})
-
-	// Index the first invitation map and access the fields
 	invite_token := invitations[0].(map[string]interface{})["invite_token"].(string)
 	invite_id := invitations[0].(map[string]interface{})["id"].(string)
 
