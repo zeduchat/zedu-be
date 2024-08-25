@@ -48,7 +48,7 @@ describe("Retrieve organisations API Tests", () => {
 
   it("should retrieve organisation successfully", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -92,7 +92,7 @@ describe("Retrieve organisations API Tests", () => {
 
   it("should return an error if unauthorized user", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -131,7 +131,7 @@ describe("Retrieve organisations API Tests", () => {
 
   it("should return an error if organisation id is invalid", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -170,7 +170,7 @@ describe("Retrieve organisations API Tests", () => {
 
   it("should return an error if when data is incorrect", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
