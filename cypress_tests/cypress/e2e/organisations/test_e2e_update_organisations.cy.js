@@ -48,7 +48,7 @@ describe("Update organisations API Tests", () => {
 
   it("should update organisation successfully", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -71,7 +71,7 @@ describe("Update organisations API Tests", () => {
       organisationId = response.body.data.id;
 
       let updateData = {
-        name: "Update Organisation1",
+        name: `Update Organisation1 ${Date.now()}`,
         description: "Update Organisation1 Desc",
         email: orgEmail,
         type: "Update OrganisationType",
@@ -96,7 +96,7 @@ describe("Update organisations API Tests", () => {
 
   it("should return an error if unauthorized user", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -119,7 +119,7 @@ describe("Update organisations API Tests", () => {
       organisationId = response.body.data.id;
 
       let updateData = {
-        name: "Update Organisation1",
+        name: "Update Organisation1${Date.now()}`",
         description: "Update Organisation1 Desc",
         email: orgEmail,
         type: "Update OrganisationType",
@@ -145,7 +145,7 @@ describe("Update organisations API Tests", () => {
 
   it("should return an error if unauthorized user", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -168,7 +168,7 @@ describe("Update organisations API Tests", () => {
       organisationId = response.body.data.id;
 
       let updateData = {
-        name: "Update Organisation1",
+        name: `Update Organisation1${Date.now()}`,
         description: "Update Organisation1 Desc",
         email: orgEmail,
         type: "Update OrganisationType",
@@ -194,7 +194,7 @@ describe("Update organisations API Tests", () => {
 
   it("should return an error if organisation id is invalid", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -217,7 +217,7 @@ describe("Update organisations API Tests", () => {
       organisationId = response.body.data.id;
 
       let updateData = {
-        name: "Update Organisation1",
+        name: `Update Organisation1${Date.now()}`,
         description: "Update Organisation1 Desc",
         email: orgEmail,
         type: "Update OrganisationType",
@@ -243,7 +243,7 @@ describe("Update organisations API Tests", () => {
 
   it("should return an error if when data is incorrect", () => {
     let createData = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: orgEmail,
       type: "OrganisationType",
@@ -266,7 +266,7 @@ describe("Update organisations API Tests", () => {
       organisationId = response.body.data.id;
 
       let updateData = {
-        name: "Update Organisation1",
+        name: `Update Organisation1 ${Date.now()}`,
         description: "Update Organisation1 Desc",
         email: "email.com",
         type: "Update OrganisationType",

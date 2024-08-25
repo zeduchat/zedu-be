@@ -1,13 +1,13 @@
 describe("get user profile", () => {
-    const baseUrl = Cypress.env("baseUrl");
-    let authToken;
+  const baseUrl = Cypress.env("baseURL");
+  let authToken;
 
-    const now = Date.now()
-    const email = `my-test-user${now}@email.com`;
-    const username = 'specialUsername';
-    const password = 'password';
-    const first_name = 'FirstName';
-    const last_name = 'LastName'
+  const now = Date.now();
+  const email = `my-test-user${now}@email.com`;
+  const username = "specialUsername";
+  const password = "password";
+  const first_name = "FirstName";
+  const last_name = "LastName";
 
   // Authentication runs before running the tests
   before(() => {
@@ -47,9 +47,9 @@ describe("get user profile", () => {
 
       // Save the token for use in subsequent requests
       authToken = response.body.data.access_token;
+    });
   });
-  });
-    
+
   it("should get a user profile", () => {
     cy.request({
       method: "GET",
@@ -57,18 +57,15 @@ describe("get user profile", () => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
-      }
+      },
     }).then((response) => {
       // Assert that the reponse status is 200
       expect(response.status).to.eq(200);
 
       // Assert that the response body contains the same user
-      expect(response.body?.data).to.have.property(
-        "email",
-         email
-      )
-    })
-  })
+      expect(response.body?.data).to.have.property("email", email);
+    });
+  });
 
   it("should fail if a user is not authenticated", () => {
     cy.request({
@@ -77,10 +74,10 @@ describe("get user profile", () => {
       failOnStatusCode: false,
       headers: {
         "Content-Type": "application/json",
-      }
+      },
     }).then((response) => {
       // Assert that the reponse status is 401 because we did not send the auth token
       expect(response.status).to.eq(401);
-    })
-  })
-})
+    });
+  });
+});
