@@ -79,8 +79,6 @@ func TestMessage(t *testing.T) {
 
 	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
 
-	fmt.Println("Channels ID: ", channelId)
-
 	threads1 := models.Threads{
 		ID:         utility.GenerateUUID(),
 		ChannelsID: channelId,

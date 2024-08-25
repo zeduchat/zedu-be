@@ -64,7 +64,6 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 		//remember: lets check if the email of the user already exists in the organisation so as not to override their roles and status
 		err := c.ChannelInvitationValidator(base.Postgresql, email, inviteReq)
 		if err != nil {
-			fmt.Println("Error processing some invitations", err)
 			continue
 		}
 
@@ -201,7 +200,6 @@ func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB
 	fmt.Printf("Saving access token for user: %s\n", userData.Email)
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		fmt.Println("Error saving access token:", err)
 		return responseData, http.StatusInternalServerError, errors.New("error saving token")
 	}
 
