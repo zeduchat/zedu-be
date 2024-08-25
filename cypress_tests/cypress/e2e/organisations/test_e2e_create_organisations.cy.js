@@ -47,7 +47,7 @@ describe("Create organisations API Tests", () => {
   const email = `org${Date.now()}@email.com`;
   it("should add a new organisation successfully", () => {
     const newOrganisation = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: email,
       type: "OrganisationType",
@@ -78,7 +78,7 @@ describe("Create organisations API Tests", () => {
 
   it("should return an error if required fields are invalid", () => {
     const incompleteOrganisation = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: "email.com",
       type: "OrganisationType",
@@ -103,7 +103,7 @@ describe("Create organisations API Tests", () => {
 
   it("should return an error if unauthorized user", () => {
     const incompleteOrganisation = {
-      name: "Organisation1",
+      name: `Organisation1${Date.now()}`,
       description: "Organisation1 Desc",
       email: email,
       type: "OrganisationType",
