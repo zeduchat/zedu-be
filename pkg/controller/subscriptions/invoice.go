@@ -17,9 +17,9 @@ func (base *Controller) DownloadInvoice(ctx *gin.Context) {
 
 	err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, userID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		base.Logger.Error(err)
-		ctx.JSON(http.StatusInternalServerError, rd)
+		ctx.JSON(http.StatusBadRequest, rd)
 		return
 	}
 

@@ -27,7 +27,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 	)
 	if url == "" {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "missing URL", "missing URL", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
