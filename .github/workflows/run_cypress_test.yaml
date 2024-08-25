@@ -25,7 +25,7 @@ jobs:
       - name: Create Cypress env
         run: |
           cd cypress_tests
-          echo '{"baseUrl":"${{ vars.CYPRESS_BASE_URL }}"}' > cypress.env.json
+          echo '{"baseUrl":"${{ vars.CYPRESS_BASE_URL }}","baseURL":"${{ vars.CYPRESS_BASE_URL }}"}' > cypress.env.json
 
       - name: Install project dependencies
         run: |
