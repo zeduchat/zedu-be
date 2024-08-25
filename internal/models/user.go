@@ -41,6 +41,7 @@ type CreateUserRequestModel struct {
 	LastName    string `json:"last_name" `
 	UserName    string `json:"username"`
 	PhoneNumber string `json:"phone_number"`
+	IsOnboarded bool   `json:"is_onboarded"`
 }
 
 type UpdateUserRequestModel struct {
