@@ -43,3 +43,28 @@ func (base *Controller) SubmitFeedback(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "blog feedback submitted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetFeedbackCount(c *gin.Context) {
+	blogID := c.Param("id")
+
+	if _, err := uuid.Parse(blogID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid blog id format", "failed to retrieve blog", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	posCount, negCount, err := service.GetFeedbackCount(blogID, base.Db.Postgresql)
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to count feedback", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("blog feedback counts retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "blog feedback counts retrieved successfully", gin.H{
+		"positive_feedback": posCount,
+		"negative_feedback": negCount,
+	})
+	c.JSON(http.StatusOK, rd)
+}

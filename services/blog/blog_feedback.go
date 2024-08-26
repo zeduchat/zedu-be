@@ -21,3 +21,16 @@ func SubmitFeedback(req models.BlogFeedbackReq, db *gorm.DB) error {
 
 	return nil
 }
+
+func GetFeedbackCount(blogId string, db *gorm.DB) (int64, int64, error) {
+	var blogFeedback models.BlogFeedback
+	blogFeedback.BlogID = blogId
+
+	positiveCount, negativeCount, err := blogFeedback.CountFeedback(blogId, db)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return positiveCount, negativeCount, nil
+}

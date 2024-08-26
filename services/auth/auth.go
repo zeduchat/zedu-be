@@ -161,6 +161,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 			"is_verified":  userData.IsVerified,
 			"is_onboarded": userData.IsOnboarded,
 			"is_active":    userData.IsActive,
+			"current_org":  userData.CurrentOrg,
 			"first_name":   userData.Profile.FirstName,
 			"last_name":    userData.Profile.LastName,
 			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,

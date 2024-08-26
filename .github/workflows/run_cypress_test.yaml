@@ -22,6 +22,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb
 
+      - name: Create Cypress env
+        run: |
+          cd cypress_tests
+          echo '{"baseUrl":"${{ vars.CYPRESS_BASE_API_URL }}","baseURL":"${{ vars.CYPRESS_BASE_API_URL }}"}' > cypress.env.json
+
       - name: Install project dependencies
         run: |
           cd cypress_tests
@@ -33,11 +38,9 @@ jobs:
           cd cypress_tests
           xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' npx cypress run --e2e --reporter cypress-mochawesome-reporter
 
-      - name: Generate Mochawesome report
+      - name: Move report html to root directory
         run: |
-          cd cypress_tests
-          npx mochawesome-merge cypress/reports/*.json > cypress/reports/mochawesome.json
-          npx mochawesome-report-generator cypress/reports/mochawesome.json --reportDir cypress/reports/html
+          cp cypress_tests/cypress/reports/html/index.html index.html
 
       - name: Copy artifacts
         uses: appleboy/scp-action@v0.1.7
@@ -45,5 +48,5 @@ jobs:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USERNAME }}
           key: ${{ env.SSH_KEY }}
-          source: "cypress/reports"
-          target: "/home/vicradon/deployments/cypress-report/telex-fe"
+          source: "index.html"
+          target: "/var/www/html/cypress-report/"
