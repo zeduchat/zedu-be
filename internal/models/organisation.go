@@ -85,17 +85,20 @@ func (c *Organisation) CreateOrganisation(db *gorm.DB) error {
 
 func (c *Organisation) Delete(db *gorm.DB, orgId string) error {
 
-	if err := db.Exec(
+	c.ID = orgId
+
+	if err := postgresql.DeleteRecordWithNoModel(db,
 		"DELETE FROM user_organisations WHERE organisation_id = ?",
-		orgId).Error; err != nil {
+		orgId); err != nil {
 		return err
 	}
 
-	if err := db.Where("organisation_id = ?", orgId).Delete(&OrgUserManagement{}).Error; err != nil {
+	err := postgresql.DeleteSpecificRecord(db, &OrgUserManagement{}, "organisation_id = ?", orgId)
+	if err != nil {
 		return err
 	}
 
-	err := postgresql.DeleteRecordFromDb(db, &c)
+	err = postgresql.DeleteRecordFromDb(db, c)
 	if err != nil {
 		return err
 	}
@@ -313,31 +316,32 @@ func (o *Organisation) CheckOrgExists(orgId string, db *gorm.DB) (Organisation, 
 }
 
 func (o *Organisation) CheckUserIsMemberOfOrg(userId string, orgId string, db *gorm.DB) (bool, error) {
-	var count int64
-	err := db.Table("user_organisations").
-		Where("user_id = ? AND organisation_id = ?", userId, orgId).
-		Count(&count).Error
 
-	if err != nil {
-		return false, err
+	exist := postgresql.CheckExistsInTable(db,
+		"user_organisations",
+		"user_id = ? AND organisation_id = ?",
+		userId,
+		orgId,
+	)
+
+	if !exist {
+		return false, errors.New("user not a member of organisation")
 	}
 
-	return count > 0, nil
+	return true, nil
 }
 
 func (o *Organisation) IsOwnerOfOrganisation(db *gorm.DB, requesterID, organisationID string) (bool, error) {
-	count, err := postgresql.CountSpecificRecords(
-		db,
-		&Organisation{},
-		"id = ? AND owner_id = ?",
-		organisationID,
-		requesterID,
-	)
+	org, err := o.GetOrgByID(db, organisationID)
 	if err != nil {
 		return false, err
 	}
 
-	return count > 0, nil
+	if org.OwnerID != requesterID {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (o *Organisation) CountOrganisationChannelss(db *gorm.DB, orgId string) (int64, error) {

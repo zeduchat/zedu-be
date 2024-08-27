@@ -232,20 +232,13 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 
 func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 	var org models.Organisation
-	org, err := org.CheckOrgExists(orgId, db)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("organisation not found")
-		}
-		return err
-	}
 
 	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
 	if err != nil {
 		return err
 	}
 	if !isOwner {
-		return errors.New("user not authorized to delete this organisation")
+		return errors.New("user not authorised to delete this organisation")
 	}
 
 	return org.Delete(db, orgId)
