@@ -57,7 +57,7 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing"),
+		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
 
 	session, err := session.New(params)
