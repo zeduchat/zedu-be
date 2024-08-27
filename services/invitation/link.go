@@ -9,13 +9,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID string) models.Invitation {
@@ -32,6 +34,7 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 }
 
 func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string, error) {
+
 	var (
 		emails      = inviteReq.Emails
 		i           models.Invitation
@@ -68,6 +71,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		invitations = append(invitations, invitation)
 	}
 	return invitations, errors, nil
+
 }
 
 func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.InvitationResponse {
@@ -94,7 +98,7 @@ func ExtractTokenFromInvitationLink(invitationLink string) string {
 	return splitLink[len(splitLink)-1]
 }
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
@@ -146,7 +150,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 			IsOnboarded: true,
 		}
 
-		_, _, err := auth.CreateUser(req, db)
+		_, _, err := auth.CreateUser(c, extReq, req, db)
 		if err != nil {
 			return responseData, http.StatusInternalServerError, errors.New("error creating user")
 		}
