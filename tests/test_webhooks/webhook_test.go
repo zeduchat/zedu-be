@@ -89,7 +89,7 @@ func TestChannelsEndpoints(t *testing.T) {
 	}{
 		{
 			Name:         "Create Webhook Action",
-			ExpectedCode: http.StatusCreated,
+			ExpectedCode: http.StatusBadRequest,
 			Message:      "webhook already exists",
 			Method:       http.MethodPost,
 			RequestURI:   url.URL{Path: webhook_path},
