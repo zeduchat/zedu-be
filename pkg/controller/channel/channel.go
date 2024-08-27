@@ -75,7 +75,17 @@ func (base *Controller) GetChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id, userId)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
