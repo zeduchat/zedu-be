@@ -47,7 +47,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 
 	respData, code, err := auth.CreateUser(c, base.ExtReq, reqData, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, respData)
 		base.Logger.Error("error saving user: ", err.Error())
 		c.JSON(http.StatusBadRequest, rd)
 		return
