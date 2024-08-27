@@ -24,7 +24,7 @@ func (n NotificationObject) SendLoginAlertMail() error {
 		return fmt.Errorf("error decoding saved notification data: %v", err)
 	}
 
-	loginUrl := fmt.Sprintf("%v/login", configData.App.Url)
+	resetPasswordUrl := fmt.Sprintf("%v/auth/forgot-password", configData.App.FRONTEND_URL)
 
 	user, err = user.GetUserByEmail(n.Db, notificationData.Email)
 	if err != nil {
@@ -34,7 +34,7 @@ func (n NotificationObject) SendLoginAlertMail() error {
 	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
 		"firstname":         thisOrThatStr(user.Profile.FirstName, user.Email),
 		"business_name":     thisOrThatStr("", ""),
-		"password_reset_url": loginUrl,
+		"password_reset_url": resetPasswordUrl,
 	})
 	if err != nil {
 		return fmt.Errorf("error converting data to map: %v", err)
