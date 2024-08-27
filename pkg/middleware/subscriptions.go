@@ -22,12 +22,15 @@ func MonitorFreeSub(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		daysSinceCreated := time.Since(user.CreatedAt).Hours() / 24
+		if user.SubscriptionPlanId == "free" {
 
-		if daysSinceCreated >= 30 {
-			r := utility.BuildErrorResponse(http.StatusForbidden, "error", "Subscription expired", "Please upgrade your plan", nil)
-			c.AbortWithStatusJSON(http.StatusForbidden, r)
-			return
+			daysSinceCreated := time.Since(user.CreatedAt).Hours() / 24
+
+			if daysSinceCreated >= 30 {
+				r := utility.BuildErrorResponse(http.StatusForbidden, "error", "Subscription expired", "Please upgrade your plan", nil)
+				c.AbortWithStatusJSON(http.StatusForbidden, r)
+				return
+			}
 		}
 
 		c.Next()
