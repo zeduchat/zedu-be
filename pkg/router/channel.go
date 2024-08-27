@@ -17,7 +17,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql))
+	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
 	{
 		channelUrl.POST("/", channel.CreateChannels)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
