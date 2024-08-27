@@ -67,7 +67,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 		return nil, postgresql.PaginationResponse{}, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetThreadsByChannelID(c, db, userID, channelID)
+	accessResp, paginationResponse, err := accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return accessResp, postgresql.PaginationResponse{}, http.StatusNoContent, nil
@@ -79,7 +79,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetAllChannelMessages(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, postgresql.PaginationResponse, int, error) {
+func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, postgresql.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
@@ -100,7 +100,7 @@ func GetAllChannelMessages(channelID string, db *gorm.DB, c *gin.Context) ([]mod
 		return nil, postgresql.PaginationResponse{}, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetMessagesByChannelID(c, db, userID, channelID)
+	accessResp, paginationResponse, err := accessData.GetThreadsByChannelID(c, db, userID, channelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return accessResp, postgresql.PaginationResponse{}, http.StatusNoContent, nil
