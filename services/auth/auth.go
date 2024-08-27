@@ -161,8 +161,6 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		},
 		"access_token": tokenData.AccessToken,
 	}
-	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
-
 	return responseData, http.StatusCreated, nil
 }
 
