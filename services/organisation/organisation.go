@@ -240,15 +240,15 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		return err
 	}
 
-	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
+	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
 	if err != nil {
 		return err
 	}
-	if !isMember {
-		return errors.New("user not authorised to delete this organisation")
+	if !isOwner {
+		return errors.New("user not authorized to delete this organisation")
 	}
 
-	return org.Delete(db)
+	return org.Delete(db, orgId)
 }
 
 func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db *gorm.DB) error {
