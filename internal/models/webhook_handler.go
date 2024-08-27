@@ -11,6 +11,7 @@ type CreateWebhookHistoryRequest struct {
 	Status      string `json:"status" validate:"required,oneof=success error"`
 	AvatarURL   string `json:"avatar_url"`
 	Message     string `json:"message" validate:"required"`
+	UserID      string `json:"user_id"`
 }
 
 type FeedWebHookRequest struct {
