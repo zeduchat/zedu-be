@@ -62,14 +62,20 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	return newchannel, http.StatusOK, nil
 }
 
-func GetChannels(db *gorm.DB, channelID string) (models.Channels, int, error) {
-	var channel models.Channels
+func GetChannels(db *gorm.DB, channelID, userId string) (models.GetChannelResp, int, error) {
+	var (
+		channel models.Channels
+		chanReq models.ChannelInfo
+	)
 
-	channel, err := channel.GetChannelsByID(db, channelID)
+	chanReq.ChannelID = channelID
+	chanReq.UserID = userId
+
+	chanresp, err := channel.GetChannelsByID(db, chanReq)
 	if err != nil {
-		return channel, http.StatusBadRequest, err
+		return chanresp, http.StatusBadRequest, err
 	}
-	return channel, http.StatusOK, nil
+	return chanresp, http.StatusOK, nil
 }
 
 func GetChannelsByName(db *gorm.DB, name string) ([]models.Channels, int, error) {
@@ -110,7 +116,7 @@ func JoinChannels(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels,
 func LeaveChannels(db *gorm.DB, channels_id, user_id string) (int, error) {
 	var channel models.Channels
 
-	_, _, err := GetChannels(db, channels_id)
+	_, _, err := GetChannels(db, channels_id, user_id)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
@@ -136,9 +142,15 @@ func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId
 }
 
 func DeleteChannels(db *gorm.DB, channelId, userId string, typesenseDb *typesense.Client) (int, error) {
-	var r models.Channels
+	var (
+		r       models.Channels
+		chanReq models.ChannelInfo
+	)
 
-	channel, err := r.GetChannelsByID(db, channelId)
+	chanReq.ChannelID = channelId
+	chanReq.UserID = userId
+
+	channel, err := r.GetChannelsByID(db, chanReq)
 
 	if channel.OwnerId != userId {
 		return http.StatusUnauthorized, errors.New("user not authorized")

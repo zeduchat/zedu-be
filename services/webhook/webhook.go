@@ -124,14 +124,17 @@ func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *
 
 }
 
-func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (models.Webhook, int, error) {
+func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId, userId string) (models.Webhook, int, error) {
 
 	var (
 		resp     models.Webhook
 		webhooks models.Webhook
+		chanReq  models.ChannelInfo
 	)
+	chanReq.ChannelID = channelId
+	chanReq.UserID = userId
 
-	resp, err := webhooks.GetChannelWebhook(db, channelId)
+	resp, err := webhooks.GetChannelWebhook(db, chanReq)
 
 	if err != nil {
 		return resp, http.StatusBadRequest, err

@@ -36,6 +36,12 @@ func SeedSubscriptionPlans(db *gorm.DB, stripe config.Stripe) {
 			Features:      "Premium features",
 			StripePriceID: stripe.STRIPE_PREMIUM_ID,
 		},
+		{
+			Name:          "Free",
+			Price:         0.00,
+			Description:   "The essential tools to produce your best work for clients.",
+			StripePriceID: "",
+		},
 	}
 
 	for _, plan := range plans {
