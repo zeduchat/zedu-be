@@ -2,12 +2,15 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -34,6 +37,25 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	}
 
 	newchannel, err := channel.AddUserToChannels(db, joinChannelsReq)
+	if err != nil {
+		return newchannel, http.StatusBadRequest, err
+	}
+
+	webhook := models.Webhook{
+		ID:          utility.GenerateUUID(),
+		ChannelId:   channel.ID,
+		OwnerId:     userId,
+		Status:      "active",
+		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
+	}
+
+	slug := strings.Split(webhook.ID, "-")[4]
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
+	webhook.WebhookSlug = slug
+	webhook.WebhookUrl = webhookUrl
+
+	err = webhook.CreateWebhook(db)
+
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
