@@ -25,9 +25,14 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 		req *models.CreateSubscriptionRequest
 		url = c.Request.Header.Get("Referer")
 	)
+	if url == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "missing URL", "missing URL", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		base.Logger.Error(err)
 		c.JSON(http.StatusBadRequest, rd)
 		return
