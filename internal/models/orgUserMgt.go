@@ -235,5 +235,10 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB, orgID, userID str
 		return err
 	}
 
+	exists = postgresql.CheckExists(db, &o, "user_id = ? AND organisation_id = ?", user.ID, org.ID)
+	if !exists {
+		return errors.New("error adding user to organisation")
+	}
+
 	return nil
 }

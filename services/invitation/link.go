@@ -33,13 +33,13 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 	}
 }
 
-func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string , error) {
+func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string, error) {
 	//batch create invitations
 	var (
 		emails      = inviteReq.Emails
 		i           models.Invitation
 		invitations []models.Invitation
-		errors []string
+		errors      []string
 	)
 
 	for _, email := range emails {
@@ -70,7 +70,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		invitation := CreateInvitation(email, token, inviteReq.Role, "invited", isTelexUser, inviteReq.OrganisationID)
 		invitations = append(invitations, invitation)
 	}
-	return invitations, errors ,nil
+	return invitations, errors, nil
 }
 
 func GenerateInvitationToken() (string, error) {
@@ -113,6 +113,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		responseData gin.H
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
+		chans        = models.Channels{}
 	)
 
 	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
@@ -139,11 +140,11 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		if err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
+
 	}
 
 	otp, _ := utility.GenerateOTP(6)
 	entry := "telex-" + strconv.Itoa(int(otp))
-
 	if !invitation.IsTelexUser {
 		var user models.User
 
@@ -152,9 +153,9 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		email := utility.SplitEmailString(arr[0])
 
 		req := models.CreateUserRequestModel{
-			Email:     invitation.Email,
-			Password:  entry,
-			FirstName: strings.TrimSpace(strings.ToLower(email)),
+			Email:       invitation.Email,
+			Password:    entry,
+			FirstName:   strings.TrimSpace(strings.ToLower(email)),
 			IsOnboarded: true,
 		}
 
@@ -182,6 +183,27 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		if err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
+	}
+
+	exists := postgresql.CheckExists(db, &chans, "name = ? AND organisation_id = ?", "Default", orgmgt.OrganisationID)
+	if !exists {
+		return responseData, http.StatusBadRequest, errors.New("channel with name Default and/or channel with organisation ID does not exist")
+	}
+
+	exists = postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
+	if !exists {
+		return responseData, http.StatusBadRequest, errors.New("invalid credentials")
+	}
+
+	reqs := models.JoinChannelsRequest{
+		Username:   user.Name,
+		ChannelsID: chans.ID,
+		UserID:     orgmgt.UserID,
+	}
+
+	_, err = chans.AddUserToChannels(db, reqs)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, err
 	}
 
 	userData, err := user.GetUserByEmail(db, invitation.Email)
