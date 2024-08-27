@@ -29,13 +29,13 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 	}
 
-	incomingPastUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
+	incomingPastUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
 	{
 		incomingPastUrl.GET("/feed/:webhook_slug", webhook.GetWebhook)
 		incomingPastUrl.POST("/feed/:webhook_slug", webhook.PostWebhook)
 	}
 
-	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", "v1"), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
+	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", "v1"))
 	{
 		incomingUrl.GET("/:webhook_slug", webhook.GetWebhook)
 		incomingUrl.POST("/:webhook_slug", webhook.PostWebhook)
