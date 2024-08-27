@@ -2,6 +2,8 @@ package utility
 
 import (
 	crand "crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"io"
 	"math/rand"
 	"regexp"
@@ -51,4 +53,20 @@ func GenerateOTP(max int) (int, error) {
 		b[i] = table[int(b[i])%len(table)]
 	}
 	return strconv.Atoi(string(b))
+}
+
+func GenerateInvitationToken() (string, error) {
+	bytes := make([]byte, 16)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func GenerateInvitationLink(baseurl, orgID, token string) string {
+	return baseurl + fmt.Sprintf("/accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
+}
+func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
+	return baseurl + fmt.Sprintf("/accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
 }

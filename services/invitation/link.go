@@ -1,8 +1,6 @@
 package invitation
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -34,7 +32,6 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 }
 
 func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string, error) {
-	//batch create invitations
 	var (
 		emails      = inviteReq.Emails
 		i           models.Invitation
@@ -43,7 +40,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 	)
 
 	for _, email := range emails {
-		token, _ := GenerateInvitationToken()
+		token, _ := utility.GenerateInvitationToken()
 
 		creds, err := i.CheckForTelexPresence(base.Postgresql, email, inviteReq.OrganisationID)
 		if err != nil {
@@ -73,15 +70,6 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 	return invitations, errors, nil
 }
 
-func GenerateInvitationToken() (string, error) {
-	bytes := make([]byte, 16)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
 func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.InvitationResponse {
 	var response []models.InvitationResponse
 
@@ -93,7 +81,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 			Status:         "invited",
 			InviteToken:    invite.Token,
 			IsTelexUser:    invite.IsTelexUser,
-			InvitationLink: GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
+			InvitationLink: utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
 		})
@@ -121,6 +109,9 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusUnauthorized, errors.New("invalid or expired token or token has been used. Proceed to signup!!!!")
 	}
 
+	otp, _ := utility.GenerateOTP(6)
+	entry := "telex-" + strconv.Itoa(int(otp))
+
 	if invitation.IsTelexUser {
 		exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
 		if !exists {
@@ -140,12 +131,8 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		if err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
+	} else {
 
-	}
-
-	otp, _ := utility.GenerateOTP(6)
-	entry := "telex-" + strconv.Itoa(int(otp))
-	if !invitation.IsTelexUser {
 		var user models.User
 
 		//use the email to get the first name
@@ -221,7 +208,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
-	fmt.Printf("Token data: %v\n", tokenData)
 	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
 
 	err = access_token.CreateAccessToken(db, tokens)

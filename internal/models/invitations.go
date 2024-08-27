@@ -40,6 +40,10 @@ type InvitationResponse struct {
 	Expires_At     time.Time `json:"expires_at"`
 }
 
+type GlobalInviteRequest struct {
+	Roles []string `json:"roles"`
+}
+
 type ResendInvitationRequest struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
