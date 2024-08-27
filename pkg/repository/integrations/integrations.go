@@ -23,15 +23,18 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 		slackentry models.SlackTelex
 		org        models.Organisation
 		slackReq   models.SendSlackRequest
+		chanReq   models.ChannelInfo
 	)
 
-	channel, err := channel.GetChannelsByID(db, feed.ChannelID)
+	chanReq.ChannelID = feed.ChannelID
+
+	chanresp, err := channel.GetChannelsByID(db, chanReq)
 
 	if err != nil {
 		return errors.New("failed to fetch channel")
 	}
 
-	err = slackentry.GetSlackWebhookUrl(db, channel.OrganisationID)
+	err = slackentry.GetSlackWebhookUrl(db, chanresp.OrganisationID)
 
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil
@@ -41,7 +44,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 		return errors.New("failed to fetch slack integration")
 	}
 
-	org, err = org.GetOrgByID(db, channel.OrganisationID)
+	org, err = org.GetOrgByID(db, chanresp.OrganisationID)
 
 	if err != nil {
 		return errors.New("failed to fetch channel organisation")
@@ -49,7 +52,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 
 	slackReq = models.SendSlackRequest{
 		AuthorName:     feed.UserName,
-		PretextChannel: channel.Name,
+		PretextChannel: chanresp.Name,
 		TitleEvent:     feed.EventName,
 		TitleAction:    feed.ActionType,
 		TitleLink:      fmt.Sprintf("%s/dashboard/channels/%s", config.Config.App.FRONTEND_URL, feed.ChannelID),

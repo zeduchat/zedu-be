@@ -49,6 +49,11 @@ type GetChannelsRequest struct {
 	Name string `json:"name" validate:"required"`
 }
 
+type GetChannelResp struct {
+	Channels
+	WebhookUrl string `json:"webhook_url"`
+}
+
 type JoinChannelsRequest struct {
 	Username   string `json:"username" validate:"required"`
 	ChannelsID string `json:"channels_id" `
@@ -78,6 +83,11 @@ type MessagesResp []struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	UserMsgProfile
+}
+
+type ChannelInfo struct {
+	ChannelID string `json:"channel_id"`
+	UserID    string `json:"user_id"`
 }
 
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -191,25 +201,37 @@ func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, erro
 	return channels, nil
 }
 
-func (r *Channels) GetChannelsByID(db *gorm.DB, channelID string) (Channels, error) {
+func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelResp, error) {
 	var (
-		channel Channels
-		ur      UserChannels
+		channel  Channels
+		chanResp GetChannelResp
+		ur       UserChannels
+		webhook  Webhook
 	)
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", channelID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
-		return channel, errors.New("channel not found")
+		return chanResp, errors.New("channel not found")
 	}
 
-	count, err := ur.CountChannelsUsers(db, channelID)
+	count, err := ur.CountChannelsUsers(db, chanReq.ChannelID)
 	if err != nil {
-		return channel, errors.New("could not get channel users count")
+		return chanResp, errors.New("could not get channel users count")
 	}
 
 	channel.UserCount = count
+	webhook, err = webhook.GetChannelWebhook(db, chanReq)
 
-	return channel, nil
+	if err != nil {
+		return chanResp, errors.New("could not get channel webhook")
+	}
+
+	chanResp = GetChannelResp{
+		channel,
+		webhook.WebhookUrl,
+	}
+
+	return chanResp, nil
 }
 
 func (u *UserChannels) CountChannelsUsers(db *gorm.DB, channelID string) (int64, error) {
