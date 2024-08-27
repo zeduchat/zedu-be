@@ -9524,6 +9524,9 @@ components:
               message_count:
                 type: integer
                 example: 0
+              webhook_url:
+                type: string
+                example: "https://ping.staging.telex.im/v1/webhooks/someid"
               created_at:
                 type: string
                 format: date-time

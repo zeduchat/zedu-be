@@ -2,13 +2,17 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Webhook struct {
@@ -266,15 +270,31 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 	return webhook, nil
 }
 
-func (r *Webhook) GetChannelWebhook(db *gorm.DB, channelId string) (Webhook, error) {
+func (r *Webhook) GetChannelWebhook(db *gorm.DB, req ChannelInfo) (Webhook, error) {
 	var (
 		webhook Webhook
 	)
 
-	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", channelId)
+	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", req.ChannelID)
 
 	if !exist {
-		return webhook, errors.New("webhook not found")
+		webhook = Webhook{
+			ID:        utility.GenerateUUID(),
+			ChannelId: req.ChannelID,
+			OwnerId:   req.UserID,
+			Status:    "active",
+		}
+
+		slug := strings.Split(webhook.ID, "-")[4]
+		webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
+		webhook.WebhookSlug = slug
+		webhook.WebhookUrl = webhookUrl
+
+		err := webhook.CreateWebhook(db)
+
+		if err != nil {
+			return webhook, errors.New("failed to create webhook")
+		}
 	}
 
 	return webhook, nil
