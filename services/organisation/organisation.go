@@ -293,7 +293,6 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var org models.Organisation
 
-	// Check if organisation exists
 	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -302,7 +301,6 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	// Check if the user is a member of the organisation
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -311,7 +309,6 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 		return nil, postgresql.PaginationResponse{}, errors.New("user does not have access to the organisation")
 	}
 
-	// Fetch users and their organisation management details in a single query
 	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, db, c)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
