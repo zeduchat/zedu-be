@@ -95,9 +95,12 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 	var (
 		resp    gin.H
 		webhook models.Webhook
+		chanReq     models.ChannelInfo
 	)
+	
+	chanReq.ChannelID = req.ChannelID
 
-	webhook, err := webhook.GetChannelWebhook(db, req.ChannelID)
+	webhook, err := webhook.GetChannelWebhook(db, chanReq)
 
 	if err != nil {
 		logger.Error("error getting channel webhook \nerr: " + err.Error())

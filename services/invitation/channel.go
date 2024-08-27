@@ -53,7 +53,7 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 	)
 
 	for _, email := range emails {
-		token, _ := GenerateInvitationToken()
+		token, _ := utility.GenerateInvitationToken()
 
 		err := c.ChannelInvitationValidator(base.Postgresql, email, inviteReq)
 		if err != nil {
@@ -65,7 +65,6 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 	}
 	return channelInvitations, nil
 }
-
 
 func CreateChannelInvitation(email, token, status string, inviteReq models.ChannelInvitationCreateReq) models.ChannelInvitation {
 	return models.ChannelInvitation{
@@ -105,7 +104,7 @@ func ChannelInviteLinkMapper(baseURL string, invitations []models.ChannelInvitat
 			Status:         "invited",
 			ChannelID:      invite.ChannelID,
 			InviteToken:    invite.Token,
-			InvitationLink: GenerateChannelInvitationLink(baseURL, invite.ChannelID, invite.Token),
+			InvitationLink: utility.GenerateChannelInvitationLink(baseURL, invite.ChannelID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
 		})

@@ -73,7 +73,7 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 }
 
-func (base *Controller) GetAllChannelMessages(c *gin.Context) {
+func (base *Controller) GetChannelThreads(c *gin.Context) {
 
 	var (
 		channelID = c.Param("channel_id")
@@ -85,7 +85,7 @@ func (base *Controller) GetAllChannelMessages(c *gin.Context) {
 		return
 	}
 
-	usersData, paginationResponse, code, err := service.GetAllChannelMessages(channelID, base.Db.Postgresql, c)
+	usersData, paginationResponse, code, err := service.GetChannelThreads(channelID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)

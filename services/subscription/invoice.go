@@ -13,7 +13,7 @@ import (
 func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, user string) error {
 	_, _, err, inv := CompleteSubscription(sessionID, user, db)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return err
 	}
 

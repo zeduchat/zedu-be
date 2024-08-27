@@ -1,8 +1,6 @@
 package invitation
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,13 +9,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID string) models.Invitation {
@@ -33,17 +33,17 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 	}
 }
 
-func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string , error) {
-	//batch create invitations
+func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string, error) {
+
 	var (
 		emails      = inviteReq.Emails
 		i           models.Invitation
 		invitations []models.Invitation
-		errors []string
+		errors      []string
 	)
 
 	for _, email := range emails {
-		token, _ := GenerateInvitationToken()
+		token, _ := utility.GenerateInvitationToken()
 
 		creds, err := i.CheckForTelexPresence(base.Postgresql, email, inviteReq.OrganisationID)
 		if err != nil {
@@ -70,16 +70,8 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		invitation := CreateInvitation(email, token, inviteReq.Role, "invited", isTelexUser, inviteReq.OrganisationID)
 		invitations = append(invitations, invitation)
 	}
-	return invitations, errors ,nil
-}
+	return invitations, errors, nil
 
-func GenerateInvitationToken() (string, error) {
-	bytes := make([]byte, 16)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
 }
 
 func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.InvitationResponse {
@@ -93,7 +85,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 			Status:         "invited",
 			InviteToken:    invite.Token,
 			IsTelexUser:    invite.IsTelexUser,
-			InvitationLink: GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
+			InvitationLink: utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
 		})
@@ -106,19 +98,23 @@ func ExtractTokenFromInvitationLink(invitationLink string) string {
 	return splitLink[len(splitLink)-1]
 }
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
 		responseData gin.H
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
+		chans        = models.Channels{}
 	)
 
 	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
 	if err != nil {
 		return responseData, http.StatusUnauthorized, errors.New("invalid or expired token or token has been used. Proceed to signup!!!!")
 	}
+
+	otp, _ := utility.GenerateOTP(6)
+	entry := "telex-" + strconv.Itoa(int(otp))
 
 	if invitation.IsTelexUser {
 		exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
@@ -139,12 +135,8 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		if err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
-	}
+	} else {
 
-	otp, _ := utility.GenerateOTP(6)
-	entry := "telex-" + strconv.Itoa(int(otp))
-
-	if !invitation.IsTelexUser {
 		var user models.User
 
 		//use the email to get the first name
@@ -152,13 +144,13 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		email := utility.SplitEmailString(arr[0])
 
 		req := models.CreateUserRequestModel{
-			Email:     invitation.Email,
-			Password:  entry,
-			FirstName: strings.TrimSpace(strings.ToLower(email)),
+			Email:       invitation.Email,
+			Password:    entry,
+			FirstName:   strings.TrimSpace(strings.ToLower(email)),
 			IsOnboarded: true,
 		}
 
-		_, _, err := auth.CreateUser(req, db)
+		_, _, err := auth.CreateUser(c, extReq, req, db)
 		if err != nil {
 			return responseData, http.StatusInternalServerError, errors.New("error creating user")
 		}
@@ -184,6 +176,27 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		}
 	}
 
+	exists := postgresql.CheckExists(db, &chans, "name = ? AND organisation_id = ?", "Default", orgmgt.OrganisationID)
+	if !exists {
+		return responseData, http.StatusBadRequest, errors.New("channel with name Default and/or channel with organisation ID does not exist")
+	}
+
+	exists = postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
+	if !exists {
+		return responseData, http.StatusBadRequest, errors.New("invalid credentials")
+	}
+
+	reqs := models.JoinChannelsRequest{
+		Username:   user.Name,
+		ChannelsID: chans.ID,
+		UserID:     orgmgt.UserID,
+	}
+
+	_, err = chans.AddUserToChannels(db, reqs)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, err
+	}
+
 	userData, err := user.GetUserByEmail(db, invitation.Email)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
@@ -199,7 +212,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
-	fmt.Printf("Token data: %v\n", tokenData)
 	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
 
 	err = access_token.CreateAccessToken(db, tokens)

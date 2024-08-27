@@ -19,7 +19,7 @@ type User struct {
 	IsActive           bool           `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
 	IsOnboarded        bool           `gorm:"column:is_onboarded; type:bool" json:"is_onboarded"`
 	CurrentOrg         uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
-	SubscriptionPlanId string         `gorm:"column:subscription_plan_id; type:varchar(255)" json:"subscription_plan_id"`
+	SubscriptionPlanId string         `gorm:"column:subscription_plan_id; type:varchar(255); default:'free'" json:"subscription_plan_id"`
 	Profile            Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
 	Channelss          []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations      []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`

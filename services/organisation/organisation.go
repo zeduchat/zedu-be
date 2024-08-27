@@ -13,7 +13,9 @@ import (
 	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -92,6 +94,49 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	}
 
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
+	if err != nil {
+		return nil, err
+	}
+
+	channel := models.Channels{
+		ID:             utility.GenerateUUID(),
+		Name:           "Default",
+		Description:    fmt.Sprintf("%s's default channel", org.Name),
+		OwnerId:        user.ID,
+		OrganisationID: org.ID,
+	}
+
+	var joinChannelsReq models.JoinChannelsRequest
+
+	joinChannelsReq.ChannelsID = channel.ID
+	joinChannelsReq.UserID = userId
+	joinChannelsReq.Username = user.Profile.UserName
+
+	err = channel.CreateChannels(db, storage.DB.TypeSense)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = channel.AddUserToChannels(db, joinChannelsReq)
+	if err != nil {
+		return nil, err
+	}
+
+	webhook := models.Webhook{
+		ID:          utility.GenerateUUID(),
+		ChannelId:   channel.ID,
+		OwnerId:     userId,
+		Status:      "active",
+		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
+	}
+
+	slug := strings.Split(webhook.ID, "-")[4]
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
+	webhook.WebhookSlug = slug
+	webhook.WebhookUrl = webhookUrl
+
+	err = webhook.CreateWebhook(db)
+
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +293,6 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var org models.Organisation
 
-	// Check if organisation exists
 	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -257,7 +301,6 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	// Check if the user is a member of the organisation
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -266,7 +309,6 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 		return nil, postgresql.PaginationResponse{}, errors.New("user does not have access to the organisation")
 	}
 
-	// Fetch users and their organisation management details in a single query
 	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, db, c)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
