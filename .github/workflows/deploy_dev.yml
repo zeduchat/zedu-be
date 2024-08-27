@@ -63,7 +63,9 @@ jobs:
           SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
           SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
           SLACK_REDIRECT_URI: ${{ secrets.SLACK_REDIRECT_URI }}
-          SLACK_BASE_URL: ${{ secrets.SLACK_BASE_URL }}          
+          SLACK_BASE_URL: ${{ secrets.SLACK_BASE_URL }}
+          TELEX_LOGIN_WEBHOOK_URL: ${{ vars.TELEX_LOGIN_WEBHOOK_URL }}
+          TELEX_SIGNUP_WEBHOOK_URL: ${{ vars.TELEX_SIGNUP_WEBHOOK_URL }}
 
       - name: Copy app.env to server
         run: |
