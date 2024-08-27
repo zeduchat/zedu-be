@@ -163,7 +163,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 	}
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
 
-	return nil, http.StatusCreated, nil
+	return responseData, http.StatusCreated, nil
 }
 
 func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
