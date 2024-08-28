@@ -55,8 +55,8 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 	}
 
 	base.Logger.Info("user created successfully")
-	
-	err = telexaudit.SingupAudit(base.Db.Postgresql, base.Logger, respData, base.Db.TypeSense)
+
+	err = telexaudit.SignupAudit(base.Db.Postgresql, base.Logger, respData, base.Db.TypeSense)
 	if err != nil {
 		base.Logger.Error("error broadcasting signup audit: ", err.Error())
 	}

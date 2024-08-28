@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SingupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesense.Client) error {
+func SignupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesense.Client) error {
 
 	var (
 		req models.CreateWebhookHistoryRequest
