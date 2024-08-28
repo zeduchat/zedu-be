@@ -320,7 +320,7 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
 		Joins("JOIN profiles AS p ON p.userid = u.id").
 		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
-		Joins("JOIN org_roles AS org ON org.id = o.role_id").
+		Joins("JOIN org_roles AS org ON org.id = o.role_id::uuid").
 		Where("uo.organisation_id = ?", orgId).
 		Offset(offset).
 		Limit(pagination.Limit).

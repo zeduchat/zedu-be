@@ -12,9 +12,9 @@ import (
 type Invitation struct {
 	ID             string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Email          string       `gorm:"type:varchar(100);" json:"email"`
-	Token          string       `gorm:"type:varchar(255);" json:"token"`
+	Token          string       `gorm:"type:varchar(255);"`
 	Status         string       `gorm:"type:varchar(100);" json:"status"`
-	Role           string       `gorm:"type:varchar(100);" json:"role"`
+	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
 	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
 	Organisation   Organisation `gorm:"foreignKey:OrganisationID"`
@@ -25,7 +25,7 @@ type Invitation struct {
 type InvitationCreateReq struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
-	Role           string   `json:"role"`
+	Role           string   `json:"role_id" validate:"required,uuid"`
 }
 
 type InvitationResponse struct {
