@@ -27,7 +27,7 @@ func TestGetBlogs(t *testing.T) {
 
 	blogCategory := models.BlogCategory{
 		ID:   utility.GenerateUUID(),
-		Name: "testCategory"+utility.GenerateUUID(),
+		Name: "testCategory" + utility.GenerateUUID(),
 	}
 
 	blog := models.Blog{
@@ -36,6 +36,7 @@ func TestGetBlogs(t *testing.T) {
 		Content:    "something soemthing",
 		CategoryID: blogCategory.ID,
 		AuthorID:   regularUser.ID,
+		AuthorName: regularUser.Name,
 	}
 
 	db.Create(&regularUser)
@@ -100,7 +101,7 @@ func TestGetBlogById(t *testing.T) {
 
 	blogCategory := models.BlogCategory{
 		ID:   utility.GenerateUUID(),
-		Name: "testCategory"+utility.GenerateUUID(),
+		Name: "testCategory" + utility.GenerateUUID(),
 	}
 
 	blog := models.Blog{
