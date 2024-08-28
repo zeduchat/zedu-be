@@ -56,7 +56,6 @@ type VerifyInvitationLinkRequest struct {
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
 	var u User
 
-	//loop through the invitations and check is the user is a telex user
 	for idx, invite := range invitations {
 
 		exists := postgresql.CheckExists(db, &u, "email = ?", invite.Email)
@@ -77,7 +76,6 @@ func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) er
 }
 
 func (i *Invitation) GetInvitationsByID(db *gorm.DB, user_id string) ([]Invitation, error) {
-	//get all invitations with the user_id
 	var invitations []Invitation
 
 	err := postgresql.SelectAllFromDb(db.Preload("Organisation"), "", &invitations, "user_id = ?", user_id)
@@ -135,7 +133,6 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email string) (Invitation, bool, error) {
 	var inv Invitation
 
-	//check invitation exists
 	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ?", email, "invited")
 	if exists {
 		return inv, true, nil
@@ -151,7 +148,8 @@ func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invita
 		return invitation, errors.New("token does not exist")
 	}
 
-	if invitation.ExpiresAt.Before(time.Now()) {
+	expired := invitation.ExpiresAt.Before(time.Now().UTC())
+	if expired {
 		return invitation, errors.New("invitation link has expired")
 	}
 

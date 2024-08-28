@@ -40,14 +40,6 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	inviteReq, err = invitation.UpdateRoleName(inviteReq, base.Db.Postgresql)
-	if err != nil {
-		base.Logger.Info("Cant update role name", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "cant update rolename", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
 	if err != nil {
 		base.Logger.Info("Failed to validate user", err)
@@ -58,7 +50,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	url := c.Request.Header.Get("Referer")
 
-	inviteMap, errors ,err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
+	inviteMap, errors, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
 		base.Logger.Info("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
@@ -66,7 +58,6 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	// save invitations
 	err = invitation.SaveInvitations(base.Db.Postgresql, inviteMap)
 	if err != nil {
 		base.Logger.Info("Failed to save invitations", err)
@@ -77,7 +68,6 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, inviteMap)
 
-	//integrating send invitation functionality
 	err = invitation.SendInvitationsEmail(base.Logger, mapData)
 	if err != nil {
 		base.Logger.Info("Failed to send invitation email", err)
