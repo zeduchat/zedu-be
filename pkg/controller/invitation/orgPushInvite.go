@@ -40,6 +40,8 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
+	
+
 	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
 	if err != nil {
 		base.Logger.Info("Failed to validate user", err)
