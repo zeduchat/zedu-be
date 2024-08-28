@@ -26,19 +26,14 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
 	}
 
 	var user models.User
-	var subscriptionPlan models.SubscriptionPlan
-
-	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
-		logger.Error(err.Error())
-		return nil, http.StatusNotFound, errors.New("subscription plan not found")
-	}
 
 	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
 		logger.Error(err.Error())
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
-	if subscriptionPlan.StripePriceID == "" {
+	stripePriceID, exists := models.StripeMap[req.PlanName]
+	if !exists {
 		logger.Error("missing StripePriceID for subscription plan")
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
@@ -59,7 +54,7 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(subscriptionPlan.StripePriceID),
+				Price:    stripe.String(stripePriceID),
 				Quantity: stripe.Int64(1),
 			},
 		},
