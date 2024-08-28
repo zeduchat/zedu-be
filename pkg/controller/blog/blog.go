@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -22,25 +23,42 @@ type Controller struct {
 }
 
 func (base *Controller) CreateBlog(c *gin.Context) {
-	var req models.BlogCreateReq
-
-	if err := c.ShouldBind(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+	categoryID := c.PostForm("category_id")
+	if categoryID == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Category ID is required", "failed to create blog", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if err := base.Validator.Struct(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
-	if _, err := uuid.Parse(req.CategoryID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid blog id format", "failed to create blog", nil)
+	if _, err := uuid.Parse(categoryID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid category id format", "failed to create blog", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	file, err := c.FormFile("content")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to get content file", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	contentFile, err := file.Open()
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to open content file", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	defer contentFile.Close()
+
+	contentBytes, err := io.ReadAll(contentFile)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read content file", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	content := string(contentBytes)
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
@@ -55,7 +73,10 @@ func (base *Controller) CreateBlog(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	err = service.CreateBlog(req, base.Db.Postgresql, userId)
+	err = service.CreateBlog(models.BlogCreateReq{
+		CategoryID: categoryID,
+		Content:    content,
+	}, base.Db.Postgresql, userId)
 
 	if err != nil {
 		if err.Error() == "blog category not found" {
@@ -76,9 +97,9 @@ func (base *Controller) CreateBlog(c *gin.Context) {
 
 func (base *Controller) GetBlogs(c *gin.Context) {
 	categoryID := c.Query("category")
-    searchQuery := c.Query("search")
+	searchQuery := c.Query("search")
 
-	blogs, paginationResponse, err := service.GetBlogs(base.Db.Postgresql, c,  categoryID, searchQuery)
+	blogs, paginationResponse, err := service.GetBlogs(base.Db.Postgresql, c, categoryID, searchQuery)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "failed to fetch blogs", err, nil)
