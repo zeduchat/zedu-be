@@ -10,6 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/cronjobs"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -34,9 +35,9 @@ func main() {
 	minio.ConnectToMinio(logger, configuration.Minio)
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
+	models.SetStripeMap(configuration.Stripe)
 
 	validatorRef := validator.New()
-
 	db := storage.Connection()
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
