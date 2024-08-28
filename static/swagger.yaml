@@ -2755,20 +2755,13 @@ paths:
             schema:
               type: object
               properties:
-                title:
-                  type: string
-                  example: New Blog Post
                 content:
                   type: string
                   example: This is the content of the new blog post
                 category_id:
                   type: string
                   format: uuid
-                image_url:
-                  type: string
-                  example: http://image.com
               required:
-                - title
                 - content
                 - category_id
       responses:
