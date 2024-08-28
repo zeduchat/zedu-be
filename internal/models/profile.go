@@ -88,7 +88,7 @@ func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, erro
 	return user, nil
 }
 
-func (p *Profile) UpdateUserProfileImage(db *gorm.DB, userId string) error {
+func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string) error {
 	var userProfile Profile
 
 	exists := postgresql.CheckExists(db, &userProfile, "userid = ?", userId)

@@ -75,7 +75,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 
 	base64Image := c.Request.FormValue("avatar_url")
 
-	file, ext, err := profile.ValidatePicture(base64Image)
+	file, ext, err := utility.ValidatePicture(base64Image)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
