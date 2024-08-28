@@ -277,7 +277,7 @@ func (r *Webhook) GetChannelWebhook(db *gorm.DB, req ChannelInfo) (Webhook, erro
 
 	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", req.ChannelID)
 
-	if !exist {
+	if !exist && req.UserID != ""{
 		webhook = Webhook{
 			ID:        utility.GenerateUUID(),
 			ChannelId: req.ChannelID,

@@ -93,8 +93,16 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
 
 	var (
-		resp gin.H
+		resp    gin.H
+		channel models.Channels
 	)
+
+	_, err := channel.CheckChannelExists(db, req.ChannelID)
+
+	if err != nil {
+		logger.Error("error getting channel err: " + err.Error())
+		return nil, http.StatusNotFound, errors.New("error getting channel, channel does not exist")
+	}
 
 	thread := models.Threads{
 		ID:            utility.GenerateUUID(),
@@ -109,7 +117,7 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		CurrentStatus: "pending",
 	}
 
-	err := thread.CreateThread(db, typesenseDb)
+	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")

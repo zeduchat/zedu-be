@@ -19,11 +19,13 @@ func SingupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesen
 		req models.CreateWebhookHistoryRequest
 	)
 
+	email := data["user"].(map[string]interface{})["email"]
+
 	req.ChannelID = config.Config.Channels.Signup
 	req.UserName = "Telex Backend"
 	req.EventName = "User Signup"
 	req.Status = "success"
-	req.Message = fmt.Sprintf("%s%s", data["email"], data["username"])
+	req.Message = fmt.Sprintf("User with email %s signed up", email)
 	req.AvatarURL = fmt.Sprintf("%s/TelexIcon.svg", config.Config.App.FRONTEND_URL)
 
 	_, _, err := webhook.PostFeedWebhook(db, logger, req, typDb)
@@ -41,11 +43,13 @@ func LoginAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesens
 		req models.CreateWebhookHistoryRequest
 	)
 
+	email := data["user"].(map[string]interface{})["email"]
+
 	req.ChannelID = config.Config.Channels.Login
 	req.UserName = "Telex Backend"
 	req.EventName = "User Login"
 	req.Status = "success"
-	req.Message = fmt.Sprintf("%s%s", data["email"], data["username"])
+	req.Message = fmt.Sprintf("User with email %s loggedin ", email)
 	req.AvatarURL = fmt.Sprintf("%s/TelexIcon.svg", config.Config.App.FRONTEND_URL)
 
 	_, _, err := webhook.PostFeedWebhook(db, logger, req, typDb)
