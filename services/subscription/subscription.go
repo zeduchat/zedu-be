@@ -70,13 +70,6 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
 	}
 
-	user.SubscriptionPlanId = session.Subscription.ID
-	user.StripeCustomerID = session.Customer.ID
-	if err := db.Save(&user).Error; err != nil {
-		log.Printf("Error saving user: %v", err)
-		return nil, http.StatusBadRequest, errors.New("error updating user subscription")
-	}
-
 	responseData := gin.H{
 		"checkout_session_id":  session.ID,
 		"checkout_session_url": session.URL,
