@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/utility"
@@ -31,7 +32,7 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c)
+	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		base.Logger.Info("Failed to verify invitation", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

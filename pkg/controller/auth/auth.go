@@ -11,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/auth"
+	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -45,15 +46,21 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := auth.CreateUser(reqData, base.Db.Postgresql)
+	respData, code, err := auth.CreateUser(c, base.ExtReq, reqData, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, respData)
 		base.Logger.Error("error saving user: ", err.Error())
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("user created successfully")
+
+	err = telexaudit.SignupAudit(base.Db.Postgresql, base.Logger, respData, base.Db.TypeSense)
+	if err != nil {
+		base.Logger.Error("error broadcasting signup audit: ", err.Error())
+	}
+
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "user created successfully", respData)
 	c.JSON(code, rd)
 }
@@ -119,6 +126,11 @@ func (base *Controller) LoginUser(c *gin.Context) {
 	}
 
 	base.Logger.Info("user login successfully")
+
+	err = telexaudit.LoginAudit(base.Db.Postgresql, base.Logger, respData, base.Db.TypeSense)
+	if err != nil {
+		base.Logger.Error("error broadcasting login audit: ", err.Error())
+	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user login successfully", respData)
 	c.JSON(http.StatusOK, rd)
