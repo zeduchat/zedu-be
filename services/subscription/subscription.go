@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/utility"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/customer"
@@ -16,8 +17,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
+func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
+	url string, logger *utility.Logger) (*gin.H, int, error) {
 	if req == nil || req.PlanName == "" || req.UserID == "" || req.Email == "" || url == "" {
+		logger.Error("missing required parameters")
 		return nil, http.StatusBadRequest, errors.New("missing required parameters")
 	}
 
@@ -25,24 +28,30 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 	var subscriptionPlan models.SubscriptionPlan
 
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
+		logger.Error(err.Error())
 		return nil, http.StatusNotFound, errors.New("subscription plan not found")
 	}
 
 	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
+		logger.Error(err.Error())
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
+		logger.Error("missing StripePriceID for subscription plan")
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
 
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
+	logger.Info(stripeCustomerParams)
 	stripeCustomer, err := customer.New(stripeCustomerParams)
 	if err != nil {
+		logger.Error(err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create Stripe customer")
 	}
+	logger.Info(stripeCustomer)
 
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
@@ -56,9 +65,10 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
 		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
-
+	logger.Info(params)
 	session, err := session.New(params)
 	if err != nil {
+		logger.Error(err.Error())
 		return nil, http.StatusBadRequest, err
 	}
 

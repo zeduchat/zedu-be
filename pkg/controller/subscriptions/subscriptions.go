@@ -33,21 +33,22 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		base.Logger.Error(err)
+		base.Logger.Error(err.Error())
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
+	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Something went wrong", nil, nil)
 		c.JSON(code, rd)
-		base.Logger.Error(err)
+		base.Logger.Error(err.Error())
 		return
 	}
+
 	base.Logger.Info("subscription created")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Subscription created successfully", subscriptionData)
-	c.JSON(http.StatusCreated, rd)
+	rd := utility.BuildSuccessResponse(code, "Subscription created successfully", subscriptionData)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) ListSubscriptions(c *gin.Context) {
