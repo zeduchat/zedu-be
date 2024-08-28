@@ -155,6 +155,7 @@ func DeleteOrgRole(db *gorm.DB, orgID, roleID string, c *gin.Context) (int, erro
 		role     models.OrgRole
 		roleData models.OrgRole
 		user     models.User
+		orgMgt   models.OrgUserManagement
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -195,14 +196,16 @@ func DeleteOrgRole(db *gorm.DB, orgID, roleID string, c *gin.Context) (int, erro
 	}
 
 	if roleData.IsDefault {
-		return http.StatusForbidden, errors.New("cant delete default role")
+		return http.StatusForbidden, errors.New("can't delete default role")
 	}
 
-	err = roleData.DeleteOrgRole(db)
-	if err != nil {
+	if err := orgMgt.UpdateAllOrgUsersWithNewRole(db, orgID, roleID); err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	if err := roleData.DeleteOrgRole(db); err != nil {
 		return http.StatusBadRequest, err
 	}
 
 	return http.StatusOK, nil
-
 }
