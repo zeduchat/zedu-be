@@ -11,8 +11,8 @@ import (
 
 func (n NotificationObject) SendLoginAlertMail() error {
 	var (
-		notificationData     models.SendLoginAlertMail
-		subject              = "Recent Login"
+		notificationData     = models.SendLoginAlertMail{}
+		subject              = "Subject: Recent Login"
 		templateFileName     = "login_alert.html"
 		baseTemplateFileName = ""
 		configData           = config.GetConfig()
