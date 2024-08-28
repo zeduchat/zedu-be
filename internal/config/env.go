@@ -18,6 +18,7 @@ type Configuration struct {
 	Slack        Slack
 	Stripe       Stripe
 	TypeSense    TypeSense
+	Channels     Channels
 }
 
 type BaseConfig struct {
@@ -89,6 +90,9 @@ type BaseConfig struct {
 	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
 	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
 	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
+
+	TELEX_LOGIN_CHANNEL  string `mapstructure:"TELEX_LOGIN_CHANNEL"`
+	TELEX_SIGNUP_CHANNEL string `mapstructure:"TELEX_SIGNUP_CHANNEL"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -188,6 +192,11 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		TypeSense: TypeSense{
 			TypeSense_API_URL: config.TYPESENSE_API_URL,
 			TypeSense_API_KEY: config.TYPESENSE_API_KEY,
+		},
+
+		Channels: Channels{
+			Login:  config.TELEX_LOGIN_CHANNEL,
+			Signup: config.TELEX_SIGNUP_CHANNEL,
 		},
 	}
 }
