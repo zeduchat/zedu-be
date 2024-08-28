@@ -2,7 +2,6 @@ package subscription
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"time"
 
@@ -18,32 +17,30 @@ import (
 )
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
+	if req == nil || req.PlanName == "" || req.UserID == "" || req.Email == "" || url == "" {
+		return nil, http.StatusBadRequest, errors.New("missing required parameters")
+	}
 
+	var user models.User
 	var subscriptionPlan models.SubscriptionPlan
+
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, errors.New("subscription plan not found")
 	}
 
-	if url == "" {
-		return nil, http.StatusBadRequest, errors.New("missing URL")
-	}
-
-	if subscriptionPlan.Name == "" {
-		return nil, http.StatusBadRequest, errors.New("subscription plan name is missing")
+	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if subscriptionPlan.StripePriceID == "" {
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
 
-	log.Printf("Subscription Plan: %v", subscriptionPlan)
-
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
 	stripeCustomer, err := customer.New(stripeCustomerParams)
 	if err != nil {
-		log.Printf("Error creating Stripe customer: %v", err)
 		return nil, http.StatusBadRequest, errors.New("failed to create Stripe customer")
 	}
 
@@ -57,13 +54,12 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing"),
+		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
 
 	session, err := session.New(params)
 	if err != nil {
-		log.Printf("Error creating Stripe checkout session: %v", err)
-		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
+		return nil, http.StatusBadRequest, err
 	}
 
 	responseData := gin.H{
@@ -152,8 +148,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing/"),
+		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "dashboard/settings/billing/"),
 	}
 
 	session, err := session.New(params)
@@ -161,7 +157,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
 	}
 
-	user.SubscriptionPlanId = subscriptionPlan.StripePriceID
+	user.SubscriptionPlanId = session.Subscription.ID
+	user.StripeCustomerID = session.Customer.ID
 	if err := db.Save(&user).Error; err != nil {
 		return nil, http.StatusBadRequest, errors.New("error updating user subscription")
 	}
@@ -188,7 +185,6 @@ func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
 
 	_, err := sub.Cancel(user.SubscriptionPlanId, nil)
 	if err != nil {
-		log.Printf("Error cancelling subscription: %v", err)
 		return http.StatusBadRequest, errors.New("error cancelling subscription")
 	}
 

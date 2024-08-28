@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -236,4 +237,33 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB, orgID, userID str
 	}
 
 	return nil
+}
+
+func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, roleID string) error {
+	var role OrgRole
+	defaultRole, err := role.GetAOrgRoleByName(db, "User")
+	if err != nil {
+		return err
+	}
+
+	orgUserManagementUpdate := postgresql.ModelUpdate{
+		Model:   &OrgUserManagement{},
+		Updates: map[string]interface{}{"role_id": defaultRole.ID},
+		Where:   "organisation_id = ? AND role_id = ?",
+		Args:    []interface{}{orgID, roleID},
+	}
+
+	defaultRoleID, err := uuid.FromString(defaultRole.ID)
+	if err != nil {
+		return errors.New("invalid role id")
+	}
+
+	userUpdate := postgresql.ModelUpdate{
+		Model:   &User{},
+		Updates: map[string]interface{}{"org_role_id": defaultRoleID},
+		Where:   "users.id IN (SELECT o.user_id FROM org_user_managements AS o WHERE o.organisation_id = ? AND o.role_id = ?)",
+		Args:    []interface{}{orgID, roleID},
+	}
+
+	return postgresql.UpdateFieldsInTransaction(db, []postgresql.ModelUpdate{orgUserManagementUpdate, userUpdate})
 }

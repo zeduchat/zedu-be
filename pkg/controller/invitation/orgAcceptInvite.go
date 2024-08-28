@@ -17,6 +17,7 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		base.Logger.Info("Failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -24,6 +25,7 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Info("Validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -32,13 +34,13 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 
 	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
+		base.Logger.Info("Failed to verify invitation", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("user invited successfully")
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", respData)
 	c.JSON(http.StatusOK, rd)
 

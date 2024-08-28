@@ -94,17 +94,14 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	var (
 		resp    gin.H
-		webhook models.Webhook
-		chanReq     models.ChannelInfo
+		channel models.Channels
 	)
-	
-	chanReq.ChannelID = req.ChannelID
 
-	webhook, err := webhook.GetChannelWebhook(db, chanReq)
+	_, err := channel.CheckChannelExists(db, req.ChannelID)
 
 	if err != nil {
-		logger.Error("error getting channel webhook \nerr: " + err.Error())
-		return nil, http.StatusNotFound, errors.New("error getting channel webhook")
+		logger.Error("error getting channel err: " + err.Error())
+		return nil, http.StatusNotFound, errors.New("error getting channel, channel does not exist")
 	}
 
 	thread := models.Threads{

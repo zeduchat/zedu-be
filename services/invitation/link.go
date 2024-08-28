@@ -29,7 +29,7 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 		Role:           role,
 		IsTelexUser:    isTelexUser,
 		OrganisationID: orgID,
-		ExpiresAt:      time.Now().Add(48 * time.Hour),
+		ExpiresAt:      time.Now().UTC().Add(48 * time.Hour),
 	}
 }
 
@@ -50,7 +50,6 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 			errors = append(errors, fmt.Sprintf("Error checking for telex presence: %s", err))
 		}
 
-		//check if the user is a telex user
 		exists := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
 		isTelexUser := exists
 
@@ -110,7 +109,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 
 	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
 	if err != nil {
-		return responseData, http.StatusUnauthorized, errors.New("invalid or expired token or token has been used. Proceed to signup!!!!")
+		return responseData, http.StatusUnauthorized, err
 	}
 
 	otp, _ := utility.GenerateOTP(6)
@@ -139,7 +138,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 
 		var user models.User
 
-		//use the email to get the first name
 		arr := strings.Split(invitation.Email, "@")
 		email := utility.SplitEmailString(arr[0])
 

@@ -37,10 +37,30 @@ func SaveAllModelsFields(db *gorm.DB, models []interface{}) (*gorm.DB, error) {
 	return tx, nil
 }
 
-func UpdateFields(db *gorm.DB, model interface{}, updates interface{}, query interface{}, args...interface{}) (*gorm.DB, error) {
+func UpdateFields(db *gorm.DB, model interface{}, updates interface{}, query interface{}, args ...interface{}) (*gorm.DB, error) {
 	result := db.Model(model).Where(query, args...).Updates(updates)
 	if result.Error != nil {
 		return result, result.Error
 	}
 	return result, nil
+}
+
+func UpdateFieldsInTransaction(db *gorm.DB, updates []ModelUpdate) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, update := range updates {
+			result := tx.Model(update.Model).Where(update.Where, update.Args...).Updates(update.Updates)
+			if result.Error != nil {
+				tx.Rollback()
+				return result.Error
+			}
+		}
+		return nil
+	})
+}
+
+type ModelUpdate struct {
+	Model   interface{}
+	Updates interface{}
+	Where   string
+	Args    []interface{}
 }

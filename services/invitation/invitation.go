@@ -12,17 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func UpdateRoleName(req models.InvitationCreateReq, db *gorm.DB) (models.InvitationCreateReq, error) {
-	var getOrgRole models.OrgRole
-	getOrgRole, err := getOrgRole.GetAOrgRoleByName(db, "Guest")
-	if err != nil {
-		return req, err
-	}
-
-	req.Role = getOrgRole.ID
-
-	return req, nil
-}
 
 func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
@@ -77,9 +66,8 @@ func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
 
 func GetInvitationDetails(token string, db *gorm.DB) (models.Invitation, error) {
 	var invitation models.Invitation
-	// Check if the invitation token exists in the database
+
 	exists := postgresql.CheckExists(db, &invitation, "token = ?", token)
-	// If it does, return the invitation details
 	if !exists {
 		return invitation, errors.New("Invitation link does not exist")
 	}
@@ -149,7 +137,6 @@ func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req mod
 			continue
 		}
 
-		//update the expiry time of the invitation
 		invite.ExpiresAt = time.Now().Add(24 * time.Hour)
 		invitations = append(invitations, invite)
 

@@ -40,7 +40,7 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		rd := utility.BuildErrorResponse(code, "error", "Something went wrong", nil, nil)
 		c.JSON(code, rd)
 		base.Logger.Error(err)
 		return
@@ -122,7 +122,7 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 
 	subscriptionData, code, err, _ := service.CompleteSubscription(session_id, user_id, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
 		c.JSON(code, rd)
 		base.Logger.Error(err)
 		return
