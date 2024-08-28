@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -45,13 +46,14 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
-	logger.Info(stripeCustomerParams)
+	logger.Info(fmt.Sprintf("%v", stripeCustomerParams))
 	stripeCustomer, err := customer.New(stripeCustomerParams)
 	if err != nil {
 		logger.Error(err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create Stripe customer")
 	}
-	logger.Info(stripeCustomer)
+
+	logger.Info(fmt.Sprintf("%v", stripeCustomer))
 
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
@@ -65,7 +67,8 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
 		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
 		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
-	logger.Info(params)
+
+	logger.Info(fmt.Sprintf("%v", params))
 	session, err := session.New(params)
 	if err != nil {
 		logger.Error(err.Error())
