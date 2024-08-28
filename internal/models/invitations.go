@@ -12,7 +12,7 @@ import (
 type Invitation struct {
 	ID             string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Email          string       `gorm:"type:varchar(100);" json:"email"`
-	Token          string       `gorm:"type:varchar(255);"`
+	Token          string       `gorm:"type:varchar(255);" json:"-"`
 	Status         string       `gorm:"type:varchar(100);" json:"status"`
 	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
