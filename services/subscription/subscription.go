@@ -19,9 +19,13 @@ import (
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 
+	var user models.User
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, errors.New("subscription plan not found")
+	}
+	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if url == "" {
@@ -64,6 +68,13 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 	if err != nil {
 		log.Printf("Error creating Stripe checkout session: %v", err)
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
+	}
+
+	user.SubscriptionPlanId = session.Subscription.ID
+	user.StripeCustomerID = session.Customer.ID
+	if err := db.Save(&user).Error; err != nil {
+		log.Printf("Error saving user: %v", err)
+		return nil, http.StatusBadRequest, errors.New("error updating user subscription")
 	}
 
 	responseData := gin.H{
@@ -161,7 +172,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
 	}
 
-	user.SubscriptionPlanId = subscriptionPlan.StripePriceID
+	user.SubscriptionPlanId = session.Subscription.ID
+	user.StripeCustomerID = session.Customer.ID
 	if err := db.Save(&user).Error; err != nil {
 		return nil, http.StatusBadRequest, errors.New("error updating user subscription")
 	}
