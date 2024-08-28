@@ -198,7 +198,6 @@ func (o *Organisation) GetUserOrganisations(db *gorm.DB, userID string) ([]Organ
 		orgs []Organisation
 	)
 
-	// Join the organisations table with the org_user_managements table to get the organisations the user belongs to
 	err := db.Table("organisations AS org").
 		Select("org.*").
 		Joins("JOIN org_user_managements AS oum ON org.id = oum.organisation_id").
@@ -208,7 +207,6 @@ func (o *Organisation) GetUserOrganisations(db *gorm.DB, userID string) ([]Organ
 	if err != nil {
 		return orgs, err
 	}
-
 	return orgs, nil
 }
 
@@ -357,19 +355,16 @@ func (o *Organisation) CountOrganisationChannelss(db *gorm.DB, orgId string) (in
 func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]Invitation, postgresql.PaginationResponse, error) {
 	var invitations []Invitation
 
-	// Check if the organisation exists
 	exists := postgresql.CheckExists(db, o, "id = ?", orgID)
 	if !exists {
 		return invitations, postgresql.PaginationResponse{}, errors.New("organisation not found")
 	}
 
-	// Check if the user exists
 	exists = postgresql.CheckExists(db, &User{}, "id = ?", userID)
 	if !exists {
 		return invitations, postgresql.PaginationResponse{}, errors.New("user not found")
 	}
 
-	// Check if the user is the owner of the organisation
 	isowner, err := o.IsOwnerOfOrganisation(db, userID, orgID)
 	if err != nil {
 		return invitations, postgresql.PaginationResponse{}, err
@@ -378,10 +373,7 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 		return invitations, postgresql.PaginationResponse{}, errors.New("user is not the owner of the organisation")
 	}
 
-	// Pagination
 	pagination := postgresql.GetPagination(c)
-
-	// Join with org_roles to get the role name
 	query := db.Table("invitations AS i").
 		Select("i.id, i.email, i.token, i.status, org_roles.name AS role, i.organisation_id, i.is_telex_user, i.created_at, i.expires_at").
 		Joins("JOIN org_roles ON org_roles.id = i.role::uuid").
@@ -390,7 +382,6 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
-	// Execute the query and handle errors
 	if err := query.Find(&invitations).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return invitations, postgresql.PaginationResponse{}, errors.New("invitations not found")
@@ -398,7 +389,6 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 		return invitations, postgresql.PaginationResponse{}, err
 	}
 
-	// Count total invitations for pagination
 	var totalInvites int64
 	if err := db.Table("invitations AS i").
 		Where("i.organisation_id = ?", orgID).
@@ -412,7 +402,6 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
 	}
-
 	return invitations, paginationResponse, nil
 }
 
@@ -444,7 +433,6 @@ type OrgMetricsResponse struct {
 	Users     []User `json:"users"`
 }
 
-// get organisation by organisation id
 func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMetricsResponse, error) {
 	var org Organisation
 	var ogm OrgMetricsResponse
@@ -459,7 +447,6 @@ func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMe
 		return ogm, err
 	}
 
-	//get the owner of the organisation
 	var owner User
 
 	err, _ = postgresql.SelectOneFromDb(db.Preload("Profile"), &owner, "id = ?", org.OwnerID)

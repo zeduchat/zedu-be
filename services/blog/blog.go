@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/blog_utility"
 	"gorm.io/gorm"
 )
 
@@ -24,16 +25,29 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 		return err
 	}
 
-	req.Title = utility.CleanStringInput(req.Title)
-	req.Content = utility.CleanStringInput(req.Content)
+	var user models.User
+	user, _ = user.GetUserWithProfile(db, userId)
+
+	frontMatter, markdownContent, err := blog_utility.ParseFrontMatter(req.Content)
+	if err != nil {
+		return err
+	}
+
+	htmlContent := blog_utility.ConvertMarkdownToHTML(markdownContent)
 
 	blog := models.Blog{
-		ID:         utility.GenerateUUID(),
-		Title:      req.Title,
-		Content:    req.Content,
-		CategoryID: req.CategoryID,
-		ImageURL:   req.ImageURL,
-		AuthorID:   userId,
+		ID:           utility.GenerateUUID(),
+		Title:        frontMatter.Title,
+		Content:      req.Content,
+		HTMLContent:  htmlContent,
+		Summary:      frontMatter.Summary,
+		ImageURL:     frontMatter.Image,
+		PreviewImage: frontMatter.PreviewImage,
+		CategoryID:   req.CategoryID,
+		AuthorID:     userId,
+		AuthorName:   user.Name,
+		AuthorAvatar: user.Profile.AvatarURL,
+		PublishedAt:  frontMatter.PublishedAt,
 	}
 
 	err = blog.Create(db)
@@ -79,7 +93,7 @@ func GetBlogById(blogId string, db *gorm.DB) (models.Blog, error) {
 
 	blogCategory.ID = blog.CategoryID
 	err = blogCategory.GetBlogCategoryById(db)
-	
+
 	if err != nil {
 		return blog, err
 	}

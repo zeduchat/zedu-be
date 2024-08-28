@@ -37,6 +37,7 @@ func TestDeleteBlogs(t *testing.T) {
 		Content:    "something soemthing",
 		CategoryID: blogCategory.ID,
 		AuthorID:   regularUser.ID,
+		AuthorName: regularUser.Name,
 	}
 
 	db.Create(&regularUser)
