@@ -66,6 +66,7 @@ jobs:
           SLACK_BASE_URL: ${{ secrets.SLACK_BASE_URL }}
           TELEX_LOGIN_CHANNEL: ${{ vars.TELEX_LOGIN_CHANNEL }}
           TELEX_SIGNUP_CHANNEL: ${{ vars.TELEX_SIGNUP_CHANNEL }}
+          SERVER_ACCESSTOKENEXPIREDURATION: ${{ vars.SERVER_ACCESSTOKENEXPIREDURATION }}
 
       - name: Copy app.env to server
         run: |
