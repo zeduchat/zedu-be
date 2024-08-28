@@ -31,7 +31,7 @@ func (base *Controller) CreateBlog(c *gin.Context) {
 	}
 
 	if _, err := uuid.Parse(categoryID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid category id format", "failed to create blog", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid category id format", "failed to create blog", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

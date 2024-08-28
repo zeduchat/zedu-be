@@ -2,8 +2,9 @@ package test_blog
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -56,78 +57,62 @@ func TestCreateBlog(t *testing.T) {
 	}
 
 	token := tst.GetLoginToken(t, router, *authController, loginData)
+	content := `---
+title: "How Telex is Changing the Game for Real-Time Notifications in Applications"
+publishedAt: "2024-08-28"
+summary: "Telex is setting a new standard for real-time notifications with its advanced features and innovative approach. Explore how this tool is transforming the way applications handle real-time events."
+image: "/images/video/banner.png"
+previewImage: "/images/about-us.jpg"
+---
+
+[Telex](http://telexapp.com/) is redefining the landscape of real-time notifications with its state-of-the-art technology. As businesses increasingly rely on real-time data to drive their operations, Telex provides a groundbreaking solution that addresses the limitations of traditional notification systems.
+`
 
 	tests := []struct {
 		Name         string
-		RequestBody  models.BlogCreateReq
+		CategoryID   string
+		FileContent  string
 		ExpectedCode int
 		Message      string
 		Headers      map[string]string
 	}{
 		{
-			Name: "Successful creation of blog",
-			RequestBody: models.BlogCreateReq{
-				Title:      "sometitle",
-				Content:    "testcontent",
-				CategoryID: blogCategory.ID,
-			},
+			Name:         "Successful creation of blog",
+			CategoryID:   blogCategory.ID,
+			FileContent:  content,
 			ExpectedCode: http.StatusCreated,
 			Message:      "blog created successfully",
 			Headers: map[string]string{
-				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
 		{
-			Name: "Unauthorized Access",
-			RequestBody: models.BlogCreateReq{
-				Title:      "sometitle",
-				Content:    "testcontent",
-				CategoryID: blogCategory.ID,
-			},
+			Name:         "Unauthorized Access",
+			CategoryID:   blogCategory.ID,
+			FileContent:  content,
 			ExpectedCode: http.StatusUnauthorized,
 			Message:      "Token could not be found!",
 			Headers: map[string]string{
-				"Content-Type": "application/json",
+				"Authorization": "",
 			},
 		},
 		{
-			Name: "Invalid Category Id",
-			RequestBody: models.BlogCreateReq{
-				Title:      "sometitle",
-				Content:    "testcontent",
-				CategoryID: "invalid-id-uututu",
-			},
+			Name:         "Invalid Category Id",
+			CategoryID:   "invalid-id-uututu",
+			FileContent:  content,
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "invalid blog id format",
+			Message:      "invalid category id format",
 			Headers: map[string]string{
-				"Content-Type": "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
 		{
-			Name: "Blog category Not Found",
-			RequestBody: models.BlogCreateReq{
-				Title:      "sometitle",
-				Content:    "testcontent",
-				CategoryID: utility.GenerateUUID(),
-			},
+			Name:         "Blog category Not Found",
+			CategoryID:   utility.GenerateUUID(),
+			FileContent:  content,
 			ExpectedCode: http.StatusNotFound,
 			Message:      "blog category not found",
 			Headers: map[string]string{
-				"Content-Type": "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name: "Validation failed",
-			RequestBody: models.BlogCreateReq{
-				Content: "testcontent",
-			},
-			ExpectedCode: http.StatusUnprocessableEntity,
-			Message:      "Validation failed",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
 		},
@@ -136,10 +121,25 @@ func TestCreateBlog(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			var b bytes.Buffer
-			json.NewEncoder(&b).Encode(test.RequestBody)
+			writer := multipart.NewWriter(&b)
+
+			// Add form field for category_id
+			writer.WriteField("category_id", test.CategoryID)
+
+			// Add file field for content
+			part, err := writer.CreateFormFile("content", "blog.md")
+			if err != nil {
+				t.Fatalf("failed to create form file: %v", err)
+			}
+			_, err = io.WriteString(part, test.FileContent)
+			if err != nil {
+				t.Fatalf("failed to write to form file: %v", err)
+			}
+
+			writer.Close()
 
 			req, _ := http.NewRequest(http.MethodPost, "/api/v1/blogs", &b)
-
+			req.Header.Set("Content-Type", writer.FormDataContentType())
 			for i, v := range test.Headers {
 				req.Header.Set(i, v)
 			}
@@ -150,7 +150,6 @@ func TestCreateBlog(t *testing.T) {
 			tst.AssertStatusCode(t, resp.Code, test.ExpectedCode)
 			response := tst.ParseResponse(resp)
 			tst.AssertResponseMessage(t, response["message"].(string), test.Message)
-
 		})
 	}
 }
