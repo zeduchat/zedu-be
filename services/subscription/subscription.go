@@ -19,9 +19,13 @@ import (
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 
+	var user models.User
 	var subscriptionPlan models.SubscriptionPlan
 	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
 		return nil, http.StatusNotFound, errors.New("subscription plan not found")
+	}
+	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
+		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
 	if url == "" {
@@ -57,7 +61,7 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB, url 
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing"),
+		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
 
 	session, err := session.New(params)
@@ -152,8 +156,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/plan/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/plan/billing/"),
+		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "dashboard/settings/billing/"),
 	}
 
 	session, err := session.New(params)
@@ -161,7 +165,8 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
 	}
 
-	user.SubscriptionPlanId = subscriptionPlan.StripePriceID
+	user.SubscriptionPlanId = session.Subscription.ID
+	user.StripeCustomerID = session.Customer.ID
 	if err := db.Save(&user).Error; err != nil {
 		return nil, http.StatusBadRequest, errors.New("error updating user subscription")
 	}
