@@ -476,3 +476,14 @@ func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name strin
 
 	return channels, paginationResponse, nil
 }
+
+func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
+	var channel Channels
+
+	exists := postgresql.CheckExists(db, &channel, "id = ?", channelID)
+	if !exists {
+		return exists, errors.New("channel does not exist")
+	}
+
+	return exists, nil
+}
