@@ -151,7 +151,7 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 		return
 	}
 
-	subscriptionData, code, _, err := service.CompleteSubscription(req, base.Db.Postgresql)
+	subscriptionData, code, _, err := service.CompleteSubscription(req, base.Db.Postgresql, base.Db.Redis)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
 		c.JSON(code, rd)

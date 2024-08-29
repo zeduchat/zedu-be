@@ -15,7 +15,7 @@ func (base *Controller) DownloadInvoice(ctx *gin.Context) {
 		orgID     = ctx.Param("org_id")
 	)
 
-	err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, orgID)
+	err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, base.Db.Redis, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		base.Logger.Error(err)
