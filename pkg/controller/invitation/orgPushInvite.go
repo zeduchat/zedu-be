@@ -1,6 +1,7 @@
 package invitation
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -40,8 +41,6 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	
-
 	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
 	if err != nil {
 		base.Logger.Info("Failed to validate user", err)
@@ -57,6 +56,13 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		base.Logger.Info("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	if len(inviteMap) == 0 {
+		base.Logger.Info("No invitations created. User(s) list is either empty or all invitees have pending invitations")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 

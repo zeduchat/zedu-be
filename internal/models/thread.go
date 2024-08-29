@@ -98,7 +98,6 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 		Count(&cc.TotalThreads).Error
 
 	// Channel metrics
-
 	err := db.Model(&Threads{}).
 		Select("channels.name AS channel_name, "+
 			"COUNT(threads.id) AS thread_count, "+
