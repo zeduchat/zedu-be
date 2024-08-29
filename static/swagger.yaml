@@ -7033,23 +7033,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'  
                 
-  /threads/organisations/{orgId}/metrics:
+  /threads/organisations/{organisationId}/metrics:
     get:
       tags:
       - Overview
-      summary: Retrieve Metrics for Organisation Threads
-      description: Retrieve various metrics for threads within an organisation, including channel-specific metrics.
+      summary: Get Organization Thread Metrics
+      description: Retrieves metrics for threads associated with a specific organization over a given number of days.
       parameters:
-        - name: orgId
+        - name: organisationId
           in: path
           required: true
-          description: ID of the organisation to retrieve metrics for.
+          description: Unique identifier of the organization.
           schema:
             type: string
-            example: "01915ec5-5880-72b7-8956-8a43dbc36a8b"
+            format: uuid
+        - name: days
+          in: query
+          required: true
+          description: The number of days for which to retrieve metrics.
+          schema:
+            type: integer
+            example: 7
       responses:
-        200:
-          description: Data retrieved successfully
+        '200':
+          description: Successfully retrieved thread metrics.
           content:
             application/json:
               schema:
@@ -7070,18 +7077,18 @@ paths:
                       channel_count_info:
                         type: object
                         properties:
-                          total_threads:
+                          total_success_threads:
                             type: integer
-                            example: 18
+                            example: 16
                           total_error_threads:
                             type: integer
-                            example: 5
+                            example: 4
                           total_members:
                             type: integer
-                            example: 2
+                            example: 6
                           total_resolved_threads:
                             type: integer
-                            example: 2
+                            example: 14
                       channel_metrics:
                         type: array
                         items:
@@ -7089,13 +7096,13 @@ paths:
                           properties:
                             channel_name:
                               type: string
-                              example: readers
+                              example: Default
                             thread_count:
                               type: integer
                               example: 14
                             success_count:
                               type: integer
-                              example: 1
+                              example: 12
                             error_count:
                               type: integer
                               example: 2
