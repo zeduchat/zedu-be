@@ -31,6 +31,7 @@ type Organisation struct {
 	Channels           []Channels       `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"channels"`
 	SubscriptionPlanId string           `gorm:"column:subscription_plan_id; type:varchar(255); default:'free'" json:"subscription_plan_id"`
 	StripeCustomerID   string           `gorm:"column:stripe_customer_id; type:varchar(255)" json:"stripe_customer_id"`
+	OrgPlanID          string           `gorm:"type:varchar(100);null;index" json:"org_plan_id"`
 	OrganisationPlan   OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan"`
 }
 

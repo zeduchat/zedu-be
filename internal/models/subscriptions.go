@@ -1,9 +1,11 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
 
@@ -60,17 +62,40 @@ type OrganisationPlan struct {
 	OrganisationID string         `gorm:"not null;index" json:"organisation_id"`
 	PlanID         string         `gorm:"not null;index" json:"plan_id"`
 	StartedAt      time.Time      `gorm:"column:started_at;null; autoCreateTime" json:"started_at"`
-	EndedAt        *time.Time     `gorm:"column:ended_at; null" json:"ended_at"`
+	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at"`
 	Status         string         `gorm:"null" json:"status"`
 	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-func (r *OrganisationPlan) GetAPlanById(db *gorm.DB, orgID string) (OrganisationPlan, error) {
+func (c *OrganisationPlan) Create(db *gorm.DB) error {
+
+	err := postgresql.CreateOneRecord(db, &c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *OrganisationPlan) Update(db *gorm.DB) (*OrganisationPlan, error) {
+	result, err := postgresql.SaveAllFields(db, &c)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, errors.New("failed to update organisation plan")
+	}
+
+	return c, nil
+}
+
+func (r *OrganisationPlan) GetAnOrgPlanById(db *gorm.DB, orgID string) (OrganisationPlan, error) {
 	var orgPlan OrganisationPlan
 
-	query := db.Where("organisation_id = ? AND status = ?", orgID, "Active")
+	query := db.Where("organisation_id = ? AND status = ?", orgID, "Active").
+		Order("started_at DESC")
 	err := query.First(&orgPlan).Error
 
 	if err != nil {
@@ -78,4 +103,16 @@ func (r *OrganisationPlan) GetAPlanById(db *gorm.DB, orgID string) (Organisation
 	}
 
 	return orgPlan, nil
+}
+
+func (r *Plan) GetAPlanByAmount(db *gorm.DB, planAmt int) (Plan, error) {
+
+	query := db.Where("fee = ?", planAmt)
+	err := query.First(&r).Error
+
+	if err != nil {
+		return *r, err
+	}
+
+	return *r, nil
 }

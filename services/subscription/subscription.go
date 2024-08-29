@@ -10,7 +10,6 @@ import (
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/customer"
-	"github.com/stripe/stripe-go/v72/invoice"
 	"github.com/stripe/stripe-go/v72/product"
 	"github.com/stripe/stripe-go/v72/sub"
 	"gorm.io/gorm"
@@ -149,14 +148,6 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
 	}
 
-	org.SubscriptionPlanId = session.Subscription.ID
-	org.StripeCustomerID = session.Customer.ID
-
-	_, err = org.Update(db)
-	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("error updating org subscription")
-	}
-
 	responseData := gin.H{
 		"checkout_session_id":  session.ID,
 		"checkout_session_url": session.URL,
@@ -189,55 +180,4 @@ func DeleteSubscription(orgId string, db *gorm.DB) (int, error) {
 	}
 
 	return http.StatusOK, nil
-}
-
-func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB) (*gin.H, int, *stripe.Invoice, error) {
-	var org models.Organisation
-	org, err := org.GetOrgByID(db, req.OrgID)
-	if err != nil {
-		return nil, http.StatusNotFound, nil, errors.New("org not found")
-	}
-
-	sesh, err := session.Get(req.StripeSessionID, nil)
-	if err != nil {
-		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
-	}
-
-	if sesh.PaymentStatus != "paid" {
-		return nil, http.StatusBadRequest, nil, errors.New("session not paid")
-	}
-
-	if sesh.Subscription == nil || sesh.Subscription.ID == "" {
-		return nil, http.StatusBadRequest, nil, errors.New("no subscription ID found")
-	}
-
-	org.SubscriptionPlanId = sesh.Subscription.ID
-	org.StripeCustomerID = sesh.Customer.ID
-
-	_, err = org.Update(db)
-	if err != nil {
-		return nil, http.StatusBadRequest, nil, errors.New("error updating org subscription plan")
-	}
-
-	params := &stripe.InvoiceListParams{
-		Subscription: stripe.String(sesh.Subscription.ID),
-	}
-
-	i := invoice.List(params)
-
-	var invoiceItems []*stripe.Invoice
-
-	for i.Next() {
-		invoiceItems = append(invoiceItems, i.Invoice())
-	}
-
-	if err := i.Err(); err != nil {
-		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
-	}
-
-	responseData := gin.H{
-		"invoice_items": invoiceItems,
-	}
-
-	return &responseData, http.StatusOK, invoiceItems[0], nil
 }

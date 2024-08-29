@@ -30,7 +30,7 @@ func PlanMiddleware(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		cachedPlan, err := rd.RedisGet(rdb, cacheKey)
 		if err == redis.Nil || len(cachedPlan) == 0 {
 
-			currentPlan, err := currentPlan.GetAPlanById(db, orgID)
+			currentPlan, err := currentPlan.GetAnOrgPlanById(db, orgID)
 			if err != nil {
 				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to load plan", nil)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, r)

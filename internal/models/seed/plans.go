@@ -25,6 +25,21 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 
 		plans := []models.Plan{
 			{
+				ID:                      utility.GenerateUUID(),
+				Name:                    "Free",
+				Fee:                     0,
+				MaxChannels:             -1,
+				MaxUsers:                -1,
+				MaxNotifications:        -1,
+				CanUpgradeNotifications: true,
+				CanAddUnlimitedChannels: true,
+				CanAddUnlimitedUsers:    true,
+				IsForIndividuals:        false,
+				IsForSmallBusiness:      false,
+				IsForLargeEnterprise:    true,
+			},
+			{
+				ID:                      utility.GenerateUUID(),
 				Name:                    "Starter",
 				Fee:                     10,
 				MaxChannels:             5,
@@ -38,6 +53,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForLargeEnterprise:    false,
 			},
 			{
+				ID:                      utility.GenerateUUID(),
 				Name:                    "Business",
 				Fee:                     50,
 				MaxChannels:             10,
@@ -51,6 +67,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForLargeEnterprise:    false,
 			},
 			{
+				ID:                      utility.GenerateUUID(),
 				Name:                    "Enterprise",
 				Fee:                     1000,
 				MaxChannels:             -1,
