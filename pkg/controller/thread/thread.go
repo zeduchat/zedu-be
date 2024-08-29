@@ -98,7 +98,6 @@ func (base *Controller) GetChannelThreads(c *gin.Context) {
 
 }
 
-
 func (base *Controller) GetUserSingleThreads(c *gin.Context) {
 
 	var (
@@ -261,7 +260,6 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		orgID = c.Param("org_id")
 	)
 
-	// Parse days query parameter
 	daysStr := c.DefaultQuery("days", "7")
 	days, err := strconv.Atoi(daysStr)
 	if err != nil {
