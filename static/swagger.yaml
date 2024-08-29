@@ -3430,26 +3430,30 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
 
-  /subscriptions/session/{session_id}/{user_id}:
-    get:
+  /subscriptions/complete:
+    post:
       summary: Complete a subscription and retrieve associated invoices
       tags:
         - subscription
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: session_id
-          required: true
-          schema:
-            type: string
-          description: The ID of the session to complete the subscription.
-        - in: path
-          name: user_id
-          required: true
-          schema:
-            type: string
-          description: The ID of the user whose subscription is being completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                org_id:
+                  type: string
+                  format: uuid
+                  example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
+                stripe_session_id:
+                  type: string
+                  example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
+              required:
+                - org_id
+                - stripe_session_id
       responses:
         '200':
           description: Subscription completed successfully and invoices retrieved
@@ -3535,7 +3539,7 @@ paths:
 
 
    
-  /subscriptions/list/{user_id}:
+  /subscriptions/list/{orgId}:
     get:
       summary: List subscriptions for a user
       tags:
@@ -3544,10 +3548,11 @@ paths:
         - bearerAuth: []
       parameters:
         - in: path
-          name: user_id
+          name: orgId
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         '200':
           description: Subscriptions retrieved successfully
@@ -3605,7 +3610,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /invoice/download/session_id/user_id:
+  /invoice/download/sessionId/orgId:
     get:
       summary: Complete a subscription and retrieve invoice items
       description: This endpoint completes a subscription based on the provided session ID and returns the associated invoice items.
@@ -3613,17 +3618,17 @@ paths:
         - subscription
       parameters:
         - in: query
-          name: session_id
+          name: sessionId
           required: true
           schema:
             type: string
           description: The ID of the Stripe Checkout Session
         - in: query
-          name: user_id
+          name: orgId
           required: true
           schema:
             type: string
-          description: The ID of the user whose subscription is being completed
+          description: The ID of the org whose subscription is being completed
       responses:
         '200':
           description: Successful operation
@@ -3653,8 +3658,9 @@ paths:
                 type: object
                 properties:
                   error:
-                    type: string              
-  /api/v1/subscriptions/delete/{user_id}:
+                    type: string   
+
+  /subscriptions/{orgId}:
     delete:
       summary: Delete a subscription
       tags:
@@ -3662,7 +3668,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: user_id
+        - name: orgId
           in: path
           required: true
           schema:

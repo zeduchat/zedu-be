@@ -2,13 +2,11 @@ package subscription
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/utility"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/customer"
@@ -19,36 +17,27 @@ import (
 )
 
 func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
-	url string, logger *utility.Logger) (*gin.H, int, error) {
-	if req == nil || req.PlanName == "" || req.UserID == "" || req.Email == "" || url == "" {
-		logger.Error("missing required parameters")
-		return nil, http.StatusBadRequest, errors.New("missing required parameters")
-	}
+	url string) (*gin.H, int, error) {
+	var org models.Organisation
 
-	var user models.User
-
-	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
-		logger.Error(err.Error())
-		return nil, http.StatusNotFound, errors.New("user not found")
+	org, err := org.GetOrgByID(db, req.OrgID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("org not found")
 	}
 
 	stripePriceID, exists := models.StripeMap[req.PlanName]
 	if !exists {
-		logger.Error("missing StripePriceID for subscription plan")
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
 
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
-	logger.Info(fmt.Sprintf("%v", stripeCustomerParams))
+
 	stripeCustomer, err := customer.New(stripeCustomerParams)
 	if err != nil {
-		logger.Error(err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create Stripe customer")
 	}
-
-	logger.Info(fmt.Sprintf("%v", stripeCustomer))
 
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
@@ -63,10 +52,8 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
 		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
 
-	logger.Info(fmt.Sprintf("%v", params))
 	session, err := session.New(params)
 	if err != nil {
-		logger.Error(err.Error())
 		return nil, http.StatusBadRequest, err
 	}
 
@@ -74,19 +61,18 @@ func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
 		"checkout_session_id":  session.ID,
 		"checkout_session_url": session.URL,
 	}
+
 	return &responseData, http.StatusOK, nil
 }
 
 func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
-	var user models.User
-	if err := db.First(&user, "id = ?", customerID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, http.StatusNotFound, errors.New("user not found")
-		}
-		return nil, http.StatusBadRequest, errors.New("internal server error")
+	var org models.Organisation
+	org, err := org.GetOrgByID(db, customerID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("org not found")
 	}
 
-	subscription, err := sub.Get(user.SubscriptionPlanId, nil)
+	subscription, err := sub.Get(org.SubscriptionPlanId, nil)
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("failed to retrieve subscription")
 	}
@@ -129,29 +115,27 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 }
 
 func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
-	var subscriptionPlan models.SubscriptionPlan
-	if err := db.Where("name = ?", req.PlanName).First(&subscriptionPlan).Error; err != nil {
-		return nil, http.StatusNotFound, errors.New("subscription plan not found")
-	}
 
-	if subscriptionPlan.StripePriceID == "" {
+	stripePriceID, exists := models.StripeMap[req.PlanName]
+	if !exists {
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
 
-	var user models.User
-	if err := db.Where("id = ?", req.UserID).First(&user).Error; err != nil {
-		return nil, http.StatusNotFound, errors.New("user not found")
+	var org models.Organisation
+	org, err := org.GetOrgByID(db, req.OrgID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("org not found")
 	}
 
-	if user.StripeCustomerID == "" {
-		return nil, http.StatusBadRequest, errors.New("user does not have a Stripe customer ID")
+	if org.StripeCustomerID == "" {
+		return nil, http.StatusBadRequest, errors.New("org does not have a Stripe customer ID")
 	}
 
 	params := &stripe.CheckoutSessionParams{
-		Customer: stripe.String(user.StripeCustomerID),
+		Customer: stripe.String(org.StripeCustomerID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(subscriptionPlan.StripePriceID),
+				Price:    stripe.String(stripePriceID),
 				Quantity: stripe.Int64(1),
 			},
 		},
@@ -165,10 +149,12 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 		return nil, http.StatusBadRequest, errors.New("failed to create checkout session")
 	}
 
-	user.SubscriptionPlanId = session.Subscription.ID
-	user.StripeCustomerID = session.Customer.ID
-	if err := db.Save(&user).Error; err != nil {
-		return nil, http.StatusBadRequest, errors.New("error updating user subscription")
+	org.SubscriptionPlanId = session.Subscription.ID
+	org.StripeCustomerID = session.Customer.ID
+
+	_, err = org.Update(db)
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("error updating org subscription")
 	}
 
 	responseData := gin.H{
@@ -179,56 +165,58 @@ func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url 
 	return &responseData, http.StatusOK, nil
 }
 
-func DeleteSubscription(userId string, db *gorm.DB) (int, error) {
-	var user models.User
-	if err := db.First(&user, "id = ?", userId).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return http.StatusNotFound, errors.New("user not found")
-		}
+func DeleteSubscription(orgId string, db *gorm.DB) (int, error) {
+	var org models.Organisation
+	org, err := org.GetOrgByID(db, orgId)
+	if err != nil {
+		return http.StatusNotFound, errors.New("org not found")
 	}
 
-	if user.SubscriptionPlanId == "" {
-		return http.StatusBadRequest, errors.New("user has no subscription plan")
+	if org.SubscriptionPlanId == "" {
+		return http.StatusBadRequest, errors.New("org has no subscription plan")
 	}
 
-	_, err := sub.Cancel(user.SubscriptionPlanId, nil)
+	_, err = sub.Cancel(org.SubscriptionPlanId, nil)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("error cancelling subscription")
 	}
 
-	user.SubscriptionPlanId = ""
+	org.SubscriptionPlanId = ""
 
-	if err := db.Save(&user).Error; err != nil {
-		return http.StatusBadRequest, errors.New("error updating user subscription plan")
+	_, err = org.Update(db)
+	if err != nil {
+		return http.StatusBadRequest, errors.New("error updating org subscription plan")
 	}
 
 	return http.StatusOK, nil
 }
 
-func CompleteSubscription(session_id, user_id string, db *gorm.DB) (*gin.H, int, error, *stripe.Invoice) {
-	var user models.User
-	if err := db.First(&user, "id = ?", user_id).Error; err != nil {
-		return nil, http.StatusBadRequest, errors.New("error finding user"), nil
+func CompleteSubscription(req *models.CompleteSubscriptionRequest, db *gorm.DB) (*gin.H, int, *stripe.Invoice, error) {
+	var org models.Organisation
+	org, err := org.GetOrgByID(db, req.OrgID)
+	if err != nil {
+		return nil, http.StatusNotFound, nil, errors.New("org not found")
 	}
 
-	sesh, err := session.Get(session_id, nil)
+	sesh, err := session.Get(req.OrgID, nil)
 	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("error getting session"), nil
+		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
 	}
 
 	if sesh.PaymentStatus != "paid" {
-		return nil, http.StatusBadRequest, errors.New("session not paid"), nil
+		return nil, http.StatusBadRequest, nil, errors.New("session not paid")
 	}
 
 	if sesh.Subscription == nil || sesh.Subscription.ID == "" {
-		return nil, http.StatusBadRequest, errors.New("no subscription ID found"), nil
+		return nil, http.StatusBadRequest, nil, errors.New("no subscription ID found")
 	}
 
-	user.SubscriptionPlanId = sesh.Subscription.ID
-	user.StripeCustomerID = sesh.Customer.ID
+	org.SubscriptionPlanId = sesh.Subscription.ID
+	org.StripeCustomerID = sesh.Customer.ID
 
-	if err := db.Save(&user).Error; err != nil {
-		return nil, http.StatusBadRequest, errors.New("error updating user subscription"), nil
+	_, err = org.Update(db)
+	if err != nil {
+		return nil, http.StatusBadRequest, nil, errors.New("error updating org subscription plan")
 	}
 
 	params := &stripe.InvoiceListParams{
@@ -244,12 +232,12 @@ func CompleteSubscription(session_id, user_id string, db *gorm.DB) (*gin.H, int,
 	}
 
 	if err := i.Err(); err != nil {
-		return nil, http.StatusBadRequest, errors.New("error retrieving invoice"), nil
+		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
 	}
 
 	responseData := gin.H{
 		"invoice_items": invoiceItems,
 	}
 
-	return &responseData, http.StatusOK, nil, invoiceItems[0]
+	return &responseData, http.StatusOK, invoiceItems[0], nil
 }
