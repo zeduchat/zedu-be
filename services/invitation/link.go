@@ -56,7 +56,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		//check if the user's email has a pending invitation for that organisation with a pending status
 		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ? AND status = ?", email, inviteReq.OrganisationID, "invited")
 		if invitationExists {
-			errors = append(errors, fmt.Sprintf("An invitation has already been sent to %s", email))
+			errors = append(errors, fmt.Sprintf("%s already has a pending invitation. Check your mail", email))
 			continue
 		}
 
