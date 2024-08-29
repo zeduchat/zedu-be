@@ -20,9 +20,15 @@ func SendSlacKNotification(req models.SendSlackRequest, logger *utility.Logger) 
 		TitleLink:  req.TitleLink,
 	}
 
+	title := req.TitleAction
+
+	if len(title) > 25 {
+		title = fmt.Sprintf("%s...", title[:25])
+	}
+
 	attachment.AddField(slack.Field{
 		Title: "Action",
-		Value: fmt.Sprintf("%s...", req.TitleAction[:20]),
+		Value: title,
 		Short: true,
 	})
 

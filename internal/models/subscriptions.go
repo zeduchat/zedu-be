@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/hngprojects/telex_be/internal/config"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/config"
 )
 
 var StripeMap map[string]string
