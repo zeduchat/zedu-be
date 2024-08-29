@@ -52,7 +52,7 @@ type ChannelDocument struct {
 type ChannelCountInfo struct {
 	TotalSuccessThreads  int64 `json:"total_success_threads"`
 	TotalErrorThreads    int64 `json:"total_error_threads"`
-	TotalMembers         int64 `json:"total_members"`
+	TotalThreads         int64 `json:"total_threads"`
 	TotalResolvedThreads int64 `json:"total_resolved_threads"`
 }
 type ChannelMetrics struct {
@@ -72,7 +72,6 @@ type CreateThreadMsgReq struct {
 func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
 		cc                ChannelCountInfo
-		om                OrgUserManagement
 		channelThreadInfo []ChannelMetrics
 	)
 
@@ -93,9 +92,10 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 		Where("channels.organisation_id = ? AND threads.current_status = ? AND "+dateCondition, orgId, "resolved").
 		Count(&cc.TotalResolvedThreads).Error
 
-	_ = db.Model(&om).
-		Where("organisation_id = ?", orgId).
-		Count(&cc.TotalMembers).Error
+	_ = db.Model(&t).
+		Joins("JOIN channels ON channels.id = threads.channels_id").
+		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
+		Count(&cc.TotalThreads).Error
 
 	// Channel metrics
 
