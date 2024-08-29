@@ -13,7 +13,7 @@ import (
 
 func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, orgID string) error {
 
-	req := &models.CompleteSubscriptionRequest{
+	req := models.CompleteSubscriptionRequest{
 		OrgID:           orgID,
 		StripeSessionID: sessionID,
 	}

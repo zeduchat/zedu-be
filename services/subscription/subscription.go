@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateSubscription(req *models.CreateSubscriptionRequest, db *gorm.DB,
+func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	url string) (*gin.H, int, error) {
 	var org models.Organisation
 
@@ -114,7 +114,7 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 	return &responseData, http.StatusOK, nil
 }
 
-func ModifySubscription(req *models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
+func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 
 	stripePriceID, exists := models.StripeMap[req.PlanName]
 	if !exists {
@@ -191,7 +191,7 @@ func DeleteSubscription(orgId string, db *gorm.DB) (int, error) {
 	return http.StatusOK, nil
 }
 
-func CompleteSubscription(req *models.CompleteSubscriptionRequest, db *gorm.DB) (*gin.H, int, *stripe.Invoice, error) {
+func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB) (*gin.H, int, *stripe.Invoice, error) {
 	var org models.Organisation
 	org, err := org.GetOrgByID(db, req.OrgID)
 	if err != nil {

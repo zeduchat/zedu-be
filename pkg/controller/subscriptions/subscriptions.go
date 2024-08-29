@@ -22,7 +22,7 @@ type Controller struct {
 func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	var (
-		req *models.CreateSubscriptionRequest
+		req models.CreateSubscriptionRequest
 		url = c.Request.Header.Get("Referer")
 	)
 
@@ -32,14 +32,15 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 		return
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		base.Logger.Error(err.Error())
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if err := base.Validator.Struct(&req); err != nil {
+	err = base.Validator.Struct(&req)
+	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -80,18 +81,19 @@ func (base *Controller) ListSubscriptions(c *gin.Context) {
 func (base *Controller) ModifySubscription(c *gin.Context) {
 
 	var (
-		req *models.ModifySubscriptionRequest
+		req models.ModifySubscriptionRequest
 		url = c.Request.Header.Get("Referer")
 	)
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
-		base.Logger.Error(err)
 		return
 	}
 
-	if err := base.Validator.Struct(&req); err != nil {
+	err = base.Validator.Struct(&req)
+	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -131,17 +133,18 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 func (base *Controller) CompleteSubscription(c *gin.Context) {
 
 	var (
-		req *models.CompleteSubscriptionRequest
+		req models.CompleteSubscriptionRequest
 	)
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		base.Logger.Error(err.Error())
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if err := base.Validator.Struct(&req); err != nil {
+	err = base.Validator.Struct(&req)
+	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
