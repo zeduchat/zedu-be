@@ -91,3 +91,29 @@ func (base *Controller) GetBlogCategoryById(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "blog category retrieved successfully", blog)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) DeleteBlogCategory(c *gin.Context) {
+	categoryID := c.Param("id")
+
+	if _, err := uuid.Parse(categoryID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid blog category id format", "failed to delete blog category", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := service.DeleteBlogCategory(categoryID, base.Db.Postgresql); err != nil {
+		if err.Error() == "blog category not found" {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to delete blog category", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to delete blog category", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("blog category successfully deleted")
+	rd := utility.BuildSuccessResponse(http.StatusNoContent, "", nil)
+	c.JSON(http.StatusNoContent, rd)
+
+}
