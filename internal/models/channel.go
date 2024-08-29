@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"time"
@@ -29,7 +30,6 @@ type Channels struct {
 	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
 }
-
 
 type UserChannels struct {
 	ChannelsID string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
@@ -70,10 +70,10 @@ type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
 }
 type ChannelInfoResponse struct {
-	ID 		string `json:"id"`
-	Name 	string `json:"name"`
-	Description string `json:"description"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type UserMsgProfile struct {
@@ -95,6 +95,11 @@ type MessagesResp []struct {
 type ChannelInfo struct {
 	ChannelID string `json:"channel_id"`
 	UserID    string `json:"user_id"`
+}
+
+type AddMultipleMembersRequest struct {
+	ChannelID string   `json:"channel_id" validate:"required"`
+	UserIDs   []string `json:"user_ids" validate:"required"`
 }
 
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -337,6 +342,53 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	return channel, nil
 }
 
+func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
+	var (
+		users        = req.UserIDs
+		channelID    = req.ChannelID
+		userChannels UserChannels
+		userChanList []UserChannels
+		addError     []string
+	)
+
+	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
+	if !exists {
+		return addError, errors.New("channel does not exist")
+	}
+
+	if len(users) > 10 {
+		return addError, errors.New("maximum of 10 users can be added")
+	}
+
+	for _, user := range users {
+
+		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
+		if exist {
+			addError = append(addError, fmt.Sprintf("%s already in the channel", userChannels.Username))
+			continue
+		}
+
+		userChannels = UserChannels{
+			ChannelsID: channelID,
+			UserID:     user,
+			Username:   userChannels.Username,
+		}
+
+		userChanList = append(userChanList, userChannels)
+	}
+
+	if len(userChanList) == 0 {
+		return addError, errors.New("no user added to channel. All users already in channel")
+	}
+
+	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
+	if err != nil {
+		return addError, errors.New("could not add user to channel")
+	}
+
+	return addError, nil
+}
+
 func (r *Channels) RemoveUserFromChannels(db *gorm.DB, channelID, userID string) error {
 	var userChannels UserChannels
 
@@ -495,17 +547,33 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	return exists, nil
 }
 
-func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId string) ([]ChannelInfoResponse, error) {
-    var cir []ChannelInfoResponse
+func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) ([]ChannelInfoResponse, error) {
+	var cir []ChannelInfoResponse
 
-    err := db.Table("user_channels").
-        Select("channels.id, channels.name, channels.description, channels.created_at").
-        Joins("join channels on user_channels.channels_id = channels.id").
-        Where("user_channels.user_id = ?", userId).
-        Scan(&cir).Error
+	err := db.Table("user_channels").
+		Select("channels.id, channels.name, channels.description, channels.created_at").
+		Joins("join channels on user_channels.channels_id = channels.id").
+		Where("channels.organisation_id = ?", orgID).
+		Where("user_channels.user_id = ?", userId).
+		Scan(&cir).Error
 
-    if err != nil {
-        return cir, errors.New("could not get user channels")
-    }
-    return cir, nil
+	if err != nil {
+		return cir, errors.New("could not get user channels")
+	}
+	return cir, nil
+}
+
+func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) ([]ChannelInfoResponse, error) {
+	var cir []ChannelInfoResponse
+
+	err := db.Table("channels").
+		Select("channels.id, channels.name, channels.description, channels.created_at").
+		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
+		Where("channels.organisation_id = ?", orgId).
+		Scan(&cir).Error
+
+	if err != nil {
+		return cir, errors.New("could not get channels user is not part of")
+	}
+	return cir, nil
 }

@@ -2679,7 +2679,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
                 
-  /channels/user-channels:
+  /channels/organisations/:org_id/user-channels:
     get:
       summary: Fetch User Channels
       description: Retrieve the list of channels associated with the authenticated user.
@@ -2721,7 +2721,108 @@ paths:
                           type: string
                           format: date-time
                           example: "2024-08-27T15:28:20.499875+01:00"
-
+                          
+  /channels/organisations/{organisation_id}/user-not-channels:
+    get:
+      tags:
+      - channels
+      summary: Fetch Channels User Does Not Belong To
+      description: Retrieves a list of channels within the specified organization that the user does not belong to.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: Unique identifier for the organization.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Channels user does not belong to fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channels user does not belong fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: 01919b40-4f41-7154-b2b2-66341ce641ec
+                        name:
+                          type: string
+                          example: programmers
+                        description:
+                          type: string
+                          example: this room is meant for programmers
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2024-08-29T00:09:29.595066+01:00
+  /channels/add-multiple:
+    post:
+      tags:
+      - channels
+      summary: Add Multiple Users to a Channel
+      description: Adds multiple users to the specified channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  example: 0191943c-d263-71f2-99d5-82ae6afe2da4
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    example: 0191a069-7123-7dbe-a1d5-36a882f08521
+      responses:
+        200:
+          description: Users added to channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: users added to channel successfully
+                  data:
+                    type: object
+                    properties:
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                          example: " already in the channel"
+                      message:
+                        type: string
+                        example: success
   /token/connection:
     get:
       tags:
