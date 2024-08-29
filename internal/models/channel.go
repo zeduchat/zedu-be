@@ -30,6 +30,7 @@ type Channels struct {
 	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
 }
 
+
 type UserChannels struct {
 	ChannelsID string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
 	UserID     string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
@@ -67,6 +68,12 @@ type UpdateChannelsRequest struct {
 
 type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
+}
+type ChannelInfoResponse struct {
+	ID 		string `json:"id"`
+	Name 	string `json:"name"`
+	Description string `json:"description"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type UserMsgProfile struct {
@@ -486,4 +493,19 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	}
 
 	return exists, nil
+}
+
+func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId string) ([]ChannelInfoResponse, error) {
+    var cir []ChannelInfoResponse
+
+    err := db.Table("user_channels").
+        Select("channels.id, channels.name, channels.description, channels.created_at").
+        Joins("join channels on user_channels.channels_id = channels.id").
+        Where("user_channels.user_id = ?", userId).
+        Scan(&cir).Error
+
+    if err != nil {
+        return cir, errors.New("could not get user channels")
+    }
+    return cir, nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
@@ -23,6 +24,7 @@ type Controller struct {
 	Logger    *utility.Logger
 	ExtReq    request.ExternalRequest
 }
+
 
 func (base *Controller) CreateChannels(c *gin.Context) {
 	var req models.CreateChannelsRequest
@@ -520,5 +522,33 @@ func (base *Controller) AddMembersToChannel(c *gin.Context) {
 
 	base.Logger.Info("members added to channel successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "members added to channel successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+
+func (base *Controller) GetUserChannels(c *gin.Context) {
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to fetch user claims", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	userchannels, err := channel.GetUserChannels(base.Db.Postgresql, userId)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch user channels", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("user channels fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user channels fetched successfully", userchannels)
 	c.JSON(http.StatusOK, rd)
 }

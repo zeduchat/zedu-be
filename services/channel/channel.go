@@ -237,3 +237,16 @@ func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Ch
 	}
 	return channels, nil
 }
+
+
+func GetUserChannels(db *gorm.DB, userID string) ([]models.ChannelInfoResponse, error) {
+	var (
+		uc models.UserChannels
+	)
+
+	userchannels, err := uc.GetUserChannels(db, userID)
+	if err != nil {
+		return userchannels, err
+	}
+	return userchannels, nil
+}

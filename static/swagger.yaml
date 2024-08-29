@@ -2678,6 +2678,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
+                
+  /channels/user-channels:
+    get:
+      summary: Fetch User Channels
+      description: Retrieve the list of channels associated with the authenticated user.
+      tags:
+        - channels
+      responses:
+        '200':
+          description: A list of channels associated with the user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: user channels fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        name:
+                          type: string
+                          example: Default
+                        description:
+                          type: string
+                          example: shallom's org's default channel
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-08-27T15:28:20.499875+01:00"
 
   /token/connection:
     get:
