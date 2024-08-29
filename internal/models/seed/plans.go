@@ -1,8 +1,6 @@
 package seed
 
 import (
-	"fmt"
-
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
@@ -13,13 +11,11 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 
 	if err := db.Model(&models.Plan{}).Where("name IN ?", []string{"Starter", "Business", "Enterprise"}).Count(&count).Error; err != nil {
 		logger.Error("plan seeding: " + err.Error())
-		fmt.Println(err)
 		return
 	}
 
 	if count > 0 {
 		logger.Error("Plans already exist, skipping seeding...")
-		fmt.Println("plans already exist, skipping seeding...")
 		return
 	} else {
 
