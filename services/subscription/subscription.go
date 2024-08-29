@@ -198,7 +198,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB) (
 		return nil, http.StatusNotFound, nil, errors.New("org not found")
 	}
 
-	sesh, err := session.Get(req.OrgID, nil)
+	sesh, err := session.Get(req.StripeSessionID, nil)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
 	}
