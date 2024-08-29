@@ -71,3 +71,14 @@ func (b *BlogCategory) GetBlogCategoryById(db *gorm.DB) error {
 
 	return nil
 }
+
+
+func (b *BlogCategory) Delete(db *gorm.DB) error {
+	err := postgresql.DeleteRecordFromDb(db, &b)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

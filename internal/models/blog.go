@@ -19,7 +19,7 @@ type Blog struct {
 	CategoryID   string         `gorm:"type:uuid;not null" json:"category_id"`
 	Category     *BlogCategory  `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 	AuthorID     string         `gorm:"type:uuid;not null" json:"author_id"`
-	AuthorName   string         `gorm:"type:text;not null" json:"author_name"`
+	AuthorName   string         `gorm:"type:text" json:"author_name"`
 	AuthorAvatar string         `gorm:"type:text" json:"author_avatar"`
 	Author       *User          `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
 	PublishedAt  string         `gorm:"type:text" json:"published_at"`
