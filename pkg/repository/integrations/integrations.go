@@ -54,7 +54,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 		AuthorName:     feed.UserName,
 		PretextChannel: chanresp.Name,
 		TitleEvent:     feed.EventName,
-		TitleAction:    feed.ActionType,
+		TitleAction:    feed.Content,
 		TitleLink:      fmt.Sprintf("%s/dashboard/channels/%s", config.Config.App.FRONTEND_URL, feed.ChannelID),
 		OrgName:        org.Name,
 		StatusValue:    feed.Status,

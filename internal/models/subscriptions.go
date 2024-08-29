@@ -1,9 +1,20 @@
 package models
 
 import (
-	"github.com/hngprojects/telex_be/internal/config"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/config"
 )
+
+var StripeMap map[string]string
+
+func SetStripeMap(stripeConfig config.Stripe) {
+	StripeMap = map[string]string{
+		"Basic":    stripeConfig.STRIPE_BASIC_ID,
+		"Advanced": stripeConfig.STRIPE_ADVANCED_ID,
+		"Premium":  stripeConfig.STRIPE_PREMIUM_ID,
+	}
+}
 
 type SubscriptionPlan struct {
 	Name          string  `gorm:"type:varchar(100);not null"`
