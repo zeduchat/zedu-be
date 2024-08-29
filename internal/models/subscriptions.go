@@ -8,9 +8,9 @@ var StripeMap map[string]string
 
 func SetStripeMap(stripeConfig config.Stripe) {
 	StripeMap = map[string]string{
-		"Basic":    stripeConfig.STRIPE_BASIC_ID,
-		"Advanced": stripeConfig.STRIPE_ADVANCED_ID,
-		"Premium":  stripeConfig.STRIPE_PREMIUM_ID,
+		"Starter":    stripeConfig.STRIPE_BASIC_ID,
+		"Business":   stripeConfig.STRIPE_ADVANCED_ID,
+		"Enterprise": stripeConfig.STRIPE_PREMIUM_ID,
 	}
 }
 
