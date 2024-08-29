@@ -1,0 +1,74 @@
+package seed
+
+import (
+	"fmt"
+
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/utility"
+	"gorm.io/gorm"
+)
+
+func SeedPlans(logger *utility.Logger, db *gorm.DB) {
+	var count int64
+
+	if err := db.Model(&models.Plan{}).Where("name IN ?", []string{"Starter", "Business", "Enterprise"}).Count(&count).Error; err != nil {
+		logger.Error("plan seeding: " + err.Error())
+		fmt.Println(err)
+		return
+	}
+
+	if count > 0 {
+		logger.Error("Plans already exist, skipping seeding...")
+		fmt.Println("plans already exist, skipping seeding...")
+		return
+	} else {
+
+		plans := []models.Plan{
+			{
+				Name:                    "Starter",
+				Fee:                     10,
+				MaxChannels:             5,
+				MaxUsers:                5,
+				MaxNotifications:        250,
+				CanUpgradeNotifications: false,
+				CanAddUnlimitedChannels: false,
+				CanAddUnlimitedUsers:    false,
+				IsForIndividuals:        true,
+				IsForSmallBusiness:      false,
+				IsForLargeEnterprise:    false,
+			},
+			{
+				Name:                    "Business",
+				Fee:                     50,
+				MaxChannels:             10,
+				MaxUsers:                10,
+				MaxNotifications:        100000,
+				CanUpgradeNotifications: true,
+				CanAddUnlimitedChannels: false,
+				CanAddUnlimitedUsers:    false,
+				IsForIndividuals:        false,
+				IsForSmallBusiness:      true,
+				IsForLargeEnterprise:    false,
+			},
+			{
+				Name:                    "Enterprise",
+				Fee:                     1000,
+				MaxChannels:             -1,
+				MaxUsers:                -1,
+				MaxNotifications:        -1,
+				CanUpgradeNotifications: true,
+				CanAddUnlimitedChannels: true,
+				CanAddUnlimitedUsers:    true,
+				IsForIndividuals:        false,
+				IsForSmallBusiness:      false,
+				IsForLargeEnterprise:    true,
+			},
+		}
+
+		for _, plan := range plans {
+			if err := db.Create(&plan).Error; err != nil {
+				logger.Error("failed to seed plan: " + err.Error())
+			}
+		}
+	}
+}

@@ -10189,29 +10189,30 @@ components:
       type: object
       required:
         - plan_name
-        - user_id
+        - org_id
         - email
       properties:
         plan_name:
           type: string
           description: "The name of the subscription plan."
           example: "Premium"
-        user_id:
+        org_id:
           type: string
-          description: "The unique identifier for the user."
+          description: "The unique identifier for the org."
           example: "123456"
         email:
           type: string
           description: "The email address of the user."
           format: email
           example: "user@example.com"
+
     ModifySubscriptionRequest:
       type: object
       required:
-        - user_id
+        - org_id
         - plan_name
       properties:
-        user_id:
+        org_id:
           type: string
           description: The ID of the user modifying the subscription
         plan_name:
@@ -10221,9 +10222,9 @@ components:
     DeleteSubscriptionRequest:
       type: object
       required:
-        - user_id
+        - org_id
       properties:
-        user_id:
+        org_id:
           type: string
           description: The ID of the user deleting the subscription
 
