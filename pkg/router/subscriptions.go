@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
@@ -17,11 +18,11 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	subscriptionUrl := r.Group(fmt.Sprintf("%v/subscriptions", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		subscriptionUrl.POST("/create", subscription.CreateSubscription)
-		subscriptionUrl.GET("/list/:user_id", subscription.ListSubscriptions)
+		subscriptionUrl.GET("/list/:org_id", subscription.ListSubscriptions)
 		subscriptionUrl.PUT("/modify", subscription.ModifySubscription)
-		subscriptionUrl.DELETE("/delete/:user_id", subscription.DeleteSubscription)
-		subscriptionUrl.GET("/session/:session_id/:user_id/", subscription.CompleteSubscription)
-		subscriptionUrl.GET("/invoice/download/:session_id/:user_id", subscription.DownloadInvoice)
+		subscriptionUrl.DELETE("/:org_id", subscription.DeleteSubscription)
+		subscriptionUrl.POST("/complete", subscription.CompleteSubscription)
+		subscriptionUrl.GET("/invoice/download/:session_id/:org_id", subscription.DownloadInvoice)
 	}
 	return r
 }

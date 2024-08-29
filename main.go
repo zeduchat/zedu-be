@@ -19,7 +19,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
-	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
 	"github.com/hngprojects/telex_be/pkg/router"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -45,7 +44,6 @@ func main() {
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
-		products.SetUpProducts(db, configuration.Stripe)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
