@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
@@ -42,7 +43,6 @@ func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", countMetricsData)
 	c.JSON(http.StatusOK, rd)
 }
-
 
 func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
@@ -161,15 +161,12 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", invitations, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 }
 
-
 func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
-	userId := c.Param("user_id")
 
 	var createOGMT models.OrgUserCreateRequest
 
@@ -188,6 +185,12 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(createOGMT.RoleID); err != nil {
+		base.Logger.Error("invalid role id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid role id format", "failed to decode role id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -206,14 +209,14 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(userId); err != nil {
+	if _, err := uuid.Parse(createOGMT.UserID); err != nil {
 		base.Logger.Error("invalid user id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "failed to decode user id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err = organisation.AddMemberToOrganisation(ownerId, orgId, userId, createOGMT.RoleID ,base.Db.Postgresql)
+	err = organisation.AddMemberToOrganisation(ownerId, orgId, createOGMT, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("failed to add member", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add member", err.Error(), nil)

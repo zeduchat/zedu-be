@@ -1,37 +1,54 @@
 package thread
 
 import (
+	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/typesense/typesense-go/v2/typesense"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
-	"github.com/typesense/typesense-go/v2/typesense"
-	"gorm.io/gorm"
 )
 
-func CreateThreadDummy(req models.Threads, db *gorm.DB, typesenseDb *typesense.Client) (*models.Threads, error) {
+func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *typesense.Client) (*models.Threads, error) {
+
+	var (
+		profile models.Profile
+		user    models.User
+	)
+
+	err := profile.GetProfileByUserId(db, req.UserId)
+
+	if err != nil {
+		return nil, errors.New("failed to get user profile")
+	}
+
+	user, err = user.GetUserByID(db, req.UserId)
+
+	if err != nil {
+		return nil, errors.New("failed to get user")
+	}
 
 	threadID := utility.GenerateUUID()
 
-	statuses := []string{"failed", "pending", "completed"}
-	randomStatus := statuses[rand.Intn(len(statuses))]
-
 	thread := models.Threads{
 		ID:           threadID,
-		Username:     fmt.Sprintf("User_%s", utility.RandomString(7)),
-		ActionType:   fmt.Sprintf("Action_%s", utility.RandomString(7)),
-		EventName:    fmt.Sprintf("Event_%s", utility.RandomString(7)),
+		Username:     profile.UserName,
+		Content:      req.Content,
 		ChannelsID:   req.ChannelsID,
+		Type:         "message",
 		MessageCount: 0,
-		ThreadStatus: randomStatus,
+		AvatarURL:    profile.AvatarURL,
+		FullName:     profile.FullName,
+		Email:        user.Email,
 	}
 
-	if err := thread.CreateThread(db, typesenseDb); err != nil {
+	if err = thread.CreateThread(db, typesenseDb); err != nil {
 		return nil, err
 	}
 

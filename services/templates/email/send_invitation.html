@@ -45,7 +45,7 @@
           <td
             style="padding-left: 50px; text-align: right; padding-right: 20px"
           >
-            <a
+            <!-- <a
               href="https://staging.telex.im/auth/login"
               style="
                 color: #261d1d;
@@ -53,8 +53,7 @@
                 font-size: 14px;
                 letter-spacing: 1px;
               "
-              >Sign In</a
-            >
+              >Sign In</a> -->
           </td>
         </tr>
       </table>
@@ -62,10 +61,10 @@
         <h4 style="margin-top: 0px">Hi {{ .firstname }},</h4>
         <div style="color: #020101; font-size: 14px ">
           <p>
-            You recently requested an invitation link for signing into organisation/channel. Please click the link below to access your account. Note that this link will expire in 5 minutes.
+            You recently requested an invitation link for signing into organisation/channel. Please click the link below to access your account. Note that this link will expire in 48 hours.
           </p>
   
-          <p>Click the link to Sign in: <a href="{{.invitation_link}}">{{.invitation_link}}</a></p>
+          <p>Click to Sign in: <a href="{{.invitation_link}}">here</a></p>
         </div>
           </div>
       <div style="background-color: #f5f5f5; padding: 40px; text-align: center">

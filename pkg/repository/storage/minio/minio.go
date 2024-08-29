@@ -27,7 +27,42 @@ func UploadProfilePic(logger *utility.Logger, objectName string, file io.Reader,
 
 	(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", path1))
 
-	url = fmt.Sprintf("http://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, path1)
+	url = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, path1)
 
 	return url, nil
+}
+
+func DeleteProfilePic(logger *utility.Logger, objectName string) error {
+	path := "public/profile_pics/" + objectName
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+
+	err := minioClient.RemoveObject(context.Background(), bucketName, path, minio.RemoveObjectOptions{})
+
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to delete file %s: %v", path, err))
+		return fmt.Errorf("failed to delete file %s: %v", path, err)
+	}
+	
+	return nil
+}
+
+
+func ImageExists(logger *utility.Logger, objectName string) (bool, error) {
+	path := "public/profile_pics/" + objectName
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+
+	_, err := minioClient.StatObject(context.Background(), bucketName, path, minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			utility.LogAndPrint(logger, fmt.Sprintf("Image %s does not exist in bucket %s", path, bucketName))
+			return false, nil
+		}
+		utility.LogAndPrint(logger, fmt.Sprintf("Error checking if image %s exists: %v", path, err))
+		return false, fmt.Errorf("error checking if image %s exists: %v", path, err)
+	}
+
+	utility.LogAndPrint(logger, fmt.Sprintf("Image %s exists in bucket %s", path, bucketName))
+	return true, nil
 }

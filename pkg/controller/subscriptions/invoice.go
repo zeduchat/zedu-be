@@ -1,8 +1,11 @@
 package subscriptions
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/services/subscription"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func (base *Controller) DownloadInvoice(ctx *gin.Context) {
@@ -12,6 +15,12 @@ func (base *Controller) DownloadInvoice(ctx *gin.Context) {
 		userID    = ctx.Param("user_id")
 	)
 
-	subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, userID)
+	err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, userID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		base.Logger.Error(err)
+		ctx.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 }

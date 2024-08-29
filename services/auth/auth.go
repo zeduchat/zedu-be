@@ -47,9 +47,7 @@ func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (
 		if exists {
 			return req, errors.New("user already exists with the given phone")
 		}
-
 	}
-
 	return req, nil
 }
 
@@ -64,15 +62,15 @@ func GetUser(userIDStr string, db *gorm.DB) (models.User, error) {
 	return userResp, nil
 }
 
-func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
+func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
 
 	var (
-		email       = strings.ToLower(req.Email)
-		firstName   = strings.Title(strings.ToLower(req.FirstName))
-		lastName    = strings.Title(strings.ToLower(req.LastName))
-		username    = strings.ToLower(req.UserName)
-		phoneNumber = req.PhoneNumber
-		password    = req.Password
+		email        = strings.ToLower(req.Email)
+		firstName    = strings.Title(strings.ToLower(req.FirstName))
+		lastName     = strings.Title(strings.ToLower(req.LastName))
+		phoneNumber  = req.PhoneNumber
+		password     = req.Password
+		responseData gin.H
 	)
 
 	password, err := utility.HashPassword(req.Password)
@@ -80,17 +78,19 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		return nil, http.StatusInternalServerError, err
 	}
 
+	name := strings.Split(email, "@")[0]
+
 	user := models.User{
 		ID:       utility.GenerateUUID(),
-		Name:     username,
+		Name:     name,
 		Email:    email,
 		Password: password,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),
-			FirstName: firstName,
+			FirstName: name,
 			LastName:  lastName,
 			FullName:  firstName + " " + lastName,
-			UserName:  username,
+			UserName:  name,
 			Phone:     phoneNumber,
 		},
 	}
@@ -109,7 +109,59 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		return nil, http.StatusInternalServerError, err
 	}
 
-	return nil, http.StatusCreated, nil
+	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	if !exists {
+		return responseData, 400, fmt.Errorf("invalid credentials")
+	}
+
+	user.IsActive = true
+	if err := db.Save(&user).Error; err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: " + err.Error())
+	}
+
+	userData, err := user.GetUserByID(db, user.ID)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
+	}
+
+	tokenData, err := middleware.CreateToken(user, c)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
+
+	err = access_token.CreateAccessToken(db, tokens)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+	}
+
+	responseData = gin.H{
+		"user": map[string]interface{}{
+			"id":           userData.ID,
+			"email":        userData.Email,
+			"username":     userData.Name,
+			"is_verified":  userData.IsVerified,
+			"is_onboarded": userData.IsOnboarded,
+			"is_active":    userData.IsActive,
+			"current_org":  userData.CurrentOrg,
+			"first_name":   userData.Profile.FirstName,
+			"last_name":    userData.Profile.LastName,
+			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":        userData.Profile.Phone,
+			"avatar_url":   userData.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+		},
+		"access_token": tokenData.AccessToken,
+	}
+	return responseData, http.StatusCreated, nil
 }
 
 func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
@@ -137,7 +189,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}
@@ -162,6 +214,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 			"is_verified":  userData.IsVerified,
 			"is_onboarded": userData.IsOnboarded,
 			"is_active":    userData.IsActive,
+			"current_org":  userData.CurrentOrg,
 			"first_name":   userData.Profile.FirstName,
 			"last_name":    userData.Profile.LastName,
 			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
@@ -174,6 +227,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		"access_token": tokenData.AccessToken,
 	}
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
+	
 	return responseData, http.StatusOK, nil
 }
 
@@ -201,7 +255,7 @@ func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
 	return responseData, http.StatusOK, nil
 }
 
-func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
+func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 
 	var (
 		email        = strings.ToLower(req.Email)
@@ -238,7 +292,7 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, er
 		return nil, http.StatusInternalServerError, err
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}

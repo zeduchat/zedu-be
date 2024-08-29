@@ -40,7 +40,7 @@ func (base *Controller) AddToContactUs(c *gin.Context) {
 		return
 	}
 
-	err = service.AddToContactUs(&req, base.Db.Postgresql, base.ExtReq)
+	err = service.AddToContactUs(req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)

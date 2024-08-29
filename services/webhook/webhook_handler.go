@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/integrations"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -45,12 +46,16 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	}
 
 	thread := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: webhook.ChannelId,
-		EventName:  req.EventName,
-		Username:   req.UserName,
-		ActionType: req.ActionType,
-		Status:     "success",
+		ID:            utility.GenerateUUID(),
+		ChannelsID:    webhook.ChannelId,
+		EventName:     req.EventName,
+		Username:      req.UserName,
+		ActionType:    req.ActionType,
+		Status:        req.Status,
+		AvatarURL:     req.AvatarURL,
+		Type:          "thread",
+		Content:       req.Message,
+		CurrentStatus: "pending",
 	}
 	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
@@ -64,12 +69,22 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		UserName:   req.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
-		Status:     "success",
+		Status:     req.Status,
+		AvatarURL:  req.AvatarURL,
+		Type:       "thread",
+		Content:    req.Message,
 	}
+
 	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	err = integrations.BuildSlackRequest(feed, db, logger)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error sending to slack, channelid: %s, error: %v", webhook.ChannelId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to send to slack, error: " + err.Error())
 	}
 
 	return resp, http.StatusOK, nil
@@ -79,18 +94,30 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	var (
 		resp    gin.H
+		channel models.Channels
 	)
 
-	thread := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: req.ChannelID,
-		EventName:  req.EventName,
-		Username:   req.UserName,
-		ActionType: req.ActionType,
-		Status:     "success",
+	_, err := channel.CheckChannelExists(db, req.ChannelID)
+
+	if err != nil {
+		logger.Error("error getting channel err: " + err.Error())
+		return nil, http.StatusNotFound, errors.New("error getting channel, channel does not exist")
 	}
 
-	err := thread.CreateThread(db, typesenseDb)
+	thread := models.Threads{
+		ID:            utility.GenerateUUID(),
+		ChannelsID:    req.ChannelID,
+		EventName:     req.EventName,
+		Username:      req.UserName,
+		ActionType:    req.ActionType,
+		Status:        req.Status,
+		AvatarURL:     req.AvatarURL,
+		Type:          "thread",
+		Content:       req.Message,
+		CurrentStatus: "pending",
+	}
+
+	err = thread.CreateThread(db, typesenseDb)
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
@@ -102,7 +129,10 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		UserName:   req.UserName,
 		ActionType: req.ActionType,
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
-		Status:     "success",
+		Status:     req.Status,
+		AvatarURL:  req.AvatarURL,
+		Type:       "thread",
+		Content:    req.Message,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)
@@ -112,6 +142,12 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 	}
 
 	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", req.ChannelID))
+
+	err = integrations.BuildSlackRequest(feed, db, logger)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error sending to slack, channelid: %s, error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to send to slack, error: " + err.Error())
+	}
 
 	return resp, http.StatusOK, nil
 }

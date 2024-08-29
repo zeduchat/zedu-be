@@ -2,12 +2,15 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -37,17 +40,42 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
+
+	webhook := models.Webhook{
+		ID:          utility.GenerateUUID(),
+		ChannelId:   channel.ID,
+		OwnerId:     userId,
+		Status:      "active",
+		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
+	}
+
+	slug := strings.Split(webhook.ID, "-")[4]
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
+	webhook.WebhookSlug = slug
+	webhook.WebhookUrl = webhookUrl
+
+	err = webhook.CreateWebhook(db)
+
+	if err != nil {
+		return newchannel, http.StatusBadRequest, err
+	}
 	return newchannel, http.StatusOK, nil
 }
 
-func GetChannels(db *gorm.DB, channelID string) (models.Channels, int, error) {
-	var channel models.Channels
+func GetChannels(db *gorm.DB, channelID, userId string) (models.GetChannelResp, int, error) {
+	var (
+		channel models.Channels
+		chanReq models.ChannelInfo
+	)
 
-	channel, err := channel.GetChannelsByID(db, channelID)
+	chanReq.ChannelID = channelID
+	chanReq.UserID = userId
+
+	chanresp, err := channel.GetChannelsByID(db, chanReq)
 	if err != nil {
-		return channel, http.StatusBadRequest, err
+		return chanresp, http.StatusBadRequest, err
 	}
-	return channel, http.StatusOK, nil
+	return chanresp, http.StatusOK, nil
 }
 
 func GetChannelsByName(db *gorm.DB, name string) ([]models.Channels, int, error) {
@@ -60,13 +88,13 @@ func GetChannelsByName(db *gorm.DB, name string) ([]models.Channels, int, error)
 	return channel, http.StatusOK, nil
 }
 
-func GetChannelsMsg(channelId, userID string, db *gorm.DB) ([]models.Message, int, error) {
-	var m models.Message
+func GetChannelsMsg(channelId, userID string, db *gorm.DB) (models.MessagesResp, int, error) {
+	var c models.Channels
 
-	resp, err := m.GetMessagesByChannelsID(db, userID, channelId)
+	resp, err := c.GetChannelsMessages(db, userID, channelId)
 
 	if err != nil {
-		return []models.Message{}, http.StatusBadRequest, err
+		return models.MessagesResp{}, http.StatusBadRequest, err
 	}
 
 	return resp, http.StatusOK, nil
@@ -88,7 +116,7 @@ func JoinChannels(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels,
 func LeaveChannels(db *gorm.DB, channels_id, user_id string) (int, error) {
 	var channel models.Channels
 
-	_, _, err := GetChannels(db, channels_id)
+	_, _, err := GetChannels(db, channels_id, user_id)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
@@ -114,9 +142,15 @@ func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId
 }
 
 func DeleteChannels(db *gorm.DB, channelId, userId string, typesenseDb *typesense.Client) (int, error) {
-	var r models.Channels
+	var (
+		r       models.Channels
+		chanReq models.ChannelInfo
+	)
 
-	channel, err := r.GetChannelsByID(db, channelId)
+	chanReq.ChannelID = channelId
+	chanReq.UserID = userId
+
+	channel, err := r.GetChannelsByID(db, chanReq)
 
 	if channel.OwnerId != userId {
 		return http.StatusUnauthorized, errors.New("user not authorized")
@@ -192,4 +226,14 @@ func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Cont
 	}
 
 	return users, paginationResponse, nil
+}
+
+func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels, error) {
+	var ch models.Channels
+
+	channels, err := ch.AddUserToChannels(db, req)
+	if err != nil {
+		return channels, err
+	}
+	return channels, nil
 }

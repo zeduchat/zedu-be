@@ -11,10 +11,6 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   version: 1.0.0
 servers:
-  # Added by API Auto Mocking Plugin
-  # Added by API Auto Mocking Plugin
-  - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/urizennnnnn/HNG/1.0.0
   - url: https://api.staging.telex.im/api/v1
 
 tags:
@@ -34,6 +30,10 @@ tags:
     description: API for blogs
   - name: contact
     description: API for contact 
+  - name: testimonials
+    description: API for testimomials
+  - name: Channel-Invitation
+    description: API for inviting a user into a channel
   - name: Organisation-Invitation
     description: API for inviting a user into an organisation
   - name: webhooks
@@ -42,7 +42,6 @@ tags:
     description: API for message related endpoints
   - name: threads
     description: API for threads related endpoints
-
   - name: user-management
     description: API for user management related endpoints
   - name: Profile
@@ -54,7 +53,12 @@ tags:
   - name: Feed_Webhook
     description: API for feeding centrifugo server
   - name: Integrations
-    description:  API for user integrations operations  
+    description:  API for user integrations operations
+  - name: Overview
+    description: API for overview operations
+  - name: newsletter
+    description: API for newsletter related operations
+
 
 
 
@@ -1504,27 +1508,201 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /users/{userId}/roles/{roleId}:
-    put:
+  /users/organisations/{org_id}:
+    get:
+      summary: Retrieve organisation details by organisation ID
       tags:
         - user
-      summary: Assign user to another role
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
-          in: path
+        - in: path
+          name: org_id
           required: true
           schema:
-            type: string
-            format: uuid
+           type: string
+          description: The ID of the organisation whose details are being retrieved.
+      responses:
+        '200':
+          description: Organisation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: success
+                  message:
+                    type: string
+                    description: Message describing the outcome
+                    example: Organisation details retrieved successfully
+                  data:
+                    type: object
+                    description: Organisation details object
+                    properties:
+                      id:
+                        type: string
+                        description: The ID of the organisation
+                      name:
+                        type: string
+                        description: The name of the organisation
+                      description:
+                        type: string
+                        description: The description of the organisation
+                      email:
+                        type: string
+                        description: The contact email of the organisation
+                      type:
+                        type: string
+                        description: The type of organisation
+                      location:
+                        type: string
+                        description: The location of the organisation
+                      country:
+                        type: string
+                        description: The country where the organisation is based
+                      owner_id:
+                        type: string
+                        description: The ID of the organisation's owner
+                      channels_count:
+                        type: integer
+                        description: The number of channels associated with the organisation
+                      total_messages_count:
+                        type: integer
+                        description: The total number of messages within the organisation
+                      org_roles:
+                        type: array
+                        description: List of roles within the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the organisation role
+                            name:
+                              type: string
+                              description: The name of the role
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The creation timestamp of the role
+                      users:
+                        type: array
+                        description: List of users associated with the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the user
+                            username:
+                              type: string
+                              description: The username of the user
+                            email:
+                              type: string
+                              description: The email of the user
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The timestamp when the user was created
+                      channels:
+                        type: array
+                        description: List of channels within the organisation
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The ID of the channel
+                            name:
+                              type: string
+                              description: The name of the channel
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: The creation timestamp of the channel
+                      created_at:
+                        type: string
+                        format: date-time
+                        description: The timestamp when the organisation was created
+                      updated_at:
+                        type: string
+                        format: date-time
+                        description: The timestamp when the organisation was last updated
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining the failure
+        '404':
+          description: Organisation not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining that the organisation was not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: The status of the response
+                    example: error
+                  error:
+                    type: string
+                    description: Error message explaining the server failure
 
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+
+  /users/switch-roles:
+    put:
+      tags:
+        - roles
+      summary: Assign user to another role
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                org_id:
+                  type: string
+                  format: uuid
+                role_id:
+                  type: string
+                  format: uuid
+
+              required:
+                - user_id
+                - org_id
+                - role_id
 
       responses:
         '200':
@@ -1563,6 +1741,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                
 
   /users/{userId}/login-audit:
     get:
@@ -1588,49 +1767,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginAuditResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
-  /users/{userId}/sessions:
-    get:
-      tags:
-        - user
-      summary: Retrieve user login sessions
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-
-        - $ref: '#/components/parameters/PageLimitParam'
-        - $ref: '#/components/parameters/LimitParam'
-      responses:
-        '200':
-          description: User Sessions retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
         '400':
           description: Bad request
           content:
@@ -1760,55 +1896,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-
-  /users/{user_id}:
-    delete:
-      tags:
-        - user
-      summary: Delete a user
-      security:
-        - bearerAuth: []
-      description: Deletes a user by their ID.
-      operationId: deleteUser
-      parameters:
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the user to delete
-      responses:
-        '200':
-          description: User deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
-        '401':
-          description: Authentication error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '404':
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundErrorSchema'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'             
+    
                 
+
+                 
 
   /channels:
     post:
@@ -1903,6 +1994,59 @@ paths:
       security:
         - bearerAuth: []
       description: Creates a new message within a channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreateSchema'
+      responses:
+        '201':
+          description: Message created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageCreateResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
+    put:
+      tags:
+        - messages
+      summary: Edit a message
+      security:
+        - bearerAuth: []
+      description: Edit a message within a thread.
       parameters:
         - name: channel_id
           in: path
@@ -2611,20 +2755,13 @@ paths:
             schema:
               type: object
               properties:
-                title:
-                  type: string
-                  example: New Blog Post
                 content:
                   type: string
                   example: This is the content of the new blog post
                 category_id:
                   type: string
                   format: uuid
-                image_url:
-                  type: string
-                  example: http://image.com
               required:
-                - title
                 - content
                 - category_id
       responses:
@@ -3048,7 +3185,191 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+  /blogs/feedback:
+    post:
+      tags:
+        - blogs
+      summary: submit blog feedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                blog_id:
+                  type: string
+                  format: uuid
+                feedback:
+                  type: boolean
+                  example: true
+              required:
+                - blog_id
+                - feedback
+      responses:
+        '200':
+          description: Blog feedback submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "blog feedback submitted successfully"
+                    
+  /testimonials:
+    post:
+        tags:
+          - testimonials
+        summary: Create a new testimonial
+        description: Creates a new testimonial.
+        security:
+        - bearerAuth: []
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company_name:
+                    type: string
+                    example: "paystack"
+                  content:
+                    type: string
+                    example: "The service is fantastic, great experience."
+                required:
+                  - company_name
+                  - content
+        responses:
+          '201':
+            description: Testimonial created successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: "success"
+                    message:
+                      type: string
+                      example: "Testimonial created successfully"
+                    data:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                        user_id:
+                          type: string
+                          format: uuid
+                          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+                        company_name:
+                          type: string
+                          example: "paystack"
+                        image_url:
+                          type: string
+                          example: "https://image.com"
+                        name:
+                          type: string
+                          example: "Charles Ugberaese"
+                        content:
+                          type: string
+                          example: "The service is fantastic, great experience."
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-07-18T00:00:00Z"
+          '400':
+              description: Bad Request
+              content:
+               application/json:
+                  schema:
+                    $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Authentication error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                 $ref: '#/components/schemas/ServerErrorSchema'
+                 
+    get:
+      tags:
+        - testimonials
+      summary: get all testimonials
+      parameters:
+        - $ref: '#/components/parameters/PageLimitParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A list of all testimonials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: testimonials retrieved successfully.   
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                        user_id:
+                          type: string
+                          format: uuid
+                          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+                        company_name:
+                          type: string
+                          example: "paystack"
+                        image_url:
+                          type: string
+                          example: "https://image.com"
+                        name:
+                          type: string
+                          example: "Charles Ugberaese"
+                        content:
+                          type: string
+                          example: "The service is fantastic, great experience."
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-07-18T00:00:00Z"
+
+        '400':
+          description: Failed to fetch all blogs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
                 
                 
   /contact:
@@ -3109,7 +3430,7 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
 
-  /subscription/complete/{session_id}/{user_id}:
+  /subscriptions/session/{session_id}/{user_id}:
     get:
       summary: Complete a subscription and retrieve associated invoices
       tags:
@@ -3869,21 +4190,27 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - webhook_status
               properties:
                 channel_id:
                   type: string
                   format: uuid
-                action_type:
+                event_name:
                   type: string
                   format: string
-                event_name:
+                message:
+                  type: string
+                  format: string
+                status:
                   type: string
                   format: string
                 username:
                   type: string
                   format: string
+              required:
+                - username
+                - message
+                - event_name
+                - status
       responses:
         '200':
           description: Data recieved successfully
@@ -3947,6 +4274,31 @@ paths:
             type: string
             format: string
           description: the webhook slug
+      requestBody:
+        description: Webhook object with information
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_name:
+                  type: string
+                  format: string
+                message:
+                  type: string
+                  format: string
+                status:
+                  type: string
+                  format: string
+                username:
+                  type: string
+                  format: string
+              required:
+                - username
+                - message
+                - event_name
+                - status
 
       responses:
         '200':
@@ -4024,14 +4376,20 @@ paths:
             type: string
             format: string
             example: cyber event
-            
-        - name: action_type
+        - name: message
           in: query
           required: true
           schema:
             type: string
             format: string
             example: broadcast
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            example: success
   
       responses:
         '200':
@@ -4327,6 +4685,59 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
+              
+  /users/reactivate/{userId}:
+      put:
+        tags:
+          - user
+        summary: Activate  a specific user
+        security:
+          - bearerAuth: []
+        parameters:
+          - name: userId
+            in: path
+            required: true
+            schema:
+              type: string
+              format: uuid
+            description: ID of the user to activate.
+        responses:
+          '200':
+            description: User deactivated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserActivateResponseSchema'
+          '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequestErrorSchema'
+          '401':
+            description: Unauthorized
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
+          '403':
+            description: Forbidden
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ForbiddenErrorSchema'
+          '404':
+            description: Not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NotFoundErrorSchema'
+          '500':
+            description: Server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ServerErrorSchema'
 
   /users:
     get:
@@ -4512,11 +4923,8 @@ paths:
     post:
       tags:
         - Organisation-Invitation
-      summary: Send organization invitations to multiple email addresses
-      security:
-        - bearerAuth: []
-      description: |
-        This endpoint allows an admin to invite multiple users to join an organization. The admin can specify the role that will be assigned to the invited users.
+      summary: Create and send invitations
+      description: Sends invitations to the specified email addresses to join the organization.
       requestBody:
         required: true
         content:
@@ -4527,24 +4935,21 @@ paths:
                 org_id:
                   type: string
                   format: uuid
-                  description: The ID of the organization to which users are being invited.
-                  example: "01915226-2cbc-72d8-857b-1b22dc838170"
+                  description: The ID of the organization to which the users are being invited.
+                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
                 emails:
                   type: array
                   items:
                     type: string
-                    format: email
-                  description: A list of email addresses to send the invitations to.
-                  example: 
-                    - "blessing@gmail.com"
-                    - "mshallom@gmail.com"
+                  description: A list of email addresses to send invitations to.
+                  example: ["micahshallom@gmail.com", "micahshallom24@gmail.com"]
                 role:
                   type: string
-                  description: The role that will be assigned to the invited users.
+                  description: The role assigned to the invited users within the organization.
                   example: "member"
       responses:
         '201':
-          description: Invitations created successfully
+          description: Invitations created and sent successfully
           content:
             application/json:
               schema:
@@ -4560,70 +4965,61 @@ paths:
                     type: string
                     example: "Invitations created successfully"
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        email:
+                    type: object
+                    properties:
+                      errors:
+                        type: array
+                        items:
                           type: string
-                          format: email
-                          description: The email address to which the invitation was sent.
-                          example: "blessing@gmail.com"
-                        org_id:
-                          type: string
-                          format: uuid
-                          description: The ID of the organization.
-                          example: "01915226-2cbc-72d8-857b-1b22dc838170"
-                        status:
-                          type: string
-                          description: The current status of the invitation.
-                          example: "invited"
-                        invite_token:
-                          type: string
-                          description: A unique token associated with the invitation.
-                          example: "0d1f072a48c629397f20329d93ac8621"
-                        is_telex_user:
-                          type: boolean
-                          description: Indicates if the invited user is already registered on the platform.
-                          example: false
-                        invitation_link:
-                          type: string
-                          description: A link to accept the invitation.
-                          example: "http://127.0.0.1:8019/api/v1/invite/accept_org_invitation?org_id=01915226-2cbc-72d8-857b-1b22dc838170?invitation_token=0d1f072a48c629397f20329d93ac8621"
-                        sent_at:
-                          type: string
-                          format: date-time
-                          description: The date and time when the invitation was sent.
-                          example: "2024-08-15T17:59:45.808970985+01:00"
-                        expires_at:
-                          type: string
-                          format: date-time
-                          description: The date and time when the invitation will expire.
-                          example: "2024-08-16T17:59:45.808198375+01:00"
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-        '422':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                        description: A list of errors encountered during the invitation process.
+                        example: 
+                          - "An invitation has already been sent to micahshallom@gmail.com"
+                          - "Error checking for telex presence: user with email micahshallom24@gmail.com does not exist"
+                      invitations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                              description: The unique identifier for the invitation.
+                              example: "019185b0-8fb4-767f-bd9d-d612e588f465"
+                            email:
+                              type: string
+                              description: The email address to which the invitation was sent.
+                              example: "micahshallom24@gmail.com"
+                            org_id:
+                              type: string
+                              format: uuid
+                              description: The ID of the organization to which the user is invited.
+                              example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+                            status:
+                              type: string
+                              description: The status of the invitation.
+                              example: "invited"
+                            invite_token:
+                              type: string
+                              description: The unique token associated with the invitation.
+                              example: "a351f47cea15f91ca16a3b18a04a8c22"
+                            is_telex_user:
+                              type: boolean
+                              description: Indicates whether the invited user is already a Telex user.
+                              example: false
+                            invitation_link:
+                              type: string
+                              description: The link provided to the invited user for accepting the invitation.
+                              example: "http://127.0.0.1:8019/api/v1/invite/accept_org_invitation?org_id=01918214-55e5-791b-9ebd-fa8d92d69fa1&invitation_token=a351f47cea15f91ca16a3b18a04a8c22"
+                            sent_at:
+                              type: string
+                              format: date-time
+                              description: The timestamp when the invitation was sent.
+                              example: "2024-08-24T19:40:26.548569958+01:00"
+                            expires_at:
+                              type: string
+                              format: date-time
+                              description: The expiration timestamp of the invitation.
+                              example: "2024-08-26T19:40:26.548423408+01:00"
                 
   /invite/verify:
     post:
@@ -4757,7 +5153,282 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                
+  /invite/{invite_id}:
+    delete:
+      tags:
+        - Organisation-Invitation
+      summary: Cancel an invitation
+      description: Deletes an invitation with the specified `invite_id`.
+      parameters:
+        - in: path
+          name: invite_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the invitation to be canceled.
+      responses:
+        '200':
+          description: Invitation canceled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "invitation cancelled successfully"
 
+  /invite/resend:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Resend invitation emails
+      description: Resends invitations to the specified email addresses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                  example: ["micahshallom1@gmail.com"]
+                org_id:
+                  type: string
+                  format: uuid
+                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+      responses:
+        '200':
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: string
+                    example: "Invitations sent successfully"
+
+  /invite/channel/:
+    post:
+      tags:
+        - Channel-Invitation
+      summary: Verify and create channel invitations
+      description: This endpoint verifies the provided channel information and sends invitations to the specified emails.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  example: "01915ed9-b9dd-72b7-ba76-328a28073ef4"
+                  description: The unique identifier of the channel.
+                emails:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                  example: ["oma@gmail.com"]
+                  description: The list of email addresses to send invitations to.
+                organisation_id:
+                  type: string
+                  format: uuid
+                  example: "01916090-e436-7c15-99c5-e75f32f0ebe7"
+                  description: The unique identifier of the organization.
+                role:
+                  type: string
+                  example: "member"
+                  description: The role assigned to the invited users.
+      responses:
+        '201':
+          description: Invitations created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                    description: The status of the request.
+                  status_code:
+                    type: integer
+                    example: 201
+                    description: The HTTP status code.
+                  message:
+                    type: string
+                    example: "Invitations created successfully"
+                    description: A message indicating the outcome of the request.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                          format: email
+                          example: "oma@gmail.com"
+                          description: The email address of the invited user.
+                        channel_id:
+                          type: string
+                          format: uuid
+                          example: "01915ed9-b9dd-72b7-ba76-328a28073ef4"
+                          description: The unique identifier of the channel.
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "01916090-e436-7c15-99c5-e75f32f0ebe7"
+                          description: The unique identifier of the organization.
+                        status:
+                          type: string
+                          example: "invited"
+                          description: The status of the invitation.
+                        invite_token:
+                          type: string
+                          example: "488b2a2148117f77b5e9ee8b3367e058"
+                          description: The token generated for accepting the invitation.
+                        invitation_link:
+                          type: string
+                          example: "/accept_channel_invitation?channel_id=01915ed9-b9dd-72b7-ba76-328a28073ef4&invitation_token=488b2a2148117f77b5e9ee8b3367e058"
+                          description: The URL link for accepting the invitation.
+                        sent_at:
+                          type: string
+                          format: date-time
+                          example: "2024-08-17T17:57:59.386273933+01:00"
+                          description: The timestamp when the invitation was sent.
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: "2024-08-18T17:57:59.386170646+01:00"
+                          description: The expiration timestamp for the invitation.
+                          
+  /invite/channels/verify:
+    post:
+      tags:
+        - Channel-Invitation
+      summary: Verify channel invitation token
+      description: This endpoint verifies a channel invitation token and provides the user with an access token upon successful verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: "488b2a2148117f77b5e9ee8b3367e058"
+                  description: The invitation token to be verified.
+      responses:
+        '200':
+          description: User invited successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                    description: The status of the request.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: The HTTP status code.
+                  message:
+                    type: string
+                    example: "User invited successfully"
+                    description: A message indicating the outcome of the verification.
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                        description: The JWT access token generated for the user.
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3NfdXVpZCI6IjAxOTE2MTU4LThmMGUtN2ZlNi04MmI0LTZjMmQxNjI4ZDgxYiIsImF1dGhvcmlzZWQiOnRydWUsImV4cCI6MTcyNDA4Nzg3OSwidXNlcl9pZCI6IjAxOTE2MTQxLTM5YWYtNzUzMy05OWYyLTFlNDdhMmQ3ZmY1NSJ9.FBSvzwUldxqOB2EnJbBR4m2v1wthp0mPf0ZZzb8NVTQ"
+                      user:
+                        type: object
+                        properties:
+                          avatar_url:
+                            type: string
+                            example: ""
+                            description: The URL of the user's avatar.
+                          created_at:
+                            type: string
+                            format: int64
+                            example: "1723913550"
+                            description: The timestamp when the user was created.
+                          email:
+                            type: string
+                            format: email
+                            example: "oma@gmail.com"
+                            description: The email of the user.
+                          expires_in:
+                            type: string
+                            format: int64
+                            example: "1724087879"
+                            description: The expiration timestamp for the access token.
+                          first_name:
+                            type: string
+                            example: "Shallom"
+                            description: The user's first name.
+                          fullname:
+                            type: string
+                            example: "Shallom Micah"
+                            description: The user's full name.
+                          id:
+                            type: string
+                            format: uuid
+                            example: "01916141-39af-7533-99f2-1e47a2d7ff55"
+                            description: The unique identifier of the user.
+                          is_onboarded:
+                            type: boolean
+                            example: false
+                            description: Indicates whether the user has completed the onboarding process.
+                          is_verified:
+                            type: boolean
+                            example: false
+                            description: Indicates whether the user's email has been verified.
+                          last_name:
+                            type: string
+                            example: "Micah"
+                            description: The user's last name.
+                          phone:
+                            type: string
+                            example: ""
+                            description: The user's phone number.
+                          updated_at:
+                            type: string
+                            format: int64
+                            example: "1723913783"
+                            description: The timestamp when the user's information was last updated.
+                          username:
+                            type: string
+                            example: ""
+                            description: The username of the user.
    
   /threads/organisations/{orgId}:
     get:
@@ -4773,6 +5444,8 @@ paths:
           description: ID of the organization
           schema:
             type: string
+            format: uuid
+            
       responses:
         '200':
           description: Threads retrieved successfully
@@ -4809,7 +5482,7 @@ paths:
     get:
       tags:
         - threads
-      summary: Retrieve all threads in a specific channel
+      summary: Retrieve all threads (thread and message) in a specific channel
       security:
         - bearerAuth: []
       parameters:
@@ -4825,7 +5498,118 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        thread_id:
+                          type: string
+                          format: uuid
+                          example: 019184af-1864-7480-b099-ede2c5b984cf
+                        channels_id:
+                          type: string
+                          format: uuid
+                          example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                        event_name:
+                          type: string
+                          example: t
+                        username:
+                          type: string
+                          example: test
+                        action_type:
+                          type: string
+                          example: ""
+                        status:
+                          type: string
+                          example: success
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2024-08-24T08:59:13.253151-05:00
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                                example: f74f530e-35f6-4326-b10b-7c23ace51da2
+                              content:
+                                type: string
+                                example: test
+                              channels_id:
+                                type: string
+                                format: uuid
+                                example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                              user_id:
+                                type: string
+                                format: uuid
+                                example: 01916474-ab82-7587-ae01-847d103b7ee3
+                              username:
+                                type: string
+                                example: cyber
+                              created_at:
+                                type: string
+                                format: date-time
+                                example: 2024-08-24T08:02:44.089-05:00
+                              updated_at:
+                                type: string
+                                format: date-time
+                                example: 2024-08-27T02:51:40.078425Z
+                              thread_id:
+                                type: string
+                                format: uuid
+                                example: 0191847b-c744-747b-8436-cebc6009d978
+                              mentions:
+                                type: string
+                                nullable: true
+                                example: null
+                              avatar_url:
+                                type: string
+                                format: uri
+                                example: http://profile-link.com
+                        message_count:
+                          type: integer
+                          example: 0
+                        last_reply:
+                          type: string
+                          format: date-time
+                          example: 0001-01-01T00:00:00Z
+                        avatar_url:
+                          type: string
+                          format: uri
+                          example: ""
+                        type:
+                          type: string
+                          example: thread
+                        content:
+                          type: string
+                          example: test
+                        channel_name:
+                          type: string
+                          example: ""
+                        current_status:
+                          type: string
+                          example: ""
+                        full_name:
+                          type: string
+                          example: "swagger guy"
+                        email:
+                          type: string
+                          example: "swagger@gmail.com"
         '400':
           description: Bad request
           content:
@@ -4851,11 +5635,182 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /threads/{threadId}:
+  /threads/channels/{channelId}/threads:
     get:
       tags:
         - threads
-      summary: Retrieve a specific thread
+      summary: Retrieve all threads in a specific channel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        thread_id:
+                          type: string
+                          format: uuid
+                          example: 019184af-1864-7480-b099-ede2c5b984cf
+                        channels_id:
+                          type: string
+                          format: uuid
+                          example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                        event_name:
+                          type: string
+                          example: t
+                        username:
+                          type: string
+                          example: test
+                        action_type:
+                          type: string
+                          example: ""
+                        status:
+                          type: string
+                          example: success
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2024-08-24T08:59:13.253151-05:00
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                                example: f74f530e-35f6-4326-b10b-7c23ace51da2
+                              content:
+                                type: string
+                                example: test
+                              channels_id:
+                                type: string
+                                format: uuid
+                                example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                              user_id:
+                                type: string
+                                format: uuid
+                                example: 01916474-ab82-7587-ae01-847d103b7ee3
+                              username:
+                                type: string
+                                example: cyber
+                              created_at:
+                                type: string
+                                format: date-time
+                                example: 2024-08-24T08:02:44.089-05:00
+                              updated_at:
+                                type: string
+                                format: date-time
+                                example: 2024-08-27T02:51:40.078425Z
+                              thread_id:
+                                type: string
+                                format: uuid
+                                example: 0191847b-c744-747b-8436-cebc6009d978
+                              mentions:
+                                type: string
+                                nullable: true
+                                example: null
+                              avatar_url:
+                                type: string
+                                format: uri
+                                example: http://profile-link.com
+                        message_count:
+                          type: integer
+                          example: 0
+                        last_reply:
+                          type: string
+                          format: date-time
+                          example: 0001-01-01T00:00:00Z
+                        avatar_url:
+                          type: string
+                          format: uri
+                          example: ""
+                        type:
+                          type: string
+                          example: thread
+                        content:
+                          type: string
+                          example: test
+                        channel_name:
+                          type: string
+                          example: ""
+                        current_status:
+                          type: string
+                          example: ""
+                        full_name:
+                          type: string
+                          example: "swagger guy"
+                        email:
+                          type: string
+                          example: "swagger@gmail.com"
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_count:
+                          type: integer
+                          example: 6
+                        total_pages_count:
+                          type: integer
+                          example: 1
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /threads/{threadId}/channels/{channelId}:
+    get:
+      tags:
+        - threads
+      summary: Retrieve a specific thread messages
       security:
         - bearerAuth: []
       parameters:
@@ -4865,6 +5820,15 @@ paths:
           description: ID of the thread
           schema:
             type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
       responses:
         '200':
           description: Thread retrieved successfully
@@ -4910,6 +5874,15 @@ paths:
           description: ID of the thread
           schema:
             type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
       requestBody:
         required: true
         content:
@@ -4947,7 +5920,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
+
+  /threads/{channelId}:
+    post:
+      tags:
+        - threads
+      summary: Post a thread messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: string
+                  description: Message Content
+                  example: some sample message from client
+        
+      responses:
+        '200':
+          description: Thread retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+  
   /organisations/{org_id}/users:
     get:
       tags:
@@ -5010,7 +6044,8 @@ paths:
                         name:
                           type: string
                         role:
-                          type: integer
+                          type: string
+                          format: uuid
                           description: The role of the user in the organization
                         status:
                           type: string
@@ -5062,6 +6097,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: days
+          in: query
+          required: true
+          description: number of days
+          schema:
+            type: integer
+            default: 7
       responses:
         '200':
           description: Metrics fetched successfully
@@ -5850,7 +6892,367 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'                          
+                $ref: '#/components/schemas/ServerErrorSchema' 
+                
+  /slack/access-token:
+    post:
+      tags:
+      - Integrations
+      summary: slack oauth code to access token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oauth_code:
+                  type: string
+                organisation_id:
+                  type: string
+                  format: uuid
+              required:
+                - oauth_code
+                - organisation_id
+      
+      responses:
+        '200':
+          description: Slack OAuth token exchange successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Slack OAuth token exchange successful"
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      incoming_webhook:
+                        type: object
+                        properties:
+                          channel:
+                            type: string
+                          channel_id:
+                            type: string
+                          configuration_url:
+                            type: string
+                          url:
+                            type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+    get:
+      tags:
+      - Integrations
+      summary: Get slack access information
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: organisation_id
+          schema:
+            type: string
+            format: uuid
+          description: The ID of organisation.
+      responses:
+        '200':
+          description: Slack access info fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "slack access info fetched successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      organisation_id:
+                        type: string
+                        format: uuid
+                      access_token:
+                        type: string
+                      team_id:
+                        type: string
+                      team_name:
+                        type: string
+                      channel:
+                        type: string
+                      channel_id:
+                        type: string
+                      configuration_url:
+                        type: string
+                      url:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'  
+                
+  /threads/organisations/{organisationId}/metrics:
+    get:
+      tags:
+      - Overview
+      summary: Get Organization Thread Metrics
+      description: Retrieves metrics for threads associated with a specific organization over a given number of days.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          description: Unique identifier of the organization.
+          schema:
+            type: string
+            format: uuid
+        - name: days
+          in: query
+          required: true
+          description: The number of days for which to retrieve metrics.
+          schema:
+            type: integer
+            example: 7
+      responses:
+        '200':
+          description: Successfully retrieved thread metrics.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      channel_count_info:
+                        type: object
+                        properties:
+                          total_success_threads:
+                            type: integer
+                            example: 16
+                          total_error_threads:
+                            type: integer
+                            example: 4
+                          total_members:
+                            type: integer
+                            example: 6
+                          total_resolved_threads:
+                            type: integer
+                            example: 14
+                      channel_metrics:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            channel_name:
+                              type: string
+                              example: Default
+                            thread_count:
+                              type: integer
+                              example: 14
+                            success_count:
+                              type: integer
+                              example: 12
+                            error_count:
+                              type: integer
+                              example: 2
+                            other_count:
+                              type: integer
+                              example: 0
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '404':
+          description: Organisation not found
+        '500':
+          description: Internal server error
+          
+  /newsletter:
+    post:
+      tags:
+        - newsletter
+      summary: Add new email to newsletter
+      description: Add a new email entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewsletterSchema'
+      responses:
+        '201':
+          description: Email added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema2'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+  
+  /users/notification-preferences:
+    get:
+      tags:
+        - user
+      summary: Get user notification preferences
+      security:
+        - bearerAuth: []
+      description: Retrieves the notification preferences for a specific user.
+      responses:
+        '200':
+          description: User notification preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserNotificationPreferencesResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    put:
+      tags:
+        - user
+      summary: Update user notification preferences
+      security:
+        - bearerAuth: []
+      description: Updates the notification preferences for a specific user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserNotificationPreferencesUpdateSchema'
+      responses:
+        '200':
+          description: User notification preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserNotificationPreferencesResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
 components:
 
@@ -6309,14 +7711,97 @@ components:
           example: "success"
         status_code:
           type: integer
-          description: >
-            The HTTP status code. Usually 200 , 201, 204 etc
           example: 200
         message:
           type: string
-          description: >
-            A basic message describing a request was processed successfully.
-            example: "Successfully"
+          example: "Data retrieved successfully"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              thread_id:
+                type: string
+                example: "01916ea9-a37d-7b73-828c-f54f03ba3243"
+              channels_id:
+                type: string
+                example: "01916476-b76b-7588-b9f5-2e8094088dc3"
+              event_name:
+                type: string
+                example: "strawhat"
+              username:
+                type: string
+                example: "cyberguru"
+              action_type:
+                type: string
+                example: "some action for guru"
+              status:
+                type: string
+                example: "success"
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-20T02:21:36.893485-05:00"
+              messages:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      example: "3bcc7d41-a960-4006-b9fc-923a241a9003"
+                    content:
+                      type: string
+                      example: "some content2"
+                    channels_id:
+                      type: string
+                      example: "01916476-b76b-7588-b9f5-2e8094088dc3"
+                    user_id:
+                      type: string
+                      example: "01916474-ab82-7587-ae01-847d103b7ee3"
+                    username:
+                      type: string
+                      example: "cyberguru"
+                    created_at:
+                      type: string
+                      format: date-time
+                      example: "2024-09-27T10:45:24.361-05:00"
+                    updated_at:
+                      type: string
+                      format: date-time
+                      example: "2024-08-22T07:38:57.922988Z"
+                    thread_id:
+                      type: string
+                      example: "01916b4d-babc-7aa9-a430-c420e3290578"
+                    mentions:
+                      type: string
+                      nullable: true
+                      example: null
+                    avatar_url:
+                      type: string
+                      example: "http://91.229.239.238:7100/telex-dev-bucket/public/profile_pics/profile_pic_18ff64dd6692.jpeg"
+              message_count:
+                type: integer
+                example: 0
+              last_reply:
+                type: string
+                format: date-time
+                example: "0001-01-01T00:00:00Z"
+              avatar_url:
+                type: string
+                example: ""
+              type:
+                type: string
+                example: ""
+              content:
+                type: string
+                example: ""
+              channel_name:
+                type: string
+                example: ""
+              current_status:
+                type: string
+                example: ""
 
     SuccessResponseSchema2:
       type: object
@@ -7590,10 +9075,14 @@ components:
     addUserToOrganizationReq:
       type: object
       properties:
-        userId:
+        user_id:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec91
+        role_Id:
+          type: string
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c761e527ec92
           
           
     createOrganizationReq:
@@ -7611,6 +9100,8 @@ components:
           type: string
         country:
           type: string
+        logo_url:
+          type: string
     
     
           
@@ -7618,7 +9109,7 @@ components:
       type: object
       description: Object describing the organisation data
       properties:
-        organisation_id:
+        id:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec91
@@ -7631,18 +9122,31 @@ components:
         email:
           type: string
           example: org@gmail.com
-        state: 
+        country: 
           type: string
-          example: lagos
+          example: some Country
         industry:
           type: string
           example: tech
-        type: 
+        location: 
           type: string
-          example: sometype
-        address: 
+          example: lagos
+        owner_id: 
           type: string
-          example: somewhere somewhere
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c76167489ng7
+        logo_url: 
+          type: string
+          example: some url of org logo
+        channels_count: 
+          type: number
+          example: 3
+        total_messages_count: 
+          type: number
+          example: 45      
+        org_role: 
+          type: string
+          example: null
         created_at:
           type: string
           format: date-time
@@ -8020,6 +9524,9 @@ components:
               message_count:
                 type: integer
                 example: 0
+              webhook_url:
+                type: string
+                example: "https://ping.staging.telex.im/v1/webhooks/someid"
               created_at:
                 type: string
                 format: date-time
@@ -8049,24 +9556,29 @@ components:
               type: string
             checkout_session_url:
               type: string 
+
     MessageCreateSchema:
       type: object
       properties:
         content:
           type: string
           description: Content of the message
-        channel_id:
+        channels_id:
           type: string
           format: uuid
           description: ID of the channel the message belongs to
-        userId:
+        user_id:
           type: string
           format: uuid
           description: ID of the user who sent the message
-        threadId:
+        thread_id:
           type: string
           format: uuid      
-          description: thread id (optional)
+          description: thread id
+        message_id:
+          type: string
+          format: uuid      
+          description: message id(optional)
 
     MessageCreateResponseSchema:
       type: object
@@ -8673,8 +10185,6 @@ components:
         - plan_name
         - user_id
         - email
-        - plan_id
-        - currency
       properties:
         plan_name:
           type: string
@@ -8689,28 +10199,11 @@ components:
           description: "The email address of the user."
           format: email
           example: "user@example.com"
-        plan_id:
-          type: string
-          description: "The ID of the subscription plan."
-          example: "plan_ABC123"
-        payment_method:
-          type: string
-          description: "The payment method to be used."
-          example: "card"
-        currency:
-          type: string
-          description: "The currency for the payment."
-          example: "USD"
-        coupon_code:
-          type: string
-          description: "A coupon code for a discount, if applicable."
-          example: "DISCOUNT20"
     ModifySubscriptionRequest:
       type: object
       required:
         - user_id
         - plan_name
-        - plan_id
       properties:
         user_id:
           type: string
@@ -8718,11 +10211,7 @@ components:
         plan_name:
           type: string
           description: The new name of the subscription plan
-        plan_id:
-          type: integer
-          format: uint
-          description: The new ID of the subscription plan
-
+        
     DeleteSubscriptionRequest:
       type: object
       required:
@@ -8732,6 +10221,24 @@ components:
           type: string
           description: The ID of the user deleting the subscription
 
+    UserActivateResponseSchema:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+          description: The HTTP status code indicating the outcome of the operation.
+        message:
+          type: string
+          example: "User activated successfully"
+          description: A message describing the result of the operation.
+        data:
+          type: object
+          nullable: true
+          description: Additional data related to the response, typically null in this case.
+      required:
+        - status
+        - message
     UserDeactivateResponseSchema:
       type: object
       properties:
@@ -8789,6 +10296,59 @@ components:
       required:
         - status
 
+    UserNotificationPreferencesResponseSchema:
+      type: object
+      properties:
+        notify_about:
+          type: object
+          properties:
+            option:
+              type: string
+              enum: ["all_new_messages", "direct_messages_mentions", "nothing"]
+        notification_schedule:
+          type: boolean
+        from_hour:
+          type: string
+          format: time
+        to_hour:
+          type: string
+          format: time
+        notification_method_email:
+          type: boolean
+      required:
+        - notify_about
+        - notification_schedule
+        - from_hour
+        - to_hour
+        - notification_method_email
+
+    UserNotificationPreferencesUpdateSchema:
+      type: object
+      properties:
+        notify_about:
+          type: object
+          properties:
+            option:
+              type: string
+              enum: ["all_new_messages", "direct_messages_mentions", "nothing"]
+        notification_schedule:
+          type: boolean
+        from_hour:
+          type: string
+          format: time
+        to_hour:
+          type: string
+          format: time
+        notification_method_email:
+          type: boolean
+      required:
+        - notify_about
+        - notification_schedule
+        - from_hour
+        - to_hour
+        - appearance
+        - notification_method_email
+
   responses:
     UnauthorizedError:
       description: Authentication information is missing or invalid
@@ -8841,4 +10401,3 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
-

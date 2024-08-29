@@ -49,7 +49,7 @@ func (base *Controller) ChannelCreateInvite(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := c.Request.Header.Get("Base-Url")
 
 	inviteMap, err := invitation.ChannelInvitationLinkGenerator(base.Db, req, userId, url)
 	if err != nil {
@@ -70,7 +70,6 @@ func (base *Controller) ChannelCreateInvite(c *gin.Context) {
 
 	mapData := invitation.ChannelInviteLinkMapper(url, inviteMap)
 
-	// integrating send invitation functionality
 	err = invitation.SendChannelsInvitationsEmail(mapData)
 	if err != nil {
 		base.Logger.Info("Failed to send invitation email", err)
@@ -78,7 +77,6 @@ func (base *Controller) ChannelCreateInvite(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
-
 
 	base.Logger.Info("channel invitation link sent to email")
 

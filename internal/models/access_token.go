@@ -101,8 +101,21 @@ func (a *AccessToken) RevokeAccessToken(db *gorm.DB) error {
 		return fmt.Errorf("access token id not provided to revoke access token")
 	}
 	a.IsLive = false
+
 	_, err := postgresql.SaveAllFields(db, &a)
 	return err
+}
+
+func (a *AccessToken) RevokeAccessTokenDelete(db *gorm.DB) error {
+	if a.ID == "" {
+		return fmt.Errorf("access token id not provided to revoke access token")
+	}
+
+	if err := postgresql.HardDeleteRecordFromDb(db, a); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *AccessToken) RevokeUserTokens(db *gorm.DB) (int, error) {
@@ -182,4 +195,19 @@ func (a *AccessToken) GetAccessTokenByID(db *gorm.DB, tokenID string) (AccessTok
 	}
 
 	return *a, nil
+}
+
+func (a *User) GetLatestAccessTokenByUserID(db *gorm.DB, userID string) (AccessToken, error) {
+	var latestAccessToken AccessToken
+
+	err := db.Where("owner_id = ?", userID).
+		Order("created_at DESC").
+		First(&latestAccessToken).
+		Error
+
+	if err != nil {
+		return latestAccessToken, err
+	}
+
+	return latestAccessToken, nil
 }

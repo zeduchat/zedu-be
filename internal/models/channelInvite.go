@@ -68,27 +68,46 @@ func (i *ChannelInvitation) GetMagicLinkByEmail(db *gorm.DB, email string) (*Cha
 }
 
 func (i *ChannelInvitation) DeleteChannelInviteLink(db *gorm.DB) error {
-	err := postgresql.DeleteRecordFromDb(db, i)
+	err := postgresql.DeleteRecordFromDb(db, &i)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (i *ChannelInvitation) CheckForChannelPresence(db *gorm.DB, email string, channelID string) error {
+func (i *ChannelInvitation) ChannelInvitationValidator(db *gorm.DB, email string, req ChannelInvitationCreateReq) error {
 	var (
 		user     User
-		userChan UserChannels
+		om       OrgUserManagement
 	)
 	err, _ := postgresql.SelectOneFromDb(db, &user, "email = ?", email)
 	if err != nil {
 		return errors.New("user with this email does not exist")
 	}
 
-	exists := postgresql.CheckExists(db, &userChan, "user_id = ? AND channels_id = ?", user.ID, channelID)
-
-	if exists {
-		return errors.New("user already exists in the channel")
+	exists := postgresql.CheckExists(db, &om, "user_id = ? AND organisation_id = ?", user.ID, req.OrganisationID)
+	if !exists {
+		return errors.New("user does not belong to the channels organisation")
 	}
+
 	return nil
+}
+
+func (c *ChannelInvitation) GetChannelInvitationLinkByToken(db *gorm.DB, token string) (ChannelInvitation, error) {
+	var invitation ChannelInvitation
+
+	err, _ := postgresql.SelectOneFromDb(db, &invitation, "token = ?", token)
+	if err != nil {
+		return invitation, errors.New("token does not exist")
+	}
+
+	if invitation.ExpiresAt.Before(time.Now()) {
+		return invitation, errors.New("invitation link has expired")
+	}
+
+	if invitation.Status == "accepted" {
+		return invitation, errors.New("invitation link already accepted")
+	}
+
+	return invitation, nil
 }

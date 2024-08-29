@@ -43,7 +43,7 @@ func (base *Controller) PostWebhook(c *gin.Context) {
 	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
 
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", "post to channel failed", err, nil)
+		rd := utility.BuildErrorResponse(code, "error", "post to channel failed", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -60,7 +60,10 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 	req.EventName = c.Query("event_name")
 	req.UserName = c.Query("username")
 	req.ActionType = c.Query("action_type")
+	req.Status = c.Query("status")
+	req.Message = c.Query("message")
 	req.WebhookSlug = c.Param("webhook_slug")
+	req.AvatarURL  = c.Param("avatar_url")
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
@@ -78,7 +81,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to channel successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -114,7 +117,7 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 	respData, code, err := webhook.PostFeedWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
 
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(code, "error", "post to channel failed", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}

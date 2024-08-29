@@ -40,8 +40,9 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	// call checker validator to check if user is an admin of the organisation and if organisation exists
-	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq, userId, base.Logger)
+	
+
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
 	if err != nil {
 		base.Logger.Info("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)
@@ -51,8 +52,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	url := c.Request.Header.Get("Referer")
 
-	// generate invitee-token mapping
-	inviteMap, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
+	inviteMap, errors, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
 		base.Logger.Info("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
@@ -60,7 +60,6 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	// save invitations
 	err = invitation.SaveInvitations(base.Db.Postgresql, inviteMap)
 	if err != nil {
 		base.Logger.Info("Failed to save invitations", err)
@@ -71,8 +70,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, inviteMap)
 
-	//integrating send invitation functionality
-	err = invitation.SendInvitationsEmail(mapData)
+	err = invitation.SendInvitationsEmail(base.Logger, mapData)
 	if err != nil {
 		base.Logger.Info("Failed to send invitation email", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)
@@ -80,6 +78,11 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", mapData)
+	response := gin.H{
+		"invitations": mapData,
+		"errors":      errors,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)
 	c.JSON(http.StatusCreated, rd)
 }

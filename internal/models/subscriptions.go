@@ -5,6 +5,16 @@ import (
 	"gorm.io/gorm"
 )
 
+var StripeMap map[string]string
+
+func SetStripeMap(stripeConfig config.Stripe) {
+	StripeMap = map[string]string{
+		"Basic":    stripeConfig.STRIPE_BASIC_ID,
+		"Advanced": stripeConfig.STRIPE_ADVANCED_ID,
+		"Premium":  stripeConfig.STRIPE_PREMIUM_ID,
+	}
+}
+
 type SubscriptionPlan struct {
 	Name          string  `gorm:"type:varchar(100);not null"`
 	Price         float64 `gorm:"type:decimal(10,2);not null"`
@@ -36,6 +46,12 @@ func SeedSubscriptionPlans(db *gorm.DB, stripe config.Stripe) {
 			Features:      "Premium features",
 			StripePriceID: stripe.STRIPE_PREMIUM_ID,
 		},
+		{
+			Name:          "Free",
+			Price:         0.00,
+			Description:   "The essential tools to produce your best work for clients.",
+			StripePriceID: "",
+		},
 	}
 
 	for _, plan := range plans {
@@ -44,19 +60,14 @@ func SeedSubscriptionPlans(db *gorm.DB, stripe config.Stripe) {
 }
 
 type CreateSubscriptionRequest struct {
-	PlanName      string `json:"plan_name" binding:"required"`
-	UserID        string `json:"user_id" binding:"required"`
-	Email         string `json:"email" binding:"required,email"`
-	PlanID        string `json:"plan_id" binding:"required"`
-	PaymentMethod string `json:"payment_method" binding:"required"`
-	Currency      string `json:"currency" binding:"required"`
-	CouponCode    string `json:"coupon_code,omitempty"`
+	PlanName string `json:"plan_name" binding:"required"`
+	UserID   string `json:"user_id" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
 }
 
 type ModifySubscriptionRequest struct {
 	UserID   string `json:"user_id" binding:"required"`
 	PlanName string `json:"plan_name" binding:"required"`
-	PlanID   uint   `json:"plan_id" binding:"required"`
 }
 
 type DeleteSubscriptionRequest struct {

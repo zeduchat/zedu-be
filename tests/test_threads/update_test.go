@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/tests"
@@ -38,16 +39,16 @@ func TestUpdateThread(t *testing.T) {
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
-		Name:           "General",
+		Name:           fmt.Sprintf("General%v", currUUID),
 		Description:    "General discussion channel",
 		OwnerId:        adminUser.ID,
 		OrganisationID: org.ID,
 	}
 
 	threads := models.Threads{
-		ID:           utility.GenerateUUID(),
-		ChannelsID:   channel.ID,
-		ThreadStatus: "pending",
+		ID:         utility.GenerateUUID(),
+		ChannelsID: channel.ID,
+		Status:     "pending",
 	}
 
 	db.Create(&adminUser)
@@ -77,11 +78,11 @@ func TestUpdateThread(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
 		reqBody := models.UpdateThreadStatus{
-			ThreadStatus: "closed",
+			Status: "completed",
 		}
 		reqBodyJSON, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s", threads.ID), bytes.NewBuffer(reqBodyJSON))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
@@ -107,7 +108,7 @@ func TestUpdateThread(t *testing.T) {
 		}
 		reqBodyJSON, _ := json.Marshal(invalidReqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s", threads.ID), bytes.NewBuffer(reqBodyJSON))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 

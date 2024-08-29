@@ -26,7 +26,6 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
@@ -49,10 +48,9 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	}
 
 	userClaims := claims.(jwt.MapClaims)
-
 	userId := userClaims["user_id"].(string)
 
-	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId)
+	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId, base.Logger)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -119,7 +117,7 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 		return
 	}
 
-	respData, additionalInfo, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
+	respData, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
 	if err != nil {
 		base.Logger.Info("error fetching channels")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -128,8 +126,7 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"channels":        respData,
-		"additional_info": additionalInfo,
+		"channels": respData,
 	}
 
 	base.Logger.Info("channels fetched successfully")
@@ -163,7 +160,14 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		return
 	}
 
-	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql)
+	err := base.Validator.Struct(&updateReq)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}	
+
+	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 
 	if err != nil {
 		switch err.Error() {
@@ -323,4 +327,25 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 	response := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationData)
 
 	c.JSON(http.StatusOK, response)
+}
+
+func (base *Controller) GetLoadingMetrics(c *gin.Context) {
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve loading metrics", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	loadingMetrics, err := organisation.LoadOrganisationMetrics(orgId, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve loading metrics", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("loading metrics retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "loading metrics retrieved successfully", loadingMetrics)
+	c.JSON(http.StatusOK, rd)
 }

@@ -1,0 +1,86 @@
+describe("Delete user image", () => {
+  const baseUrl = Cypress.env("baseURL");
+  let authToken;
+
+  const now = Date.now();
+  const email = `my-test-user${now}@email.com`;
+  const username = "specialUsername";
+  const password = "password";
+  const first_name = "FirstName";
+  const last_name = "LastName";
+
+  // Authentication runs before running the tests
+  before(() => {
+    // Sign up user
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/auth/register`,
+      body: {
+        username,
+        email,
+        password,
+        first_name,
+        last_name,
+      },
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((response) => {
+      // Assert that the signup was successful
+      expect(response.status).to.eq(201);
+    });
+
+    // Log in to obtain the token
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/auth/login`,
+      body: {
+        email,
+        password,
+      },
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((response) => {
+      // Assert that the login was successful
+      expect(response.status).to.eq(200);
+
+      // Save the token for use in subsequent requests
+      authToken = response.body.data.access_token;
+    });
+  });
+
+  it("should delete a user profile image", () => {
+    cy.request({
+      method: "DELETE",
+      url: `${baseUrl}/profile/image`,
+      failOnStatusCode: false,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+    }).then((response) => {
+      // Assert that the reponse status is 400
+      expect(response.status).to.eq(400);
+
+      // Assert that the response body contains the same user
+      expect(response.body?.message).to.eq(
+        "Profile image deleted successfully"
+      );
+    });
+  });
+
+  it("should fail if a user is not authenticated", () => {
+    cy.request({
+      method: "DELETE",
+      url: `${baseUrl}/profile/image`,
+      failOnStatusCode: false,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((response) => {
+      // Assert that the reponse status is 401 because we did not send the auth token
+      expect(response.status).to.eq(401);
+    });
+  });
+});

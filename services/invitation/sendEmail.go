@@ -7,6 +7,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type InvitationDetail struct {
@@ -14,17 +15,17 @@ type InvitationDetail struct {
 	Link  string
 }
 
-// use for loops with a sleep perid of 0.5 seconds to send emails concurrently.. do not use goroutine
-func SendInvitationsEmail(invitationResponseMap []models.InvitationResponse) error {
+func SendInvitationsEmail(logger *utility.Logger, invitationResponseMap []models.InvitationResponse) error {
 	for _, invite := range invitationResponseMap {
 		err := sendEmail(invite.Email, invite.InvitationLink)
 		if err != nil {
-			return fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
+			logger.Error("Failed to send invitation email", err)
+			continue
 		}
 	}
 	return nil
-
 }
+
 
 func sendEmail(email, link string) error {
 	reqData := models.SendInvitationLink{
@@ -39,6 +40,5 @@ func sendEmail(email, link string) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

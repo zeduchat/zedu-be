@@ -9,24 +9,28 @@ import (
 )
 
 type Blog struct {
-	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
-	Title      string         `gorm:"not null" json:"title"`
-	Content    string         `gorm:"type:text" json:"content"`
-	CategoryID string         `gorm:"type:uuid;not null" json:"category_id"`
-	Category   *BlogCategory  `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
-	ImageURL   string         `gorm:"type:text" json:"image_url,omitempty"`
-	AuthorID   string         `gorm:"type:uuid;not null" json:"author_id"`
-	Author     *User          `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
-	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt  time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ID           string         `gorm:"type:uuid;primary_key" json:"id"`
+	Title        string         `gorm:"not null" json:"title"`
+	Content      string         `gorm:"type:text" json:"content"`
+	HTMLContent  string         `gorm:"type:text" json:"html_content"`
+	Summary      string         `gorm:"type:text" json:"summary"`
+	ImageURL     string         `gorm:"type:text" json:"image_url,omitempty"`
+	PreviewImage string         `gorm:"type:text" json:"preview_image,omitempty"`
+	CategoryID   string         `gorm:"type:uuid;not null" json:"category_id"`
+	Category     *BlogCategory  `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+	AuthorID     string         `gorm:"type:uuid;not null" json:"author_id"`
+	AuthorName   string         `gorm:"type:text;not null" json:"author_name"`
+	AuthorAvatar string         `gorm:"type:text" json:"author_avatar"`
+	Author       *User          `gorm:"foreignKey:AuthorID" json:"author,omitempty"`
+	PublishedAt  string         `gorm:"type:text" json:"published_at"`
+	CreatedAt    time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt    time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type BlogCreateReq struct {
-	Title      string `json:"title" validate:"required"`
-	Content    string `json:"content" validate:"required"`
-	CategoryID string `json:"category_id" validate:"required"`
-	ImageURL   string `json:"image_url"`
+	CategoryID string `json:"category_id"`
+	Content    string `json:"content"`
 }
 
 func (b *Blog) Create(db *gorm.DB) error {

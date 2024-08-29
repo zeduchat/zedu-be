@@ -2,7 +2,6 @@ package invitation
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -13,11 +12,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateReq, userId string, logger *utility.Logger) (int, string, error) {
+
+func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
-
-	org, err := o.CheckOrgExists(inviteReq.OrganisationID, base.Postgresql)
+	org, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
@@ -27,27 +26,19 @@ func CheckerValidator(base *storage.Database, inviteReq models.InvitationCreateR
 		return http.StatusUnauthorized, "User is not an admin of the organisation", errors.New("User is not an admin of the organisation")
 	}
 
-	if len(inviteReq.Emails) == 0 {
+	if len(Emails) == 0 {
 		return http.StatusBadRequest, "No emails provided", errors.New("No emails provided")
 	}
 
-	if CheckEmailsLimit(inviteReq.Emails) {
-		return http.StatusBadRequest, "Emails limit exceeded", errors.New("Emails limit exceeded")
-	}
-
-	if CheckDuplicateEmails(inviteReq.Emails) {
+	if CheckDuplicateEmails(Emails) {
 		return http.StatusBadRequest, "Duplicate emails detected", errors.New("Duplicate emails detected")
 	}
 
 	return http.StatusOK, "User validated", nil
 }
 
-func CheckUserIsAdmin(db *gorm.DB, user_id string, org models.Organisation) bool {
-	return org.OwnerID == user_id
-}
-
-func CheckEmailsLimit(emails []string) bool {
-	return len(emails) > 5 // limit to 5 emails for testing
+func CheckUserIsAdmin(db *gorm.DB, owner_id string, org models.Organisation) bool {
+	return org.OwnerID == owner_id
 }
 
 func CheckDuplicateEmails(emails []string) bool {
@@ -59,10 +50,6 @@ func CheckDuplicateEmails(emails []string) bool {
 		emailsMap[email] = true
 	}
 	return false
-}
-
-func GenerateInvitationLink(baseurl, orgID, token string) string {
-	return baseurl + fmt.Sprintf("/accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
 
 func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
@@ -79,9 +66,8 @@ func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
 
 func GetInvitationDetails(token string, db *gorm.DB) (models.Invitation, error) {
 	var invitation models.Invitation
-	// Check if the invitation token exists in the database
+
 	exists := postgresql.CheckExists(db, &invitation, "token = ?", token)
-	// If it does, return the invitation details
 	if !exists {
 		return invitation, errors.New("Invitation link does not exist")
 	}
@@ -135,3 +121,61 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
+func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest, userId string) ([]models.Invitation, error) {
+
+	var (
+		emails      = req.Emails
+		i           models.Invitation
+		invitations []models.Invitation
+	)
+
+	for _, email := range emails {
+		invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email)
+
+		if !pending {
+			logger.Info("No pending invitations for email", email)
+			continue
+		}
+
+		invite.ExpiresAt = time.Now().Add(24 * time.Hour)
+		invitations = append(invitations, invite)
+
+		err := i.UpdateResendInvitation(base.Postgresql, email, invite.ExpiresAt)
+		if err != nil {
+			logger.Error("Failed to update invitation", err)
+			continue
+		}
+
+	}
+
+	return invitations, nil
+}
+
+func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
+	var (
+		i   models.Invitation
+		org models.Organisation
+	)
+
+	invitation, err := i.GetInvitationByID(db, inviteID)
+	if err != nil {
+		return err
+	}
+
+	orgID := invitation.OrganisationID
+	org, err = org.GetOrgByID(db, orgID)
+	if err != nil {
+		return err
+	}
+
+	if org.OwnerID != userID {
+		return errors.New("User is not an admin of the organisation")
+	}
+
+	err = i.UpdateInvitation(db, invitation.Email, "cancelled")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

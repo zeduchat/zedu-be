@@ -2,7 +2,6 @@ package organisation
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -11,14 +10,21 @@ import (
 )
 
 func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
+	var orgRole models.OrgRole
+
+	orgRole, err := orgRole.GetAOrgRoleByName(db, "Administrator")
+	if err != nil {
+		return err
+	}
+
 	orgUserManagement := models.OrgUserManagement{
 		UserID:         userID,
 		OrganisationID: orgID,
-		RoleID:         "admin", //1 is ADMIN
+		RoleID:         orgRole.ID,
 		Status:         "active",
 	}
-	fmt.Println("error is here")
-	err := orgUserManagement.CreateOrgUserManagement(db)
+
+	err = orgUserManagement.CreateOrgUserManagement(db)
 	if err != nil {
 		return err
 	}
@@ -28,17 +34,7 @@ func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
 func CountMetrics(db *gorm.DB, userID, orgID string) (models.OrgUserMetricsResponse, error) {
 	var (
 		oum models.OrgUserManagement
-		o   models.Organisation
 	)
-
-	isowner, err := o.IsOwnerOfOrganisation(db, userID, orgID)
-	if err != nil {
-		return models.OrgUserMetricsResponse{}, err
-	}
-
-	if !isowner {
-		return models.OrgUserMetricsResponse{}, errors.New("user is not the owner of the organisation")
-	}
 
 	countMetricsData, err := oum.CountMetrics(db, orgID)
 	if err != nil {

@@ -4,6 +4,8 @@ import (
 	"net/mail"
 	"os"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/nyaruka/phonenumbers"
@@ -47,4 +49,24 @@ func CleanStringInput(input string) string {
 	cleanedInput = re.ReplaceAllString(cleanedInput, "")
 
 	return cleanedInput
+}
+
+func SplitEmailString(email string) string {
+	arr := strings.Split(email, "@")
+	name := arr[0]
+
+	p := len(name)-1
+
+	for p > 0 {
+		_, err := strconv.Atoi(string(name[p]))
+		if err != nil {
+			break
+		}
+		p--
+	}
+
+	if p == 0 {
+		return ""
+	}
+	return name[:p+1]
 }

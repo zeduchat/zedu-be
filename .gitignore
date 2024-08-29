@@ -2,6 +2,7 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
+main
 *.exe
 *.exe~
 *.dll
@@ -30,4 +31,9 @@ app.env
 tmp/
 .idea/
 
+temp
 telex_be
+cypress_tests/node_modules
+cypress_tests/cypress.env.json
+cypress_tests/cypress/screenshots
+cypress_tests/cypress/reports

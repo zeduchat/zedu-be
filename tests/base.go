@@ -14,10 +14,13 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
+	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
+	"github.com/hngprojects/telex_be/pkg/controller/invitation"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
@@ -32,9 +35,11 @@ func Setup() *utility.Logger {
 	postgresql.ConnectToDatabase(logger, config.TestDatabase)
 	redis.ConnectToRedis(logger, config.Redis)
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
+	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)
+		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 	}
 	return logger
 }
@@ -174,6 +179,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(orgData)
 	req, err := http.NewRequest(http.MethodPost, orgURI.String(), &b)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,4 +196,42 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	orgName := dataM["name"].(string)
 	ownerID := dataM["owner_id"].(string)
 	return orgID, orgName, ownerID
+}
+
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) (string, string) {
+	var (
+		invitePath = "/api/v1/invite"
+		inviteURI  = url.URL{Path: invitePath}
+	)
+	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
+	{
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
+	}
+
+	inviteData := models.InvitationCreateReq{
+		OrganisationID: invitereq.OrganisationID,
+		Emails:         invitereq.Emails,
+		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
+	}
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(inviteData)
+	req, err := http.NewRequest(http.MethodPost, inviteURI.String(), &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	data := ParseResponse(rr)
+
+	dataM := data["data"].(map[string]interface{})
+	invitations := dataM["invitations"].([]interface{})
+	invite_token := invitations[0].(map[string]interface{})["invite_token"].(string)
+	invite_id := invitations[0].(map[string]interface{})["id"].(string)
+
+	return invite_token, invite_id
 }

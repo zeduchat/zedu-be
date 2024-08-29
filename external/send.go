@@ -68,16 +68,20 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	}
 	logger.Info("after prefix", name, r.Path, data, buf)
 
-	client := &http.Client{}
 	var req *http.Request
+	client := &http.Client{}
 	if r.Method == http.MethodGet {
 		req, err = http.NewRequest(r.Method, r.Path, nil)
 	} else {
-		req, err = http.NewRequest(r.Method, r.Path, buf)
+		switch r.Headers["Content-Type"] {
+		case "application/x-www-form-urlencoded":
+			req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
+		default:
+			req, err = http.NewRequest(r.Method, r.Path, buf)
+		}
 	}
 
 	if err != nil {
-		fmt.Printf("error1: %v", err)
 		logger.Error("request creation error", name, err.Error())
 		return err
 	}

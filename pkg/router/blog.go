@@ -26,10 +26,12 @@ func Blog(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	}
 
 	{
+		blogsUrl.POST("/blogs/feedback", middleware.RateLimiter(), blogs.SubmitFeedback)
 		blogsUrl.GET("/blogs", blogs.GetBlogs)
 		blogsUrl.GET("/blog_categories", blogs.GetBlogCategories)
 		blogsUrl.GET("/blog_categories/:id", blogs.GetBlogCategoryById)
 		blogsUrl.GET("/blogs/:id", blogs.GetBlogById)
+		blogsUrl.GET("/blogs/:id/feedback/count", blogs.GetFeedbackCount)
 	}
 
 	return r

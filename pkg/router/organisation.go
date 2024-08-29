@@ -17,10 +17,10 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	organisation := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 
-		organisationUrl.POST("/", organisation.CreateOrganisation)
+		organisationUrl.POST("", organisation.CreateOrganisation)
 		organisationUrl.GET("/:org_id", organisation.GetOrganisation)
 		organisationUrl.DELETE("/:org_id", organisation.DeleteOrganisation)
 		organisationUrl.PUT("/:org_id", organisation.UpdateOrganisation)
@@ -39,7 +39,12 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PUT("/:org_id/users/:user_id", organisation.UpdateMember)
 		organisationUrl.GET("/:org_id/invites", organisation.GetOrganisationInvites)
 
-		organisationUrl.POST("/:org_id/users/:user_id", organisation.AddMemberToOrganisation)
+		organisationUrl.POST("/:org_id/users", organisation.AddMemberToOrganisation)
+	}
+
+	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
+	{
+		testOrganisationUrl.GET("/:org_id/load-metrics", organisation.GetLoadingMetrics)
 	}
 
 	return r

@@ -71,6 +71,8 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			Email:      email,
 			IsVerified: true,
 			Profile: models.Profile{
+				FullName:  username,
+				UserName:  username,
 				ID:        utility.GenerateUUID(),
 				AvatarURL: userClaims["picture"].(string),
 			},
@@ -82,7 +84,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		}
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}
@@ -106,6 +108,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			"email":        user.Email,
 			"username":     user.Name,
 			"fullname":     user.Name,
+			"current_org":  user.CurrentOrg,
 			"is_verified":  user.IsVerified,
 			"is_onboarded": user.IsOnboarded,
 			"avatar_url":   user.Profile.AvatarURL,

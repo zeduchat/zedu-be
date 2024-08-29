@@ -54,6 +54,22 @@ func (base *Controller) GetAUser(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetOrganisationDetails(c *gin.Context) {
+	var (
+		org_id = c.Param("org_id")
+	)
+
+	userData, code, err := service.GetOrganisationDetails(base.Db.Postgresql, c, org_id)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation details retrieved successfully", userData)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) GetAUserOrganisation(c *gin.Context) {
 
 	userData, code, err := service.GetAUserOrganisation(base.Db.Postgresql, c)
@@ -119,6 +135,23 @@ func (base *Controller) UpdateAUser(c *gin.Context) {
 
 }
 
+func (base *Controller) ActivateUser(ctx *gin.Context) {
+	var (
+		userID = ctx.Param("user_id")
+	)
+
+	code, err := service.ActivateUser(userID, base.Db.Postgresql, ctx)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		ctx.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User activated successfully", nil)
+	ctx.JSON(http.StatusOK, rd)
+
+}
+
 func (base *Controller) DeactiveUser(ctx *gin.Context) {
 	var (
 		userID = ctx.Param("user_id")
@@ -173,7 +206,7 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := service.SwitchUserOrg(req, userId, base.Db.Postgresql)
+	respData, code, err := service.SwitchUserOrg(req, userId, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)

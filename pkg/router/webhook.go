@@ -17,7 +17,7 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	webhook := webhook.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
 	{
 		webhookUrl.GET("/:channel_id/history/:webhook_id", webhook.GetWebhookHistory)
 		webhookUrl.GET("/:channel_id/all", webhook.GetAllWebhook)
@@ -29,10 +29,16 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 	}
 
-	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
+	incomingPastUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
 	{
-		incomingUrl.GET("/feed/:webhook_slug", webhook.GetWebhook)
-		incomingUrl.POST("/feed/:webhook_slug", webhook.PostWebhook)
+		incomingPastUrl.GET("/feed/:webhook_slug", webhook.GetWebhook)
+		incomingPastUrl.POST("/feed/:webhook_slug", webhook.PostWebhook)
+	}
+
+	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", "v1"))
+	{
+		incomingUrl.GET("/:webhook_slug", webhook.GetWebhook)
+		incomingUrl.POST("/:webhook_slug", webhook.PostWebhook)
 	}
 	return r
 }

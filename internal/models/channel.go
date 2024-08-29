@@ -49,6 +49,11 @@ type GetChannelsRequest struct {
 	Name string `json:"name" validate:"required"`
 }
 
+type GetChannelResp struct {
+	Channels
+	WebhookUrl string `json:"webhook_url"`
+}
+
 type JoinChannelsRequest struct {
 	Username   string `json:"username" validate:"required"`
 	ChannelsID string `json:"channels_id" `
@@ -64,11 +69,28 @@ type UpdateChannelsUserNameReq struct {
 	Username string `json:"username" validate:"required"`
 }
 
+type UserMsgProfile struct {
+	FullName  string `json:"full_name"`
+	AvatarURL string `json:"avatar_url"`
+	Email     string `json:"email"`
+}
+
+type MessagesResp []struct {
+	ID        string    `json:"id"`
+	Edited    bool      `json:"edited"`
+	Message   string    `json:"message"`
+	Username  string    `json:"user_name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UserMsgProfile
+}
+
+type ChannelInfo struct {
+	ChannelID string `json:"channel_id"`
+	UserID    string `json:"user_id"`
+}
+
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
-	err := postgresql.CreateOneRecord(db, r)
-	if err != nil {
-		return errors.New("could not create channel, invalid organisation id")
-	}
 
 	fields := []api.Field{
 		{Name: "id", Type: "string"},
@@ -83,9 +105,14 @@ func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) er
 		{Name: "created_at", Type: "int64"},
 	}
 
-	err = tydb.CreateCollection(typesenseDb, r.ID, fields)
+	err := tydb.CreateCollection(typesenseDb, r.ID, fields)
 	if err != nil {
 		return errors.New("could not create channel collection in Typesense")
+	}
+
+	err = postgresql.CreateOneRecord(db, r)
+	if err != nil {
+		return errors.New("could not create channel, invalid organisation id")
 	}
 
 	return nil
@@ -93,7 +120,7 @@ func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) er
 
 func (c *Channels) CheckChannelExistsInOrg(db *gorm.DB, channelID, organisationID string) bool {
 	var channel Channels
-	exists := postgresql.CheckExists(db, &channel, "channels_id = ? AND organisation_id = ?", channelID, organisationID)
+	exists := postgresql.CheckExists(db, &channel, "id = ? AND organisation_id = ?", channelID, organisationID)
 	return exists
 }
 
@@ -123,10 +150,8 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 
 	offset := (pagination.Page - 1) * pagination.Limit
 
-	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number , users.name").
+	if err := db.Preload("Profile").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
 		Where("user_channels.channels_id = ?", channelId).
 		Offset(offset).
 		Limit(pagination.Limit).
@@ -137,7 +162,6 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 	var totalUsers int64
 	if err := db.Table("users").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
 		Where("user_channels.channels_id = ?", channelId).
 		Count(&totalUsers).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -177,25 +201,37 @@ func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, erro
 	return channels, nil
 }
 
-func (r *Channels) GetChannelsByID(db *gorm.DB, channelID string) (Channels, error) {
+func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelResp, error) {
 	var (
-		channel Channels
-		ur      UserChannels
+		channel  Channels
+		chanResp GetChannelResp
+		ur       UserChannels
+		webhook  Webhook
 	)
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", channelID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
-		return channel, errors.New("channel not found")
+		return chanResp, errors.New("channel not found")
 	}
 
-	count, err := ur.CountChannelsUsers(db, channelID)
+	count, err := ur.CountChannelsUsers(db, chanReq.ChannelID)
 	if err != nil {
-		return channel, errors.New("could not get channel users count")
+		return chanResp, errors.New("could not get channel users count")
 	}
 
 	channel.UserCount = count
+	webhook, err = webhook.GetChannelWebhook(db, chanReq)
 
-	return channel, nil
+	if err != nil {
+		return chanResp, errors.New("could not get channel webhook")
+	}
+
+	chanResp = GetChannelResp{
+		channel,
+		webhook.WebhookUrl,
+	}
+
+	return chanResp, nil
 }
 
 func (u *UserChannels) CountChannelsUsers(db *gorm.DB, channelID string) (int64, error) {
@@ -212,6 +248,7 @@ func (r *Channels) CountChannelsMessages(db *gorm.DB, channelID string) (int64, 
 		count   int64
 		message Message
 	)
+
 	err := db.Model(&message).Where("channels_id = ?", channelID).Count(&count).Error
 	if err != nil {
 		return 0, errors.New("could not count messages in channel")
@@ -229,30 +266,29 @@ func (r *Channels) CountTeamChannelss(db *gorm.DB, teamId string) (int64, error)
 	return int64(len(rs)), nil
 }
 
-func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) ([]Message, error) {
+func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (MessagesResp, error) {
 
 	var (
-		messages     []Message
 		userChannels UserChannels
+		messagesResp MessagesResp
 	)
 
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	if !exist {
-		return messages, errors.New("user not in channel")
+		return messagesResp, errors.New("user not in channel")
 	}
 
-	err := postgresql.SelectAllFromDb(
-		db.Where("channels_id = ?", channelID),
-		"",
-		&messages,
-		"channels_id = ?",
-		channelID,
-	)
+	var err = db.Table("messages").
+		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
+		Joins("left join profiles on profiles.userid = messages.user_id").
+		Joins("left join users on users.id = messages.user_id").
+		Where("messages.channels_id = ?", channelID).
+		Scan(&messagesResp).Error
 	if err != nil {
-		return messages, err
+		return messagesResp, err
 	}
 
-	return messages, nil
+	return messagesResp, nil
 }
 
 func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Channels, error) {
@@ -439,4 +475,15 @@ func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name strin
 	}
 
 	return channels, paginationResponse, nil
+}
+
+func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
+	var channel Channels
+
+	exists := postgresql.CheckExists(db, &channel, "id = ?", channelID)
+	if !exists {
+		return exists, errors.New("channel does not exist")
+	}
+
+	return exists, nil
 }
