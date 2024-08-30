@@ -76,8 +76,9 @@ jobs:
           echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
           chmod 400 ssh_key.pem
           scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
+          rsync -avz -e "ssh -i ssh_key.pem" telex_be $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be
           rm ssh_key.pem
-
+          
   update_and_restart_app:
     runs-on: self-hosted
     needs: [update_env_and_binary]
@@ -89,7 +90,7 @@ jobs:
     steps:
       - name: Restart app
         run: |
-          echo ${{ env.SSH_KEY }} > ssh_key.pem
+          echo "$SSH_KEY" > ssh_key.pem
             chmod 400 ssh_key.pem
             ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
             cd ~/deployments/telex_be
