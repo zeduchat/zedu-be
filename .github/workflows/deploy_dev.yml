@@ -73,7 +73,7 @@ jobs:
 
       - name: Copy app.env and go binary to server
         run: |
-          echo ${{ secrets.SSH_KEY }} > ssh_key.pem
+          echo ${{ env.SSH_KEY }} > ssh_key.pem
           chmod 400 ssh_key.pem
           scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be/app.env
           rsync -avz -e "ssh -i ssh_key.pem" telex_be $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be
@@ -90,7 +90,7 @@ jobs:
     steps:
       - name: Restart app
         run: |
-          echo ${{ secrets.SSH_KEY }} > ssh_key.pem
+          echo ${{ env.SSH_KEY }} > ssh_key.pem
             chmod 400 ssh_key.pem
             ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
             cd ~/deployments/telex_be
