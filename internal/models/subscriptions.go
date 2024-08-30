@@ -1,7 +1,12 @@
 package models
 
 import (
+	"errors"
+	"time"
+
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"gorm.io/gorm"
 )
 
 var StripeMap map[string]string
@@ -32,4 +37,99 @@ type DeleteSubscriptionRequest struct {
 type CompleteSubscriptionRequest struct {
 	OrgID           string `json:"org_id" validate:"required"`
 	StripeSessionID string `json:"stripe_session_id" validate:"required"`
+}
+
+type Plan struct {
+	ID                      string         `gorm:"primaryKey;type:uuid" json:"id"`
+	Name                    string         `gorm:"uniqueIndex;" json:"name"`
+	Fee                     int            `gorm:"not null" json:"fee"`
+	MaxChannels             int            `gorm:"not null" json:"max_channels"`
+	MaxUsers                int            `gorm:"not null" json:"max_users"`
+	MaxNotifications        int            `gorm:"not null" json:"max_notifications"`
+	CanUpgradeNotifications bool           `gorm:"not null" json:"can_upgrade_notifications"`
+	CanAddUnlimitedChannels bool           `gorm:"not null" json:"can_add_unlimited_channels"`
+	CanAddUnlimitedUsers    bool           `gorm:"not null" json:"can_add_unlimited_users"`
+	IsForIndividuals        bool           `gorm:"not null" json:"is_for_individuals"`
+	IsForSmallBusiness      bool           `gorm:"not null" json:"is_for_small_business"`
+	IsForLargeEnterprise    bool           `gorm:"not null" json:"is_for_large_enterprise"`
+	CreatedAt               time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt               time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt               gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type OrganisationPlan struct {
+	ID             string         `gorm:"primaryKey;type:uuid" json:"id"`
+	OrganisationID string         `gorm:"not null;index" json:"organisation_id"`
+	PlanID         string         `gorm:"not null;index" json:"plan_id"`
+	StartedAt      time.Time      `gorm:"column:started_at;null; autoCreateTime" json:"started_at"`
+	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at"`
+	Status         string         `gorm:"null" json:"status"`
+	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (c *OrganisationPlan) Create(db *gorm.DB) error {
+
+	err := postgresql.CreateOneRecord(db, &c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *OrganisationPlan) Update(db *gorm.DB) (*OrganisationPlan, error) {
+	result, err := postgresql.SaveAllFields(db, &c)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, errors.New("failed to update organisation plan")
+	}
+
+	return c, nil
+}
+
+func (r *OrganisationPlan) GetAnOrgPlanById(db *gorm.DB, orgID string) (OrganisationPlan, error) {
+	var orgPlan OrganisationPlan
+
+	query := db.Where("organisation_id = ? AND status = ?", orgID, "Active").
+		Order("started_at DESC")
+	err := query.First(&orgPlan).Error
+
+	if err != nil {
+		return orgPlan, err
+	}
+
+	return orgPlan, nil
+}
+
+func (r *OrganisationPlan) GetPlanByOrgID(db *gorm.DB, orgID string) (Plan, error) {
+	var plan Plan
+
+	err := db.Table("organisation_plans").
+		Select("plans.*").
+		Joins("JOIN plans ON organisation_plans.plan_id::uuid = plans.id").
+		Where("organisation_plans.organisation_id = ? AND organisation_plans.status = ?", orgID, "Active").
+		Order("organisation_plans.started_at DESC").
+		First(&plan).Error
+
+	if err != nil {
+		return plan, err
+	}
+
+	return plan, nil
+}
+
+func (r *Plan) GetAPlanByAmount(db *gorm.DB, planAmt int) (Plan, error) {
+
+	query := db.Where("fee = ?", planAmt)
+	err := query.First(&r).Error
+
+	if err != nil {
+		return *r, err
+	}
+
+	return *r, nil
 }

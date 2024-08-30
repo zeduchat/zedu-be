@@ -3329,7 +3329,62 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    delete:
+      tags:
+        - blogs
+      summary: Delete a blog category by admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: categoryId
+          schema:
+            type: string
+            format: uuid
+          required: true
+      
+      responses:
+        '204':
+          description: blog category deleted successfully
+
+        '400':
+          description: Invalid orgId format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                
+                
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+                
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+                
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+  
                 
   /blogs/feedback:
     post:
@@ -10333,29 +10388,30 @@ components:
       type: object
       required:
         - plan_name
-        - user_id
+        - org_id
         - email
       properties:
         plan_name:
           type: string
           description: "The name of the subscription plan."
           example: "Premium"
-        user_id:
+        org_id:
           type: string
-          description: "The unique identifier for the user."
+          description: "The unique identifier for the org."
           example: "123456"
         email:
           type: string
           description: "The email address of the user."
           format: email
           example: "user@example.com"
+
     ModifySubscriptionRequest:
       type: object
       required:
-        - user_id
+        - org_id
         - plan_name
       properties:
-        user_id:
+        org_id:
           type: string
           description: The ID of the user modifying the subscription
         plan_name:
@@ -10365,9 +10421,9 @@ components:
     DeleteSubscriptionRequest:
       type: object
       required:
-        - user_id
+        - org_id
       properties:
-        user_id:
+        org_id:
           type: string
           description: The ID of the user deleting the subscription
 

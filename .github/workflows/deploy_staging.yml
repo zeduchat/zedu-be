@@ -55,10 +55,10 @@ jobs:
           IPSTACK_BASE_URL: ${{ secrets.IPSTACK_BASE_URL }}
           CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
           CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
-          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
-          STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID }}
-          STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
-          STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY_STAGING }}
+          STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID_STAGING }}
+          STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID_STAGING }}
+          STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID_STAGING }}
 
       - name: Copy app.env to server
         run: |

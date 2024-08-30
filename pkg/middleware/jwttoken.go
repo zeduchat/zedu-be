@@ -39,6 +39,7 @@ func CreateToken(user models.User, c *gin.Context) (*TokenDetailDTO, error) {
 	userClaims["user_id"] = user.ID
 	userClaims["access_uuid"] = tokenData.AccessUuid
 	userClaims["role_id"] = user.OrgRoleID
+	userClaims["org_id"] = user.CurrentOrg
 	userClaims["exp"] = tokenData.ExpiresAt.Unix()
 	userClaims["authorised"] = true
 

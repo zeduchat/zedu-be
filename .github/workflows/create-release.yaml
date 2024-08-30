@@ -1,0 +1,59 @@
+name: Generate Release JSON
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  create-release-json:
+    runs-on: self-hosted
+    env:
+      release_file_dir: public/releases
+      release_file_path: public/releases/release-${{ github.event.release.tag_name }}.json
+      release_notes_url: /releases/${{ github.event.release.tag_name }}.json
+      release_name: ${{ github.event.release.name }}
+      release_body: ${{ github.event.release.body }}
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          token: ${{ secrets.PRIVATE_TOKEN }}
+
+      - name: Create release JSON file
+        run: |
+          mkdir -p "$release_file_dir"
+          echo "{" > "$release_file_path"
+          echo "  \"title\": \"$release_name\"," >> "$release_file_path"
+          echo "  \"body\": \"$release_body\"" >> "$release_file_path"
+          echo "}" >> "$release_file_path"
+
+      - name: Configure Git to use GitHub token
+        env:
+          TELEX_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git remote add origin https://$TELEX_TOKEN@github.com/${{ github.repository }}.git
+
+      - name: Update version.json file
+        run: |
+          echo "{\"number\": \"${{ github.event.release.tag_name }}\", \"release_notes_url\": \"${{ env.release_notes_url }}\"}" > public/releases/version.json
+
+      - name: Commit and push the release JSON to the public/releases directory
+        run: |
+          git add "$release_file_path"
+          git add public/releases/version.json
+          git commit -m "Add release-${{ github.event.release.tag_name }}.json"
+          git push origin staging
+
+      - name: Cleanup old releases, keep only the last 10
+        run: |
+          old_files=$(ls -t public/releases/release-*.json | tail -n +11)
+          if [ -n "$old_files" ]; then
+              echo "$old_files" | xargs -r git rm
+              git commit -m "Remove old release files"
+              git pull --rebase origin staging
+              git push origin staging
+          fi

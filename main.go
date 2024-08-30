@@ -27,7 +27,6 @@ func main() {
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the app
 
 	configuration := config.Setup(logger, "./app")
-	//connect to stripe
 	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
@@ -44,6 +43,7 @@ func main() {
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
+		seed.SeedPlans(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
