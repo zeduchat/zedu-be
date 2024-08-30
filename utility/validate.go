@@ -1,6 +1,7 @@
 package utility
 
 import (
+	"errors"
 	"net/mail"
 	"os"
 	"regexp"
@@ -55,7 +56,7 @@ func SplitEmailString(email string) string {
 	arr := strings.Split(email, "@")
 	name := arr[0]
 
-	p := len(name)-1
+	p := len(name) - 1
 
 	for p > 0 {
 		_, err := strconv.Atoi(string(name[p]))
@@ -69,4 +70,11 @@ func SplitEmailString(email string) string {
 		return ""
 	}
 	return name[:p+1]
+}
+
+func ArchiveValidator(archived bool) error {
+	if archived != true && archived != false {
+		return errors.New("archived field must be provided")
+	}
+	return nil
 }

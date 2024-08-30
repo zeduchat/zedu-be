@@ -620,3 +620,41 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) ArchiveChannel(c *gin.Context) {
+	channelId := c.Param("channelId")
+	var req models.ArchiveChannelRequest
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = utility.ArchiveValidator(req.Archived)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", err.Error(), err, nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	statusCode, err := channel.ArchiveChannel(base.Db.Postgresql, channelId, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("channel archived successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel archived successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}

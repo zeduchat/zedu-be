@@ -7,7 +7,9 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
+
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -16,6 +18,7 @@ import (
 func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	organisation := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
@@ -40,6 +43,9 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/invites", organisation.GetOrganisationInvites)
 		organisationUrl.POST("/:org_id/users", organisation.AddMemberToOrganisation)
 
+		organisationUrl.GET("/:org_id/user-channels", channel.GetUserChannels)
+		organisationUrl.GET("/:org_id/user-not-channels", channel.GetUserNotInChannels)
+		organisationUrl.PUT("/:org_id/archive-channel", channel.ArchiveChannel)
 	}
 
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))

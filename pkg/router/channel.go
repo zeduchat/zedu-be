@@ -37,9 +37,9 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
 		channelUrl.POST("/add", channel.AddMembersToChannel)
 
-		channelUrl.GET("/organisations/:org_id/user-channels", channel.GetUserChannels)
-		channelUrl.GET("/organisations/:org_id/user-not-channels", channel.GetUserNotInChannels)
 		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
+
+		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
 	}
 
 	return r

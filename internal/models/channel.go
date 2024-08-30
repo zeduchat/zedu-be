@@ -26,6 +26,7 @@ type Channels struct {
 	Users          []User    `gorm:"many2many:user_channels;" json:"users"`
 	UserCount      int64     `gorm:"-" json:"user_count"`
 	MessageCount   int64     `gorm:"-" json:"message_count"`
+	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
@@ -100,6 +101,10 @@ type ChannelInfo struct {
 type AddMultipleMembersRequest struct {
 	ChannelID string   `json:"channel_id" validate:"required"`
 	UserIDs   []string `json:"user_ids" validate:"required"`
+}
+
+type ArchiveChannelRequest struct {
+	Archived bool `json:"archived"`
 }
 
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -340,6 +345,26 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	}
 
 	return channel, nil
+}
+
+func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) error {
+	var channel Channels
+
+	err := db.Raw("SELECT id, COALESCE(archived, false) as archived FROM channels WHERE id = ?", channelId).Scan(&channel).Error
+	if err != nil {
+		return errors.New("could not fetch current channel state")
+	}
+
+	if channel.Archived == req.Archived {
+		return errors.New("channel is already in the requested state")
+	}
+
+	err = db.Model(&channel).Where("id = ?", channelId).Update("archived", req.Archived).Error
+	if err != nil {
+		return errors.New("could not update the archived status of the channel")
+	}
+
+	return nil
 }
 
 func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {

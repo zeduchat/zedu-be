@@ -247,6 +247,16 @@ func AddMultipleMembersToChannel(db *gorm.DB, req models.AddMultipleMembersReque
 	return addError, nil
 }
 
+func ArchiveChannel(db *gorm.DB, channelId string ,req models.ArchiveChannelRequest) (int, error) {
+	var channel models.Channels
+
+	err := channel.ArchiveChannel(db, channelId, req)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+	return http.StatusOK, nil
+}
+
 func GetUserChannels(db *gorm.DB, userID, orgID string) ([]models.ChannelInfoResponse, error) {
 	var (
 		uc models.UserChannels
