@@ -17,6 +17,7 @@ func ConnectToTypeSense(logger *utility.Logger, config config.TypeSense) *typese
 	client := typesense.NewClient(
 		typesense.WithServer(config.TypeSense_API_URL),
 		typesense.WithAPIKey(config.TypeSense_API_KEY),
+		typesense.WithConnectionTimeout(time.Duration(30)*time.Second),
 	)
 
 	healthy, err := client.Health(context.Background(), 10*time.Second)
