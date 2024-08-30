@@ -16,14 +16,9 @@ import (
 func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
-	org, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
+	_, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
-	}
-
-	isAdmin := CheckUserIsAdmin(base.Postgresql, userId, org)
-	if !isAdmin {
-		return http.StatusUnauthorized, "User is not an admin of the organisation", errors.New("User is not an admin of the organisation")
 	}
 
 	if len(Emails) == 0 {
