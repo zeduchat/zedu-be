@@ -288,7 +288,6 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	query := db.Model(&Threads{}).
 		Select("threads.id, threads.channels_id, channels.name as channel_name, threads.current_status, threads.email, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Where("threads.type = ? OR threads.type IS NULL", "thread").
 		Joins("LEFT JOIN channels ON threads.channels_id = channels.id").
 		Where("channels.organisation_id = ?", organisationID).
 		Where("EXISTS (SELECT * FROM messages WHERE messages.thread_id = threads.id AND messages.user_id = ?)", userId).

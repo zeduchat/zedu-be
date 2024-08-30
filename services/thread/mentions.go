@@ -37,15 +37,16 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 	threadID := utility.GenerateUUID()
 
 	thread := models.Threads{
-		ID:           threadID,
-		Username:     profile.UserName,
-		Content:      req.Content,
-		ChannelsID:   req.ChannelsID,
-		Type:         "message",
-		MessageCount: 0,
-		AvatarURL:    profile.AvatarURL,
-		FullName:     profile.FullName,
-		Email:        user.Email,
+		ID:            threadID,
+		Username:      profile.UserName,
+		Content:       req.Content,
+		ChannelsID:    req.ChannelsID,
+		Type:          "message",
+		MessageCount:  0,
+		AvatarURL:     profile.AvatarURL,
+		FullName:      profile.FullName,
+		Email:         user.Email,
+		CurrentStatus: "pending",
 	}
 
 	if err = thread.CreateThread(db, typesenseDb); err != nil {
