@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/internal/models"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
@@ -14,7 +16,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB) (*gin.H, int, *stripe.Invoice, error) {
+func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
+	rdb *redis.Client) (*gin.H, int, *stripe.Invoice, error) {
 	var orgRepo models.Organisation
 	var planRepo models.Plan
 	var orgPlanRepo models.OrganisationPlan
@@ -113,6 +116,9 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB) (
 	if err := i.Err(); err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
 	}
+
+	cacheKey := "org_plan:" + org.ID
+	rd.RedisDelete(rdb, cacheKey)
 
 	responseData := gin.H{
 		"invoice_items": invoiceItems,

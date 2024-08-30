@@ -7,17 +7,18 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/internal/models"
 	"gorm.io/gorm"
 )
 
-func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, orgID string) error {
+func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, rdb *redis.Client, orgID string) error {
 
 	req := models.CompleteSubscriptionRequest{
 		OrgID:           orgID,
 		StripeSessionID: sessionID,
 	}
-	_, _, inv, err := CompleteSubscription(req, db)
+	_, _, inv, err := CompleteSubscription(req, db, rdb)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return err

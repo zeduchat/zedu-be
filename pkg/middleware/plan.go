@@ -25,23 +25,28 @@ func PlanMiddleware(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		}
 
 		cacheKey := "org_plan:" + orgID
-		var currentPlan models.OrganisationPlan
+		var currentPlan models.Plan
 
 		cachedPlan, err := rd.RedisGet(rdb, cacheKey)
 		if err == redis.Nil || len(cachedPlan) == 0 {
 
-			currentPlan, err := currentPlan.GetAnOrgPlanById(db, orgID)
+			orgPlan := &models.OrganisationPlan{}
+			currentPlan, err = orgPlan.GetPlanByOrgID(db, orgID)
 			if err != nil {
-				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to load plan", nil)
+				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", err.Error(), nil)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, r)
 				return
 			}
 
-			planJSON, _ := json.Marshal(currentPlan)
-			rd.RedisSet(rdb, cacheKey, planJSON)
+			if err := rd.RedisSetPerm(rdb, cacheKey, currentPlan); err != nil {
+				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to cache the plan", nil)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, r)
+				return
+			}
 		} else {
-			if err := json.Unmarshal([]byte(cachedPlan), &currentPlan); err != nil {
-				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to unmarshal plan", nil)
+
+			if err := json.Unmarshal(cachedPlan, &currentPlan); err != nil {
+				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to unmarshal cached plan", nil)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, r)
 				return
 			}
@@ -52,11 +57,11 @@ func PlanMiddleware(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 	}
 }
 
-func GetCurrentPlan(c *gin.Context) (models.OrganisationPlan, error) {
+func GetCurrentPlan(c *gin.Context) (models.Plan, error) {
 	plan, exists := c.Get("currentPlan")
 	if !exists {
-		return models.OrganisationPlan{}, errors.New("plan not found")
+		return models.Plan{}, errors.New("plan not found")
 	}
 
-	return plan.(models.OrganisationPlan), nil
+	return plan.(models.Plan), nil
 }

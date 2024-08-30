@@ -105,6 +105,23 @@ func (r *OrganisationPlan) GetAnOrgPlanById(db *gorm.DB, orgID string) (Organisa
 	return orgPlan, nil
 }
 
+func (r *OrganisationPlan) GetPlanByOrgID(db *gorm.DB, orgID string) (Plan, error) {
+	var plan Plan
+
+	err := db.Table("organisation_plans").
+		Select("plans.*").
+		Joins("JOIN plans ON organisation_plans.plan_id::uuid = plans.id").
+		Where("organisation_plans.organisation_id = ? AND organisation_plans.status = ?", orgID, "Active").
+		Order("organisation_plans.started_at DESC").
+		First(&plan).Error
+
+	if err != nil {
+		return plan, err
+	}
+
+	return plan, nil
+}
+
 func (r *Plan) GetAPlanByAmount(db *gorm.DB, planAmt int) (Plan, error) {
 
 	query := db.Where("fee = ?", planAmt)
