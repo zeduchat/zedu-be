@@ -144,6 +144,17 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 	return org, nil
 }
 
+func (o *Organisation) GetOrgByEmail(db *gorm.DB, orgEmail string) (Organisation, error) {
+	var org Organisation
+
+	query := db.Where("email = ?", orgEmail)
+	if err := query.First(&org).Error; err != nil {
+		return org, err
+	}
+
+	return org, nil
+}
+
 func (o *Organisation) GetAllChannelssInOrganisation(db *gorm.DB, orgID string) (ChannelResp, error) {
 	var (
 		channels Channels
