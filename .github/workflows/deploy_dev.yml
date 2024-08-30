@@ -71,12 +71,11 @@ jobs:
         run: |
           go build -o telex_be
 
-      - name: Copy app.env and go binary to server
+      - name: Copy app.env to server
         run: |
-          echo ${{ env.SSH_KEY }} > ssh_key.pem
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
           chmod 400 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be/app.env
-          rsync -avz -e "ssh -i ssh_key.pem" telex_be $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
           rm ssh_key.pem
 
   update_and_restart_app:
