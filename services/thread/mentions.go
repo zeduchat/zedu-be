@@ -34,7 +34,11 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 		return nil, errors.New("failed to get user")
 	}
 
-	threadID := utility.GenerateUUID()
+	threadID := req.ThreadId
+
+	if threadID == "" {
+		threadID = utility.GenerateUUID()
+	}
 
 	thread := models.Threads{
 		ID:            threadID,

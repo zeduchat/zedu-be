@@ -67,6 +67,7 @@ type CreateThreadMsgReq struct {
 	Content    string `json:"content" validate:"required"`
 	ChannelsID string `json:"channels_id"`
 	UserId     string `json:"user_id"`
+	ThreadId   string `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -128,6 +129,12 @@ type UpdateThreadStatus struct {
 
 func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error {
 
+	exist := postgresql.CheckExists(db, &Threads{}, "id", t.ID)
+
+	if exist {
+		return nil
+	}
+
 	err := postgresql.CreateOneRecord(db, t)
 	if err != nil {
 		return err
@@ -151,7 +158,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 
 	err = tydb.InsertDocument(typesenseDb, t.ChannelsID, threadDocument)
 	if err != nil {
-		return errors.New("could not create thread document in Typesense")
+		return errors.New("could not create thread document in Typesense an error occurred: " + err.Error())
 	}
 
 	return nil
