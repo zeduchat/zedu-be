@@ -163,3 +163,21 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 
 }
+
+func (base *Controller) GetCurrentSubscription(c *gin.Context) {
+
+	var (
+		orgID = c.Param("org_id")
+	)
+
+	subscriptionsData, code, err := service.GetCurrentSubscription(orgID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		base.Logger.Error(err.Error())
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription retrieved successfully", subscriptionsData)
+	c.JSON(http.StatusOK, rd)
+}

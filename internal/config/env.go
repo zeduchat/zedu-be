@@ -86,10 +86,11 @@ type BaseConfig struct {
 	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
 	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
 
-	STRIPE_KEY         string `mapstructure:"STRIPE_KEY"`
-	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
-	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
-	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
+	STRIPE_KEY            string `mapstructure:"STRIPE_KEY"`
+	STRIPE_WEBHOOK_SECRET string `mapstructure:"STRIPE_WEBHOOK_SECRET"`
+	STRIPE_BASIC_ID       string `mapstructure:"STRIPE_BASIC_ID"`
+	STRIPE_PREMIUM_ID     string `mapstructure:"STRIPE_PREMIUM_ID"`
+	STRIPE_ADVANCED_ID    string `mapstructure:"STRIPE_ADVANCED_ID"`
 
 	TELEX_LOGIN_CHANNEL  string `mapstructure:"TELEX_LOGIN_CHANNEL"`
 	TELEX_SIGNUP_CHANNEL string `mapstructure:"TELEX_SIGNUP_CHANNEL"`
@@ -183,10 +184,11 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		},
 
 		Stripe: Stripe{
-			STRIPE_KEY:         config.STRIPE_KEY,
-			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
-			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
-			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
+			STRIPE_KEY:            config.STRIPE_KEY,
+			STRIPE_WEBHOOK_SECRET: config.STRIPE_WEBHOOK_SECRET,
+			STRIPE_BASIC_ID:       config.STRIPE_BASIC_ID,
+			STRIPE_PREMIUM_ID:     config.STRIPE_PREMIUM_ID,
+			STRIPE_ADVANCED_ID:    config.STRIPE_ADVANCED_ID,
 		},
 
 		TypeSense: TypeSense{
