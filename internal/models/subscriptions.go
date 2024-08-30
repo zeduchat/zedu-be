@@ -170,7 +170,6 @@ func (r *OrganisationPlan) GetOrgPlanDetailsByOrgID(db *gorm.DB, orgID string) (
 		return details, err
 	}
 
-	// Set default values if no active plan is found
 	if details.StartDate.IsZero() && details.EndDate.IsZero() {
 		details = OrgPlanDetails{
 			Name:                  "Free",
