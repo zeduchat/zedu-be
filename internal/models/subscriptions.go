@@ -35,7 +35,8 @@ type DeleteSubscriptionRequest struct {
 }
 
 type CompleteSubscriptionRequest struct {
-	OrgID           string `json:"org_id" validate:"required"`
+	Email           string `json:"email"`
+	OrgID           string `json:"org_id"`
 	StripeSessionID string `json:"stripe_session_id" validate:"required"`
 }
 
@@ -67,6 +68,12 @@ type OrganisationPlan struct {
 	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type ProcessedStripeWebhook struct {
+	ID          string    `gorm:"primaryKey;type:uuid" json:"id"`
+	SessionID   string    `gorm:"uniqueIndex;"`
+	ProcessedAt time.Time `gorm:"null"`
 }
 
 func (c *OrganisationPlan) Create(db *gorm.DB) error {
@@ -132,4 +139,67 @@ func (r *Plan) GetAPlanByAmount(db *gorm.DB, planAmt int) (Plan, error) {
 	}
 
 	return *r, nil
+}
+
+type OrgPlanDetails struct {
+	Name                  string    `json:"name"`
+	Fee                   float64   `json:"fee"`
+	StartDate             time.Time `json:"start_date"`
+	EndDate               time.Time `json:"end_date"`
+	OrganisationCreatedAt time.Time `json:"organisation_created_at"`
+}
+
+func (r *OrganisationPlan) GetOrgPlanDetailsByOrgID(db *gorm.DB, orgID string) (OrgPlanDetails, error) {
+	var details OrgPlanDetails
+
+	query := `
+        SELECT p.name AS name, 
+               p.fee AS fee, 
+               op.started_at AS start_date, 
+               op.ended_at AS end_date,
+               o.created_at AS organisation_created_at
+        FROM organisations o
+        LEFT JOIN organisation_plans op ON o.id = op.organisation_id AND op.status = ?
+        LEFT JOIN plans p ON op.plan_id::uuid = p.id
+        WHERE o.id = ?
+        ORDER BY op.started_at DESC
+        LIMIT 1;
+    `
+	err := db.Raw(query, "Active", orgID).Scan(&details).Error
+	if err != nil {
+		return details, err
+	}
+
+	if details.StartDate.IsZero() && details.EndDate.IsZero() {
+		details = OrgPlanDetails{
+			Name:                  "Free",
+			Fee:                   0.0,
+			StartDate:             details.OrganisationCreatedAt,
+			EndDate:               details.OrganisationCreatedAt.AddDate(0, 0, 30),
+			OrganisationCreatedAt: details.OrganisationCreatedAt,
+		}
+	}
+
+	return details, nil
+}
+
+func (r *ProcessedStripeWebhook) IsWebhookProcessed(db *gorm.DB, sessionID string) (bool, error) {
+
+	err := db.Where("session_id = ?", sessionID).First(&r).Error
+	if err == nil {
+		return true, nil
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	} else {
+		return false, err
+	}
+}
+
+func (r *ProcessedStripeWebhook) MarkWebhookAsProcessed(db *gorm.DB) error {
+
+	err := postgresql.CreateOneRecord(db, &r)
+	if err != nil {
+		return err
+	}
+	return nil
 }

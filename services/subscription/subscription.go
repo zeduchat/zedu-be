@@ -181,3 +181,23 @@ func DeleteSubscription(orgId string, db *gorm.DB) (int, error) {
 
 	return http.StatusOK, nil
 }
+
+func GetCurrentSubscription(customerID string, db *gorm.DB) (models.OrgPlanDetails, int, error) {
+	var org models.Organisation
+	var orgPlan models.OrganisationPlan
+	var currentPlan models.OrgPlanDetails
+
+	org, err := org.GetOrgByID(db, customerID)
+	if err != nil {
+		return currentPlan, http.StatusNotFound, errors.New("org not found")
+	}
+
+	currentPlan, err = orgPlan.GetOrgPlanDetailsByOrgID(db, customerID)
+	if err != nil {
+		return currentPlan, http.StatusNotFound, errors.New("failed to retrieve")
+	}
+
+	currentPlan.EndDate = currentPlan.StartDate.AddDate(0, 0, 30)
+
+	return currentPlan, http.StatusOK, nil
+}
