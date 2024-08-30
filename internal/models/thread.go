@@ -67,6 +67,7 @@ type CreateThreadMsgReq struct {
 	Content    string `json:"content" validate:"required"`
 	ChannelsID string `json:"channels_id"`
 	UserId     string `json:"user_id"`
+	ThreadId   string `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -128,6 +129,12 @@ type UpdateThreadStatus struct {
 
 func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error {
 
+	exist := postgresql.CheckExists(db, &Threads{}, "id", t.ID)
+
+	if exist {
+		return nil
+	}
+
 	err := postgresql.CreateOneRecord(db, t)
 	if err != nil {
 		return err
@@ -151,7 +158,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 
 	err = tydb.InsertDocument(typesenseDb, t.ChannelsID, threadDocument)
 	if err != nil {
-		return errors.New("could not create thread document in Typesense")
+		return errors.New("could not create thread document in Typesense an error occurred: " + err.Error())
 	}
 
 	return nil
@@ -288,7 +295,6 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	query := db.Model(&Threads{}).
 		Select("threads.id, threads.channels_id, channels.name as channel_name, threads.current_status, threads.email, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
 		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Where("threads.type = ? OR threads.type IS NULL", "thread").
 		Joins("LEFT JOIN channels ON threads.channels_id = channels.id").
 		Where("channels.organisation_id = ?", organisationID).
 		Where("EXISTS (SELECT * FROM messages WHERE messages.thread_id = threads.id AND messages.user_id = ?)", userId).

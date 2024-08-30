@@ -6220,6 +6220,10 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
+                thread_id:
+                  type: string
+                  format: uuid
+                  description: uuidv7
         
       responses:
         '200':
