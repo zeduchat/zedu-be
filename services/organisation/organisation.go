@@ -35,16 +35,15 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 
 	}
 
-	exists := postgresql.CheckExists(db, &org, "name = ?", strings.ToLower(req.Name))
+	exists := postgresql.CheckExists(db, &org, "email = ?", strings.ToLower(req.Email))
 	if exists {
-		return req, http.StatusConflict, fmt.Errorf("organisation already exists with the given name")
+		return req, http.StatusConflict, fmt.Errorf("organisation already exists with the given email")
 	}
 
 	return req, http.StatusOK, nil
 }
 
 func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId string, logger *utility.Logger) (*models.Organisation, error) {
-
 	orgId := utility.GenerateUUID()
 	file, ext, err := utility.ValidatePicture(req.LogoURL)
 
