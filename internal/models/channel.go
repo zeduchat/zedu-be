@@ -54,21 +54,21 @@ type GetChannelsRequest struct {
 type GetChannelResp struct {
 	Channels
 	WebhookUrl string `json:"webhook_url"`
-	Access     bool  `json:"access"`
+	Access     bool   `json:"access"`
 }
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl string `json:"webhook_url"`
-	ThreadCount int64 `json:"thread_count"`
-	Access     string `json:"access"`
+	WebhookUrl  string `json:"webhook_url"`
+	ThreadCount int64  `json:"thread_count"`
+	Access      bool   `json:"access"`
 }
 
 type GetUserNotChannelResp []struct {
 	Channels
-	WebhookUrl string `json:"webhook_url"`
-	ThreadCount int64 `json:"thread_count"`
-	Access     string `json:"access"`
+	WebhookUrl  string `json:"webhook_url"`
+	ThreadCount int64  `json:"thread_count"`
+	Access      bool   `json:"access"`
 }
 type JoinChannelsRequest struct {
 	Username   string `json:"username" validate:"required"`
@@ -368,10 +368,9 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) error {
 	var channel Channels
 
-
 	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
 	if !exists {
-		return  errors.New("channel does not exist")
+		return errors.New("channel does not exist")
 	}
 
 	if req.UserId == channel.OwnerId {
