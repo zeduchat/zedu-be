@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
@@ -21,7 +22,13 @@ func SignupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesen
 
 	email := data["user"].(map[string]interface{})["email"]
 
-	req.ChannelID = config.Config.Channels.Signup
+	channelID := config.Config.Channels.Signup
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		logger.Info("error parsing channel id")
+		return nil
+	}
+	req.ChannelID = channelID
 	req.UserName = "Telex Backend"
 	req.EventName = "User Signup"
 	req.Status = "success"
@@ -45,7 +52,14 @@ func LoginAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesens
 
 	email := data["user"].(map[string]interface{})["email"]
 
-	req.ChannelID = config.Config.Channels.Login
+	channelID := config.Config.Channels.Login
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		logger.Info("error parsing channel id")
+		return nil
+	}
+
+	req.ChannelID = channelID
 	req.UserName = "Telex Backend"
 	req.EventName = "User Login"
 	req.Status = "success"
