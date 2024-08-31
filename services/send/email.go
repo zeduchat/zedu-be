@@ -56,7 +56,6 @@ func SendEmail(extReq request.ExternalRequest, to string, subject, templateFileN
 }
 
 func (e EmailRequest) validate() error {
-	fmt.Println(e.Subject)
 	if e.Subject == "" {
 		return fmt.Errorf("EMAIL::validate ==> subject is required")
 	}
@@ -84,7 +83,6 @@ func (e EmailRequest) validate() error {
 func (e *EmailRequest) Send() error {
 	
 	if err := e.validate(); err != nil {
-		fmt.Println("============================", err)
 		return err
 	}
 
@@ -139,9 +137,7 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 	client, err := smtp.NewClient(conn, mailConfig.Server)
 
 	if err != nil {
-
 		return fmt.Errorf("failed to create SMTP client: %v", err)
-
 	}
 
 	defer client.Quit()
@@ -153,7 +149,6 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 
 	if err = client.Mail(sender); err != nil {
 		return fmt.Errorf("failed to set the sender: %v", err)
-
 	}
 
 	if err = client.Rcpt(recipients[0]); err != nil {
@@ -163,7 +158,6 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 
 	writer, err := client.Data()
 	if err != nil {
-
 		return fmt.Errorf("failed to write the message: %v", err)
 
 	}

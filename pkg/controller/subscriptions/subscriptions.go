@@ -126,6 +126,7 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 		return
 	}
 
+	base.Logger.Info("subscription deleted")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
@@ -178,6 +179,7 @@ func (base *Controller) GetCurrentSubscription(c *gin.Context) {
 		return
 	}
 
+	base.Logger.Info("subscription retreived")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription retrieved successfully", subscriptionsData)
 	c.JSON(http.StatusOK, rd)
 }

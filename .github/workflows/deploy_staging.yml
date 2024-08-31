@@ -7,7 +7,7 @@ on:
       - staging
 
 jobs:
-  update_repo_with_env:
+  update_env_and_binary:
     runs-on: self-hosted
     if: github.event.repository.fork == false
     env:
@@ -55,22 +55,26 @@ jobs:
           IPSTACK_BASE_URL: ${{ secrets.IPSTACK_BASE_URL }}
           CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
           CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
-          STRIPE_KEY: ${{ secrets.STRIPE_KEY_STAGING }}
-          STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID_STAGING }}
-          STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID_STAGING }}
-          STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID_STAGING }}
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
+          STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID }}
+          STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
+          STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
+
+      - name: Build binary
+        run: |
+          go build -o telex_be_staging
 
       - name: Copy app.env to server
         run: |
-          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          echo "$SSH_KEY" > ssh_key.pem
           chmod 400 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env \
-          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be_staging/app.env
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be/app.env
+          rsync -avz -e "ssh -i ssh_key.pem" telex_be_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be
           rm ssh_key.pem
 
-  build_and_restart_app:
+  update_and_restart_app:
     runs-on: self-hosted
-    needs: [update_repo_with_env]
+    needs: [update_env_and_binary]
     if: github.event.repository.fork == false
     env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
@@ -79,13 +83,12 @@ jobs:
     steps:
       - name: Restart app
         run: |
-          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
-            chmod 600 ssh_key.pem
-            ssh -o StrictHostKeyChecking=no -i ssh_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
+          echo "$SSH_KEY" > ssh_key.pem
+            chmod 400 ssh_key.pem
+            ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
             cd ~/deployments/telex_be_staging
             git reset --hard
             git pull origin staging
-            go build -o telex_be_staging
             pm2 restart telex_be_staging
           '
 

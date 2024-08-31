@@ -25,7 +25,7 @@ type Invitation struct {
 type InvitationCreateReq struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
-	Role           string   `json:"role_id" validate:"required,uuid"`
+	RoleID           string   `json:"role_id" validate:"required,uuid"`
 }
 
 type InvitationResponse struct {
@@ -40,10 +40,6 @@ type InvitationResponse struct {
 	Expires_At     time.Time `json:"expires_at"`
 }
 
-type GlobalInviteRequest struct {
-	Roles []string `json:"roles"`
-}
-
 type ResendInvitationRequest struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
@@ -54,18 +50,9 @@ type VerifyInvitationLinkRequest struct {
 }
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
-	var u User
-
-	for idx, invite := range invitations {
-
-		exists := postgresql.CheckExists(db, &u, "email = ?", invite.Email)
-		if exists {
-			invitations[idx].IsTelexUser = true
-		}
-	}
-
+	
 	if len(invitations) == 0 {
-		return errors.New("no invitations to create")
+		return errors.New("no invitations to save")
 	}
 
 	err := postgresql.CreateMultipleRecords(db, &invitations, len(invitations))
@@ -93,17 +80,13 @@ func (i *Invitation) GetInvitationByID(db *gorm.DB, id string) (Invitation, erro
 	}
 	return invitation, nil
 }
+
 func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
 	result := db.Delete(i, id)
 	if result.RowsAffected == 0 {
 		return errors.New("no record found")
 	}
 	return nil
-}
-
-func (i *Invitation) ProcessInvitationAcceptance(db *gorm.DB, userID string) (Invitation, error) {
-
-	return Invitation{}, errors.New("not implemented")
 }
 
 func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID string) (map[string]string, error) {
@@ -113,14 +96,14 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 		creds map[string]string
 	)
 
-	err, _ := postgresql.SelectOneFromDb(db, &user, "email = ?", email)
-	if err != nil {
-		return creds, fmt.Errorf("user with email %s does not exist", email)
+	exists := postgresql.CheckExists(db, &user, "email = ?", email)
+	if !exists {
+		return creds, errors.New("user with email does not exist")
 	}
 
-	err, _ = postgresql.SelectOneFromDb(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
-	if err != nil {
-		return creds, fmt.Errorf("user with email %s is not a member of the organisation", email)
+	exists = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
+	if exists {
+
 	}
 
 	creds = map[string]string{
