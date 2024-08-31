@@ -14,6 +14,10 @@ func CreateCollection(client *typesense.Client, collectionName string, fields []
 		Fields: fields,
 	}
 
+	if client == nil {
+		return nil
+	}
+
 	_, err := client.Collections().Create(context.Background(), &collectionSchema)
 	if err != nil {
 		return err
