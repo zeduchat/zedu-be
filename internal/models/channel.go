@@ -56,6 +56,19 @@ type GetChannelResp struct {
 	WebhookUrl string `json:"webhook_url"`
 }
 
+type GetUserChannelResp []struct {
+	Channels
+	WebhookUrl string `json:"webhook_url"`
+	ThreadCount int64 `json:"thread_count"`
+	Access     string `json:"access"`
+}
+
+type GetUserNotChannelResp []struct {
+	Channels
+	WebhookUrl string `json:"webhook_url"`
+	ThreadCount int64 `json:"thread_count"`
+	Access     string `json:"access"`
+}
 type JoinChannelsRequest struct {
 	Username   string `json:"username" validate:"required"`
 	ChannelsID string `json:"channels_id" `
@@ -583,13 +596,13 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	return exists, nil
 }
 
-func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (ChannelResp, error) {
+func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetUserChannelResp, error) {
 
 	var (
 		channels Channels
 		thread   Threads
 		org      Organisation
-		chanResp ChannelResp
+		chanResp GetUserChannelResp
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
@@ -602,7 +615,7 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (Chan
 		Where("threads.type = 'thread'")
 
 	if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count",
+		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count, 'true' AS access",
 			threadCountSubquery).
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
@@ -614,10 +627,10 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (Chan
 	return chanResp, nil
 }
 
-func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) (ChannelResp, error) {
+func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) (GetUserNotChannelResp, error) {
 	var (
 		org      Organisation
-		chanResp ChannelResp
+		chanResp GetUserNotChannelResp
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
@@ -626,7 +639,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 	}
 
 	err := db.Table("channels").
-		Select("channels.id, channels.name, channels.description, channels.created_at").
+		Select("channels.id, channels.name, channels.description, channels.created_at, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
 		Where("channels.organisation_id = ?", orgId).
 		Scan(&chanResp).Error

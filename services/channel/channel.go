@@ -257,7 +257,7 @@ func ArchiveChannel(db *gorm.DB, channelId string ,req models.ArchiveChannelRequ
 	return http.StatusOK, nil
 }
 
-func GetUserChannels(db *gorm.DB, userID, orgID string) (models.ChannelResp, error) {
+func GetUserChannels(db *gorm.DB, userID, orgID string) (models.GetUserChannelResp, error) {
 	var (
 		uc models.UserChannels
 		o  models.Organisation
@@ -275,7 +275,7 @@ func GetUserChannels(db *gorm.DB, userID, orgID string) (models.ChannelResp, err
 	return userchannels, nil
 }
 
-func GetUserNotInChannels(db *gorm.DB, userID, orgID string) (models.ChannelResp, error) {
+func GetUserNotInChannels(db *gorm.DB, userID, orgID string) (models.GetUserNotChannelResp, error) {
 	var (
 		uc models.UserChannels
 		o models.Organisation
