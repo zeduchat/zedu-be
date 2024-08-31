@@ -101,8 +101,6 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 		return creds, errors.New("user with email does not exist")
 	}
 
-	fmt.Println(user.ID, orgID)
-
 	exists = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
 	if exists {
 
