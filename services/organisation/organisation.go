@@ -22,7 +22,7 @@ import (
 )
 
 func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (models.CreateOrgRequestModel, int, error) {
-
+	var org models.Organisation
 	if req.Email != "" {
 		req.Email = strings.ToLower(req.Email)
 		formattedMail, checkBool := utility.EmailValid(req.Email)
