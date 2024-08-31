@@ -23,8 +23,6 @@ import (
 
 func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (models.CreateOrgRequestModel, int, error) {
 
-	org := models.Organisation{}
-
 	if req.Email != "" {
 		req.Email = strings.ToLower(req.Email)
 		formattedMail, checkBool := utility.EmailValid(req.Email)
@@ -33,11 +31,6 @@ func ValidateCreateOrgRequest(req models.CreateOrgRequestModel, db *gorm.DB) (mo
 		}
 		req.Email = formattedMail
 
-	}
-
-	exists := postgresql.CheckExists(db, &org, "name = ?", strings.ToLower(req.Name))
-	if exists {
-		return req, http.StatusConflict, fmt.Errorf("organisation already exists with the given name")
 	}
 
 	return req, http.StatusOK, nil
