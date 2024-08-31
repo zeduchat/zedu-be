@@ -59,6 +59,13 @@ jobs:
           STRIPE_BASIC_ID: ${{ secrets.STRIPE_BASIC_ID }}
           STRIPE_PREMIUM_ID: ${{ secrets.STRIPE_PREMIUM_ID }}
           STRIPE_ADVANCED_ID: ${{ secrets.STRIPE_ADVANCED_ID }}
+          SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
+          SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
+          SLACK_REDIRECT_URI: ${{ secrets.SLACK_REDIRECT_URI }}
+          SLACK_BASE_URL: ${{ secrets.SLACK_BASE_URL }}
+          TELEX_LOGIN_CHANNEL: ${{ vars.TELEX_LOGIN_CHANNEL_STAGING }}
+          TELEX_SIGNUP_CHANNEL: ${{ vars.TELEX_SIGNUP_CHANNEL_STAGING }}
+          SERVER_ACCESSTOKENEXPIREDURATION: ${{ vars.SERVER_ACCESSTOKENEXPIREDURATION }}
 
       - name: Build binary
         run: |
