@@ -54,20 +54,21 @@ type GetChannelsRequest struct {
 type GetChannelResp struct {
 	Channels
 	WebhookUrl string `json:"webhook_url"`
+	Access     bool   `json:"access"`
 }
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl string `json:"webhook_url"`
-	ThreadCount int64 `json:"thread_count"`
-	Access     string `json:"access"`
+	WebhookUrl  string `json:"webhook_url"`
+	ThreadCount int64  `json:"thread_count"`
+	Access      bool   `json:"access"`
 }
 
 type GetUserNotChannelResp []struct {
 	Channels
-	WebhookUrl string `json:"webhook_url"`
-	ThreadCount int64 `json:"thread_count"`
-	Access     string `json:"access"`
+	WebhookUrl  string `json:"webhook_url"`
+	ThreadCount int64  `json:"thread_count"`
+	Access      bool   `json:"access"`
 }
 type JoinChannelsRequest struct {
 	Username   string `json:"username" validate:"required"`
@@ -240,6 +241,8 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 		webhook  Webhook
 	)
 
+	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
+
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
 		return chanResp, errors.New("channel not found")
@@ -260,6 +263,7 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 	chanResp = GetChannelResp{
 		channel,
 		webhook.WebhookUrl,
+		access,
 	}
 
 	return chanResp, nil
@@ -364,10 +368,9 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) error {
 	var channel Channels
 
-
 	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
 	if !exists {
-		return  errors.New("channel does not exist")
+		return errors.New("channel does not exist")
 	}
 
 	if req.UserId == channel.OwnerId {
@@ -615,7 +618,7 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetU
 		Where("threads.type = 'thread'")
 
 	if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count, 'true' AS access",
+		Select("channels.id, channels.name, channels.organisation_id, channels.archived, (?) AS thread_count, 'true' AS access",
 			threadCountSubquery).
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
@@ -639,7 +642,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 	}
 
 	err := db.Table("channels").
-		Select("channels.id, channels.name, channels.description, channels.created_at, 'false' AS access").
+		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
 		Where("channels.organisation_id = ?", orgId).
 		Scan(&chanResp).Error
