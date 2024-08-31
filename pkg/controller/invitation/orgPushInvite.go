@@ -50,7 +50,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	url := c.Request.Header.Get("Referer")
 
-	inviteMap, errors, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
+	inviteMap, errs, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
 		base.Logger.Info("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
@@ -60,7 +60,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	if len(inviteMap) == 0 {
 		base.Logger.Info("No invitations created. User(s) list is either empty or all invitees have pending invitations")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", nil, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", errs, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -85,7 +85,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	response := gin.H{
 		"invitations": mapData,
-		"errors":      errors,
+		"errors":      errs,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)

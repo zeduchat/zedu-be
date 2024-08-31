@@ -22,11 +22,11 @@ func CheckerValidator(base *storage.Database, Emails []string, OrganisationID st
 	}
 
 	if len(Emails) == 0 {
-		return http.StatusBadRequest, "No emails provided", errors.New("No emails provided")
+		return http.StatusBadRequest, "No emails provided", errors.New("no emails provided")
 	}
 
 	if CheckDuplicateEmails(Emails) {
-		return http.StatusBadRequest, "Duplicate emails detected", errors.New("Duplicate emails detected")
+		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
 	}
 
 	return http.StatusOK, "User validated", nil
@@ -76,20 +76,15 @@ func AcceptInvitationLink(user_id string, token string, db *gorm.DB) (models.Inv
 		return invitation, "Error getting invitation details", err
 	}
 	if invitation.ExpiresAt.Before(time.Now()) {
-		return invitation, "Invitation link expired", errors.New("Invitation link expired")
+		return invitation, "Invitation link expired", errors.New("invitation link expired")
 	}
 
 	if invitation.Status == "accepted" {
-		return invitation, "Invitation link already accepted", errors.New("Invitation link already accepted")
+		return invitation, "Invitation link already accepted", errors.New("invitation link already accepted")
 	}
 
 	if invitation.OrganisationID == "" {
-		return invitation, "Invalid organisation ID", errors.New("Invalid organisation ID")
-	}
-
-	_, err = invitation.ProcessInvitationAcceptance(db, user_id)
-	if err != nil {
-		return invitation, "Failed to process invitation acceptance", err
+		return invitation, "Invalid organisation ID", errors.New("invalid organisation ID")
 	}
 
 	return invitation, "Invitation link accepted successfully", nil
