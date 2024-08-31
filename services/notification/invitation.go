@@ -25,7 +25,7 @@ func (n NotificationObject) SendInvitationLink() error {
 
 	subject := "Subject: Secure Login: Your Invitation..."
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email), "business_name": thisOrThatStr("", "")})
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email)})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}
