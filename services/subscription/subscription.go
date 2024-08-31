@@ -158,25 +158,35 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 
 func DeleteSubscription(orgId string, db *gorm.DB) (int, error) {
 	var org models.Organisation
+	var orgPlanRepo models.OrganisationPlan
+
 	org, err := org.GetOrgByID(db, orgId)
 	if err != nil {
 		return http.StatusNotFound, errors.New("org not found")
 	}
 
-	if org.SubscriptionPlanId == "" {
+	if org.OrgPlanID == "" {
 		return http.StatusBadRequest, errors.New("org has no subscription plan")
 	}
 
-	_, err = sub.Cancel(org.SubscriptionPlanId, nil)
-	if err != nil {
-		return http.StatusBadRequest, errors.New("error cancelling subscription")
+	orgPlan, err := orgPlanRepo.GetAnOrgPlanById(db, org.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return http.StatusBadRequest, errors.New("error retrieving organisation plan")
 	}
 
-	org.SubscriptionPlanId = ""
+	org.OrgPlanID = ""
+	org.OrganisationPlan = models.OrganisationPlan{}
 
 	_, err = org.Update(db)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("error updating org subscription plan")
+	}
+
+	orgPlan.EndedAt = time.Now()
+	orgPlan.Status = "Inactive"
+	_, err = orgPlan.Update(db)
+	if err != nil {
+		return http.StatusBadRequest, errors.New("error updating existing organisation plan")
 	}
 
 	return http.StatusOK, nil
