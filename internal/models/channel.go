@@ -618,7 +618,7 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetU
 		Where("threads.type = 'thread'")
 
 	if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count, 'true' AS access",
+		Select("channels.id, channels.name, channels.organisation_id, channels.archived, (?) AS thread_count, 'true' AS access",
 			threadCountSubquery).
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
@@ -642,7 +642,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 	}
 
 	err := db.Table("channels").
-		Select("channels.id, channels.name, channels.description, channels.created_at, 'false' AS access").
+		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
 		Where("channels.organisation_id = ?", orgId).
 		Scan(&chanResp).Error
