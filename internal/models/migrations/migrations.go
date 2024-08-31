@@ -31,7 +31,6 @@ func AuthMigrationModels() []interface{} {
 		models.Invitation{},
 		models.Webhook{},
 		models.HistoryWebhook{},
-		models.SubscriptionPlan{},
 		models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
@@ -40,6 +39,9 @@ func AuthMigrationModels() []interface{} {
 		models.Integrations{},
 		models.IntegrationsSettings{},
 		models.NotificationPreferences{},
+		models.Plan{},
+		models.OrganisationPlan{},
+		models.ProcessedStripeWebhook{},
 	} // an array of db models, example: User{}
 }
 

@@ -2678,7 +2678,217 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
-
+                
+  /organisations/:org_id/user-channels:
+    get:
+      summary: Fetch User Channels
+      description: Retrieve the list of channels associated with the authenticated user.
+      tags:
+        - organisation
+      responses:
+        '200':
+          description: A list of channels associated with the user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: user channels fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        name:
+                          type: string
+                          example: Default
+                        description:
+                          type: string
+                          example: shallom's org's default channel
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-08-27T15:28:20.499875+01:00"
+                          
+  /organisations/{organisation_id}/user-not-channels:
+    get:
+      tags:
+      - organisation
+      summary: Fetch Channels User Does Not Belong To
+      description: Retrieves a list of channels within the specified organization that the user does not belong to.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: Unique identifier for the organization.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Channels user does not belong to fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channels user does not belong fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: 01919b40-4f41-7154-b2b2-66341ce641ec
+                        name:
+                          type: string
+                          example: programmers
+                        description:
+                          type: string
+                          example: this room is meant for programmers
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2024-08-29T00:09:29.595066+01:00
+  /channels/add-multiple:
+    post:
+      tags:
+      - channels
+      summary: Add Multiple Users to a Channel
+      description: Adds multiple users to the specified channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  example: 0191943c-d263-71f2-99d5-82ae6afe2da4
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    example: 0191a069-7123-7dbe-a1d5-36a882f08521
+      responses:
+          200:
+            description: Users added to channel successfully.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: success
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: users added to channel successfully
+                    data:
+                      type: object
+                      properties:
+                        errors:
+                          type: array
+                          items:
+                            type: string
+                            example: " already in the channel"
+                        message:
+                          type: string
+                          example: success
+                    
+  /channels/{channel_id}/archive:
+    put:
+      summary: Archive or unarchive a channel
+      description: Archives or unarchives a specified channel based on the request body.
+      tags:
+        - channels
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the channel to be archived or unarchived.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                archived:
+                  type: boolean
+                  description: Set to `true` to archive the channel, `false` to unarchive.
+              required:
+                - archived
+              example:
+                archived: true
+      responses:
+        '200':
+          description: Channel archived or unarchived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channel archived successfully
+        '400':
+          description: Channel is already in the requested state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: channel is already in the requested state
+                  error:
+                    type: object
+                    example: {}
+  
+        
   /token/connection:
     get:
       tags:
@@ -3185,7 +3395,62 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+    delete:
+      tags:
+        - blogs
+      summary: Delete a blog category by admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: categoryId
+          schema:
+            type: string
+            format: uuid
+          required: true
+      
+      responses:
+        '204':
+          description: blog category deleted successfully
+
+        '400':
+          description: Invalid orgId format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+                
+                
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+                
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+                
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+  
                 
   /blogs/feedback:
     post:
@@ -3430,26 +3695,30 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
 
-  /subscriptions/session/{session_id}/{user_id}:
-    get:
+  /subscriptions/complete:
+    post:
       summary: Complete a subscription and retrieve associated invoices
       tags:
         - subscription
       security:
         - bearerAuth: []
-      parameters:
-        - in: path
-          name: session_id
-          required: true
-          schema:
-            type: string
-          description: The ID of the session to complete the subscription.
-        - in: path
-          name: user_id
-          required: true
-          schema:
-            type: string
-          description: The ID of the user whose subscription is being completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                org_id:
+                  type: string
+                  format: uuid
+                  example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
+                stripe_session_id:
+                  type: string
+                  example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
+              required:
+                - org_id
+                - stripe_session_id
       responses:
         '200':
           description: Subscription completed successfully and invoices retrieved
@@ -3535,7 +3804,7 @@ paths:
 
 
    
-  /subscriptions/list/{user_id}:
+  /subscriptions/list/{orgId}:
     get:
       summary: List subscriptions for a user
       tags:
@@ -3544,10 +3813,11 @@ paths:
         - bearerAuth: []
       parameters:
         - in: path
-          name: user_id
+          name: orgId
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         '200':
           description: Subscriptions retrieved successfully
@@ -3605,7 +3875,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /invoice/download/session_id/user_id:
+  /invoice/download/sessionId/orgId:
     get:
       summary: Complete a subscription and retrieve invoice items
       description: This endpoint completes a subscription based on the provided session ID and returns the associated invoice items.
@@ -3613,17 +3883,17 @@ paths:
         - subscription
       parameters:
         - in: query
-          name: session_id
+          name: sessionId
           required: true
           schema:
             type: string
           description: The ID of the Stripe Checkout Session
         - in: query
-          name: user_id
+          name: orgId
           required: true
           schema:
             type: string
-          description: The ID of the user whose subscription is being completed
+          description: The ID of the org whose subscription is being completed
       responses:
         '200':
           description: Successful operation
@@ -3653,8 +3923,9 @@ paths:
                 type: object
                 properties:
                   error:
-                    type: string              
-  /api/v1/subscriptions/delete/{user_id}:
+                    type: string   
+
+  /subscriptions/{orgId}:
     delete:
       summary: Delete a subscription
       tags:
@@ -3662,7 +3933,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: user_id
+        - name: orgId
           in: path
           required: true
           schema:
@@ -5949,6 +6220,10 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
+                thread_id:
+                  type: string
+                  format: uuid
+                  description: uuidv7
         
       responses:
         '200':
@@ -10183,29 +10458,30 @@ components:
       type: object
       required:
         - plan_name
-        - user_id
+        - org_id
         - email
       properties:
         plan_name:
           type: string
           description: "The name of the subscription plan."
           example: "Premium"
-        user_id:
+        org_id:
           type: string
-          description: "The unique identifier for the user."
+          description: "The unique identifier for the org."
           example: "123456"
         email:
           type: string
           description: "The email address of the user."
           format: email
           example: "user@example.com"
+
     ModifySubscriptionRequest:
       type: object
       required:
-        - user_id
+        - org_id
         - plan_name
       properties:
-        user_id:
+        org_id:
           type: string
           description: The ID of the user modifying the subscription
         plan_name:
@@ -10215,9 +10491,9 @@ components:
     DeleteSubscriptionRequest:
       type: object
       required:
-        - user_id
+        - org_id
       properties:
-        user_id:
+        org_id:
           type: string
           description: The ID of the user deleting the subscription
 

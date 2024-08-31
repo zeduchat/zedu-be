@@ -211,7 +211,7 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	inviteData := models.InvitationCreateReq{
 		OrganisationID: invitereq.OrganisationID,
 		Emails:         invitereq.Emails,
-		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
+		RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
 
 	var b bytes.Buffer

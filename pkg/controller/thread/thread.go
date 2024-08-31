@@ -204,6 +204,12 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(req.ThreadId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	req.ChannelsID = channelID
 
 	claims, exists := c.Get("userClaims")
@@ -270,6 +276,7 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 
 	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID, days)
 	if err != nil {
+		base.Logger.Error("an error occurred while getting channel count metrics: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return

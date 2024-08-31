@@ -12,26 +12,27 @@ import (
 )
 
 type Organisation struct {
-	ID                 string `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name               string `gorm:"type:varchar(255);not null" json:"name"`
-	Description        string `gorm:"type:text" json:"description"`
-	Email              string `gorm:"type:varchar(255);not null" json:"email"`
-	Type               string `gorm:"type:varchar(255)" json:"type"`
-	Location           string `gorm:"type:varchar(255)" json:"location"`
-	Country            string `gorm:"type:varchar(255)" json:"country"`
-	OwnerID            string `gorm:"type:uuid;" json:"owner_id"`
-	LogoURL            string `gorm:"type:varchar(255)" json:"logo_url"`
-	ChannelssCount     int64  `gorm:"-" json:"channels_count"`
-	TotalMessagesCount int64  `gorm:"-" json:"total_messages_count"`
-
-	OrgRoles []OrgRole `gorm:"foreignKey:OrganisationID" json:"org_roles"`
-	Users    []User    `gorm:"many2many:user_organisations;foreignKey:ID;joinForeignKey:organisation_id;References:ID;joinReferences:user_id"`
-
-	CreatedAt time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-
-	Channels []Channels `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"channels"`
+	ID                 string           `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	Name               string           `gorm:"type:varchar(255);not null" json:"name"`
+	Description        string           `gorm:"type:text" json:"description"`
+	Email              string           `gorm:"type:varchar(255);not null" json:"email"`
+	Type               string           `gorm:"type:varchar(255)" json:"type"`
+	Location           string           `gorm:"type:varchar(255)" json:"location"`
+	Country            string           `gorm:"type:varchar(255)" json:"country"`
+	OwnerID            string           `gorm:"type:uuid;" json:"owner_id"`
+	LogoURL            string           `gorm:"type:varchar(255)" json:"logo_url"`
+	ChannelssCount     int64            `gorm:"-" json:"channels_count"`
+	TotalMessagesCount int64            `gorm:"-" json:"total_messages_count"`
+	OrgRoles           []OrgRole        `gorm:"foreignKey:OrganisationID" json:"org_roles"`
+	Users              []User           `gorm:"many2many:user_organisations;foreignKey:ID;joinForeignKey:organisation_id;References:ID;joinReferences:user_id"`
+	CreatedAt          time.Time        `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time        `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt          gorm.DeletedAt   `gorm:"index" json:"-"`
+	Channels           []Channels       `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"channels"`
+	SubscriptionPlanId string           `gorm:"column:subscription_plan_id; type:varchar(255); default:'free'" json:"subscription_plan_id"`
+	StripeCustomerID   string           `gorm:"column:stripe_customer_id; type:varchar(255)" json:"stripe_customer_id"`
+	OrgPlanID          string           `gorm:"type:varchar(100);null;index" json:"org_plan_id"`
+	OrganisationPlan   OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan"`
 }
 
 type CreateOrgRequestModel struct {
@@ -139,6 +140,17 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 	}
 
 	org.ChannelssCount = channelsCount
+
+	return org, nil
+}
+
+func (o *Organisation) GetOrgByEmail(db *gorm.DB, orgEmail string) (Organisation, error) {
+	var org Organisation
+
+	query := db.Where("email = ?", orgEmail)
+	if err := query.First(&org).Error; err != nil {
+		return org, err
+	}
 
 	return org, nil
 }
@@ -404,7 +416,6 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 	}
 	return invitations, paginationResponse, nil
 }
-
 
 func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organisation, error) {
 	var org Organisation

@@ -237,3 +237,58 @@ func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Ch
 	}
 	return channels, nil
 }
+func AddMultipleMembersToChannel(db *gorm.DB, req models.AddMultipleMembersRequest) ([]string, error) {
+	var ch models.Channels
+
+	addError, err := ch.AddMultipleUsersToChannel(db, req)
+	if err != nil {
+		return addError, err
+	}
+	return addError, nil
+}
+
+func ArchiveChannel(db *gorm.DB, channelId string ,req models.ArchiveChannelRequest) (bool, int, error) {
+	var channel models.Channels
+
+	status, err := channel.ArchiveChannel(db, channelId, req)
+	if err != nil {
+		return status, http.StatusBadRequest, err
+	}
+	return status, http.StatusOK, nil
+}
+
+func GetUserChannels(db *gorm.DB, userID, orgID string) (models.GetUserChannelResp, error) {
+	var (
+		uc models.UserChannels
+		o  models.Organisation
+	)
+
+	_, err := o.CheckOrgExists(orgID, db)
+	if err != nil {
+		return nil, err
+	}
+
+	userchannels, err := uc.GetUserChannels(db, userID, orgID)
+	if err != nil {
+		return userchannels, err
+	}
+	return userchannels, nil
+}
+
+func GetUserNotInChannels(db *gorm.DB, userID, orgID string) (models.GetUserNotChannelResp, error) {
+	var (
+		uc models.UserChannels
+		o models.Organisation
+	)
+
+	_, err := o.CheckOrgExists(orgID, db)
+	if err != nil {
+		return nil, err
+	}
+
+	userchannels, err := uc.GetUserNotInChannels(db, userID, orgID)
+	if err != nil {
+		return userchannels, err
+	}
+	return userchannels, nil
+}

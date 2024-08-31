@@ -19,7 +19,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
-	products "github.com/hngprojects/telex_be/pkg/repository/stripe"
 	"github.com/hngprojects/telex_be/pkg/router"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -28,7 +27,6 @@ func main() {
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the app
 
 	configuration := config.Setup(logger, "./app")
-	//connect to stripe
 	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
@@ -45,7 +43,7 @@ func main() {
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
-		products.SetUpProducts(db, configuration.Stripe)
+		seed.SeedPlans(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
