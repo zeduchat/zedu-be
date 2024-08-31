@@ -7,6 +7,10 @@ import (
 )
 
 func UpdateDocument(client *typesense.Client, collectionName string, document interface{}) error {
+
+	if client == nil {
+		return nil
+	}
 	_, err := client.Collection(collectionName).Documents().Upsert(context.Background(), document)
 	if err != nil {
 		return err
