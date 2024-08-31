@@ -54,6 +54,7 @@ type GetChannelsRequest struct {
 type GetChannelResp struct {
 	Channels
 	WebhookUrl string `json:"webhook_url"`
+	Access     bool  `json:"access"`
 }
 
 type GetUserChannelResp []struct {
@@ -240,6 +241,8 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 		webhook  Webhook
 	)
 
+	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
+
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
 		return chanResp, errors.New("channel not found")
@@ -260,6 +263,7 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 	chanResp = GetChannelResp{
 		channel,
 		webhook.WebhookUrl,
+		access,
 	}
 
 	return chanResp, nil
