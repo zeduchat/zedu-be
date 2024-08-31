@@ -15,7 +15,6 @@ func (n NotificationObject) SendInvitationLink() error {
 		templateFileName     = "send_invitation.html"
 		baseTemplateFileName = ""
 		errs                 []string
-		user                 models.User
 	)
 
 	err := json.Unmarshal([]byte(n.Notification.Data), &notificationData)
@@ -25,7 +24,7 @@ func (n NotificationObject) SendInvitationLink() error {
 
 	subject := "Subject: Secure Login: Your Invitation..."
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email)})
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": notificationData.Email})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}

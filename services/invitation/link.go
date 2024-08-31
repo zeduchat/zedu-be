@@ -141,14 +141,10 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
 	}
 
-	fmt.Println("userData==================",userData)
-
 	tokenData, err := middleware.CreateToken(userData, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("error creating token")
 	}
-
-	fmt.Println("tokenData==================",tokenData)
 
 	err = saveAccessToken(tokenData, userID, db)
 	if err != nil {
@@ -214,7 +210,6 @@ func verifyDefaultChannel(chans *models.Channels, organisationID string, db *gor
 		return errors.New("channel with name Default and/or channel with organisation ID does not exist")
 	}
 
-	fmt.Println("no errors on this end", chans)
 	return nil
 }
 
@@ -224,7 +219,6 @@ func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, u
 		ChannelsID: chans.ID,
 		UserID:     orgmgt.UserID,
 	}
-	fmt.Println("reqs==================",reqs)
 
 	if _, err := chans.AddUserToChannels(db, reqs); err != nil {
 		return err
