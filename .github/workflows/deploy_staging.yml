@@ -75,8 +75,8 @@ jobs:
         run: |
           echo "$SSH_KEY" > ssh_key.pem
           chmod 400 ssh_key.pem
-          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be/app.env
-          rsync -avz -e "ssh -i ssh_key.pem" telex_be_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be_staging/app.env
+          rsync -avz -e "ssh -i ssh_key.pem" telex_be_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telex_be_staging
           rm ssh_key.pem
 
   update_and_restart_app:
