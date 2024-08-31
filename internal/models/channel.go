@@ -365,33 +365,33 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	return channel, nil
 }
 
-func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) error {
+func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) (bool, error) {
 	var channel Channels
 
 	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
 	if !exists {
-		return errors.New("channel does not exist")
+		return req.Archived, errors.New("channel does not exist")
 	}
 
 	if req.UserId == channel.OwnerId {
-		return errors.New("unauthorized, only channel owner can perform this operation")
+		return req.Archived, errors.New("unauthorized, only channel owner can perform this operation")
 	}
 
 	err := db.Raw("SELECT id, COALESCE(archived, false) as archived FROM channels WHERE id = ?", channelId).Scan(&channel).Error
 	if err != nil {
-		return errors.New("could not fetch current channel state")
+		return req.Archived, errors.New("could not fetch current channel state")
 	}
 
 	if channel.Archived == req.Archived {
-		return errors.New("channel is already in the requested state")
+		return req.Archived, errors.New("channel is already in the requested state")
 	}
 
 	err = db.Model(&channel).Where("id = ?", channelId).Update("archived", req.Archived).Error
 	if err != nil {
-		return errors.New("could not update the archived status of the channel")
+		return req.Archived, errors.New("could not update the archived status of the channel")
 	}
 
-	return nil
+	return req.Archived, nil
 }
 
 func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
