@@ -647,14 +647,19 @@ func (base *Controller) ArchiveChannel(c *gin.Context) {
 		return
 	}
 
-	statusCode, err := channel.ArchiveChannel(base.Db.Postgresql, channelId, req)
+	status, statusCode, err := channel.ArchiveChannel(base.Db.Postgresql, channelId, req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
 		c.JSON(statusCode, rd)
 		return
 	}
 
+	res := "archived"
+	if !status{
+		res = "unarchived"
+	}
+
 	base.Logger.Info("channel archived successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "channel archived successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel "+res+" successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

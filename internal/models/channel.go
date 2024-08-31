@@ -54,8 +54,22 @@ type GetChannelsRequest struct {
 type GetChannelResp struct {
 	Channels
 	WebhookUrl string `json:"webhook_url"`
+	Access     bool   `json:"access"`
 }
 
+type GetUserChannelResp []struct {
+	Channels
+	WebhookUrl  string `json:"webhook_url"`
+	ThreadCount int64  `json:"thread_count"`
+	Access      bool   `json:"access"`
+}
+
+type GetUserNotChannelResp []struct {
+	Channels
+	WebhookUrl  string `json:"webhook_url"`
+	ThreadCount int64  `json:"thread_count"`
+	Access      bool   `json:"access"`
+}
 type JoinChannelsRequest struct {
 	Username   string `json:"username" validate:"required"`
 	ChannelsID string `json:"channels_id" `
@@ -104,7 +118,8 @@ type AddMultipleMembersRequest struct {
 }
 
 type ArchiveChannelRequest struct {
-	Archived bool `json:"archived"`
+	Archived bool   `json:"archived"`
+	UserId   string `json:"user_id" `
 }
 
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
@@ -226,6 +241,8 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 		webhook  Webhook
 	)
 
+	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
+
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
 		return chanResp, errors.New("channel not found")
@@ -246,6 +263,7 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 	chanResp = GetChannelResp{
 		channel,
 		webhook.WebhookUrl,
+		access,
 	}
 
 	return chanResp, nil
@@ -347,24 +365,33 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	return channel, nil
 }
 
-func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) error {
+func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) (bool, error) {
 	var channel Channels
+
+	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
+	if !exists {
+		return req.Archived, errors.New("channel does not exist")
+	}
+
+	if req.UserId == channel.OwnerId {
+		return req.Archived, errors.New("unauthorized, only channel owner can perform this operation")
+	}
 
 	err := db.Raw("SELECT id, COALESCE(archived, false) as archived FROM channels WHERE id = ?", channelId).Scan(&channel).Error
 	if err != nil {
-		return errors.New("could not fetch current channel state")
+		return req.Archived, errors.New("could not fetch current channel state")
 	}
 
 	if channel.Archived == req.Archived {
-		return errors.New("channel is already in the requested state")
+		return req.Archived, errors.New("channel is already in the requested state")
 	}
 
 	err = db.Model(&channel).Where("id = ?", channelId).Update("archived", req.Archived).Error
 	if err != nil {
-		return errors.New("could not update the archived status of the channel")
+		return req.Archived, errors.New("could not update the archived status of the channel")
 	}
 
-	return nil
+	return req.Archived, nil
 }
 
 func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
@@ -572,33 +599,56 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	return exists, nil
 }
 
-func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) ([]ChannelInfoResponse, error) {
-	var cir []ChannelInfoResponse
+func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetUserChannelResp, error) {
 
-	err := db.Table("user_channels").
-		Select("channels.id, channels.name, channels.description, channels.created_at").
-		Joins("join channels on user_channels.channels_id = channels.id").
+	var (
+		channels Channels
+		thread   Threads
+		org      Organisation
+		chanResp GetUserChannelResp
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return chanResp, errors.New("organisation does not exist")
+	}
+
+	threadCountSubquery := db.Model(&thread).Select("count(*)").
+		Where("threads.channels_id = channels.id").
+		Where("threads.type = 'thread'")
+
+	if err := db.Model(&channels).
+		Select("channels.id, channels.name, channels.organisation_id, channels.archived, (?) AS thread_count, 'true' AS access",
+			threadCountSubquery).
+		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
 		Where("user_channels.user_id = ?", userId).
-		Scan(&cir).Error
-
-	if err != nil {
-		return cir, errors.New("could not get user channels")
+		Scan(&chanResp).Error; err != nil {
+		return nil, errors.New("error fetching channels")
 	}
-	return cir, nil
+
+	return chanResp, nil
 }
 
-func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) ([]ChannelInfoResponse, error) {
-	var cir []ChannelInfoResponse
+func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) (GetUserNotChannelResp, error) {
+	var (
+		org      Organisation
+		chanResp GetUserNotChannelResp
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
+	if !exists {
+		return chanResp, errors.New("organisation does not exist")
+	}
 
 	err := db.Table("channels").
-		Select("channels.id, channels.name, channels.description, channels.created_at").
+		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
 		Where("channels.organisation_id = ?", orgId).
-		Scan(&cir).Error
+		Scan(&chanResp).Error
 
 	if err != nil {
-		return cir, errors.New("could not get channels user is not part of")
+		return chanResp, errors.New("could not get channels user is not part of")
 	}
-	return cir, nil
+	return chanResp, nil
 }
