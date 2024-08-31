@@ -623,6 +623,7 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetU
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
 		Where("user_channels.user_id = ?", userId).
+		Order("channels.created_at").
 		Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
 	}
@@ -645,6 +646,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
 		Where("channels.organisation_id = ?", orgId).
+		Order("channels.created_at").
 		Scan(&chanResp).Error
 
 	if err != nil {
