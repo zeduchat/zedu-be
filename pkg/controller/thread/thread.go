@@ -276,6 +276,7 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 
 	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID, days)
 	if err != nil {
+		base.Logger.Error("an error occurred while getting channel count metrics: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return

@@ -90,24 +90,24 @@ func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (Chan
 
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.current_status = ? AND "+dateCondition, orgId, "resolved").
+		Where("channels.organisation_id = ? AND threads.current_status = ? AND "+dateCondition, orgId, "completed").
 		Count(&cc.TotalResolvedThreads).Error
 
 	_ = db.Model(&t).
 		Joins("JOIN channels ON channels.id = threads.channels_id").
+		Where("threads.type = 'thread'").
 		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
 		Count(&cc.TotalThreads).Error
 
-	// Channel metrics
-	err := db.Model(&Threads{}).
-		Select("channels.name AS channel_name, "+
+	err := db.Model(&Channels{}).
+		Select("channels.id, channels.name AS channel_name, "+
 			"COUNT(threads.id) AS thread_count, "+
 			"SUM(CASE WHEN threads.status = 'success' THEN 1 ELSE 0 END) AS success_count, "+
 			"SUM(CASE WHEN threads.status = 'error' THEN 1 ELSE 0 END) AS error_count, "+
 			"SUM(CASE WHEN threads.status = 'other' THEN 1 ELSE 0 END) AS other_count").
-		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
-		Group("channels.name").
+		Joins("LEFT JOIN threads ON threads.channels_id = channels.id AND "+dateCondition).
+		Where("channels.organisation_id = ? ", orgId).
+		Group("channels.id, channels.name").
 		Scan(&channelThreadInfo).Error
 
 	if err != nil {
