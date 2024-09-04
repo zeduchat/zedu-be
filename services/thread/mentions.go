@@ -23,13 +23,11 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 	)
 
 	err := profile.GetProfileByUserId(db, req.UserId)
-
 	if err != nil {
 		return nil, errors.New("failed to get user profile")
 	}
 
 	user, err = user.GetUserByID(db, req.UserId)
-
 	if err != nil {
 		return nil, errors.New("failed to get user")
 	}
@@ -50,7 +48,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 	if err = thread.CreateThread(db, typesenseDb); err != nil {
 		return nil, err
 	}
-
 	return &thread, nil
 }
 

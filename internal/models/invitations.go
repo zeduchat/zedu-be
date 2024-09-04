@@ -89,30 +89,6 @@ func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
 	return nil
 }
 
-func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID string) (map[string]string, error) {
-	var (
-		user  User
-		ogmt  OrgUserManagement
-		creds map[string]string
-	)
-
-	exists := postgresql.CheckExists(db, &user, "email = ?", email)
-	if !exists {
-		return creds, errors.New("user with email does not exist")
-	}
-
-	exists = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
-	if exists {
-
-	}
-
-	creds = map[string]string{
-		"role":   ogmt.RoleID,
-		"status": ogmt.Status,
-	}
-	return creds, nil
-}
-
 func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email string) (Invitation, bool, error) {
 	var inv Invitation
 

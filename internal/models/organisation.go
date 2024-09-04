@@ -377,14 +377,6 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 		return invitations, postgresql.PaginationResponse{}, errors.New("user not found")
 	}
 
-	isowner, err := o.IsOwnerOfOrganisation(db, userID, orgID)
-	if err != nil {
-		return invitations, postgresql.PaginationResponse{}, err
-	}
-	if !isowner {
-		return invitations, postgresql.PaginationResponse{}, errors.New("user is not the owner of the organisation")
-	}
-
 	pagination := postgresql.GetPagination(c)
 	query := db.Table("invitations AS i").
 		Select("i.id, i.email, i.token, i.status, org_roles.name AS role, i.organisation_id, i.is_telex_user, i.created_at, i.expires_at").
