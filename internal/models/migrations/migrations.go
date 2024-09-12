@@ -43,6 +43,7 @@ func AuthMigrationModels() []interface{} {
 		models.OrganisationPlan{},
 		models.ProcessedStripeWebhook{},
 		models.OptIn{},
+		models.OrganisationIntegrations{},
 	} // an array of db models, example: User{}
 }
 
