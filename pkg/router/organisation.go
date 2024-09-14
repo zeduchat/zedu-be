@@ -8,6 +8,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
+	"github.com/hngprojects/telex_be/pkg/controller/integrations"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -19,6 +20,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	organisation := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	integrations := integrations.Controller{Db:db, Validator: validator, Logger:logger, ExtReq: extReq}
 
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
@@ -46,6 +48,18 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/user-channels", channel.GetUserChannels)
 		organisationUrl.GET("/:org_id/user-not-channels", channel.GetUserNotInChannels)
 		organisationUrl.PUT("/:org_id/archive-channel", channel.ArchiveChannel)
+
+		//organisations integrations
+		organisationUrl.POST("/:org_id/integrations", integrations.CreateIntegrationApp)
+		organisationUrl.GET("/integrations", integrations.GetAllIntegrationApp)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrations.UpdateIntegrationApp)
+		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrations.DeleteIntegrationApp)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/active_status", integrations.SetIntegrationActiveStatus)
+
+		//channels integrations
+		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
+		organisationUrl.POST("/:org_id/channels/:channel_id/integrations/:integration_id",integrations.ActivateChannelIntegration)
+		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/:integration_id",integrations.DeactivateChannelIntegration)
 	}
 
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
