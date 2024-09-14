@@ -58,6 +58,8 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		//channels integrations
 		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
+		organisationUrl.POST("/:org_id/channels/:channel_id/integrations/:integration_id",integrations.ActivateChannelIntegration)
+		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/:integration_id",integrations.DeactivateChannelIntegration)
 	}
 
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))

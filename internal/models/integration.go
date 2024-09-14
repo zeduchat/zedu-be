@@ -9,23 +9,31 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Integrations struct {
 	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
 	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
-	LogoUrl             string    `gorm:"colume:logo_url; type:varchar(255);" json:"logo_url"`
-	ApiEndpointUrl      string    `gorm:"column:api_endpoint_url; type:varchar(255);" json:"api_endpoint_url"`
+	JSONUrl             string `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
 	AuthCredential      string    `gorm:"column:auth_credential; type:varchar(255);" json:"auth_credential"`
+	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type"`
 	IsSystemIntegration bool      `gorm:"column:is_system_integrations; type:boolean;default:false" json:"is_system_integration"`
 	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
 type UpdateIntegration struct {
-	Name           string `json:"name"`
-	LogoUrl        string `json:"logo_url"`
-	ApiEndpoint    string `json:"api_endpoint"`
-	AuthCredential string `json:"auth_credential"`
+	Name            string `json:"name"`
+	JSONUrl         string `json:"json_url"`
+	AuthCredential  string `json:"auth_credential"`
+	IntegrationType string `json:"integration_type"`
+}
+
+type ActivateChannelIntegration struct {
+	Activate bool `json:"activate"`
+}
+type DeactivateChannelIntegration struct {
+	Deactivate bool `json:"deactivate"`
 }
 
 type OrganisationIntegrations struct {
@@ -190,7 +198,7 @@ func (oi *OrganisationIntegrations) SetIntegrationStatus(db *gorm.DB, status str
 	return nil
 }
 
-func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string,c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error) {
+func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error) {
 	var integrations []Integrations
 	pagination := postgresql.GetPagination(c)
 
@@ -227,6 +235,99 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	}
 
 	return integrations, paginationResponse, nil
+}
+
+func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm.DB, req ActivateChannelIntegration, ids map[string]string) error {
+
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+
+	if exists {
+
+		if oci.IsActive {
+			return errors.New("integration is already active")
+		} else {
+			update := OrganisationChannelsIntegrations{
+				IsActive: true,
+			}
+
+			if err := db.Model(&OrganisationChannelsIntegrations{}).
+				Where("integration_id = ?", ids["integration_id"]).
+				Updates(update).Error; err != nil {
+				return nil
+			}
+
+		}
+
+	} else {
+
+		ociInt := OrganisationChannelsIntegrations{
+			ID:            utility.GenerateUUID(),
+			OrgID:         ids["organisation_id"],
+			ChannelID:     ids["channel_id"],
+			IntegrationID: ids["integration_id"],
+			IsActive:      true,
+		}
+
+		err := ociInt.CreateOrganisationChannelIntegration(db)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+	return nil
+}
+
+func (oci *OrganisationChannelsIntegrations) DeactivateChannelIntegration(db *gorm.DB, req DeactivateChannelIntegration, ids map[string]string) error {
+
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+
+	if exists {
+
+		if !oci.IsActive {
+			return errors.New("integration is already deactivated")
+		} else {
+			err, _ := postgresql.SelectOneFromDb(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+			if err != nil {
+				return err
+			}
+
+			update := OrganisationChannelsIntegrations{
+				ID:       oci.ID,
+				IsActive: false,
+			}
+
+			result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+
+			if err != nil {
+				return err
+			}
+
+			if result.RowsAffected == 0 {
+				return errors.New("no record updated")
+			}
+		}
+
+	} else {
+		return errors.New("integration does not exist")
+	}
+
+	return nil
+}
+
+func (oci *OrganisationChannelsIntegrations) CreateOrganisationChannelIntegration(db *gorm.DB) error {
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", oci.ChannelID, oci.OrgID, oci.IntegrationID)
+
+	if exists {
+		return errors.New("organisation channel integration already exists")
+	}
+
+	err := postgresql.CreateOneRecord(db, &oci)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (i *Integrations) CreateSlackIntegration(db *gorm.DB, name string) error {

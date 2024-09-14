@@ -47,7 +47,7 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	integration, err := integrations.CreateIntegrationApp(req, org_id ,base.Db.Postgresql)
+	integration, err := integrations.CreateIntegrationApp(req, org_id, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to create integration app")
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create integration app", err, nil)
@@ -182,7 +182,6 @@ func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-
 func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
 	integration_id := c.Param("integration_id")
@@ -226,8 +225,6 @@ func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app status set successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
-
-
 
 func (base *Controller) SlackIntegrationApp(c *gin.Context) {
 	var req models.Integrations

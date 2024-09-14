@@ -56,7 +56,7 @@ func TestIntegrationFlow(t *testing.T) {
 
 		integrationApp := models.Integrations{
 			Name:           fmt.Sprintf("IntegrationApp%v", currUUID),
-			ApiEndpointUrl: "https://slack.com/api/",
+			// ApiEndpointUrl: "https://slack.com/api/",
 			AuthCredential: "some-auth-credential",
 		}
 

@@ -18,9 +18,7 @@ func Integrations(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 	integrationUrl := r.Group(fmt.Sprintf("%v/integrations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-
 		integrationUrl.POST("/slack", integration.SlackIntegrationApp)
 	}
-
 	return r
 }

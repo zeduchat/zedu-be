@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"errors"
 	"log"
 
 	"github.com/PuerkitoBio/goquery"
@@ -15,8 +16,8 @@ func CreateIntegrationApp(req models.Integrations, org_id string, db *gorm.DB) (
 	integration := models.Integrations{
 		ID:                  utility.GenerateUUID(),
 		Name:                req.Name,
-		LogoUrl:             req.LogoUrl,
-		ApiEndpointUrl:      req.ApiEndpointUrl,
+		JSONUrl:             req.JSONUrl,
+		IntegrationType:     req.IntegrationType,
 		AuthCredential:      req.AuthCredential,
 		IsSystemIntegration: false,
 	}
@@ -86,10 +87,10 @@ func SetIntegrationAppStatus(ids map[string]string, status string, db *gorm.DB) 
 	return nil
 }
 
-func GetOrganisationChannelIntegrations(db *gorm.DB,channel_id, org_id string, c *gin.Context) ([]models.Integrations, postgresql.PaginationResponse ,error) {
+func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, c *gin.Context) ([]models.Integrations, postgresql.PaginationResponse, error) {
 	var ocIntegrations models.OrganisationChannelsIntegrations
 
-	integrations,paginationResponse ,err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)	
+	integrations, paginationResponse, err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)
 	if err != nil {
 		return nil, paginationResponse, err
 	}
@@ -97,15 +98,64 @@ func GetOrganisationChannelIntegrations(db *gorm.DB,channel_id, org_id string, c
 	return integrations, paginationResponse, nil
 }
 
+func ActivateChannelIntegration(ids map[string]string, req models.ActivateChannelIntegration, db *gorm.DB) error {
+	var (
+		ocIntegrations  models.OrganisationChannelsIntegrations
+		orgIntegrations models.OrganisationIntegrations
+		channels        models.Channels
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	if !exists {
+		return errors.New("organisation does not have that integration")
+	}
+
+	exists = postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", ids["channel_id"], ids["organisation_id"])
+	if !exists {
+		return errors.New("organisation does not have that channel")
+	}
+
+	err := ocIntegrations.ActivateChannelIntegration(db, req, ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DeactivateChannelIntegration(ids map[string]string, req models.DeactivateChannelIntegration, db *gorm.DB) error {
+	var (
+		ocIntegrations  models.OrganisationChannelsIntegrations
+		orgIntegrations models.OrganisationIntegrations
+		channels        models.Channels
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	if !exists {
+		return errors.New("organisation does not have that integration")
+	}
+
+	exists = postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", ids["channel_id"], ids["organisation_id"])
+	if !exists {
+		return errors.New("organisation does not have that channel")
+	}
+	err := ocIntegrations.DeactivateChannelIntegration(db, req, ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func SlackIntegrationApp(req models.Integrations, db *gorm.DB) (models.Integrations, error) {
 	intApp := models.Integrations{
 		ID:             utility.GenerateUUID(),
 		Name:           req.Name,
-		ApiEndpointUrl: req.ApiEndpointUrl,
+		JSONUrl:        req.JSONUrl,
 		AuthCredential: req.AuthCredential,
 	}
 
-	doc, err := goquery.NewDocument(req.ApiEndpointUrl)
+	doc, err := goquery.NewDocument(req.JSONUrl)
 	if err != nil {
 		return models.Integrations{}, err
 	}
@@ -113,7 +163,8 @@ func SlackIntegrationApp(req models.Integrations, db *gorm.DB) (models.Integrati
 	ogImage, exists := doc.Find("meta[property='og:image']").Attr("content")
 
 	if exists {
-		intApp.LogoUrl = ogImage
+		// intApp.LogoUrl = ogImage
+		_ = ogImage
 	} else {
 		log.Println("No og:image found in the provided URL")
 	}
