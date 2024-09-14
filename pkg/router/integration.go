@@ -16,11 +16,9 @@ func Integrations(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	integration := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	integrationUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
+	integrationUrl := r.Group(fmt.Sprintf("%v/integrations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		integrationUrl.POST("/integrations", integration.CreateIntegrationApp)
-		integrationUrl.GET("/integrations", integration.GetAllIntegrationApp)
+		integrationUrl.POST("/slack", integration.SlackIntegrationApp)
 	}
-
 	return r
 }
