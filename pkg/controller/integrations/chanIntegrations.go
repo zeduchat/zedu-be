@@ -143,6 +143,13 @@ func (base *Controller) DeactivateChannelIntegration(c *gin.Context){
 		"integration_id":  integration_id,
 	}
 
+	if req.Activate {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", "activate field should be false", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	err := integrations.DeactivateChannelIntegration(ids, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to deactivate channel integration")

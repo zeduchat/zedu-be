@@ -33,7 +33,7 @@ type ActivateChannelIntegration struct {
 	Activate bool `json:"activate"`
 }
 type DeactivateChannelIntegration struct {
-	Deactivate bool `json:"deactivate"`
+	Activate bool `json:"deactivate"`
 }
 
 type OrganisationIntegrations struct {
