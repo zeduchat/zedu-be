@@ -51,7 +51,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		//organisations integrations
 		organisationUrl.POST("/:org_id/integrations", integrations.CreateIntegrationApp)
-		organisationUrl.GET("/integrations", integrations.GetAllIntegrationApp)
+		organisationUrl.GET("/:org_id/integrations", integrations.GetAllIntegrationApp)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrations.UpdateIntegrationApp)
 		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrations.DeleteIntegrationApp)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/active_status", integrations.SetIntegrationActiveStatus)

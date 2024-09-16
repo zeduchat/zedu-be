@@ -82,6 +82,13 @@ func (base *Controller) ActivateChannelIntegration(c *gin.Context) {
 		"integration_id":  integration_id,
 	}
 
+	if !req.Activate{
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", "activate field should be true", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	err := integrations.ActivateChannelIntegration(ids, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to activate channel integration")
