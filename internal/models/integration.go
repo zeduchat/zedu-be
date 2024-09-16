@@ -33,7 +33,7 @@ type ActivateChannelIntegration struct {
 	Activate bool `json:"activate"`
 }
 type DeactivateChannelIntegration struct {
-	Deactivate bool `json:"deactivate"`
+	Activate bool `json:"deactivate"`
 }
 
 type OrganisationIntegrations struct {
@@ -103,26 +103,28 @@ func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) e
 	return nil
 }
 
-func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error) {
-	var integrationApp []Integrations
+func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string ,c *gin.Context) ([]Integrations, error) {
 
-	pagination := postgresql.GetPagination(c)
+	var integrations []Integrations
 
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db,
-		"created_at",
-		"desc",
-		pagination,
-		&integrationApp,
-		nil,
-	)
+	// Subquery to get all integration IDs that belong to the organization
+	subQuery := db.Table("organisation_integrations").
+		Select("integration_id").
+		Where("org_id = ?", org_id)
+
+	// Main query to get system integrations and organization-specific integrations
+	err := db.Table("integrations").
+		Where("is_system_integrations = true OR id IN (?)", subQuery).
+		Find(&integrations).Error
 
 	if err != nil {
-		return nil, paginationResponse, err
+		return nil, err
 	}
 
-	return integrationApp, paginationResponse, nil
+	return integrations, nil
+
 }
+
 
 func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req UpdateIntegration) (Integrations, error) {
 	var integration Integrations
@@ -158,6 +160,12 @@ func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) err
 	}
 
 	err := db.Delete(&integration, "id = ?", ids["integration_id"]).Error
+	if err != nil {
+		return err
+	}
+
+	//also delete entries for the integration in the organisation integrations table
+	err = db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["integration_id"]).Error
 	if err != nil {
 		return err
 	}
@@ -255,7 +263,6 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm
 				Updates(update).Error; err != nil {
 				return nil
 			}
-
 		}
 
 	} else {

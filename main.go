@@ -44,6 +44,7 @@ func main() {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 		seed.SeedPlans(logger, db.Postgresql)
+		seed.SeedIntegrations(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
