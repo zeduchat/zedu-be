@@ -114,7 +114,7 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 
 	// Main query to get system integrations and organization-specific integrations
 	err := db.Table("integrations").
-		Where("is_system_integrations = true OR id IN (?)", subQuery).
+		Where("is_system_integration = true OR id IN (?)", subQuery).
 		Find(&integrations).Error
 
 	if err != nil {
