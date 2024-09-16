@@ -43,15 +43,15 @@ func CreateIntegrationApp(req models.Integrations, org_id string, db *gorm.DB) (
 	return integration, nil
 }
 
-func GetAllIntegrationApp(c *gin.Context, db *gorm.DB) ([]models.Integrations, postgresql.PaginationResponse, error) {
+func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.Integrations, error) {
 	integration := models.Integrations{}
-	integrations, paginationResponse, err := integration.GetAllIntegrationApp(db, c)
+	integrations, err := integration.GetAllIntegrationApp(db, org_id, c)
 
 	if err != nil {
-		return nil, paginationResponse, err
+		return nil, err
 	}
 
-	return integrations, paginationResponse, nil
+	return integrations, nil
 }
 
 func UpdateIntegrationApp(req models.UpdateIntegration, ids map[string]string, db *gorm.DB) (models.Integrations, error) {

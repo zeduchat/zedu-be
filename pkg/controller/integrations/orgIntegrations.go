@@ -9,7 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/integrations"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
@@ -60,19 +59,28 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func GetAllIntegrationApp(c *gin.Context, db *gorm.DB) ([]models.Integrations, postgresql.PaginationResponse, error) {
+func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.Integrations, error) {
 	integrations := models.Integrations{}
-	intApps, paginationResponse, err := integrations.GetAllIntegrationApp(db, c)
+	intApps, err := integrations.GetAllIntegrationApp(db, org_id, c)
 
 	if err != nil {
-		return nil, paginationResponse, err
+		return nil, err
 	}
 
-	return intApps, paginationResponse, nil
+	return intApps, nil
 }
 
 func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
-	integrations, paginationResponse, err := integrations.GetAllIntegrationApp(c, base.Db.Postgresql)
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	integrations, err := integrations.GetAllIntegrationApp(c, org_id, base.Db.Postgresql)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "integrations not found", err, nil)
@@ -83,14 +91,9 @@ func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
 		}
 		return
 	}
-	paginationData := map[string]interface{}{
-		"current_page": paginationResponse.CurrentPage,
-		"total_pages":  paginationResponse.TotalPagesCount,
-		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(integrations),
-	}
+	
 	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations)
 	c.JSON(http.StatusOK, rd)
 }
 
