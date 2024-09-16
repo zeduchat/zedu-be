@@ -15,10 +15,10 @@ import (
 type Integrations struct {
 	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
 	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
-	JSONUrl             string `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
+	JSONUrl             string    `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
 	AuthCredential      string    `gorm:"column:auth_credential; type:varchar(255);" json:"auth_credential"`
 	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type"`
-	IsSystemIntegration bool      `gorm:"column:is_system_integrations; type:boolean;default:false" json:"is_system_integration"`
+	IsSystemIntegration bool      `gorm:"column:is_system_integration; type:boolean;default:false" json:"is_system_integration"`
 	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
@@ -75,10 +75,10 @@ type IntegrationsSettings struct {
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
-	exists := postgresql.CheckExists(db, i, "name = ?", req.Name)
-	if exists {
-		return errors.New("integration app already exists")
-	}
+	// exists := postgresql.CheckExists(db, i, "name = ?", req.Name)
+	// if exists {
+	// 	return errors.New("integration app already exists")
+	// }
 
 	err := postgresql.CreateOneRecord(db, &i)
 	if err != nil {
@@ -103,7 +103,7 @@ func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) e
 	return nil
 }
 
-func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string ,c *gin.Context) ([]Integrations, error) {
+func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) ([]Integrations, error) {
 
 	var integrations []Integrations
 
@@ -124,7 +124,6 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string ,c *gin.C
 	return integrations, nil
 
 }
-
 
 func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req UpdateIntegration) (Integrations, error) {
 	var integration Integrations
