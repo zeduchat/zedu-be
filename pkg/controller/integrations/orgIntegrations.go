@@ -33,6 +33,7 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -40,7 +41,7 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
-		base.Logger.Error("Input validation failed")
+		base.Logger.Error("Input validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
@@ -48,7 +49,7 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 
 	integration, err := integrations.CreateIntegrationApp(req, org_id, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to create integration app")
+		base.Logger.Error("Failed to create integration app", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create integration app", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -59,6 +60,7 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
+
 func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.Integrations, error) {
 	integrations := models.Integrations{}
 	intApps, err := integrations.GetAllIntegrationApp(db, org_id, c)
@@ -66,7 +68,6 @@ func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.
 	if err != nil {
 		return nil, err
 	}
-
 	return intApps, nil
 }
 
@@ -83,9 +84,11 @@ func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
 	integrations, err := integrations.GetAllIntegrationApp(c, org_id, base.Db.Postgresql)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			base.Logger.Error("integrations not found", err)
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "integrations not found", err, nil)
 			c.JSON(http.StatusNotFound, rd)
 		} else {
+			base.Logger.Error("Failed to fetch integrations", err)
 			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch integrations", err, nil)
 			c.JSON(http.StatusInternalServerError, rd)
 		}
@@ -138,7 +141,7 @@ func (base *Controller) UpdateIntegrationApp(c *gin.Context) {
 
 	updatedIntegration, err := integrations.UpdateIntegrationApp(req, ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to update integration app")
+		base.Logger.Error("Failed to update integration app", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update integration app", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -174,7 +177,7 @@ func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
 
 	err := integrations.DeleteIntegrationApp(ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to delete integration app")
+		base.Logger.Error("Failed to delete integration app",err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete integration app", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -218,7 +221,7 @@ func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
 
 	err := integrations.SetIntegrationAppStatus(ids, status, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to set integration app status")
+		base.Logger.Error("Failed to set integration app status", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to set integration app status", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return

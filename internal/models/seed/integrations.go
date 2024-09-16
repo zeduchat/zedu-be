@@ -57,11 +57,35 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			},
 			{
 				ID:                  utility.GenerateUUID(),
-				Name:                "Microsoft Teams",
-				JSONUrl:             "https://graph.microsoft.com/v1.0/teams/",
-				AuthCredential:      "teams-auth-token",
+				Name:                "github",
+				JSONUrl:             "https://api.github.com/",
+				AuthCredential:      "github-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
+			},
+			{
+				ID:                  utility.GenerateUUID(),
+				Name:                "domino",
+				JSONUrl:             "https://api.dominodatalab.com/v1/",
+				AuthCredential:      "domino-auth-token",
+				IsSystemIntegration: true,
+				CreatedAt:           time.Now(),
+			},
+			{
+				ID:                  utility.GenerateUUID(),
+				Name:                "kuda",
+				JSONUrl:             "https://kuda.com/api/v1/",
+				AuthCredential:      "kuda-auth-token",
+				IsSystemIntegration: true,
+				CreatedAt:           time.Now(),
+			},
+			{
+				ID:                  utility.GenerateUUID(),
+				Name:                "moniepoint",
+				JSONUrl:             "https://moniepoint.com/api/v1/",
+				AuthCredential:      "moniepoint-auth-token",
+				IsSystemIntegration: true,
+
 			},
 		}
 
