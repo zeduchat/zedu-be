@@ -3,7 +3,7 @@ name: Build Golang Binary and Run Tests
 on:
   pull_request:
     branches:
-      - dev
+      - staging
 
 jobs:
   build_and_test:
