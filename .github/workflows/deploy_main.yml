@@ -1,10 +1,10 @@
-name: Deploy Telex Backend - staging
+name: Deploy Telex Backend - main
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - staging
+      - main
 
 jobs:
   update_env_and_binary:
@@ -18,19 +18,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: 'staging'
+          ref: 'main'
 
       - name: Build binary
         run: |
-          go build -o telexbe_staging
+          go build -o telexbe_main
 
-      - name: Upload binary to server and restart app
+      - name: Upload binary to server
         run: |
           echo "$SSH_KEY" > ssh_key.pem
           chmod 400 ssh_key.pem
-          rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
+          rsync -avz -e "ssh -i ssh_key.pem" telexbe_main $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/main/telexbe_main
           rm ssh_key.pem
-          
+
   update_and_restart_app:
     runs-on: self-hosted
     needs: [update_env_and_binary]
@@ -45,11 +45,11 @@ jobs:
           echo "$SSH_KEY" > ssh_key.pem
             chmod 400 ssh_key.pem
             ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
-            cd ~/deployments/telexbe/staging/
+            cd ~/deployments/telexbe/main/
             git reset --hard
-            git pull origin staging
-            pm2 restart telexbe_staging
+            git pull origin main
+            pm2 restart telexbe_main
           '
-          
+
       - name: Remove ssh_key
         run: rm ssh_key.pem
