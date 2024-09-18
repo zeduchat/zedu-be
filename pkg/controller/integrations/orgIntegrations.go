@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,16 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 		return
 	}
 
+	// schema, err := fetchJSONFromURL(req.JSONUrl)
+	// if err != nil {
+	// 	base.Logger.Error("Failed to fetch json schema from url ", err)
+	// 	rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch json schema from url", err, nil)
+	// 	c.JSON(http.StatusInternalServerError, rd)
+	// 	return
+	// }
+
+	// req.JSONSchema = schema
+
 	integration, err := integrations.CreateIntegrationApp(req, org_id, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to create integration app", err)
@@ -59,7 +70,6 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Integration app created successfully", integration)
 	c.JSON(http.StatusCreated, rd)
 }
-
 
 func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.Integrations, error) {
 	integrations := models.Integrations{}
@@ -94,7 +104,7 @@ func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations)
 	c.JSON(http.StatusOK, rd)
@@ -177,7 +187,7 @@ func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
 
 	err := integrations.DeleteIntegrationApp(ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to delete integration app",err)
+		base.Logger.Error("Failed to delete integration app", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete integration app", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -222,8 +232,8 @@ func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
 	err := integrations.SetIntegrationAppStatus(ids, status, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to set integration app status", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to set integration app status", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set integration app status", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -265,4 +275,21 @@ func (base *Controller) SlackIntegrationApp(c *gin.Context) {
 	base.Logger.Info("Application added successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Application added successfully", respData)
 	c.JSON(http.StatusCreated, rd)
+}
+
+func fetchJSONFromURL(url string) (map[string]interface{}, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	var jsonSchema map[string]interface{}
+
+	err = json.NewDecoder(resp.Body).Decode(&jsonSchema)
+	if err != nil {
+		return nil, err
+	}
+	return jsonSchema, nil
 }
