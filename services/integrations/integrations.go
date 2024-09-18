@@ -17,6 +17,7 @@ func CreateIntegrationApp(req models.Integrations, org_id string, db *gorm.DB) (
 		ID:                  utility.GenerateUUID(),
 		Name:                req.Name,
 		JSONUrl:             req.JSONUrl,
+		JSONSchema:          req.JSONSchema,
 		IntegrationType:     req.IntegrationType,
 		AuthCredential:      req.AuthCredential,
 		IsSystemIntegration: false,
@@ -116,30 +117,6 @@ func ActivateChannelIntegration(ids map[string]string, req models.ActivateChanne
 	}
 
 	err := ocIntegrations.ActivateChannelIntegration(db, req, ids)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DeactivateChannelIntegration(ids map[string]string, req models.DeactivateChannelIntegration, db *gorm.DB) error {
-	var (
-		ocIntegrations  models.OrganisationChannelsIntegrations
-		orgIntegrations models.OrganisationIntegrations
-		channels        models.Channels
-	)
-
-	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
-	if !exists {
-		return errors.New("organisation does not have that integration")
-	}
-
-	exists = postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", ids["channel_id"], ids["organisation_id"])
-	if !exists {
-		return errors.New("organisation does not have that channel")
-	}
-	err := ocIntegrations.DeactivateChannelIntegration(db, req, ids)
 	if err != nil {
 		return err
 	}
