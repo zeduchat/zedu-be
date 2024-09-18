@@ -1,9 +1,14 @@
 package utility
 
 import (
+	"errors"
 	"net/mail"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/nyaruka/phonenumbers"
 )
 
@@ -36,4 +41,40 @@ func fileExists(filename string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func CleanStringInput(input string) string {
+	policy := bluemonday.UGCPolicy()
+	cleanedInput := policy.Sanitize(input)
+	re := regexp.MustCompile(`[^\w\s]`)
+	cleanedInput = re.ReplaceAllString(cleanedInput, "")
+
+	return cleanedInput
+}
+
+func SplitEmailString(email string) string {
+	arr := strings.Split(email, "@")
+	name := arr[0]
+
+	p := len(name) - 1
+
+	for p > 0 {
+		_, err := strconv.Atoi(string(name[p]))
+		if err != nil {
+			break
+		}
+		p--
+	}
+
+	if p == 0 {
+		return ""
+	}
+	return name[:p+1]
+}
+
+func ArchiveValidator(archived bool) error {
+	if archived != true && archived != false {
+		return errors.New("archived field must be provided")
+	}
+	return nil
 }

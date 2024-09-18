@@ -2,12 +2,14 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
+main
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-
+*dump.rdb
+*.rdb
 # Test binary, built with `go test -c`
 *.test
 
@@ -15,7 +17,7 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+ vendor/
 
 # Go workspace file
 go.work
@@ -28,3 +30,10 @@ _ignore/
 app.env
 tmp/
 .idea/
+
+temp
+telex_be
+cypress_tests/node_modules
+cypress_tests/cypress.env.json
+cypress_tests/cypress/screenshots
+cypress_tests/cypress/reports

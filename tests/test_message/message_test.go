@@ -12,13 +12,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/controller/auth"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/controller/room"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/middleware"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage"
-	tst "github.com/hngprojects/hng_boilerplate_golang_web/tests"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/channel"
+	"github.com/hngprojects/telex_be/pkg/controller/organisation"
+	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func TestMessage(t *testing.T) {
@@ -36,26 +39,52 @@ func TestMessage(t *testing.T) {
 		Password:    "password",
 		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
-	createRoomData := models.CreateRoomRequest{
-		Name:        fmt.Sprintf("TestRoom%s", utility.GenerateUUID()),
-		Username:    fmt.Sprintf("Mr%sRoom", utility.GenerateUUID()),
-		Description: "Some Random description",
-	}
+
 	loginData := models.LoginRequestModel{
 		Email:    userSignUpData.Email,
 		Password: userSignUpData.Password,
 	}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	r := gin.Default()
 
 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
-	room := room.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	channel := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	token := tst.GetLoginToken(t, r, auth, loginData)
 
-	roomId := tst.CreateRoom(t, r, room, db, createRoomData, token)
+	createOrgData := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("TestTeam%s", currUUID),
+		Description: "Some Random description",
+		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}
+
+	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
+
+	createChannelsData := models.CreateChannelsRequest{
+		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
+		OrganisationID: orgId,
+		Description:    "Some Random description",
+	}
+
+	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
+
+	threads1 := models.Threads{
+		ID:         utility.GenerateUUID(),
+		ChannelsID: channelId,
+		Status:     "pending",
+	}
+	db.Postgresql.Create(&threads1)
 
 	tests := []struct {
 		Name         string
@@ -67,25 +96,12 @@ func TestMessage(t *testing.T) {
 		RequestURI   url.URL
 	}{
 		{
-			Name: "Add message Successfully",
-			RequestBody: models.CreateMessageRequest{
-				Content: "It's a nice day to check the room",
-			},
-			ExpectedCode: http.StatusCreated,
-			Message:      "message added successfully",
-			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/messages", roomId)},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		}, {
-			Name:         "Successfully Get messages in a room",
+			Name:         "Successfully Get messages in a channel",
 			RequestBody:  models.CreateMessageRequest{},
 			ExpectedCode: http.StatusOK,
-			Message:      "room messages fetched successfully",
+			Message:      "channel messages fetched successfully",
 			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/rooms/%s/messages", roomId)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -93,13 +109,20 @@ func TestMessage(t *testing.T) {
 		},
 	}
 
+	defer func() {
+		err := tydb.DeleteCollection(db.TypeSense, channelId)
+		if err != nil {
+			t.Fatalf("failed to delete collection: %v", err)
+		}
+		fmt.Printf("deleted collection: %v", channelId)
+	}()
+
 	for _, test := range tests {
 		r := gin.Default()
 
-		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/rooms"), middleware.Authorize(db.Postgresql))
+		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
-			tknUrl.GET("/:roomId/messages", room.GetRoomMsg)
-			tknUrl.POST("/:roomId/messages", room.AddRoomMsg)
+			tknUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 
 		}
 

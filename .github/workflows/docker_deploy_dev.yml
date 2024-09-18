@@ -1,0 +1,107 @@
+name: Docker Dev Deployment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_and_upload_image:
+    runs-on: self-hosted
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t telex_be .
+      - name: Save and compress Docker image
+        run: docker save telex_be | gzip > telex_be.tar.gz
+      - name: Copy image to server
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem telex_be.tar.gz ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/telex_be.tar.gz
+          rm ssh_key.pem
+
+  update_repo_and_create_env:
+    runs-on: self-hosted
+    needs: build_and_upload_image
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Create app.env file
+        uses: vicradon/create-env-action@v1.0.1
+        with:
+          action_input_file: "app-sample.env"
+          action_output_file: "app.env"
+          action_true_string_variables: |
+            MAIL_PASSWORD
+            BUKCET_SECRET_KEY
+            TYPESENSE_API_KEY
+          APP_NAME: "telex_be"
+          APP_URL: "https://api-golang.boilerplate.hng.tech"
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          POSTGRES_USER: ${{ secrets.USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_DB: "0"
+          MIGRATE: "true"
+          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          HMAC_SECRET: ${{ secrets.HMAC_SECRET }}
+          RESET_PASSWORD_DURATION: ${{ secrets.RESET_PASSWORD_DURATION }}
+          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          BUCKET_ACCESS_KEY: ${{ secrets.BUCKET_ACCESS_KEY }}
+          BUKCET_SECRET_KEY: ${{ secrets.BUKCET_SECRET_KEY }}
+          TYPESENSE_API_URL: ${{ secrets.TYPESENSE_API_URL }}
+          TYPESENSE_API_KEY: ${{ secrets.TYPESENSE_API_KEY}}
+          IPSTACK_KEY: ${{ secrets.IPSTACK_KEY }}
+          IPSTACK_BASE_URL: ${{ secrets.IPSTACK_BASE_URL }}
+
+      - name: Copy app.env to server
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem app.env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/deployments/telex_be/app.env
+          rm ssh_key.pem
+
+  run_docker_container:
+    runs-on: self-hosted
+    needs: [build_and_upload_image, update_repo_and_create_env]
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+    steps:
+      - name: Restart containers
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+            chmod 600 ssh_key.pem
+            ssh -o StrictHostKeyChecking=no -i ssh_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
+            cd ~/deployments/telex_be
+            git reset --hard
+            git pull origin dev
+            gunzip -c /tmp/telex_be.tar.gz | docker load
+            rm -f /tmp/telex_be.tar.gz
+            docker compose -f docker-compose.yml up --force-recreate -d
+          '
+
+      - name: Remove ssh_key
+        run: rm ssh_key.pem

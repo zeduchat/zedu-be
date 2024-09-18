@@ -10,10 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/middleware"
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (models.CreateUserRequestModel, error) {
@@ -42,9 +47,7 @@ func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (
 		if exists {
 			return req, errors.New("user already exists with the given phone")
 		}
-
 	}
-
 	return req, nil
 }
 
@@ -59,7 +62,200 @@ func GetUser(userIDStr string, db *gorm.DB) (models.User, error) {
 	return userResp, nil
 }
 
-func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
+func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
+
+	var (
+		email        = strings.ToLower(req.Email)
+		firstName    = strings.Title(strings.ToLower(req.FirstName))
+		lastName     = strings.Title(strings.ToLower(req.LastName))
+		phoneNumber  = req.PhoneNumber
+		password     = req.Password
+		responseData gin.H
+	)
+
+	password, err := utility.HashPassword(req.Password)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	name := strings.Split(email, "@")[0]
+
+	user := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     name,
+		Email:    email,
+		Password: password,
+		Profile: models.Profile{
+			ID:        utility.GenerateUUID(),
+			FirstName: name,
+			LastName:  lastName,
+			FullName:  firstName + " " + lastName,
+			UserName:  name,
+			Phone:     phoneNumber,
+		},
+	}
+
+	err = user.CreateUser(db)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	resetReq := models.SendWelcomeMail{
+		Email: user.Email,
+	}
+
+	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	if !exists {
+		return responseData, 400, fmt.Errorf("invalid credentials")
+	}
+
+	user.IsActive = true
+	if err := db.Save(&user).Error; err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: " + err.Error())
+	}
+
+	userData, err := user.GetUserByID(db, user.ID)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
+	}
+
+	tokenData, err := middleware.CreateToken(user, c)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
+
+	err = access_token.CreateAccessToken(db, tokens)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+	}
+
+	responseData = gin.H{
+		"user": map[string]interface{}{
+			"id":           userData.ID,
+			"email":        userData.Email,
+			"username":     userData.Name,
+			"is_verified":  userData.IsVerified,
+			"is_onboarded": userData.IsOnboarded,
+			"is_active":    userData.IsActive,
+			"current_org":  userData.CurrentOrg,
+			"first_name":   userData.Profile.FirstName,
+			"last_name":    userData.Profile.LastName,
+			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":        userData.Profile.Phone,
+			"avatar_url":   userData.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+		},
+		"access_token": tokenData.AccessToken,
+	}
+	return responseData, http.StatusCreated, nil
+}
+
+func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
+	var (
+		user         = models.User{}
+		responseData gin.H
+	)
+
+	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	if !exists {
+		return responseData, 400, fmt.Errorf("invalid credentials")
+	}
+
+	if !utility.CompareHash(req.Password, user.Password) {
+		return responseData, 400, fmt.Errorf("invalid credentials")
+	}
+
+	user.IsActive = true
+	if err := db.Save(&user).Error; err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: " + err.Error())
+	}
+
+	userData, err := user.GetUserByID(db, user.ID)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
+	}
+
+	tokenData, err := middleware.CreateToken(user, c)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
+
+	err = access_token.CreateAccessToken(db, tokens)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+	}
+
+	responseData = gin.H{
+		"user": map[string]interface{}{
+			"id":           userData.ID,
+			"email":        userData.Email,
+			"username":     userData.Name,
+			"is_verified":  userData.IsVerified,
+			"is_onboarded": userData.IsOnboarded,
+			"is_active":    userData.IsActive,
+			"current_org":  userData.CurrentOrg,
+			"first_name":   userData.Profile.FirstName,
+			"last_name":    userData.Profile.LastName,
+			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":        userData.Profile.Phone,
+			"avatar_url":   userData.Profile.AvatarURL,
+			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+		},
+		"access_token": tokenData.AccessToken,
+	}
+	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
+	
+	return responseData, http.StatusOK, nil
+}
+
+func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
+	var (
+		responseData gin.H
+		user         models.User
+	)
+
+	if err := db.Where("id = ?", owner_id).First(&user).Error; err != nil {
+		return responseData, http.StatusNotFound, fmt.Errorf("user not found: %w", err)
+	}
+
+	if err := db.Model(&user).Update("is_active", false).Error; err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error updating user: %w", err)
+	}
+
+	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
+
+	if err := access_token.RevokeAccessToken(db); err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
+	}
+
+	responseData = gin.H{}
+	return responseData, http.StatusOK, nil
+}
+
+func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 
 	var (
 		email        = strings.ToLower(req.Email)
@@ -85,6 +281,8 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 			ID:        utility.GenerateUUID(),
 			FirstName: firstName,
 			LastName:  lastName,
+			FullName:  firstName + " " + lastName,
+			UserName:  username,
 			Phone:     phoneNumber,
 		},
 	}
@@ -94,7 +292,7 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 		return nil, http.StatusInternalServerError, err
 	}
 
-	tokenData, err := middleware.CreateToken(user)
+	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
 	}
@@ -131,79 +329,44 @@ func CreateUser(req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, err
 	return responseData, http.StatusCreated, nil
 }
 
-func LoginUser(req models.LoginRequestModel, db *gorm.DB) (gin.H, int, error) {
+func GetOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 
 	var (
-		user         = models.User{}
 		responseData gin.H
+		user         models.User
 	)
 
-	// Check if the user email exists
-	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
-	if !exists {
-		return responseData, 400, fmt.Errorf("invalid credentials")
-	}
-
-	if !utility.CompareHash(req.Password, user.Password) {
-		return responseData, 400, fmt.Errorf("invalid credentials")
-	}
-
-	userData, err := user.GetUserByID(db, user.ID)
+	user, err := user.GetUserByID(db, owner_id)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
+		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
 	}
 
-	tokenData, err := middleware.CreateToken(user)
-	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
-	}
-
-	tokens := map[string]string{
-		"access_token": tokenData.AccessToken,
-		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-	}
-
-	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
-
-	err = access_token.CreateAccessToken(db, tokens)
-
-	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
-	}
+	status := user.IsOnboarded
 
 	responseData = gin.H{
-
-		"user": map[string]string{
-			"id":         userData.ID,
-			"email":      userData.Email,
-			"username":   userData.Name,
-			"first_name": userData.Profile.FirstName,
-			"last_name":  userData.Profile.LastName,
-			"fullname":   userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":      userData.Profile.Phone,
-			"expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at": strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at": strconv.Itoa(int(userData.UpdatedAt.Unix())),
-		},
-		"access_token": tokenData.AccessToken,
+		"status": status,
 	}
 
 	return responseData, http.StatusOK, nil
 }
 
-func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
+func UpdateOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 
 	var (
 		responseData gin.H
+		user         models.User
 	)
 
-	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
+	user, err := user.GetUserByID(db, owner_id)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+	}
 
-	// revoke user access_token to invalidate session
-	err := access_token.RevokeAccessToken(db)
+	user.IsOnboarded = true
+	err = user.Update(db)
 
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: " + err.Error())
+		return nil, http.StatusInternalServerError, errors.New("error updating user status: " + err.Error())
 	}
 
 	responseData = gin.H{}

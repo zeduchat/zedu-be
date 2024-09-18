@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/elliotchance/phpserialize"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type SendRequestObject struct {
@@ -68,8 +68,19 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	}
 	logger.Info("after prefix", name, r.Path, data, buf)
 
+	var req *http.Request
 	client := &http.Client{}
-	req, err := http.NewRequest(r.Method, r.Path, buf)
+	if r.Method == http.MethodGet {
+		req, err = http.NewRequest(r.Method, r.Path, nil)
+	} else {
+		switch r.Headers["Content-Type"] {
+		case "application/x-www-form-urlencoded":
+			req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
+		default:
+			req, err = http.NewRequest(r.Method, r.Path, buf)
+		}
+	}
+
 	if err != nil {
 		logger.Error("request creation error", name, err.Error())
 		return err
@@ -87,7 +98,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		return err
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		logger.Error("readin body error", name, err.Error())
 		return err

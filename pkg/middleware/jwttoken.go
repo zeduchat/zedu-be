@@ -9,9 +9,9 @@ import (
 	"github.com/golang-jwt/jwt"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/config"
-	"github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
-	"github.com/hngprojects/hng_boilerplate_golang_web/utility"
+	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type TokenDetailDTO struct {
@@ -20,7 +20,7 @@ type TokenDetailDTO struct {
 	ExpiresAt   time.Time
 }
 
-func CreateToken(user models.User) (*TokenDetailDTO, error) {
+func CreateToken(user models.User, c *gin.Context) (*TokenDetailDTO, error) {
 
 	var (
 		tokenData = &TokenDetailDTO{}
@@ -38,6 +38,8 @@ func CreateToken(user models.User) (*TokenDetailDTO, error) {
 	// specify user claims
 	userClaims["user_id"] = user.ID
 	userClaims["access_uuid"] = tokenData.AccessUuid
+	userClaims["role_id"] = user.OrgRoleID
+	userClaims["org_id"] = user.CurrentOrg
 	userClaims["exp"] = tokenData.ExpiresAt.Unix()
 	userClaims["authorised"] = true
 
@@ -47,6 +49,8 @@ func CreateToken(user models.User) (*TokenDetailDTO, error) {
 	if err != nil {
 		return tokenData, err
 	}
+
+	c.Set("userRoleClaims", user.OrgRoleID)
 
 	return tokenData, nil
 }

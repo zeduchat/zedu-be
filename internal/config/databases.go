@@ -11,3 +11,14 @@ type Database struct {
 	DB_NAME       string
 	Migrate       bool
 }
+
+type Redis struct {
+	REDIS_PORT string
+	REDIS_HOST string
+	REDIS_DB   string
+}
+
+type TypeSense struct {
+	TypeSense_API_URL string
+	TypeSense_API_KEY string
+}

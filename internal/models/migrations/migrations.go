@@ -1,19 +1,66 @@
 package migrations
 
-import "github.com/hngprojects/hng_boilerplate_golang_web/internal/models"
+import "github.com/hngprojects/telex_be/internal/models"
 
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
-		models.AccessToken{},
-		models.Room{},
+		models.Testimonial{},
+		models.APIStatus{},
+		models.NewsLetter{},
+		models.TelexSlackChannelMapping{},
+		models.SlackTelex{},
+		models.ContactUs{},
+		models.BlogFeedback{},
+		models.BlogCategory{},
+		models.Blog{},
 		models.User{},
+		models.AccessToken{},
+		models.Channels{},
 		models.Profile{},
-		models.UserRoom{},
+		models.UserChannels{},
 		models.Message{},
+		models.MagicLink{},
+		models.PasswordReset{},
+		models.Organisation{},
+		models.Permission{},
+		models.OrgRole{},
+		models.LoginActivity{},
+		models.Threads{},
+		models.ChannelInvitation{},
+		models.Invitation{},
+		models.Webhook{},
+		models.HistoryWebhook{},
+		models.HistoryWebhook{},
+		models.OrgUserManagement{},
+		models.Mentions{},
+		models.HelpCenterCategory{},
+		models.HelpCenterArticle{},
+		models.Integrations{},
+		models.IntegrationsSettings{},
+		models.NotificationPreferences{},
+		models.Plan{},
+		models.OrganisationPlan{},
+		models.ProcessedStripeWebhook{},
+		models.OptIn{},
+		models.OrganisationIntegrations{},
+		models.OrganisationChannelsIntegrations{},
 	} // an array of db models, example: User{}
 }
 
 func AlterColumnModels() []AlterColumn {
-	return []AlterColumn{}
+	return []AlterColumn{
+		// {
+		// 	Model: models.OrgUserManagement{},
+		// 	TableName: "org_user_managements",
+		// 	Column: "role_id",
+		// },
+		// {
+		// 	Model: models.OrgUserManagement{},
+		// 	TableName: "org_user_managements",
+		// 	Column: "role_id",
+		// 	Type:  "uuid",
+
+		// },
+	}
 }

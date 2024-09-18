@@ -3,7 +3,7 @@ package migrations
 import (
 	"fmt"
 
-	"github.com/hngprojects/hng_boilerplate_golang_web/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"gorm.io/gorm"
 )
 
@@ -24,5 +24,22 @@ func MigrateModels(db *gorm.DB, models []interface{}, AlterColums []AlterColumn)
 		}
 
 	}
+
+	// d := AlterColumn{
+	// 	Model:     mdl.OrgUserManagement{},
+	// 	TableName: "org_user_managements",
+	// 	Column:    "role_id",
+	// }
+
+	// d.DropColumn(db)
+
+	// d = AlterColumn{
+	// 	Model:     mdl.OrgUserManagement{},
+	// 	TableName: "org_user_managements",
+	// 	Column:    "role_id",
+	// 	Type:      "uuid",
+	// }
+
+	// d.AddColumn(db)
 
 }
