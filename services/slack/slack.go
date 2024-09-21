@@ -5,13 +5,12 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-
-	"gorm.io/gorm"
 )
 
 func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.ExternalRequest, userId string) (gin.H, error) {
@@ -30,10 +29,19 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 		return nil, fmt.Errorf("slack error: %v", slackResponse.Error)
 	}
 
+	var integration models.Integrations
+
+	err = integration.GetIntegrationID(db, "Slack")
+
+	if err != nil {
+		return nil, err
+	}
+
 	slackTelex = models.SlackTelex{
 		ID:               utility.GenerateUUID(),
 		UserID:           userId,
 		OrganisationID:   req.OrganisationID,
+		IntegrationID:    integration.ID,
 		AccessToken:      slackResponse.AccessToken,
 		TeamID:           slackResponse.Team.ID,
 		TeamName:         slackResponse.Team.Name,
@@ -45,6 +53,19 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 
 	err = slackTelex.Create(db)
 
+	if err != nil {
+		return nil, err
+	}
+
+	orgIntegration := models.OrganisationIntegrations{
+		ID:            utility.GenerateUUID(),
+		OrgID:         req.OrganisationID,
+		IntegrationID: integration.ID,
+		IsArchived:    false,
+		IsActive:      true,
+	}
+
+	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
 		return nil, err
 	}

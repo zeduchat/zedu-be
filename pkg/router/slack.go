@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/slack"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -18,8 +19,8 @@ func Slack(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	slackUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		slackUrl.POST("/slack/access-token", slack.SlackOauth)
-		slackUrl.GET("/slack/access-token", slack.GetSlackAccessToken)
+		slackUrl.POST("/slack/organisations/:orgId/token-exchg", slack.SlackOauth)
+		slackUrl.GET("/slack/organisations/:orgId", slack.GetSlackAccessToken)
 		slackUrl.GET("/slack/channels", slack.GetSlackChannels)
 		slackUrl.POST("/organisation/{org_id}/channels/mapping", slack.CreateTelexSlackChannelMapping)
 

@@ -1,18 +1,20 @@
 package seed
 
 import (
-	"time"
+	"fmt"
 
+	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 	var count int64
 
 	// Check if integrations already exist in the database
-	if err := db.Model(&models.Integrations{}).Where("name IN ?",[]string{"Slack", "Microsoft", "Jira Cloud", "Dropbox"}).Count(&count).Error; err != nil {
+	if err := db.Model(&models.Integrations{}).Where("name IN ?", []string{"Slack", "Microsoft", "Jira Cloud", "Dropbox"}).Count(&count).Error; err != nil {
 		logger.Error("Integration seeding: " + err.Error())
 		return
 	}
@@ -21,78 +23,23 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 		logger.Error("Integrations already exist, skipping seeding...")
 		return
 	} else {
-		// Define system integrations to be seeded
+
+		slackConf := config.Config.Slack
+		perm := "incoming-webhook%20chat%3Awrite%20channels%3Aread%20groups%3Aread"
+		authUrl := fmt.Sprintf("'https://slack.com/oauth/v2/authorize?client_id=${%s}&scope=${%s}&redirect_uri=${%s}'", slackConf.ClientId, perm, slackConf.RedirectURI)
+
 		integrations := []models.Integrations{
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "Slack",
-				JSONUrl:             "https://systems.telex.im/slack",
-				JSONSchema: map[string]interface{}{
-					
-				},
-				AuthCredential:      "slack-auth-token",
+				AppUrl:              "https://slack.com",
+				AuthUrl:             authUrl,
+				AppDescription:      "Slack is a cloud-based team business and communication platform.",
+				AppLogo:             "https://a.slack-edge.com/fd21de4/marketing/img/nav/logo.svg",
 				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "Microsoft",
-				JSONUrl:             "https://systems.telex.im/microsoft",
-				AuthCredential:      "microsoft-auth-token",
-				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "Jira Cloud",
-				JSONUrl:             "https://systems.telex.im/jira",
-				AuthCredential:      "jira-auth-token",
-				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "Dropbox",
-				JSONUrl:             "https://systems.telex.im/dropbox",
-				AuthCredential:      "dropbox-auth-token",
-				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "github",
-				JSONUrl:             "https://systems.telex.im/github",
-				AuthCredential:      "github-auth-token",
-				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "domino",
-				JSONUrl:             "https://api.dominodatalab.com/v1/",
-				AuthCredential:      "domino-auth-token",
-				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "kuda",
-				JSONUrl:             "https://systems.telex.im/kuda",
-				AuthCredential:      "kuda-auth-token",
-				IsSystemIntegration: true,
-				CreatedAt:           time.Now(),
-			},
-			{
-				ID:                  utility.GenerateUUID(),
-				Name:                "moniepoint",
-				JSONUrl:             "https://systems.telex.im/moniepoint",
-				AuthCredential:      "moniepoint-auth-token",
-				IsSystemIntegration: true,
-
 			},
 		}
 
-		// Seed the integrations into the database
 		for _, integration := range integrations {
 			if err := db.Create(&integration).Error; err != nil {
 				logger.Error("failed to seed integration: " + err.Error())

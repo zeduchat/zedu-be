@@ -10,13 +10,14 @@ import (
 
 type OAuth struct {
 	OauthCode      string `json:"oauth_code,omitempty" validate:"required"`
-	OrganisationID string `json:"organisation_id" validate:"required"`
+	OrganisationID string `json:"organisation_id"`
 }
 
 type SlackTelex struct {
 	ID               string    `gorm:"type:uuid;primary_key" json:"id"`
 	UserID           string    `gorm:"type:uuid;not null" json:"user_id"`
 	OrganisationID   string    `gorm:"type:uuid;not null" json:"organisation_id"`
+	IntegrationID   string    `gorm:"type:uuid" json:"integration_id"`
 	AccessToken      string    `gorm:"type:text" json:"access_token,omitempty"`
 	TeamID           string    `gorm:"type:text" json:"team_id,omitempty"`
 	TeamName         string    `gorm:"type:text" json:"team_name,omitempty"`
