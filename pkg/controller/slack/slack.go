@@ -25,7 +25,7 @@ type Controller struct {
 func (base *Controller) SlackOauth(c *gin.Context) {
 	var req models.OAuth
 
-	orgId := c.Param("org_id")
+	orgId := c.Param("orgId")
 
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
@@ -75,7 +75,7 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	organisationID:= c.Param("org_id")
+	organisationID:= c.Param("orgId")
 
 	if _, err := uuid.Parse(organisationID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
