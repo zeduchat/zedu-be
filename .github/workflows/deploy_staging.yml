@@ -22,16 +22,10 @@ jobs:
 
       - name: Upload binary to server and restart app
         run: |
-          echo "$SSH_KEY" > ssh_key.pem
-          ssh_host='${{ vars.open_ssh_host }}'
-          ssh_user='${{ vars.open_ssh_user }}'
-          ssh_key='${{ vars.open_ssh_key }}'
+          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
+          ssh_host='${{ secrets.SSH_HOST  }}'
+          ssh_user='${{ secrets.SSH_USER }}'
 
-          echo $ssh_host
-          echo $ssh_user
-          echo $ssh_key
-
-          
           chmod 400 ssh_key.pem
           rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging $ssh_user@$ssh_host:~/deployments/telexbe/staging/telexbe_staging
 
