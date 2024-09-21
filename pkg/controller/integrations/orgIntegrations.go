@@ -1,7 +1,6 @@
 package integrations
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,16 +46,6 @@ func (base *Controller) CreateIntegrationApp(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-
-	// schema, err := fetchJSONFromURL(req.JSONUrl)
-	// if err != nil {
-	// 	base.Logger.Error("Failed to fetch json schema from url ", err)
-	// 	rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch json schema from url", err, nil)
-	// 	c.JSON(http.StatusInternalServerError, rd)
-	// 	return
-	// }
-
-	// req.JSONSchema = schema
 
 	integration, err := integrations.CreateIntegrationApp(req, org_id, base.Db.Postgresql)
 	if err != nil {
@@ -275,21 +264,4 @@ func (base *Controller) SlackIntegrationApp(c *gin.Context) {
 	base.Logger.Info("Application added successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Application added successfully", respData)
 	c.JSON(http.StatusCreated, rd)
-}
-
-func fetchJSONFromURL(url string) (map[string]interface{}, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	var jsonSchema map[string]interface{}
-
-	err = json.NewDecoder(resp.Body).Decode(&jsonSchema)
-	if err != nil {
-		return nil, err
-	}
-	return jsonSchema, nil
 }

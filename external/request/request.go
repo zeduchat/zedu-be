@@ -67,6 +67,8 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 		case SlackGetManifest:
 			reqData := data.(models.SlackManifestRequest)
 
+			fmt.Println("Request data: ", reqData)
+
 			obj := slack.RequestObj{
 				Name:         name,
 				Path:         fmt.Sprintf("%v?app_id=%s", config.Slack.ManifestUrl, reqData.AppID),
