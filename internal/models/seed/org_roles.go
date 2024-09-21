@@ -12,7 +12,6 @@ import (
 func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
 	var count int64
 	if err := db.Model(&models.OrgRole{}).Where("name IN ?", []string{"Project Lead", "Manager"}).Count(&count).Error; err != nil {
-		fmt.Println(err)
 		logger.Error("org role seeding: " + err.Error())
 	}
 

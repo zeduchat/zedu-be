@@ -17,7 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func initialise(currUUID string, t *testing.T, r *gin.Engine, user auth.Controller, status bool) (string) {
+func initialise(currUUID string, t *testing.T, r *gin.Engine, user auth.Controller, status bool) string {
 	userSignUpData := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
@@ -63,6 +63,5 @@ func SetupIntegrationTestRouter() (*gin.Engine, *integrations.Controller) {
 func SetupIntegrationRoutes(r *gin.Engine, integrationController *integrations.Controller) {
 	integrationUrl := r.Group("/api/v1",
 		middleware.Authorize(integrationController.Db.Postgresql))
-	integrationUrl.POST("/integrations", integrationController.CreateIntegrationApp)
 	integrationUrl.GET("/integrations", integrationController.GetAllIntegrationApp)
 }

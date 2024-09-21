@@ -3,6 +3,7 @@ package test_slack
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/slack"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -35,8 +36,8 @@ func SetupSlackTelexTestRouter() (*gin.Engine, *slack.Controller) {
 func SetupSlackTelexRoutes(r *gin.Engine, slackController *slack.Controller) {
 	slackUrl := r.Group("/api/v1", middleware.Authorize(slackController.Db.Postgresql))
 
-	slackUrl.POST("/slack/access-token", slackController.SlackOauth)
-	slackUrl.GET("/slack/access-token", slackController.GetSlackAccessToken)
+	slackUrl.POST("/slack/organisations/:orgId/token-exchg", slackController.SlackOauth)
+	slackUrl.GET("/slack/organisations/:orgId", slackController.GetSlackAccessToken)
 	slackUrl.GET("/slack/channels", slackController.GetSlackChannels)
 
 }
