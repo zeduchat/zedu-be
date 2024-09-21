@@ -228,7 +228,7 @@ func (oi *OrganisationIntegrations) SetIntegrationStatus(db *gorm.DB, status str
 	default:
 		return errors.New("invalid status")
 	}
-	fmt.Println(status, stat, oi.IsActive)
+
 	if status == stat {
 		return errors.New("current status is already set to " + stat)
 	}
