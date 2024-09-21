@@ -10,7 +10,7 @@ import (
 
 type OAuth struct {
 	OauthCode      string `json:"oauth_code,omitempty" validate:"required"`
-	OrganisationID string `json:"organisation_id" validate:"required"`
+	OrganisationID string `json:"organisation_id"`
 }
 
 type SlackTelex struct {

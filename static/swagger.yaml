@@ -7101,86 +7101,24 @@ paths:
                           total_pages:
                             type: integer
                             example: 1   
-  /integrations:
-  
-    post:
-      summary: Create a new integration application
-      security:
-        - bearerAuth: [] 
-      description: This endpoint allows the creation of a new integration application.
-      tags:
-        - Integrations
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateIntegrationAppRequest'
-      responses:
-        '201':
-          description: Application added successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IntegrationAppResponse'
-        '401':
-          description: Invalid request body
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '409':
-          description: Integration app already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
 
-    get:
-      summary: Get all integration applications
-      security:
-        - bearerAuth: [] 
-      description: Retrieve a paginated list of all integration applications.
-      tags:
-        - Integrations
-      parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-          description: The page number to retrieve.
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-          description: The number of items per page.
-      responses:
-        '200':
-          description: Topics retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GetAllIntegrationAppResponse'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+# integrations 
                 
-  /slack/access-token:
+  /slack/organisations/{organisationId}/token-exchg:
     post:
       tags:
       - Integrations
-      summary: slack oauth code to access token
+      summary: slack oauth code to access token exchg
       security:
         - bearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
       requestBody:
         required: true
         content:
@@ -7190,12 +7128,8 @@ paths:
               properties:
                 oauth_code:
                   type: string
-                organisation_id:
-                  type: string
-                  format: uuid
               required:
                 - oauth_code
-                - organisation_id
       
       responses:
         '200':
@@ -7230,13 +7164,27 @@ paths:
                             type: string
                           url:
                             type: string
-        '500':
-          description: Server error
+
+        '401':
+          description: Invalid request body
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
-                
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '409':
+          description: Integration app already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /slack/organisations/{organisationId}:
     get:
       tags:
       - Integrations
@@ -7244,12 +7192,14 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: query
-          name: organisation_id
+        - name: organisationId
+          in: path
+          required: true
           schema:
             type: string
-            format: uuid
-          description: The ID of organisation.
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+    
       responses:
         '200':
           description: Slack access info fetched successfully
@@ -7299,8 +7249,20 @@ paths:
                       updated_at:
                         type: string
                         format: date-time
+        '401':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '409':
+          description: Integration app already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
         '500':
-          description: Server error
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -7438,22 +7400,32 @@ paths:
                         id:
                           type: string
                           example: "0191f134-05b5-7e5d-9cd8-ec29833633da"
-                        name:
+                        app_name:
                           type: string
-                          example: "instagram"
-                        json_url:
+                          example: "Slack"
+                        auth_url:
                           type: string
-                          example: "some-json-url"
-                        auth_credential:
+                          example: "some-auth-url"
+                        app_url:
                           type: string
-                          example: "some-auth-credential"
-                        integration_type:
+                          example: "some-app-url"
+                        app_logo:
                           type: string
-                          example: ""
+                          example: "some-logo-url"
+                        app_description:
+                          type: string
+                          example: "Slack is a cloud-based team business and communication platform."
+                        is_active:
+                          type: boolean
+                          example: true
                         is_system_integration:
                           type: boolean
-                          example: false
+                          example: true
                         created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-14T16:43:24.086604+01:00"
+                        updated_at:
                           type: string
                           format: date-time
                           example: "2024-09-14T16:43:24.086604+01:00"

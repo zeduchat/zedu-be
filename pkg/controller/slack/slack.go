@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -22,6 +24,14 @@ type Controller struct {
 
 func (base *Controller) SlackOauth(c *gin.Context) {
 	var req models.OAuth
+
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -43,6 +53,7 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 		return
 	}
 	userId := userID.(string)
+	req.OrganisationID = orgId
 
 	response, err := service.ExchangeSlackOAuthToken(base.Db.Postgresql, req, base.ExtReq, userId)
 	if err != nil {
@@ -64,13 +75,13 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	organisationID := c.Query("organisation_id")
-	if organisationID == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "organisation_id query param is required", "failed to fetch slack channels", nil)
+	organisationID:= c.Param("org_id")
+
+	if _, err := uuid.Parse(organisationID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	response, err := service.GetSlackAccessToken(base.Db.Postgresql, userId, organisationID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch access token info", nil)
