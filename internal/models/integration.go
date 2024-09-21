@@ -17,7 +17,7 @@ type Integrations struct {
 	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
 	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
 	AppUrl              string    `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
-	AppLogo             string    `gorm:"column:app_logo; type:jsonb;" json:"app_logo"`
+	AppLogo             string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
 	AuthUrl             string    `gorm:"column:auth_url; type:varchar(255);" json:"auth_url"`
 	AppDescription      string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
@@ -119,10 +119,10 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		Select("integration_id").
 		Where("org_id = ?", org_id)
 
-	err := db.Table("integrations").
-		Select("integrations.id, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
-		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = integrations.id AND oi.org_id = (?)", org_id).
-		Where("is_system_integration = true OR integrations.id IN (?)", subQuery).
+	err := db.Table("integrations AS i").
+		Select("i.id, i.name, i.app_logo, i.app_url, i.auth_url, i.app_description,i.is_system_integration, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
+		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = (?)", org_id).
+		Where("is_system_integration = true OR i.id IN (?)", subQuery).
 		Find(&integrations).Error
 
 	if err != nil {

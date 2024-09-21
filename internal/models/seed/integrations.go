@@ -32,7 +32,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "Slack",
-				AppUrl:              "https://slack.com/api/",
+				AppUrl:              "https://slack.com",
 				AuthUrl:             authUrl,
 				AppDescription:      "Slack is a cloud-based team business and communication platform.",
 				AppLogo:             "https://a.slack-edge.com/fd21de4/marketing/img/nav/logo.svg",
