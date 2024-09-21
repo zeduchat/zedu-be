@@ -10,7 +10,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/integrations"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
-
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -50,7 +49,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PUT("/:org_id/archive-channel", channel.ArchiveChannel)
 
 		//organisations integrations
-		organisationUrl.POST("/:org_id/integrations", integrations.CreateIntegrationApp)
 		organisationUrl.GET("/:org_id/integrations", integrations.GetAllIntegrationApp)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrations.UpdateIntegrationApp)
 		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrations.DeleteIntegrationApp)

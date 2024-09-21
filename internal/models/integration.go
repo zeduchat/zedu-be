@@ -1,8 +1,6 @@
 package models
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -15,17 +13,18 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-type JSONB map[string]interface{}
-
 type Integrations struct {
 	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
-	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
-	JSONUrl             string    `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
-	JSONSchema          JSONB     `gorm:"column:json_schema; type:jsonb;" json:"json_schema"`
-	AuthCredential      string    `gorm:"column:auth_credential; type:varchar(255);" json:"auth_credential"`
-	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type"`
-	IsSystemIntegration bool      `gorm:"column:is_system_integration; type:boolean;default:false" json:"is_system_integration"`
+	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
+	AppUrl              string    `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
+	AppLogo             string    `gorm:"column:app_logo; type:jsonb;" json:"app_logo"`
+	AuthUrl             string    `gorm:"column:auth_url; type:varchar(255);" json:"auth_url"`
+	AppDescription      string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
+	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
+	IsSystemIntegration bool      `gorm:"column:is_system_integration; type:boolean;" json:"is_system_integration,omitempty"`
+	IsActive            bool      `gorm:"type:boolean;default:false" json:"is_active"`
 	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type UpdateIntegration struct {
@@ -79,17 +78,6 @@ type IntegrationsSettings struct {
 	UpdatedAt         time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
-func (j *JSONB) Scan(value interface{}) error {
-	if b, ok := value.([]byte); ok {
-		return json.Unmarshal(b, &j)
-	}
-	return fmt.Errorf("type assertion to []byte failed")
-}
-
-func (j JSONB) Value() (driver.Value, error) {
-	return json.Marshal(j)
-}
-
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -117,11 +105,14 @@ func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) e
 
 func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) ([]Integrations, error) {
 
-	var integrations []Integrations
+	var (
+		integrations []Integrations
+		org          Organisation
+	)
 
-	exists := postgresql.CheckExists(db, &OrganisationIntegrations{}, "org_id = ?", org_id)
+	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
 	if !exists {
-		return nil, errors.New("organisation does not exist")
+		return nil, errors.New("organisation not found")
 	}
 
 	subQuery := db.Table("organisation_integrations").
@@ -129,7 +120,9 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		Where("org_id = ?", org_id)
 
 	err := db.Table("integrations").
-		Where("is_system_integration = true OR id IN (?)", subQuery).
+		Select("integrations.id, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
+		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = integrations.id AND oi.org_id = (?)", org_id).
+		Where("is_system_integration = true OR integrations.id IN (?)", subQuery).
 		Find(&integrations).Error
 
 	if err != nil {
@@ -373,6 +366,17 @@ func (i *Integrations) CreateSlackIntegration(db *gorm.DB, name string) error {
 	err := postgresql.CreateOneRecord(db, &i)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (i *Integrations) GetIntegrationID(db *gorm.DB, name string) error {
+
+	exists := postgresql.CheckExists(db, &i, "name = ?", name)
+
+	if !exists {
+		return errors.New("integration does not exists")
 	}
 
 	return nil
