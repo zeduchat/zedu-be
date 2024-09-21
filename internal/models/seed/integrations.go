@@ -26,7 +26,10 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "Slack",
-				JSONUrl:             "https://slack.com/api/",
+				JSONUrl:             "https://systems.telex.im/slack",
+				JSONSchema: map[string]interface{}{
+					
+				},
 				AuthCredential:      "slack-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
@@ -34,7 +37,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "Microsoft",
-				JSONUrl:             "https://graph.microsoft.com/v1.0/",
+				JSONUrl:             "https://systems.telex.im/microsoft",
 				AuthCredential:      "microsoft-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
@@ -42,7 +45,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "Jira Cloud",
-				JSONUrl:             "https://your-domain.atlassian.net/rest/api/3/",
+				JSONUrl:             "https://systems.telex.im/jira",
 				AuthCredential:      "jira-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
@@ -50,7 +53,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "Dropbox",
-				JSONUrl:             "https://api.dropboxapi.com/2/",
+				JSONUrl:             "https://systems.telex.im/dropbox",
 				AuthCredential:      "dropbox-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
@@ -58,7 +61,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "github",
-				JSONUrl:             "https://api.github.com/",
+				JSONUrl:             "https://systems.telex.im/github",
 				AuthCredential:      "github-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
@@ -74,7 +77,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "kuda",
-				JSONUrl:             "https://kuda.com/api/v1/",
+				JSONUrl:             "https://systems.telex.im/kuda",
 				AuthCredential:      "kuda-auth-token",
 				IsSystemIntegration: true,
 				CreatedAt:           time.Now(),
@@ -82,7 +85,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			{
 				ID:                  utility.GenerateUUID(),
 				Name:                "moniepoint",
-				JSONUrl:             "https://moniepoint.com/api/v1/",
+				JSONUrl:             "https://systems.telex.im/moniepoint",
 				AuthCredential:      "moniepoint-auth-token",
 				IsSystemIntegration: true,
 

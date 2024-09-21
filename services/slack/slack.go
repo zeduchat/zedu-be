@@ -1,13 +1,16 @@
 package slack
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
+
 	"gorm.io/gorm"
 )
 
@@ -86,4 +89,42 @@ func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string
 	}
 
 	return slackResponse.Channels, nil
+}
+
+func GetManifest(db *gorm.DB, rds *redis.Client, extReq request.ExternalRequest, req models.SlackManifestRequest) (gin.H, error) {
+	cachedKey := fmt.Sprintf("slack_manifest_%v", req.AppID)
+
+	cachedManifest, err := rds.Get(rds.Context(), cachedKey).Result()
+	fmt.Println(cachedManifest)
+	if err == redis.Nil {
+
+		response, err := extReq.SendExternalRequest(request.SlackGetManifest, req)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println(response)
+
+		slackManifest, ok := response.(external_models.SlackManifestResponse)
+		if !ok {
+			return nil, fmt.Errorf("invalid response format")
+		}
+
+
+		slackManifestJSON, err := json.Marshal(slackManifest)
+		if err != nil {
+			return nil, fmt.Errorf("could not marshal slack manifest: %v", err)
+		}
+
+		err = rds.Set(rds.Context(), cachedKey, slackManifestJSON, 0).Err()
+		if err != nil {
+			return nil, fmt.Errorf("could not cache slack manifest: %v", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("could not retrieve cached slack manifest: %v", err)
+	}
+
+	return gin.H{
+		"manifest": cachedManifest,
+	}, nil
 }

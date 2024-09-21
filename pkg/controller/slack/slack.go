@@ -108,3 +108,34 @@ func (base *Controller) GetSlackChannels(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Slack channels fetched successfully", channels)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetManifest(c *gin.Context){
+	var req models.SlackManifestRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Error("Failed to parse request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	response, err := service.GetManifest(base.Db.Postgresql, base.Db.Redis, base.ExtReq ,req)
+	if err != nil {
+		base.Logger.Error("Failed to get manifest", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get manifest", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Manifest fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Manifest fetched successfully", response)
+	c.JSON(http.StatusOK, rd)
+}

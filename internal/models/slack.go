@@ -40,6 +40,11 @@ type SendSlackRequest struct {
 	Color          string `json:"color"`
 }
 
+type SlackManifestRequest struct {
+	AuthToken string `json:"auth_token"`
+	AppID    string `json:"app_id"`
+}
+
 func (s *SlackTelex) Create(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, &s)
 

@@ -69,3 +69,28 @@ func (r *RequestObj) GetSlackChannels() (external_models.SlackChannelResponse, e
 
 	return outBoundResponse, nil
 }
+
+func (r *RequestObj) GetManifest(auth_token string) (external_models.SlackManifestResponse, error) {
+	var (
+		outBoundResponse external_models.SlackManifestResponse
+		logger           = r.Logger
+		idata            = r.RequestData
+	)
+
+	headers := map[string]string{
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept":       "application/json",
+		"Authorization": "Bearer " + auth_token,
+    }
+
+	path := r.Path
+	_ = idata
+
+	err := r.getNewSendRequestObject(nil, headers, path).SendRequest(&outBoundResponse)
+	if err != nil {
+		logger.Error("slack get manifest", outBoundResponse, err.Error())
+		return outBoundResponse, err
+	}
+
+	return outBoundResponse, nil
+}

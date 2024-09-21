@@ -56,7 +56,7 @@ func GenerateOTP(max int) (int, error) {
 }
 
 func GenerateInvitationToken() (string, error) {
-	bytes := make([]byte, 16)
+	bytes := make([]byte, 6)
 	_, err := crand.Read(bytes)
 	if err != nil {
 		return "", err

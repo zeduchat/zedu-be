@@ -82,6 +82,7 @@ type BaseConfig struct {
 	SLACK_CLIENT_SECRET string `mapstructure:"SLACK_CLIENT_SECRET"`
 	SLACK_REDIRECT_URI  string `mapstructure:"SLACK_REDIRECT_URI"`
 	SLACK_BASE_URL      string `mapstructure:"SLACK_BASE_URL"`
+	SLACK_MANIFEST_URL  string `mapstructure:"SLACK_MANIFEST_URL"`
 
 	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
 	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
@@ -181,6 +182,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ClientSecret: config.SLACK_CLIENT_SECRET,
 			RedirectURI:  config.SLACK_REDIRECT_URI,
 			BaseUrl:      config.SLACK_BASE_URL,
+			ManifestUrl:  config.SLACK_MANIFEST_URL,
 		},
 
 		Stripe: Stripe{

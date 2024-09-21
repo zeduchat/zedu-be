@@ -5,4 +5,5 @@ type Slack struct {
 	ClientSecret string
 	RedirectURI  string
 	BaseUrl      string
+	ManifestUrl  string
 }
