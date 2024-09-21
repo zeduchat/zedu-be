@@ -23,9 +23,9 @@ jobs:
       - name: Upload binary to server and restart app
         run: |
           echo "$SSH_KEY" > ssh_key.pem
-          ssh_host=${{ vars.open_ssh_host }}
-          ssh_user=${{ vars.open_ssh_user }}
-          ssh_key=${{ vars.open_ssh_key }}
+          ssh_host='${{ vars.open_ssh_host }}'
+          ssh_user='${{ vars.open_ssh_user }}'
+          ssh_key='${{ vars.open_ssh_key }}'
 
           echo $ssh_host
           echo $ssh_user
