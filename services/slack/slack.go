@@ -95,7 +95,6 @@ func GetManifest(db *gorm.DB, rds *redis.Client, extReq request.ExternalRequest,
 	cachedKey := fmt.Sprintf("slack_manifest_%v", req.AppID)
 
 	cachedManifest, err := rds.Get(rds.Context(), cachedKey).Result()
-	fmt.Println(cachedManifest)
 	if err == redis.Nil {
 
 		response, err := extReq.SendExternalRequest(request.SlackGetManifest, req)
@@ -120,6 +119,10 @@ func GetManifest(db *gorm.DB, rds *redis.Client, extReq request.ExternalRequest,
 		if err != nil {
 			return nil, fmt.Errorf("could not cache slack manifest: %v", err)
 		}
+
+		return gin.H{
+			"manifest": slackManifest,
+		}, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("could not retrieve cached slack manifest: %v", err)
 	}
