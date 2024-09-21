@@ -28,7 +28,7 @@ jobs:
         run: |
           echo "$SSH_KEY" > ssh_key.pem
           chmod 400 ssh_key.pem
-          rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
+          rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging "$SSH_USERNAME"@"$SSH_HOST":~/deployments/telexbe/staging/telexbe_staging
           rm ssh_key.pem
           
   update_and_restart_app:
@@ -44,7 +44,7 @@ jobs:
         run: |
           echo "$SSH_KEY" > ssh_key.pem
             chmod 400 ssh_key.pem
-            ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
+            ssh -o StrictHostKeyChecking=no -i ssh_key.pem "$SSH_USERNAME"@"$SSH_HOST" '
             cd ~/deployments/telexbe/staging/
             git reset --hard
             git pull origin staging
