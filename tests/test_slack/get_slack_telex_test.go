@@ -73,7 +73,7 @@ func TestGetSlackAccessInfo(t *testing.T) {
 			Name:         "Successful Retrieval of Slack Information",
 			OrgId:        slackTelex.OrganisationID,
 			ExpectedCode: http.StatusOK,
-			Message:      "slack access info fetched successfully",
+			Message:      "slack info fetched successfully",
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
