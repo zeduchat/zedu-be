@@ -83,7 +83,7 @@ func GetSlackAccessToken(db *gorm.DB, userId string, organisationId string) (mod
 
 	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
 	if err != nil {
-		return models.SlackTelex{}, fmt.Errorf("could not find SlackTelex record: %v", err)
+		return models.SlackTelex{}, err
 	}
 
 	return slackTelex, nil
@@ -95,7 +95,7 @@ func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string
 
 	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
 	if err != nil {
-		return nil, fmt.Errorf("could not find SlackTelex record: %v", err)
+		return nil, err
 	}
 
 	response, err := extReq.SendExternalRequest(request.SlackGetChannels, slackTelex.AccessToken)

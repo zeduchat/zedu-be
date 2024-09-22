@@ -84,12 +84,12 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 	}
 	response, err := service.GetSlackAccessToken(base.Db.Postgresql, userId, organisationID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch access token info", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to fetch slack info", nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "slack access info fetched successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "slack info fetched successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 
