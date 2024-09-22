@@ -25,7 +25,7 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 	}
 
 	if slackResponse.Error != "" {
-		return nil, fmt.Errorf("slack error: %v", slackResponse.Error)
+		return nil, fmt.Errorf("%v", slackResponse.Error)
 	}
 
 	var integration models.Integrations

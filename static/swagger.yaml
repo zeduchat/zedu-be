@@ -13,7 +13,6 @@ info:
 servers:
   # Added by API Auto Mocking Plugin
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/MICAHSHALLOM/telex/1.0.0
   - url: https://api.staging.telex.im/api/v1
 
 tags:

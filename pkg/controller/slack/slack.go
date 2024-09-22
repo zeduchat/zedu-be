@@ -48,8 +48,8 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 	userId := userID.(string)
@@ -57,8 +57,8 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 
 	response, err := service.ExchangeSlackOAuthToken(base.Db.Postgresql, req, base.ExtReq, userId)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "Slack OAuth token exchange failed", err.Error(), nil, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Slack OAuth token exchange failed", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -69,8 +69,8 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to retrieve user claims", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 	userId := userID.(string)
