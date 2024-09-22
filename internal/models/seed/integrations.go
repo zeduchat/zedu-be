@@ -26,7 +26,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 
 		slackConf := config.Config.Slack
 		perm := "incoming-webhook%20chat%3Awrite%20channels%3Aread%20groups%3Aread"
-		authUrl := fmt.Sprintf("'https://slack.com/oauth/v2/authorize?client_id=${%s}&scope=${%s}&redirect_uri=${%s}'", slackConf.ClientId, perm, slackConf.RedirectURI)
+		authUrl := fmt.Sprintf("https://slack.com/oauth/v2/authorize?client_id=${%s}&scope=${%s}&redirect_uri=${%s}", slackConf.ClientId, perm, slackConf.RedirectURI)
 
 		integrations := []models.Integrations{
 			{
