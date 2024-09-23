@@ -64,7 +64,7 @@ func (s *SlackTelex) Create(db *gorm.DB) error {
 }
 
 func (s *SlackTelex) GetSlackAccessToken(db *gorm.DB, userId string, orgId string) error {
-	err, _ := postgresql.SelectOneFromDb(db, &s, "user_id = ? AND organisation_id = ?", userId, orgId)
+	err, _ := postgresql.SelectOneFromDb(db, &s, "organisation_id = ?", orgId)
 
 	if err != nil {
 		return err

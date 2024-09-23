@@ -48,8 +48,8 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 	userId := userID.(string)
@@ -57,8 +57,8 @@ func (base *Controller) SlackOauth(c *gin.Context) {
 
 	response, err := service.ExchangeSlackOAuthToken(base.Db.Postgresql, req, base.ExtReq, userId)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "Slack OAuth token exchange failed", err.Error(), nil, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Slack OAuth token exchange failed", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -70,8 +70,8 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to retrieve user claims", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 	userId := userID.(string)
@@ -85,12 +85,12 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 	}
 	response, err := service.GetSlackAccessToken(base.Db.Postgresql, userId, organisationID,base.Db.Redis,base.ExtReq)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch access token info", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to fetch slack info", nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "slack access info fetched successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "slack info fetched successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 

@@ -29,7 +29,7 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 	}
 
 	if slackResponse.Error != "" {
-		return nil, fmt.Errorf("slack error: %v", slackResponse.Error)
+		return nil, fmt.Errorf("%v", slackResponse.Error)
 	}
 
 	var integration models.Integrations
@@ -87,7 +87,7 @@ func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string
 
 	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
 	if err != nil {
-		return nil, fmt.Errorf("could not find SlackTelex record: %v", err)
+		return nil, err
 	}
 
 	response, err := extReq.SendExternalRequest(request.SlackGetChannels, slackTelex.AccessToken)
