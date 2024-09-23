@@ -6,4 +6,6 @@ type Slack struct {
 	RedirectURI  string
 	BaseUrl      string
 	ManifestUrl  string
+	AppId        string
+	RefreshToken string
 }

@@ -1,9 +1,9 @@
 package slack
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
-	"fmt"
 
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/internal/config"
@@ -78,17 +78,40 @@ func (r *RequestObj) GetManifest(auth_token string) (external_models.SlackManife
 	)
 
 	headers := map[string]string{
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept":       "application/json",
+		"Content-Type":  "application/x-www-form-urlencoded",
+		"Accept":        "application/json",
 		"Authorization": "Bearer " + auth_token,
-    }
+	}
 
-	path := r.Path
+	path := fmt.Sprintf("?app_id=%s", config.Config.Slack.AppId)
 	_ = idata
 
 	err := r.getNewSendRequestObject(nil, headers, path).SendRequest(&outBoundResponse)
 	if err != nil {
 		logger.Error("slack get manifest", outBoundResponse, err.Error())
+		return outBoundResponse, err
+	}
+
+	return outBoundResponse, nil
+}
+
+func (r *RequestObj) GetSlackToken(refresh_token string) (external_models.SlackTokenResponse, error) {
+	var (
+		outBoundResponse external_models.SlackTokenResponse
+		logger           = r.Logger
+		idata            = r.RequestData
+	)
+
+	path := fmt.Sprintf("/api/tooling.tokens.rotate?refresh_token=%s", refresh_token)
+	_ = idata
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	err := r.getNewSendRequestObject(nil, headers, path).SendRequest(&outBoundResponse)
+	if err != nil {
+		logger.Error("slack get access token", outBoundResponse, err.Error())
 		return outBoundResponse, err
 	}
 

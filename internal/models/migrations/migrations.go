@@ -10,6 +10,7 @@ func AuthMigrationModels() []interface{} {
 		models.NewsLetter{},
 		models.TelexSlackChannelMapping{},
 		models.SlackTelex{},
+		models.SlackToken{},
 		models.ContactUs{},
 		models.BlogFeedback{},
 		models.BlogCategory{},

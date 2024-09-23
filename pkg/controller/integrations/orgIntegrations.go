@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

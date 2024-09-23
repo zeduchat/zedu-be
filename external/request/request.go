@@ -7,7 +7,6 @@ import (
 	"github.com/hngprojects/telex_be/external/thirdparty/ipstack"
 	"github.com/hngprojects/telex_be/external/thirdparty/slack"
 	"github.com/hngprojects/telex_be/internal/config"
-	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -23,6 +22,7 @@ var (
 	SlackOAuthExchange  string = "slack_oauth_exchange"
 	SlackGetChannels    string = "slack_get_channels"
 	SlackGetManifest    string = "slack_get_manifest"
+	SlackGetAccessToken string = "slack_get_access_token"
 )
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
@@ -65,20 +65,32 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			}
 			return obj.GetSlackChannels()
 		case SlackGetManifest:
-			reqData := data.(models.SlackManifestRequest)
-
-			fmt.Println("Request data: ", reqData)
+			token := data.(string)
 
 			obj := slack.RequestObj{
 				Name:         name,
-				Path:         fmt.Sprintf("%v?app_id=%s", config.Slack.ManifestUrl, reqData.AppID),
+				Path:         fmt.Sprintf("%v", config.Slack.ManifestUrl),
 				Method:       "GET",
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
 				Logger:       er.Logger,
 			}
-			return obj.GetManifest(reqData.AuthToken)
+			return obj.GetManifest(token)
+
+		case SlackGetAccessToken:
+			refresh_token := data.(string)
+
+			obj := slack.RequestObj{
+				Name:         name,
+				Path:         fmt.Sprintf("%v", config.Slack.BaseUrl),
+				Method:       "POST",
+				SuccessCode:  200,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data,
+				Logger:       er.Logger,
+			}
+			return obj.GetSlackToken(refresh_token)
 		default:
 			return nil, fmt.Errorf("request not found")
 		}
