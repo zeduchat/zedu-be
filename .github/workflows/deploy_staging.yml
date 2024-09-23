@@ -10,6 +10,10 @@ jobs:
   update_env_and_binary:
     runs-on: self-hosted
     if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,15 +24,11 @@ jobs:
         run: |
           go build -o telexbe_staging
 
-      - name: Upload binary to server and restart app
+      - name: Upload binary to server
         run: |
-          echo "${{ secrets.SSH_KEY }}" > ssh_key.pem
-          ssh_host='${{ secrets.SSH_HOST  }}'
-          ssh_user='${{ secrets.SSH_USER }}'
-
-          chmod 400 ssh_key.pem
-          rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging $ssh_user@$ssh_host:~/deployments/telexbe/staging/telexbe_staging
-
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
           rm ssh_key.pem
           
   update_and_restart_app:
