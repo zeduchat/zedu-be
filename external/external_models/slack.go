@@ -25,3 +25,18 @@ type SlackChannelResponse struct {
 	Channels []SlackChannel `json:"channels"`
 	Error    string         `json:"error,omitempty"`
 }
+
+type SlackTokenResponse map[string]interface{}
+
+type SlackTokenOutput struct {
+    Ok           bool   `json:"ok"`
+    Token        string `json:"token"`
+    RefreshToken string `json:"refresh_token"`
+    TeamID       string `json:"team_id"`
+    UserID       string `json:"user_id"`
+    IAT          int64  `json:"iat"`  // Issued At timestamp
+    Exp          int64  `json:"exp"`  // Expiration timestamp
+}
+
+
+type SlackManifestResponse map[string]interface{}

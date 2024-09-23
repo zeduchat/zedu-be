@@ -31,11 +31,17 @@ func TestGetSlackAccessInfo(t *testing.T) {
 	orgId := utility.GenerateUUID()
 
 	slackTelex := models.SlackTelex{
-		ID:             utility.GenerateUUID(),
-		UserID:         regularUser.ID,
-		OrganisationID: orgId,
-		IntegrationID:  utility.GenerateUUID(),
-		AccessToken:    "acesstoken-accestoken",
+		ID:               utility.GenerateUUID(),
+		UserID:           regularUser.ID,
+		OrganisationID:   orgId,
+		IntegrationID:    utility.GenerateUUID(),
+		AccessToken:      "acesstoken-accestoken",
+		TeamID:           "teamid-teamid",
+		TeamName:         "teamname-teamname",
+		Channel:          "channel-channel",
+		ChannelID:        "channelid-channelid",
+		ConfigurationURL: "configurationurl-configurationurl",
+		URL:              "url-url",
 	}
 
 	db.Create(&regularUser)
@@ -83,7 +89,6 @@ func TestGetSlackAccessInfo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			fmt.Println(orgId)
 			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/slack/organisations/%s", orgId), nil)
 
 			for i, v := range test.Headers {

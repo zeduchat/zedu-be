@@ -15,9 +15,9 @@ import (
 type Integrations struct {
 	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
 	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
+	JSONUrl             string    `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
 	AppUrl              string    `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
 	AppLogo             string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
-	AuthUrl             string    `gorm:"column:auth_url; type:varchar(255);" json:"auth_url"`
 	AppDescription      string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
 	IsSystemIntegration bool      `gorm:"column:is_system_integration; type:boolean;" json:"is_system_integration,omitempty"`
@@ -33,11 +33,13 @@ type UpdateIntegration struct {
 	IntegrationType string `json:"integration_type"`
 }
 
+type ChangeIntegrationStatus struct {
+	Status bool `json:"status"`
+	IntegrationID string `json:"integration_id"`
+}
+
 type ActivateChannelIntegration struct {
 	Activate bool `json:"activate"`
-}
-type DeactivateChannelIntegration struct {
-	Activate bool `json:"deactivate"`
 }
 
 type OrganisationIntegrations struct {
@@ -119,7 +121,7 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		Where("org_id = ?", org_id)
 
 	err := db.Table("integrations AS i").
-		Select("i.id, i.name, i.app_logo, i.app_url, i.auth_url, i.app_description,i.is_system_integration, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
+		Select("i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description,i.is_system_integration, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
 		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = (?)", org_id).
 		Where("is_system_integration = true OR i.id IN (?)", subQuery).
 		Find(&integrations).Error
@@ -178,7 +180,7 @@ func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) err
 	return nil
 }
 
-func (oi *OrganisationIntegrations) SetIntegrationStatus(db *gorm.DB, status string, ids map[string]string) error {
+func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string) error {
 	var (
 		integration Integrations
 	)
@@ -193,19 +195,8 @@ func (oi *OrganisationIntegrations) SetIntegrationStatus(db *gorm.DB, status str
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
 	if integrationexists && !orgIntegrationexists {
 
-		bull := true
-
-		switch status {
-		case "active":
-			bull = true
-		case "inactive":
-			bull = false
-		default:
-			return errors.New("invalid status")
-		}
-
 		oi.ID = utility.GenerateUUID()
-		oi.IsActive = bull
+		oi.IsActive = req.Status
 		oi.OrgID = ids["org_id"]
 		oi.IntegrationID = ids["integration_id"]
 
@@ -217,30 +208,8 @@ func (oi *OrganisationIntegrations) SetIntegrationStatus(db *gorm.DB, status str
 		return nil
 	}
 
-	stat := "active"
-
-	switch oi.IsActive {
-	case true:
-		stat = "active"
-	case false:
-		stat = "inactive"
-	default:
-		return errors.New("invalid status")
-	}
-
-	if status == stat {
-		return errors.New("current status is already set to " + stat)
-	}
-
-	statupdate := true
-	if status == "inactive" {
-		statupdate = false
-	} else {
-		statupdate = true
-	}
-
 	update := make(map[string]interface{})
-	update["is_active"] = statupdate
+	update["is_active"] = req.Status
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", oi.OrgID, oi.IntegrationID)
 

@@ -1,7 +1,6 @@
 package integrations
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -150,10 +149,16 @@ func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
+func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
-	status := c.Query("status")
+	var req models.ChangeIntegrationStatus
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -162,26 +167,19 @@ func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
+	if _, err := uuid.Parse(req.IntegrationID); err != nil {
 		base.Logger.Error("invalid integration id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if status != "active" && status != "inactive" {
-		base.Logger.Error("invalid status value")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid status value", "status value must be 'active' or 'inactive'", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	ids := map[string]string{
 		"org_id":         org_id,
-		"integration_id": integration_id,
+		"integration_id": req.IntegrationID,
 	}
 
-	err := integrations.SetIntegrationAppStatus(ids, status, base.Db.Postgresql)
+	err := integrations.ChangeIntegrationStatus(ids, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to set integration app status", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set integration app status", err.Error(), nil)
@@ -192,21 +190,4 @@ func (base *Controller) SetIntegrationActiveStatus(c *gin.Context) {
 	base.Logger.Info("Integration app status set successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app status set successfully", nil)
 	c.JSON(http.StatusOK, rd)
-}
-
-func fetchJSONFromURL(url string) (map[string]interface{}, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	var jsonSchema map[string]interface{}
-
-	err = json.NewDecoder(resp.Body).Decode(&jsonSchema)
-	if err != nil {
-		return nil, err
-	}
-	return jsonSchema, nil
 }
