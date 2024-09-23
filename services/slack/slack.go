@@ -109,7 +109,6 @@ func getManifest(db *gorm.DB, rds *redis.Client, extReq request.ExternalRequest,
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("====================================",response)
 
 	slackManifest, ok := response.(external_models.SlackManifestResponse)
 	if !ok {
@@ -123,18 +122,18 @@ func GetSlackAccessToken(db *gorm.DB, userID, organizationID string, rds *redis.
 	var slackTelex models.SlackTelex
 	slackTelex.UserID = userID
 
-	access_token := config.Config.Slack.RefreshToken
+	// access_token := config.Config.Slack.RefreshToken
 
-	manifestResponse, err := getManifest(db, rds, extReq, access_token)
-	if err != nil {
-		return models.SlackTelex{}, fmt.Errorf("could not retrieve slack manifest: %v", err)
-	}
+	// manifestResponse, err := getManifest(db, rds, extReq, access_token)
+	// if err != nil {
+	// 	return models.SlackTelex{}, fmt.Errorf("could not retrieve slack manifest: %v", err)
+	// }
 	
 	if err := slackTelex.GetSlackAccessToken(db, userID, organizationID); err != nil {
 		return models.SlackTelex{}, fmt.Errorf("could not find SlackTelex record: %v", err)
 	}
 
-	slackTelex.AppManifest = models.JSONB(manifestResponse)
+	// slackTelex.AppManifest = models.JSONB(manifestResponse)
 	
 	return slackTelex, nil
 }
@@ -154,14 +153,11 @@ func GetSlackAccessToken(db *gorm.DB, userID, organizationID string, rds *redis.
 // 		}
 // 	}
 
-// 	fmt.Println("TOKENNN===============", token.AccessToken)
 
 // 	manifestResponse, err := GetManifest(db, rds, extReq, token.AccessToken)
 // 	if err != nil {
 // 		return models.SlackTelex{}, fmt.Errorf("could not retrieve slack manifest: %v", err)
 // 	}
-
-// 	fmt.Println("MANIFESTRESPONSE=====================", manifestResponse)
 
 // 	slackTelex.AppManifest = models.JSONB(manifestResponse)
 
@@ -216,14 +212,10 @@ func refreshToken(db *gorm.DB, extReq request.ExternalRequest, userID, orgID str
 		return fmt.Errorf("error refreshing token: %v", err)
 	}
 
-	fmt.Println("RESPONSE=====================", response)
-
 	slackResponse, ok := response.(external_models.SlackTokenOutput)
 	if !ok {
 		return fmt.Errorf("invalid response format")
 	}
-
-	fmt.Println("SLACKRESPONSE=====================", slackResponse)
 
 	token.AccessToken = slackResponse.Token
 	token.RefreshToken = slackResponse.RefreshToken
