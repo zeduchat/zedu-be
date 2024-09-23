@@ -7363,20 +7363,21 @@ paths:
                         example: "2024-09-18T03:37:56.026341265+01:00"
             
     get:
+      summary: Get integrations for an organization
+      description: Retrieve a list of system integrations for a specific organization.
       tags:
         - Integrations
-      summary: Retrieve a list of integrations for an organization
       parameters:
-        - name: organisationId
+        - name: organisation_id
           in: path
           required: true
           schema:
             type: string
-            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
-          description: The ID of the organization
+            format: uuid
+          description: The UUID of the organization.
       responses:
-        '200':
-          description: Integrations retrieved successfully
+        200:
+          description: Successfully retrieved the list of integrations.
           content:
             application/json:
               schema:
@@ -7384,13 +7385,16 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: "success"
+                    example: success
+                    description: Status of the response.
                   status_code:
                     type: integer
                     example: 200
+                    description: HTTP status code.
                   message:
                     type: string
-                    example: "integrations retrieved successfully."
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
                   data:
                     type: array
                     items:
@@ -7398,44 +7402,51 @@ paths:
                       properties:
                         id:
                           type: string
-                          example: "0191f134-05b5-7e5d-9cd8-ec29833633da"
+                          format: uuid
+                          description: The unique identifier of the integration.
+                          example: 0192202e-b6f3-7d23-8025-3f60675cc031
                         app_name:
                           type: string
-                          example: "Slack"
-                        auth_url:
+                          description: Name of the integrated application.
+                          example: Slack
+                        json_url:
                           type: string
-                          example: "some-auth-url"
+                          description: URL where the integration's JSON schema is located.
+                          example: https://system-integration.telex.im/slack.json
                         app_url:
                           type: string
-                          example: "some-app-url"
+                          description: The URL to the app's official website.
+                          example: https://slack.com
                         app_logo:
                           type: string
-                          example: "some-logo-url"
+                          description: URL to the app's logo.
+                          example: https://media.tifi.tv/telexbucket/public/logos/slack.png
                         app_description:
                           type: string
-                          example: "Slack is a cloud-based team business and communication platform."
-                        is_active:
-                          type: boolean
-                          example: true
+                          description: A brief description of the application.
+                          example: Slack is a cloud-based team business and communication platform.
                         is_system_integration:
                           type: boolean
+                          description: Whether this is a system-wide integration.
                           example: true
+                        is_active:
+                          type: boolean
+                          description: Status of the integration for the organization.
+                          example: false
                         created_at:
                           type: string
                           format: date-time
-                          example: "2024-09-14T16:43:24.086604+01:00"
+                          description: Timestamp when the integration was added.
+                          example: 2024-09-23T19:59:46.166781+01:00
                         updated_at:
                           type: string
                           format: date-time
-                          example: "2024-09-14T16:43:24.086604+01:00"
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        '500':
-          description: Internal server error
+                          description: Timestamp when the integration was last updated.
+                          example: 2024-09-23T20:00:08.086829+01:00
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.
 
           
           
@@ -7618,37 +7629,39 @@ paths:
         '404':
           description: Integration not found
           
-  /organisations/{organisationId}/integrations/{integrationId}/active_status:
+  /api/v1/organisations/{organisation_id}/integrations/change_status:
     patch:
+      summary: Change the status of an integration
+      description: Update the activation status of a specific integration for an organization.
       tags:
         - Integrations
-      summary: Update the active status of an integration for an organization
       parameters:
-        - name: organisationId
+        - name: organisation_id
           in: path
           required: true
           schema:
             type: string
-            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
-          description: The ID of the organization
-        - name: integrationId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191e80a-e482-7d1b-b44a-bdee47af60c1"
-          description: The ID of the integration
-        - name: status
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [active, inactive]
-            example: "inactive"
-          description: The status to set for the integration
+            format: uuid
+          description: The UUID of the organization.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integration_id:
+                  type: string
+                  format: uuid
+                  description: The UUID of the integration whose status needs to be updated.
+                  example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                status:
+                  type: boolean
+                  description: The new status of the integration (true for active, false for inactive).
+                  example: false
       responses:
-        '200':
-          description: Integration app status set successfully
+        200:
+          description: Successfully updated the status of the integration.
           content:
             application/json:
               schema:
@@ -7656,51 +7669,20 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: "success"
+                    example: success
+                    description: Status of the response.
                   status_code:
                     type: integer
                     example: 200
+                    description: HTTP status code.
                   message:
                     type: string
-                    example: "Integration app status set successfully"
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "Bad Request"
-                  message:
-                    type: string
-                    example: "Invalid input"
-                  status_code:
-                    type: integer
-                    example: 400
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "Not Found"
-                  message:
-                    type: string
-                    example: "Integration or organization not found"
-                  status_code:
-                    type: integer
-                    example: 404
+                    example: Integration app status set successfully
+                    description: A message describing the result.
+        400:
+          description: Invalid request or missing parameters.
+        404:
+          description: Organisation or integration not found.
                     
   /organisations/{organisationId}/channels/{channelId}/integrations/{integrationId}:
     patch:

@@ -15,6 +15,27 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
+func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string, organisationId string) ([]external_models.SlackChannel, error) {
+	var slackTelex models.SlackTelex
+	slackTelex.UserID = userId
+
+	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := extReq.SendExternalRequest(request.SlackGetChannels, slackTelex.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	slackResponse, ok := response.(external_models.SlackChannelResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid response format")
+	}
+
+	return slackResponse.Channels, nil
+}
 
 func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.ExternalRequest, userId string) (gin.H, error) {
 	var slackTelex models.SlackTelex
@@ -81,35 +102,14 @@ func ExchangeSlackOAuthToken(db *gorm.DB, req models.OAuth, extReq request.Exter
 	return result, nil
 }
 
-func GetSlackChannels(db *gorm.DB, extReq request.ExternalRequest, userId string, organisationId string) ([]external_models.SlackChannel, error) {
-	var slackTelex models.SlackTelex
-	slackTelex.UserID = userId
 
-	err := slackTelex.GetSlackAccessToken(db, userId, organisationId)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := extReq.SendExternalRequest(request.SlackGetChannels, slackTelex.AccessToken)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("RESPONSE=====================", response)
-
-	slackResponse, ok := response.(external_models.SlackChannelResponse)
-	if !ok {
-		return nil, fmt.Errorf("invalid response format")
-	}
-
-	return slackResponse.Channels, nil
-}
 
 func getManifest(db *gorm.DB, rds *redis.Client, extReq request.ExternalRequest, token string) (external_models.SlackManifestResponse, error) {
 	response, err := extReq.SendExternalRequest(request.SlackGetManifest, token)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("====================================",response)
 
 	slackManifest, ok := response.(external_models.SlackManifestResponse)
 	if !ok {
@@ -129,7 +129,6 @@ func GetSlackAccessToken(db *gorm.DB, userID, organizationID string, rds *redis.
 	if err != nil {
 		return models.SlackTelex{}, fmt.Errorf("could not retrieve slack manifest: %v", err)
 	}
-
 	
 	if err := slackTelex.GetSlackAccessToken(db, userID, organizationID); err != nil {
 		return models.SlackTelex{}, fmt.Errorf("could not find SlackTelex record: %v", err)
