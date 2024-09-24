@@ -68,7 +68,7 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				AppUrl:              "https://www.microsoft.com/en-us/microsoft-teams/group-chat-software",
 				JSONUrl:             "https://system-integration.telex.im/teams.json",
 				AppDescription:      "Microsoft Teams is a proprietary business communication platform developed by Microsoft.",
-				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/microsoft-teams.png",
+				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/teams.png",
 				IsSystemIntegration: true,
 			},
 			{
