@@ -37,15 +37,6 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			},
 			{
 				ID:                  utility.GenerateUUID(),
-				Name:                "Discord",
-				AppUrl:              "https://discord.com",
-				JSONUrl:             "https://system-integration.telex.im/discord.json",
-				AppDescription:      "Discord is a VoIP and instant messaging social platform.",
-				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/discord.png",
-				IsSystemIntegration: true,
-			},
-			{
-				ID:                  utility.GenerateUUID(),
 				Name:                "GitHub",
 				AppUrl:              "https://github.com",
 				JSONUrl:             "https://system-integration.telex.im/github.json",
