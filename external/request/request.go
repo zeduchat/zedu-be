@@ -21,6 +21,8 @@ var (
 	IpinfoResolveIp     string = "ipinfo_resolve_ip"
 	SlackOAuthExchange  string = "slack_oauth_exchange"
 	SlackGetChannels    string = "slack_get_channels"
+	SlackGetManifest    string = "slack_get_manifest"
+	SlackGetAccessToken string = "slack_get_access_token"
 )
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
@@ -62,6 +64,33 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				Logger:       er.Logger,
 			}
 			return obj.GetSlackChannels()
+		case SlackGetManifest:
+			token := data.(string)
+
+			obj := slack.RequestObj{
+				Name:         name,
+				Path:         fmt.Sprintf("%v", config.Slack.ManifestUrl),
+				Method:       "GET",
+				SuccessCode:  200,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data,
+				Logger:       er.Logger,
+			}
+			return obj.GetManifest(token)
+
+		case SlackGetAccessToken:
+			refresh_token := data.(string)
+
+			obj := slack.RequestObj{
+				Name:         name,
+				Path:         fmt.Sprintf("%v", config.Slack.BaseUrl),
+				Method:       "POST",
+				SuccessCode:  200,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data,
+				Logger:       er.Logger,
+			}
+			return obj.GetSlackToken(refresh_token)
 		default:
 			return nil, fmt.Errorf("request not found")
 		}

@@ -43,10 +43,10 @@ func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
 	return nil
 }
 
-func SetIntegrationAppStatus(ids map[string]string, status string, db *gorm.DB) error {
+func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
 	var integration models.OrganisationIntegrations
 
-	err := integration.SetIntegrationStatus(db, status, ids)
+	err := integration.ChangeStatus(db, req , ids)
 	if err != nil {
 		return err
 	}
