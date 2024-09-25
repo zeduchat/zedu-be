@@ -52,11 +52,15 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/integrations", integrations.GetAllIntegrationApp)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrations.UpdateIntegrationApp)
 		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrations.DeleteIntegrationApp)
-		organisationUrl.PATCH("/:org_id/integrations/change_status", integrations.ChangeIntegrationStatus)
 
 		//channels integrations
 		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
 		organisationUrl.POST("/:org_id/channels/:channel_id/integrations/:integration_id",integrations.ActivateDeactivateChannelIntegration)
+
+		//organisationIntegration jointable related
+		organisationUrl.PATCH("/:org_id/integrations/change_status", integrations.ChangeIntegrationStatus)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrations.UpdateJSONSchema)
+
 	}
 
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
