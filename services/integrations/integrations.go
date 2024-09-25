@@ -46,7 +46,24 @@ func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
 func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
 	var integration models.OrganisationIntegrations
 
+
 	err := integration.ChangeStatus(db, req , ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest, db *gorm.DB) error {
+	var orgIntegration models.OrganisationIntegrations
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return errors.New("organisation does not have that integration")
+	}
+
+	err := orgIntegration.UpdateJSONSchema(db, req, ids)
 	if err != nil {
 		return err
 	}
