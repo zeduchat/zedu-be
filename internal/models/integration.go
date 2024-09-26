@@ -247,6 +247,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 	update := make(map[string]interface{})
 	update["is_active"] = req.Status
+	update["json_schema"] = req.JSONSchema
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", oi.OrgID, oi.IntegrationID)
 
