@@ -39,9 +39,8 @@ type ChangeIntegrationStatus struct {
 	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
-
 type UpdateJSONSchemaRequest struct {
-	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
+	JSONSchema JSONB `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
 type ActivateChannelIntegration struct {
@@ -128,11 +127,18 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		Where("org_id = ?", org_id)
 
 	err := db.Table("integrations AS i").
-		Select("i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description,i.is_system_integration, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
-		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = (?)", org_id).
-		Where("is_system_integration = true OR i.id IN (?)", subQuery).
+		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, 
+				i.is_system_integration, 
+				COALESCE(oi.created_at, i.created_at) AS created_at, 
+				COALESCE(oi.updated_at, i.updated_at) AS updated_at, 
+				COALESCE(oi.is_active, false) AS is_active, 
+				CASE 
+					WHEN oi.is_active IS TRUE THEN 'active' 
+					ELSE 'inactive' 
+				END AS status`).
+		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = ?", org_id).
+		Where("i.is_system_integration = TRUE OR i.id IN (?)", subQuery).
 		Find(&integrations).Error
-
 	if err != nil {
 		return nil, err
 	}
