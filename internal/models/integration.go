@@ -34,8 +34,13 @@ type UpdateIntegration struct {
 }
 
 type ChangeIntegrationStatus struct {
-	Status bool `json:"status"`
+	Status        bool   `json:"status"`
 	IntegrationID string `json:"integration_id"`
+	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
+}
+
+type UpdateJSONSchemaRequest struct {
+	JSONSchema JSONB `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
 type ActivateChannelIntegration struct {
@@ -49,6 +54,7 @@ type OrganisationIntegrations struct {
 	IsActive      bool      `gorm:"type:boolean;default:false" json:"is_active"`
 	IsArchived    bool      `gorm:"type:boolean;default:false" json:"is_archived"`
 	ArchivedAt    time.Time `gorm:"index" json:"-"`
+	JSONSchema    JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
@@ -121,11 +127,18 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		Where("org_id = ?", org_id)
 
 	err := db.Table("integrations AS i").
-		Select("i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description,i.is_system_integration, oi.created_at AS created_at, oi.updated_at AS updated_at, oi.is_active AS is_active").
-		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = (?)", org_id).
-		Where("is_system_integration = true OR i.id IN (?)", subQuery).
+		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, 
+				i.is_system_integration, 
+				COALESCE(oi.created_at, i.created_at) AS created_at, 
+				COALESCE(oi.updated_at, i.updated_at) AS updated_at, 
+				COALESCE(oi.is_active, false) AS is_active, 
+				CASE 
+					WHEN oi.is_active IS TRUE THEN 'active' 
+					ELSE 'inactive' 
+				END AS status`).
+		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = ?", org_id).
+		Where("i.is_system_integration = TRUE OR i.id IN (?)", subQuery).
 		Find(&integrations).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -180,25 +193,49 @@ func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) err
 	return nil
 }
 
+func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSONSchemaRequest, ids map[string]string) error {
+
+	update := make(map[string]interface{})
+	update["json_schema"] = req.JSONSchema
+
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no record updated")
+	}
+
+	return nil
+}
+
 func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string) error {
 	var (
-		integration Integrations
+		integration  Integrations
+		organisation Organisation
 	)
 
-	integrationexists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
-	if !integrationexists {
+	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
+	if !organisationExists {
+		return errors.New("organisation does not exist")
+	}
+
+	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	if !integrationExists {
 		return errors.New("integration app does not exist")
 	}
 
-	orgIntegrationexists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
-	if integrationexists && !orgIntegrationexists {
+	if integrationExists && !orgIntegrationExists {
 
 		oi.ID = utility.GenerateUUID()
 		oi.IsActive = req.Status
 		oi.OrgID = ids["org_id"]
 		oi.IntegrationID = ids["integration_id"]
+		oi.JSONSchema = req.JSONSchema
 
 		err := oi.CreateOrganisationIntegration(db)
 		if err != nil {
@@ -210,6 +247,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 	update := make(map[string]interface{})
 	update["is_active"] = req.Status
+	update["json_schema"] = req.JSONSchema
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", oi.OrgID, oi.IntegrationID)
 

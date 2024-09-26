@@ -7629,10 +7629,156 @@ paths:
         '404':
           description: Integration not found
           
+  /api/v1/organisations/{organisation_id}/integrations/{integration_id}/updatejson:
+    patch:
+      summary: Update the JSON schema of an organisation's integration
+      description: Update the JSON schema for a specific integration of an organization.
+      tags:
+        - Integrations
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_schema:
+                  type: object
+                  description: The updated JSON schema for the integration.
+                  properties:
+                    date:
+                      type: object
+                      properties:
+                        created_at:
+                          type: string
+                          format: date
+                          example: "2024-09-10"
+                        updated_at:
+                          type: string
+                          format: date
+                          example: "2024-09-25"
+                    settings:
+                      type: object
+                      properties:
+                        form_fields:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              current_key:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Current Key"
+                                  value:
+                                    type: string
+                                    example: "abc123xyz"
+                              endpoint:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Endpoint Configuration"
+                                  value:
+                                    type: string
+                                    example: "https://telex.im/slack/command"
+                    permissions:
+                      type: object
+                      properties:
+                        events:
+                          type: array
+                          items:
+                            type: string
+                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Telex."
+                        bot_user:
+                          type: object
+                          properties:
+                            display_name:
+                              type: string
+                              example: "Telex"
+                            always_online:
+                              type: boolean
+                              example: false
+                    descriptions:
+                      type: object
+                      properties:
+                        app_url:
+                          type: string
+                          example: "https://slack.com"
+                        app_logo:
+                          type: string
+                          example: "https://media.tifi.tv/telexbucket/public/logos/slack.png"
+                        app_name:
+                          type: string
+                          example: "Slack"
+                        app_description:
+                          type: string
+                          example: "Slackzzzzzzzzzzzzz is a cloud-based team business and communication platform."
+                        background_color:
+                          type: string
+                          example: "#262626"
+                    slash_commands:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            example: "https://telex.im/slack/command"
+                          command:
+                            type: string
+                            example: "/slack"
+                          description:
+                            type: string
+                            example: "Open slack"
+                          should_escape:
+                            type: boolean
+                            example: false
+      responses:
+        200:
+          description: Successfully updated the JSON schema of the integration.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: JSON schema updated successfully
+                    description: A message indicating the result of the update.
+        400:
+          description: Invalid request or missing parameters.
+        404:
+          description: Organisation or integration not found.
+          
   /api/v1/organisations/{organisation_id}/integrations/change_status:
     patch:
-      summary: Change the status of an integration
-      description: Update the activation status of a specific integration for an organization.
+      summary: Change the status and JSON schema of an integration
+      description: Update the activation status and modify the JSON schema of a specific integration for an organization.
       tags:
         - Integrations
       parameters:
@@ -7653,15 +7799,108 @@ paths:
                 integration_id:
                   type: string
                   format: uuid
-                  description: The UUID of the integration whose status needs to be updated.
+                  description: The UUID of the integration whose status and schema needs to be updated.
                   example: 0192202e-b6f3-7d23-8025-3f60675cc031
                 status:
                   type: boolean
                   description: The new status of the integration (true for active, false for inactive).
                   example: false
+                json_schema:
+                  type: object
+                  description: The modified JSON schema of the integration.
+                  properties:
+                    date:
+                      type: object
+                      properties:
+                        created_at:
+                          type: string
+                          format: date
+                          example: "2024-09-10"
+                        updated_at:
+                          type: string
+                          format: date
+                          example: "2024-09-25"
+                    settings:
+                      type: object
+                      properties:
+                        form_fields:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              current_key:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Current Key"
+                                  value:
+                                    type: string
+                                    example: "abc123xyz"
+                              endpoint:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Endpoint Configuration"
+                                  value:
+                                    type: string
+                                    example: "https://telex.im/slack/command"
+                    permissions:
+                      type: object
+                      properties:
+                        events:
+                          type: array
+                          items:
+                            type: string
+                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Telex."
+                        bot_user:
+                          type: object
+                          properties:
+                            display_name:
+                              type: string
+                              example: "Telex"
+                            always_online:
+                              type: boolean
+                              example: false
+                    descriptions:
+                      type: object
+                      properties:
+                        app_url:
+                          type: string
+                          example: "https://slack.com"
+                        app_logo:
+                          type: string
+                          example: "https://media.tifi.tv/telexbucket/public/logos/slack.png"
+                        app_name:
+                          type: string
+                          example: "Slack"
+                        app_description:
+                          type: string
+                          example: "Slack is a cloud-based team business and communication platform."
+                        background_color:
+                          type: string
+                          example: "#262626"
+                    slash_commands:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            example: "https://telex.im/slack/command"
+                          command:
+                            type: string
+                            example: "/slack"
+                          description:
+                            type: string
+                            example: "Open slack"
+                          should_escape:
+                            type: boolean
+                            example: false
       responses:
         200:
-          description: Successfully updated the status of the integration.
+          description: Successfully updated the status and schema of the integration.
           content:
             application/json:
               schema:
