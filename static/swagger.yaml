@@ -62,7 +62,8 @@ tags:
     description: API for newsletter related operations
   - name: squeeze
     description: API for squeeze optin related operations  
-
+  - name: IntegrationSettings
+    description: API for Integrations settings
 
 
 
@@ -8073,6 +8074,185 @@ paths:
                         total_pages_count:
                           type: integer
                           example: 1
+                          
+  /api/v1/organisations/{organisation_id}/integrations/{integration_id}/settings:
+    post:
+      summary: Add a new integration setting
+      description: Adds a new form field value and label to the integration settings for a specific organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_value:
+                  type: string
+                  example: "shallom"
+                  description: Value for the form field.
+                form_field_label:
+                  type: string
+                  example: "micah bawa"
+                  description: Label for the form field.
+      responses:
+        200:
+          description: Successfully added the integration setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting added successfully
+        400:
+          description: Invalid request.
+    
+    get:
+      summary: Retrieve integration settings
+      description: Retrieves all form field settings for a specific integration and organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      responses:
+        200:
+          description: Successfully retrieved the integration settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01923bd2-7453-792c-a496-ccfdf7e63e27"
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        form_field_value:
+                          type: string
+                          example: "This is "
+                        form_field_label:
+                          type: string
+                          example: "Shallom Micah Bawa"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-29T04:28:21.076005+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-29T04:28:21.076005+01:00"
+        404:
+          description: Organisation or integration not found.
+    patch:
+      summary: Update an existing integration setting
+      description: Updates a form field's label in the integration settings for a specific organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_label:
+                  type: string
+                  example: "Shallom Micah Bawa"
+                  description: Updated label for the form field.
+      responses:
+        200:
+          description: Successfully updated the integration setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting updated successfully
+        404:
+          description: Organisation or integration not found.
+        400:
+          description: Invalid request.
                 
   /threads/organisations/{organisationId}/metrics:
     get:
