@@ -38,7 +38,7 @@ func AuthMigrationModels() []interface{} {
 		models.HelpCenterCategory{},
 		models.HelpCenterArticle{},
 		models.Integrations{},
-		models.IntegrationsSettings{},
+		models.IntegrationSettings{},
 		models.NotificationPreferences{},
 		models.Plan{},
 		models.OrganisationPlan{},
