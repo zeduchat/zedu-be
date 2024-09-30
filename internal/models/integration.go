@@ -143,7 +143,6 @@ func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req
 	if err != nil {
 		return integration, errors.New("failed to update integration app")
 	}
-
 	if result.RowsAffected == 0 {
 		return integration, errors.New("no record updated")
 	}
@@ -226,7 +225,6 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if err != nil {
 			return err
 		}
-
 		return nil
 	}
 
@@ -243,7 +241,6 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	if result.RowsAffected == 0 {
 		return errors.New("no record updated")
 	}
-
 	return nil
 }
 
@@ -363,7 +360,6 @@ func (i *Integrations) CreateSlackIntegration(db *gorm.DB, name string) error {
 }
 
 func (i *Integrations) GetIntegrationID(db *gorm.DB, name string) error {
-
 	exists := postgresql.CheckExists(db, &i, "name = ?", name)
 
 	if !exists {

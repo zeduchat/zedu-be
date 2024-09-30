@@ -31,6 +31,15 @@ type Threads struct {
 	CurrentStatus string    `json:"current_status"`
 	FullName      string    `json:"full_name"`
 	Email         string    `json:"email"`
+	Reactions    []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+}
+
+type Reaction struct {
+	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
+	ThreadID  string    `gorm:"type:uuid;index" json:"thread_id"`
+	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
+	Reaction  string    `gorm:"type:varchar(50);index" json:"reaction"`
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
 type ChannelDocument struct {
