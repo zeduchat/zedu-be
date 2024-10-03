@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -34,6 +35,15 @@ func main() {
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)
+	rabbitmq.NewQueueManager(logger, configuration.RabbitMQ)
+
+	defer func(){
+		if rabbitmq.QueueClient.QueueManager != nil {
+			rabbitmq.QueueClient.QueueManager.Close()
+		}
+	}()
+	
+
 
 	validatorRef := validator.New()
 	db := storage.Connection()

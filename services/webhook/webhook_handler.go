@@ -13,6 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/integrations"
+	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -142,6 +143,14 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 	}
 
 	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", req.ChannelID))
+
+
+	err = rabbitmq.PushToRabbitQueue(db ,feed)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error pushing to rabbitmq, channelid: %s, error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to push to rabbitmq, error: " + err.Error())
+	}
+
 
 	err = integrations.BuildSlackRequest(feed, db, logger)
 	if err != nil {

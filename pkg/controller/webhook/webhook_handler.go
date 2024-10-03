@@ -63,7 +63,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 	req.Status = c.Query("status")
 	req.Message = c.Query("message")
 	req.WebhookSlug = c.Param("webhook_slug")
-	req.AvatarURL  = c.Param("avatar_url")
+	req.AvatarURL = c.Param("avatar_url")
 
 	err := base.Validator.Struct(&req)
 	if err != nil {

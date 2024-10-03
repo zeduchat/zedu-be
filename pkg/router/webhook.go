@@ -26,7 +26,6 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		webhookUrl.DELETE("/:channel_id/:webhook_id", webhook.DeleteWebhook)
 		webhookUrl.PUT("/:channel_id/:webhook_id", webhook.UpdateWebhook)
 		webhookUrl.PUT("/:channel_id/:webhook_id/change-status", webhook.ChangeWebhookStatus)
-
 	}
 
 	incomingPastUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
