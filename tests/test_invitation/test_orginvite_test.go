@@ -68,7 +68,7 @@ func TestOrganisationInvitation(t *testing.T) {
 	createInviteData := models.InvitationCreateReq{
 		Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
 		OrganisationID: orgId,
-		RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
+		RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
 
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
@@ -90,7 +90,7 @@ func TestOrganisationInvitation(t *testing.T) {
 			RequestBody: models.InvitationCreateReq{
 				Emails:         []string{test_email},
 				OrganisationID: orgId,
-				RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
+				RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "Invitations created successfully",
@@ -100,7 +100,7 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			RequestURI: url.URL{Path: "/api/v1/invite"},
-		}, 
+		},
 		{
 			Name: "Organization Accept Invite Action",
 			RequestBody: models.VerifyInvitationLinkRequest{
@@ -114,7 +114,7 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		}, 
+		},
 		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
@@ -131,7 +131,7 @@ func TestOrganisationInvitation(t *testing.T) {
 			},
 		},
 		{
-			Name: "Organisation Invite Cancellation Action",
+			Name:         "Organisation Invite Cancellation Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "invitation cancelled successfully",
 			Method:       http.MethodDelete,
@@ -177,7 +177,6 @@ func TestOrganisationInvitation(t *testing.T) {
 
 			code := int(data["status_code"].(float64))
 			tst.AssertStatusCode(t, code, test.ExpectedCode)
-			// fmt.Println(data)
 
 			if test.Message != "" {
 				message := data["message"]

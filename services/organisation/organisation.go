@@ -382,7 +382,7 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 	orgmgt.OrganisationID = orgId
 	orgmgt.Status = "active"
 
-	err = orgmgt.AddUserToOrganisation(db, orgId, req.UserID)
+	err = orgmgt.AddUserToOrganisation(db)
 
 	if err != nil {
 		return err

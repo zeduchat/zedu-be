@@ -102,10 +102,8 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 		return creds, errors.New("user with email does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
-	if exists {
+	_ = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
 
-	}
 
 	creds = map[string]string{
 		"role":   ogmt.RoleID,
