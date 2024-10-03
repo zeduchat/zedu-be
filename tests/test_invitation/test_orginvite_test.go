@@ -70,11 +70,11 @@ func TestOrganisationInvitation(t *testing.T) {
 		OrganisationID: orgId,
 		RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
+
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	invite_token, invite_id := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
-
-
+	test_email := fmt.Sprintf("test%s@example.com", utility.GenerateUUID())
 
 	tests := []struct {
 		Name         string
@@ -88,7 +88,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organisation Invite Creation Action",
 			RequestBody: models.InvitationCreateReq{
-				Emails:         []string{fmt.Sprintf("test%s%s@example.com", currUUID, currUUID)},
+				Emails:         []string{test_email},
 				OrganisationID: orgId,
 				RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
 			},
@@ -118,7 +118,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
-				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				Emails:         []string{test_email},
 				OrganisationID: orgId,
 			},
 			RequestURI:   url.URL{Path: "/api/v1/invite/resend"},
@@ -177,6 +177,7 @@ func TestOrganisationInvitation(t *testing.T) {
 
 			code := int(data["status_code"].(float64))
 			tst.AssertStatusCode(t, code, test.ExpectedCode)
+			// fmt.Println(data)
 
 			if test.Message != "" {
 				message := data["message"]
