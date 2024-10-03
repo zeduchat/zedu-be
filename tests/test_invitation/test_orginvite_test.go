@@ -114,6 +114,20 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
+		}, 
+		{
+			Name: "Organization Accept Invite Action",
+			RequestBody: models.VerifyInvitationLinkRequest{
+				Token: invite_token,
+			},
+			RequestURI:   url.URL{Path: "/api/v1/invite/verify"},
+			ExpectedCode: http.StatusBadRequest,
+			Message:      "invitation already accepted",
+			Method:       http.MethodPost,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
 		},
 		{
 			Name: "Organization Resend Invite Action",
