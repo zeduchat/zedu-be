@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
@@ -30,15 +31,11 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to create blog", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "unauthorized user", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
+
 	userId := userID.(string)
 
 	url := c.Request.Header.Get("Referer")
@@ -51,11 +48,11 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 		return
 	}
 
-	response, err := invitation.ResendLinkGenerator(base.Db, base.Logger, req, userId)
-	if err != nil {
+	response, errors := invitation.ResendLinkGenerator(base.Db, base.Logger, req)
+	if len(errors) > 0 {
 		base.Logger.Error("Failed to generate invitation link mapping", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate invitation link mapping", "", errors)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -69,6 +66,6 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "Invitations sent successfully", mapData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "Invitations sent successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

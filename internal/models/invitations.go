@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type Invitation struct {
@@ -17,7 +18,7 @@ type Invitation struct {
 	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
 	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
-	Organisation   Organisation `gorm:"foreignKey:OrganisationID"`
+	Organisation   Organisation `gorm:"foreignKey:OrganisationID" json:"-"`
 	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	ExpiresAt      time.Time    `gorm:"column:expires_at; not null" json:"expires_at"`
 }
@@ -25,7 +26,7 @@ type Invitation struct {
 type InvitationCreateReq struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
-	RoleID           string   `json:"role_id" validate:"required,uuid"`
+	RoleID         string   `json:"role_id" validate:"required,uuid"`
 }
 
 type InvitationResponse struct {
@@ -50,7 +51,7 @@ type VerifyInvitationLinkRequest struct {
 }
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
-	
+
 	if len(invitations) == 0 {
 		return errors.New("no invitations to save")
 	}
@@ -82,7 +83,7 @@ func (i *Invitation) GetInvitationByID(db *gorm.DB, id string) (Invitation, erro
 }
 
 func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
-	result := db.Delete(i, id)
+	result := db.Delete(i, "id = ?", id)
 	if result.RowsAffected == 0 {
 		return errors.New("no record found")
 	}
@@ -101,10 +102,8 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 		return creds, errors.New("user with email does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
-	if exists {
+	_ = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
 
-	}
 
 	creds = map[string]string{
 		"role":   ogmt.RoleID,
@@ -113,10 +112,10 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 	return creds, nil
 }
 
-func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email string) (Invitation, bool, error) {
+func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email, orgId string) (Invitation, bool, error) {
 	var inv Invitation
 
-	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ?", email, "invited")
+	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ? AND organisation_id = ?", email, "invited", orgId)
 	if exists {
 		return inv, true, nil
 	}
@@ -161,19 +160,28 @@ func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
 	return nil
 }
 
-func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string, expiry time.Time) error {
+func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string) error {
 
-	invites := Invitation{
-		ExpiresAt: expiry,
-	}
+	result, err := postgresql.UpdateFields(db, i, &i, "email = ? AND organisation_id = ?", email, i.OrganisationID)
 
-	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
 	if err != nil {
+
 		return fmt.Errorf("error updating %s's invitation: %v", email, err)
 	}
 
 	if result.RowsAffected == 0 {
 		return errors.New("no record found")
+	}
+
+	return nil
+}
+
+func (i *Invitation) GetInvitationByEmail(db *gorm.DB, email, orgId string) error {
+
+	err, err2 := postgresql.SelectOneFromDb(db, &i, "organisation_id = ? AND email = ?", orgId, email)
+
+	if err != nil || err2 != nil {
+		return errors.New("invitation does not exist")
 	}
 
 	return nil

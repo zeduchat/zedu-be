@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/utility"
@@ -33,6 +34,7 @@ func (base *Controller) CancelInvitation(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
+	
 	userId := userID.(string)
 
 	err = invitation.CancelInvitation(base.Db.Postgresql ,inviteID, userId)
