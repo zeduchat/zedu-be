@@ -101,9 +101,9 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		userID       string
 	)
 
-	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
+	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token)
 	if err != nil {
-		return responseData, http.StatusUnauthorized, err
+		return responseData, code, err
 	}
 
 	otp, _ := utility.GenerateOTP(6)
@@ -115,10 +115,11 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	}
 
 	userID = user.ID
+	invitation.Status = "accepted"
 
-	err = i.UpdateInvitation(db, invitation.Email, "accepted")
+	err = invitation.UpdateInvitation(db)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
+		return responseData, http.StatusBadRequest, err
 	}
 
 	orgmgt.RoleID = invitation.Role
