@@ -68,13 +68,13 @@ func TestOrganisationInvitation(t *testing.T) {
 	createInviteData := models.InvitationCreateReq{
 		Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
 		OrganisationID: orgId,
-		RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
+		RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
+
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	invite_token, invite_id := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
-
-
+	test_email := fmt.Sprintf("test%s@example.com", utility.GenerateUUID())
 
 	tests := []struct {
 		Name         string
@@ -88,9 +88,9 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organisation Invite Creation Action",
 			RequestBody: models.InvitationCreateReq{
-				Emails:         []string{fmt.Sprintf("test%s%s@example.com", currUUID, currUUID)},
+				Emails:         []string{test_email},
 				OrganisationID: orgId,
-				RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
+				RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "Invitations created successfully",
@@ -100,7 +100,7 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			RequestURI: url.URL{Path: "/api/v1/invite"},
-		}, 
+		},
 		{
 			Name: "Organization Accept Invite Action",
 			RequestBody: models.VerifyInvitationLinkRequest{
@@ -116,9 +116,23 @@ func TestOrganisationInvitation(t *testing.T) {
 			},
 		}, 
 		{
+			Name: "Organization Accept Invite Action",
+			RequestBody: models.VerifyInvitationLinkRequest{
+				Token: invite_token,
+			},
+			RequestURI:   url.URL{Path: "/api/v1/invite/verify"},
+			ExpectedCode: http.StatusBadRequest,
+			Message:      "invitation already accepted",
+			Method:       http.MethodPost,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
+		},
+		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
-				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				Emails:         []string{test_email},
 				OrganisationID: orgId,
 			},
 			RequestURI:   url.URL{Path: "/api/v1/invite/resend"},
@@ -131,7 +145,7 @@ func TestOrganisationInvitation(t *testing.T) {
 			},
 		},
 		{
-			Name: "Organisation Invite Cancellation Action",
+			Name:         "Organisation Invite Cancellation Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "invitation cancelled successfully",
 			Method:       http.MethodDelete,

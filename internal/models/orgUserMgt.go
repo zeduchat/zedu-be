@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
-	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -205,24 +205,23 @@ func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, use
 	return nil
 }
 
-// now a function that adds a user to an organisation
-func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB, orgID, userID string) error {
+func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) error {
 	var (
 		user User
 		org  Organisation
 	)
 
-	user, err := user.GetUserByID(db, userID)
+	user, err := user.GetUserByID(db, o.UserID)
 	if err != nil {
 		return err
 	}
 
-	org, err = org.GetOrgByID(db, orgID)
+	org, err = org.GetOrgByID(db, o.OrganisationID)
 	if err != nil {
 		return err
 	}
 
-	exists := postgresql.CheckExists(db, &o, "organisation_id = ? AND user_id = ?", orgID, userID)
+	exists := postgresql.CheckExists(db, &o, "organisation_id = ? AND user_id = ?", o.OrganisationID, o.UserID)
 	if exists {
 		return errors.New("user already exists in organisation")
 	}
