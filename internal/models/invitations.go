@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"gorm.io/gorm"
@@ -104,7 +105,6 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 
 	_ = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
 
-
 	creds = map[string]string{
 		"role":   ogmt.RoleID,
 		"status": ogmt.Status,
@@ -122,39 +122,35 @@ func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email, orgId string) (
 	return inv, false, errors.New("no pending invitations")
 }
 
-func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, error) {
+func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, int, error) {
 	var invitation Invitation
 
 	err, _ := postgresql.SelectOneFromDb(db, &invitation, "token = ?", token)
 	if err != nil {
-		return invitation, errors.New("token does not exist")
+		return invitation, http.StatusUnauthorized, errors.New("token invalid")
+	}
+
+	if invitation.Status == "accepted" {
+		return invitation, http.StatusBadRequest, errors.New("invitation already accepted")
 	}
 
 	expired := invitation.ExpiresAt.Before(time.Now().UTC())
 	if expired {
-		return invitation, errors.New("invitation link has expired")
+		return invitation, http.StatusBadRequest, errors.New("invitation link has expired")
 	}
 
-	if invitation.Status == "accepted" {
-		return invitation, errors.New("invitation link already accepted")
-	}
-
-	return invitation, nil
+	return invitation, http.StatusOK, nil
 }
 
-func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
+func (i *Invitation) UpdateInvitation(db *gorm.DB) error {
 
-	invites := Invitation{
-		Status: status,
-	}
-
-	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
+	result, err := postgresql.UpdateFields(db, i, &i, "email = ? AND organisation_id = ?", i.Email, i.OrganisationID)
 	if err != nil {
 		return err
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("no record found")
+		return errors.New("User already verified")
 	}
 
 	return nil
