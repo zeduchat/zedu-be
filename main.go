@@ -35,7 +35,7 @@ func main() {
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)
-	rabbitmq.NewQueueManager(logger, configuration.RabbitMQ)
+	rabbitmq.NewQueueManager().Connect(logger, configuration.RabbitMQ)
 
 	defer func(){
 		if rabbitmq.QueueClient.QueueManager != nil {

@@ -18,13 +18,15 @@ func WebhookHandler(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	webhookFormerUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
 
 	{
-		webhookFormerUrl.POST("/feed/backend-queue", webhook.PostFeedWebhook)
+		webhookFormerUrl.POST("/feed/backend-queue", webhook.PostWebhookQueue)
+
 	}
 
 	webhookUrl := r.Group(fmt.Sprintf("%v/webhooks", "v1"))
 
 	{
-		webhookUrl.POST("/backend-queue", webhook.PostFeedWebhook)
+		webhookUrl.POST("/backend-queue", webhook.PostWebhookQueue)
+		webhookUrl.POST("/backend-queue/return", webhook.PostFeedWebhook)
 	}
 
 	return r

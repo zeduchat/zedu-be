@@ -13,6 +13,6 @@ type QueueManager struct {
 	ch   *amqp091.Channel
 }
 
-func Connection() *RabbitMQClient {
-	return QueueClient
-}
+// func Connection() *RabbitMQClient {
+// 	return QueueClient
+// }
