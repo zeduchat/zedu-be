@@ -19,6 +19,7 @@ type Configuration struct {
 	Stripe       Stripe
 	TypeSense    TypeSense
 	Channels     Channels
+	RabbitMQ	 RabbitMQ
 }
 
 type BaseConfig struct {
@@ -97,6 +98,9 @@ type BaseConfig struct {
 
 	TELEX_LOGIN_CHANNEL  string `mapstructure:"TELEX_LOGIN_CHANNEL"`
 	TELEX_SIGNUP_CHANNEL string `mapstructure:"TELEX_SIGNUP_CHANNEL"`
+
+	RABBITMQ_CONNECTION string `mapstructure:"RABBITMQ_CONNECTION"`
+	RABBITMQ_EXCHANGE   string `mapstructure:"RABBITMQ_EXCHANGE"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -205,6 +209,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Channels: Channels{
 			Login:  config.TELEX_LOGIN_CHANNEL,
 			Signup: config.TELEX_SIGNUP_CHANNEL,
+		},
+		RabbitMQ: RabbitMQ{
+			Connection: config.RABBITMQ_CONNECTION,
+			Exchange:   config.RABBITMQ_EXCHANGE,
 		},
 	}
 }

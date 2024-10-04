@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/integrations"
+	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -150,4 +152,77 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 	}
 
 	return resp, http.StatusOK, nil
+}
+
+func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest) error {
+	var (
+		integration models.Integrations
+		intType     bool
+		routing_key string
+	)
+
+	intSetts, err := integration.PerformQueries(db, req.ChannelID)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error getting integration settings, channelid: %s, error: %v", req.ChannelID, err.Error()))
+		return errors.New("failed to get integration settings, error: " + err.Error())
+	}
+
+	for _, intgWithSettings := range intSetts {
+		feed := models.FeedWebHookRequest{
+			EventName: req.EventName,
+			Content:   req.Message,
+			Status:    req.Status,
+			UserName:  req.UserName,
+		}
+
+		if intgWithSettings.Integrations.IntegrationType == "filter" {
+			intType = true
+			routing_key = "telex_queue_processor.filter_integrations"
+		} else {
+			intType = false
+			routing_key = "telex_queue_processor.output_integrations"
+		}
+
+		innerPayload := map[string]interface{}{
+			"integration": map[string]interface{}{
+				"name":       intgWithSettings.Integrations.Name,
+				"id":         intgWithSettings.Integrations.ID,
+				"target_url": intgWithSettings.Integrations.JSONUrl,
+				"is_filter":  intType,
+			},
+			"channel": req.ChannelID,
+			"settings": map[string]interface{}{
+				"settings": intgWithSettings.Settings,
+			},
+			"message_content": map[string]string{
+				"event_name": feed.EventName,
+				"message":    feed.Content,
+				"status":     feed.Status,
+				"username":   feed.UserName,
+			},
+		}
+
+		payload := map[string]interface{}{
+			"task": routing_key,
+			"args": []interface{}{
+				innerPayload,
+			},
+		}
+
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("Error marshaling payload for integration %s: %v", intgWithSettings.Integrations.ID, err.Error()))
+			return fmt.Errorf("failed to marshal payload, error: %v", err)
+		}
+
+		err = rabbitmq.PushToRabbitQueue(logger, db, string(payloadBytes), routing_key)
+		if err != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("Error pushing to RabbitMQ for integration %s: %v", intgWithSettings.Integrations.ID, err.Error()))
+			return fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+		}
+
+		utility.LogAndPrint(logger, fmt.Sprintf("Successfully pushed to RabbitMQ for integration %s", intgWithSettings.Integrations.Name))
+	}
+
+	return nil
 }

@@ -63,7 +63,7 @@ func (base *Controller) GetWebhook(c *gin.Context) {
 	req.Status = c.Query("status")
 	req.Message = c.Query("message")
 	req.WebhookSlug = c.Param("webhook_slug")
-	req.AvatarURL  = c.Param("avatar_url")
+	req.AvatarURL = c.Param("avatar_url")
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
@@ -123,5 +123,94 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetWebhookQueue(c *gin.Context) {
+	var (
+		req          models.CreateWebhookHistoryRequest
+		webhookmodel models.Webhook
+	)
+
+	req.EventName = c.Query("event_name")
+	req.UserName = c.Query("username")
+	req.ActionType = c.Query("action_type")
+	req.Status = c.Query("status")
+	req.Message = c.Query("message")
+	req.WebhookSlug = c.Param("webhook_slug")
+	req.AvatarURL = c.Param("avatar_url")
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Error("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	webhookResp, err := webhookmodel.CheckExistBySlug(base.Db.Postgresql, req.WebhookSlug)
+	if err != nil {
+		base.Logger.Error("error getting webhook")
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Webhook not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	req.ChannelID = webhookResp.ChannelId
+
+	//call the rabbitmq service
+	err = webhook.PostWebhookQueue(base.Db.Postgresql, base.Logger, req)
+	if err != nil {
+		base.Logger.Error("failed to post to queue")
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to post to queue", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("data sent to queue successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to queue successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) PostWebhookQueue(c *gin.Context) {
+	var (
+		req models.CreateWebhookHistoryRequest
+	)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Error("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	//call the rabbitmq service
+	err = webhook.PostWebhookQueue(base.Db.Postgresql, base.Logger, req)
+	if err != nil {
+		base.Logger.Error("failed to post to queue")
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to post to queue", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("data sent to queue successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to queue successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
