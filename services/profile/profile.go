@@ -65,7 +65,7 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 	if err != nil {
 		logger.Error("Failed to delete profile picture from MinIO", "error", err)
 		return http.StatusInternalServerError, err
-	}	
+	}
 
 	err = Profile.SetProfileImageToEmpty(db, userId)
 	if err != nil {
@@ -87,7 +87,7 @@ func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file
 		}
 
 		if avatarURL != "" {
-		    err = DeleteUserProfileImageFromMinIO(logger, avatarURL)
+			err = DeleteUserProfileImageFromMinIO(logger, avatarURL)
 			if err != nil {
 				return "", err
 			}
@@ -111,7 +111,7 @@ func GetUserProfileImageURL(db *gorm.DB, userID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	if userProfile.Profile.AvatarURL == "" {
 		return "", nil
 	}
@@ -139,25 +139,27 @@ func DeleteUserProfileImageFromMinIO(logger *utility.Logger, avatarURL string) e
 		logger.Error("Failed to delete profile picture from MinIO", "error", err)
 		return err
 	}
-	
+
 	logger.Info("Profile picture successfully deleted from MinIO", "objectName", objectName)
 	return nil
 }
 
 func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 	return &models.ProfileSummary{
-		ID:          userProfile.Profile.ID,
-		Email:       userProfile.Email,
-		Phone:       userProfile.Profile.Phone,
-		FirstName:   userProfile.Profile.FirstName,
-		LastName:    userProfile.Profile.LastName,
-		FullName:    userProfile.Profile.FullName,
-		UserName:    userProfile.Profile.UserName,
-		AvatarURL:   userProfile.Profile.AvatarURL,
-		UserId:      userProfile.Profile.Userid,
-		Deactivated: userProfile.Deactivated,
-		CreatedAt:   userProfile.Profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   userProfile.Profile.UpdatedAt.Format(time.RFC3339),
-		DeletedAt:   userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
+		ID:             userProfile.Profile.ID,
+		Email:          userProfile.Email,
+		Phone:          userProfile.Profile.Phone,
+		FirstName:      userProfile.Profile.FirstName,
+		LastName:       userProfile.Profile.LastName,
+		FullName:       userProfile.Profile.FullName,
+		UserName:       userProfile.Profile.UserName,
+		AvatarURL:      userProfile.Profile.AvatarURL,
+		UserId:         userProfile.Profile.Userid,
+		Deactivated:    userProfile.Deactivated,
+		ProfileUpdated: userProfile.ProfileUpdated,
+		IsOnboarded:    userProfile.IsOnboarded,
+		CreatedAt:      userProfile.Profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      userProfile.Profile.UpdatedAt.Format(time.RFC3339),
+		DeletedAt:      userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
 	}
 }
