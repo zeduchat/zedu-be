@@ -193,8 +193,6 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			return user, err
 		}
 
-		fmt.Println(user.Email)
-
 		resetReq := models.SendWelcomeMail{
 			Email: user.Email,
 		}
