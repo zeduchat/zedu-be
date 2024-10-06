@@ -1,8 +1,11 @@
 package rabbitmq
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -10,108 +13,199 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-func NewQueueManager() *QueueManager {
+func NewQueueManager(config config.RabbitMQ) *QueueManager {
 	return &QueueManager{
-		conn: nil,
-		ch:   nil,
+		mu:      &sync.Mutex{},
+		done:    make(chan bool),
+		config:  config,
+		infoLog: log.New(os.Stdout, "[INFO] ", log.LstdFlags|log.Lmsgprefix),
+		errLog:  log.New(os.Stderr, "[ERROR] ", log.LstdFlags|log.Lmsgprefix),
 	}
 }
 
-func (qm *QueueManager) Connect(logger *utility.Logger, config config.RabbitMQ) {
+func (qm *QueueManager) Start(logger *utility.Logger) {
+	go qm.HandleReconnect( qm.config.Connection, logger)
+}
+
+func (qm *QueueManager) HandleReconnect(addr string, logger *utility.Logger) {
+	for {
+		qm.mu.Lock()
+		qm.isReady = false
+		qm.mu.Unlock()
+
+		logger.Info("Attempting to connect to RabbitMQ server...")
+		qm.infoLog.Println("Attempting to connect to RabbitMQ...")
+
+		conn, err := qm.Connect(addr, logger)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to connect to RabbitMQ server: %v. Retrying...", err))
+			qm.errLog.Printf("Failed to connect to RabbitMQ server: %v. Retrying...", err)
+
+			select {
+			case <-qm.done:
+				return
+			case <-time.After(reconnectDelay):
+			}
+			continue
+		}
+
+		if done := qm.HandleReInit(conn, logger); done {
+			break
+		}
+	}
+}
+
+func (qm *QueueManager) Connect(addr string, logger *utility.Logger) (*amqp091.Connection, error) {
 	conn, err := amqp091.DialConfig(
-		config.Connection,
+		addr,
 		amqp091.Config{
 			Dial:      amqp091.DefaultDial(5 * time.Second),
 			Heartbeat: 5 * time.Second,
 		},
 	)
-
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("failed to connect to RabbitMQ: %v", err))
-		return
+		return nil, fmt.Errorf("failed to connect to RabbitMQ server: %v", err)
 	}
 
-	ch, err := conn.Channel()
-	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("failed to open a channel: %v", err))
-		conn.Close()
-		return
-	}
-
-	QueueClient.QueueManager = &QueueManager{
-		conn: conn,
-		ch:   ch,
-	}
-
-	utility.LogAndPrint(logger, fmt.Sprintf("connected to RabbitMQ server at %s", config.Connection))
+	qm.UpdateConnection(conn)
+	logger.Info("Connected to RabbitMQ server")
+	qm.infoLog.Println("Connected to RabbitMQ.")
+	return conn, nil
 }
 
-func (qm *QueueManager) Reconnect(logger *utility.Logger, config config.RabbitMQ, retries int, backoff time.Duration) {
 
-	for i := 0; i < retries; i++ {
-		utility.LogAndPrint(logger, fmt.Sprintf("Attempting to reconnect to RabbitMQ (%d/%d)...", i+1, retries))
+func (qm *QueueManager) HandleReInit(conn *amqp091.Connection, logger *utility.Logger) bool {
+	for {
+		qm.mu.Lock()
+		qm.isReady = false
+		qm.mu.Unlock()
 
-		qm.Connect(logger, config)
+		err := qm.Init(conn, logger)
+		if err != nil {
+			logger.Error("Failed to initialize channel. Retrying...")
+			qm.errLog.Println("Failed to initialize channel. Retrying...")
 
-		if QueueClient.QueueManager != nil && QueueClient.QueueManager.conn != nil {
-			utility.LogAndPrint(logger, "Reconnection to RabbitMQ successful")
-			return
+			select {
+			case <-qm.done:
+				return true
+			case <-qm.notifyConnClose:
+				logger.Info("Connection closed. Reconnecting...")
+				qm.infoLog.Println("Connection closed, reconnecting...")
+				return false
+			case <-time.After(reInitDelay):
+			}
+			continue
 		}
 
-		utility.LogAndPrint(logger, fmt.Sprintf("Reconnection failed. Retrying in %s...", backoff))
-		time.Sleep(backoff)
-
-		// Exponentially increase the backoff time
-		backoff *= 2
+		select {
+		case <-qm.done:
+			return true
+		case <-qm.notifyConnClose:
+			logger.Error("Connection closed, reconnecting...")
+			qm.infoLog.Println("Connection closed, reconnecting...")
+			return false
+		case <-qm.notifyChanClose:
+			logger.Error("Channel closed, re-running init...")
+			qm.infoLog.Println("Channel closed, re-running init...")
+		}
 	}
-
-	utility.LogAndPrint(logger, "Reconnection attempts finished.")
-
 }
 
-func (qm *QueueManager) DeclareQueue(config config.RabbitMQ, queue_name string) error {
-	_, err := qm.ch.QueueDeclare(
-		queue_name,
-		true,
-		false,
-		false,
-		false,
-		nil,
+func (qm *QueueManager) Init(conn *amqp091.Connection, logger *utility.Logger) error {
+	ch, err := conn.Channel()
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to open a channel: %v", err))
+		qm.errLog.Printf("Failed to open a channel: %v", err)
+		return fmt.Errorf("failed to open a channel: %v", err)
+	}
+
+	err = ch.Confirm(false)
+	if err != nil {
+		return err
+	}
+
+	_, err = ch.QueueDeclare(
+		"",
+		false, // Durable
+		false, // Delete when unused
+		false, // Exclusive
+		false, // No-wait
+		nil,   // Arguments
 	)
+
 	if err != nil {
 		return fmt.Errorf("failed to declare a queue: %v", err)
 	}
 
+	qm.UpdateChannel(ch)
+	qm.mu.Lock()
+	qm.isReady = true
+	qm.mu.Unlock()
+	logger.Info("Channel and queue initialization done.")
+	qm.infoLog.Println("Channel and queue initialization done.")
 	return nil
 }
 
-func (qm *QueueManager) Close() {
-	qm.ch.Close()
-	qm.conn.Close()
+func (qm *QueueManager) UpdateConnection(conn *amqp091.Connection) {
+	qm.connection = conn
+	qm.notifyConnClose = make(chan *amqp091.Error)
+	qm.connection.NotifyClose(qm.notifyConnClose)
 }
 
-func (qm *QueueManager) Publish(logger *utility.Logger, config config.RabbitMQ, data, routing_key string) error {
-	if qm.conn == nil || qm.conn.IsClosed() {
-		utility.LogAndPrint(logger, "RabbitMQ connection is closed. Reconnecting...")
-		qm.Reconnect(logger, config, 5, 2*time.Second)
+func (qm *QueueManager) UpdateChannel(ch *amqp091.Channel) {
+	qm.channel = ch
+	qm.notifyChanClose = make(chan *amqp091.Error)
+	qm.channel.NotifyClose(qm.notifyChanClose)
+}
+
+func (qm *QueueManager) Close() error {
+	qm.mu.Lock()
+	defer qm.mu.Unlock()
+
+	if !qm.isReady {
+		return errShutdown
+	}
+	close(qm.done)
+	err := qm.channel.Close()
+	if err != nil {
+		return err
 	}
 
-	err := qm.ch.Publish(
-		config.Exchange, // exchange
-		routing_key,     // routing key
-		false,           // mandatory
-		false,           // immediate
+	err = qm.connection.Close()
+	if err != nil {
+		return err
+	}
+
+	qm.isReady = false
+	return nil
+}
+
+func (qm *QueueManager) Publish(payload, routingKey string) error {
+	// if qm == nil || qm.channel == nil {
+	// 	fmt.Println(qm)
+    //     return fmt.Errorf("RabbitMQ service is not initialized")
+    // }
+
+	qm.mu.Lock()
+	if !qm.isReady {
+		qm.mu.Unlock()
+		return errNotConnected
+	}
+	qm.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	return qm.channel.PublishWithContext(
+		ctx,
+		qm.config.Exchange, // Exchange
+		routingKey,         // Routing key
+		false,              // Mandatory
+		false,              // Immediate
 		amqp091.Publishing{
 			ContentType:  "application/json",
-			Body:         []byte(data),
+			Body:         []byte(payload),
 			DeliveryMode: amqp091.Persistent,
 		},
 	)
-	if err != nil {
-		return fmt.Errorf("failed to publish a message: %v", err)
-	}
-
-	log.Println(" [x][x][x] Sent Payload successfully [x][x][x]")
-
-	return nil
 }
