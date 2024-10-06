@@ -126,10 +126,11 @@ func (base *Controller) GetSlugWebhook(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetFeedWebhookQueue(c *gin.Context) {
+func (base *Controller) GetSlugWebhookQueue(c *gin.Context) {
 	var (
 		req          models.CreateWebhookHistoryRequest
 		webhookmodel models.Webhook
+		orgchanint   models.OrganisationChannelsIntegrations
 	)
 
 	req.EventName = c.Query("event_name")
@@ -140,15 +141,7 @@ func (base *Controller) GetFeedWebhookQueue(c *gin.Context) {
 	req.WebhookSlug = c.Param("webhook_slug")
 	req.AvatarURL = c.Param("avatar_url")
 
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
-		base.Logger.Error("error parsing request body")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	err = base.Validator.Struct(&req)
+	err := base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Error("validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
@@ -166,18 +159,34 @@ func (base *Controller) GetFeedWebhookQueue(c *gin.Context) {
 
 	req.ChannelID = webhookResp.ChannelId
 
-	//call the rabbitmq service
-	err = webhook.PostWebhookQueue(base.Db.Postgresql, base.Logger, req)
-	if err != nil {
-		base.Logger.Error("failed to post to queue")
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to post to queue", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
+	hasIntegration, _ := orgchanint.CheckHasIntegrations(base.Db.Postgresql, req.ChannelID)
 
-	base.Logger.Info("data sent to queue successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to queue successfully", nil)
-	c.JSON(http.StatusOK, rd)
+	if hasIntegration {
+		// send to the rabbitmq service
+		err = webhook.PostWebhookQueue(base.Db.Postgresql, base.Logger, req)
+		if err != nil {
+			base.Logger.Error("failed to post to queue")
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to post to queue", err, nil)
+			c.JSON(http.StatusInternalServerError, rd)
+			return
+		}
+
+		base.Logger.Info("data sent to queue successfully")
+		rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to queue successfully", nil)
+		c.JSON(http.StatusOK, rd)
+	} else {
+		//send to the channel
+		respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
+
+		if err != nil {
+			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+			c.JSON(code, rd)
+			return
+		}
+
+		rd := utility.BuildSuccessResponse(http.StatusOK, "data sent to channel successfully", respData)
+		c.JSON(http.StatusOK, rd)
+	}
 }
 
 func (base *Controller) PostFeedWebhookQueue(c *gin.Context) {

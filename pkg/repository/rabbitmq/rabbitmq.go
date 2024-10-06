@@ -181,10 +181,6 @@ func (qm *QueueManager) Close() error {
 }
 
 func (qm *QueueManager) Publish(payload, routingKey string) error {
-	// if qm == nil || qm.channel == nil {
-	// 	fmt.Println(qm)
-    //     return fmt.Errorf("RabbitMQ service is not initialized")
-    // }
 
 	qm.mu.Lock()
 	if !qm.isReady {
