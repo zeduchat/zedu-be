@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/utility"
@@ -16,7 +17,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	)
 
 	if err := c.ShouldBindJSON(&inviteReq); err != nil {
-		base.Logger.Info("Failed to parse request body", err)
+		base.Logger.Error("Failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -24,17 +25,18 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
-		base.Logger.Info("unable to get user claims")
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
 	err := base.Validator.Struct(&inviteReq)
 	if err != nil {
-		base.Logger.Info("Request Validation failed", err)
+		base.Logger.Error("Request Validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -42,7 +44,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
 	if err != nil {
-		base.Logger.Info("Failed to validate user", err)
+		base.Logger.Error("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)
 		c.JSON(statusCode, rd)
 		return
@@ -52,14 +54,14 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	inviteMap, errs, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
-		base.Logger.Info("Failed to generate invitation link mapping", err)
+		base.Logger.Error("Failed to generate invitation link mapping", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
 	if len(inviteMap) == 0 {
-		base.Logger.Info("No invitations created. User(s) list is either empty or all invitees have pending invitations")
+		base.Logger.Error("No invitations created. User(s) list is either empty or all invitees have pending invitations")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", errs, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -67,7 +69,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	err = invitation.SaveInvitations(base.Db.Postgresql, inviteMap)
 	if err != nil {
-		base.Logger.Info("Failed to save invitations", err)
+		base.Logger.Error("Failed to save invitations", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to save invitations", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -77,15 +79,14 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	err = invitation.SendInvitationsEmail(base.Logger, mapData)
 	if err != nil {
-		base.Logger.Info("Failed to send invitation email", err)
+		base.Logger.Error("Failed to send invitation email", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
 	response := gin.H{
-		"invitations": mapData,
-		"errors":      errs,
+		"errors": errs,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)

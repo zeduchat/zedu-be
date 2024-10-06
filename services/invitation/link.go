@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -16,7 +17,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/auth"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -41,17 +43,16 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 	)
 
 	for _, email := range emails {
-		exists := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
-		isTelexUser := exists
+		isTelexUser := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
 
 		// Check if the user's email has a pending invitation for that organisation with a pending status
 		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", email, inviteReq.OrganisationID, time.Now().UTC())
 		if invitationExists {
-			errs = append(errs, fmt.Sprintf("%s already has a pending invitation. Check mail!!", email))
+			errs = append(errs, fmt.Sprintf("%s already has a pending invitation.", email))
 			continue
 		}
 
-		if exists {
+		if isTelexUser {
 			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", userId, inviteReq.OrganisationID)
 			if alreadyMember {
 				errs = append(errs, fmt.Errorf("%s is already a member of the organisation", email).Error())
@@ -102,27 +103,30 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		userID       string
 	)
 
-	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
+	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token)
 	if err != nil {
-		return responseData, http.StatusUnauthorized, err
+		return responseData, code, err
 	}
 
-	otp, _ := utility.GenerateOTP(6)
-	entry := "telex-" + strconv.Itoa(int(otp))
-
-	user, err = getOrCreateUser(invitation, db, c, extReq, entry)
+	user, err = getOrCreateUser(invitation, db)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, err
 	}
 
 	userID = user.ID
+	invitation.Status = "accepted"
 
-	err = i.UpdateInvitation(db, invitation.Email, "accepted")
+	err = invitation.UpdateInvitation(db)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
+		return responseData, http.StatusBadRequest, err
 	}
 
-	err = addUserToOrganisation(&orgmgt, invitation, userID, db)
+	orgmgt.RoleID = invitation.Role
+	orgmgt.Status = "active"
+	orgmgt.UserID = userID
+	orgmgt.OrganisationID = invitation.OrganisationID
+
+	err = addUserToOrganisation(orgmgt, db)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, err
 	}
@@ -151,12 +155,12 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, errors.New("error saving access token")
 	}
 
-	responseData = buildUserResponse(userData, tokenData, entry)
+	responseData = buildUserResponse(userData, tokenData)
 
 	return responseData, http.StatusOK, nil
 }
 
-func getOrCreateUser(invitation models.Invitation, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, password string) (models.User, error) {
+func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {
 	var user models.User
 
 	if invitation.IsTelexUser {
@@ -169,35 +173,50 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB, c *gin.Context, 
 
 		arr := strings.Split(invitation.Email, "@")
 		email := utility.SplitEmailString(arr[0])
+		name := strings.TrimSpace(strings.ToLower(email))
+		orgId, _ := uuid.FromString(invitation.OrganisationID)
 
-		req := models.CreateUserRequestModel{
+		user = models.User{
+			ID:          utility.GenerateUUID(),
+			Name:        name,
 			Email:       invitation.Email,
-			Password:    password,
-			FirstName:   strings.TrimSpace(strings.ToLower(email)),
 			IsOnboarded: true,
+			IsActive:    true,
+			CurrentOrg:  orgId,
+			Profile: models.Profile{
+				ID: utility.GenerateUUID(),
+			},
 		}
 
-		_, _, err := auth.CreateUser(c, extReq, req, db)
+		err := user.CreateUser(db)
 		if err != nil {
-			return user, errors.New("error creating user")
+			return user, err
 		}
 
-		fetchedUser, err := user.GetUserByEmail(db, invitation.Email)
+		fmt.Println(user.Email)
+
+		resetReq := models.SendWelcomeMail{
+			Email: user.Email,
+		}
+
+		err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
+		if err != nil {
+			return user, err
+		}
+
+		user, err = user.GetUserByEmail(db, invitation.Email)
 		if err != nil {
 			return user, errors.New("unable to fetch user")
 		}
-		user = fetchedUser
+
 	}
+
 	return user, nil
 }
 
-func addUserToOrganisation(orgmgt *models.OrgUserManagement, invitation models.Invitation, userID string, db *gorm.DB) error {
-	orgmgt.RoleID = invitation.Role
-	orgmgt.Status = "active"
-	orgmgt.UserID = userID
-	orgmgt.OrganisationID = invitation.OrganisationID
+func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 
-	if err := orgmgt.AddUserToOrganisation(db, invitation.OrganisationID, userID); err != nil {
+	if err := orgmgt.AddUserToOrganisation(db); err != nil {
 		return err
 	}
 
@@ -240,23 +259,24 @@ func saveAccessToken(tokenData *middleware.TokenDetailDTO, userID string, db *go
 	return nil
 }
 
-func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO, password string) gin.H {
+func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) gin.H {
 	return gin.H{
 		"user": map[string]interface{}{
-			"id":           user.ID,
-			"email":        user.Email,
-			"username":     user.Name,
-			"is_onboarded": user.IsOnboarded,
-			"is_verified":  user.IsVerified,
-			"first_name":   user.Profile.FirstName,
-			"last_name":    user.Profile.LastName,
-			"fullname":     user.Profile.FirstName + " " + user.Profile.LastName,
-			"phone":        user.Profile.Phone,
-			"avatar_url":   user.Profile.AvatarURL,
-			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":   strconv.Itoa(int(user.CreatedAt.Unix())),
-			"updated_at":   strconv.Itoa(int(user.UpdatedAt.Unix())),
-			"password":     password,
+			"id":              user.ID,
+			"email":           user.Email,
+			"username":        user.Name,
+			"is_onboarded":    user.IsOnboarded,
+			"is_verified":     user.IsVerified,
+			"profile_updated": user.ProfileUpdated,
+			"first_name":      user.Profile.FirstName,
+			"last_name":       user.Profile.LastName,
+			"fullname":        user.Profile.FirstName + " " + user.Profile.LastName,
+			"phone":           user.Profile.Phone,
+			"avatar_url":      user.Profile.AvatarURL,
+			"current_org":     user.CurrentOrg,
+			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":      strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":      strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}

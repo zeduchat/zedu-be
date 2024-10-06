@@ -202,36 +202,38 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}
+		invitation models.Invitation
 	)
 	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
 		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
 	}
 
-	inviteData := models.InvitationCreateReq{
-		OrganisationID: invitereq.OrganisationID,
-		Emails:         invitereq.Emails,
-		RoleID:           "01915c5c-6417-7620-a80f-b8dde5509881",
-	}
-
 	var b bytes.Buffer
-	json.NewEncoder(&b).Encode(inviteData)
+	json.NewEncoder(&b).Encode(invitereq)
 	req, err := http.NewRequest(http.MethodPost, inviteURI.String(), &b)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
-
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
-
 	dataM := data["data"].(map[string]interface{})
-	invitations := dataM["invitations"].([]interface{})
-	invite_token := invitations[0].(map[string]interface{})["invite_token"].(string)
-	invite_id := invitations[0].(map[string]interface{})["id"].(string)
+	if dataM["errors"] != nil {
+		t.Fatal(dataM["errors"])
+	}
+
+	err = invitation.GetInvitationByEmail(db.Postgresql, invitereq.Emails[0], invitereq.OrganisationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	invite_token := invitation.Token
+	invite_id := invitation.ID
 
 	return invite_token, invite_id
 }
