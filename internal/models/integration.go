@@ -299,22 +299,17 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm
 
 	if exists {
 
-		if oci.IsActive == req.Status {
-			return errors.New("integration is already in the requested state")
-		} else {
-			update := make(map[string]interface{})
-			update["is_active"] = req.Status
+		update := make(map[string]interface{})
+		update["is_active"] = req.Status
 
-			result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
 
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
 
-			if result.RowsAffected == 0 {
-				return errors.New("no record updated")
-			}
-
+		if result.RowsAffected == 0 {
+			return errors.New("no record updated")
 		}
 
 	} else {
