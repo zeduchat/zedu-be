@@ -77,6 +77,9 @@ type OrganisationChannelsIntegrations struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
+
+
+
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -382,6 +385,8 @@ func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]Integra
 		results   []IntegrationWithSettings
 	)
 
+	//check if channel has any integrations
+	
 	// Fetch active integrations with their associated settings for the given channel
 	err := db.Table("organisation_channels_integrations").
 		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
@@ -395,4 +400,15 @@ func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]Integra
 	}
 
 	return results, nil
+}
+
+
+func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, channelID string) (bool, error) {
+
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ?", channelID)
+	if !exists {
+		return false, errors.New("channel integrations not found")
+	}
+
+	return true, nil
 }

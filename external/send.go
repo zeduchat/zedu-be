@@ -108,7 +108,6 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 
 	if r.DecodeMethod != PhpSerializerMethod {
 		err = json.Unmarshal(body, response)
-		fmt.Println(response)
 		if err != nil {
 			logger.Error("json decoding error", name, err.Error())
 			return err

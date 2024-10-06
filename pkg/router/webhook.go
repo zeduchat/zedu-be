@@ -36,7 +36,7 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", "v1"))
 	{
-		incomingUrl.GET("/:webhook_slug", webhook.GetFeedWebhookQueue)
+		incomingUrl.GET("/:webhook_slug", webhook.GetSlugWebhookQueue)
 		incomingUrl.POST("/:webhook_slug", webhook.PostSlugWebhookQueue)
 
 		incomingUrl.GET("/:webhook_slug/return", webhook.GetSlugWebhook)
