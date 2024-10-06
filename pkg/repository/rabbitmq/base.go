@@ -1,18 +1,42 @@
 package rabbitmq
 
-import "github.com/rabbitmq/amqp091-go"
+import (
+	"errors"
+	"log"
+	"sync"
+	"time"
 
-type RabbitMQClient struct {
-	QueueManager *QueueManager
+	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/rabbitmq/amqp091-go"
+)
+
+type RabbitMQService struct {
+	QM *QueueManager
 }
 
-var QueueClient *RabbitMQClient = &RabbitMQClient{}
+var QueueClient *RabbitMQService = &RabbitMQService{}
 
 type QueueManager struct {
-	conn *amqp091.Connection
-	ch   *amqp091.Channel
+	connection      *amqp091.Connection
+	channel         *amqp091.Channel
+	config          config.RabbitMQ
+	done            chan bool
+	mu              *sync.Mutex
+	notifyConnClose chan *amqp091.Error
+	notifyChanClose chan *amqp091.Error
+	isReady         bool
+	infoLog         *log.Logger
+	errLog          *log.Logger
 }
 
-// func Connection() *RabbitMQClient {
-// 	return QueueClient
-// }
+const (
+	reconnectDelay        = 5 * time.Second
+	reInitDelay           = 2 * time.Second
+	resendDelay           = 5 * time.Second
+	connectionIdleTimeout = 72 * time.Hour
+)
+
+var (
+	errNotConnected = errors.New("not connected to a server")
+	errShutdown     = errors.New("client is shutting down")
+)

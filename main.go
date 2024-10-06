@@ -35,14 +35,8 @@ func main() {
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)
-	rabbitmq.NewQueueManager().Connect(logger, configuration.RabbitMQ)
-
-	defer func(){
-		if rabbitmq.QueueClient.QueueManager != nil {
-			rabbitmq.QueueClient.QueueManager.Close()
-		}
-	}()
-	
+	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
+	rabbitmq.QueueClient.QM.Start(logger)
 
 
 	validatorRef := validator.New()
