@@ -77,6 +77,12 @@ type OrganisationChannelsIntegrations struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
+type IntegrationChansResp []struct {
+	ChannelName string `json:"channel_name"`
+	ChannelId   string `json:"channel_id"`
+	IsActive    bool   `json:"is_active"`
+}
+
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -442,4 +448,23 @@ func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, c
 	}
 
 	return true, nil
+}
+
+func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.DB, ids map[string]string) (IntegrationChansResp, error) {
+
+	var res IntegrationChansResp
+
+	orgId, intId := ids["organisation_id"], ids["integration_id"]
+
+	err := db.Table("organisation_channels_integrations AS oci").
+		Joins("JOIN channels ON channels.id = oci.channel_id").
+		Where("oci.org_id = ? AND oci.integration_id = ?", orgId, intId).
+		Select("oci.channel_id AS channel_id, channels.name AS channel_name, oci.is_active AS is_active").
+		Scan(&res).Error
+
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
 }
