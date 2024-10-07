@@ -44,7 +44,14 @@ type UpdateJSONSchemaRequest struct {
 }
 
 type ActivateChannelIntegration struct {
-	Activate bool `json:"activate"`
+	Status bool `json:"status"`
+}
+
+type IntegrationWithSettings struct {
+	OrgID         string              `json:"org_id" gorm:"column:org_id"`
+	IntegrationID string              `json:"integration_id" gorm:"column:integration_id"`
+	Integrations  Integrations        `json:"integration" gorm:"embedded"`
+	Settings      IntegrationSettings `json:"integration_settings" gorm:"embedded"`
 }
 
 type OrganisationIntegrations struct {
@@ -69,6 +76,9 @@ type OrganisationChannelsIntegrations struct {
 	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
+
+
+
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
@@ -225,6 +235,21 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if err != nil {
 			return err
 		}
+
+		// create an integration settings entry for it
+		integrationSettings := IntegrationSettings{
+			ID:            utility.GenerateUUID(),
+			OrgID:         ids["org_id"],
+			IntegrationID: ids["integration_id"],
+			FormFieldValue: "",
+			FormFieldLabel: "",
+		}
+
+		err = integrationSettings.CreateIntegrationSettings(db)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -289,22 +314,17 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm
 
 	if exists {
 
-		if oci.IsActive == req.Activate {
-			return errors.New("integration is already in the requested state")
-		} else {
-			update := make(map[string]interface{})
-			update["is_active"] = req.Activate
+		update := make(map[string]interface{})
+		update["is_active"] = req.Status
 
-			result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
 
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
 
-			if result.RowsAffected == 0 {
-				return errors.New("no record updated")
-			}
-
+		if result.RowsAffected == 0 {
+			return errors.New("no record updated")
 		}
 
 	} else {
@@ -314,7 +334,7 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm
 			OrgID:         ids["organisation_id"],
 			ChannelID:     ids["channel_id"],
 			IntegrationID: ids["integration_id"],
-			IsActive:      req.Activate,
+			IsActive:      req.Status,
 		}
 
 		err := ociInt.CreateOrganisationChannelIntegration(db)
@@ -367,4 +387,38 @@ func (i *Integrations) GetIntegrationID(db *gorm.DB, name string) error {
 	}
 
 	return nil
+}
+
+func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]IntegrationWithSettings, error) {
+	var (
+		channelID = channel_id
+		results   []IntegrationWithSettings
+	)
+
+	//check if channel has any integrations
+	
+	// Fetch active integrations with their associated settings for the given channel
+	err := db.Table("organisation_channels_integrations").
+		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
+		Joins("JOIN integration_settings ON integration_settings.org_id = organisation_channels_integrations.org_id AND integration_settings.integration_id = organisation_channels_integrations.integration_id").
+		Where("organisation_channels_integrations.channel_id = ? AND organisation_channels_integrations.is_active = ?", channelID, true).
+		Select("integrations.id AS integration_id, integrations.*, integration_settings.*").
+		Scan(&results).Error
+
+	if err != nil {
+		return []IntegrationWithSettings{}, err
+	}
+
+	return results, nil
+}
+
+
+func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, channelID string) (bool, error) {
+
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ?", channelID)
+	if !exists {
+		return false, errors.New("channel integrations not found")
+	}
+
+	return true, nil
 }

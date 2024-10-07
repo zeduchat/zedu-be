@@ -5,7 +5,6 @@ go 1.21
 // toolchain go1.22.4
 
 require (
-	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/anthonycorbacho/slack-webhook v1.0.1
 	github.com/centrifugal/gocent v2.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
@@ -29,6 +28,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nyaruka/phonenumbers v1.3.6
 	github.com/pkg/errors v0.9.1
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.19.0
@@ -45,7 +45,6 @@ require (
 )
 
 require (
-	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect

@@ -70,6 +70,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			Name:       username,
 			Email:      email,
 			IsVerified: true,
+			ProfileUpdated: true,
 			Profile: models.Profile{
 				FullName:  username,
 				UserName:  username,

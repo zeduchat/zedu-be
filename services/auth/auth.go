@@ -85,6 +85,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		Name:     name,
 		Email:    email,
 		Password: password,
+		ProfileUpdated: true,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),
 			FirstName: name,

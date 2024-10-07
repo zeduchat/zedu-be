@@ -55,13 +55,15 @@ func UpdateUserPassword(c *gin.Context, req models.ChangePasswordRequestModel, d
 	}
 
 	userDataExist.Password = hashedPassword
+	userDataExist.ProfileUpdated = true
+
 	err = userDataExist.Update(db)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
 
 	passChgConfirmReq := models.SendPasswordChangeConfirmationMail{
-		Email:    userDataExist.Email,
+		Email: userDataExist.Email,
 	}
 
 	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendPasswordChangeConfirmationMail, passChgConfirmReq)

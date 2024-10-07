@@ -30,6 +30,7 @@ _ignore/
 app.env
 tmp/
 .idea/
+playground/
 
 temp
 telex_be
