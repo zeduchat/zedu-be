@@ -11,8 +11,6 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   version: 1.0.0
 servers:
-  # Added by API Auto Mocking Plugin
-  - description: SwaggerHub API Auto Mocking
   - url: https://api.staging.telex.im/api/v1
 
 tags:
@@ -3771,7 +3769,7 @@ paths:
                     type: string
                     description: Error message explaining the server failure
 
-  /api/v1/subscriptions/create:
+  /subscriptions/create:
     post:
       summary: Create a new subscription
       tags:
@@ -7369,7 +7367,7 @@ paths:
       tags:
         - Integrations
       parameters:
-        - name: organisation_id
+        - name: organisationId
           in: path
           required: true
           schema:
@@ -7629,8 +7627,83 @@ paths:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
         '404':
           description: Integration not found
-          
-  /api/v1/organisations/{organisation_id}/integrations/{integration_id}/updatejson:
+
+  /organisations/{organisationId}/integrations/{integrationId}/channels:
+    get:
+      tags:
+        - Integrations
+      summary: Get organization's integration channels
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+
+      responses:
+        '200':
+          description: Integration channels fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration channels fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channel_name:
+                          type: string
+                          example: Default
+                        channel_id:
+                          type: string
+                          example: 019192ab-ece1-748c-9c4f-59267a35bfd9
+                        is_active:
+                          type: boolean
+                          example: true
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+  /organisations/{organisation_id}/integrations/{integration_id}/updatejson:
     patch:
       summary: Update the JSON schema of an organisation's integration
       description: Update the JSON schema for a specific integration of an organization.
@@ -7776,7 +7849,7 @@ paths:
         404:
           description: Organisation or integration not found.
           
-  /api/v1/organisations/{organisation_id}/integrations/change_status:
+  /organisations/{organisation_id}/integrations/change_status:
     patch:
       summary: Change the status and JSON schema of an integration
       description: Update the activation status and modify the JSON schema of a specific integration for an organization.
@@ -7924,7 +7997,7 @@ paths:
         404:
           description: Organisation or integration not found.
                     
-  /organisations/{organisationId}/channels/{channelId}/integrations/{integrationId}:
+  /organisations/{organisationId}/integrations/{integrationId}/channels/{channelId}:
     patch:
       tags:
       - Integrations
@@ -7959,7 +8032,7 @@ paths:
             schema:
               type: object
               properties:
-                activate:
+                status:
                   type: boolean
                   description: "Boolean value to activate or deactivate the integration"
                   example: true
@@ -7981,7 +8054,7 @@ paths:
                     type: string
                     example: "Channel integration activated successfully"
 
-  /api/v1/organisations/{organisationId}/channels/{channelId}/integrations:
+  /organisations/{organisationId}/channels/{channelId}/integrations:
     get:
       tags:
       - Integrations
@@ -8075,7 +8148,7 @@ paths:
                           type: integer
                           example: 1
                           
-  /api/v1/organisations/{organisation_id}/integrations/{integration_id}/settings:
+  /organisations/{organisation_id}/integrations/{integration_id}/settings:
     post:
       summary: Add a new integration setting
       description: Adds a new form field value and label to the integration settings for a specific organization.
