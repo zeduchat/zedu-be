@@ -93,7 +93,7 @@ func (base *Controller) ActivateDeactivateChannelIntegration(c *gin.Context) {
 		return
 	}
 
-	if req.Activate{
+	if req.Status{
 		msg = "Channel integration activated successfully"
 	}else{
 		msg = "Channel integration deactivated successfully"

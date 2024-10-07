@@ -71,7 +71,6 @@ func (r *RequestObj) GetSlackChannels() (external_models.SlackChannelResponse, e
 }
 
 func (r *RequestObj) GetManifest(auth_token string) (external_models.SlackManifestResponse, error) {
-	fmt.Println("auth_token", auth_token)
 
 	var (
 		outBoundResponse external_models.SlackManifestResponse

@@ -7,3 +7,4 @@ func LogAndPrint(logger *Logger, data interface{}, args ...interface{}) {
 	}
 	logger.Info(data, args)
 }
+
