@@ -202,12 +202,14 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 			},
 		}
 
+		
 		payload := map[string]interface{}{
 			"task": routing_key,
 			"args": []interface{}{
 				innerPayload,
 			},
 		}
+		fmt.Println(payload)
 
 		payloadBytes, err := json.Marshal(payload)
 		if err != nil {

@@ -77,9 +77,6 @@ type OrganisationChannelsIntegrations struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
-
-
-
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -208,6 +205,8 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	var (
 		integration  Integrations
 		organisation Organisation
+		channels     []Channels
+		orgchannels  []OrganisationChannelsIntegrations
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -236,16 +235,39 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 			return err
 		}
 
-		// create an integration settings entry for it
+		// create an integration setting entry for it
 		integrationSettings := IntegrationSettings{
-			ID:            utility.GenerateUUID(),
-			OrgID:         ids["org_id"],
-			IntegrationID: ids["integration_id"],
+			ID:             utility.GenerateUUID(),
+			OrgID:          ids["org_id"],
+			IntegrationID:  ids["integration_id"],
 			FormFieldValue: "",
 			FormFieldLabel: "",
 		}
 
 		err = integrationSettings.CreateIntegrationSettings(db)
+		if err != nil {
+			return err
+		}
+
+		//activate integration for all channels in the organisation
+		err = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", ids["org_id"])
+		if err != nil {
+			return err
+		}
+
+		for _, channel := range channels {
+			oci := OrganisationChannelsIntegrations{
+				ID:            utility.GenerateUUID(),
+				OrgID:         ids["org_id"],
+				ChannelID:     channel.ID,
+				IntegrationID: ids["integration_id"],
+				IsActive:      req.Status,
+			}
+
+			orgchannels = append(orgchannels, oci)
+		}
+
+		err = postgresql.CreateMultipleRecords(db, &orgchannels, len(orgchannels))
 		if err != nil {
 			return err
 		}
@@ -396,7 +418,7 @@ func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]Integra
 	)
 
 	//check if channel has any integrations
-	
+
 	// Fetch active integrations with their associated settings for the given channel
 	err := db.Table("organisation_channels_integrations").
 		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
@@ -411,7 +433,6 @@ func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]Integra
 
 	return results, nil
 }
-
 
 func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, channelID string) (bool, error) {
 
