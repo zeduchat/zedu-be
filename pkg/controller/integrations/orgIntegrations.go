@@ -229,7 +229,7 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	err := integrations.UpdateJSONSchema(ids, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to update JSON schema", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error",err.Error(),"Failed to update JSON schema", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update JSON schema", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

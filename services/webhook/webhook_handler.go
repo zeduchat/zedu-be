@@ -145,11 +145,11 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 
 	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", req.ChannelID))
 
-	err = integrations.BuildSlackRequest(feed, db, logger)
-	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error sending to slack, channelid: %s, error: %v", req.ChannelID, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to send to slack, error: " + err.Error())
-	}
+	// err = integrations.BuildSlackRequest(feed, db, logger)
+	// if err != nil {
+	// 	utility.LogAndPrint(logger, fmt.Sprintf("Error sending to slack, channelid: %s, error: %v", req.ChannelID, err.Error()))
+	// 	return nil, http.StatusBadRequest, errors.New("failed to send to slack, error: " + err.Error())
+	// }
 
 	return resp, http.StatusOK, nil
 }
