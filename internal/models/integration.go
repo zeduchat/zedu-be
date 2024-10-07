@@ -235,6 +235,21 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if err != nil {
 			return err
 		}
+
+		// create an integration settings entry for it
+		integrationSettings := IntegrationSettings{
+			ID:            utility.GenerateUUID(),
+			OrgID:         ids["org_id"],
+			IntegrationID: ids["integration_id"],
+			FormFieldValue: "",
+			FormFieldLabel: "",
+		}
+
+		err = integrationSettings.CreateIntegrationSettings(db)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
