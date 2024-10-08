@@ -1,0 +1,101 @@
+package models
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"gorm.io/gorm"
+)
+
+type SlashCommand struct {
+	ID            string     `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID         string     `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID string     `gorm:"type:uuid;" json:"integration_id"`
+	Command       string     `gorm:"column:command; type:varchar(255);" json:"command"`
+	ProcessingURL string     `gorm:"column:processing_url; type:varchar(255);" json:"processing_url"`
+	CreatedAt     time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt     *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+}
+
+type AddSlashCommandRequest struct {
+	Command       string `json:"command" validate:"required"`
+	ProcessingURL string `json:"processing_url" validate:"required"`
+}
+
+type UpdateSlashCommandRequest struct {
+	Command       string `json:"command"`
+	ProcessingURL string `json:"processing_url"`
+}
+
+func (sc *SlashCommand) CreateSlashCommand(db *gorm.DB) (SlashCommand, error) {
+	err := postgresql.CreateOneRecord(db, &sc)
+	if err != nil {
+		return *sc, fmt.Errorf("failed to create slash command: %v", err)
+	}
+	return *sc, nil
+}
+
+func (sc *SlashCommand) GetIntegrationSlashCommands(db *gorm.DB, ids map[string]string) ([]SlashCommand, error) {
+	var (
+		slashCommands []SlashCommand
+		organisation  Organisation
+		integration   Integrations
+	)
+	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
+	if !exists {
+		return nil, fmt.Errorf("organisation does not exist")
+	}
+
+	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	if !exists {
+		return nil, fmt.Errorf("integration does not exist")
+	}
+
+	err := postgresql.SelectAllFromDb(db, "", &slashCommands, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if err != nil {
+		return nil, fmt.Errorf("failed to get slash commands: %v", err)
+	}
+	return slashCommands, nil
+}
+
+func (sc *SlashCommand) GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]SlashCommand, error) {
+	var (
+		slashCommands []SlashCommand
+	)
+	err := postgresql.SelectAllFromDb(db, "", &slashCommands, "org_id = ?", orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get slash commands: %v", err)
+	}
+	return slashCommands, nil
+}
+
+func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, req UpdateSlashCommandRequest) (SlashCommand, error) {
+	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return *sc, fmt.Errorf("slash command does not exist")
+	}
+
+	record, err := postgresql.UpdateFields(db, &sc, req, "id = ?", sc.ID)
+	if err != nil {
+		return *sc, fmt.Errorf("failed to update slash command: %v", err)
+	}
+	if record.RowsAffected == 0 {
+		return *sc, fmt.Errorf("no record was updated")
+	}
+	return *sc, nil
+}
+
+func (sc *SlashCommand) DeleteSlashCommand(db *gorm.DB, ids map[string]string) error {
+	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return fmt.Errorf("slash command does not exist")
+	}
+
+	err := postgresql.DeleteRecordFromDb(db, &sc)
+	if err != nil {
+		return fmt.Errorf("failed to delete slash command: %v", err)
+	}
+	return nil
+}

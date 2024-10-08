@@ -62,6 +62,8 @@ tags:
     description: API for squeeze optin related operations  
   - name: IntegrationSettings
     description: API for Integrations settings
+  - name: IntegrationSlashCommands
+    description: API for Integration Slash Commands
 
 
 
@@ -8392,6 +8394,364 @@ paths:
           description: Organisation or integration not found.
         400:
           description: Invalid request.
+          
+  /api/v1/organisations/{org_id}/integrations/{integration_id}/slash-commands:
+    post:
+      summary: Add a new slash command
+      description: Adds a new slash command and processing URL for a specific integration within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                  example: "/jiraslashcomms"
+                  description: The slash command to add.
+                processing_url:
+                  type: string
+                  example: "www.normals.com"
+                  description: The URL that will process the slash command.
+      responses:
+        200:
+          description: Slash command added successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "01926dd6-b1ad-775a-bef6-f10cd4d35425"
+                      org_id:
+                        type: string
+                        format: uuid
+                        example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      integration_id:
+                        type: string
+                        format: uuid
+                        example: "0192202e-b6f3-7d26-958e-aed59bf1e84b"
+                      command:
+                        type: string
+                        example: "/jiraslashcomms"
+                      processing_url:
+                        type: string
+                        example: "www.normals.com"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:33:59.725411972+01:00"
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:33:59.725411972+01:00"
+        400:
+          description: Invalid request.
+    get:
+      summary: Retrieve all slash commands
+      description: Retrieves all slash commands and their corresponding processing URLs for a specific integration within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      responses:
+        200:
+          description: Slash commands retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration slashcommands retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01926dc1-6760-775a-a8fb-65402def6d3e"
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        command:
+                          type: string
+                          example: "/normals"
+                        processing_url:
+                          type: string
+                          example: "www.normals.com"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+        404:
+          description: Organisation or integration not found.
+          
+  /api/v1/organisations/{org_id}/slash-commands:
+    get:
+      summary: Retrieve all slash commands for an organization
+      description: Retrieves all slash commands for all integrations within a specified organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+      responses:
+        200:
+          description: Organisation slash commands retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Organisation slashcommands retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01926dd6-b1ad-775a-bef6-f10cd4d35425"
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: "0192202e-b6f3-7d26-958e-aed59bf1e84b"
+                        command:
+                          type: string
+                          example: "/jiraslashcomms"
+                        processing_url:
+                          type: string
+                          example: "www.normals.com"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:33:59.725411+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:33:59.725411+01:00"
+        404:
+          description: Organisation not found.
+          
+  /api/v1/organisations/{org_id}/integrations/{integration_id}/slash-commands/{command_id}:
+    patch:
+      summary: Update a slash command
+      description: Updates the command and processing URL for a specific integration slash command within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+        - name: command_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the slash command.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                  example: "/shapiru"
+                  description: The updated slash command.
+                processing_url:
+                  type: string
+                  example: "www.shapiru.com"
+                  description: The updated URL that processes the slash command.
+      responses:
+        200:
+          description: Integration setting updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "01926dc1-2d92-775a-9177-7a2da36f7ee6"
+                      org_id:
+                        type: string
+                        format: uuid
+                        example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      integration_id:
+                        type: string
+                        format: uuid
+                        example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                      command:
+                        type: string
+                        example: "/shapiru"
+                      processing_url:
+                        type: string
+                        example: "www.shapiru.com"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:10:29.651045+01:00"
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:10:29.651045+01:00"
+        404:
+          description: Slash command or organisation not found.
+    delete:
+      summary: Delete a slash command
+      description: Deletes a specific slash command for a given integration within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+        - name: command_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the slash command.
+      responses:
+        200:
+          description: Integration slash command deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration slashcommands deleted successfully
+        404:
+          description: Slash command or organisation not found.
                 
   /threads/organisations/{organisationId}/metrics:
     get:

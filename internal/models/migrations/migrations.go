@@ -46,6 +46,7 @@ func AuthMigrationModels() []interface{} {
 		models.OptIn{},
 		models.OrganisationIntegrations{},
 		models.OrganisationChannelsIntegrations{},
+		models.SlashCommand{},
 	} // an array of db models, example: User{}
 }
 
