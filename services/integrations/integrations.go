@@ -106,10 +106,11 @@ func ActivateChannelIntegration(ids map[string]string, req models.ActivateChanne
 	return nil
 }
 
-func IntegrationChannels(ids map[string]string, db *gorm.DB) (models.IntegrationChansResp, error) {
+func IntegrationChannels(ids map[string]string, db *gorm.DB) (gin.H, error) {
 	var (
 		ocIntegrations  models.OrganisationChannelsIntegrations
 		orgIntegrations models.OrganisationIntegrations
+		res gin.H
 	)
 
 	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
@@ -117,9 +118,14 @@ func IntegrationChannels(ids map[string]string, db *gorm.DB) (models.Integration
 		return nil, errors.New("organisation does not have that integration")
 	}
 
-	res, err := ocIntegrations.FetchIntegrationChannels(db, ids)
+	response, is_allChannels, err := ocIntegrations.FetchIntegrationChannels(db, ids)
 	if err != nil {
 		return res, err
+	}
+
+	res = gin.H{
+		"is_allchannels": !is_allChannels,
+		"channels": response, 
 	}
 
 	return res, nil

@@ -7665,19 +7665,26 @@ paths:
                     type: string
                     example: Integration channels fetched successfully
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        channel_name:
-                          type: string
-                          example: Default
-                        channel_id:
-                          type: string
-                          example: 019192ab-ece1-748c-9c4f-59267a35bfd9
-                        is_active:
-                          type: boolean
-                          example: true
+                    type: object
+                    properties:
+                      channels:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            channel_name:
+                              type: string
+                              example: "Default"
+                            channel_id:
+                              type: string
+                              format: uuid
+                              example: "019192ab-ece1-748c-9c4f-59267a35bfd9"
+                            is_active:
+                              type: boolean
+                              example: true
+                      is_allchannels:
+                        type: boolean
+                        example: true
         '400':
           description: Invalid input
           content:

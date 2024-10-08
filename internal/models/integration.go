@@ -450,7 +450,7 @@ func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, c
 	return true, nil
 }
 
-func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.DB, ids map[string]string) (IntegrationChansResp, error) {
+func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.DB, ids map[string]string) (IntegrationChansResp, bool, error) {
 
 	var res IntegrationChansResp
 
@@ -462,11 +462,14 @@ func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.D
 		Select("oci.channel_id AS channel_id, channels.name AS channel_name, oci.is_active AS is_active").
 		Scan(&res).Error
 
+	exists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ? AND is_active = FALSE", orgId, intId)
+
+
 	if err != nil {
-		return res, err
+		return res, false, err
 	}
 
-	return res, nil
+	return res, exists, nil
 }
 
 func (i *OrganisationChannelsIntegrations) CheckIntegrationIsActive(db *gorm.DB, ids map[string]string) (bool, error) {
