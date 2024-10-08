@@ -46,8 +46,7 @@ func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
 func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
 	var integration models.OrganisationIntegrations
 
-
-	err := integration.ChangeStatus(db, req , ids)
+	err := integration.ChangeStatus(db, req, ids)
 	if err != nil {
 		return err
 	}
@@ -107,4 +106,45 @@ func ActivateChannelIntegration(ids map[string]string, req models.ActivateChanne
 	return nil
 }
 
+func IntegrationChannels(ids map[string]string, db *gorm.DB) (models.IntegrationChansResp, error) {
+	var (
+		ocIntegrations  models.OrganisationChannelsIntegrations
+		orgIntegrations models.OrganisationIntegrations
+	)
 
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	if !exists {
+		return nil, errors.New("organisation does not have that integration")
+	}
+
+	res, err := ocIntegrations.FetchIntegrationChannels(db, ids)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func CheckIntegrationIsActive(ids map[string]string, db *gorm.DB) (gin.H, error) {
+	var (
+		ocIntegrations  models.OrganisationChannelsIntegrations
+		orgIntegrations models.OrganisationIntegrations
+		res             gin.H
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	if !exists {
+		return nil, errors.New("organisation does not have that integration")
+	}
+
+	status, err := ocIntegrations.CheckIntegrationIsActive(db, ids)
+	if err != nil {
+		return res, err
+	}
+
+	res = gin.H{
+		"status": status,
+	}
+
+	return res, nil
+}

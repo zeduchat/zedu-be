@@ -77,6 +77,12 @@ type OrganisationChannelsIntegrations struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
+type IntegrationChansResp []struct {
+	ChannelName string `json:"channel_name"`
+	ChannelId   string `json:"channel_id"`
+	IsActive    bool   `json:"is_active"`
+}
+
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -298,10 +304,10 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	// Query to get paginated integrations
-	if err := db.Table("organisation_channels_integrations").
-		Select("integrations.*").
-		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Where("organisation_channels_integrations.org_id = ?", orgID).
+	if err := db.Table("organisation_channels_integrations AS oci").
+		Select("i.id , i.name, i.json_url, i.app_url, i.app_logo, i.app_description, i.created_at, i.updated_at, oci.is_active AS is_active").
+		Joins("LEFT JOIN integrations AS i ON oci.integration_id = i.id").
+		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
 		Offset(offset).
 		Limit(pagination.Limit).
 		Find(&integrations).Error; err != nil {
@@ -310,9 +316,9 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 
 	// Query to get total count of integrations for pagination
 	var totalIntegrations int64
-	if err := db.Table("organisation_channels_integrations").
-		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Where("organisation_channels_integrations.org_id = ?", orgID).
+	if err := db.Table("organisation_channels_integrations AS oci").
+		Joins("JOIN integrations ON oci.integration_id = integrations.id").
+		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
 		Count(&totalIntegrations).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
@@ -442,4 +448,44 @@ func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, c
 	}
 
 	return true, nil
+}
+
+func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.DB, ids map[string]string) (IntegrationChansResp, error) {
+
+	var res IntegrationChansResp
+
+	orgId, intId := ids["organisation_id"], ids["integration_id"]
+
+	err := db.Table("organisation_channels_integrations AS oci").
+		Joins("JOIN channels ON channels.id = oci.channel_id").
+		Where("oci.org_id = ? AND oci.integration_id = ?", orgId, intId).
+		Select("oci.channel_id AS channel_id, channels.name AS channel_name, oci.is_active AS is_active").
+		Scan(&res).Error
+
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (i *OrganisationChannelsIntegrations) CheckIntegrationIsActive(db *gorm.DB, ids map[string]string) (bool, error) {
+
+	var (
+		organisation Organisation
+		orgInt       OrganisationIntegrations
+	)
+	orgId, intId := ids["organisation_id"], ids["integration_id"]
+
+	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", orgId)
+	if !organisationExists {
+		return false, errors.New("organisation does not exist")
+	}
+
+	exists := postgresql.CheckExists(db, &orgInt, "org_id = ? AND integration_id = ?", orgId, intId)
+	if !exists {
+		return false, errors.New("integration app does not exist")
+	}
+
+	return orgInt.IsActive, nil
 }

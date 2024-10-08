@@ -19,7 +19,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	organisation := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	integrations := integrations.Controller{Db:db, Validator: validator, Logger:logger, ExtReq: extReq}
+	integrations := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
@@ -55,7 +55,9 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		//channels integrations
 		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
-		organisationUrl.POST("/:org_id/channels/:channel_id/integrations/:integration_id",integrations.ActivateDeactivateChannelIntegration)
+		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrations.ActivateDeactivateChannelIntegration)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrations.IntegrationChannels)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/status", integrations.CheckIntegrationIsActive)
 
 		//organisationIntegration jointable related
 		organisationUrl.PATCH("/:org_id/integrations/change_status", integrations.ChangeIntegrationStatus)

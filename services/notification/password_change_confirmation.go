@@ -12,7 +12,7 @@ import (
 func (n NotificationObject) SendPasswordChangeConfirmationMail() error {
 	var (
 		notificationData     models.SendPasswordChangeConfirmationMail
-		subject              = "Password Change Confirmation"
+		subject              = "Subject: Password Change Confirmation..."
 		templateFileName     = "password_reset_done_mail.html"
 		baseTemplateFileName = ""
 		configData           = config.GetConfig()
@@ -24,7 +24,7 @@ func (n NotificationObject) SendPasswordChangeConfirmationMail() error {
 		return fmt.Errorf("error decoding saved notification data: %v", err)
 	}
 
-	passwordChangeUrl := fmt.Sprintf("%v/change-password", configData.App.Url)
+	passwordChangeUrl := fmt.Sprintf("%v/change-password", configData.App.FRONTEND_URL)
 
 	user, err = user.GetUserByEmail(n.Db, notificationData.Email)
 	if err != nil {
