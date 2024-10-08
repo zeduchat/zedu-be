@@ -33,7 +33,6 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				JSONUrl:             "https://system-integration.telex.im/slack.json",
 				AppDescription:      "Slack is a cloud-based team business and communication platform.",
 				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/slack.png",
-				IsSystemIntegration: true,
 			},
 			{
 				ID:                  utility.GenerateUUID(),
@@ -42,7 +41,6 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				JSONUrl:             "https://system-integration.telex.im/github.json",
 				AppDescription:      "GitHub is a web-based hosting service for version control using Git.",
 				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/github.png",
-				IsSystemIntegration: true,
 			},
 			{
 				ID:                  utility.GenerateUUID(),
@@ -51,7 +49,6 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				JSONUrl:             "https://system-integration.telex.im/jira.json",
 				AppDescription:      "Jira is a proprietary issue tracking product developed by Atlassian.",
 				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/jira.png",
-				IsSystemIntegration: true,
 			},
 			{
 				ID:                  utility.GenerateUUID(),
@@ -60,7 +57,6 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				JSONUrl:             "https://system-integration.telex.im/microsoft.json",
 				AppDescription:      "Microsoft Corporation is a multinational technology corporation.",
 				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/microsoft.png",
-				IsSystemIntegration: true,
 			},
 			{
 				ID:                  utility.GenerateUUID(),
@@ -69,7 +65,6 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				JSONUrl:             "https://system-integration.telex.im/teams.json",
 				AppDescription:      "Microsoft Teams is a proprietary business communication platform developed by Microsoft.",
 				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/teams.png",
-				IsSystemIntegration: true,
 			},
 			{
 				ID:                  utility.GenerateUUID(),
@@ -78,7 +73,14 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 				JSONUrl:             "https://system-integration.telex.im/dropbox.json",
 				AppDescription:      "Dropbox is a file hosting service operated by the American company Dropbox, Inc.",
 				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/dropbox.png",
-				IsSystemIntegration: true,
+			},
+			{
+				ID:                  utility.GenerateUUID(),
+				Name:                "Profanity Filter",
+				AppUrl:              "https://www.dropbox.com",
+				JSONUrl:             "https://system-integration.telex.im/profanity-filter.json",
+				AppDescription:      "Profanity FilterA filter to detect and block offensive language in chats and messages.",
+				AppLogo:             "https://media.tifi.tv/telexbucket/public/logos/OIP.jpeg",
 			},
 		}
 

@@ -71,6 +71,13 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		//update setting
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings", integrations.UpdateIntegrationSetting)
 
+		//integration slash	commands
+		organisationUrl.POST("/:org_id/integrations/:integration_id/slash-commands", integrations.AddIntegrationSlashCommand)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/slash-commands", integrations.GetIntegrationSlashCommands)
+		organisationUrl.GET("/:org_id/slash-commands", integrations.GetAllOrgSlashCommands)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrations.UpdateIntegrationSlashCommand)
+		organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrations.DeleteIntegrationSlashCommand)
+
 	}
 
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))

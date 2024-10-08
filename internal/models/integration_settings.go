@@ -23,6 +23,7 @@ type AddIntegrationSettingsRequest struct {
 	FormFieldLabel string `json:"form_field_label" binding:"required"`
 }
 
+
 type UpdateIntegrationSettingsRequest struct {
 	FormFieldValue string `json:"form_field_value"`
 	FormFieldLabel string `json:"form_field_label"`
