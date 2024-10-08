@@ -124,3 +124,27 @@ func IntegrationChannels(ids map[string]string, db *gorm.DB) (models.Integration
 
 	return res, nil
 }
+
+func CheckIntegrationIsActive(ids map[string]string, db *gorm.DB) (gin.H, error) {
+	var (
+		ocIntegrations  models.OrganisationChannelsIntegrations
+		orgIntegrations models.OrganisationIntegrations
+		res             gin.H
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	if !exists {
+		return nil, errors.New("organisation does not have that integration")
+	}
+
+	status, err := ocIntegrations.CheckIntegrationIsActive(db, ids)
+	if err != nil {
+		return res, err
+	}
+
+	res = gin.H{
+		"status": status,
+	}
+
+	return res, nil
+}

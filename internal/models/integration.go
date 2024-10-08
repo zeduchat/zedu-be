@@ -304,10 +304,10 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	// Query to get paginated integrations
-	if err := db.Table("organisation_channels_integrations").
-		Select("integrations.*").
-		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Where("organisation_channels_integrations.org_id = ?", orgID).
+	if err := db.Table("organisation_channels_integrations AS oci").
+		Select("integrations AS i, i.id, i.name, i.json_url, i.app_url, i.app_logo, i.app_description, i.created_at, i.updated_at, oci.is_active AS is_active").
+		Joins("JOIN integrations ON oci.integration_id = integrations.id").
+		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
 		Offset(offset).
 		Limit(pagination.Limit).
 		Find(&integrations).Error; err != nil {
@@ -316,9 +316,9 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 
 	// Query to get total count of integrations for pagination
 	var totalIntegrations int64
-	if err := db.Table("organisation_channels_integrations").
-		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Where("organisation_channels_integrations.org_id = ?", orgID).
+	if err := db.Table("organisation_channels_integrations AS oci").
+		Joins("JOIN integrations ON oci.integration_id = integrations.id").
+		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
 		Count(&totalIntegrations).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
@@ -467,4 +467,21 @@ func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.D
 	}
 
 	return res, nil
+}
+
+func (i *OrganisationChannelsIntegrations) CheckIntegrationIsActive(db *gorm.DB, ids map[string]string) (bool, error) {
+
+	orgId, intId := ids["organisation_id"], ids["integration_id"]
+
+	organisationExists := postgresql.CheckExists(db, Organisation{}, "id = ?", orgId)
+	if !organisationExists {
+		return false, errors.New("organisation does not exist")
+	}
+
+	exists := postgresql.CheckExists(db, &i, "org_id = ? AND integration_id = ?", orgId, intId)
+	if !exists {
+		return false, errors.New("integration app does not exist")
+	}
+
+	return i.IsActive, nil
 }

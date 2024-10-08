@@ -57,6 +57,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
 		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id",integrations.ActivateDeactivateChannelIntegration)
 		organisationUrl.GET("/:org_id/integrations/:integration_id/channels",integrations.IntegrationChannels)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/status",integrations.CheckIntegrationIsActive)
 
 		//organisationIntegration jointable related
 		organisationUrl.PATCH("/:org_id/integrations/change_status", integrations.ChangeIntegrationStatus)
