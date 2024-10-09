@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"time"
 
@@ -502,8 +501,6 @@ func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm
 	if err != nil {
 		return false, err
 	}
-
-	fmt.Println(count)
 
 	if count == 0 {
 		return false, nil
