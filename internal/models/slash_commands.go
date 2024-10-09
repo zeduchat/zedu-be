@@ -15,6 +15,7 @@ type SlashCommand struct {
 	Command       string     `gorm:"column:command; type:varchar(255);" json:"command"`
 	ProcessingURL string     `gorm:"column:processing_url; type:varchar(255);" json:"processing_url"`
 	CreatedAt     time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Description   string     `gorm:"column:description; type:varchar(255);" json:"description"`
 	UpdatedAt     time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt     *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 }
@@ -22,11 +23,13 @@ type SlashCommand struct {
 type AddSlashCommandRequest struct {
 	Command       string `json:"command" validate:"required"`
 	ProcessingURL string `json:"processing_url" validate:"required"`
+	Description   string `json:"description"`
 }
 
 type UpdateSlashCommandRequest struct {
 	Command       string `json:"command"`
 	ProcessingURL string `json:"processing_url"`
+	Description   string `json:"description"`
 }
 
 func (sc *SlashCommand) CreateSlashCommand(db *gorm.DB) (SlashCommand, error) {
