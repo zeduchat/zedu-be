@@ -124,15 +124,6 @@ func (qm *QueueManager) Init(conn *amqp091.Connection, logger *utility.Logger) e
 		return err
 	}
 
-	_, err = ch.QueueDeclare(
-		"",
-		false, // Durable
-		false, // Delete when unused
-		false, // Exclusive
-		false, // No-wait
-		nil,   // Arguments
-	)
-
 	if err != nil {
 		return fmt.Errorf("failed to declare a queue: %v", err)
 	}

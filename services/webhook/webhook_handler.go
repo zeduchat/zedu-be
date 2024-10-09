@@ -146,9 +146,8 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 	var (
 		integration models.Integrations
 		routing_key = "new_message"
-		base_url = config.Config.App.Url
+		base_url    = config.Config.App.Url
 	)
-
 
 	ints, err := integration.PerformQueries(db, req.ChannelID)
 	if err != nil {
@@ -156,44 +155,42 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 		return errors.New("failed to get integration settings, error: " + err.Error())
 	}
 
+	feed := models.FeedQueue{
+		ChannelsId: req.ChannelID,
+		Content:    req.Message,
+		ReturnUrl:  fmt.Sprintf("%s/v1/backend-queue/return", base_url),
+		Type:       "webhook",
+	}
+
 	for _, integration := range ints {
-	
+
+		internal_payload := map[string]interface{}{
+			"args": []models.FeedQueue{feed},
+			"task": "telex_queue_processor.handle_new_message",
+		}
+
 		payload := map[string]interface{}{
 			"properties": map[string]interface{}{
 				"content_type":  "application/json",
 				"delivery_mode": 2,
 			},
-			"routing_key": routing_key,
-			"payload": map[string]interface{}{
-				"task": "telex_queue_processor.handle_new_message",
-				"args": []map[string]interface{}{
-					{
-						"channel_id":  req.ChannelID,
-						"return_url":  fmt.Sprintf("%s/v1/backend-queue/return", base_url),
-						"message_content": map[string]interface{}{
-							"event_name": req.EventName,
-							"message":    req.Message,
-							"status":     req.Status,
-							"username":   req.UserName,
-						},
-					},
-				},
-			},
+			"routing_key":      routing_key,
+			"payload":          internal_payload,
 			"payload_encoding": "string",
 		}
-	
+
 		payloadBytes, err := json.Marshal(payload)
 		if err != nil {
 			utility.LogAndPrint(logger, fmt.Sprintf("Error marshaling payload for integration %s: %v", integration.ID, err.Error()))
 			return fmt.Errorf("failed to marshal payload, error: %v", err)
 		}
-	
+
 		err = rabbitmq.PushToRabbitQueue(logger, db, string(payloadBytes), routing_key)
 		if err != nil {
 			utility.LogAndPrint(logger, fmt.Sprintf("Error pushing to RabbitMQ for integration %s: %v", integration.ID, err.Error()))
 			return fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 		}
-	
+
 		utility.LogAndPrint(logger, fmt.Sprintf("Successfully pushed to RabbitMQ for integration %s", integration.Name))
 	}
 

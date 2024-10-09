@@ -259,7 +259,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if err != nil {
 			return err
 		}
-
+	
 		for _, channel := range channels {
 			oci := OrganisationChannelsIntegrations{
 				ID:            utility.GenerateUUID(),
@@ -268,17 +268,18 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 				IntegrationID: ids["integration_id"],
 				IsActive:      req.Status,
 			}
-
+	
 			orgchannels = append(orgchannels, oci)
 		}
-
+	
 		err = postgresql.CreateMultipleRecords(db, &orgchannels, len(orgchannels))
 		if err != nil {
 			return err
 		}
-
+		
 		return nil
 	}
+
 
 	update := make(map[string]interface{})
 	update["is_active"] = req.Status
