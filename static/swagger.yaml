@@ -8160,7 +8160,7 @@ paths:
           description: Organisation or integration not found.
                     
   /organisations/{organisationId}/integrations/{integrationId}/channels/{channelId}:
-    patch:
+    post:
       tags:
       - Integrations
       summary: "Activate or deactivate a channel integration"
