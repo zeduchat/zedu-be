@@ -416,28 +416,27 @@ func (i *Integrations) GetIntegrationID(db *gorm.DB, name string) error {
 	return nil
 }
 
-func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]IntegrationWithSettings, error) {
+func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]Integrations, error) {
 	var (
 		channelID = channel_id
-		results   []IntegrationWithSettings
+		results   []Integrations
 	)
-
-	//check if channel has any integrations
 
 	// Fetch active integrations with their associated settings for the given channel
 	err := db.Table("organisation_channels_integrations").
 		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Joins("JOIN integration_settings ON integration_settings.org_id = organisation_channels_integrations.org_id AND integration_settings.integration_id = organisation_channels_integrations.integration_id").
 		Where("organisation_channels_integrations.channel_id = ? AND organisation_channels_integrations.is_active = ?", channelID, true).
-		Select("integrations.id AS integration_id, integrations.*, integration_settings.*").
+		Select("integrations.id AS integration_id, integrations.*").
 		Scan(&results).Error
 
 	if err != nil {
-		return []IntegrationWithSettings{}, err
+		return []Integrations{}, err
 	}
 
 	return results, nil
 }
+
+
 
 func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, channelID string) (bool, error) {
 

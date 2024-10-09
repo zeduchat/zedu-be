@@ -64,11 +64,8 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrations.UpdateJSONSchema)
 
 		///organisationIntegration settings related endpoints
-		//add setting
 		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrations.AddIntegrationSetting)
-		//get a setting
 		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrations.GetIntegrationSetting)
-		//update setting
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings", integrations.UpdateIntegrationSetting)
 
 		//integration slash	commands
