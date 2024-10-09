@@ -136,7 +136,19 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *t
 	}
 
 	payload := map[string]interface{}{
-		"args": []models.FeedQueue{feed},
+		"args": []map[string]interface{}{
+			{
+				"message_content": map[string]interface{}{
+					"channel_id": feed.ChannelsId,
+					"message":    feed.Content,
+					"thread_id":  feed.ThreadId,
+					"type":       feed.Type,
+					"user_id":    feed.UserId,
+				},
+				"channel_id": feed.ChannelsId,
+				"return_url": feed.ReturnUrl,
+			},
+		},
 		"task": "telex_queue_processor.handle_new_message",
 	}
 
@@ -170,7 +182,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *gorm.DB, typesenseDb *typese
 	if req.Type == "message" {
 
 		_, _, err = SaveChannelsMsg(reqNew, db, typesenseDb, logger)
-		
+
 	} else {
 
 		reqNew := models.CreateThreadMsgReq{
