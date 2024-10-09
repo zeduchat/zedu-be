@@ -20,6 +20,7 @@ type Integrations struct {
 	AppLogo             string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
 	AppDescription      string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
+	IsActive            bool      `gorm:"type:boolean;default:false" json:"is_active"`
 	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
