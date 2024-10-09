@@ -14,24 +14,24 @@ import (
 )
 
 type Threads struct {
-	ID            string    `gorm:"type:uuid;primary_key" json:"thread_id"`
-	ChannelsID    string    `gorm:"type:uuid;index" json:"channels_id"`
-	EventName     string    `gorm:"type:varchar(200);index" json:"event_name"`
-	Username      string    `gorm:"type:varchar(50);index" json:"username"`
-	ActionType    string    `gorm:"type:text;index" json:"action_type"`
-	Status        string    `gorm:"type:varchar(200);index" json:"status"`
-	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages      []Message `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	MessageCount  int64     `gorm:"type:int;" json:"message_count"`
-	LastReply     time.Time `json:"last_reply"`
-	AvatarURL     string    `json:"avatar_url"`
-	Type          string    `gorm:"default:thread" json:"type"`
-	Content       string    `gorm:"type:text;index" json:"content"`
-	ChannelName   string    `json:"channel_name"`
-	CurrentStatus string    `json:"current_status"`
-	FullName      string    `json:"full_name"`
-	Email         string    `json:"email"`
-	Reactions    []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+	ID            string     `gorm:"type:uuid;primary_key" json:"thread_id"`
+	ChannelsID    string     `gorm:"type:uuid;index" json:"channels_id"`
+	EventName     string     `gorm:"type:varchar(200);index" json:"event_name"`
+	Username      string     `gorm:"type:varchar(50);index" json:"username"`
+	ActionType    string     `gorm:"type:text;index" json:"action_type"`
+	Status        string     `gorm:"type:varchar(200);index" json:"status"`
+	CreatedAt     time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Messages      []Message  `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	MessageCount  int64      `gorm:"type:int;" json:"message_count"`
+	LastReply     time.Time  `json:"last_reply"`
+	AvatarURL     string     `json:"avatar_url"`
+	Type          string     `gorm:"default:thread" json:"type"`
+	Content       string     `gorm:"type:text;index" json:"content"`
+	ChannelName   string     `json:"channel_name"`
+	CurrentStatus string     `json:"current_status"`
+	FullName      string     `json:"full_name"`
+	Email         string     `json:"email"`
+	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 }
 
 type Reaction struct {
@@ -76,6 +76,18 @@ type CreateThreadMsgReq struct {
 	Content    string `json:"content" validate:"required"`
 	ChannelsID string `json:"channels_id"`
 	UserId     string `json:"user_id"`
+	ThreadId   string `json:"thread_id"`
+}
+
+type FeedMessageRequest struct {
+	ChannelID  string `json:"channel_id"`
+	FullName   string `json:"full_name"`
+	UserName   string `json:"username"`
+	CreatedAt  string `json:"created_at"`
+	Email      string `json:"email"`
+	AvatarURL  string `json:"avatar_url,omitempty"`
+	Type       string `json:"type"`
+	Content    string `json:"content"`
 	ThreadId   string `json:"thread_id"`
 }
 

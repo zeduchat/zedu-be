@@ -13,16 +13,16 @@ import (
 )
 
 type Integrations struct {
-	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
-	Name                string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
-	JSONUrl             string    `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
-	AppUrl              string    `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
-	AppLogo             string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
-	AppDescription      string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
-	IntegrationType     string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
-	IsActive            bool      `gorm:"type:boolean;default:false" json:"is_active"`
-	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt           time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID              string    `gorm:"type:uuid;primary_key" json:"id"`
+	Name            string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
+	JSONUrl         string    `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
+	AppUrl          string    `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
+	AppLogo         string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
+	AppDescription  string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
+	IntegrationType string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
+	IsActive        bool      `gorm:"type:boolean;default:false" json:"is_active"`
+	CreatedAt       time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type UpdateIntegration struct {
@@ -436,8 +436,6 @@ func (i *Integrations) PerformQueries(db *gorm.DB, channel_id string) ([]Integra
 	return results, nil
 }
 
-
-
 func (oci *OrganisationChannelsIntegrations) CheckHasIntegrations(db *gorm.DB, channelID string) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &oci, "channel_id = ?", channelID)
@@ -461,7 +459,6 @@ func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.D
 		Scan(&res).Error
 
 	exists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ? AND is_active = FALSE", orgId, intId)
-
 
 	if err != nil {
 		return res, false, err
@@ -489,4 +486,25 @@ func (i *OrganisationChannelsIntegrations) CheckIntegrationIsActive(db *gorm.DB,
 	}
 
 	return orgInt.IsActive, nil
+}
+
+func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm.DB, channelID string) (bool, error) {
+
+	var count int64
+
+	err := db.Table("organisation_channels_integrations").
+		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
+		Where("organisation_channels_integrations.channel_id = ? AND organisation_channels_integrations.is_active = ? AND integrations.integration_type = ?", channelID, true, "filter").
+		Select("integrations.id AS integration_id, integrations.*").
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	if count == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
