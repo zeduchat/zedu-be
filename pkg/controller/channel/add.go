@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
@@ -110,4 +111,30 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 	base.Logger.Info("message edited successfully")
 	rd := utility.BuildSuccessResponse(code, "message edited successfully", response)
 	c.JSON(code, rd)
+}
+
+func (base *Controller) SaveIncomingQueueMsg(c *gin.Context) {
+	var (
+		req models.FeedQueue
+	)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	channel.SaveIncomingQueueMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+
+	base.Logger.Info("message added successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", nil)
+	c.JSON(http.StatusOK, rd)
 }

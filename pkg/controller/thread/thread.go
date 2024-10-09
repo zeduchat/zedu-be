@@ -223,7 +223,7 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	ThreadData, err := service.CreateThreadMessage(req, base.Db.Postgresql, base.Db.TypeSense)
+	ThreadData, err := service.CreateThreadMessage(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
