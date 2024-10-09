@@ -8431,6 +8431,8 @@ paths:
                   type: string
                   example: "www.normals.com"
                   description: The URL that will process the slash command.
+                description:
+                  type: string
       responses:
         200:
           description: Slash command added successfully.
@@ -8658,6 +8660,8 @@ paths:
                   type: string
                   example: "www.shapiru.com"
                   description: The updated URL that processes the slash command.
+                description:
+                  type: string
       responses:
         200:
           description: Integration setting updated successfully.
