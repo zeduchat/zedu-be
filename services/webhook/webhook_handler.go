@@ -11,6 +11,7 @@ import (
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
@@ -156,8 +157,10 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest) error {
 	var (
 		integration models.Integrations
-		routing_key string
+		routing_key = "new_message"
+		base_url = config.Config.App.Url
 	)
+
 
 	ints, err := integration.PerformQueries(db, req.ChannelID)
 	if err != nil {
@@ -166,33 +169,43 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 	}
 
 	for _, integration := range ints {
-		feed := models.FeedWebHookRequest{
-			EventName: req.EventName,
-			Content:   req.Message,
-			Status:    req.Status,
-			UserName:  req.UserName,
-			ChannelID: req.ChannelID,
+	
+		payload := map[string]interface{}{
+			"properties": map[string]interface{}{
+				"content_type":  "application/json",
+				"delivery_mode": 2,
+			},
+			"routing_key": routing_key,
+			"payload": map[string]interface{}{
+				"task": "telex_queue_processor.handle_new_message",
+				"args": []map[string]interface{}{
+					{
+						"channel_id":  req.ChannelID,
+						"return_url":  fmt.Sprintf("%s/v1/backend-queue/return", base_url),
+						"message_content": map[string]interface{}{
+							"event_name": req.EventName,
+							"message":    req.Message,
+							"status":     req.Status,
+							"username":   req.UserName,
+						},
+					},
+				},
+			},
+			"payload_encoding": "string",
 		}
-
-		if integration.IntegrationType == "filter" {
-			routing_key = "telex_queue_processor.filter_integrations"
-		} else {
-			routing_key = "telex_queue_processor.output_integrations"
-		}
-
-
-		payloadBytes, err := json.Marshal(feed)
+	
+		payloadBytes, err := json.Marshal(payload)
 		if err != nil {
 			utility.LogAndPrint(logger, fmt.Sprintf("Error marshaling payload for integration %s: %v", integration.ID, err.Error()))
 			return fmt.Errorf("failed to marshal payload, error: %v", err)
 		}
-
+	
 		err = rabbitmq.PushToRabbitQueue(logger, db, string(payloadBytes), routing_key)
 		if err != nil {
 			utility.LogAndPrint(logger, fmt.Sprintf("Error pushing to RabbitMQ for integration %s: %v", integration.ID, err.Error()))
 			return fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 		}
-
+	
 		utility.LogAndPrint(logger, fmt.Sprintf("Successfully pushed to RabbitMQ for integration %s", integration.Name))
 	}
 
