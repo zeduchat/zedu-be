@@ -161,17 +161,17 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 		"task": "telex_queue_processor.handle_new_message",
 	}
 
-	payload := map[string]interface{}{
-		"properties": map[string]interface{}{
-			"content_type":  "application/json",
-			"delivery_mode": 2,
-		},
-		"routing_key":      routing_key,
-		"payload":          internal_payload,
-		"payload_encoding": "string",
-	}
+	// payload := map[string]interface{}{
+	// 	"properties": map[string]interface{}{
+	// 		"content_type":  "application/json",
+	// 		"delivery_mode": 2,
+	// 	},
+	// 	"routing_key":      routing_key,
+	// 	"payload":          internal_payload,
+	// 	"payload_encoding": "string",
+	// }
 
-	payloadBytes, err := json.Marshal(payload)
+	payloadBytes, err := json.Marshal(internal_payload)
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Error marshaling payload for integration %s: %v", integration.ID, err.Error()))
 		return fmt.Errorf("failed to marshal payload, error: %v", err)
