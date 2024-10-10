@@ -46,13 +46,6 @@ type ActivateChannelIntegration struct {
 	Status bool `json:"status"`
 }
 
-type IntegrationWithSettings struct {
-	OrgID         string              `json:"org_id" gorm:"column:org_id"`
-	IntegrationID string              `json:"integration_id" gorm:"column:integration_id"`
-	Integrations  Integrations        `json:"integration" gorm:"embedded"`
-	Settings      IntegrationSettings `json:"integration_settings" gorm:"embedded"`
-}
-
 type OrganisationIntegrations struct {
 	ID            string    `gorm:"type:uuid;primary_key" json:"id"`
 	OrgID         string    `gorm:"type:uuid;" json:"org_id"`
@@ -259,7 +252,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if err != nil {
 			return err
 		}
-	
+
 		for _, channel := range channels {
 			oci := OrganisationChannelsIntegrations{
 				ID:            utility.GenerateUUID(),
@@ -268,18 +261,42 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 				IntegrationID: ids["integration_id"],
 				IsActive:      req.Status,
 			}
-	
+
 			orgchannels = append(orgchannels, oci)
 		}
-	
+
 		err = postgresql.CreateMultipleRecords(db, &orgchannels, len(orgchannels))
 		if err != nil {
 			return err
 		}
-		
+
 		return nil
 	}
 
+	// Add the missing channels in a bulk insert without using a for loop @cyberguru 
+	err := db.Exec(`
+			INSERT INTO organisation_channels_integrations (id, org_id, integration_id, channel_id, is_active, created_at, updated_at)
+			SELECT gen_random_uuid(), ?, ?, c.id, ?, NOW(), NOW()
+			FROM channels c
+			WHERE c.organisation_id = ? 
+			AND NOT EXISTS (
+				SELECT 1 FROM organisation_channels_integrations oci 
+				WHERE oci.channel_id = c.id AND oci.org_id = ? AND oci.integration_id = ?
+		)`, ids["org_id"], ids["integration_id"], req.Status, ids["org_id"], ids["org_id"], ids["integration_id"]).Error
+
+	if err != nil {
+		return err
+	}
+
+	//when the integration has been deactivated/activated for the integration, deactivate/activate it for all channels in the organisation
+	if req.Status || !req.Status {
+		err := db.Model(&OrganisationChannelsIntegrations{}).
+			Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"]).
+			Update("is_active", req.Status).Error
+		if err != nil {
+			return err
+		}
+	}
 
 	update := make(map[string]interface{})
 	update["is_active"] = req.Status
@@ -294,8 +311,10 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	if result.RowsAffected == 0 {
 		return errors.New("no record updated")
 	}
+
 	return nil
 }
+
 
 func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error) {
 	var integrations []Integrations
