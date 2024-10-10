@@ -17,10 +17,9 @@ import (
 )
 
 type Channels struct {
-	ID          string `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name        string `gorm:"column:name;unique type:text; not null" json:"name"`
-	Description string `gorm:"column:description; type:text; not null" json:"description"`
-
+	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name           string    `gorm:"column:name;unique type:text; not null" json:"name"`
+	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
 	Users          []User    `gorm:"many2many:user_channels;" json:"users"`
@@ -145,6 +144,17 @@ func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) er
 	err = postgresql.CreateOneRecord(db, r)
 	if err != nil {
 		return errors.New("could not create channel, invalid organisation id")
+	}
+
+	query := `
+	INSERT INTO organisation_channels_integrations (id, org_id, integration_id, channel_id, is_active, created_at, updated_at)
+	SELECT
+		gen_random_uuid(), org_id, integration_id, ?, TRUE, NOW(), NOW()
+	FROM organisation_integrations
+	WHERE org_id = ?`
+
+	if err := db.Exec(query, r.ID, r.OrganisationID).Error; err != nil {
+		return fmt.Errorf("error inserting into OrganisationChannelsIntegrations: %v", err)
 	}
 
 	return nil

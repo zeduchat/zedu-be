@@ -18,8 +18,11 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
+	channelQueueUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion))
+
 	{
 		channelUrl.POST("", channel.CreateChannels)
+		channelQueueUrl.POST("/backend-queue", channel.SaveIncomingQueueMsg)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
 		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)

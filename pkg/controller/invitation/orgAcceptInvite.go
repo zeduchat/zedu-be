@@ -32,7 +32,7 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c, base.ExtReq)
+	respData, code, err := invitation.VerifyInvitation(req, base.Db.Postgresql, c)
 	if err != nil {
 		base.Logger.Info("Failed to verify invitation", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

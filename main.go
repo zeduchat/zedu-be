@@ -38,7 +38,6 @@ func main() {
 	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
 	rabbitmq.QueueClient.QM.Start(logger)
 
-
 	validatorRef := validator.New()
 	db := storage.Connection()
 
