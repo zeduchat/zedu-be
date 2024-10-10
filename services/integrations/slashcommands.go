@@ -48,7 +48,6 @@ func GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]models.SlashCommand, e
 	return response, nil
 }
 
-
 func UpdateIntegrationSlashCommand(db *gorm.DB, ids map[string]string, req models.UpdateSlashCommandRequest) (models.SlashCommand, error) {
 	var (
 		slashCommand models.SlashCommand
