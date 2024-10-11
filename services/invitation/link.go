@@ -39,10 +39,11 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		emails      = inviteReq.Emails
 		invitations []models.Invitation
 		errs        []string
+		user        models.User
 	)
 
 	for _, email := range emails {
-		isTelexUser := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
+		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", email)
 
 		// Check if the user's email has a pending invitation for that organisation with a pending status
 		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", email, inviteReq.OrganisationID, time.Now().UTC())
@@ -52,7 +53,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		}
 
 		if isTelexUser {
-			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", userId, inviteReq.OrganisationID)
+			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", user.ID, inviteReq.OrganisationID)
 			if alreadyMember {
 				errs = append(errs, fmt.Errorf("%s is already a member of the organisation", email).Error())
 				continue

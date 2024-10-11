@@ -107,7 +107,19 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 	}
 
 	payload := map[string]interface{}{
-		"args": []models.FeedQueue{feed},
+		"args": []map[string]interface{}{
+			{
+				"message_content": map[string]interface{}{
+					"channel_id": feed.ChannelsId,
+					"message":    feed.Content,
+					"thread_id":  feed.ThreadId,
+					"type":       feed.Type,
+					"user_id":    feed.UserId,
+				},
+				"channel_id": feed.ChannelsId,
+				"return_url": feed.ReturnUrl,
+			},
+		},
 		"task": "telex_queue_processor.handle_new_message",
 	}
 
