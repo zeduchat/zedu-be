@@ -97,11 +97,11 @@ func (base *Controller) GetIntegrationSlashCommands(c *gin.Context) {
 
 func (base *Controller) UpdateIntegrationSlashCommand(c *gin.Context) {
 	var (
-		req models.UpdateSlashCommandRequest
+		req            models.UpdateSlashCommandRequest
+		org_id         = c.Param("org_id")
+		integration_id = c.Param("integration_id")
+		command_id     = c.Param("command_id")
 	)
-
-	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -117,6 +117,13 @@ func (base *Controller) UpdateIntegrationSlashCommand(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(command_id); err != nil {
+		base.Logger.Error("invalid command id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid command id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Invalid request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
@@ -127,6 +134,7 @@ func (base *Controller) UpdateIntegrationSlashCommand(c *gin.Context) {
 	ids := map[string]string{
 		"org_id":         org_id,
 		"integration_id": integration_id,
+		"command_id":     command_id,
 	}
 
 	response, err := integrations.UpdateIntegrationSlashCommand(base.Db.Postgresql, ids, req)
@@ -189,8 +197,7 @@ func (base *Controller) DeleteIntegrationSlashCommand(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-
-func (base *Controller) GetAllOrgSlashCommands(c *gin.Context){
+func (base *Controller) GetAllOrgSlashCommands(c *gin.Context) {
 	org_id := c.Param("org_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {

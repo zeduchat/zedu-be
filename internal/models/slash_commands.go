@@ -75,7 +75,10 @@ func (sc *SlashCommand) GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]Sla
 }
 
 func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, req UpdateSlashCommandRequest) (SlashCommand, error) {
-	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+
+	fmt.Println("ids", ids)
+
+	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ? AND id = ?", ids["org_id"], ids["integration_id"], ids["command_id"])
 	if !exists {
 		return *sc, fmt.Errorf("slash command does not exist")
 	}
@@ -87,6 +90,7 @@ func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, r
 	if record.RowsAffected == 0 {
 		return *sc, fmt.Errorf("no record was updated")
 	}
+
 	return *sc, nil
 }
 

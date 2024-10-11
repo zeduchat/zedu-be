@@ -14,6 +14,7 @@ func AddIntegrationsSlashCommand(db *gorm.DB, ids map[string]string, req models.
 		IntegrationID: ids["integration_id"],
 		Command:       req.Command,
 		ProcessingURL: req.ProcessingURL,
+		Description:   req.Description,
 	}
 
 	response, err := slashCommand.CreateSlashCommand(db)
@@ -47,7 +48,6 @@ func GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]models.SlashCommand, e
 	}
 	return response, nil
 }
-
 
 func UpdateIntegrationSlashCommand(db *gorm.DB, ids map[string]string, req models.UpdateSlashCommandRequest) (models.SlashCommand, error) {
 	var (
