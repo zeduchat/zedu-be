@@ -23,7 +23,7 @@ type FeedWebHookRequest struct {
 	Status     string `json:"status"`
 	AvatarURL  string `json:"avatar_url,omitempty"`
 	Type       string `json:"type"`
-	Content    string `json:"content"`
+	Content    string `json:"message"`
 }
 
 type FeedQueue struct {
