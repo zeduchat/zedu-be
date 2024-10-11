@@ -102,7 +102,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 		Content:    req.Content,
 		ThreadId:   req.ThreadId,
 		ReturnUrl:  returnUrl,
-		Type:       "message",
+		Type:       "message/thread",
 		UserId:     req.UserId,
 	}
 

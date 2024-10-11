@@ -231,6 +231,8 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
+	base.Logger.Info("thread message added successfully")
+
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
 	c.JSON(http.StatusCreated, rd)
 
