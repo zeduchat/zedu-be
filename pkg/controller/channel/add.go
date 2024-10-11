@@ -58,7 +58,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("message added successfully")
+	base.Logger.Info("channel message added successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", response)
 	c.JSON(code, rd)
 }
