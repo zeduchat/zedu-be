@@ -34,3 +34,12 @@ type FeedQueue struct {
 	Content    string `json:"content"`
 	Type       string `json:"type"`
 }
+
+type QueueFeed struct {
+	ChannelsId string `json:"channel_id"`
+	ThreadId   string `json:"thread_id"`
+	UserId     string `json:"user_id"`
+	ReturnUrl  string `json:"return_url"`
+	Content    FeedWebHookRequest `json:"message_content"`
+	Type       string `json:"type"`
+}
