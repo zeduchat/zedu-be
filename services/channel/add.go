@@ -131,7 +131,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *t
 		Content:    req.Content,
 		ThreadId:   req.ThreadId,
 		ReturnUrl:  returnUrl,
-		Type:       "message",
+		Type:       "message/thread",
 		UserId:     req.UserId,
 	}
 
@@ -199,5 +199,5 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *gorm.DB, typesenseDb *typese
 		return
 	}
 
-	logger.Error("saving and broadcasting recieved message successfull !!!")
+	logger.Info("saving and broadcasting recieved message successfull !!!")
 }
