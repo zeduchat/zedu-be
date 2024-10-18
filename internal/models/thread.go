@@ -26,7 +26,7 @@ type Threads struct {
 	LastReply     time.Time  `json:"last_reply"`
 	AvatarURL     string     `json:"avatar_url"`
 	Type          string     `gorm:"default:thread" json:"type"`
-	Content       string     `gorm:"type:text;index" json:"content"`
+	Content       string     `gorm:"type:text;index" json:"message"`
 	ChannelName   string     `json:"channel_name"`
 	CurrentStatus string     `json:"current_status"`
 	FullName      string     `json:"full_name"`
