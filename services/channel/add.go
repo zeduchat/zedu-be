@@ -72,7 +72,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *
 		FullName:  profile.FullName,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ChannelsId, feed)
+	err = centrifuge.BroadcastChannel(logger, req.ThreadId, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
@@ -181,9 +181,10 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *gorm.DB, typesenseDb *typese
 
 	if req.Type == "message" {
 
+		logger.Info("saving and broadcasting recieved channel message")
 		_, _, err = SaveChannelsMsg(reqNew, db, typesenseDb, logger)
 
-	} else {
+	} else if req.Type == "message/thread" {
 
 		reqNew := models.CreateThreadMsgReq{
 			Content:    req.Content,
@@ -191,6 +192,8 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *gorm.DB, typesenseDb *typese
 			ThreadId:   req.ThreadId,
 			UserId:     req.UserId,
 		}
+
+		logger.Info("saving and broadcasting recieved thread message")
 		_, err = thread.SaveThreadMessage(reqNew, db, typesenseDb, logger)
 	}
 
@@ -199,5 +202,5 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *gorm.DB, typesenseDb *typese
 		return
 	}
 
-	logger.Error("saving and broadcasting recieved message successfull !!!")
+	logger.Info("saving and broadcasting recieved message successfull !!!")
 }

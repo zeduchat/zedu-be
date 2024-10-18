@@ -26,7 +26,7 @@ type Threads struct {
 	LastReply     time.Time  `json:"last_reply"`
 	AvatarURL     string     `json:"avatar_url"`
 	Type          string     `gorm:"default:thread" json:"type"`
-	Content       string     `gorm:"type:text;index" json:"content"`
+	Content       string     `gorm:"type:text;index" json:"message"`
 	ChannelName   string     `json:"channel_name"`
 	CurrentStatus string     `json:"current_status"`
 	FullName      string     `json:"full_name"`
@@ -82,12 +82,12 @@ type CreateThreadMsgReq struct {
 type FeedMessageRequest struct {
 	ChannelID  string `json:"channel_id"`
 	FullName   string `json:"full_name"`
-	UserName   string `json:"username"`
+	UserName   string `json:"user_name"`
 	CreatedAt  string `json:"created_at"`
 	Email      string `json:"email"`
 	AvatarURL  string `json:"avatar_url,omitempty"`
 	Type       string `json:"type"`
-	Content    string `json:"content"`
+	Content    string `json:"message"`
 	ThreadId   string `json:"thread_id"`
 }
 
