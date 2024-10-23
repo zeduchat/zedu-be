@@ -7,7 +7,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AddIntegrationChannel(db *gorm.DB, req models.AddIntegrationChannel) (models.IntegrationChannel, error) {
+func AddIntegrationChannel(db *gorm.DB, req models.AddIntegrationChannel) (models.IntegrationChannel, int, error) {
 
 	intchan := models.IntegrationChannel{
 		ID:             utility.GenerateUUID(),
@@ -17,9 +17,9 @@ func AddIntegrationChannel(db *gorm.DB, req models.AddIntegrationChannel) (model
 		ChannelID:      req.ChannelID,
 	}
 
-	res, err := intchan.CreateIntegrationChan(db)
+	res, code, err := intchan.CreateIntegrationChan(db)
 
-	return res, err
+	return res, code, err
 }
 
 func DeleteChannelIntegration(db *gorm.DB, req models.IntegrationChannelReq) (int, error) {

@@ -85,7 +85,7 @@ type IntegrationOutput struct {
 	SendBack            bool                 `gorm:"type:boolean;" json:"send_back"`
 	CreatedAt           time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt           time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	IntegrationChannels []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID" json:"integration_channels"`
+	IntegrationChannels []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"integration_channels"`
 }
 
 type IntegrationChannel struct {
@@ -111,18 +111,6 @@ type IntegrationChannelReq struct {
 	ChannelID     string `json:"channel_id"`
 	IntChannelID  string `json:"int_channel_id" validate:"required"`
 }
-
-// type IntegrationChannelResponse struct {
-// 	IntegrationID       string           `json:"integration_id"`
-// 	IntegrationName     string           `json:"integration_name"`
-// 	IntegrationChannels []ChannelDetails `json:"integration_channels" gorm:"foreignKey:IntegrationID;references:IntId"`
-// }
-
-// type ChannelDetails struct {
-// 	IntId       string `json:"integration_id"`
-// 	IntChanID   string `json:"int_channel_id"`
-// 	IntChanName string `json:"int_channel_name"`
-// }
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
@@ -577,14 +565,14 @@ func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm
 	return true, nil
 }
 
-func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationChannel, error) {
+func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationChannel, int, error) {
 
 	var intchan IntegrationChannel
 
 	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ?", ic.IntChannelID, ic.IntegrationID, ic.ChannelID)
 
 	if exist {
-		return intchan, nil
+		return intchan, http.StatusCreated, nil
 	}
 
 	var int_out IntegrationOutput
@@ -597,7 +585,7 @@ func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationCha
 		exist := postgresql.CheckExists(db, &int, "id = ?", ic.IntegrationID)
 
 		if !exist {
-			return intchan, fmt.Errorf("integration not found")
+			return intchan, http.StatusNotFound, fmt.Errorf("invalid integration id, integration does not exist")
 		}
 
 		int_out = IntegrationOutput{
@@ -610,25 +598,24 @@ func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationCha
 
 		err := postgresql.CreateOneRecord(db, &int_out)
 		if err != nil {
-			return intchan, err
+			return intchan, http.StatusInternalServerError, err
 		}
 	}
 
 	ic.IntegrationOutputID = int_out.ID
 	err := postgresql.CreateOneRecord(db, &ic)
 	if err != nil {
-		return *ic, err
+		return *ic, http.StatusInternalServerError, err
 	}
 
-	return *ic, nil
+	return *ic, http.StatusCreated, nil
 }
 
 func (ic *IntegrationChannel) GetIntegrationChannels(db *gorm.DB) ([]IntegrationOutput, error) {
 	var res []IntegrationOutput
 
 	err := db.Preload("IntegrationChannels").
-		Joins("LEFT join integration_outputs as io ON io.channel_id = ?", ic.ChannelID).
-		Where("io.channel_id = ?", ic.ChannelID).
+		Where("integration_outputs.channel_id = ?", ic.ChannelID).
 		Find(&res).Error
 
 	if err != nil {
@@ -654,7 +641,9 @@ func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error)
 		return http.StatusInternalServerError, err
 	}
 
-	exist = postgresql.CheckExists(db, &intchan, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+	var intcheck IntegrationChannel
+
+	exist = postgresql.CheckExists(db, &intcheck, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
 
 	if !exist {
 
@@ -674,3 +663,24 @@ func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error)
 
 	return http.StatusOK, nil
 }
+
+
+// return {
+
+// 	{
+// 		int_id: "uuid",
+// 		int_name: "slack",
+// 		int_chann_url: "http:/gtc"
+// 	},
+
+// 	{
+// 		int_id: "uuid",
+// 		int_name: "discord",
+// 		int_chann_url: "http:/gtc"
+// 	},
+// 	{
+// 		int_id: "uuid",
+// 		int_name: "teams",
+// 		int_chann_url: "http:/gtc"
+// 	},
+// }

@@ -21,14 +21,13 @@ func (base *Controller) GetIntegrationChannels(c *gin.Context) {
 		return
 	}
 
-
 	respData, err := channel.GetChannelIntegration(base.Db.Postgresql, channels_id)
 
 	if err != nil {
 
 		base.Logger.Info("error getting integration channels, err: %v", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
@@ -67,17 +66,17 @@ func (base *Controller) AddIntegrationChannel(c *gin.Context) {
 		return
 	}
 
-	res, err := channel.AddIntegrationChannel(base.Db.Postgresql, req)
+	res, code, err := channel.AddIntegrationChannel(base.Db.Postgresql, req)
 	if err != nil {
 		base.Logger.Info("erro adding integration channel: %v", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("integration channel added successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "integration channel added successfully", res)
-	c.JSON(http.StatusCreated, rd)
+	rd := utility.BuildSuccessResponse(code, "integration channel added successfully", res)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) DelteChannelIntegration(c *gin.Context) {
