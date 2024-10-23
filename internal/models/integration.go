@@ -154,7 +154,7 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		Where("org_id = ?", org_id)
 
 	err := db.Table("integrations AS i").
-		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, 
+		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, i.integration_type,
 				i.is_system_integration, 
 				COALESCE(oi.created_at, i.created_at) AS created_at, 
 				COALESCE(oi.updated_at, i.updated_at) AS updated_at, 
@@ -663,7 +663,6 @@ func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error)
 
 	return http.StatusOK, nil
 }
-
 
 // return {
 
