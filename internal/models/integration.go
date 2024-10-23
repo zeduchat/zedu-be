@@ -38,6 +38,12 @@ type ChangeIntegrationStatus struct {
 	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
+type OutputIntegrationsResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	ChannelsUrl string `json:"channels_url"`
+}
+
 type UpdateJSONSchemaRequest struct {
 	JSONSchema JSONB `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
@@ -273,7 +279,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		return nil
 	}
 
-	// Add the missing channels in a bulk insert without using a for loop @cyberguru 
+	// Add the missing channels in a bulk insert without using a for loop @cyberguru
 	err := db.Exec(`
 			INSERT INTO organisation_channels_integrations (id, org_id, integration_id, channel_id, is_active, created_at, updated_at)
 			SELECT gen_random_uuid(), ?, ?, c.id, ?, NOW(), NOW()
@@ -314,7 +320,6 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 	return nil
 }
-
 
 func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error) {
 	var integrations []Integrations
