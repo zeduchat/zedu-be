@@ -32,6 +32,7 @@ func (r *RequestObj) ExchangeSlackOAuthToken() (external_models.SlackOAuthRespon
 	params.Add("client_secret", config.Slack.ClientSecret)
 	params.Add("code", code)
 	params.Add("redirect_uri", config.Slack.RedirectURI)
+	fmt.Println(params.Encode())
 
 	err := r.getNewSendRequestObject(strings.NewReader(params.Encode()), headers, "/api/oauth.v2.access").SendRequest(&outBoundResponse)
 	if err != nil {

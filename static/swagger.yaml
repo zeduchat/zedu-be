@@ -7449,7 +7449,51 @@ paths:
         404:
           description: Organisation not found.
 
-          
+  /organisations/{org_id}/integrations/output:
+    get:
+      tags:
+        - Integrations
+      summary: "Retrieve output integrations"
+      description: "Fetches the available output integrations for a given organization, such as Slack, Discord, etc."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: "The ID of the organization"
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      responses:
+        200:
+          description: "Output integrations retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "output integrations retrieved successfully."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        name:
+                          type: string
+                          example: "Slack"
+                        channels_url:
+                          type: string
+                          example: "https://system-integrations.telex.im/slack/channels"          
           
   /organisations/{organisationId}/integrations/{integrationId}:
     patch:
@@ -8215,7 +8259,224 @@ paths:
                   message:
                     type: string
                     example: "Channel integration activated successfully"
-                          
+
+  /channels/{channel_id}/integration-channels:
+    post:
+      tags:
+      - Integrations
+      summary: Add a new integration channel to a specified channel.
+      parameters:
+        - in: path
+          name: channel_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integration_id:
+                  type: string
+                  format: uuid
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                int_channel_name:
+                  type: string
+                  example: channel1
+                int_channel_id:
+                  type: string
+                  example: Ck0904kdfi
+              required:
+                - integration_id
+                - int_channel_name
+                - int_channel_id
+      responses:
+        '201':
+          description: Integration channel added successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: integration channel added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: 0192b948-faf1-73d0-9162-3f452a40f295
+                      integration_id:
+                        type: string
+                        format: uuid
+                        example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                      channel_id:
+                        type: string
+                        format: uuid
+                        example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                      int_channel_id:
+                        type: string
+                        example: Ck0904kdfi
+                      int_channel_name:
+                        type: string
+                        example: channel1
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: 2024-10-23T07:10:20.787924395-05:00
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: 2024-10-23T07:10:20.787924395-05:00
+
+    get:
+      tags:
+      - Integrations
+      summary: Retrieve all integration channels for a specified channel.
+      parameters:
+        - in: path
+          name: channel_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the channel.
+      responses:
+        '200':
+          description: Channel retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channel retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: 0192b948-faf2-73d0-99d1-797305d18ae1
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                        integration_name:
+                          type: string
+                          example: Slack1
+                        channel_id:
+                          type: string
+                          format: uuid
+                          example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                        send_back:
+                          type: boolean
+                          example: true
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2024-10-23T07:10:20.786885-05:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: 2024-10-23T07:10:20.786885-05:00
+                        integration_channels:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                                example: 0192b948-faf1-73d0-9162-3f452a40f295
+                              integration_id:
+                                type: string
+                                format: uuid
+                                example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                              channel_id:
+                                type: string
+                                format: uuid
+                                example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                              int_channel_id:
+                                type: string
+                                example: Ck0904kdfi
+                              int_channel_name:
+                                type: string
+                                example: channel1
+                              created_at:
+                                type: string
+                                format: date-time
+                                example: 2024-10-23T07:10:20.787924-05:00
+                              updated_at:
+                                type: string
+                                format: date-time
+                                example: 2024-10-23T07:10:20.787924-05:00
+
+    delete:
+      tags:
+      - Integrations
+      summary: Delete an integration channel from a specified channel.
+      parameters:
+        - in: path
+          name: channel_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integration_id:
+                  type: string
+                  format: uuid
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                int_channel_id:
+                  type: string
+                  example: Ck0904kdfi
+              required:
+                - integration_id
+                - int_channel_id
+      responses:
+        '200':
+          description: Integration channel deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: integration channel deleted successfully
+
   /organisations/{organisation_id}/integrations/{integration_id}/settings:
     post:
       summary: Add a new integration setting
@@ -8395,7 +8656,7 @@ paths:
         400:
           description: Invalid request.
           
-  /api/v1/organisations/{org_id}/integrations/{integration_id}/slash-commands:
+  /organisations/{org_id}/integrations/{integration_id}/slash-commands:
     post:
       summary: Add a new slash command
       description: Adds a new slash command and processing URL for a specific integration within an organization.
@@ -8551,8 +8812,9 @@ paths:
                           example: "2024-10-08T21:10:44.448814+01:00"
         404:
           description: Organisation or integration not found.
-          
-  /api/v1/organisations/{org_id}/slash-commands:
+
+    
+  /organisations/{org_id}/slash-commands:
     get:
       summary: Retrieve all slash commands for an organization
       description: Retrieves all slash commands for all integrations within a specified organization.
@@ -8617,7 +8879,7 @@ paths:
         404:
           description: Organisation not found.
           
-  /api/v1/organisations/{org_id}/integrations/{integration_id}/slash-commands/{command_id}:
+  /organisations/{org_id}/integrations/{integration_id}/slash-commands/{command_id}:
     patch:
       summary: Update a slash command
       description: Updates the command and processing URL for a specific integration slash command within an organization.

@@ -74,6 +74,7 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
+
 	userId := userID.(string)
 
 	organisationID:= c.Param("orgId")
@@ -83,7 +84,7 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	response, err := service.GetSlackAccessToken(base.Db.Postgresql, userId, organisationID,base.Db.Redis,base.ExtReq)
+	response, err := service.GetSlackAccessToken(base.Db.Postgresql, userId, organisationID, base.Db.Redis, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to fetch slack info", nil)
 		c.JSON(http.StatusNotFound, rd)

@@ -35,14 +35,15 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 		channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
 		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
-
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)
 		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
 		channelUrl.POST("/add", channel.AddMembersToChannel)
-
 		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
-
 		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
+
+		channelUrl.GET("/:channelId/integration-channels", channel.GetIntegrationChannels)
+		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
+		channelUrl.DELETE("/:channelId/integration-channels", channel.DelteChannelIntegration)
 	}
 
 	return r
