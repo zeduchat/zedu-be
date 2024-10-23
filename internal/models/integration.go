@@ -2,7 +2,9 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,6 +76,53 @@ type IntegrationChansResp []struct {
 	ChannelId   string `json:"channel_id"`
 	IsActive    bool   `json:"is_active"`
 }
+
+type IntegrationOutput struct {
+	ID                  string               `gorm:"type:uuid;primary_key" json:"id"`
+	IntegrationID       string               `gorm:"type:uuid;" json:"integration_id"`
+	IntegrationName     string               `gorm:"type:string;" json:"integration_name"`
+	ChannelID           string               `gorm:"type:uuid;" json:"channel_id"`
+	SendBack            bool                 `gorm:"type:boolean;" json:"send_back"`
+	CreatedAt           time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	IntegrationChannels []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID" json:"integration_channels"`
+}
+
+type IntegrationChannel struct {
+	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
+	IntegrationOutputID string    `gorm:"type:uuid;" json:"-"`
+	IntegrationID       string    `gorm:"type:uuid;" json:"integration_id"`
+	ChannelID           string    `gorm:"type:uuid;" json:"channel_id"`
+	IntChannelID        string    `gorm:"type:varchar(100);" json:"int_channel_id"`
+	IntChannelName      string    `gorm:"type:varchar(100);" json:"int_channel_name"`
+	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+}
+
+type AddIntegrationChannel struct {
+	IntegrationID  string `json:"integration_id" validate:"required"`
+	ChannelID      string `json:"channel_id"`
+	IntChannelID   string `json:"int_channel_id" validate:"required"`
+	IntChannelName string `json:"int_channel_name" validate:"required"`
+}
+
+type IntegrationChannelReq struct {
+	IntegrationID string `json:"integration_id" validate:"required"`
+	ChannelID     string `json:"channel_id"`
+	IntChannelID  string `json:"int_channel_id" validate:"required"`
+}
+
+// type IntegrationChannelResponse struct {
+// 	IntegrationID       string           `json:"integration_id"`
+// 	IntegrationName     string           `json:"integration_name"`
+// 	IntegrationChannels []ChannelDetails `json:"integration_channels" gorm:"foreignKey:IntegrationID;references:IntId"`
+// }
+
+// type ChannelDetails struct {
+// 	IntId       string `json:"integration_id"`
+// 	IntChanID   string `json:"int_channel_id"`
+// 	IntChanName string `json:"int_channel_name"`
+// }
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
@@ -273,7 +322,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		return nil
 	}
 
-	// Add the missing channels in a bulk insert without using a for loop @cyberguru 
+	// Add the missing channels in a bulk insert without using a for loop @cyberguru
 	err := db.Exec(`
 			INSERT INTO organisation_channels_integrations (id, org_id, integration_id, channel_id, is_active, created_at, updated_at)
 			SELECT gen_random_uuid(), ?, ?, c.id, ?, NOW(), NOW()
@@ -314,7 +363,6 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 	return nil
 }
-
 
 func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error) {
 	var integrations []Integrations
@@ -527,4 +575,102 @@ func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm
 	}
 
 	return true, nil
+}
+
+func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationChannel, error) {
+
+	var intchan IntegrationChannel
+
+	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ?", ic.IntChannelID, ic.IntegrationID, ic.ChannelID)
+
+	if exist {
+		return intchan, nil
+	}
+
+	var int_out IntegrationOutput
+
+	exists := postgresql.CheckExists(db, &int_out, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+	if !exists {
+
+		var int Integrations
+
+		exist := postgresql.CheckExists(db, &int, "id = ?", ic.IntegrationID)
+
+		if !exist {
+			return intchan, fmt.Errorf("integration not found")
+		}
+
+		int_out = IntegrationOutput{
+			ID:              utility.GenerateUUID(),
+			IntegrationID:   ic.IntegrationID,
+			IntegrationName: int.Name,
+			ChannelID:       ic.ChannelID,
+			SendBack:        true,
+		}
+
+		err := postgresql.CreateOneRecord(db, &int_out)
+		if err != nil {
+			return intchan, err
+		}
+	}
+
+	ic.IntegrationOutputID = int_out.ID
+	err := postgresql.CreateOneRecord(db, &ic)
+	if err != nil {
+		return *ic, err
+	}
+
+	return *ic, nil
+}
+
+func (ic *IntegrationChannel) GetIntegrationChannels(db *gorm.DB) ([]IntegrationOutput, error) {
+	var res []IntegrationOutput
+
+	err := db.Preload("IntegrationChannels").
+		Joins("LEFT join integration_outputs as io ON io.channel_id = ?", ic.ChannelID).
+		Where("io.channel_id = ?", ic.ChannelID).
+		Find(&res).Error
+
+	if err != nil {
+		return res, err
+	}
+
+	return res, err
+}
+
+func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error) {
+
+	var intchan IntegrationChannel
+
+	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ?", ic.IntChannelID, ic.IntegrationID, ic.ChannelID)
+
+	if !exist {
+		return http.StatusNotFound, fmt.Errorf("entry does not exist")
+	}
+
+	err := postgresql.DeleteRecordFromDb(db, intchan)
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	exist = postgresql.CheckExists(db, &intchan, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+
+	if !exist {
+
+		var int_out IntegrationOutput
+
+		exists := postgresql.CheckExists(db, &int_out, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+
+		if exists {
+
+			err := postgresql.DeleteRecordFromDb(db, int_out)
+
+			if err != nil {
+				return http.StatusInternalServerError, err
+			}
+		}
+	}
+
+	return http.StatusOK, nil
 }
