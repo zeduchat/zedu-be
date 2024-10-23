@@ -329,7 +329,7 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 
 	// Query to get paginated integrations
 	if err := db.Table("organisation_channels_integrations AS oci").
-		Select("i.id , i.name, i.json_url, i.app_url, i.app_logo, i.app_description, i.created_at, i.updated_at, oci.is_active AS is_active").
+		Select("i.id , i.name, i.json_url, i.app_url, i.app_logo, i.app_description, i.created_at, i.updated_at, i.integration_type ,oci.is_active AS is_active").
 		Joins("LEFT JOIN integrations AS i ON oci.integration_id = i.id").
 		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
 		Offset(offset).
