@@ -7449,7 +7449,51 @@ paths:
         404:
           description: Organisation not found.
 
-          
+  /organisations/{org_id}/integrations/output:
+    get:
+      tags:
+        - Integrations
+      summary: "Retrieve output integrations"
+      description: "Fetches the available output integrations for a given organization, such as Slack, Discord, etc."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: "The ID of the organization"
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      responses:
+        200:
+          description: "Output integrations retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "output integrations retrieved successfully."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        name:
+                          type: string
+                          example: "Slack"
+                        channels_url:
+                          type: string
+                          example: "https://system-integrations.telex.im/slack/channels"          
           
   /organisations/{organisationId}/integrations/{integrationId}:
     patch:
