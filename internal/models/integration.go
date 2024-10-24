@@ -84,20 +84,22 @@ type IntegrationChansResp []struct {
 }
 
 type IntegrationOutput struct {
-	ID                  string               `gorm:"type:uuid;primary_key" json:"id"`
-	IntegrationID       string               `gorm:"type:uuid;" json:"integration_id"`
-	IntegrationName     string               `gorm:"type:string;" json:"integration_name"`
-	ChannelID           string               `gorm:"type:uuid;" json:"channel_id"`
-	SendBack            bool                 `gorm:"type:boolean;" json:"send_back"`
-	CreatedAt           time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt           time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	IntegrationChannels []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"integration_channels"`
+	ID                    string               `gorm:"type:uuid;primary_key" json:"id"`
+	IntegrationModifierID string               `gorm:"type:uuid;" json:"integration_modifier_id"`
+	IntegrationOutputID   string               `gorm:"type:uuid;" json:"integration_output_id"`
+	IntegrationName       string               `gorm:"type:string;" json:"integration_name"`
+	ChannelID             string               `gorm:"type:uuid;" json:"channel_id"`
+	SendBack              bool                 `gorm:"type:boolean;" json:"send_back"`
+	CreatedAt             time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt             time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	IntegrationChannels   []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"integration_channels"`
 }
 
 type IntegrationChannel struct {
 	ID                  string    `gorm:"type:uuid;primary_key" json:"id"`
 	IntegrationOutputID string    `gorm:"type:uuid;" json:"-"`
 	IntegrationID       string    `gorm:"type:uuid;" json:"integration_id"`
+	OutputID            string    `gorm:"type:uuid;" json:"-"`
 	ChannelID           string    `gorm:"type:uuid;" json:"channel_id"`
 	IntChannelID        string    `gorm:"type:varchar(100);" json:"int_channel_id"`
 	IntChannelName      string    `gorm:"type:varchar(100);" json:"int_channel_name"`
@@ -106,16 +108,18 @@ type IntegrationChannel struct {
 }
 
 type AddIntegrationChannel struct {
-	IntegrationID  string `json:"integration_id" validate:"required"`
-	ChannelID      string `json:"channel_id"`
-	IntChannelID   string `json:"int_channel_id" validate:"required"`
-	IntChannelName string `json:"int_channel_name" validate:"required"`
+	IntegrationModifierID string `json:"int_modifier_id" validate:"required"`
+	IntegrationOutputID   string `json:"int_output_id" validate:"required"`
+	ChannelID             string `json:"channel_id"`
+	IntChannelID          string `json:"int_channel_id" validate:"required"`
+	IntChannelName        string `json:"int_channel_name" validate:"required"`
 }
 
 type IntegrationChannelReq struct {
-	IntegrationID string `json:"integration_id" validate:"required"`
-	ChannelID     string `json:"channel_id"`
-	IntChannelID  string `json:"int_channel_id" validate:"required"`
+	ChannelID             string `json:"channel_id"`
+	IntChannelID          string `json:"int_channel_id" validate:"required"`
+	IntegrationModifierID string `json:"int_modifier_id" validate:"required"`
+	IntegrationOutputID   string `json:"int_output_id" validate:"required"`
 }
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
@@ -571,35 +575,46 @@ func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm
 	return true, nil
 }
 
-func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationChannel, int, error) {
+func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB, int_out_id string) (IntegrationChannel, int, error) {
 
-	var intchan IntegrationChannel
+	var (
+		intchan IntegrationChannel
+		intMod  Integrations
+		int_out IntegrationOutput
+	)
 
-	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ?", ic.IntChannelID, ic.IntegrationID, ic.ChannelID)
+	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ? AND output_id = ?", ic.IntChannelID, ic.IntegrationID, ic.ChannelID, int_out_id)
 
 	if exist {
 		return intchan, http.StatusCreated, nil
 	}
 
-	var int_out IntegrationOutput
+	exist = postgresql.CheckExists(db, &intMod, "id = ? AND integration_type = ?", ic.IntegrationID, "m")
 
-	exists := postgresql.CheckExists(db, &int_out, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+	if !exist {
+		return intchan, http.StatusNotFound, fmt.Errorf("invalid integration id or modifier type, integration does not exist")
+	}
+
+	exists := postgresql.CheckExists(db, &int_out, "integration_modifier_id = ? AND channel_id = ? AND integration_output_id = ?", ic.IntegrationID, ic.ChannelID, int_out_id)
 	if !exists {
 
-		var int Integrations
+		var (
+			intOut Integrations
+		)
 
-		exist := postgresql.CheckExists(db, &int, "id = ?", ic.IntegrationID)
+		exist := postgresql.CheckExists(db, &intOut, "id = ? AND integration_type = ?", int_out_id, "o")
 
 		if !exist {
-			return intchan, http.StatusNotFound, fmt.Errorf("invalid integration id, integration does not exist")
+			return intchan, http.StatusNotFound, fmt.Errorf("invalid integration id or output type, integration does not exist")
 		}
 
 		int_out = IntegrationOutput{
-			ID:              utility.GenerateUUID(),
-			IntegrationID:   ic.IntegrationID,
-			IntegrationName: int.Name,
-			ChannelID:       ic.ChannelID,
-			SendBack:        true,
+			ID:                    utility.GenerateUUID(),
+			IntegrationOutputID:   int_out_id,
+			IntegrationModifierID: ic.IntegrationID,
+			IntegrationName:       intOut.Name,
+			ChannelID:             ic.ChannelID,
+			SendBack:              true,
 		}
 
 		err := postgresql.CreateOneRecord(db, &int_out)
@@ -617,25 +632,34 @@ func (ic *IntegrationChannel) CreateIntegrationChan(db *gorm.DB) (IntegrationCha
 	return *ic, http.StatusCreated, nil
 }
 
-func (ic *IntegrationChannel) GetIntegrationChannels(db *gorm.DB) ([]IntegrationOutput, error) {
-	var res []IntegrationOutput
+func (ic *IntegrationChannel) GetIntegrationChannels(db *gorm.DB) ([]IntegrationOutput, int, error) {
+	var (
+		res    []IntegrationOutput
+		intMod Integrations
+	)
+
+	exist := postgresql.CheckExists(db, &intMod, "id = ? AND integration_type = ?", ic.IntegrationID, "m")
+
+	if !exist {
+		return res, http.StatusNotFound, fmt.Errorf("invalid integration id or modifier type, integration does not exist")
+	}
 
 	err := db.Preload("IntegrationChannels").
-		Where("integration_outputs.channel_id = ?", ic.ChannelID).
+		Where("integration_outputs.channel_id = ? AND integration_outputs.integration_modifier_id = ?", ic.ChannelID, ic.IntegrationID).
 		Find(&res).Error
 
 	if err != nil {
-		return res, err
+		return res, http.StatusInternalServerError, err
 	}
 
-	return res, err
+	return res, http.StatusOK, err
 }
 
-func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error) {
+func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB, req IntegrationChannelReq) (int, error) {
 
 	var intchan IntegrationChannel
 
-	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ?", ic.IntChannelID, ic.IntegrationID, ic.ChannelID)
+	exist := postgresql.CheckExists(db, &intchan, "int_channel_id = ? AND integration_id = ? AND channel_id = ? AND output_id = ?", req.IntChannelID, req.IntegrationModifierID, req.ChannelID, req.IntegrationOutputID)
 
 	if !exist {
 		return http.StatusNotFound, fmt.Errorf("entry does not exist")
@@ -649,13 +673,13 @@ func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error)
 
 	var intcheck IntegrationChannel
 
-	exist = postgresql.CheckExists(db, &intcheck, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+	exist = postgresql.CheckExists(db, &intcheck, "integration_id = ? AND channel_id = ? AND output_id = ?", req.IntegrationModifierID, req.ChannelID, req.IntegrationOutputID)
 
 	if !exist {
 
 		var int_out IntegrationOutput
 
-		exists := postgresql.CheckExists(db, &int_out, "integration_id = ? AND channel_id = ?", ic.IntegrationID, ic.ChannelID)
+		exists := postgresql.CheckExists(db, &int_out, "integration_modifier_id = ? AND channel_id = ? AND integration_output_id = ?", req.IntegrationModifierID, req.ChannelID, req.IntegrationOutputID)
 
 		if exists {
 
@@ -669,23 +693,3 @@ func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB) (int, error)
 
 	return http.StatusOK, nil
 }
-
-// return {
-
-// 	{
-// 		int_id: "uuid",
-// 		int_name: "slack",
-// 		int_chann_url: "http:/gtc"
-// 	},
-
-// 	{
-// 		int_id: "uuid",
-// 		int_name: "discord",
-// 		int_chann_url: "http:/gtc"
-// 	},
-// 	{
-// 		int_id: "uuid",
-// 		int_name: "teams",
-// 		int_chann_url: "http:/gtc"
-// 	},
-// }
