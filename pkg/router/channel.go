@@ -41,7 +41,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
 		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
 
-		channelUrl.GET("/:channelId/integration-channels", channel.GetIntegrationChannels)
+		channelUrl.GET("/:channelId/integration-channels/:IntModId", channel.GetIntegrationChannels)
 		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
 		channelUrl.DELETE("/:channelId/integration-channels", channel.DelteChannelIntegration)
 	}
