@@ -151,16 +151,16 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 
 	feed := models.QueueFeed{
 		ChannelsId: req.ChannelID,
-		ReturnUrl:  fmt.Sprintf("%s/v1/backend-queue/return", base_url),
-		Content:    models.FeedWebHookRequest{
-			ChannelID:  req.ChannelID,
-			EventName:  req.EventName,
-			UserName:   req.UserName,
-			CreatedAt:  time.Now().UTC().Format(time.RFC3339),
-			Status:     req.Status,
-			AvatarURL:  req.AvatarURL,
-			Type:       "webhook",
-			Content:    req.Message,
+		ReturnUrl:  fmt.Sprintf("%s/v1/webhooks/backend-queue/return", base_url),
+		Content: models.FeedWebHookRequest{
+			ChannelID: req.ChannelID,
+			EventName: req.EventName,
+			UserName:  req.UserName,
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+			Status:    req.Status,
+			AvatarURL: req.AvatarURL,
+			Type:      "webhook",
+			Content:   req.Message,
 		},
 	}
 
