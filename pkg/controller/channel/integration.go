@@ -14,6 +14,7 @@ import (
 
 func (base *Controller) GetIntegrationChannels(c *gin.Context) {
 	channels_id := c.Param("channelId")
+	modifier_id := c.Param("IntModId")
 
 	if _, err := uuid.Parse(channels_id); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
@@ -21,19 +22,25 @@ func (base *Controller) GetIntegrationChannels(c *gin.Context) {
 		return
 	}
 
-	respData, err := channel.GetChannelIntegration(base.Db.Postgresql, channels_id)
+	if _, err := uuid.Parse(modifier_id); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid modifier id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := channel.GetChannelIntegration(base.Db.Postgresql, channels_id, modifier_id)
 
 	if err != nil {
 
 		base.Logger.Info("error getting integration channels, err: %v", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("integration channels retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "channel retreived successfully", respData)
-	c.JSON(http.StatusOK, rd)
+	rd := utility.BuildSuccessResponse(code, "channel retreived successfully", respData)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) AddIntegrationChannel(c *gin.Context) {

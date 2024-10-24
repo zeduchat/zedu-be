@@ -11,36 +11,34 @@ func AddIntegrationChannel(db *gorm.DB, req models.AddIntegrationChannel) (model
 
 	intchan := models.IntegrationChannel{
 		ID:             utility.GenerateUUID(),
-		IntegrationID:  req.IntegrationID,
+		IntegrationID:  req.IntegrationModifierID,
 		IntChannelID:   req.IntChannelID,
 		IntChannelName: req.IntChannelName,
 		ChannelID:      req.ChannelID,
+		OutputID:       req.IntegrationOutputID,
 	}
 
-	res, code, err := intchan.CreateIntegrationChan(db)
+	res, code, err := intchan.CreateIntegrationChan(db, req.IntegrationOutputID)
 
 	return res, code, err
 }
 
 func DeleteChannelIntegration(db *gorm.DB, req models.IntegrationChannelReq) (int, error) {
-	intchan := models.IntegrationChannel{
-		IntegrationID: req.IntegrationID,
-		IntChannelID:  req.IntChannelID,
-		ChannelID:     req.ChannelID,
-	}
+	var intchan models.IntegrationChannel
 
-	code, err := intchan.DeleteChannelIntegration(db)
+	code, err := intchan.DeleteChannelIntegration(db, req)
 
 	return code, err
 }
 
-func GetChannelIntegration(db *gorm.DB, channel_id string) ([]models.IntegrationOutput, error) {
+func GetChannelIntegration(db *gorm.DB, channel_id, int_id string) ([]models.IntegrationOutput, int, error) {
 
 	intchan := models.IntegrationChannel{
-		ChannelID: channel_id,
+		ChannelID:     channel_id,
+		IntegrationID: int_id,
 	}
 
-	res, err := intchan.GetIntegrationChannels(db)
+	res, code, err := intchan.GetIntegrationChannels(db)
 
-	return res, err
+	return res, code, err
 }
