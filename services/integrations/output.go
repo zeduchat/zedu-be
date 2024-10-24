@@ -19,7 +19,7 @@ func GetActiveOutputIntegrations(db *gorm.DB, orgID string) ([]models.OutputInte
 		return outputIntegrations, fmt.Errorf("organisation does not exist")
 	}
 
-	baseURL := "https://system-integrations.telex.im/"
+	baseURL := "https://system-integration.telex.im/"
 	err := db.Table("integrations").
 		Select(fmt.Sprintf("integrations.id, integrations.name, CONCAT('%s', Lower(integrations.name), '/channels') AS channels_url", baseURL)).
 		Joins("LEFT JOIN organisation_integrations ON organisation_integrations.integration_id = integrations.id").
