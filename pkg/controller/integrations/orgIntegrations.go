@@ -192,6 +192,59 @@ func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+
+func (base *Controller) ChangeOrgChannelIntSendBackStatus(c *gin.Context) {
+	org_id := c.Param("org_id")
+	channel_id := c.Param("channel_id")
+	var req models.ChangeIntegrationStatus
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(channel_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel_id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.IntegrationID); err != nil {
+		base.Logger.Error("invalid integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id":         org_id,
+		"channel_id":     channel_id,
+		"integration_id": req.IntegrationID,
+	}
+
+	err := integrations.ChangeIntegrationSendBackStatus(ids, req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to set integration app status", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set integration app status", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Integration app status set successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app status set successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	var (
 		req models.UpdateJSONSchemaRequest
