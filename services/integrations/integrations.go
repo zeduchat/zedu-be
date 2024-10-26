@@ -54,6 +54,18 @@ func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegration
 	return nil
 }
 
+func ChangeIntegrationSendBackStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
+	var integration models.OrganisationChannelsIntegrations
+
+	err := integration.ChangeSendBackStatus(db, req, ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+
 func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest, db *gorm.DB) error {
 	var orgIntegration models.OrganisationIntegrations
 
@@ -70,7 +82,7 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 	return nil
 }
 
-func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, c *gin.Context) ([]models.Integrations, postgresql.PaginationResponse, error) {
+func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, c *gin.Context) (models.GetChannelIntResp, postgresql.PaginationResponse, error) {
 	var ocIntegrations models.OrganisationChannelsIntegrations
 
 	integrations, paginationResponse, err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)
