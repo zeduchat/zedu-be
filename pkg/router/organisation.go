@@ -55,6 +55,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		//channels integrations
 		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
+		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrations.ChangeOrgChannelIntSendBackStatus)
 		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrations.ActivateDeactivateChannelIntegration)
 		organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrations.IntegrationChannels)
 		organisationUrl.GET("/:org_id/integrations/:integration_id/status", integrations.CheckIntegrationIsActive)

@@ -8497,6 +8497,86 @@ paths:
                     type: string
                     example: integration channel deleted successfully
 
+  /organisations/{org_id}/channels/{channel_id}/integrations/change-sendback-status:
+    patch:
+      tags:
+      - Integrations
+      summary: Update Integration Status
+      description: Update the status of SendBack to channel of a specific integration within a channel for an organization.
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization.
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the channel.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integration_id:
+                  type: string
+                  format: uuid
+                  description: The ID of the integration.
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d976
+                status:
+                  type: boolean
+                  description: The status of the integration (enabled or disabled).
+                  example: true
+      responses:
+        '200':
+          description: Integration status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Integration status updated successfully."
+        '400':
+          description: Bad request, possibly due to invalid input data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid integration ID or status format."
+        '404':
+          description: Organization, channel, or integration not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Organization or channel not found."
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "An unexpected error occurred."
+
+
   /organisations/{organisation_id}/integrations/{integration_id}/settings:
     post:
       summary: Add a new integration setting
