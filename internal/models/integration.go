@@ -128,6 +128,11 @@ type IntegrationChannelReq struct {
 	IntegrationOutputID   string `json:"int_output_id" validate:"required"`
 }
 
+type IntegrationResp []struct {
+	Integrations
+	Linked string `json:"linked"`
+}
+
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -153,10 +158,10 @@ func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) e
 	return nil
 }
 
-func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) ([]Integrations, error) {
+func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) (IntegrationResp, error) {
 
 	var (
-		integrations []Integrations
+		integrations IntegrationResp
 		org          Organisation
 	)
 
@@ -165,9 +170,6 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		return nil, errors.New("organisation not found")
 	}
 
-	subQuery := db.Table("organisation_integrations").
-		Select("integration_id").
-		Where("org_id = ?", org_id)
 
 	err := db.Table("integrations AS i").
 		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, i.integration_type,
@@ -178,9 +180,12 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 				CASE 
 					WHEN oi.is_active IS TRUE THEN 'active' 
 					ELSE 'inactive' 
-				END AS status`).
+				END AS status,
+				CASE 
+					WHEN oi.integration_id IS NOT NULL THEN true
+					ELSE false 
+				END AS linked`).
 		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = ?", org_id).
-		Where("i.is_system_integration = TRUE OR i.id IN (?)", subQuery).
 		Find(&integrations).Error
 	if err != nil {
 		return nil, err
@@ -615,9 +620,10 @@ func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm
 
 	var count int64
 
-	err := db.Table("organisation_channels_integrations").
-		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Where("organisation_channels_integrations.channel_id = ? AND organisation_channels_integrations.is_active = ?", channelID, true).
+	err := db.Table("organisation_channels_integrations AS oci").
+		Joins("JOIN organisation_integrations AS oi ON oi.org_id = oci.org_id AND oi.is_active = 't' AND oi.integration_id = oci.integration_id ").
+		Joins("LEFT JOIN integrations ON oci.integration_id = integrations.id").
+		Where("oci.channel_id = ? AND oci.is_active = ?", channelID, true).
 		Select("integrations.id AS integration_id, integrations.*").
 		Count(&count).Error
 
