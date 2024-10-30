@@ -615,9 +615,10 @@ func (oci *OrganisationChannelsIntegrations) CheckHasFilterIntegrations(db *gorm
 
 	var count int64
 
-	err := db.Table("organisation_channels_integrations").
-		Joins("JOIN integrations ON organisation_channels_integrations.integration_id = integrations.id").
-		Where("organisation_channels_integrations.channel_id = ? AND organisation_channels_integrations.is_active = ?", channelID, true).
+	err := db.Table("organisation_channels_integrations AS oci").
+		Joins("JOIN organisation_integrations AS oi ON oi.org_id = oci.org_id AND oi.is_active = 't' AND oi.integration_id = oci.integration_id ").
+		Joins("LEFT JOIN integrations ON oci.integration_id = integrations.id").
+		Where("oci.channel_id = ? AND oci.is_active = ?", channelID, true).
 		Select("integrations.id AS integration_id, integrations.*").
 		Count(&count).Error
 
