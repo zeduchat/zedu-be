@@ -66,4 +66,4 @@ jobs:
             sleep 1
           done
       - name: Run All Tests
-        run: go test ./tests/* -timeout 300s
+        run: go test ./tests/*.go -timeout 300s
