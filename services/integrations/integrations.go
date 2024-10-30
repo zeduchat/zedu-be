@@ -10,15 +10,16 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
-func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.Integrations, error) {
-	integration := models.Integrations{}
-	integrations, err := integration.GetAllIntegrationApp(db, org_id, c)
+func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.IntegrationResp, error) {
+	var integrations models.Integrations
+
+	resp, err := integrations.GetAllIntegrationApp(db, org_id, c)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return integrations, nil
+	return resp, nil
 }
 
 func UpdateIntegrationApp(req models.UpdateIntegration, ids map[string]string, db *gorm.DB) (models.Integrations, error) {

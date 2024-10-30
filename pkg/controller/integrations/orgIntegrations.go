@@ -22,7 +22,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) ([]models.Integrations, error) {
+func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.IntegrationResp, error) {
 	integrations := models.Integrations{}
 	intApps, err := integrations.GetAllIntegrationApp(db, org_id, c)
 
