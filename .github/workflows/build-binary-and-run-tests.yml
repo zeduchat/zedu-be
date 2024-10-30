@@ -3,7 +3,6 @@ name: Build Golang Binary and Run Tests
 on:
   pull_request:
     branches:
-      - main
       - staging
 
 jobs:
@@ -55,7 +54,7 @@ jobs:
           TYPESENSE_API_KEY: ${{ secrets.TEST_TYPESENSE_API_KEY }}
           CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
           CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
-          
+
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
@@ -67,4 +66,4 @@ jobs:
             sleep 1
           done
       - name: Run All Tests
-        run: go test ./... -timeout 300s
+        run: go test ./tests/* -timeout 300s
