@@ -130,7 +130,7 @@ type IntegrationChannelReq struct {
 
 type IntegrationResp []struct {
 	Integrations
-	Linked string `json:"linked"`
+	Linked bool `json:"linked"`
 }
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
