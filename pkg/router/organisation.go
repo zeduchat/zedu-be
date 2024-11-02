@@ -67,7 +67,13 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		///organisationIntegration settings related endpoints
 		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrations.AddIntegrationSetting)
 		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrations.GetIntegrationSetting)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings", integrations.UpdateIntegrationSetting)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrations.UpdateIntegrationSetting)
+
+		//organisationChannelIntegration Settings related endpoints
+		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrations.AddChannelIntegrationSetting)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrations.GetChannelIntegrationSetting)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrations.UpdateChannelIntegrationSetting)
+		organisationUrl.DELETE("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrations.DeleteChannelIntegrationSetting)
 
 		//integration slash	commands
 		organisationUrl.POST("/:org_id/integrations/:integration_id/slash-commands", integrations.AddIntegrationSlashCommand)

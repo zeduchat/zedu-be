@@ -64,6 +64,8 @@ tags:
     description: API for Integrations settings
   - name: IntegrationSlashCommands
     description: API for Integration Slash Commands
+  - name: Channel Integration Settings
+    description: API for channel integration settings
 
 
 
@@ -8755,6 +8757,242 @@ paths:
           description: Organisation or integration not found.
         400:
           description: Invalid request.
+          
+  /organisations/{org_id}/integrations/{integration_id}/channels/{channel_id}/settings:
+    post:
+      tags:
+        - Channel Integration Settings
+      summary: "Add Channel Integration Setting"
+      description: "Add a new setting for a channel integration within an organization."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_label:
+                  type: string
+                  example: "Shallom Micah"
+                form_field_value:
+                  type: string
+                  example: "Bawa"
+      responses:
+        200:
+          description: "Channel Integration setting added successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel Integration setting added successfully"
+
+    get:
+      tags:
+        - Channel Integration Settings
+      summary: "Retrieve Channel Integration Settings"
+      description: "Retrieve all settings for a specific channel integration."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+      responses:
+        200:
+          description: "Channel Integration settings retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel Integration settings retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "0192ecdd-ce6d-7348-a3cd-0c7742c687e1"
+                        org_id:
+                          type: string
+                          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+                        integration_id:
+                          type: string
+                          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+                        channel_id:
+                          type: string
+                          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+                        form_field_value:
+                          type: string
+                          example: "you"
+                        form_field_label:
+                          type: string
+                          example: "I love"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-11-02T13:33:32.269698+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-11-02T13:33:32.269698+01:00"
+
+  /organisations/{org_id}/integrations/{integration_id}/channels/{channel_id}/settings/{setting_id}:
+    patch:
+      tags:
+        - Channel Integration Settings
+      summary: "Update a Channel Integration Setting"
+      description: "Update the value of a specific setting for a channel integration."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+        - name: setting_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192ecd9-60a9-7348-b545-e5f78d410847"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_value:
+                  type: string
+                  example: "ouuuuuuu"
+      responses:
+        200:
+          description: "Integration setting updated successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integration setting updated successfully"
+
+    delete:
+      tags:
+        - Channel Integration Settings
+      summary: "Delete a Channel Integration Setting"
+      description: "Delete a specific setting for a channel integration."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+        - name: setting_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192ecd9-60a9-7348-b545-e5f78d410847"
+      responses:
+        200:
+          description: "Channel Integration setting deleted successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel Integration setting deleted successfully"
           
   /organisations/{org_id}/integrations/{integration_id}/slash-commands:
     post:
