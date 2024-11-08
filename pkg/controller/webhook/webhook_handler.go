@@ -1,7 +1,6 @@
 package webhook
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -227,7 +226,7 @@ func (base *Controller) PostFeedWebhookQueue(c *gin.Context) {
 
 func (base *Controller) PostSlugWebhookQueue(c *gin.Context) {
 	var (
-		req models.CreateWebhookHistoryRequest
+		req          models.CreateWebhookHistoryRequest
 		webhookmodel models.Webhook
 	)
 
