@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -227,6 +228,7 @@ func (base *Controller) PostFeedWebhookQueue(c *gin.Context) {
 func (base *Controller) PostSlugWebhookQueue(c *gin.Context) {
 	var (
 		req models.CreateWebhookHistoryRequest
+		webhookmodel models.Webhook
 	)
 
 	err := c.ShouldBindJSON(&req)
@@ -253,6 +255,16 @@ func (base *Controller) PostSlugWebhookQueue(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+
+	webhookResp, err := webhookmodel.CheckExistBySlug(base.Db.Postgresql, req.WebhookSlug)
+	if err != nil {
+		base.Logger.Error("error getting webhook")
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Webhook not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	req.ChannelID = webhookResp.ChannelId
 
 	err = webhook.PostWebhookQueue(base.Db.Postgresql, base.Logger, req)
 	if err != nil {
