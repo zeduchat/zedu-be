@@ -95,11 +95,13 @@ func (base *Controller) GetIntegrationSetting(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) UpdateIntegrationSetting(c *gin.Context) {
+func (base *Controller) UpdateChannelIntegrationSetting(c *gin.Context) {
 	var (
 		req models.UpdateIntegrationSettingsRequest
 		org_id = c.Param("org_id")
 		integration_id = c.Param("integration_id")
+		channel_id = c.Param("channel_id")
+		setting_id = c.Param("setting_id")
 	)
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -116,6 +118,21 @@ func (base *Controller) UpdateIntegrationSetting(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(channel_id); err != nil {
+		base.Logger.Error("invalid channel integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel integration id format", "failed to decode channel integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(setting_id); err != nil {
+		base.Logger.Error("invalid setting id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid setting id format", "failed to decode setting id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Invalid request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
@@ -126,9 +143,11 @@ func (base *Controller) UpdateIntegrationSetting(c *gin.Context) {
 	ids := map[string]string{
 		"org_id":         org_id,
 		"integration_id": integration_id,
+		"channel_id":     channel_id,
+		"setting_id":     setting_id,
 	}
 
-	err := integrations.UpdateIntegrationSettings(base.Db.Postgresql, ids, req)
+	err := integrations.UpdateChannelIntegrationSettings(base.Db.Postgresql, ids, req)
 	if err != nil {
 		base.Logger.Error("Failed to update integration setting", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to update integration setting", err.Error(), nil)
