@@ -165,7 +165,7 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
-	}	
+	}
 
 	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 

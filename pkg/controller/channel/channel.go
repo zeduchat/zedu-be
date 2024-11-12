@@ -655,7 +655,7 @@ func (base *Controller) ArchiveChannel(c *gin.Context) {
 	}
 
 	res := "archived"
-	if !status{
+	if !status {
 		res = "unarchived"
 	}
 

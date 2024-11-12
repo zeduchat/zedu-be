@@ -170,7 +170,6 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 		return nil, errors.New("organisation not found")
 	}
 
-
 	err := db.Table("integrations AS i").
 		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, i.integration_type,
 				i.is_system_integration, 
