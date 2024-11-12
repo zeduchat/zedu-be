@@ -63,7 +63,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 	}
 
 	base.Logger.Info("channel created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "channel created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Channel Created Successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
 
@@ -520,7 +520,7 @@ func (base *Controller) AddMembersToChannel(c *gin.Context) {
 	}
 
 	base.Logger.Info("members added to channel successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "members added to channel successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Members added to channel successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 

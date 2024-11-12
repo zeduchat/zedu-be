@@ -61,7 +61,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 		base.Logger.Error("error broadcasting signup audit: ", err.Error())
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "user created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "User Created Successfully", respData)
 	c.JSON(code, rd)
 }
 
@@ -97,7 +97,7 @@ func (base *Controller) CreateAdmin(c *gin.Context) {
 	}
 
 	base.Logger.Info("user created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "user created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "User Created Successfully", respData)
 	c.JSON(code, rd)
 }
 

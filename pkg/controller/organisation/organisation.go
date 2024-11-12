@@ -59,7 +59,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "organisation created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Organisation Created Successfully", respData)
 
 	c.JSON(http.StatusCreated, rd)
 }
