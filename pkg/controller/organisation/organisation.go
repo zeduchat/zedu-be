@@ -59,7 +59,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "organisation created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Organisation Created Successfully", respData)
 
 	c.JSON(http.StatusCreated, rd)
 }
@@ -165,7 +165,7 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
-	}	
+	}
 
 	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 

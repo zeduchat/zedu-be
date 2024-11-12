@@ -38,9 +38,9 @@ type Organisation struct {
 type CreateOrgRequestModel struct {
 	Name        string `json:"name" validate:"required,min=2,max=255"`
 	Description string `json:"description" `
-	Email       string `json:"email" validate:"required"`
+	Email       string `json:"email"`
 	Type        string `json:"type" validate:"required"`
-	Location    string `json:"location" validate:"required"`
+	Location    string `json:"location"`
 	Country     string `json:"country" validate:"required"`
 	LogoURL     string `json:"logo_url" `
 }
