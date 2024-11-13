@@ -43,7 +43,7 @@ type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
-	Description    string `json:"description" validate:"required"`
+	Description    string `json:"description"`
 }
 
 type GetChannelsRequest struct {
