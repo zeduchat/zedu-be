@@ -48,7 +48,7 @@ jobs:
             cd ~/deployments/telexbe/staging/
             git reset --hard
             git pull origin staging
-            pm2 restart telexbe_staging
+            supervisorctl restart telexbe-staging
           '
           
       - name: Remove ssh_key
