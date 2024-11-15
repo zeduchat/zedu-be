@@ -48,7 +48,7 @@ jobs:
             cd ~/deployments/telexbe/main/
             git reset --hard
             git pull origin main
-            pm2 restart telexbe_main
+            supervisorctl restart telexbe-main
           '
 
       - name: Remove ssh_key
