@@ -22,7 +22,6 @@ jobs:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
-      ENV: ${{ inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,13 +30,13 @@ jobs:
 
       - name: Build binary
         run: |
-          go build -o telexbe_$ENV
+          go build -o telexbe_${{ inputs.environment }}
 
       - name: Upload binary to server
         run: |
           echo "$SSH_KEY" > ssh_key.pem
           chmod 400 ssh_key.pem
-          rsync -avz -e "ssh -i ssh_key.pem" telexbe_$ENV $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/$ENV/telexbe_$ENV
+          rsync -avz -e "ssh -i ssh_key.pem" telexbe_${{ inputs.environment }} $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/${{ inputs.environment }}/telexbe_${{ inputs.environment }}
           rm ssh_key.pem
 
   update_and_restart_app:
@@ -48,16 +47,15 @@ jobs:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
-      ENV: ${{ inputs.environment }}
     steps:
       - name: Restart app
         run: |
           echo "$SSH_KEY" > ssh_key.pem
           chmod 400 ssh_key.pem
           ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
-            cd ~/deployments/telexbe/$ENV/
+            cd ~/deployments/telexbe/${{ inputs.environment }}/
             git reset --hard
-            git pull origin $ENV
-            supervisorctl restart telexbe-$ENV
+            git pull origin ${{ inputs.environment }}
+            supervisorctl restart telexbe-${{ inputs.environment }}
           '
           rm ssh_key.pem
