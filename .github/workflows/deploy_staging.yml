@@ -7,49 +7,11 @@ on:
       - staging
 
 jobs:
-  update_env_and_binary:
-    runs-on: self-hosted
-    if: github.event.repository.fork == false
-    env:
+  deploy_staging:
+    uses: ./.github/workflows/deploy_backend.yml
+    with:
+      environment: staging
+    secrets:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: 'staging'
-
-      - name: Build binary
-        run: |
-          go build -o telexbe_staging
-
-      - name: Upload binary to server
-        run: |
-          echo "$SSH_KEY" > ssh_key.pem
-          chmod 600 ssh_key.pem
-          rsync -avz -e "ssh -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
-          rm ssh_key.pem
-          
-  update_and_restart_app:
-    runs-on: self-hosted
-    needs: [update_env_and_binary]
-    if: github.event.repository.fork == false
-    env:
-      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_KEY: ${{ secrets.SSH_KEY }}
-    steps:
-      - name: Restart app
-        run: |
-          echo "$SSH_KEY" > ssh_key.pem
-            chmod 400 ssh_key.pem
-            ssh -o StrictHostKeyChecking=no -i ssh_key.pem "$SSH_USERNAME"@"$SSH_HOST" '
-            cd ~/deployments/telexbe/staging/
-            git reset --hard
-            git pull origin staging
-            supervisorctl restart telexbe-staging
-          '
-          
-      - name: Remove ssh_key
-        run: rm ssh_key.pem

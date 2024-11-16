@@ -1,0 +1,63 @@
+name: Reusable Backend Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    secrets:
+      SSH_USERNAME:
+        required: true
+      SSH_HOST:
+        required: true
+      SSH_KEY:
+        required: true
+
+jobs:
+  update_env_and_binary:
+    runs-on: self-hosted
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      ENV: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.environment }}
+
+      - name: Build binary
+        run: |
+          go build -o telexbe_$ENV
+
+      - name: Upload binary to server
+        run: |
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 400 ssh_key.pem
+          rsync -avz -e "ssh -i ssh_key.pem" telexbe_$ENV $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/$ENV/telexbe_$ENV
+          rm ssh_key.pem
+
+  update_and_restart_app:
+    runs-on: self-hosted
+    needs: [update_env_and_binary]
+    if: github.event.repository.fork == false
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      ENV: ${{ inputs.environment }}
+    steps:
+      - name: Restart app
+        run: |
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 400 ssh_key.pem
+          ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
+            cd ~/deployments/telexbe/$ENV/
+            git reset --hard
+            git pull origin $ENV
+            supervisorctl restart telexbe-$ENV
+          '
+          rm ssh_key.pem
