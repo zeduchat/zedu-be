@@ -2,14 +2,16 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Message struct {
@@ -27,6 +29,45 @@ type Message struct {
 	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
+type MessageDocument struct {
+	ID         string         `json:"id"`
+	Content    string         `json:"content"`
+	ChannelsID string         `json:"channels_id"`
+	UserID     string         `json:"user_id"`
+	Username   string         `json:"username"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `json:"-"`
+	ThreadID   uuid.UUID      `json:"thread_id"`
+	AvatarURL  string         `json:"avatar_url,omitempty"`
+	Edited     bool           `json:"edited,omitempty"`
+}
+
+var MessageMapping = map[string]interface{}{
+	"properties": map[string]interface{}{
+		"id":          map[string]string{"type": "keyword"},
+		"channels_id": map[string]string{"type": "keyword"},
+		"user_id":     map[string]string{"type": "keyword"},
+		"username":    map[string]string{"type": "keyword"},
+		"thread_id":   map[string]string{"type": "keyword"},
+		"avatar_url":  map[string]string{"type": "text"},
+		"edited":      map[string]string{"type": "boolean"},
+		"content":     map[string]string{"type": "text"},
+		"created_at": map[string]string{
+			"type":   "date",
+			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+		},
+		"updated_at": map[string]string{
+			"type":   "date",
+			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+		},
+		"deleted_at": map[string]string{
+			"type":   "date",
+			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+		},
+	},
+}
+
 type CreateMessageRequest struct {
 	Content    string `json:"content" validate:"required"`
 	UserId     string `json:"user_id"`
@@ -42,49 +83,88 @@ type EditMessageRequest struct {
 	MessageId  string `json:"message_id" validate:"required"`
 }
 
-func (m *Message) CreateMessage(db *gorm.DB, typesenseDb *typesense.Client) error {
+func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) error {
 	var (
 		userChannels UserChannels
 		profile      Profile
+		thread       Threads
 	)
 
-	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	indexName := "messages"
+
+	exist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	if !exist {
 		return errors.New("user not in channel")
 	}
 
 	m.Username = userChannels.Username
 
-	err := postgresql.CreateOneRecord(db, m)
+	err := elastic.AddDocument(db.Elastic, indexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
 	}
 
-	err = profile.GetProfileByUserId(db, m.UserID)
+	_, err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+
+	if len(thread.Messages) < 5 {
+
+		script := `if (ctx._source.messages == null) {
+			ctx._source.messages = [];
+		}
+		boolean found = false;
+		for (int i = 0; i < ctx._source.messages.size(); i++) {
+			if (ctx._source.messages[i] != null && ctx._source.messages[i].user_id == params.message.user_id) {
+				ctx._source.messages[i] = params.message;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			ctx._source.messages.add(params.message);
+		}
+		ctx._source.message_count++;
+		ctx._source.last_reply = params.message.created_at;`
+
+		req := map[string]interface{}{
+			"script": map[string]interface{}{
+				"source": script,
+				"params": map[string]interface{}{
+					"message": &m,
+				},
+			},
+		}
+
+		err = elastic.UpdateDocWithScript(db.Elastic, "threads", m.ThreadID.String(), req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+			return err
+		}
+
+	} else {
+
+		script := `ctx._source.message_count++;
+		ctx._source.last_reply = params.created_at;`
+
+		req := map[string]interface{}{
+			"script": map[string]interface{}{
+				"source": script,
+				"params": map[string]interface{}{
+					"created_at": &m.CreatedAt,
+				},
+			},
+		}
+
+		err = elastic.UpdateDocWithScript(db.Elastic, "threads", m.ThreadID.String(), req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+			return err
+		}
+
+	}
+
+	err = profile.GetProfileByUserId(db.Postgresql, m.UserID)
 	if err != nil {
 		return err
-	}
-
-	threadId := m.ThreadID.String()
-	messageDocument := ChannelDocument{
-		ID:           m.ID,
-		Type:         "message",
-		ChannelsID:   m.ChannelsID,
-		ThreadID:     threadId,
-		UserID:       m.UserID,
-		Username:     m.Username,
-		Content:      m.Content,
-		CreatedAt:    m.CreatedAt.Unix(),
-		EventName:    "",
-		ActionType:   "",
-		Status:       "",
-		MessageCount: 0,
-		AvatarURL:    profile.AvatarURL,
-	}
-
-	err = tydb.InsertDocument(typesenseDb, m.ChannelsID, messageDocument)
-	if err != nil {
-		return errors.New("could not create message document in Typesense")
 	}
 
 	return nil

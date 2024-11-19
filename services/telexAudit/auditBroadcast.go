@@ -5,16 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/typesense/typesense-go/v2/typesense"
-	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/webhook"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SignupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesense.Client) error {
+func SignupAudit(db *storage.Database, logger *utility.Logger, data gin.H) error {
 
 	var (
 		req models.CreateWebhookHistoryRequest
@@ -35,7 +34,7 @@ func SignupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesen
 	req.Message = fmt.Sprintf("User with email %s signed up", email)
 	req.AvatarURL = fmt.Sprintf("%s/TelexIcon.svg", config.Config.App.FRONTEND_URL)
 
-	_, _, err := webhook.PostFeedWebhook(db, logger, req, typDb)
+	_, _, err := webhook.PostFeedWebhook(db, logger, req)
 
 	if err != nil {
 		return err
@@ -44,7 +43,7 @@ func SignupAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesen
 	return nil
 }
 
-func LoginAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesense.Client) error {
+func LoginAudit(db *storage.Database, logger *utility.Logger, data gin.H) error {
 
 	var (
 		req models.CreateWebhookHistoryRequest
@@ -66,7 +65,7 @@ func LoginAudit(db *gorm.DB, logger *utility.Logger, data gin.H, typDb *typesens
 	req.Message = fmt.Sprintf("User with email %s loggedin ", email)
 	req.AvatarURL = fmt.Sprintf("%s/TelexIcon.svg", config.Config.App.FRONTEND_URL)
 
-	_, _, err := webhook.PostFeedWebhook(db, logger, req, typDb)
+	_, _, err := webhook.PostFeedWebhook(db, logger, req)
 
 	if err != nil {
 		return err

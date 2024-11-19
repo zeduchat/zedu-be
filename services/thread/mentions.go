@@ -14,32 +14,40 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
 )
 
-func SaveThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *typesense.Client, logger *utility.Logger) (*models.Threads, error) {
+func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
 		profile models.Profile
 		user    models.User
+		channel models.Channels
 	)
 
-	err := profile.GetProfileByUserId(db, req.UserId)
+	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
 	if err != nil {
 		return nil, errors.New("failed to get user profile")
 	}
 
-	user, err = user.GetUserByID(db, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
 	if err != nil {
 		return nil, errors.New("failed to get user")
 	}
 
-	thread := models.Threads{
+	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+
+	if !ch || err != nil {
+		return nil, errors.New("channel does not exist")
+	}
+
+	threadDoc := models.ThreadDocument{
 		ID:            req.ThreadId,
 		Username:      profile.UserName,
 		Content:       req.Content,
@@ -49,10 +57,15 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *
 		AvatarURL:     profile.AvatarURL,
 		FullName:      profile.FullName,
 		Email:         user.Email,
+		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
+		UserId:        req.UserId,
+		Messages:      []models.MessageDocument{},
+		ChannelName:   channel.Name,
 	}
 
-	if err = thread.CreateThread(db, typesenseDb); err != nil {
+	err = threadDoc.CreateThread(db, logger)
+	if err != nil {
 		return nil, err
 	}
 
@@ -74,25 +87,25 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *
 		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	return &thread, nil
+	return &threadDoc, nil
 }
 
-func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *typesense.Client, logger *utility.Logger) (*models.Threads, error) {
+func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
 		routing_key = "new_message"
 		oci         models.OrganisationChannelsIntegrations
 	)
 
-	res, err := oci.CheckHasFilterIntegrations(db, req.ChannelsID)
+	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
-		return &models.Threads{}, fmt.Errorf("failed fetching filter status, error: %v", err)
+		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
 	}
 
 	if !res {
-		return SaveThreadMessage(req, db, typesenseDb, logger)
+		return SaveThreadMessage(req, db, logger)
 	}
 
 	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
@@ -126,16 +139,16 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
-		return &models.Threads{}, fmt.Errorf("failed to marshal payload, error: %v", err)
+		return &models.ThreadDocument{}, fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db, string(payloadBytes), routing_key)
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
-		return &models.Threads{}, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+		return &models.ThreadDocument{}, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 	}
 
-	return &models.Threads{}, nil
+	return &models.ThreadDocument{}, nil
 
 }
 
