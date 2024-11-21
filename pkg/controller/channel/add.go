@@ -51,7 +51,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+	response, code, err := channel.AddChannelsMsg(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -101,7 +101,7 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -132,7 +132,7 @@ func (base *Controller) SaveIncomingQueueMsg(c *gin.Context) {
 		return
 	}
 
-	channel.SaveIncomingQueueMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+	channel.SaveIncomingQueueMsg(req, base.Db, base.Logger)
 
 	base.Logger.Info("message added successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", nil)

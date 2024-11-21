@@ -2,6 +2,7 @@ package thread
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -39,6 +40,7 @@ func (base *Controller) GetAllUserOrgThreads(c *gin.Context) {
 	usersData, paginationResponse, code, err := service.GetAllUserOrgThreads(orgID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		c.JSON(code, rd)
 		return
 	}
@@ -57,6 +59,7 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 	if _, err := uuid.Parse(channelID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -89,6 +92,7 @@ func (base *Controller) GetChannelThreads(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -121,6 +125,7 @@ func (base *Controller) GetUserSingleThreads(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -168,6 +173,7 @@ func (base *Controller) UpdateAThread(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -223,11 +229,12 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	ThreadData, err := service.CreateThreadMessage(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+	ThreadData, err := service.CreateThreadMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 

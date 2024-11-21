@@ -1,17 +1,22 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	"github.com/hngprojects/telex_be/utility"
 )
+
+var ThreadIndexName = "threads"
 
 type Threads struct {
 	ID            string     `gorm:"type:uuid;primary_key" json:"thread_id"`
@@ -32,6 +37,62 @@ type Threads struct {
 	FullName      string     `json:"full_name"`
 	Email         string     `json:"email"`
 	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+}
+
+type ThreadDocument struct {
+	ID            string            `json:"thread_id"`
+	ChannelsID    string            `json:"channels_id"`
+	EventName     string            `json:"event_name"`
+	Username      string            `json:"username"`
+	ActionType    string            `json:"action_type"`
+	Status        string            `json:"status"`
+	CreatedAt     time.Time         `json:"created_at"`
+	MessageCount  int64             `json:"message_count"`
+	LastReply     time.Time         `json:"last_reply"`
+	AvatarURL     string            `json:"avatar_url"`
+	Type          string            `json:"type"`
+	Content       string            `json:"message"`
+	ChannelName   string            `json:"channel_name"`
+	CurrentStatus string            `json:"current_status"`
+	FullName      string            `json:"full_name"`
+	Email         string            `json:"email"`
+	UserId        string            `json:"user_id"`
+	Messages      []MessageDocument `json:"messages,omitempty"`
+}
+
+var Thread_mapping = map[string]interface{}{
+
+	"mappings": map[string]interface{}{
+		"properties": map[string]interface{}{
+			"id":          map[string]string{"type": "keyword"},
+			"channels_id": map[string]string{"type": "keyword"},
+			"user_id":     map[string]string{"type": "keyword"},
+			"event_name":  map[string]string{"type": "text"},
+			"username":    map[string]string{"type": "keyword"},
+			"action_type": map[string]string{"type": "text"},
+			"status":      map[string]string{"type": "text"},
+			"created_at": map[string]string{
+				"type":   "date",
+				"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+			},
+			"message_count": map[string]string{"type": "integer"},
+			"last_reply": map[string]string{
+				"type":   "date",
+				"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+			},
+			"avatar_url":     map[string]string{"type": "text"},
+			"type":           map[string]string{"type": "keyword"},
+			"message":        map[string]string{"type": "text"},
+			"channel_name":   map[string]string{"type": "keyword"},
+			"current_status": map[string]string{"type": "text"},
+			"full_name":      map[string]string{"type": "text"},
+			"email":          map[string]string{"type": "text"},
+			"messages": map[string]interface{}{
+				"type":       "nested",
+				"properties": MessageMapping,
+			},
+		},
+	},
 }
 
 type Reaction struct {
@@ -80,15 +141,15 @@ type CreateThreadMsgReq struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID  string `json:"channel_id"`
-	FullName   string `json:"full_name"`
-	UserName   string `json:"user_name"`
-	CreatedAt  string `json:"created_at"`
-	Email      string `json:"email"`
-	AvatarURL  string `json:"avatar_url,omitempty"`
-	Type       string `json:"type"`
-	Content    string `json:"message"`
-	ThreadId   string `json:"thread_id"`
+	ChannelID string `json:"channel_id"`
+	FullName  string `json:"full_name"`
+	UserName  string `json:"user_name"`
+	CreatedAt string `json:"created_at"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+	Type      string `json:"type"`
+	Content   string `json:"message"`
+	ThreadId  string `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -148,15 +209,10 @@ type UpdateThreadStatus struct {
 	Status string `json:"status" validate:"required,oneof=pending completed"`
 }
 
-func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error {
+func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
 
-	exist := postgresql.CheckExists(db, &Threads{}, "id", t.ID)
+	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
-	if exist {
-		return nil
-	}
-
-	err := postgresql.CreateOneRecord(db, t)
 	if err != nil {
 		return err
 	}
@@ -177,7 +233,7 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 		AvatarURL:    t.AvatarURL,
 	}
 
-	err = tydb.InsertDocument(typesenseDb, t.ChannelsID, threadDocument)
+	err = tydb.InsertDocument(db.TypeSense, t.ChannelsID, threadDocument)
 	if err != nil {
 		return errors.New("could not create thread document in Typesense an error occurred: " + err.Error())
 	}
@@ -185,14 +241,12 @@ func (t *Threads) CreateThread(db *gorm.DB, typesenseDb *typesense.Client) error
 	return nil
 }
 
-func (c *Threads) UpdateThread(db *gorm.DB) (*Threads, error) {
-	result, err := postgresql.SaveAllFields(db, &c)
-	if err != nil {
-		return nil, err
-	}
+func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Threads, error) {
 
-	if result.RowsAffected == 0 {
-		return nil, errors.New("failed to update thread")
+	err := elastic.UpdateDocument(storage.DB.Elastic, ThreadIndexName, c.ID, req)
+
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("failed to update thread, err: %v", err))
 	}
 
 	return c, nil
@@ -207,144 +261,245 @@ func (m *Mentions) CreateMention(db *gorm.DB) error {
 	return nil
 }
 
-func (t *Threads) GetThreadById(db *gorm.DB, ChannelID, threadID string) (*Threads, error) {
+func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) {
 
-	err, nerr := postgresql.SelectOneFromDb(db, &t, "id = ? and channels_id = ?", threadID, ChannelID)
-	if nerr != nil {
-		return t, err
+	var (
+		threadData interface{}
+	)
+
+	err := elastic.SelectByID(storage.DB.Elastic, ThreadIndexName, threadID, &threadData)
+
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
 	}
+
+	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+
+	if err := json.Unmarshal(rawJSON, &t); err != nil {
+		return nil, fmt.Errorf("failed to decode search response: %v", err)
+
+	}
+
 	return t, nil
 }
 
-func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, postgresql.PaginationResponse, error) {
+func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
-		threads            []Threads
-		ErrNotFound        = errors.New("threads not found")
-		paginationResponse postgresql.PaginationResponse
+		threads []Threads
 	)
 
-	var userChannels UserChannels
-	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userId)
-	if !exist {
-		return nil, postgresql.PaginationResponse{}, errors.New("user not in channel")
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	// Build the query
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"channels_id.keyword": channelID,
+			},
+		},
+		"from": from,
+		"size": limit,
+		"sort": []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
 	}
 
-	pagination := postgresql.GetPagination(c)
+	var threadData interface{}
 
-	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.full_name, threads.email, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
-		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Where("threads.channels_id = ?", channelID).
-		Group("threads.id").
-		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
-				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
-				Order("messages.thread_id, messages.user_id, messages.created_at DESC").
-				Limit(5)
-		})
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		query,
-		"threads.created_at",
-		"desc",
-		pagination,
-		&threads,
-		nil,
-	)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, paginationResponse, ErrNotFound
-		}
-		return nil, paginationResponse, errors.New("failed to fetch record")
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
 	}
 
-	return threads, paginationResponse, nil
+	threads, err = UnMarsahlThreadResponse(threadData)
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return threads, pagR, nil
 }
 
-func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, postgresql.PaginationResponse, error) {
+func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
-		threads            []Threads
-		ErrNotFound        = errors.New("threads not found")
-		paginationResponse postgresql.PaginationResponse
+		threads []Threads
 	)
 
-	var userChannels UserChannels
-	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userId)
-	if !exist {
-		return nil, postgresql.PaginationResponse{}, errors.New("user not in channel")
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	// Build the query
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"term": map[string]interface{}{
+							"channels_id.keyword": channelID,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"type.keyword": "thread",
+						},
+					},
+				},
+			},
+		},
+		"from": from,
+		"size": limit,
+		"sort": []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
 	}
 
-	pagination := postgresql.GetPagination(c)
+	var threadData interface{}
 
-	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, threads.full_name, threads.email, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
-		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Where("threads.type = ? OR threads.type IS NULL", "thread").
-		Where("threads.channels_id = ?", channelID).
-		Group("threads.id").
-		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
-				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
-				Order("messages.thread_id, messages.user_id, messages.created_at DESC").
-				Limit(5)
-		})
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		query,
-		"threads.created_at",
-		"desc",
-		pagination,
-		&threads,
-		nil,
-	)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, paginationResponse, ErrNotFound
-		}
-		return nil, paginationResponse, errors.New("failed to fetch record")
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
 	}
 
-	return threads, paginationResponse, nil
+	threads, err = UnMarsahlThreadResponse(threadData)
+
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return threads, pagR, nil
 }
 
-func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, userId, organisationID string) ([]Threads, postgresql.PaginationResponse, error) {
+func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, userId, organisationID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
-		threads     []Threads
-		ErrNotFound = errors.New("threads not found")
+		threads    []Threads
+		channelIDs []string
+		threadData interface{}
+		threadIDs  []string
 	)
 
-	query := db.Model(&Threads{}).
-		Select("threads.id, threads.channels_id, channels.name as channel_name, threads.current_status, threads.email, threads.event_name, threads.username, threads.content, threads.type, threads.avatar_url, threads.action_type, threads.created_at, threads.status, COUNT(messages) as message_count, MAX(messages.created_at) as last_reply").
-		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Joins("LEFT JOIN channels ON threads.channels_id = channels.id").
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	err := db.Model(&Channels{}).
+		Select("channels.id").
 		Where("channels.organisation_id = ?", organisationID).
-		Where("EXISTS (SELECT * FROM messages WHERE messages.thread_id = threads.id AND messages.user_id = ?)", userId).
-		Group("threads.id, channels.name").
-		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Select("DISTINCT ON (messages.thread_id, messages.user_id) messages.*, profiles.avatar_url").
-				Joins("LEFT JOIN profiles ON profiles.userid = messages.user_id").
-				Order("messages.thread_id, messages.user_id, messages.created_at DESC").
-				Limit(5)
-		})
+		Find(&channelIDs).Error
 
-	pagination := postgresql.GetPagination(c)
-
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		query,
-		"created_at",
-		"desc",
-		pagination,
-		&threads,
-		nil,
-	)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, paginationResponse, ErrNotFound
-		}
-		return nil, paginationResponse, err
+		return nil, nil, fmt.Errorf("Error fetching channel IDs: %v", err)
 	}
 
-	return threads, paginationResponse, nil
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"terms": map[string]interface{}{
+							"channels_id.keyword": channelIDs,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"user_id.keyword": userId,
+						},
+					},
+				},
+			},
+		},
+		"stored_fields": []string{},
+		"from":          from,
+		"size":          limit,
+		"aggs": map[string]interface{}{
+			"unique_thread_ids": map[string]interface{}{
+				"terms": map[string]interface{}{
+					"field": "thread_id.keyword",
+					"size":  limit,
+				},
+			},
+		},
+	}
+
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "messages", query, &threadData, c)
+
+	if err != nil {
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+	}
+
+	var searchResult struct {
+		Hits struct {
+			Hits []struct {
+				Source Message `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+		Aggs struct {
+			UniqueThreadIDs struct {
+				Buckets []struct {
+					Key      string `json:"key"`
+					DocCount int    `json:"doc_count"`
+				} `json:"buckets"`
+			} `json:"unique_thread_ids"`
+		} `json:"aggregations"`
+	}
+
+	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+
+	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
+		return threads, pagR, fmt.Errorf("failed to decode search response: %v", err)
+	}
+
+	// Extract unique thread IDs from the aggregation buckets
+
+	for _, bucket := range searchResult.Aggs.UniqueThreadIDs.Buckets {
+		threadIDs = append(threadIDs, bucket.Key)
+	}
+
+	// Build the query
+	query = map[string]interface{}{
+		"query": map[string]interface{}{
+			"terms": map[string]interface{}{
+				"thread_id.keyword": threadIDs,
+			},
+		},
+		"from": from,
+		"size": limit,
+		"sort": []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+
+	if err != nil {
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+	}
+
+	threads, err = UnMarsahlThreadResponse(threadData)
+
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return threads, pagR, nil
 }
 
 func (t *Threads) GetSingleThreadWithRepliesFull(db *gorm.DB, ChannelID, threadID string) (*Threads, error) {
@@ -403,4 +558,30 @@ func (r *Threads) GetSingleThreadWithReplies(db *gorm.DB, c *gin.Context, userID
 	}
 
 	return messagesResp, paginationResponse, nil
+}
+
+func UnMarsahlThreadResponse(threadData interface{}) (threads []Threads, err error) {
+
+	var searchResult struct {
+		Hits struct {
+			Hits []struct {
+				Source Threads `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+
+	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+
+	if errr := json.Unmarshal(rawJSON, &searchResult); errr != nil {
+		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
+		return
+	}
+
+	threads = make([]Threads, len(searchResult.Hits.Hits))
+
+	for i, hit := range searchResult.Hits.Hits {
+		threads[i] = hit.Source
+	}
+
+	return
 }
