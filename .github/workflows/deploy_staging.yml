@@ -7,11 +7,20 @@ on:
       - staging
 
 jobs:
-  deploy_staging:
+  deploy_main:
+    strategy:
+      matrix:
+        deployment:
+          - username: ${{ secrets.SSH_USERNAME }}
+            host: ${{ secrets.SSH_HOST }}
+            key: ${{ secrets.SSH_KEY }}
+          - username: ${{ secrets.TELEX_SERVER_SSH_USER }}
+            host: ${{ secrets.TELEX_SERVER_SSH_HOST }}
+            key: ${{ secrets.TELEX_SERVER_SSH_KEY }}
     uses: ./.github/workflows/deploy_backend.yml
     with:
       environment: staging
     secrets:
-      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_USERNAME: ${{ matrix.deployment.username }}
+      SSH_HOST: ${{ matrix.deployment.host }}
+      SSH_KEY: ${{ matrix.deployment.key }}
