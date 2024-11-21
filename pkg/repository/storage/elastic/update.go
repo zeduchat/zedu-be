@@ -23,7 +23,6 @@ func UpdateDocument(client *elasticsearch.Client, indexName, docID string, updat
 	if res.IsError() {
 		return fmt.Errorf("error response from Elasticsearch: %s", res.String())
 	}
-	fmt.Printf("Document %s updated successfully\n", docID)
 	return nil
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
@@ -36,6 +37,7 @@ func Setup() *utility.Logger {
 	redis.ConnectToRedis(logger, config.Redis)
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
 	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
+	elastic.ConnectToElastic(logger, config.Elastic)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)

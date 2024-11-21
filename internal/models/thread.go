@@ -16,6 +16,8 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+var ThreadIndexName = "threads"
+
 type Threads struct {
 	ID            string     `gorm:"type:uuid;primary_key" json:"thread_id"`
 	ChannelsID    string     `gorm:"type:uuid;index" json:"channels_id"`
@@ -209,7 +211,7 @@ type UpdateThreadStatus struct {
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
 
-	err := elastic.AddDocument(db.Elastic, "threads", t.ID, interface{}(&t), logger)
+	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
 	if err != nil {
 		return err
@@ -239,14 +241,12 @@ func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logg
 	return nil
 }
 
-func (c *Threads) UpdateThread(db *gorm.DB) (*Threads, error) {
-	result, err := postgresql.SaveAllFields(db, &c)
-	if err != nil {
-		return nil, err
-	}
+func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Threads, error) {
 
-	if result.RowsAffected == 0 {
-		return nil, errors.New("failed to update thread")
+	err := elastic.UpdateDocument(storage.DB.Elastic, ThreadIndexName, c.ID, req)
+
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("failed to update thread, err: %v", err))
 	}
 
 	return c, nil
@@ -267,7 +267,7 @@ func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) 
 		threadData interface{}
 	)
 
-	err := elastic.SelectByID(storage.DB.Elastic, "threads", threadID, &threadData)
+	err := elastic.SelectByID(storage.DB.Elastic, ThreadIndexName, threadID, &threadData)
 
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
@@ -313,7 +313,7 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 
 	var threadData interface{}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "threads", query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
@@ -368,12 +368,12 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 
 	var threadData interface{}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "threads", query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
 	}
-	
+
 	threads, err = UnMarsahlThreadResponse(threadData)
 
 	if err != nil {
@@ -487,7 +487,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		},
 	}
 
-	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, "threads", query, &threadData, c)
+	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))

@@ -14,6 +14,8 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+var MessageIndexName = "messages"
+
 type Message struct {
 	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
 	Content    string         `gorm:"column:content; type:text; not null" json:"content"`
@@ -90,8 +92,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		thread       Threads
 	)
 
-	indexName := "messages"
-
 	exist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	if !exist {
 		return errors.New("user not in channel")
@@ -99,7 +99,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 
 	m.Username = userChannels.Username
 
-	err := elastic.AddDocument(db.Elastic, indexName, m.ID, interface{}(&m), logger)
+	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 			},
 		}
 
-		err = elastic.UpdateDocWithScript(db.Elastic, "threads", m.ThreadID.String(), req)
+		err = elastic.UpdateDocWithScript(db.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
 			return err
@@ -154,7 +154,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 			},
 		}
 
-		err = elastic.UpdateDocWithScript(db.Elastic, "threads", m.ThreadID.String(), req)
+		err = elastic.UpdateDocWithScript(db.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
 			return err

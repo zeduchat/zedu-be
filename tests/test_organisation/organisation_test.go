@@ -72,7 +72,7 @@ func TestOrganizationCreate(t *testing.T) {
 				Country:     "wakanda",
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "organisation created successfully",
+			Message:      "Organisation Created Successfully",
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,

@@ -103,7 +103,8 @@ type BaseConfig struct {
 	RABBITMQ_CONNECTION string `mapstructure:"RABBITMQ_CONNECTION"`
 	RABBITMQ_EXCHANGE   string `mapstructure:"RABBITMQ_EXCHANGE"`
 
-	ELASTIC_URL string `mapstructure:"ELASTIC_URL"`
+	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
+	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -219,6 +220,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		},
 		Elastic: ElasticDb{
 			ElasticEndpoint: config.ELASTIC_URL,
+			ElasticApiKey:   config.ELASTIC_API_KEY,
 		},
 	}
 }

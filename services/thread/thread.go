@@ -166,15 +166,14 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 		return code, err
 	}
 
-	threadData, err := thread.GetThreadById(db, threadID)
-	if err != nil {
-		return http.StatusBadRequest, err
+	thread.ID = threadID
+
+	updateKey := map[string]interface{}{
+		"current_status": req.Status,
 	}
 
-	threadData.CurrentStatus = req.Status
-
-	if _, err := threadData.UpdateThread(db); err != nil {
-		return http.StatusBadRequest, err
+	if _, err := thread.UpdateThread(db, updateKey); err != nil {
+		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusOK, nil
