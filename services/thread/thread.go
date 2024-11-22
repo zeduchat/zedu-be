@@ -112,7 +112,7 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*[]models.Message, *elastic.PaginationResponse, int, error) {
+func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*[]models.MessageDocument, *elastic.PaginationResponse, int, error) {
 	var (
 		messages models.Message
 	)

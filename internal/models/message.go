@@ -58,7 +58,9 @@ var MessageMapping = map[string]interface{}{
 		"thread_id":   map[string]string{"type": "keyword"},
 		"avatar_url":  map[string]string{"type": "text"},
 		"edited":      map[string]string{"type": "boolean"},
-		"content":     map[string]string{"type": "text"},
+		"message":     map[string]string{"type": "text"},
+		"full_name":   map[string]string{"type": "text"},
+		"email":       map[string]string{"type": "text"},
 		"created_at": map[string]string{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -213,9 +215,9 @@ func (m *Message) GetMessageByID(db *gorm.DB, messageID string) (Message, error)
 	return message, nil
 }
 
-func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]Message, *elastic.PaginationResponse, error) {
+func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
-		messages []Message
+		messages []MessageDocument
 	)
 
 	pag := elastic.GetPagination(c)
@@ -257,12 +259,12 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 	return messages, pagR, nil
 }
 
-func UnMarsahlMessageResponse(messageData interface{}) (messages []Message, err error) {
+func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocument, err error) {
 
 	var searchResult struct {
 		Hits struct {
 			Hits []struct {
-				Source Message `json:"_source"`
+				Source MessageDocument `json:"_source"`
 			} `json:"hits"`
 		} `json:"hits"`
 	}
@@ -274,7 +276,7 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []Message, err 
 		return
 	}
 
-	messages = make([]Message, len(searchResult.Hits.Hits))
+	messages = make([]MessageDocument, len(searchResult.Hits.Hits))
 
 	for i, hit := range searchResult.Hits.Hits {
 		messages[i] = hit.Source
