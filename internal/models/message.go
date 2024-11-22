@@ -1,10 +1,12 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
@@ -36,13 +38,15 @@ type MessageDocument struct {
 	Content    string         `json:"content"`
 	ChannelsID string         `json:"channels_id"`
 	UserID     string         `json:"user_id"`
-	Username   string         `json:"username"`
+	Username   string         `json:"user_name"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `json:"-"`
 	ThreadID   uuid.UUID      `json:"thread_id"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
 	Edited     bool           `json:"edited,omitempty"`
+	FullName   string         `json:"full_name,omitempty"`
+	Email      string         `json:"email,omitempty"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -207,4 +211,74 @@ func (m *Message) GetMessageByID(db *gorm.DB, messageID string) (Message, error)
 		return message, nerr
 	}
 	return message, nil
+}
+
+func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]Message, *elastic.PaginationResponse, error) {
+	var (
+		messages []Message
+	)
+
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	// Build the query
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"thread_id.keyword": ThreadID,
+			},
+		},
+		"from": from,
+		"size": limit,
+		"sort": []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var messageData interface{}
+
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, MessageIndexName, query, &messageData, c)
+
+	if err != nil {
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch message records, error: %v", err))
+	}
+
+	messages, err = UnMarsahlMessageResponse(messageData)
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return messages, pagR, nil
+}
+
+func UnMarsahlMessageResponse(messageData interface{}) (messages []Message, err error) {
+
+	var searchResult struct {
+		Hits struct {
+			Hits []struct {
+				Source Message `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+
+	rawJSON, _ := json.MarshalIndent(messageData.(map[string]interface{}), "", "  ")
+
+	if errr := json.Unmarshal(rawJSON, &searchResult); errr != nil {
+		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
+		return
+	}
+
+	messages = make([]Message, len(searchResult.Hits.Hits))
+
+	for i, hit := range searchResult.Hits.Hits {
+		messages[i] = hit.Source
+	}
+
+	return
 }
