@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/go-redis/redis/v8"
 	"github.com/minio/minio-go/v7"
 	"github.com/typesense/typesense-go/v2/typesense"
@@ -14,6 +15,7 @@ type Database struct {
 	Redis      *redis.Client
 	Minio      *minio.Client
 	TypeSense  *typesense.Client
+	Elastic    *elasticsearch.Client
 }
 
 var (

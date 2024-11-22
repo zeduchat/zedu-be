@@ -41,7 +41,7 @@ func (base *Controller) GoogleLogin(c *gin.Context) {
 
 	base.Logger.Info("user sign in successfully")
 
-	err = telexaudit.LoginAudit(base.Db.Postgresql, base.Logger, respData, base.Db.TypeSense)
+	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
 	if err != nil {
 		base.Logger.Error("error broadcasting login audit: ", err.Error())
 	}

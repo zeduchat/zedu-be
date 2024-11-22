@@ -8,46 +8,39 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
+func PostWebhook(db *storage.Database, logger *utility.Logger, req models.CreateWebhookHistoryRequest) (gin.H, int, error) {
 
 	var (
-		resp           gin.H
-		webhook        models.Webhook
-		HistoryWebhook models.HistoryWebhook
+		resp    gin.H
+		webhook models.Webhook
+		channel models.Channels
 	)
 
-	webhook, err := webhook.CheckExistBySlug(db, req.WebhookSlug)
+	webhook, err := webhook.CheckExistBySlug(db.Postgresql, req.WebhookSlug)
 
 	if err != nil {
 		logger.Error("invalid webhook" + err.Error())
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
 	}
 
-	HistoryWebhook = models.HistoryWebhook{
-		ID:          utility.GenerateUUID(),
-		EventName:   req.EventName,
-		WebhookID:   webhook.ID,
-		WebhookSlug: req.WebhookSlug,
-		ActionType:  req.ActionType,
-		StatusCode:  "200",
-		Retries:     int64(0),
-	}
-	err = HistoryWebhook.CreateWebhookHistory(db)
-	if err != nil {
-		logger.Error("failed to create webhook history" + err.Error())
+	ch, err := channel.CheckChannelExists(db.Postgresql, webhook.ChannelId)
+
+	if !ch || err != nil {
+		logger.Error("invalid webhook" + err.Error())
+		return nil, http.StatusInternalServerError, errors.New("channel does not exist")
 	}
 
-	thread := models.Threads{
+	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		ChannelsID:    webhook.ChannelId,
 		EventName:     req.EventName,
@@ -58,11 +51,17 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 		Type:          "thread",
 		Content:       req.Message,
 		CurrentStatus: "pending",
+		CreatedAt:     time.Now().UTC(),
+		ChannelName:   channel.Name,
+		Messages:      []models.MessageDocument{},
+		MessageCount:  0,
 	}
-	err = thread.CreateThread(db, typesenseDb)
+
+	err = threadDoc.CreateThread(db, logger)
+
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
-		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
+		return nil, http.StatusInternalServerError, err
 	}
 
 	feed := models.FeedWebHookRequest{
@@ -86,21 +85,21 @@ func PostWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHi
 	return resp, http.StatusOK, nil
 }
 
-func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest, typesenseDb *typesense.Client) (gin.H, int, error) {
+func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.CreateWebhookHistoryRequest) (gin.H, int, error) {
 
 	var (
 		resp    gin.H
 		channel models.Channels
 	)
 
-	_, err := channel.CheckChannelExists(db, req.ChannelID)
+	_, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID)
 
 	if err != nil {
 		logger.Error("error getting channel err: " + err.Error())
 		return nil, http.StatusNotFound, errors.New("error getting channel, channel does not exist")
 	}
 
-	thread := models.Threads{
+	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		ChannelsID:    req.ChannelID,
 		EventName:     req.EventName,
@@ -111,12 +110,17 @@ func PostFeedWebhook(db *gorm.DB, logger *utility.Logger, req models.CreateWebho
 		Type:          "thread",
 		Content:       req.Message,
 		CurrentStatus: "pending",
+		CreatedAt:     time.Now().UTC(),
+		ChannelName:   channel.Name,
+		Messages:      []models.MessageDocument{},
+		MessageCount:  0,
 	}
 
-	err = thread.CreateThread(db, typesenseDb)
+	err = threadDoc.CreateThread(db, logger)
+
 	if err != nil {
 		logger.Error("failed to create webhook thread" + err.Error())
-		return nil, http.StatusBadRequest, errors.New("failed to create new thread")
+		return nil, http.StatusInternalServerError, err
 	}
 
 	feed := models.FeedWebHookRequest{

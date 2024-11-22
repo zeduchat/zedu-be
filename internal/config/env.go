@@ -19,7 +19,8 @@ type Configuration struct {
 	Stripe       Stripe
 	TypeSense    TypeSense
 	Channels     Channels
-	RabbitMQ	 RabbitMQ
+	RabbitMQ     RabbitMQ
+	Elastic      ElasticDb
 }
 
 type BaseConfig struct {
@@ -101,6 +102,9 @@ type BaseConfig struct {
 
 	RABBITMQ_CONNECTION string `mapstructure:"RABBITMQ_CONNECTION"`
 	RABBITMQ_EXCHANGE   string `mapstructure:"RABBITMQ_EXCHANGE"`
+
+	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
+	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -213,6 +217,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		RabbitMQ: RabbitMQ{
 			Connection: config.RABBITMQ_CONNECTION,
 			Exchange:   config.RABBITMQ_EXCHANGE,
+		},
+		Elastic: ElasticDb{
+			ElasticEndpoint: config.ELASTIC_URL,
+			ElasticApiKey:   config.ELASTIC_API_KEY,
 		},
 	}
 }

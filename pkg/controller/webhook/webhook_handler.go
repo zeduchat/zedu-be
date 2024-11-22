@@ -39,7 +39,7 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.PostFeedWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
+	respData, code, err := webhook.PostFeedWebhook(base.Db, base.Logger, req)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "post to channel failed", err.Error(), nil)
@@ -81,7 +81,7 @@ func (base *Controller) PostSlugWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
+	respData, code, err := webhook.PostWebhook(base.Db, base.Logger, req)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "post to channel failed", err.Error(), nil)
@@ -114,7 +114,7 @@ func (base *Controller) GetSlugWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
+	respData, code, err := webhook.PostWebhook(base.Db, base.Logger, req)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -176,7 +176,7 @@ func (base *Controller) GetSlugWebhookQueue(c *gin.Context) {
 		c.JSON(http.StatusOK, rd)
 	} else {
 		//send to the channel
-		respData, code, err := webhook.PostWebhook(base.Db.Postgresql, base.Logger, req, base.Db.TypeSense)
+		respData, code, err := webhook.PostWebhook(base.Db, base.Logger, req)
 
 		if err != nil {
 			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
