@@ -10,7 +10,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/user"
 )
 
@@ -113,10 +112,9 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*models.MessagesResp, *postgresql.PaginationResponse, int, error) {
+func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*[]models.Message, *elastic.PaginationResponse, int, error) {
 	var (
-		accessData models.Threads
-		accessResp models.MessagesResp
+		messages models.Message
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -134,7 +132,7 @@ func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Contex
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetSingleThreadWithReplies(db, c, userID, channelID, threadID)
+	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, db, userID, threadID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -143,7 +141,7 @@ func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Contex
 
 	}
 
-	return &accessResp, &paginationResponse, http.StatusOK, nil
+	return &accessResp, paginationResponse, http.StatusOK, nil
 }
 
 func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db *gorm.DB, c *gin.Context) (int, error) {
