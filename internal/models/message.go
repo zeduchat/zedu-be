@@ -35,7 +35,7 @@ type Message struct {
 
 type MessageDocument struct {
 	ID         string         `json:"id"`
-	Content    string         `json:"content"`
+	Content    string         `json:"message"`
 	ChannelsID string         `json:"channels_id"`
 	UserID     string         `json:"user_id"`
 	Username   string         `json:"user_name"`
@@ -43,10 +43,10 @@ type MessageDocument struct {
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `json:"-"`
 	ThreadID   uuid.UUID      `json:"thread_id"`
-	AvatarURL  string         `json:"avatar_url,omitempty"`
-	Edited     bool           `json:"edited,omitempty"`
-	FullName   string         `json:"full_name,omitempty"`
-	Email      string         `json:"email,omitempty"`
+	AvatarURL  string         `json:"avatar_url"`
+	Edited     bool           `json:"edited"`
+	FullName   string         `json:"full_name"`
+	Email      string         `json:"email"`
 }
 
 var MessageMapping = map[string]interface{}{
