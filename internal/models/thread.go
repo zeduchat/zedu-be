@@ -438,7 +438,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "messages", query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error in %v", err))
 	}
 
 	var searchResult struct {
@@ -464,6 +464,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	// Extract unique thread IDs from the aggregation buckets
+	threadIDs  = make([]string, 0)
 
 	for _, bucket := range searchResult.Aggs.UniqueThreadIDs.Buckets {
 		threadIDs = append(threadIDs, bucket.Key)
