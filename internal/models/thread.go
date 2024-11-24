@@ -391,6 +391,8 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		threadIDs  []string
 	)
 
+	threads = make([]Threads, 0)
+
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
 
