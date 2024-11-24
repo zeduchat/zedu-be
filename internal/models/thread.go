@@ -469,6 +469,10 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		threadIDs = append(threadIDs, bucket.Key)
 	}
 
+	if len(threadIDs) == 0 {
+		return threads, pagR, nil
+	}
+
 	// Build the query
 	query = map[string]interface{}{
 		"query": map[string]interface{}{
@@ -584,4 +588,48 @@ func UnMarsahlThreadResponse(threadData interface{}) (threads []Threads, err err
 	}
 
 	return
+}
+
+func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
+	var (
+		threads []Threads
+	)
+
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	// Build the query
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"channels_id.keyword": channelID,
+			},
+		},
+		"from": from,
+		"size": limit,
+		"sort": []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData interface{}
+
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+
+	if err != nil {
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+	}
+
+	threads, err = UnMarsahlThreadResponse(threadData)
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return threads, pagR, nil
 }
