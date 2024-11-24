@@ -55,6 +55,8 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		AvatarURL:  profile.AvatarURL,
 		Edited:     false,
 		Username:   profile.UserName,
+		FullName:   profile.FullName,
+		Email:      user.Email,
 	}
 
 	err = messageDoc.CreateMessage(db, logger)

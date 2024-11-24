@@ -456,6 +456,8 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		threadIDs  []string
 	)
 
+	threads = make([]Threads, 0)
+
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
 
@@ -503,7 +505,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "messages", query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error in %v", err))
 	}
 
 	var searchResult struct {
@@ -529,8 +531,14 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	// Extract unique thread IDs from the aggregation buckets
+	threadIDs  = make([]string, 0)
+
 	for _, bucket := range searchResult.Aggs.UniqueThreadIDs.Buckets {
 		threadIDs = append(threadIDs, bucket.Key)
+	}
+
+	if len(threadIDs) == 0 {
+		return threads, pagR, nil
 	}
 
 	// Build the query
@@ -648,4 +656,48 @@ func UnmarshalThreadResponse(threadData interface{}) (threads []Threads, err err
 	}
 
 	return
+}
+
+func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
+	var (
+		threads []Threads
+	)
+
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	// Build the query
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"channels_id.keyword": channelID,
+			},
+		},
+		"from": from,
+		"size": limit,
+		"sort": []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData interface{}
+
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+
+	if err != nil {
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+	}
+
+	threads, err = UnMarsahlThreadResponse(threadData)
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return threads, pagR, nil
 }
