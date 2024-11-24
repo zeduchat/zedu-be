@@ -186,7 +186,7 @@ func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string, days int) (mod
 		cm      []models.ChannelMetrics
 	)
 
-	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id, days)
+	response, channelInfoMetrics, err := t.GetChannelCountInfos(db, org_id, days)
 	if err != nil {
 		return channel, cm, err
 	}

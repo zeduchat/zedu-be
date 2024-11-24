@@ -31,7 +31,7 @@ func UpdateDocWithScript(client *elasticsearch.Client, indexName, docID string, 
 	// Convert payload req to JSON
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(req); err != nil {
-		return fmt.Errorf("Error encoding update payload: %s", err)
+		return fmt.Errorf("error encoding update payload: %s", err)
 	}
 
 	res, err := client.Update(
