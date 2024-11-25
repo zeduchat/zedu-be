@@ -18,46 +18,45 @@ import (
 var ThreadIndexName = "threads"
 
 type Threads struct {
-	ID             string     `gorm:"type:uuid;primary_key" json:"thread_id"`
-	ChannelsID     string     `gorm:"type:uuid;index" json:"channels_id"`
-	EventName      string     `gorm:"type:varchar(200);index" json:"event_name"`
-	Username       string     `gorm:"type:varchar(50);index" json:"username"`
-	ActionType     string     `gorm:"type:text;index" json:"action_type"`
-	Status         string     `gorm:"type:varchar(200);index" json:"status"`
-	CreatedAt      time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages       []Message  `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	MessageCount   int64      `gorm:"type:int;" json:"message_count"`
-	LastReply      time.Time  `json:"last_reply"`
-	AvatarURL      string     `json:"avatar_url"`
-	Type           string     `gorm:"default:thread" json:"type"`
-	Content        string     `gorm:"type:text;index" json:"message"`
-	ChannelName    string     `json:"channel_name"`
-	CurrentStatus  string     `json:"current_status"`
-	FullName       string     `json:"full_name"`
-	Email          string     `json:"email"`
-	Reactions      []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+	ID            string     `gorm:"type:uuid;primary_key" json:"thread_id"`
+	ChannelsID    string     `gorm:"type:uuid;index" json:"channels_id"`
+	EventName     string     `gorm:"type:varchar(200);index" json:"event_name"`
+	Username      string     `gorm:"type:varchar(50);index" json:"username"`
+	ActionType    string     `gorm:"type:text;index" json:"action_type"`
+	Status        string     `gorm:"type:varchar(200);index" json:"status"`
+	CreatedAt     time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Messages      []Message  `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	MessageCount  int64      `gorm:"type:int;" json:"message_count"`
+	LastReply     time.Time  `json:"last_reply"`
+	AvatarURL     string     `json:"avatar_url"`
+	Type          string     `gorm:"default:thread" json:"type"`
+	Content       string     `gorm:"type:text;index" json:"message"`
+	ChannelName   string     `json:"channel_name"`
+	CurrentStatus string     `json:"current_status"`
+	FullName      string     `json:"full_name"`
+	Email         string     `json:"email"`
+	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 }
 
 type ThreadDocument struct {
-	ID             string            `json:"thread_id"`
-	ChannelsID     string            `json:"channels_id"`
-	OrganisationID string            `json:"organisation_id"`
-	EventName      string            `json:"event_name"`
-	Username       string            `json:"username"`
-	ActionType     string            `json:"action_type"`
-	Status         string            `json:"status"`
-	CreatedAt      time.Time         `json:"created_at"`
-	MessageCount   int64             `json:"message_count"`
-	LastReply      time.Time         `json:"last_reply"`
-	AvatarURL      string            `json:"avatar_url"`
-	Type           string            `json:"type"`
-	Content        string            `json:"message"`
-	ChannelName    string            `json:"channel_name"`
-	CurrentStatus  string            `json:"current_status"`
-	FullName       string            `json:"full_name"`
-	Email          string            `json:"email"`
-	UserId         string            `json:"user_id"`
-	Messages       []MessageDocument `json:"messages,omitempty"`
+	ID            string            `json:"thread_id"`
+	ChannelsID    string            `json:"channels_id"`
+	EventName     string            `json:"event_name"`
+	Username      string            `json:"username"`
+	ActionType    string            `json:"action_type"`
+	Status        string            `json:"status"`
+	CreatedAt     time.Time         `json:"created_at"`
+	MessageCount  int64             `json:"message_count"`
+	LastReply     time.Time         `json:"last_reply"`
+	AvatarURL     string            `json:"avatar_url"`
+	Type          string            `json:"type"`
+	Content       string            `json:"message"`
+	ChannelName   string            `json:"channel_name"`
+	CurrentStatus string            `json:"current_status"`
+	FullName      string            `json:"full_name"`
+	Email         string            `json:"email"`
+	UserId        string            `json:"user_id"`
+	Messages      []MessageDocument `json:"messages,omitempty"`
 }
 
 var Thread_mapping = map[string]interface{}{
@@ -73,7 +72,8 @@ var Thread_mapping = map[string]interface{}{
 			"status":      map[string]string{"type": "text"},
 			"created_at": map[string]string{
 				"type":   "date",
-				"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+				"format": "strict_date_optional_time||epoch_millis",
 			},
 			"message_count": map[string]string{"type": "integer"},
 			"last_reply": map[string]string{
@@ -155,132 +155,275 @@ type FeedMessageRequest struct {
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
-		CC                ChannelCountInfo
-		ChannelThreadInfo []ChannelMetrics
-		dateCondition     = fmt.Sprintf("now-%d/d", days)
+		CC            ChannelCountInfo
+		CTI           []ChannelMetrics
+		dateCondition = fmt.Sprintf("now-%d/d", days)
+		channelIDs    = make([]string, 0)
 	)
 
-	query := map[string]any{
+	err := db.Postgresql.Model(&Channels{}).
+		Select("channels.id").
+		Where("channels.organisation_id = ?", orgId).
+		Find(&channelIDs).Error
+
+	if err != nil {
+		return CC, nil, fmt.Errorf("error fetching channel IDs: %v", err)
+	}
+
+	if len(channelIDs) == 0 {
+		return CC, nil, fmt.Errorf("no channels found for the organisation")
+	}
+
+	query := map[string]interface{}{
 		"size": 0,
-		"query": map[string]any{
-			"bool": map[string]any{
-				"must": []map[string]any{
-					{"term": map[string]any{"organisation_id": orgId}},
-					{"range": map[string]any{"created_at": map[string]any{"gte": dateCondition}}},
-				},
-			},
-		},
-		"aggs": map[string]any{
-			"total_success_threads": map[string]any{
-				"filter": map[string]any{
-					"bool": map[string]any{
-						"must": []map[string]any{
-							{"term": map[string]any{"status.keyword": "success"}},
-							{"range": map[string]any{"created_at": map[string]any{"gte": dateCondition}}},
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"terms": map[string]interface{}{
+							"channels_id.keyword": channelIDs,
+						},
+					},
+					{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte": dateCondition,
+							},
 						},
 					},
 				},
 			},
-			"total_error_threads": map[string]any{
-				"filter": map[string]any{
-					"bool": map[string]any{
-						"must": []map[string]any{
-							{"term": map[string]any{"status.keyword": "error"}},
-							{"range": map[string]any{"created_at": map[string]any{"gte": dateCondition}}},
+		},
+		"aggs": map[string]interface{}{
+			"total_success_threads": map[string]interface{}{
+				"filter": map[string]interface{}{
+					"bool": map[string]interface{}{
+						"must": []map[string]interface{}{
+							{
+								"term": map[string]interface{}{
+									"status.keyword": "success",
+								},
+							},
+							{
+								"range": map[string]interface{}{
+									"timestamp": map[string]interface{}{
+										"gte": dateCondition,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"total_error_threads": map[string]interface{}{
+				"filter": map[string]interface{}{
+					"bool": map[string]interface{}{
+						"must": []map[string]interface{}{
+							{
+								"term": map[string]interface{}{
+									"status.keyword": "error",
+								},
+							},
+							{
+								"range": map[string]interface{}{
+									"timestamp": map[string]interface{}{
+										"gte": dateCondition,
+									},
+								},
+							},
 						},
 					},
 				},
 			},
 			"total_resolved_threads": map[string]interface{}{
-                "filter": map[string]interface{}{
-                    "bool": map[string]interface{}{
-                        "must": []map[string]interface{}{
-                            {"term": map[string]interface{}{"current_status.keyword": "completed"}},
-                            {"range": map[string]interface{}{"created_at": map[string]interface{}{"gte": dateCondition}}},
-                        },
-                    },
-                },
-            },
+				"filter": map[string]interface{}{
+					"bool": map[string]interface{}{
+						"must": []map[string]interface{}{
+							{
+								"term": map[string]interface{}{
+									"current_status.keyword": "completed",
+								},
+							},
+							{
+								"range": map[string]interface{}{
+									"timestamp": map[string]interface{}{
+										"gte": dateCondition,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			"total_threads": map[string]interface{}{
 				"filter": map[string]interface{}{
 					"bool": map[string]interface{}{
 						"must": []map[string]interface{}{
-							{"term": map[string]interface{}{"type.keyword": "thread"}},
-							{"range": map[string]interface{}{"created_at": map[string]interface{}{"gte": dateCondition}}},
+							{
+								"term": map[string]interface{}{
+									"type.keyword": "thread",
+								},
+							},
+							{
+								"range": map[string]interface{}{
+									"timestamp": map[string]interface{}{
+										"gte": dateCondition,
+									},
+								},
+							},
 						},
 					},
 				},
 			},
 		},
 	}
+	
 
 	var InfoCount any
-	err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &InfoCount)
+	err = elastic.SelectAll(db.Elastic, ThreadIndexName, query, &InfoCount)
 	if err != nil {
 		return CC, nil, err
 	}
 
 	// Extract the counts from the aggregation buckets
-	InfoCountMap := InfoCount.(map[string]any)
+	InfoCountMap, ok := InfoCount.(map[string]any)
+	if !ok {
+		return CC, nil, fmt.Errorf("failed to extract counts from aggregation buckets")
+	}
 
-	fmt.Println(InfoCountMap)
+	CC.TotalSuccessThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_success_threads"].(map[string]interface{})["doc_count"].(float64))
+	CC.TotalErrorThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_error_threads"].(map[string]interface{})["doc_count"].(float64))
+	CC.TotalResolvedThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_resolved_threads"].(map[string]interface{})["doc_count"].(float64))
+	CC.TotalThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_threads"].(map[string]interface{})["doc_count"].(float64))
 
-	CC.TotalSuccessThreads = int64(InfoCountMap["total_success_threads"].(map[string]any)["doc_count"].(float64))
-	CC.TotalErrorThreads = int64(InfoCountMap["total_error_threads"].(map[string]any)["doc_count"].(float64))
-	CC.TotalResolvedThreads = int64(InfoCountMap["total_resolved_threads"].(map[string]any)["doc_count"].(float64))
-	CC.TotalThreads = int64(InfoCountMap["total_threads"].(map[string]any)["doc_count"].(float64))
-
-
+	//query for aggregating metrics per channel
+	query = map[string]interface{}{
+		"size": 0,
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"terms": map[string]interface{}{
+							"channels_id.keyword": channelIDs,
+						},
+					},
+					{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte": dateCondition,
+							},
+						},
+					},
+				},
+			},
+		},
+		"aggs": map[string]interface{}{
+			"channels": map[string]interface{}{
+				"terms": map[string]interface{}{
+					"field": "channels_id.keyword",
+				},
+				"aggs": map[string]interface{}{
+					"channel_name": map[string]interface{}{
+						"terms": map[string]interface{}{
+							"field": "channel_name.keyword",
+						},
+					},
+					"thread_count": map[string]interface{}{
+						"value_count": map[string]interface{}{
+							"field": "thread_id.keyword",
+						},
+					},
+					"success_count": map[string]interface{}{
+						"filter": map[string]interface{}{
+							"bool": map[string]interface{}{
+								"must": []map[string]interface{}{
+									{
+										"term": map[string]interface{}{
+											"status.keyword": "success",
+										},
+									},
+									{
+										"range": map[string]interface{}{
+											"timestamp": map[string]interface{}{
+												"gte": dateCondition,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					"error_count": map[string]interface{}{
+						"filter": map[string]interface{}{
+							"bool": map[string]interface{}{
+								"must": []map[string]interface{}{
+									{
+										"term": map[string]interface{}{
+											"status.keyword": "error",
+										},
+									},
+									{
+										"range": map[string]interface{}{
+											"timestamp": map[string]interface{}{
+												"gte": dateCondition,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					"other_count": map[string]interface{}{
+						"filter": map[string]interface{}{
+							"bool": map[string]interface{}{
+								"must": []map[string]interface{}{
+									{
+										"term": map[string]interface{}{
+											"status.keyword": "other",
+										},
+									},
+									{
+										"range": map[string]interface{}{
+											"timestamp": map[string]interface{}{
+												"gte": dateCondition,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 	
 
-
-	return CC, ChannelThreadInfo, nil
-}
-
-func (t *Threads) GetChannelCountInfos(db *gorm.DB, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
-	var (
-		cc                ChannelCountInfo
-		channelThreadInfo []ChannelMetrics
-	)
-
-	dateCondition := fmt.Sprintf("threads.created_at >= NOW() - INTERVAL '%d days'", days)
-
-	_ = db.Model(&t).
-		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "success").
-		Count(&cc.TotalSuccessThreads).Error
-
-	_ = db.Model(&t).
-		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.status = ? AND "+dateCondition, orgId, "error").
-		Count(&cc.TotalErrorThreads).Error
-
-	_ = db.Model(&t).
-		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("channels.organisation_id = ? AND threads.current_status = ? AND "+dateCondition, orgId, "completed").
-		Count(&cc.TotalResolvedThreads).Error
-
-	_ = db.Model(&t).
-		Joins("JOIN channels ON channels.id = threads.channels_id").
-		Where("threads.type = 'thread'").
-		Where("channels.organisation_id = ? AND "+dateCondition, orgId).
-		Count(&cc.TotalThreads).Error
-
-	err := db.Model(&Channels{}).
-		Select("channels.id, channels.name AS channel_name, "+
-			"COUNT(threads.id) AS thread_count, "+
-			"SUM(CASE WHEN threads.status = 'success' THEN 1 ELSE 0 END) AS success_count, "+
-			"SUM(CASE WHEN threads.status = 'error' THEN 1 ELSE 0 END) AS error_count, "+
-			"SUM(CASE WHEN threads.status = 'other' THEN 1 ELSE 0 END) AS other_count").
-		Joins("LEFT JOIN threads ON threads.channels_id = channels.id AND "+dateCondition).
-		Where("channels.organisation_id = ? ", orgId).
-		Group("channels.id, channels.name").
-		Scan(&channelThreadInfo).Error
-
+	var ChannelInfoCount any
+	err = elastic.SelectAll(db.Elastic, ThreadIndexName, query, &ChannelInfoCount)
 	if err != nil {
-		return cc, nil, err
+		return CC, nil, err
 	}
-	return cc, channelThreadInfo, nil
+
+	// Extract the counts from the aggregation buckets
+	ChannelInfoCountMap, ok := ChannelInfoCount.(map[string]any)
+	if !ok {
+		return CC, nil, fmt.Errorf("failed to extract counts from aggregation buckets")
+	}
+
+	for _, bucket := range ChannelInfoCountMap["aggregations"].(map[string]interface{})["channels"].(map[string]interface{})["buckets"].([]any) {
+		bucketMap := bucket.(map[string]any)
+		channelMetrics := ChannelMetrics{
+			ChannelName:  bucketMap["channel_name"].(map[string]interface{})["buckets"].([]any)[0].(map[string]any)["key"].(string),
+			ThreadCount:  int64(bucketMap["thread_count"].(map[string]interface{})["value"].(float64)),
+			SuccessCount: int64(bucketMap["success_count"].(map[string]interface{})["doc_count"].(float64)),
+			ErrorCount:   int64(bucketMap["error_count"].(map[string]interface{})["doc_count"].(float64)),
+			OtherCount:   int64(bucketMap["other_count"].(map[string]interface{})["doc_count"].(float64)),
+		}
+		CTI = append(CTI, channelMetrics)
+	}
+
+	return CC, CTI, nil
 }
 
 type Mentions struct {
@@ -530,7 +673,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	// Extract unique thread IDs from the aggregation buckets
-	threadIDs  = make([]string, 0)
+	threadIDs = make([]string, 0)
 
 	for _, bucket := range searchResult.Aggs.UniqueThreadIDs.Buckets {
 		threadIDs = append(threadIDs, bucket.Key)

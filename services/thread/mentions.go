@@ -29,7 +29,6 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		channel models.Channels
 	)
 
-
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
 	if err != nil {
@@ -49,22 +48,21 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:             req.ThreadId,
-		Username:       profile.UserName,
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsID,
-		OrganisationID: req.OrganisationID,
-		Type:           "message",
-		MessageCount:   0,
-		AvatarURL:      profile.AvatarURL,
-		FullName:       profile.FullName,
-		Email:          user.Email,
-		CreatedAt:      time.Now().UTC(),
-		CurrentStatus:  "pending",
-		UserId:         req.UserId,
-		Messages:       []models.MessageDocument{},
-		ChannelName:    channel.Name,
-		Status: "error",
+		ID:            req.ThreadId,
+		Username:      profile.UserName,
+		Content:       req.Content,
+		ChannelsID:    req.ChannelsID,
+		Type:          "message",
+		MessageCount:  0,
+		AvatarURL:     profile.AvatarURL,
+		FullName:      profile.FullName,
+		Email:         user.Email,
+		CreatedAt:     time.Now().UTC(),
+		CurrentStatus: "pending",
+		UserId:        req.UserId,
+		Messages:      []models.MessageDocument{},
+		ChannelName:   channel.Name,
+		Status:        "error",
 	}
 
 	err = threadDoc.CreateThread(db, logger)
