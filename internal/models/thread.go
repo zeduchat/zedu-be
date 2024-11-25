@@ -694,7 +694,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, use
 		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
 	}
 
-	threads, err = UnMarsahlThreadResponse(threadData)
+	threads, err = UnmarshalThreadResponse(threadData)
 	if err != nil {
 		return nil, pagR, err
 	}
