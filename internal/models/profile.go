@@ -14,7 +14,7 @@ type Profile struct {
 	FirstName string         `gorm:"column:first_name; type:text; not null" json:"first_name"`
 	LastName  string         `gorm:"column:last_name; type:text;not null" json:"last_name"`
 	FullName  string         `gorm:"column:full_name; type:text;" json:"full_name"`
-	UserName  string         `gorm:"column:user_name; type:text;" json:"user_name"`
+	UserName  string         `gorm:"column:user_name; type:text;" json:"username"`
 	Phone     string         `gorm:"type:varchar(255)" json:"phone"`
 	AvatarURL string         `gorm:"type:varchar(255)" json:"avatar_url"`
 	Userid    string         `gorm:"type:uuid;" json:"user_id"`
@@ -30,7 +30,7 @@ type ProfileSummary struct {
 	FirstName      string `json:"first_name"`
 	LastName       string `json:"last_name"`
 	FullName       string `json:"full_name"`
-	UserName       string `json:"user_name"`
+	UserName       string `json:"username"`
 	AvatarURL      string `json:"avatar_url"`
 	UserId         string `json:"user_id"`
 	Deactivated    bool   `json:"deactivated"`
@@ -45,7 +45,7 @@ type UpdateUserProfileRequest struct {
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
 	FullName  string `json:"full_name"`
-	UserName  string `json:"user_name"`
+	UserName  string `json:"username"`
 	AvatarURL string `json:"avatar_url"`
 }
 

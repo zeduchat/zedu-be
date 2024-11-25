@@ -143,7 +143,7 @@ type CreateThreadMsgReq struct {
 type FeedMessageRequest struct {
 	ChannelID string `json:"channel_id"`
 	FullName  string `json:"full_name"`
-	UserName  string `json:"user_name"`
+	UserName  string `json:"username"`
 	CreatedAt string `json:"created_at"`
 	Email     string `json:"email"`
 	AvatarURL string `json:"avatar_url,omitempty"`
