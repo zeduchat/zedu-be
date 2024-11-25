@@ -142,16 +142,15 @@ type CreateThreadMsgReq struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID      string `json:"channel_id"`
-	OrganisationID string `json:"organisation_id"`
-	FullName       string `json:"full_name"`
-	UserName       string `json:"user_name"`
-	CreatedAt      string `json:"created_at"`
-	Email          string `json:"email"`
-	AvatarURL      string `json:"avatar_url,omitempty"`
-	Type           string `json:"type"`
-	Content        string `json:"message"`
-	ThreadId       string `json:"thread_id"`
+	ChannelID string `json:"channel_id"`
+	FullName  string `json:"full_name"`
+	UserName  string `json:"username"`
+	CreatedAt string `json:"created_at"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+	Type      string `json:"type"`
+	Content   string `json:"message"`
+	ThreadId  string `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
