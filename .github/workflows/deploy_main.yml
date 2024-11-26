@@ -26,7 +26,7 @@ jobs:
 
       - name: Upload binary to server
         run: |
-          echo "$SSH_KEY" > ssh_key.pem
+          printf "%s" "$SSH_KEY" > ssh_key.pem
           chmod 600 ssh_key.pem
           rsync -avz -e "ssh -i ssh_key.pem" telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main
           rm ssh_key.pem
