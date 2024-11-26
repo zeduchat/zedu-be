@@ -26,8 +26,8 @@ jobs:
 
       - name: Upload binary to server
         run: |
-          printf "%s" "$SSH_KEY" > ssh_key.pem
-          chmod 600 ssh_key.pem
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 400 ssh_key.pem
           rsync -avz -e "ssh -i ssh_key.pem" telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main
           rm ssh_key.pem
 
@@ -42,7 +42,7 @@ jobs:
       - name: Restart app
         run: |
           echo "$SSH_KEY" > ssh_key.pem
-          chmod 600 ssh_key.pem
+          chmod 400 ssh_key.pem
           ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
             cd /var/www/telex_be
             git reset --hard
