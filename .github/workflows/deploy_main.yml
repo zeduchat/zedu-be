@@ -26,9 +26,9 @@ jobs:
 
       - name: Upload binary to server
         run: |
-          printf "%s" "$SSH_KEY" > ssh_key.pem
+          echo "$SSH_KEY" > ssh_key.pem
           chmod 600 ssh_key.pem
-          rsync -avz -e "ssh -i ssh_key.pem" telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ssh_key.pem" telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main
           rm ssh_key.pem
 
   update_and_restart_app:
