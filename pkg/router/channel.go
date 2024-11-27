@@ -24,26 +24,29 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("", channel.CreateChannels)
 		channelQueueUrl.POST("/backend-queue", channel.SaveIncomingQueueMsg)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
-		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
-		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
-		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.POST("/:channelId/join", channel.JoinChannels)
 		channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
-		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
-		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
+		channelUrl.POST("/add", channel.AddMembersToChannel)
+		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
+		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
+
+		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
+		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
+
+		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
+		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.GET("/:channelId", channel.GetChannels)
 		channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 		channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
-		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)
 		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
-		channelUrl.POST("/add", channel.AddMembersToChannel)
-		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
-		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
-
 		channelUrl.GET("/:channelId/integration-channels/:IntModId", channel.GetIntegrationChannels)
-		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
-		channelUrl.DELETE("/:channelId/integration-channels", channel.DelteChannelIntegration)
+
+		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
+		channelUrl.DELETE("/:channelId/integration-channels", channel.DeleteChannelIntegration)
+
+		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
+		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
 	}
 
 	return r

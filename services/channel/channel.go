@@ -22,7 +22,7 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
 		Name:           req.Name,
-		Description:    " ",
+		Description:    req.Description,
 		OwnerId:        userId,
 		OrganisationID: req.OrganisationID,
 	}
