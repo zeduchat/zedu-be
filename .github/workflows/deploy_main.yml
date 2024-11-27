@@ -26,12 +26,11 @@ jobs:
 
       - name: Upload binary to server
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
-          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main
-          rm ~/.ssh/id_ed25519
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          scp -o StrictHostKeyChecking=no -i ssh_key.pem telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main.new
+          ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST "mv -f /var/www/telex_be/telexbe_main.new /var/www/telex_be/telexbe_main"
+          rm ssh_key.pem
 
   update_and_restart_app:
     runs-on: self-hosted
