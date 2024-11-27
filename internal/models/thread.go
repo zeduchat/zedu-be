@@ -74,7 +74,7 @@ var Thread_mapping = map[string]interface{}{
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
 			"created_at": map[string]string{
-				"type":   "date",
+				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 				"format": "strict_date_optional_time||epoch_millis",
 			},
@@ -160,7 +160,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 	var (
 		CC            ChannelCountInfo
 		CTI           []ChannelMetrics
-		dateCondition = fmt.Sprintf("now-%d/d", days)
+		startTime     = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
+		endTime       = time.Now().Format(time.RFC3339)
 		channelIDs    = make([]string, 0)
 	)
 
@@ -190,7 +191,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 					{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte": dateCondition,
+								"gte": startTime,
+								"lte": endTime,
 							},
 						},
 					},
@@ -210,7 +212,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							{
 								"range": map[string]interface{}{
 									"timestamp": map[string]interface{}{
-										"gte": dateCondition,
+										"gte": startTime,
+										"lte": endTime,
 									},
 								},
 							},
@@ -230,7 +233,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							{
 								"range": map[string]interface{}{
 									"timestamp": map[string]interface{}{
-										"gte": dateCondition,
+										"gte": startTime,
+										"lte": endTime,
 									},
 								},
 							},
@@ -250,7 +254,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							{
 								"range": map[string]interface{}{
 									"timestamp": map[string]interface{}{
-										"gte": dateCondition,
+										"gte": startTime,
+										"lte": endTime,
 									},
 								},
 							},
@@ -270,7 +275,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							{
 								"range": map[string]interface{}{
 									"timestamp": map[string]interface{}{
-										"gte": dateCondition,
+										"gte": startTime,
+										"lte": endTime,
 									},
 								},
 							},
@@ -280,7 +286,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 			},
 		},
 	}
-	
 
 	var InfoCount any
 	err = elastic.SelectAll(db.Elastic, ThreadIndexName, query, &InfoCount)
@@ -313,7 +318,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 					{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte": dateCondition,
+								"gte": startTime,
+								"lte": endTime,
 							},
 						},
 					},
@@ -348,7 +354,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									{
 										"range": map[string]interface{}{
 											"timestamp": map[string]interface{}{
-												"gte": dateCondition,
+												"gte": startTime,
+												"lte": endTime,
 											},
 										},
 									},
@@ -368,7 +375,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									{
 										"range": map[string]interface{}{
 											"timestamp": map[string]interface{}{
-												"gte": dateCondition,
+												"gte": startTime,
+												"lte": endTime,
 											},
 										},
 									},
@@ -388,7 +396,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									{
 										"range": map[string]interface{}{
 											"timestamp": map[string]interface{}{
-												"gte": dateCondition,
+												"gte": startTime,
+												"lte": endTime,
 											},
 										},
 									},
@@ -400,7 +409,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 			},
 		},
 	}
-	
 
 	var ChannelInfoCount any
 	err = elastic.SelectAll(db.Elastic, ThreadIndexName, query, &ChannelInfoCount)
