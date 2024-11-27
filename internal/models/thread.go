@@ -630,6 +630,11 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 							"type.keyword": "thread",
 						},
 					},
+					{
+						"term": map[string]interface{}{
+							"channels_id.keyword": channelID,
+						},
+					},
 				},
 			},
 		},
@@ -668,7 +673,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	totalThreads := cardinalityResult.Aggregations.UniqueThreads.Value
 	numPartitions := int(math.Ceil(float64(totalThreads) / float64(limit)))
 
-	if page - 1 >= numPartitions {
+	if page-1 >= numPartitions {
 		return threads, pagR, nil
 	}
 
@@ -689,6 +694,11 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 					{
 						"term": map[string]interface{}{
 							"type.keyword": "thread",
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"channels_id.keyword": channelID,
 						},
 					},
 				},
