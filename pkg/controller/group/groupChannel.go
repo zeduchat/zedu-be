@@ -186,4 +186,8 @@ func (base *Controller) MoveGroupChannel(c *gin.Context){
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	base.Logger.Info("Group channel moved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Group channel moved successfully", nil)
+	c.JSON(http.StatusOK, rd)
 }
