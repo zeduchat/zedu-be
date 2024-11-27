@@ -44,6 +44,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/invites", organisation.GetOrganisationInvites)
 		organisationUrl.POST("/:org_id/users", organisation.AddMemberToOrganisation)
 
+		//channels
 		organisationUrl.GET("/:org_id/user-channels", channel.GetUserChannels)
 		organisationUrl.GET("/:org_id/user-not-channels", channel.GetUserNotInChannels)
 		organisationUrl.PUT("/:org_id/archive-channel", channel.ArchiveChannel)

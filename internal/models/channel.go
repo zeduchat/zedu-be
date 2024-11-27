@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
-	"github.com/typesense/typesense-go/v2/typesense/api"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -17,18 +16,21 @@ import (
 )
 
 type Channels struct {
-	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name           string    `gorm:"column:name;unique type:text; not null" json:"name"`
-	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
-	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
-	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	Users          []User    `gorm:"many2many:user_channels;" json:"users"`
-	UserCount      int64     `gorm:"-" json:"user_count"`
-	MessageCount   int64     `gorm:"-" json:"message_count"`
-	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived"`
-	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
-	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
+	ID             string `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name           string `gorm:"column:name;unique type:text; not null" json:"name"`
+	Description    string `gorm:"column:description; type:text; not null" json:"description"`
+	OrganisationID string `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId        string `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	Users          []User `gorm:"many2many:user_channels;" json:"users"`
+	UserCount      int64  `gorm:"-" json:"user_count"`
+	MessageCount   int64  `gorm:"-" json:"message_count"`
+	Archived       bool   `gorm:"column:archived;null; default:false" json:"archived"`
+	// GroupID        sql.NullString `gorm:"column:group_id; type:uuid;index; null" json:"group_id"`
+	GroupID *string `gorm:"column:group_id; type:uuid;index;" json:"group_id"`
+
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+	Threads   []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
 }
 
 type UserChannels struct {
@@ -123,26 +125,13 @@ type ArchiveChannelRequest struct {
 
 func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
 
-	fields := []api.Field{
-		{Name: "id", Type: "string"},
-		{Name: "type", Type: "string"},
-		{Name: "channels_id", Type: "string"},
-		{Name: "thread_id", Type: "string"},
-		{Name: "event_name", Type: "string"},
-		{Name: "username", Type: "string"},
-		{Name: "action_type", Type: "string"},
-		{Name: "status", Type: "string"},
-		{Name: "content", Type: "string"},
-		{Name: "created_at", Type: "int64"},
-	}
+	// if r.GroupID == "" {
+	// 	r.GroupID =
+	// }
 
-	err := tydb.CreateCollection(typesenseDb, r.ID, fields)
+	err := postgresql.CreateOneRecord(db, &r)
 	if err != nil {
-		return errors.New("could not create channel collection in Typesense")
-	}
-
-	err = postgresql.CreateOneRecord(db, r)
-	if err != nil {
+		fmt.Println(err)
 		return errors.New("could not create channel, invalid organisation id")
 	}
 
@@ -626,8 +615,8 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetU
 		Where("threads.channels_id = channels.id").
 		Where("threads.type = 'thread'")
 
-	if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.organisation_id, channels.archived, (?) AS thread_count, 'true' AS access",
+		if err := db.Model(&channels).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, (?) AS thread_count, 'true' AS access",
 			threadCountSubquery).
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).

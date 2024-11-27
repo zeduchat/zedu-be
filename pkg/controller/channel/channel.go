@@ -46,6 +46,13 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(req.OrganisationID); err != nil {
+		base.Logger.Info("error parsing organisation id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
@@ -56,7 +63,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 
 	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId, base.Db.TypeSense)
 	if err != nil {
-		base.Logger.Info("error creating channel")
+		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
