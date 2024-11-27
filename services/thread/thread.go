@@ -3,6 +3,8 @@ package thread
 import (
 	"errors"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -12,6 +14,29 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/services/user"
 )
+
+func CalculateStartTime(rangeStr string) time.Time {
+	now := time.Now()
+	switch strings.ToLower(rangeStr) {
+	case "day":
+		return now.Add(-24 * time.Hour)
+	case "week":
+		return now.Add(-7 * 24 * time.Hour)
+	case "month":
+		return now.AddDate(0, -1, 0)
+	default:
+		return time.Time{}
+	}
+}
+
+func GetGroupByDate(c *gin.Context) (time.Time, bool) {
+
+	if c.Query("groupBy") != "" {
+		return CalculateStartTime(c.Query("groupBy")), true
+	}
+
+	return time.Time{}, false
+}
 
 func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
@@ -48,8 +73,9 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.
 
 func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
-		accessData models.Threads
-		accessResp []models.Threads
+		accessData         models.Threads
+		accessResp         []models.Threads
+		paginationResponse *elastic.PaginationResponse
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -67,13 +93,17 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return accessResp, nil, http.StatusNoContent, nil
-		}
-		return accessResp, nil, http.StatusInternalServerError, err
+	timeRange, check := GetGroupByDate(c)
 
+	if check {
+		accessResp, paginationResponse, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
+
+	} else {
+		accessResp, paginationResponse, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
+	}
+
+	if err != nil {
+		return accessResp, nil, http.StatusInternalServerError, err
 	}
 
 	return accessResp, paginationResponse, http.StatusOK, nil
