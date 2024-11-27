@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +38,7 @@ type Threads struct {
 	FullName      string     `json:"full_name"`
 	Email         string     `json:"email"`
 	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+	Count         int        `json:"frequency,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -58,6 +60,7 @@ type ThreadDocument struct {
 	Email         string            `json:"email"`
 	UserId        string            `json:"user_id"`
 	Messages      []MessageDocument `json:"messages,omitempty"`
+	Count         int               `json:"frequency,omitempty"`
 }
 
 var Thread_mapping = map[string]interface{}{
@@ -466,7 +469,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	// Extract unique thread IDs from the aggregation buckets
-	threadIDs  = make([]string, 0)
+	threadIDs = make([]string, 0)
 
 	for _, bucket := range searchResult.Aggs.UniqueThreadIDs.Buckets {
 		threadIDs = append(threadIDs, bucket.Key)
@@ -593,29 +596,123 @@ func UnMarsahlThreadResponse(threadData interface{}) (threads []Threads, err err
 	return
 }
 
-func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
+func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
 		threads []Threads
 	)
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
+	threads = make([]Threads, 0)
 
-	from := (page - 1) * limit
+	pagR := &elastic.PaginationResponse{
+		PageCount:       0,
+		CurrentPage:     page,
+		TotalPagesCount: 0,
+	}
 
 	// Build the query
-	query := map[string]interface{}{
+	cardinality_query := map[string]interface{}{
+		"size": 0,
 		"query": map[string]interface{}{
-			"term": map[string]interface{}{
-				"channels_id.keyword": channelID,
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"range": map[string]interface{}{
+							"created_at": map[string]interface{}{
+								"gte": timeRange.Format(time.RFC3339),
+								"lte": time.Now().Format(time.RFC3339),
+							},
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"type.keyword": "thread",
+						},
+					},
+				},
 			},
 		},
-		"from": from,
-		"size": limit,
-		"sort": []map[string]interface{}{
-			{
-				"created_at": map[string]interface{}{
-					"order": "desc",
+		"aggs": map[string]interface{}{
+			"unique_threads": map[string]interface{}{
+				"cardinality": map[string]interface{}{
+					"field": "message.keyword",
+				},
+			},
+		},
+	}
+
+	var cardData interface{}
+
+	err := elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, cardinality_query, &cardData)
+	if err != nil {
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch number of group thread records, error: %v", err))
+	}
+
+	var cardinalityResult struct {
+		Aggregations struct {
+			UniqueThreads struct {
+				Value int `json:"value"`
+			} `json:"unique_threads"`
+		} `json:"aggregations"`
+	}
+
+	rawJSON, _ := json.MarshalIndent(cardData.(map[string]interface{}), "", "  ")
+
+	if errr := json.Unmarshal(rawJSON, &cardinalityResult); errr != nil {
+		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch number of group thread records, error: %v", err))
+	}
+
+	// Total unique threads and compute partitions
+	totalThreads := cardinalityResult.Aggregations.UniqueThreads.Value
+	numPartitions := int(math.Ceil(float64(totalThreads) / float64(limit)))
+
+	if page >= numPartitions {
+		return threads, pagR, nil
+	}
+
+	pagR.TotalPagesCount = numPartitions
+
+	paginatedQuery := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"range": map[string]interface{}{
+							"created_at": map[string]interface{}{
+								"gte": timeRange.Format(time.RFC3339),
+								"lte": time.Now().Format(time.RFC3339),
+							},
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"type.keyword": "thread",
+						},
+					},
+				},
+			},
+		},
+		"aggs": map[string]interface{}{
+			"partitioned_threads": map[string]interface{}{
+				"terms": map[string]interface{}{
+					"field": "message.keyword",
+					"size":  limit,
+					"include": map[string]interface{}{
+						"partition":      page - 1,
+						"num_partitions": numPartitions,
+					},
+					"order": map[string]interface{}{
+						"_count": "desc",
+					},
+				},
+				"aggs": map[string]interface{}{
+					"top_thread_hits": map[string]interface{}{
+						"top_hits": map[string]interface{}{
+							"size": 1,
+						},
+					},
 				},
 			},
 		},
@@ -623,15 +720,42 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, use
 
 	var threadData interface{}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+	err = elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, paginatedQuery, &threadData)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch group thread records, error: %v", err))
 	}
 
-	threads, err = UnMarsahlThreadResponse(threadData)
-	if err != nil {
-		return nil, pagR, err
+	var paginatedResult struct {
+		Aggregations struct {
+			PartitionedThreads struct {
+				Buckets []struct {
+					Key           string `json:"key"`
+					DocCount      int    `json:"doc_count"`
+					TopThreadHits struct {
+						Hits struct {
+							Hits []struct {
+								Source Threads `json:"_source"`
+							} `json:"hits"`
+						} `json:"hits"`
+					} `json:"top_thread_hits"`
+				} `json:"buckets"`
+			} `json:"partitioned_threads"`
+		} `json:"aggregations"`
+	}
+
+	rawJSON, _ = json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+
+	if errr := json.Unmarshal(rawJSON, &paginatedResult); errr != nil {
+		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
+		return nil, pagR, errors.New(fmt.Sprintf("failed to unmarshal group thread records, error: %v", err))
+	}
+
+	threads = make([]Threads, len(paginatedResult.Aggregations.PartitionedThreads.Buckets))
+
+	for ind, bucket := range paginatedResult.Aggregations.PartitionedThreads.Buckets {
+		threads[ind] = bucket.TopThreadHits.Hits.Hits[0].Source
+		threads[ind].Count = bucket.DocCount
 	}
 
 	return threads, pagR, nil
