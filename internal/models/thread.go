@@ -678,6 +678,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	}
 
 	pagR.TotalPagesCount = numPartitions
+	pagR.SummaryCount = totalThreads
 
 	paginatedQuery := map[string]interface{}{
 		"query": map[string]interface{}{
