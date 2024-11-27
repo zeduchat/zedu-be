@@ -668,7 +668,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	totalThreads := cardinalityResult.Aggregations.UniqueThreads.Value
 	numPartitions := int(math.Ceil(float64(totalThreads) / float64(limit)))
 
-	if page >= numPartitions {
+	if page - 1 >= numPartitions {
 		return threads, pagR, nil
 	}
 
