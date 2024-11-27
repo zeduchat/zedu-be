@@ -9886,6 +9886,48 @@ paths:
                   message:
                     type: string
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
+    patch:
+      tags:
+        - Channel Grouping
+      summary: Move a channel to a different group
+      description: Move a specified channel from one group to another within the same organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the new group to move the channel to.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel to be moved.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully moved the channel to a new group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel moved successfully"
     post:
       tags:
         - Channel Grouping
@@ -10056,49 +10098,6 @@ paths:
                     created_at: "2024-11-27T06:47:21.857515+01:00"
                     deleted_at: "0001-01-01T00:13:35+00:13"
                     
-  /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
-    patch:
-      tags:
-        - Channel Grouping
-      summary: Move a channel to a different group
-      description: Move a specified channel from one group to another within the same organisation.
-      parameters:
-        - name: organisation_id
-          in: path
-          required: true
-          description: ID of the organisation.
-          schema:
-            type: string
-        - name: group_id
-          in: path
-          required: true
-          description: ID of the new group to move the channel to.
-          schema:
-            type: string
-        - name: channel_id
-          in: path
-          required: true
-          description: ID of the channel to be moved.
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully moved the channel to a new group.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  status_code:
-                    type: integer
-                  message:
-                    type: string
-                example:
-                  status: "success"
-                  status_code: 200
-                  message: "Group channel moved successfully"
 
 
   /organisations/{organisation_id}/groups/channels/no-group:
