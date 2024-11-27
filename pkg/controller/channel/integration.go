@@ -86,7 +86,7 @@ func (base *Controller) AddIntegrationChannel(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) DelteChannelIntegration(c *gin.Context) {
+func (base *Controller) DeleteChannelIntegration(c *gin.Context) {
 	var (
 		req models.IntegrationChannelReq
 	)

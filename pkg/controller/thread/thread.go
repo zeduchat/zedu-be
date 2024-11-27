@@ -65,14 +65,14 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 	usersData, paginationResponse, code, err := service.GetAllChannelThreads(channelID, base.Db.Postgresql, c)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
-
-	c.JSON(http.StatusOK, rd)
+	rd := utility.BuildSuccessResponse(code, "Data retrieved successfully", usersData, paginationResponse)
+	c.JSON(code, rd)
 
 }
 
