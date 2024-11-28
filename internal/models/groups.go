@@ -36,6 +36,10 @@ type ToggleArchiveStatusRequest struct {
 	Archived bool `json:"archived"`
 }
 
+type AssignGroupChannelRequest struct {
+	Channels []string `json:"channels" binding:"required"`
+}
+
 func (g *Group) CreateGroup(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &g)
@@ -97,100 +101,97 @@ func (g *Group) DeleteGroup(db *gorm.DB, ids map[string]string) error {
 	return nil
 }
 
-
-
 // ====================================CHANNELS====================================
-func (group *Group) AssignGroupChannel(db *gorm.DB, ids map[string]string) error {
+func (group *Group) AssignGroupChannel(db *gorm.DB, ids map[string]any) error {
 	var (
-		ch  Channels
 		org Organisation
 	)
 
-	_, err := org.CheckOrgExists(ids["organisation_id"], db)
+	_, err := org.CheckOrgExists(ids["organisation_id"].(string), db)
 	if err != nil {
 		return err
 	}
 
-	exists := postgresql.CheckExists(db, &group, "organisation_id = ? AND id = ?", ids["organisation_id"], ids["group_id"])
+	exists := postgresql.CheckExists(db, &group, "organisation_id = ? AND id = ?", ids["organisation_id"].(string), ids["group_id"].(string))
 	if !exists {
 		return fmt.Errorf("group not found")
 	}
 
-	exists = postgresql.CheckExists(db, &ch, "id = ?", ids["channel_id"])
-	if !exists {
-		return fmt.Errorf("channel not found")
+	var channels []Channels
+	err = postgresql.SelectAllFromDb(db, "", &channels, "id IN ? AND organisation_id = ?", ids["channel_ids"].([]string), ids["organisation_id"].(string))
+	if err != nil {
+		return fmt.Errorf("failed to get channels: %w", err)
 	}
 
-	exists = postgresql.CheckExists(db, &ch, "organisation_id = ? AND id = ? ", ids["organisation_id"], ids["channel_id"])
-	if !exists {
-		return fmt.Errorf("channel %s is not part of the %s organisation", ch.Name, org.Name)
+	if len(channels) == 0 {
+		return fmt.Errorf("no channel found")
+	} else if len(channels) != len(ids["channel_ids"].([]string)) {
+		return fmt.Errorf("some channels not found")
 	}
 
-	// check if channel is already assigned to a group
-	exists = postgresql.CheckExists(db, &ch, "group_id = ?", ids["group_id"])
-	if exists {
-		return fmt.Errorf("channel %s is already assigned to %s group", ch.Name, group.Name)
+	for _, ch := range channels {
+		if ch.GroupID != nil && *ch.GroupID == ids["group_id"].(string) {
+			return fmt.Errorf("channel %s is already assigned to %s group", ch.Name, group.Name)
+		}
 	}
 
 	update := map[string]any{
-		"group_id": ids["group_id"],
+		"group_id": ids["group_id"].(string),
 	}
 
-	result, err := postgresql.UpdateFields(db, &ch, update, "id = ?", ids["channel_id"])
+	result, err := postgresql.UpdateFields(db, &Channels{}, update, "id IN ?", ids["channel_ids"].([]string))
 	if err != nil {
 		return fmt.Errorf("failed to assign group channel: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("channel not found")
+		return fmt.Errorf("no channel was updated")
 	}
 
 	return nil
 }
 
-func (group *Group) RemoveGroupChannel(db *gorm.DB, ids map[string]string) error {
-	var (
-		ch  Channels
-		org Organisation
-	)
+func (group *Group) RemoveGroupChannel(db *gorm.DB, ids map[string]any) error {
+	var org Organisation
 
-	_, err := org.CheckOrgExists(ids["organisation_id"], db)
+	_, err := org.CheckOrgExists(ids["organisation_id"].(string), db)
 	if err != nil {
-		return err
+		return fmt.Errorf("organisation not found: %w", err)
 	}
 
-	exists := postgresql.CheckExists(db, &group, "organisation_id = ? AND id = ?", ids["organisation_id"], ids["group_id"])
+	exists := postgresql.CheckExists(db, &group, "organisation_id = ? AND id = ?", ids["organisation_id"].(string), ids["group_id"].(string))
 	if !exists {
 		return fmt.Errorf("group not found")
 	}
 
-	exists = postgresql.CheckExists(db, &ch, "id = ?", ids["channel_id"])
-	if !exists {
-		return fmt.Errorf("channel not found")
+	var channels []Channels
+	if err := db.Where("id IN ? AND organisation_id = ?", ids["channel_ids"].([]string), ids["organisation_id"].(string)).Find(&channels).Error; err != nil {
+		return fmt.Errorf("failed to fetch channels: %w", err)
 	}
 
-	exists = postgresql.CheckExists(db, &ch, "organisation_id = ? AND id = ? ", ids["organisation_id"], ids["channel_id"])
-	if !exists {
-		return fmt.Errorf("channel %s is not part of the %s organisation", ch.Name, org.Name)
+	if len(channels) != len(ids["channel_ids"].([]string)) {
+		return fmt.Errorf("some channels were not found or do not belong to the organisation")
 	}
 
-	// check if channel is already assigned to a group
-	exists = postgresql.CheckExists(db, &ch, "group_id = ?", ids["group_id"])
-	if !exists {
-		return fmt.Errorf("channel %s is not assigned to %s group", ch.Name, group.Name)
+	for _, ch := range channels {
+		if ch.GroupID == nil {
+			return fmt.Errorf("channel %s is not assigned to any group", ch.Name)
+		} else if *ch.GroupID != ids["group_id"].(string) {
+			return fmt.Errorf("channel %s is not assigned to %s group", ch.Name, group.Name)
+		}
 	}
 
-	update := map[string]any{
+	update := map[string]interface{}{
 		"group_id": nil,
 	}
 
-	result, err := postgresql.UpdateFields(db, &ch, update, "id = ?", ids["channel_id"])
-	if err != nil {
-		return fmt.Errorf("failed to unassign group channel: %w", err)
+	result := db.Model(&Channels{}).Where("id IN ?", ids["channel_ids"].([]string)).Updates(update)
+	if result.Error != nil {
+		return fmt.Errorf("failed to unassign group channel: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("channel not found")
+		return fmt.Errorf("no channel was updated")
 	}
 
 	return nil

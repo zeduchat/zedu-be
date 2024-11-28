@@ -32,7 +32,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
 		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
-
+		
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.GET("/:channelId", channel.GetChannels)

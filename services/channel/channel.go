@@ -257,6 +257,28 @@ func ArchiveChannel(db *gorm.DB, channelId string ,req models.ArchiveChannelRequ
 	return status, http.StatusOK, nil
 }
 
+func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels, int, error) {
+	var (
+		channel models.Channels
+		org    models.Organisation
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids["organisation_id"])
+	if !exists {
+		return nil, http.StatusBadRequest, errors.New("organisation not found")
+	}
+
+	if org.OwnerID != ids["user_id"] {
+		return nil, http.StatusUnauthorized, errors.New("user not authorized")
+	}
+	
+	channels, err := channel.GetArchivedChannels(db, ids)
+	if err != nil {
+		return channels, http.StatusBadRequest, err
+	}
+	return channels, http.StatusOK, nil
+}
+
 func GetUserChannels(db *gorm.DB, userID, orgID string) (models.GetUserChannelResp, error) {
 	var (
 		uc models.UserChannels

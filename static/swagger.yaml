@@ -2780,6 +2780,94 @@ paths:
                           type: string
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
+                          
+  /organisations/{organisation_id}/channels/archived:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve archived channels
+      description: Fetch all archived channels for a specific organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation whose archived channels are to be retrieved.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved archived channels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channels_id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        organisation_id:
+                          type: string
+                        owner_id:
+                          type: string
+                        users:
+                          type: array
+                          items:
+                            type: string
+                          nullable: true
+                        user_count:
+                          type: integer
+                        message_count:
+                          type: integer
+                        archived:
+                          type: boolean
+                        group_id:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        deleted_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        threads:
+                          type: array
+                          items:
+                            type: string
+                          nullable: true
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "archived channels retrieved successfully"
+                  data:
+                    - channels_id: "0191be6e-4742-7b48-b3fd-437e8f5452ad"
+                      name: "Default"
+                      description: "shallom's org's default channel"
+                      organisation_id: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      owner_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                      users: null
+                      user_count: 0
+                      message_count: 0
+                      archived: true
+                      group_id: null
+                      created_at: "2024-09-04T20:06:24.257395+01:00"
+                      deleted_at: "0001-01-01T00:13:35+00:13"
+                      threads: null
+
   /channels/add-multiple:
     post:
       tags:
@@ -9885,6 +9973,7 @@ paths:
                     type: integer
                   message:
                     type: string
+                    
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
     patch:
       tags:
@@ -9928,11 +10017,13 @@ paths:
                   status: "success"
                   status_code: 200
                   message: "Group channel moved successfully"
+                  
+  /organisations/{organisation_id}/groups/{group_id}/channels:
     post:
       tags:
         - Channel Grouping
-      summary: Assign a channel to a group
-      description: Assign a specified channel to a group within an organisation.
+      summary: Assign channels to a group
+      description: Assign multiple channels to a specific group within an organisation.
       parameters:
         - name: organisation_id
           in: path
@@ -9943,18 +10034,26 @@ paths:
         - name: group_id
           in: path
           required: true
-          description: ID of the group.
+          description: ID of the group to assign channels to.
           schema:
             type: string
-        - name: channel_id
-          in: path
-          required: true
-          description: ID of the channel.
-          schema:
-            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channels:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of channel IDs to assign to the group.
+            example:
+              channels: ["0193734a-4c4f-703e-afba-6773c57c01c2", "0193734a-6ca6-703e-8fc1-38a395f447a7"]
       responses:
         '200':
-          description: Successfully assigned channel to group.
+          description: Channels assigned to the group successfully.
           content:
             application/json:
               schema:
@@ -9966,16 +10065,16 @@ paths:
                     type: integer
                   message:
                     type: string
-                example:
-                  status: "success"
-                  status_code: 200
-                  message: "Group channel assigned successfully"
-
+              example:
+                status: "success"
+                status_code: 200
+                message: "Group channels assigned successfully"
+  
     delete:
       tags:
         - Channel Grouping
-      summary: Remove a channel from a group
-      description: Remove a specified channel from a group within an organisation.
+      summary: Remove channels from a group
+      description: Remove multiple channels from a specific group within an organisation.
       parameters:
         - name: organisation_id
           in: path
@@ -9986,18 +10085,26 @@ paths:
         - name: group_id
           in: path
           required: true
-          description: ID of the group.
+          description: ID of the group to remove channels from.
           schema:
             type: string
-        - name: channel_id
-          in: path
-          required: true
-          description: ID of the channel.
-          schema:
-            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channels:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of channel IDs to remove from the group.
+            example:
+              channels: ["0193734a-4c4f-703e-afba-6773c57c01c2", "0193734a-6ca6-703e-8fc1-38a395f447a7"]
       responses:
         '200':
-          description: Successfully removed channel from group.
+          description: Channels removed from the group successfully.
           content:
             application/json:
               schema:
@@ -10009,12 +10116,11 @@ paths:
                     type: integer
                   message:
                     type: string
-                example:
-                  status: "success"
-                  status_code: 200
-                  message: "Group channel removed successfully"
+              example:
+                status: "success"
+                status_code: 200
+                message: "Group channels removed successfully"
 
-  /organisations/{organisation_id}/groups/{group_id}/channels:
     get:
       tags:
         - Channel Grouping
