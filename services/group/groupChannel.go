@@ -5,7 +5,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 )
 
-func AssignGroupChannel(db *storage.Database, ids map[string]string) error {
+func AssignGroupChannel(db *storage.Database, ids map[string]any) error {
 	var group models.Group
 
 	err := group.AssignGroupChannel(db.Postgresql, ids)
@@ -15,7 +15,7 @@ func AssignGroupChannel(db *storage.Database, ids map[string]string) error {
 	return nil
 }
 
-func RemoveGroupChannel(db *storage.Database, ids map[string]string) error {
+func RemoveGroupChannel(db *storage.Database, ids map[string]any) error {
 	var group models.Group
 
 	err := group.RemoveGroupChannel(db.Postgresql, ids)

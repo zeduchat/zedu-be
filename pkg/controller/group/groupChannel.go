@@ -5,94 +5,114 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/group"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func (base *Controller) AssignGroupChannel(c *gin.Context) {
 	var (
-		ids map[string]string = map[string]string{
+		ids map[string]any = map[string]any{
 			"organisation_id": c.Param("org_id"),
 			"group_id":        c.Param("group_id"),
-			"channel_id":      c.Param("channel_id"),
 		}
+		req models.AssignGroupChannelRequest
 	)
 
-	if _, err := uuid.Parse(ids["organisation_id"]); err != nil {
+	if _, err := uuid.Parse(ids["organisation_id"].(string)); err != nil {
 		base.Logger.Error("Invalid organisation id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid organisation id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	if _, err := uuid.Parse(ids["group_id"]); err != nil {
+	if _, err := uuid.Parse(ids["group_id"].(string)); err != nil {
 		base.Logger.Error("Invalid group id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid group id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	if _, err := uuid.Parse(ids["channel_id"]); err != nil {
-		base.Logger.Error("Invalid channel id", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid channel id", err, nil)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	if len(req.Channels) == 0 {
+		base.Logger.Error("No channel id provided")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "No channel id provided", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids["channel_ids"] = req.Channels
 
 	err := group.AssignGroupChannel(base.Db, ids)
 	if err != nil {
-		base.Logger.Error("Failed to assign group channel", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to assign group channel", err.Error(),nil)
+		base.Logger.Error("Failed to assign group channels", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to assign group channels", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Group channel assigned successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Group channel assigned successfully", nil)
+	base.Logger.Info("Group channels assigned successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Group channels assigned successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) RemoveGroupChannel(c *gin.Context) {
 	var (
-		ids map[string]string = map[string]string{
+		ids map[string]any = map[string]any{
 			"organisation_id": c.Param("org_id"),
 			"group_id":        c.Param("group_id"),
-			"channel_id":      c.Param("channel_id"),
 		}
+		req models.AssignGroupChannelRequest
 	)
 
-	if _, err := uuid.Parse(ids["organisation_id"]); err != nil {
+	if _, err := uuid.Parse(ids["organisation_id"].(string)); err != nil {
 		base.Logger.Error("Invalid organisation id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid organisation id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	if _, err := uuid.Parse(ids["group_id"]); err != nil {
+	if _, err := uuid.Parse(ids["group_id"].(string)); err != nil {
 		base.Logger.Error("Invalid group id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid group id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	if _, err := uuid.Parse(ids["channel_id"]); err != nil {
-		base.Logger.Error("Invalid channel id", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid channel id", err, nil)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	if len(req.Channels) == 0 {
+		base.Logger.Error("No channel id provided")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "No channel id provided", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids["channel_ids"] = req.Channels
 
 	err := group.RemoveGroupChannel(base.Db, ids)
 	if err != nil {
-		base.Logger.Error("Failed to remove group channel", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to remove group channel", err.Error(), nil)
+		base.Logger.Error("Failed to remove group channels", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to remove group channels", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Group channel removed successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Group channel removed successfully", nil)
+	base.Logger.Info("Group channels removed successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Group channels removed successfully", nil)
 	c.JSON(http.StatusOK, rd)
-
 }
 
-func (base *Controller) GetGroupChannels(c *gin.Context){
+func (base *Controller) GetGroupChannels(c *gin.Context) {
 	var (
 		ids map[string]string = map[string]string{
 			"organisation_id": c.Param("org_id"),
@@ -126,7 +146,7 @@ func (base *Controller) GetGroupChannels(c *gin.Context){
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetChannelsNotInGroup(c *gin.Context){
+func (base *Controller) GetChannelsNotInGroup(c *gin.Context) {
 	var (
 		org_id = c.Param("org_id")
 	)
@@ -151,11 +171,11 @@ func (base *Controller) GetChannelsNotInGroup(c *gin.Context){
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) MoveGroupChannel(c *gin.Context){
+func (base *Controller) MoveGroupChannel(c *gin.Context) {
 	var (
 		ids map[string]string = map[string]string{
 			"organisation_id": c.Param("org_id"),
-			"new_group_id":        c.Param("group_id"),
+			"new_group_id":    c.Param("group_id"),
 			"channel_id":      c.Param("channel_id"),
 		}
 	)
