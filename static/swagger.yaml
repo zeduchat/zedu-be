@@ -9975,6 +9975,91 @@ paths:
                     type: string
                     
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
+    post:
+      tags:
+        - Channel Grouping
+      summary: Assign a channel to a group
+      description: Assign a specified channel to a group within an organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the group.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully assigned channel to group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel assigned successfully"
+
+    delete:
+      tags:
+        - Channel Grouping
+      summary: Remove a channel from a group
+      description: Remove a specified channel from a group within an organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the group.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully removed channel from group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel removed successfully"
     patch:
       tags:
         - Channel Grouping
@@ -10019,108 +10104,6 @@ paths:
                   message: "Group channel moved successfully"
                   
   /organisations/{organisation_id}/groups/{group_id}/channels:
-    post:
-      tags:
-        - Channel Grouping
-      summary: Assign channels to a group
-      description: Assign multiple channels to a specific group within an organisation.
-      parameters:
-        - name: organisation_id
-          in: path
-          required: true
-          description: ID of the organisation.
-          schema:
-            type: string
-        - name: group_id
-          in: path
-          required: true
-          description: ID of the group to assign channels to.
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                channels:
-                  type: array
-                  items:
-                    type: string
-                  description: Array of channel IDs to assign to the group.
-            example:
-              channels: ["0193734a-4c4f-703e-afba-6773c57c01c2", "0193734a-6ca6-703e-8fc1-38a395f447a7"]
-      responses:
-        '200':
-          description: Channels assigned to the group successfully.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  status_code:
-                    type: integer
-                  message:
-                    type: string
-              example:
-                status: "success"
-                status_code: 200
-                message: "Group channels assigned successfully"
-  
-    delete:
-      tags:
-        - Channel Grouping
-      summary: Remove channels from a group
-      description: Remove multiple channels from a specific group within an organisation.
-      parameters:
-        - name: organisation_id
-          in: path
-          required: true
-          description: ID of the organisation.
-          schema:
-            type: string
-        - name: group_id
-          in: path
-          required: true
-          description: ID of the group to remove channels from.
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                channels:
-                  type: array
-                  items:
-                    type: string
-                  description: Array of channel IDs to remove from the group.
-            example:
-              channels: ["0193734a-4c4f-703e-afba-6773c57c01c2", "0193734a-6ca6-703e-8fc1-38a395f447a7"]
-      responses:
-        '200':
-          description: Channels removed from the group successfully.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  status_code:
-                    type: integer
-                  message:
-                    type: string
-              example:
-                status: "success"
-                status_code: 200
-                message: "Group channels removed successfully"
-
     get:
       tags:
         - Channel Grouping
