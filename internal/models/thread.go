@@ -156,13 +156,25 @@ type FeedMessageRequest struct {
 	ThreadId  string `json:"thread_id"`
 }
 
+type Mentions struct {
+	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
+	MessageID string    `gorm:"type:uuid;index" json:"message_id"`
+	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+}
+
+type UpdateThreadStatus struct {
+	Status string `json:"status" validate:"required,oneof=pending completed"`
+}
+
+
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
-		CC            ChannelCountInfo
-		CTI           []ChannelMetrics
-		startTime     = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
-		endTime       = time.Now().Format(time.RFC3339)
-		channelIDs    = make([]string, 0)
+		CC         ChannelCountInfo
+		CTI        []ChannelMetrics
+		startTime  = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
+		endTime    = time.Now().Format(time.RFC3339)
+		channelIDs = make([]string, 0)
 	)
 
 	err := db.Postgresql.Model(&Channels{}).
@@ -188,14 +200,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							"channels_id.keyword": channelIDs,
 						},
 					},
-					{
-						"range": map[string]interface{}{
-							"timestamp": map[string]interface{}{
-								"gte": startTime,
-								"lte": endTime,
-							},
-						},
-					},
 				},
 			},
 		},
@@ -209,9 +213,11 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									"status.keyword": "success",
 								},
 							},
+						},
+						"filter": []map[string]interface{}{
 							{
 								"range": map[string]interface{}{
-									"timestamp": map[string]interface{}{
+									"created_at": map[string]interface{}{
 										"gte": startTime,
 										"lte": endTime,
 									},
@@ -230,11 +236,13 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									"status.keyword": "error",
 								},
 							},
+						},
+						"filter": []map[string]interface{}{
 							{
 								"range": map[string]interface{}{
-									"timestamp": map[string]interface{}{
-										"gte": startTime,
-										"lte": endTime,
+									"created_at": map[string]interface{}{
+										"gte": "now-4d/d",
+										"lte": "now/d",
 									},
 								},
 							},
@@ -251,9 +259,11 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									"current_status.keyword": "completed",
 								},
 							},
+						},
+						"filter": []map[string]interface{}{
 							{
 								"range": map[string]interface{}{
-									"timestamp": map[string]interface{}{
+									"created_at": map[string]interface{}{
 										"gte": startTime,
 										"lte": endTime,
 									},
@@ -272,9 +282,11 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									"type.keyword": "thread",
 								},
 							},
+						},
+						"filter": []map[string]interface{}{
 							{
 								"range": map[string]interface{}{
-									"timestamp": map[string]interface{}{
+									"created_at": map[string]interface{}{
 										"gte": startTime,
 										"lte": endTime,
 									},
@@ -315,14 +327,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							"channels_id.keyword": channelIDs,
 						},
 					},
-					{
-						"range": map[string]interface{}{
-							"timestamp": map[string]interface{}{
-								"gte": startTime,
-								"lte": endTime,
-							},
-						},
-					},
 				},
 			},
 		},
@@ -351,6 +355,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 											"status.keyword": "success",
 										},
 									},
+								},
+								"filter": []map[string]interface{}{
 									{
 										"range": map[string]interface{}{
 											"timestamp": map[string]interface{}{
@@ -372,6 +378,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 											"status.keyword": "error",
 										},
 									},
+								},
+								"filter": []map[string]interface{}{
 									{
 										"range": map[string]interface{}{
 											"timestamp": map[string]interface{}{
@@ -393,6 +401,8 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 											"status.keyword": "other",
 										},
 									},
+								},
+								"filter": []map[string]interface{}{
 									{
 										"range": map[string]interface{}{
 											"timestamp": map[string]interface{}{
@@ -409,6 +419,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 			},
 		},
 	}
+	
 
 	var ChannelInfoCount any
 	err = elastic.SelectAll(db.Elastic, ThreadIndexName, query, &ChannelInfoCount)
@@ -435,17 +446,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 	}
 
 	return CC, CTI, nil
-}
-
-type Mentions struct {
-	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
-	MessageID string    `gorm:"type:uuid;index" json:"message_id"`
-	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-}
-
-type UpdateThreadStatus struct {
-	Status string `json:"status" validate:"required,oneof=pending completed"`
 }
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
