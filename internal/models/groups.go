@@ -36,6 +36,10 @@ type ToggleArchiveStatusRequest struct {
 	Archived bool `json:"archived"`
 }
 
+type AssignGroupChannelRequest struct {
+	Channels []string `json:"channels" binding:"required"`
+}
+
 func (g *Group) CreateGroup(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &g)
