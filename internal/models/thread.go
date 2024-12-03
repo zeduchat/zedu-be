@@ -167,7 +167,6 @@ type UpdateThreadStatus struct {
 	Status string `json:"status" validate:"required,oneof=pending completed"`
 }
 
-
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
 		CC         ChannelCountInfo
@@ -186,6 +185,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 		return CC, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
 
+	//eliminate
 	if len(channelIDs) == 0 {
 		return CC, nil, fmt.Errorf("no channels found for the organisation")
 	}
@@ -327,6 +327,14 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							"channels_id.keyword": channelIDs,
 						},
 					},
+					{
+						"range": map[string]interface{}{
+							"created_at": map[string]interface{}{
+								"gte": startTime,
+								"lte": endTime,
+							},
+						},
+					},
 				},
 			},
 		},
@@ -356,16 +364,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 										},
 									},
 								},
-								"filter": []map[string]interface{}{
-									{
-										"range": map[string]interface{}{
-											"timestamp": map[string]interface{}{
-												"gte": startTime,
-												"lte": endTime,
-											},
-										},
-									},
-								},
 							},
 						},
 					},
@@ -376,16 +374,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 									{
 										"term": map[string]interface{}{
 											"status.keyword": "error",
-										},
-									},
-								},
-								"filter": []map[string]interface{}{
-									{
-										"range": map[string]interface{}{
-											"timestamp": map[string]interface{}{
-												"gte": startTime,
-												"lte": endTime,
-											},
 										},
 									},
 								},
@@ -402,16 +390,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 										},
 									},
 								},
-								"filter": []map[string]interface{}{
-									{
-										"range": map[string]interface{}{
-											"timestamp": map[string]interface{}{
-												"gte": startTime,
-												"lte": endTime,
-											},
-										},
-									},
-								},
 							},
 						},
 					},
@@ -419,7 +397,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 			},
 		},
 	}
-	
 
 	var ChannelInfoCount any
 	err = elastic.SelectAll(db.Elastic, ThreadIndexName, query, &ChannelInfoCount)
