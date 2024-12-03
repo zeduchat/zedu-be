@@ -139,7 +139,6 @@ type ChannelMetrics struct {
 type CreateThreadMsgReq struct {
 	Content        string `json:"content" validate:"required"`
 	ChannelsID     string `json:"channels_id"`
-	OrganisationID string `json:"organisation_id"`
 	UserId         string `json:"user_id"`
 	ThreadId       string `json:"thread_id"`
 }
