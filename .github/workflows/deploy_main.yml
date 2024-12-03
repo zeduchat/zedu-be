@@ -7,46 +7,23 @@ on:
       - main
 
 jobs:
-  update_env_and_binary:
-    runs-on: self-hosted
-    if: github.event.repository.fork == false
-    env:
-      SSH_USERNAME: ${{ secrets.TELEX_SERVER_SSH_USER }}
-      SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
-      SSH_KEY: ${{ secrets.TELEX_SERVER_SSH_KEY }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-
-      - name: Build binary
-        run: |
-          go build -o telexbe_main
-
-      - name: Upload binary to server
-        run: |
-          echo "$SSH_KEY" > ssh_key.pem
-          chmod 600 ssh_key.pem
-          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ssh_key.pem" telexbe_main $SSH_USERNAME@$SSH_HOST:/var/www/telex_be/telexbe_main
-          rm ssh_key.pem
-
   update_and_restart_app:
-    runs-on: self-hosted
-    needs: [update_env_and_binary]
+    runs-on: ubuntu-latest
     env:
       SSH_USERNAME: ${{ secrets.TELEX_SERVER_SSH_USER }}
       SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
-      SSH_KEY: ${{ secrets.TELEX_SERVER_SSH_KEY }}
+      SSH_PASSWORD: ${{ secrets.TELEX_SERVER_SSH_PASSWORD }}
     steps:
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
       - name: Restart app
         run: |
-          echo "$SSH_KEY" > ssh_key.pem
-          chmod 600 ssh_key.pem
-          ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
             cd /var/www/telex_be
             git reset --hard
             git pull origin main
+            go build -o telexbe_main
             supervisorctl restart telexbe
           '
-          rm ssh_key.pem
