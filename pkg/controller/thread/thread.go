@@ -202,11 +202,18 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
+	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
-			utility.ValidationResponse(err, base.Validator), nil)
+		utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+	
+	if _, err := uuid.Parse(req.OrganisationID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -283,7 +290,7 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		return
 	}
 
-	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID, days)
+	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db, orgID, days)
 	if err != nil {
 		base.Logger.Error("an error occurred while getting channel count metrics: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)

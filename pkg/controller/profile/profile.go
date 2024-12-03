@@ -55,7 +55,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	req.Email = c.Request.FormValue("email")
-	req.UserName = c.Request.FormValue("user_name")
+	req.UserName = c.Request.FormValue("username")
 	req.FullName = c.Request.FormValue("full_name")
 	req.Phone = c.Request.FormValue("phone")
 

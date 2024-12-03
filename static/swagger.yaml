@@ -5201,7 +5201,7 @@ paths:
             example:
               email: "newemail@example.com"
               full_name: "New Full Name"
-              user_name: "new_username"
+              username: "new_username"
               phone: "1234567890"
               avatar_url: "https://example.com/avatar.jpg"
       responses:
@@ -10637,7 +10637,7 @@ components:
           type: string
           description: Updated full name
           example: "New Full Name"
-        user_name:
+        username:
           type: string
           description: Updated username
           example: "new_username"
@@ -10661,7 +10661,7 @@ components:
         full_name:
           type: string
           description: Full name of the user
-        user_name:
+        username:
           type: string
           description: Username
         phone:
@@ -10674,7 +10674,7 @@ components:
       example:
         email: "newemail@example.com"
         full_name: "New Full Name"
-        user_name: "new_username"
+        username: "new_username"
         phone: "1234567890"
         avatar_url: "https://example.com/avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
@@ -10700,7 +10700,7 @@ components:
         full_name:
           type: string
           example: "Testinp Update"
-        user_name:
+        username:
           type: string
           example: "What_b_Heck"
         avatar_url:

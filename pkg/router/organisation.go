@@ -69,7 +69,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		///organisationIntegration settings related endpoints
 		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrations.AddIntegrationSetting)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrations.GetIntegrationSetting)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrations.GetIntegrationSettings)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrations.UpdateIntegrationSetting)
 
 		//organisationChannelIntegration Settings related endpoints

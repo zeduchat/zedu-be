@@ -44,7 +44,7 @@ func (base *Controller) AddIntegrationSetting(c *gin.Context) {
 		"integration_id": integration_id,
 	}
 
-	err := integrations.AddIntegrationSettings(base.Db.Postgresql , ids ,req)
+	err := integrations.AddIntegrationSettings(base.Db.Postgresql, ids, req)
 	if err != nil {
 		base.Logger.Error("Failed to add integration settings", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to add integration settings", err.Error(), nil)
@@ -57,9 +57,9 @@ func (base *Controller) AddIntegrationSetting(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetIntegrationSetting(c *gin.Context) {
+func (base *Controller) GetIntegrationSettings(c *gin.Context) {
 	var (
-		org_id = c.Param("org_id")
+		org_id         = c.Param("org_id")
 		integration_id = c.Param("integration_id")
 	)
 
@@ -84,24 +84,24 @@ func (base *Controller) GetIntegrationSetting(c *gin.Context) {
 
 	setting, err := integrations.GetIntegrationSetting(base.Db.Postgresql, ids)
 	if err != nil {
-		base.Logger.Error("Failed to get integration setting", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to get integration setting", err.Error(), nil)
+		base.Logger.Error("Failed to get organisation integration setting", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to get organisation integration setting", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("Integration setting retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration setting retrieved successfully", setting)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation Integration setting retrieved successfully", setting)
 	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) UpdateChannelIntegrationSetting(c *gin.Context) {
 	var (
-		req models.UpdateIntegrationSettingsRequest
-		org_id = c.Param("org_id")
+		req            models.UpdateIntegrationSettingsRequest
+		org_id         = c.Param("org_id")
 		integration_id = c.Param("integration_id")
-		channel_id = c.Param("channel_id")
-		setting_id = c.Param("setting_id")
+		channel_id     = c.Param("channel_id")
+		setting_id     = c.Param("setting_id")
 	)
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -132,7 +132,6 @@ func (base *Controller) UpdateChannelIntegrationSetting(c *gin.Context) {
 		return
 	}
 
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Invalid request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
@@ -159,5 +158,3 @@ func (base *Controller) UpdateChannelIntegrationSetting(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration setting updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
-
-

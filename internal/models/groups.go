@@ -58,7 +58,9 @@ func (g *Group) GetGroup(db *gorm.DB, ids map[string]string) (Group, error) {
 }
 
 func (g *Group) GetGroups(db *gorm.DB, org_id string) ([]Group, error) {
-	var groups []Group
+	var (
+		groups   []Group
+	)
 
 	err := postgresql.SelectAllFromDb(db.Preload("Channels"), "", &groups, "organisation_id = ?", org_id)
 	if err != nil {
