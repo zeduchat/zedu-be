@@ -211,12 +211,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 	
-	if _, err := uuid.Parse(req.OrganisationID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	if _, err := uuid.Parse(req.ThreadId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
