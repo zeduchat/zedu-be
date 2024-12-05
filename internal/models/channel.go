@@ -646,8 +646,6 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID st
 		return nil, errors.New("error fetching channels")
 	}
 
-	fmt.Println("channels", channels)
-
 	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
 		query := map[string]interface{}{
 			"query": map[string]interface{}{
