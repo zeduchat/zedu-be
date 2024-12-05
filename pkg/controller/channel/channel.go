@@ -553,7 +553,7 @@ func (base *Controller) GetUserChannels(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	userchannels, err := channel.GetUserChannels(base.Db.Postgresql, userId, org_id)
+	userchannels, err := channel.GetUserChannels(base.Db, userId, org_id)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch user channels", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
