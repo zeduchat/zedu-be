@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -279,13 +280,13 @@ func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels,
 	return channels, http.StatusOK, nil
 }
 
-func GetUserChannels(db *gorm.DB, userID, orgID string) (models.GetUserChannelResp, error) {
+func GetUserChannels(db *storage.Database, userID, orgID string) (models.GetUserChannelResp, error) {
 	var (
 		uc models.UserChannels
 		o  models.Organisation
 	)
 
-	_, err := o.CheckOrgExists(orgID, db)
+	_, err := o.CheckOrgExists(orgID, db.Postgresql)
 	if err != nil {
 		return nil, err
 	}

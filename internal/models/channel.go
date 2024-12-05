@@ -1,16 +1,21 @@
 package models
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
+	"google.golang.org/appengine/log"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
@@ -390,7 +395,7 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 		return req.Archived, errors.New("could not update the archived status of the channel")
 	}
 
-	if req.Archived{
+	if req.Archived {
 		err = db.Model(&channel).Where("id = ?", channelId).Update("group_id", nil).Error
 		if err != nil {
 			return req.Archived, errors.New("could not remove channel from group")
@@ -447,14 +452,14 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	return addError, nil
 }
 
-func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error){
+func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {
 	var channels []Channels
 
 	err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND archived = ?", ids["organisation_id"], true)
 	if err != nil {
 		return channels, errors.New("could not get archived channels")
 	}
-	
+
 	return channels, nil
 }
 
@@ -615,13 +620,15 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	return exists, nil
 }
 
-func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetUserChannelResp, error) {
+func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID string) (GetUserChannelResp, error) {
 
 	var (
-		channels Channels
-		thread   Threads
+		channels []Channels
 		org      Organisation
 		chanResp GetUserChannelResp
+		c        context.Context
+		es       = base.Elastic
+		db       = base.Postgresql
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
@@ -629,19 +636,70 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetU
 		return chanResp, errors.New("organisation does not exist")
 	}
 
-	threadCountSubquery := db.Model(&thread).Select("count(*)").
-		Where("threads.channels_id = channels.id").
-		Where("threads.type = 'thread'")
-
-		if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, (?) AS thread_count, 'true' AS access",
-			threadCountSubquery).
+	if err := db.Model(&[]Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
 		Where("user_channels.user_id = ?", userId).
 		Order("channels.created_at").
-		Scan(&chanResp).Error; err != nil {
+		Scan(&channels).Error; err != nil {
 		return nil, errors.New("error fetching channels")
+	}
+
+	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
+		query := map[string]interface{}{
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []map[string]interface{}{
+						{
+							"term": map[string]interface{}{
+								"channels_id.keyword": channelID,
+							},
+						},
+						{
+							"term": map[string]interface{}{
+								"type.keyword": "thread",
+							},
+						},
+					},
+				},
+			},
+			"size": 0,
+			"aggs": map[string]interface{}{
+				"thread_count": map[string]interface{}{
+					"value_count": map[string]interface{}{
+						"field": "thread_id.keyword",
+					},
+				},
+			},
+		}
+
+		var countInfo any
+		err := elastic.SelectAll(es, "threads", query, &countInfo)
+		if err != nil {
+			log.Errorf(c, "error fetching thread count from elastic: %v", err)
+			return 0
+		}
+
+		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
+
+		return int(count)
+
+	}
+
+	for _, channel := range channels {
+		count := getThreadCountFromElastic(es, channel.ID)
+		chanResp = append(chanResp, struct {
+			Channels
+			WebhookUrl  string `json:"webhook_url"`
+			ThreadCount int64  `json:"thread_count"`
+			Access      bool   `json:"access"`
+		}{
+			Channels:    channel,
+			WebhookUrl:  "",
+			ThreadCount: int64(count),
+			Access:      true,
+		})
 	}
 
 	return chanResp, nil
