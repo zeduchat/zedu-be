@@ -29,6 +29,8 @@ func Group(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		//channels
 		organisationUrl.GET("/:org_id/groups/:group_id/channels", group.GetGroupChannels)
 		organisationUrl.GET("/:org_id/groups/channels/no-group", group.GetChannelsNotInGroup)
+		organisationUrl.GET("/:org_id/groups/channels/user-no-group", group.GetDiscoverableChannels)
+
 		organisationUrl.POST("/:org_id/groups/:group_id/channels/:channel_id", group.AssignGroupChannel)
 		organisationUrl.DELETE("/:org_id/groups/:group_id/channels/:channel_id", group.RemoveGroupChannel)
 		organisationUrl.PATCH("/:org_id/groups/:group_id/channels/:channel_id", group.MoveGroupChannel)

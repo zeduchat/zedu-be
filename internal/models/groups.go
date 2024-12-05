@@ -1,10 +1,15 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"google.golang.org/appengine/log"
 	"gorm.io/gorm"
 )
 
@@ -59,7 +64,7 @@ func (g *Group) GetGroup(db *gorm.DB, ids map[string]string) (Group, error) {
 
 func (g *Group) GetGroups(db *gorm.DB, org_id string) ([]Group, error) {
 	var (
-		groups   []Group
+		groups []Group
 	)
 
 	err := postgresql.SelectAllFromDb(db.Preload("Channels"), "", &groups, "organisation_id = ?", org_id)
@@ -216,29 +221,88 @@ func (group *Group) GetGroupChannels(db *gorm.DB, ids map[string]string) ([]Chan
 		return channels, fmt.Errorf("group not found")
 	}
 
-	err = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND group_id = ?", ids["organisation_id"], ids["group_id"])
+	err = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND group_id = ? AND archived = false", ids["organisation_id"], ids["group_id"])
 	if err != nil {
 		return channels, fmt.Errorf("failed to get group channels: %w", err)
 	}
 	return channels, nil
 }
 
-func (group *Group) GetChannelsNotInGroup(db *gorm.DB, org_id string) ([]Channels, error) {
+func (group *Group) GetChannelsNotInGroup(db *storage.Database, org_id string) (GetUserChannelResp, error) {
 	var (
 		channels []Channels
 		org      Organisation
+		chanResp GetUserChannelResp
+		c        = context.Background()
 	)
 
-	_, err := org.CheckOrgExists(org_id, db)
+	_, err := org.CheckOrgExists(org_id, db.Postgresql)
 	if err != nil {
-		return channels, err
+		return chanResp, err
 	}
 
-	err = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND group_id IS NULL", org_id)
+	err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id IS NULL and archived = false", org_id)
 	if err != nil {
-		return channels, fmt.Errorf("failed to get channels not in group: %w", err)
+		return chanResp, fmt.Errorf("failed to get channels not in group: %w", err)
 	}
-	return channels, nil
+
+	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
+		query := map[string]interface{}{
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []map[string]interface{}{
+						{
+							"term": map[string]interface{}{
+								"channels_id.keyword": channelID,
+							},
+						},
+						{
+							"term": map[string]interface{}{
+								"type.keyword": "thread",
+							},
+						},
+					},
+				},
+			},
+			"size": 0,
+			"aggs": map[string]interface{}{
+				"thread_count": map[string]interface{}{
+					"value_count": map[string]interface{}{
+						"field": "thread_id.keyword",
+					},
+				},
+			},
+		}
+
+		var countInfo any
+		err := elastic.SelectAll(es, "threads", query, &countInfo)
+		if err != nil {
+			log.Errorf(c, "error fetching thread count from elastic: %v", err)
+			return 0
+		}
+
+		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
+
+		return int(count)
+
+	}
+
+	for _, channel := range channels {
+		count := getThreadCountFromElastic(db.Elastic, channel.ID)
+		chanResp = append(chanResp, struct {
+			Channels
+			WebhookUrl  string `json:"webhook_url"`
+			ThreadCount int64  `json:"thread_count"`
+			Access      bool   `json:"access"`
+		}{
+			Channels:    channel,
+			WebhookUrl:  "",
+			ThreadCount: int64(count),
+			Access:      true,
+		})
+	}
+
+	return chanResp, nil
 }
 
 func (group *Group) MoveGroupChannel(db *gorm.DB, ids map[string]string) error {
@@ -285,5 +349,26 @@ func (group *Group) MoveGroupChannel(db *gorm.DB, ids map[string]string) error {
 	}
 
 	return nil
+}
 
+func (group *Group) GetDiscoverableChannels(db *storage.Database, ids map[string]string) ([]Channels, error) {
+	var (
+		channels = []Channels{}
+		org      Organisation
+	)
+
+	_, err := org.CheckOrgExists(ids["organisation_id"], db.Postgresql)
+	if err != nil {
+		return channels, err
+	}
+
+	if err := db.Postgresql.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").
+		Where("channels.organisation_id = ? AND channels.archived = false AND channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", ids["organisation_id"], ids["user_id"]).
+		Order("channels.created_at").
+		Scan(&channels).Error; err != nil {
+		return channels, fmt.Errorf("error fetching discoverable channels: %w", err)
+	}
+
+	return channels, nil
 }
