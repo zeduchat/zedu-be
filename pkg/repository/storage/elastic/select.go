@@ -172,5 +172,4 @@ func SelectByID(Client *elasticsearch.Client, indexName string, docID string, re
 	*reciever = raw["_source"]
 
 	return nil
-
 }

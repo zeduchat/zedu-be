@@ -102,7 +102,7 @@ type MessagesResp []struct {
 	ID        string    `json:"id"`
 	Edited    bool      `json:"edited"`
 	Message   string    `json:"message"`
-	Username  string    `json:"user_name"`
+	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	UserMsgProfile
@@ -390,6 +390,13 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 		return req.Archived, errors.New("could not update the archived status of the channel")
 	}
 
+	if req.Archived{
+		err = db.Model(&channel).Where("id = ?", channelId).Update("group_id", nil).Error
+		if err != nil {
+			return req.Archived, errors.New("could not remove channel from group")
+		}
+	}
+
 	return req.Archived, nil
 }
 
@@ -438,6 +445,17 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	}
 
 	return addError, nil
+}
+
+func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error){
+	var channels []Channels
+
+	err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND archived = ?", ids["organisation_id"], true)
+	if err != nil {
+		return channels, errors.New("could not get archived channels")
+	}
+	
+	return channels, nil
 }
 
 func (r *Channels) RemoveUserFromChannels(db *gorm.DB, channelID, userID string) error {

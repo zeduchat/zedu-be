@@ -75,3 +75,27 @@ func UpdateIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.Up
 
 	return nil
 }
+
+func GetOrgIntegrationSettings(db *gorm.DB, ids map[string]string) ([]models.IntegrationSettings, error) {
+	var (
+		organisation models.Organisation
+		integration models.Integrations
+		setting models.IntegrationSettings
+	)
+
+	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
+	if !exists {
+		return []models.IntegrationSettings{}, fmt.Errorf("organisation does not exist")
+	}
+
+	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	if !exists {
+		return []models.IntegrationSettings{}, fmt.Errorf("integration does not exist")
+	}
+
+	settings, err := setting.GetIntegrationSetting(db, ids)
+	if err != nil {
+		return settings, err
+	}
+	return settings, nil
+}

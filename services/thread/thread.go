@@ -11,6 +11,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/services/user"
 )
@@ -207,7 +208,7 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 	return http.StatusOK, nil
 }
 
-func ChannelCountInfo(c *gin.Context, db *gorm.DB, org_id string, days int) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
+func ChannelCountInfo(c *gin.Context, db *storage.Database, org_id string, days int) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
 	var (
 		channel models.ChannelCountInfo
 		t       models.Threads

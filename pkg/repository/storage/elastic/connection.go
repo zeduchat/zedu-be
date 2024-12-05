@@ -22,7 +22,7 @@ func ConnectToElastic(logger *utility.Logger, EConfig config.ElasticDb) *elastic
 	}
 	client, err := elasticsearch.NewClient(cfg)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("error creating Elasticsearch client: %w", err))
+		utility.LogAndPrint(logger, fmt.Errorf("error creating Elasticsearch client: %w", err))
 		return nil
 	}
 
@@ -32,7 +32,7 @@ func ConnectToElastic(logger *utility.Logger, EConfig config.ElasticDb) *elastic
 	info, err := client.Info()
 
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("error fetching Elasticsearch client info: %w", err))
+		utility.LogAndPrint(logger, fmt.Errorf("error fetching Elasticsearch client info: %w", err))
 		return nil
 	}
 

@@ -2780,6 +2780,94 @@ paths:
                           type: string
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
+                          
+  /organisations/{organisation_id}/channels/archived:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve archived channels
+      description: Fetch all archived channels for a specific organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation whose archived channels are to be retrieved.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved archived channels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channels_id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        organisation_id:
+                          type: string
+                        owner_id:
+                          type: string
+                        users:
+                          type: array
+                          items:
+                            type: string
+                          nullable: true
+                        user_count:
+                          type: integer
+                        message_count:
+                          type: integer
+                        archived:
+                          type: boolean
+                        group_id:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        deleted_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        threads:
+                          type: array
+                          items:
+                            type: string
+                          nullable: true
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "archived channels retrieved successfully"
+                  data:
+                    - channels_id: "0191be6e-4742-7b48-b3fd-437e8f5452ad"
+                      name: "Default"
+                      description: "shallom's org's default channel"
+                      organisation_id: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      owner_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                      users: null
+                      user_count: 0
+                      message_count: 0
+                      archived: true
+                      group_id: null
+                      created_at: "2024-09-04T20:06:24.257395+01:00"
+                      deleted_at: "0001-01-01T00:13:35+00:13"
+                      threads: null
+
   /channels/add-multiple:
     post:
       tags:
@@ -5113,7 +5201,7 @@ paths:
             example:
               email: "newemail@example.com"
               full_name: "New Full Name"
-              user_name: "new_username"
+              username: "new_username"
               phone: "1234567890"
               avatar_url: "https://example.com/avatar.jpg"
       responses:
@@ -9885,49 +9973,8 @@ paths:
                     type: integer
                   message:
                     type: string
+                    
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
-    patch:
-      tags:
-        - Channel Grouping
-      summary: Move a channel to a different group
-      description: Move a specified channel from one group to another within the same organisation.
-      parameters:
-        - name: organisation_id
-          in: path
-          required: true
-          description: ID of the organisation.
-          schema:
-            type: string
-        - name: group_id
-          in: path
-          required: true
-          description: ID of the new group to move the channel to.
-          schema:
-            type: string
-        - name: channel_id
-          in: path
-          required: true
-          description: ID of the channel to be moved.
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully moved the channel to a new group.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  status_code:
-                    type: integer
-                  message:
-                    type: string
-                example:
-                  status: "success"
-                  status_code: 200
-                  message: "Group channel moved successfully"
     post:
       tags:
         - Channel Grouping
@@ -10013,7 +10060,49 @@ paths:
                   status: "success"
                   status_code: 200
                   message: "Group channel removed successfully"
-
+    patch:
+      tags:
+        - Channel Grouping
+      summary: Move a channel to a different group
+      description: Move a specified channel from one group to another within the same organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the new group to move the channel to.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel to be moved.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully moved the channel to a new group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel moved successfully"
+                  
   /organisations/{organisation_id}/groups/{group_id}/channels:
     get:
       tags:
@@ -10548,7 +10637,7 @@ components:
           type: string
           description: Updated full name
           example: "New Full Name"
-        user_name:
+        username:
           type: string
           description: Updated username
           example: "new_username"
@@ -10572,7 +10661,7 @@ components:
         full_name:
           type: string
           description: Full name of the user
-        user_name:
+        username:
           type: string
           description: Username
         phone:
@@ -10585,7 +10674,7 @@ components:
       example:
         email: "newemail@example.com"
         full_name: "New Full Name"
-        user_name: "new_username"
+        username: "new_username"
         phone: "1234567890"
         avatar_url: "https://example.com/avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
@@ -10611,7 +10700,7 @@ components:
         full_name:
           type: string
           example: "Testinp Update"
-        user_name:
+        username:
           type: string
           example: "What_b_Heck"
         avatar_url:

@@ -670,3 +670,34 @@ func (base *Controller) ArchiveChannel(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "channel "+res+" successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetArchivedChannels(c *gin.Context) {
+	var org_id string = c.Param("org_id")
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	ids := map[string]string{
+		"organisation_id": org_id,
+		"user_id":         userId,
+	}	
+
+	respData, code, err := channel.GetArchivedChannels(base.Db.Postgresql, ids)
+	if err != nil {
+		base.Logger.Info("error getting archived channels")
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("archived channels retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "archived channels retrieved successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}

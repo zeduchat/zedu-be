@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/services/group"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func (base *Controller) AssignGroupChannel(c *gin.Context) {
@@ -40,7 +40,7 @@ func (base *Controller) AssignGroupChannel(c *gin.Context) {
 	err := group.AssignGroupChannel(base.Db, ids)
 	if err != nil {
 		base.Logger.Error("Failed to assign group channel", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to assign group channel", err.Error(),nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to assign group channel", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -92,7 +92,7 @@ func (base *Controller) RemoveGroupChannel(c *gin.Context) {
 
 }
 
-func (base *Controller) GetGroupChannels(c *gin.Context){
+func (base *Controller) GetGroupChannels(c *gin.Context) {
 	var (
 		ids map[string]string = map[string]string{
 			"organisation_id": c.Param("org_id"),
@@ -126,7 +126,7 @@ func (base *Controller) GetGroupChannels(c *gin.Context){
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetChannelsNotInGroup(c *gin.Context){
+func (base *Controller) GetChannelsNotInGroup(c *gin.Context) {
 	var (
 		org_id = c.Param("org_id")
 	)
@@ -151,11 +151,11 @@ func (base *Controller) GetChannelsNotInGroup(c *gin.Context){
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) MoveGroupChannel(c *gin.Context){
+func (base *Controller) MoveGroupChannel(c *gin.Context) {
 	var (
 		ids map[string]string = map[string]string{
 			"organisation_id": c.Param("org_id"),
-			"new_group_id":        c.Param("group_id"),
+			"new_group_id":    c.Param("group_id"),
 			"channel_id":      c.Param("channel_id"),
 		}
 	)

@@ -62,6 +62,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   channel.Name,
+		Status:        "error",
 	}
 
 	err = threadDoc.CreateThread(db, logger)

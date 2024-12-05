@@ -38,7 +38,7 @@ type MessageDocument struct {
 	Content    string         `json:"message"`
 	ChannelsID string         `json:"channels_id"`
 	UserID     string         `json:"user_id"`
-	Username   string         `json:"user_name"`
+	Username   string         `json:"username"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `json:"-"`
