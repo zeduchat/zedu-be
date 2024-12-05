@@ -289,6 +289,7 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, org_id string) (
 
 	for _, channel := range channels {
 		count := getThreadCountFromElastic(db.Elastic, channel.ID)
+		channel.MessageCount = int64(count)
 		chanResp = append(chanResp, struct {
 			Channels
 			WebhookUrl  string `json:"webhook_url"`
