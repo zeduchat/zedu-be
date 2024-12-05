@@ -27,13 +27,12 @@ jobs:
       - name: Upload binary to server
         run: |
           echo "$SSH_KEY" > ssh_key.pem
-          chmod 400 ssh_key.pem
+          chmod 600 ssh_key.pem
           rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
 
       - name: Restart app
         run: |
            echo "$SSH_KEY" > ssh_key.pem
-           chmod 400 ssh_key.pem
            ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
             cd ~/deployments/telexbe/staging/
             git reset --hard
