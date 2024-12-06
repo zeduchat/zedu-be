@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/services/group"
 	"github.com/hngprojects/telex_be/utility"
@@ -189,5 +190,45 @@ func (base *Controller) MoveGroupChannel(c *gin.Context) {
 
 	base.Logger.Info("Group channel moved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Group channel moved successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetDiscoverableChannels(c *gin.Context) {
+	var (
+		org_id = c.Param("org_id")
+	)
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("Invalid organisation id", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid organisation id", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	ids := map[string]string{
+		"organisation_id": org_id,
+		"user_id":         userId,
+	}
+
+	channels, err := group.GetDiscoverableChannels(base.Db, ids)
+	if err != nil {
+		base.Logger.Error("Failed to get discoverable channels for user", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to get discoverable channels for user", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Discoverable Channels for user fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Discoverable Channels for user fetched successfully", channels)
 	c.JSON(http.StatusOK, rd)
 }

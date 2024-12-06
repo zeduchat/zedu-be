@@ -7,11 +7,37 @@ on:
       - staging
 
 jobs:
-  deploy_staging:
-    uses: ./.github/workflows/deploy_backend.yml
-    with:
-      environment: staging
-    secrets:
+  update_env_and_binary:
+    runs-on: ubuntu-latest
+    if: github.event.repository.fork == false
+    env:
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+
+      - name: Build binary
+        run: |
+          go build -o telexbe_staging
+
+      - name: Upload binary to server
+        run: |
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 600 ssh_key.pem
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
+
+      - name: Restart app
+        run: |
+           echo "$SSH_KEY" > ssh_key.pem
+           ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
+            cd ~/deployments/telexbe/staging/
+            git reset --hard
+            git pull origin ${{ inputs.environment }}
+            supervisorctl restart telexbe-staging
+            '
+            rm ssh_key.pem
+          
