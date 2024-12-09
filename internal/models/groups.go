@@ -228,20 +228,22 @@ func (group *Group) GetGroupChannels(db *gorm.DB, ids map[string]string) ([]Chan
 	return channels, nil
 }
 
-func (group *Group) GetChannelsNotInGroup(db *storage.Database, org_id string) (GetUserChannelResp, error) {
+func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]string) (GetUserChannelResp, error) {
 	var (
-		channels []Channels
 		org      Organisation
-		chanResp GetUserChannelResp
 		c        = context.Background()
+		org_id   = ids["organisation_id"]
+		user_id  = ids["user_id"]
 	)
+	chanResp := GetUserChannelResp{}
+	channels := []Channels{}
 
 	_, err := org.CheckOrgExists(org_id, db.Postgresql)
 	if err != nil {
 		return chanResp, err
 	}
 
-	err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id IS NULL and archived = false", org_id)
+	err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id IS NULL AND archived = false AND owner_id = ?", org_id, user_id)
 	if err != nil {
 		return chanResp, fmt.Errorf("failed to get channels not in group: %w", err)
 	}

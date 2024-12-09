@@ -66,8 +66,8 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	var (
 		email        = strings.ToLower(req.Email)
-		firstName    = strings.Title(strings.ToLower(req.FirstName))
-		lastName     = strings.Title(strings.ToLower(req.LastName))
+		firstName    = strings.ToTitle(strings.ToLower(req.FirstName))
+		lastName     = strings.ToTitle(strings.ToLower(req.LastName))
 		phoneNumber  = req.PhoneNumber
 		password     = req.Password
 		responseData gin.H
