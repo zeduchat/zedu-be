@@ -15,7 +15,6 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -105,7 +104,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = user.Profile.UserName
 
-	err = channel.CreateChannels(db, storage.DB.TypeSense)
+	err = channel.CreateChannels(db)
 	if err != nil {
 		return nil, err
 	}
