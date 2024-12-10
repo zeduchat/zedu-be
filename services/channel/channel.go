@@ -269,9 +269,9 @@ func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels,
 		return nil, http.StatusBadRequest, errors.New("organisation not found")
 	}
 
-	if org.OwnerID != ids["user_id"] {
-		return nil, http.StatusUnauthorized, errors.New("user not authorized")
-	}
+	// if org.OwnerID != ids["user_id"] {
+	// 	return nil, http.StatusUnauthorized, errors.New("user not authorized")
+	// }
 
 	channels, err := channel.GetArchivedChannels(db, ids)
 	if err != nil {
