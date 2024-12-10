@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/group"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -139,16 +140,34 @@ func (base *Controller) GetChannelsNotInGroup(c *gin.Context) {
 		return
 	}
 
-	channels, err := group.GetChannelsNotInGroup(base.Db, org_id)
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		base.Logger.Error("Failed to get channels not in group", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to get channels not in group", err.Error(), nil)
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "user claims not found", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	ids := map[string]string{
+		"organisation_id": org_id,
+		"user_id":         userId,
+	}
+
+	channels, err := group.GetChannelsNotInGroup(base.Db, ids)
+	if err != nil {
+		base.Logger.Error("Failed to get user channels not in a group", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to get user channels not in a group", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Channels not in group fetched successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Channels not in group fetched successfully", channels)
+	base.Logger.Info("User channels not in a group fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User channels not in a group fetched successfully", channels)
 	c.JSON(http.StatusOK, rd)
 }
 

@@ -128,11 +128,7 @@ type ArchiveChannelRequest struct {
 	UserId   string `json:"user_id" `
 }
 
-func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
-
-	// if r.GroupID == "" {
-	// 	r.GroupID =
-	// }
+func (r *Channels) CreateChannels(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &r)
 	if err != nil {

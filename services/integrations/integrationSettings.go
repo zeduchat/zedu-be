@@ -99,3 +99,13 @@ func GetOrgIntegrationSettings(db *gorm.DB, ids map[string]string) ([]models.Int
 	}
 	return settings, nil
 }
+
+func GetIntegrationSettingsAllOrgs(db *gorm.DB, integration_id string) ([]models.IntegrationSettings, error) {
+	var setting models.IntegrationSettings
+
+	settings, err := setting.GetIntegrationSettingsAllOrgs(db, integration_id)
+	if err != nil {
+		return settings, err
+	}
+	return settings, nil
+}

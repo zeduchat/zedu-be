@@ -45,10 +45,10 @@ func MoveGroupChannel(db *storage.Database, ids map[string]string) error {
 	return nil
 }
 
-func GetChannelsNotInGroup(db *storage.Database, org_id string) (models.GetUserChannelResp, error) {
+func GetChannelsNotInGroup(db *storage.Database, ids map[string]string) (models.GetUserChannelResp, error) {
 	var group models.Group
 
-	response, err := group.GetChannelsNotInGroup(db, org_id)
+	response, err := group.GetChannelsNotInGroup(db, ids)
 	if err != nil {
 		return models.GetUserChannelResp{}, err
 	}
