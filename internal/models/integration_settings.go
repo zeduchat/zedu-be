@@ -38,6 +38,16 @@ func (is *IntegrationSettings) CreateIntegrationSettings(db *gorm.DB) error {
 	return nil
 }
 
+func (us *IntegrationSettings) GetIntegrationSettingsAllOrgs(db *gorm.DB, integration_id string) ([]IntegrationSettings, error) {
+	var intSettings []IntegrationSettings
+
+	err := postgresql.SelectAllFromDb(db, "", &intSettings, "integration_id = ?", integration_id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get integration settings: %v", err)
+	}
+	return intSettings, nil
+}
+
 func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]IntegrationSettings,error) {
 	var intSettings []IntegrationSettings
 
