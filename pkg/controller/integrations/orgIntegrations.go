@@ -291,3 +291,25 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "JSON schema updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetIntegrationSettingsAllOrgs(c *gin.Context){
+	integration_id := c.Param("integration_id")
+	if _, err := uuid.Parse(integration_id); err != nil {
+		base.Logger.Error("invalid integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	settings, err := integrations.GetIntegrationSettingsAllOrgs(base.Db.Postgresql, integration_id)
+	if err != nil {
+		base.Logger.Error("Failed to get integration settings across all organisations", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get integration settings across all organisations", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Integration settings across all organisations retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration settings across all organisations retrieved successfully.", settings)
+	c.JSON(http.StatusOK, rd)
+}
