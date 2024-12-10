@@ -233,7 +233,7 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]s
 		org      Organisation
 		c        = context.Background()
 		org_id   = ids["organisation_id"]
-		// user_id  = ids["user_id"]
+		user_id  = ids["user_id"]
 	)
 	chanResp := GetUserChannelResp{}
 	channels := []Channels{}
@@ -243,20 +243,20 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]s
 		return chanResp, err
 	}
 
-	err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id IS NULL AND archived = false", org_id)
-	if err != nil {
-		return chanResp, fmt.Errorf("failed to get channels not in group: %w", err)
-	}
-
-	// err = db.Postgresql.Model(&Channels{}).
-	// 	Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").
-	// 	Joins("join user_channels on channels.id = user_channels.channels_id").
-	// 	Where("channels.organisation_id = ? AND channels.group_id IS NULL AND channels.archived = false AND user_channels.user_id = ?", org_id, user_id).
-	// 	Order("channels.created_at").
-	// 	Scan(&channels).Error
+	// err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id IS NULL AND archived = false", org_id)
 	// if err != nil {
 	// 	return chanResp, fmt.Errorf("failed to get channels not in group: %w", err)
 	// }
+
+	err = db.Postgresql.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").
+		Joins("join user_channels on channels.id = user_channels.channels_id").
+		Where("channels.organisation_id = ? AND channels.group_id IS NULL AND channels.archived = false AND user_channels.user_id = ?", org_id, user_id).
+		Order("channels.created_at").
+		Scan(&channels).Error
+	if err != nil {
+		return chanResp, fmt.Errorf("failed to get channels not in group: %w", err)
+	}
 
 	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
 		query := map[string]interface{}{
