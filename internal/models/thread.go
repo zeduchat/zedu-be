@@ -464,7 +464,7 @@ func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) 
 	err := elastic.SelectByID(storage.DB.Elastic, ThreadIndexName, threadID, &threadData)
 
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
@@ -510,7 +510,7 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	threads, err = UnmarshalThreadResponse(threadData)
@@ -565,7 +565,7 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	threads, err = UnmarshalThreadResponse(threadData)
@@ -598,7 +598,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		Find(&channelIDs).Error
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error fetching channel IDs: %v", err)
+		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
 
 	query := map[string]interface{}{
@@ -634,7 +634,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "messages", query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error in %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch thread records, error in %v", err)
 	}
 
 	var searchResult struct {
@@ -691,7 +691,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch thread records, error: %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	threads, err = UnmarshalThreadResponse(threadData)
@@ -842,7 +842,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 
 	err := elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, cardinality_query, &cardData)
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch number of group thread records, error: %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch number of group thread records, error: %v", err)
 	}
 
 	var cardinalityResult struct {
@@ -856,8 +856,8 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	rawJSON, _ := json.MarshalIndent(cardData.(map[string]interface{}), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &cardinalityResult); errr != nil {
-		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch number of group thread records, error: %v", err))
+		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
+		return nil, pagR, fmt.Errorf("failed to fetch number of group thread records, error: %v", err)
 	}
 
 	// Total unique threads and compute partitions
@@ -900,11 +900,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 			"partitioned_threads": map[string]interface{}{
 				"terms": map[string]interface{}{
 					"field": "message.keyword",
-					"size":  limit,
-					"include": map[string]interface{}{
-						"partition":      page - 1,
-						"num_partitions": numPartitions,
-					},
+					"size":  page*limit,
 					"order": map[string]interface{}{
 						"_count": "desc",
 					},
@@ -925,7 +921,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	err = elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, paginatedQuery, &threadData)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch group thread records, error: %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch group thread records, error: %v", err)
 	}
 
 	var paginatedResult struct {
@@ -949,13 +945,20 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	rawJSON, _ = json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &paginatedResult); errr != nil {
-		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
-		return nil, pagR, errors.New(fmt.Sprintf("failed to unmarshal group thread records, error: %v", err))
+		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
+		return nil, pagR, fmt.Errorf("failed to unmarshal group thread records, error: %v", err)
 	}
 
-	threads = make([]Threads, len(paginatedResult.Aggregations.PartitionedThreads.Buckets))
 
-	for ind, bucket := range paginatedResult.Aggregations.PartitionedThreads.Buckets {
+	result := paginatedResult.Aggregations.PartitionedThreads.Buckets
+
+	if len(result) > limit {
+		result = result[limit:]
+	}
+
+	threads = make([]Threads, len(result))
+
+	for ind, bucket := range  result {
 		threads[ind] = bucket.TopThreadHits.Hits.Hits[0].Source
 		threads[ind].Count = bucket.DocCount
 	}
