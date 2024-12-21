@@ -16,7 +16,7 @@ import (
 func GetAUserLoginActivity(userIDStr string, db *gorm.DB, c *gin.Context) (*[]models.LoginActivity, *postgresql.PaginationResponse, int, error) {
 	var (
 		loginData models.LoginActivity
-		loginResp []models.LoginActivity
+		loginResp = []models.LoginActivity{}
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -37,11 +37,7 @@ func GetAUserLoginActivity(userIDStr string, db *gorm.DB, c *gin.Context) (*[]mo
 	isSuperAdmin := user.CheckUserIsAdmin(db)
 	loginResp, paginationResponse, err := loginData.GetLoginActivityByIDsAdmin(db, c, userIDStr, userID, isSuperAdmin)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &loginResp, nil, http.StatusNoContent, nil
-		}
 		return &loginResp, nil, http.StatusBadRequest, err
-
 	}
 
 	return &loginResp, &paginationResponse, http.StatusOK, nil
