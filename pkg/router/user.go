@@ -22,20 +22,18 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	{
 		userUrl.GET("/users/:user_id", user.GetAUser)
 		userUrl.DELETE("/users/:user_id", user.DeleteAUser)
-
-		userUrl.PUT("/users/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.UpdateAUser)
-		userUrl.GET("users/organisations", user.GetAUserOrganisation)
-
+		userUrl.GET("/users/organisations", user.GetAUserOrganisation)
 		userUrl.GET("/users/:user_id/login-audit", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserLoginAudit)
-		userUrl.PUT("/users/revoke-session", middleware.CheckIsDeactivated(db.Postgresql), user.RevokeUserAccessToken)
-		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
 		userUrl.GET("/users/:user_id/sessions", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserSessions)
+		userUrl.GET("/users/notification-preferences", user.GetUserNotificationSettings)
+		userUrl.PUT("/users/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.UpdateAUser)
+		userUrl.PUT("/users/revoke-session", middleware.CheckIsDeactivated(db.Postgresql), user.RevokeUserAccessToken)
 		userUrl.PUT("/users/switch-org", middleware.CheckIsDeactivated(db.Postgresql), user.SwitchUserOrg)
 		userUrl.PUT("/users/switch-roles", middleware.CheckIsDeactivated(db.Postgresql), user.AssignRoleToUser)
 		userUrl.PUT("/users/reactivate/:user_id", user.ActivateUser)
-
-		userUrl.GET("/users/notification-preferences", user.GetUserNotificationSettings)
 		userUrl.PUT("/users/notification-preferences", user.UpdateUserNotificationSettings)
+		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
+		userUrl.GET("/users/:user_id/organisations/:org_id/roles", user.GetUserRoleInOrganisation)
 	}
 	adminUrl.GET("/users", user.GetAllUsers)
 
