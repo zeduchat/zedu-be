@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -171,10 +172,10 @@ func GetRoleName(roleId RoleId) RoleName {
 
 func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId, orgId, roleId string, c *gin.Context) (*User, error) {
 	var (
-		user    User
-		orgRole OrgRole
-		// accessToken AccessToken
-		orgMgt OrgUserManagement
+		user        User
+		orgRole     OrgRole
+		accessToken AccessToken
+		orgMgt      OrgUserManagement
 	)
 
 	user, err := user.GetUserByID(db, userId)
@@ -196,14 +197,14 @@ func (r *OrgRole) UpdateUserRole(db *gorm.DB, userId, orgId, roleId string, c *g
 	}
 
 	orgMgt.RoleID = roleId
-	// accessToken, err = user.GetLatestAccessTokenByUserID(db, userId)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	accessToken, err = user.GetLatestAccessTokenByUserID(db, userId)
+	if err != nil {
+		return nil, err
+	}
 
-	// if err := accessToken.RevokeAccessTokenDelete(db); err != nil {
-	// 	return nil, fmt.Errorf("error revoking user session: %v", err)
-	// }
+	if err := accessToken.RevokeAccessTokenDelete(db); err != nil {
+		return nil, fmt.Errorf("error revoking user session: %v", err)
+	}
 
 	if _, err := postgresql.SaveAllFields(db, &user); err != nil {
 		return nil, err
