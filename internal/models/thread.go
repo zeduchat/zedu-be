@@ -137,10 +137,11 @@ type ChannelMetrics struct {
 }
 
 type CreateThreadMsgReq struct {
-	Content        string `json:"content" validate:"required"`
-	ChannelsID     string `json:"channels_id"`
-	UserId         string `json:"user_id"`
-	ThreadId       string `json:"thread_id"`
+	Content    string `json:"content" validate:"required"`
+	ChannelsID string `json:"channels_id"`
+	UserId     string `json:"user_id"`
+	ThreadId   string `json:"thread_id"`
+	OrgId      string `json:"org_id"`
 }
 
 type FeedMessageRequest struct {
@@ -153,6 +154,7 @@ type FeedMessageRequest struct {
 	Type      string `json:"type"`
 	Content   string `json:"message"`
 	ThreadId  string `json:"thread_id"`
+	OrgId     string `json:"org_id"`
 }
 
 type Mentions struct {
@@ -900,7 +902,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 			"partitioned_threads": map[string]interface{}{
 				"terms": map[string]interface{}{
 					"field": "message.keyword",
-					"size":  page*limit,
+					"size":  page * limit,
 					"order": map[string]interface{}{
 						"_count": "desc",
 					},
@@ -949,7 +951,6 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 		return nil, pagR, fmt.Errorf("failed to unmarshal group thread records, error: %v", err)
 	}
 
-
 	result := paginatedResult.Aggregations.PartitionedThreads.Buckets
 
 	if len(result) > limit {
@@ -958,7 +959,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 
 	threads = make([]Threads, len(result))
 
-	for ind, bucket := range  result {
+	for ind, bucket := range result {
 		threads[ind] = bucket.TopThreadHits.Hits.Hits[0].Source
 		threads[ind].Count = bucket.DocCount
 	}
