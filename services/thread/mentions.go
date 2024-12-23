@@ -80,6 +80,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ThreadId:  req.ThreadId,
 		Email:     user.Email,
 		FullName:  profile.FullName,
+		UserId:    req.UserId,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)

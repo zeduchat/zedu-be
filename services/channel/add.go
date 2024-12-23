@@ -81,6 +81,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		OrgId:     req.OrgId,
+		UserId:    req.UserId,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsId, feed)
@@ -120,6 +121,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Messag
 
 	return newMsg, http.StatusOK, nil
 }
+
 // Reply message fn
 func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {

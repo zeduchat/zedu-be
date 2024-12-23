@@ -155,6 +155,7 @@ type FeedMessageRequest struct {
 	Content   string `json:"message"`
 	ThreadId  string `json:"thread_id"`
 	OrgId     string `json:"org_id"`
+	UserId    string `json:"user_id"`
 }
 
 type Mentions struct {
