@@ -85,7 +85,13 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsId, feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsId, req.OrgId, err.Error()))
+		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to with orgid: %s error: %v", req.OrgId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 

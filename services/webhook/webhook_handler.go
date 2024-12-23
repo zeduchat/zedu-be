@@ -76,6 +76,12 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		Content:    req.Message,
 	}
 
+	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
 	err = centrifuge.BroadcastChannel(logger, channel.OrganisationID, feed)
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
@@ -135,9 +141,15 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 		Content:    req.Message,
 	}
 
+	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, <: error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
 	err = centrifuge.BroadcastChannel(logger, channel.OrganisationID, feed)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s <: error: %v", req.ChannelID, channel.OrganisationID,  err.Error()))
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s <: error: %v", req.ChannelID, channel.OrganisationID, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
@@ -155,7 +167,7 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 
 	feed := models.QueueFeed{
 		ChannelsId: req.ChannelID,
-		OrgID: req.OrgID,
+		OrgID:      req.OrgID,
 		ReturnUrl:  fmt.Sprintf("%s/v1/webhooks/backend-queue/return", base_url),
 		Content: models.FeedWebHookRequest{
 			ChannelID: req.ChannelID,
