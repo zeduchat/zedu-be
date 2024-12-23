@@ -82,6 +82,12 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		FullName:  profile.FullName,
 	}
 
+	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
 	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
