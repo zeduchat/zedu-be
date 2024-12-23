@@ -12550,7 +12550,7 @@ components:
     TerminateSessionRequest:
       type: object
       properties:
-        userId:
+        user_id:
           type: string
           format: uuid
           example: 01913f91-57e0-7875-b795-a25984e7594c
