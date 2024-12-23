@@ -131,10 +131,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	if err = verifyDefaultChannel(&chans, invitation.OrganisationID, db); err != nil {
-		return responseData, http.StatusInternalServerError, err
-	}
-
 	err = addUserToChannel(&chans, orgmgt, user.Name, db)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, err
@@ -216,15 +212,6 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 
 	if err := orgmgt.AddUserToOrganisation(db); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func verifyDefaultChannel(chans *models.Channels, organisationID string, db *gorm.DB) error {
-	exists := postgresql.CheckExists(db, &chans, "name = ? AND organisation_id = ?", "Default", organisationID)
-	if !exists {
-		return errors.New("channel with name Default and/or channel with organisation ID does not exist")
 	}
 
 	return nil
