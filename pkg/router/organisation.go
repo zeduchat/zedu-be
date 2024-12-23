@@ -17,81 +17,80 @@ import (
 
 func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
-	organisation := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	integrations := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	organisationCtrl := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	channelCtrl := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	integrationsCtrl := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
+		// Organisation routes
+		organisationUrl.POST("", organisationCtrl.CreateOrganisation)
+		organisationUrl.GET("/:org_id", organisationCtrl.GetOrganisation)
+		organisationUrl.DELETE("/:org_id", organisationCtrl.DeleteOrganisation)
+		organisationUrl.PUT("/:org_id", organisationCtrl.UpdateOrganisation)
 
-		organisationUrl.POST("", organisation.CreateOrganisation)
-		organisationUrl.GET("/:org_id", organisation.GetOrganisation)
-		organisationUrl.DELETE("/:org_id", organisation.DeleteOrganisation)
-		organisationUrl.PUT("/:org_id", organisation.UpdateOrganisation)
-		organisationUrl.POST("/:org_id/roles", organisation.CreateOrgRole)
-		organisationUrl.GET("/:org_id/roles", organisation.GetOrgRoles)
-		organisationUrl.GET("/:org_id/roles/:role_id", organisation.GetAOrgRole)
-		organisationUrl.DELETE("/:org_id/roles/:role_id", organisation.DeleteOrgRole)
-		organisationUrl.PUT("/:org_id/roles/:role_id", organisation.UpdateOrgRole)
-		organisationUrl.PUT("/:org_id/roles/:role_id/permissions", organisation.UpdateOrgPermissions)
-		organisationUrl.GET("/:org_id/channels", organisation.GetAllChannelssInOrganisation)
+		// Organisation roles routes
+		organisationUrl.POST("/:org_id/roles", organisationCtrl.CreateOrgRole)
+		organisationUrl.GET("/:org_id/roles", organisationCtrl.GetOrgRoles)
+		organisationUrl.GET("/:org_id/roles/:role_id", organisationCtrl.GetAOrgRole)
+		organisationUrl.DELETE("/:org_id/roles/:role_id", organisationCtrl.DeleteOrgRole)
+		organisationUrl.PUT("/:org_id/roles/:role_id", organisationCtrl.UpdateOrgRole)
+		organisationUrl.PUT("/:org_id/roles/:role_id/permissions", organisationCtrl.UpdateOrgPermissions)
 
-		//User Management Routes
-		organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
-		organisationUrl.GET("/:org_id/metrics", organisation.GetOrganisationCountMetrics)
-		organisationUrl.DELETE("/:org_id/users/:user_id", organisation.RemoveMemberFromOrganisation)
-		organisationUrl.PUT("/:org_id/users/:user_id", organisation.UpdateMember)
-		organisationUrl.GET("/:org_id/invites", organisation.GetOrganisationInvites)
-		organisationUrl.POST("/:org_id/users", organisation.AddMemberToOrganisation)
+		// Organisation channels routes
+		organisationUrl.GET("/:org_id/channels", organisationCtrl.GetAllChannelssInOrganisation)
+		organisationUrl.GET("/:org_id/user-channels", channelCtrl.GetUserChannels)
+		organisationUrl.GET("/:org_id/user-not-channels", channelCtrl.GetUserNotInChannels)
+		organisationUrl.GET("/:org_id/channels/archived", channelCtrl.GetArchivedChannels)
+		organisationUrl.PUT("/:org_id/archive-channel", channelCtrl.ArchiveChannel)
 
-		//channels
-		organisationUrl.GET("/:org_id/user-channels", channel.GetUserChannels)
-		organisationUrl.GET("/:org_id/user-not-channels", channel.GetUserNotInChannels)
-		organisationUrl.GET("/:org_id/channels/archived", channel.GetArchivedChannels)
-		organisationUrl.PUT("/:org_id/archive-channel", channel.ArchiveChannel)
+		// User management routes
+		organisationUrl.GET("/:org_id/users", organisationCtrl.GetUsersInOrganisation)
+		organisationUrl.GET("/:org_id/metrics", organisationCtrl.GetOrganisationCountMetrics)
+		organisationUrl.DELETE("/:org_id/users/:user_id", organisationCtrl.RemoveMemberFromOrganisation)
+		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)
+		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
+		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
 
+		// Organisation integrations routes
+		organisationUrl.GET("/:org_id/integrations", integrationsCtrl.GetAllIntegrationApp)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrationsCtrl.UpdateIntegrationApp)
+		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrationsCtrl.DeleteIntegrationApp)
+		organisationUrl.PATCH("/:org_id/integrations/change_status", integrationsCtrl.ChangeIntegrationStatus)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrationsCtrl.UpdateJSONSchema)
+		organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputIntegrations)
 
-		//organisations integrations
-		organisationUrl.GET("/:org_id/integrations", integrations.GetAllIntegrationApp)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrations.UpdateIntegrationApp)
-		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrations.DeleteIntegrationApp)
+		// Channel integrations routes
+		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelIntegrations)
+		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrationsCtrl.ChangeOrgChannelIntSendBackStatus)
+		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrationsCtrl.ActivateDeactivateChannelIntegration)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrationsCtrl.IntegrationChannels)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/status", integrationsCtrl.CheckIntegrationIsActive)
 
-		//channels integrations
-		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrations.GetOrganisationChannelIntegrations)
-		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrations.ChangeOrgChannelIntSendBackStatus)
-		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrations.ActivateDeactivateChannelIntegration)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrations.IntegrationChannels)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/status", integrations.CheckIntegrationIsActive)
+		// Organisation integration settings routes
+		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrationsCtrl.AddIntegrationSetting)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrationsCtrl.GetIntegrationSettings)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrationsCtrl.UpdateIntegrationSetting)
 
-		//organisationIntegration jointable related
-		organisationUrl.PATCH("/:org_id/integrations/change_status", integrations.ChangeIntegrationStatus)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrations.UpdateJSONSchema)
+		// Organisation channel integration settings routes
+		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrationsCtrl.AddChannelIntegrationSetting)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrationsCtrl.GetChannelIntegrationSetting)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.UpdateChannelIntegrationSetting)
+		organisationUrl.DELETE("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.DeleteChannelIntegrationSetting)
 
-		///organisationIntegration settings related endpoints
-		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrations.AddIntegrationSetting)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrations.GetIntegrationSettings)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrations.UpdateIntegrationSetting)
-
-		//organisationChannelIntegration Settings related endpoints
-		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrations.AddChannelIntegrationSetting)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrations.GetChannelIntegrationSetting)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrations.UpdateChannelIntegrationSetting)
-		organisationUrl.DELETE("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrations.DeleteChannelIntegrationSetting)
-
-		//integration slash	commands
-		organisationUrl.POST("/:org_id/integrations/:integration_id/slash-commands", integrations.AddIntegrationSlashCommand)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/slash-commands", integrations.GetIntegrationSlashCommands)
-		organisationUrl.GET("/:org_id/slash-commands", integrations.GetAllOrgSlashCommands)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrations.UpdateIntegrationSlashCommand)
-		organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrations.DeleteIntegrationSlashCommand)
-
-		organisationUrl.GET("/:org_id/integrations/output", integrations.FetchOutputIntegrations)
+		// Integration slash commands routes
+		organisationUrl.POST("/:org_id/integrations/:integration_id/slash-commands", integrationsCtrl.AddIntegrationSlashCommand)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/slash-commands", integrationsCtrl.GetIntegrationSlashCommands)
+		organisationUrl.GET("/:org_id/slash-commands", integrationsCtrl.GetAllOrgSlashCommands)
+		organisationUrl.PATCH("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.UpdateIntegrationSlashCommand)
+		organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.DeleteIntegrationSlashCommand)
 
 	}
 
+	// Test routes
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
 	{
-		testOrganisationUrl.GET("/:org_id/load-metrics", organisation.GetLoadingMetrics)
+		testOrganisationUrl.GET("/:org_id/load-metrics", organisationCtrl.GetLoadingMetrics)
 	}
 
 	return r

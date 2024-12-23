@@ -85,8 +85,27 @@ func UpdateUserIdentity(userID string, roleID string, db *gorm.DB, c *gin.Contex
 
 	userData, err := role.UpdateUserIdentity(db, userID, roleID)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf(err.Error())
+		return nil, http.StatusInternalServerError, errors.New(err.Error())
 	}
 
 	return userData, http.StatusOK, nil
+}
+
+func GetUserRoleInOrganisation(userID, orgID string, db *gorm.DB) (models.OrgUserRoleInfo, int, error) {
+
+	var (
+		orgMgt = models.OrgUserManagement{}
+	)
+
+	userExists := postgresql.CheckExists(db, &orgMgt, "user_id = ? AND organisation_id = ?", userID, orgID)
+	if !userExists {
+		return models.OrgUserRoleInfo{}, http.StatusNotFound, errors.New("user not found in organisation")
+	}
+
+	roleData, err := orgMgt.GetUserRoleInOrganisation(db, userID, orgID)
+	if err != nil {
+		return models.OrgUserRoleInfo{}, http.StatusInternalServerError, errors.New(err.Error())
+	}
+
+	return roleData, http.StatusOK, nil
 }
