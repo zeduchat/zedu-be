@@ -160,6 +160,7 @@ func (base *Controller) GetSlugWebhookQueue(c *gin.Context) {
 	req.ChannelID = webhookResp.ChannelId
 
 	hasIntegration, _ := orgchanint.CheckHasIntegrations(base.Db.Postgresql, req.ChannelID)
+	req.OrgID = orgchanint.OrgID
 
 	if hasIntegration {
 		// send to the rabbitmq service

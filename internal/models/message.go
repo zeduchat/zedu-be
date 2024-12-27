@@ -81,6 +81,7 @@ type CreateMessageRequest struct {
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
 	ThreadId   string `json:"thread_id"`
+	OrgId      string `json:"org_id"`
 }
 
 type EditMessageRequest struct {

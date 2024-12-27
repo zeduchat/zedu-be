@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+// Reply message fn
 func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
 
@@ -79,11 +80,19 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		ThreadId:  req.ThreadId,
 		Email:     user.Email,
 		FullName:  profile.FullName,
+		OrgId:     req.OrgId,
+		UserId:    req.UserId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ThreadId, feed)
+	err = centrifuge.BroadcastChannel(logger, req.ChannelsId, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to with orgid: %s error: %v", req.OrgId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
@@ -113,12 +122,14 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Messag
 	return newMsg, http.StatusOK, nil
 }
 
+// Reply message fn
 func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
 		routing_key = "new_message"
 		oci         models.OrganisationChannelsIntegrations
+		channel     models.Channels
 	)
 
 	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsId)
@@ -127,6 +138,20 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
 		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
 	}
+
+	chanReq := models.ChannelInfo{
+		ChannelID: req.ChannelsId,
+		UserID:    req.ThreadId,
+	}
+
+	channel_info, err := channel.GetChannelsByID(db.Postgresql, chanReq)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
+		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching orgid, error: %v", err)
+	}
+
+	req.OrgId = channel_info.OrganisationID
 
 	if !res {
 		return SaveChannelsMsg(req, db, logger)
@@ -141,6 +166,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		ReturnUrl:  returnUrl,
 		Type:       "message",
 		UserId:     req.UserId,
+		OrgId:      req.OrgId,
 	}
 
 	payload := map[string]interface{}{
@@ -152,6 +178,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 					"thread_id":  feed.ThreadId,
 					"type":       feed.Type,
 					"user_id":    feed.UserId,
+					"org_id":     feed.OrgId,
 				},
 				"channel_id": feed.ChannelsId,
 				"return_url": feed.ReturnUrl,
@@ -185,6 +212,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 		ChannelsId: req.ChannelsId,
 		ThreadId:   req.ThreadId,
 		UserId:     req.UserId,
+		OrgId:      req.OrgId,
 	}
 
 	if req.Type == "message" {
@@ -199,6 +227,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 			ChannelsID: req.ChannelsId,
 			ThreadId:   req.ThreadId,
 			UserId:     req.UserId,
+			OrgId:      req.OrgId,
 		}
 
 		logger.Info("saving and broadcasting recieved thread message")

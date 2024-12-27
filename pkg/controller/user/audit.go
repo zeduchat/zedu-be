@@ -26,11 +26,13 @@ func (base *Controller) GetUserLoginAudit(c *gin.Context) {
 
 	usersData, paginationResponse, code, err := service.GetAUserLoginActivity(userID, base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("error getting user login activity", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
 		return
 	}
 
+	base.Logger.Info("user login activity retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 
@@ -68,6 +70,7 @@ func (base *Controller) RevokeUserAccessToken(c *gin.Context) {
 
 	err := c.ShouldBind(&req)
 	if err != nil {
+		base.Logger.Info("error parsing request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -75,6 +78,7 @@ func (base *Controller) RevokeUserAccessToken(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Info("validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -83,14 +87,13 @@ func (base *Controller) RevokeUserAccessToken(c *gin.Context) {
 
 	code, err := service.RevokeUserAccessToken(req, base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("error terminating session", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("session terminated successfully")
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User session terminated successfully", nil)
 	c.JSON(http.StatusOK, rd)
-
 }

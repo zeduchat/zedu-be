@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -57,6 +58,12 @@ type OrgUserMetricsResponse struct {
 type UpdateMemberRequest struct {
 	Status string `json:"status"`
 	RoleID string `json:"role_id"`
+}
+
+type OrgUserRoleInfo struct {
+	RoleID          string `json:"role_id"`
+	RoleName        string `json:"role_name"`
+	OrganisationID  string `json:"organisation_id"`
 }
 
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
@@ -265,4 +272,26 @@ func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, rol
 	}
 
 	return postgresql.UpdateFieldsInTransaction(db, []postgresql.ModelUpdate{orgUserManagementUpdate, userUpdate})
+}
+
+func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID string) (OrgUserRoleInfo, error) {
+	var userRoleInfo OrgUserRoleInfo
+
+	err := db.Table("org_user_managements").
+    Select(`
+        org_user_managements.role_id,
+        org_user_managements.organisation_id,
+        org_roles.name AS role_name
+    `).
+    Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
+    Where("org_user_managements.user_id = ?", userID).
+    Where("org_user_managements.organisation_id = ?", orgID).
+    Scan(&userRoleInfo).Error
+
+
+	if err != nil {
+		return userRoleInfo, fmt.Errorf("failed to get user role in organisation: %v", err)
+	}
+
+	return userRoleInfo, nil
 }

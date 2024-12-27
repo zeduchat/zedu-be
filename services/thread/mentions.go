@@ -80,6 +80,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ThreadId:  req.ThreadId,
 		Email:     user.Email,
 		FullName:  profile.FullName,
+		UserId:    req.UserId,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
@@ -88,14 +89,22 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
+		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
 	return &threadDoc, nil
 }
 
+// main channel thread
 func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
 		routing_key = "new_message"
 		oci         models.OrganisationChannelsIntegrations
+		channel     models.Channels
 	)
 
 	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
@@ -104,6 +113,20 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
 		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
 	}
+
+	chanReq := models.ChannelInfo{
+		ChannelID: req.ChannelsID,
+		UserID:    req.UserId,
+	}
+
+	channel_info, err := channel.GetChannelsByID(db.Postgresql, chanReq)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
+		return &models.ThreadDocument{}, fmt.Errorf("failed fetching orgid, error: %v", err)
+	}
+
+	req.OrgId = channel_info.OrganisationID
 
 	if !res {
 		return SaveThreadMessage(req, db, logger)
@@ -118,6 +141,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		ReturnUrl:  returnUrl,
 		Type:       "message/thread",
 		UserId:     req.UserId,
+		OrgId:      req.OrgId,
 	}
 
 	payload := map[string]interface{}{
@@ -129,6 +153,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 					"thread_id":  feed.ThreadId,
 					"type":       feed.Type,
 					"user_id":    feed.UserId,
+					"org_id":     feed.OrgId,
 				},
 				"channel_id": feed.ChannelsId,
 				"return_url": feed.ReturnUrl,
