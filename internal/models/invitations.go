@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Invitation struct {
@@ -122,20 +123,23 @@ func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email, orgId string) (
 	return inv, false, errors.New("no pending invitations")
 }
 
-func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, int, error) {
+func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string, logger *utility.Logger) (Invitation, int, error) {
 	var invitation Invitation
 
 	err, _ := postgresql.SelectOneFromDb(db, &invitation, "token = ?", token)
 	if err != nil {
+		logger.Error("invalid token", err)
 		return invitation, http.StatusUnauthorized, errors.New("token invalid")
 	}
 
 	if invitation.Status == "accepted" {
+		logger.Info("invitation alreadt accepted")
 		return invitation, http.StatusBadRequest, errors.New("invitation already accepted")
 	}
 
 	expired := invitation.ExpiresAt.Before(time.Now().UTC())
 	if expired {
+		logger.Error("invitation link has expired")
 		return invitation, http.StatusBadRequest, errors.New("invitation link has expired")
 	}
 
