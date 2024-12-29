@@ -46,7 +46,7 @@
             style="padding-left: 50px; text-align: right; padding-right: 20px"
           >
             <a
-              href="https://staging.telex.im/auth/login"
+              href="{{ .login_url }}"
               style="
                 color: #261d1d;
                 text-decoration: underline;
@@ -65,7 +65,7 @@
             Kindly copy and paste this code in the column for OTP on your
             browser to proceed with your verification.
             For further questions, kindly visit our FAQ page
-            <a href="https://staging.telex.im/faq">faq</a>
+            <a href="{{ .faq_url }}"> faq </a>
           </p>
           <p>Your One-Time Password (OTP) is: <b>{{ .otp_token }}</b>.</p>
         </div>
@@ -73,8 +73,8 @@
       <div style="background-color: #f5f5f5; padding: 40px; text-align: center">
   
         <div style="margin-bottom: 20px;">
-            <a href="https://staging.telex.im/contact" style="text-decoration: underline; font-size: 14px; letter-spacing: 1px; margin: 0px 15px; color: #261D1D;">Contact Us</a>
-            <a href="https://staging.telex.im/policy" style="text-decoration: underline; font-size: 14px; letter-spacing: 1px; margin: 0px 15px; color: #261D1D;">Privacy Policy</a>
+            <a href="{{ .contact_us_url }}" style="text-decoration: underline; font-size: 14px; letter-spacing: 1px; margin: 0px 15px; color: #261D1D;">Contact Us</a>
+            <a href="{{ .privacy_policy_url }}" style="text-decoration: underline; font-size: 14px; letter-spacing: 1px; margin: 0px 15px; color: #261D1D;">Privacy Policy</a>
         </div>
         <div
           style="
