@@ -33,26 +33,12 @@
     >
       <table style="width: 100%">
         <tr>
-          <!-- <td style="background-color: #fff">
-            {{if not (eq .business_logo_uri "")}}
-            <img
-              alt=""
-              src="{{ .business_logo_uri }}"
-              width="200px"
-              height="50px"
-            />
-            {{else}}
-            <img
-              alt=""
-              src=""
-            />
-            {{end}}
-          </td> -->
           <td
             style="padding-left: 50px; text-align: right; padding-right: 20px"
           >
             <a
-              href="https://staging.telex.im/register"
+              href="
+              {{ .sign_up_url }}"
               style="
                 color: #261d1d;
                 text-decoration: underline;
@@ -70,16 +56,16 @@
         <h4 style="margin-top: 0px">Hi {{ .firstname }},</h4>
         <div style="color: #020101; font-size: 14px">
           <p>
-            Thank you for choosing to want to use our service For further
-            questions, kindly visit our FAQ page
-            <a href="{{.faq}}">https://staging.telex.im/faqs</a>
+            Thank you for choosing our service! We are excited to have you on board. To get started, please visit our FAQ page for more information:
+            <a href="{{.faq_url}}">FAQ</a>.
+            If you have any questions or need assistance, feel free to contact us.
           </p>
         </div>
       </div>
       <div style="background-color: #f5f5f5; padding: 40px; text-align: center">
         <div style="margin-bottom: 20px">
           <a
-            href="https://staging.telex.im/contact-us"
+            href="{{.contact_us_url}}"
             style="
               text-decoration: underline;
               font-size: 14px;
@@ -90,7 +76,7 @@
             >Contact Us</a
           >
           <a
-            href="https://staging.telex.im/privacy-policy"
+            href="{{.privacy_policy_url}}"
             style="
               text-decoration: underline;
               font-size: 14px;
@@ -101,7 +87,7 @@
             >Privacy Policy</a
           >
           <a
-            href="https://staging.telex.im/"
+            href="{{.unsubscribe_url}}"
             style="
               text-decoration: underline;
               font-size: 14px;

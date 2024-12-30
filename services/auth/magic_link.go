@@ -27,7 +27,7 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 
 	var (
 		user      = models.User{}
-		magicLink = models.MagicLink{}
+		magicLink = models.MagicLink{} 
 		config    = config.GetConfig()
 	)
 
