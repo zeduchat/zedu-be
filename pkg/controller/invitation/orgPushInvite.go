@@ -61,7 +61,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	}
 
 	if len(inviteMap) == 0 {
-		base.Logger.Error("No invitations created. User(s) list is either empty or all invitees have pending invitations")
+		base.Logger.Error("No invitations created. User(s) list is either empty or all invites have pending invitations")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", errs, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return

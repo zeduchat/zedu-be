@@ -28,7 +28,7 @@ func RemoveGroupChannel(db *storage.Database, ids map[string]string) error {
 func GetGroupChannels(db *storage.Database, ids map[string]string) ([]models.Channels, error) {
 	var group models.Group
 
-	response, err := group.GetGroupChannels(db.Postgresql, ids)
+	response, err := group.GetGroupChannels(db, ids)
 	if err != nil {
 		return []models.Channels{}, err
 	}

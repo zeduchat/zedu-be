@@ -37,8 +37,6 @@ func (base *Controller) ChannelVerifyInvite(c *gin.Context) {
 	}
 
 	base.Logger.Info("user invited successfully")
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", respData)
 	c.JSON(http.StatusOK, rd)
-
 }

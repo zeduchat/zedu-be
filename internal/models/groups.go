@@ -205,26 +205,74 @@ func (group *Group) RemoveGroupChannel(db *gorm.DB, ids map[string]string) error
 	return nil
 }
 
-func (group *Group) GetGroupChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {
+func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string) ([]Channels, error) {
 	var (
 		channels []Channels
 		org      Organisation
 	)
 
-	_, err := org.CheckOrgExists(ids["organisation_id"], db)
+	_, err := org.CheckOrgExists(ids["organisation_id"], db.Postgresql)
 	if err != nil {
 		return channels, err
 	}
 
-	exists := postgresql.CheckExists(db, &group, "organisation_id = ? AND id = ?", ids["organisation_id"], ids["group_id"])
+	exists := postgresql.CheckExists(db.Postgresql, &group, "organisation_id = ? AND id = ?", ids["organisation_id"], ids["group_id"])
 	if !exists {
 		return channels, fmt.Errorf("group not found")
 	}
 
-	err = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND group_id = ? AND archived = false", ids["organisation_id"], ids["group_id"])
+	err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id = ? AND archived = false", ids["organisation_id"], ids["group_id"])
 	if err != nil {
 		return channels, fmt.Errorf("failed to get group channels: %w", err)
 	}
+
+
+	//get the thread count for each channel
+	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
+		query := map[string]interface{}{
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []map[string]interface{}{
+						{
+							"term": map[string]interface{}{
+								"channels_id.keyword": channelID,
+							},
+						},
+						{
+							"term": map[string]interface{}{
+								"type.keyword": "thread",
+							},
+						},
+					},
+				},
+			},
+			"size": 0,
+			"aggs": map[string]interface{}{
+				"thread_count": map[string]interface{}{
+					"value_count": map[string]interface{}{
+						"field": "thread_id.keyword",
+					},
+				},
+			},
+		}
+
+		var countInfo any
+		err := elastic.SelectAll(es, "threads", query, &countInfo)
+		if err != nil {
+			log.Errorf(context.Background(), "error fetching thread count from elastic: %v", err)
+			return 0
+		}
+
+		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
+
+		return int(count)
+	}
+
+	for i, channel := range channels {
+		count := getThreadCountFromElastic(db.Elastic, channel.ID)
+		channels[i].MessageCount = int64(count)
+	}
+
 	return channels, nil
 }
 
@@ -242,11 +290,6 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]s
 	if err != nil {
 		return chanResp, err
 	}
-
-	// err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id IS NULL AND archived = false", org_id)
-	// if err != nil {
-	// 	return chanResp, fmt.Errorf("failed to get channels not in group: %w", err)
-	// }
 
 	err = db.Postgresql.Model(&Channels{}).
 		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").

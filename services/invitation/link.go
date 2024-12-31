@@ -92,32 +92,35 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 	return response
 }
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
 		responseData gin.H
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
-		chans        = models.Channels{}
+		// chans        = models.Channels{}
 		userID       string
 	)
 
-	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token)
+	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token, logger)
 	if err != nil {
+		logger.Error("Error getting invitation link by token", err)
 		return responseData, code, err
 	}
 
 	user, err = getOrCreateUser(invitation, db)
 	if err != nil {
+		logger.Error("error in getting or creating user", err)
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	userID = user.ID
+	userID = user.ID		
 	invitation.Status = "accepted"
 
 	err = invitation.UpdateInvitation(db)
 	if err != nil {
+		logger.Error("error in updating invitation on acceptance", err)
 		return responseData, http.StatusBadRequest, err
 	}
 
@@ -128,13 +131,15 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 
 	err = addUserToOrganisation(orgmgt, db)
 	if err != nil {
+		logger.Error("error adding user to the invited organisation", err)
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	err = addUserToChannel(&chans, orgmgt, user.Name, db)
-	if err != nil {
-		return responseData, http.StatusInternalServerError, err
-	}
+	// err = addUserToChannel(&chans, orgmgt, user.Name, db)
+	// if err != nil {
+	// 	logger.Error("error adding user to the channel", err)
+	// 	return responseData, http.StatusInternalServerError, err
+	// }
 
 	userData, err := user.GetUserByEmail(db, invitation.Email)
 	if err != nil {
@@ -218,6 +223,8 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 }
 
 func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, username string, db *gorm.DB) error {
+	fmt.Println("==============================", chans)
+	
 	reqs := models.JoinChannelsRequest{
 		Username:   username,
 		ChannelsID: chans.ID,
