@@ -95,10 +95,31 @@ func (base *Controller) RemoveGroupChannel(c *gin.Context) {
 }
 
 func (base *Controller) GetGroupChannels(c *gin.Context) {
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "user claims not found", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	if _, err := uuid.Parse(userId); err != nil {
+		base.Logger.Error("Invalid user id", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid user id", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	var (
 		ids map[string]string = map[string]string{
 			"organisation_id": c.Param("org_id"),
 			"group_id":        c.Param("group_id"),
+			"user_id":         userId,
 		}
 	)
 
