@@ -40,18 +40,18 @@ func GetGroup(db *storage.Database, ids map[string]string) (models.Group, error)
 	return response, nil
 }
 
-func GetGroups(db *storage.Database, org_id string) ([]models.Group, error) {
+func GetGroups(db *storage.Database, ids map[string]string) ([]models.Group, error) {
 	var (
 		g   models.Group
 		org models.Organisation
 	)
 
-	_, err := org.CheckOrgExists(org_id, db.Postgresql)
+	_, err := org.CheckOrgExists(ids["organisation_id"], db.Postgresql)
 	if err != nil {
 		return []models.Group{}, err
 	}
 
-	response, err := g.GetGroups(db.Postgresql, org_id)
+	response, err := g.GetGroups(db, ids)
 	if err != nil {
 		return []models.Group{}, err
 	}

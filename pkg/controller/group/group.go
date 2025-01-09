@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -99,6 +100,16 @@ func (base *Controller) GetGroups(c *gin.Context) {
 		org_id = c.Param("org_id")
 	)
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("Invalid organisation id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid organisation id", err, nil)
@@ -106,7 +117,12 @@ func (base *Controller) GetGroups(c *gin.Context) {
 		return
 	}
 
-	groups, err := group.GetGroups(base.Db, org_id)
+	ids := map[string]string{
+		"organisation_id": org_id,
+		"user_id":         userId,
+	}
+
+	groups, err := group.GetGroups(base.Db, ids)
 	if err != nil {
 		base.Logger.Error(err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to get groups", err, nil)
@@ -205,4 +221,3 @@ func (base *Controller) DeleteGroup(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Group deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
-
