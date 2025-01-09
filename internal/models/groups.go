@@ -209,6 +209,7 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 	var (
 		channels []Channels
 		org      Organisation
+		user     User
 	)
 
 	_, err := org.CheckOrgExists(ids["organisation_id"], db.Postgresql)
@@ -216,16 +217,26 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 		return channels, err
 	}
 
-	exists := postgresql.CheckExists(db.Postgresql, &group, "organisation_id = ? AND id = ?", ids["organisation_id"], ids["group_id"])
+	exists := postgresql.CheckExists(db.Postgresql, &user, "id = ?", ids["user_id"])
+	if !exists {
+		return channels, fmt.Errorf("user not found")
+	}
+
+
+	exists = postgresql.CheckExists(db.Postgresql, &group, "organisation_id = ? AND id = ?", ids["organisation_id"], ids["group_id"])
 	if !exists {
 		return channels, fmt.Errorf("group not found")
 	}
 
-	err = postgresql.SelectAllFromDb(db.Postgresql, "", &channels, "organisation_id = ? AND group_id = ? AND archived = false", ids["organisation_id"], ids["group_id"])
+	err = db.Postgresql.Model(&Channels{}).
+		Select("channels.*").
+		Joins("join user_channels on channels.id = user_channels.channels_id").
+		Where("channels.organisation_id = ? AND channels.group_id = ? AND channels.archived = false AND user_channels.user_id = ?", ids["organisation_id"], ids["group_id"], ids["user_id"]).
+		Order("channels.created_at").
+		Scan(&channels).Error
 	if err != nil {
 		return channels, fmt.Errorf("failed to get group channels: %w", err)
 	}
-
 
 	//get the thread count for each channel
 	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
@@ -270,6 +281,7 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 
 	for i, channel := range channels {
 		count := getThreadCountFromElastic(db.Elastic, channel.ID)
+		fmt.Println("count for grouped channels", count)
 		channels[i].MessageCount = int64(count)
 	}
 
@@ -278,10 +290,10 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 
 func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]string) (GetUserChannelResp, error) {
 	var (
-		org      Organisation
-		c        = context.Background()
-		org_id   = ids["organisation_id"]
-		user_id  = ids["user_id"]
+		org     Organisation
+		c       = context.Background()
+		org_id  = ids["organisation_id"]
+		user_id = ids["user_id"]
 	)
 	chanResp := GetUserChannelResp{}
 	channels := []Channels{}
@@ -344,6 +356,7 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]s
 
 	for _, channel := range channels {
 		count := getThreadCountFromElastic(db.Elastic, channel.ID)
+		fmt.Println("count for channels not in group", count)
 		channel.MessageCount = int64(count)
 		chanResp = append(chanResp, struct {
 			Channels

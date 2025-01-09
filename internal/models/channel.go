@@ -22,7 +22,7 @@ import (
 
 type Channels struct {
 	ID             string `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name           string `gorm:"column:name;unique type:text; not null" json:"name"`
+	Name           string `gorm:"column:name; type:text; not null" json:"name"`
 	Description    string `gorm:"column:description; type:text; not null" json:"description"`
 	OrganisationID string `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
