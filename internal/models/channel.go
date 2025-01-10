@@ -77,7 +77,7 @@ type GetUserNotChannelResp []struct {
 	Access      bool   `json:"access"`
 }
 type JoinChannelsRequest struct {
-	Username   string `json:"username" validate:"required"`
+	Username   string `json:"username"`
 	ChannelsID string `json:"channels_id" `
 	UserID     string `json:"user_id" `
 }
@@ -349,6 +349,10 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	if exist {
 		return channel, errors.New("user already in channel")
+	}
+
+	if  req.Username == "" {
+		req.Username = user.Email
 	}
 
 	userChannels = UserChannels{
