@@ -186,6 +186,7 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			CurrentOrg:  orgId,
 			Profile: models.Profile{
 				ID: utility.GenerateUUID(),
+				UserName: name,
 			},
 		}
 
@@ -223,7 +224,6 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 }
 
 func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, username string, db *gorm.DB) error {
-	fmt.Println("==============================", chans)
 	
 	reqs := models.JoinChannelsRequest{
 		Username:   username,

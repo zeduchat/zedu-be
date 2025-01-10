@@ -22,7 +22,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func UpdateUserPassword(c *gin.Context, req models.ChangePasswordRequestModel, db *gorm.DB) (*models.User, int, error) {
+func UpdateUserPassword(c *gin.Context, req models.ChangePasswordRequestModel, db *gorm.DB, logger *utility.Logger) (*models.User, int, error) {
 
 	user := models.User{}
 
@@ -38,10 +38,11 @@ func UpdateUserPassword(c *gin.Context, req models.ChangePasswordRequestModel, d
 
 	userDataExist, err := user.GetUserByID(db, userID)
 	if err != nil {
-		return nil, http.StatusNotFound, fmt.Errorf("unable to fetch user " + err.Error())
+		return nil, http.StatusNotFound, fmt.Errorf("unable to fetch user %v ", err.Error())
 	}
 
 	if !utility.CompareHash(req.OldPassword, userDataExist.Password) && userDataExist.Password != "" {
+		logger.Error("user with old hash " + userDataExist.Password +" wants to update with wrong entry")
 		return nil, http.StatusBadRequest, fmt.Errorf("old password is incorrect")
 	}
 
