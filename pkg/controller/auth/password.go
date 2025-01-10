@@ -30,7 +30,7 @@ func (base *Controller) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := service.UpdateUserPassword(c, req, base.Db.Postgresql)
+	respData, code, err := service.UpdateUserPassword(c, req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
