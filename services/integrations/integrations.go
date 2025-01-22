@@ -6,8 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.IntegrationResp, error) {
@@ -20,6 +22,58 @@ func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.In
 	}
 
 	return resp, nil
+}
+
+func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
+	var org_integrations models.OrganisationIntegrations
+
+	var int_resp models.IntegrationResp
+
+	resp, paginationResult, err, code := org_integrations.GetCustomIntegrationApp(db, org_id, c)
+
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err, code
+	}
+
+	for _, org_integrations := range resp {
+
+		json_url := org_integrations.JSONUrl
+		data := map[string]string{"url": json_url}
+
+		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+		if err != nil {
+			continue
+		}
+
+		response_data := response.(map[string]interface{})
+
+		data_r := response_data["data"].(map[string]interface{})
+
+		description := data_r["descriptions"].(map[string]interface{})
+
+		integration := models.Integrations{
+			ID:             org_integrations.IntegrationID,
+			Name:           description["app_name"].(string),
+			JSONUrl:        org_integrations.JSONUrl,
+			AppUrl:         description["app_url"].(string),
+			AppLogo:        description["app_logo"].(string),
+			AppDescription: description["app_description"].(string),
+			IsActive:       true,
+			CreatedAt:      org_integrations.CreatedAt,
+			UpdatedAt:      org_integrations.UpdatedAt,
+		}
+
+		int_resp = append(int_resp, struct {
+			models.Integrations
+			Linked bool "json:\"linked\""
+		}{
+			Integrations: integration,
+			Linked:       true,
+		})
+	}
+
+	return int_resp, paginationResult, nil, code
 }
 
 func UpdateIntegrationApp(req models.UpdateIntegration, ids map[string]string, db *gorm.DB) (models.Integrations, error) {
@@ -44,6 +98,18 @@ func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
 	return nil
 }
 
+// Delete Org Custom Integration
+func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int ){
+	var org_integration models.OrganisationIntegrations
+
+	err, code := org_integration.DeleteCustomIntegration(db, ids)
+	if err != nil {
+		return err, code
+	}
+
+	return nil, code
+}
+
 func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
 	var integration models.OrganisationIntegrations
 
@@ -66,7 +132,6 @@ func ChangeIntegrationSendBackStatus(ids map[string]string, req models.ChangeInt
 	return nil
 }
 
-
 func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest, db *gorm.DB) error {
 	var orgIntegration models.OrganisationIntegrations
 
@@ -76,6 +141,60 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 	}
 
 	err := orgIntegration.UpdateJSONSchema(db, req, ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	data := map[string]string{"url": req.JSONUrl}
+
+	_, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+	if err != nil {
+		return errors.New("Failed to Create Custom Integration, invalid JSON supplied")
+	}
+
+	orgIntegration.OrgID = org_id
+	orgIntegration.JSONUrl = req.JSONUrl
+	orgIntegration.IntegrationID = utility.GenerateUUID()
+	orgIntegration.IsActive = true
+	orgIntegration.ID = utility.GenerateUUID()
+
+	err = orgIntegration.CreateOrganisationIntegration(db)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Update CustomIntegration
+func UpdateCustomIntegration(ids map[string]string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	data := map[string]string{"url": req.JSONUrl}
+
+	_, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+	if err != nil {
+		return errors.New("Failed to Update Custom Integration, invalid JSON supplied")
+	}
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return errors.New("organisation does not have that integration")
+	}
+
+	err = orgIntegration.UpdateCustomIntegration(db, req, ids)
+
 	if err != nil {
 		return err
 	}
@@ -123,7 +242,7 @@ func IntegrationChannels(ids map[string]string, db *gorm.DB) (gin.H, error) {
 	var (
 		ocIntegrations  models.OrganisationChannelsIntegrations
 		orgIntegrations models.OrganisationIntegrations
-		res gin.H
+		res             gin.H
 	)
 
 	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
@@ -138,7 +257,7 @@ func IntegrationChannels(ids map[string]string, db *gorm.DB) (gin.H, error) {
 
 	res = gin.H{
 		"is_allchannels": !is_allChannels,
-		"channels": response, 
+		"channels":       response,
 	}
 
 	return res, nil

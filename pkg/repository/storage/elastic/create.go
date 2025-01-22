@@ -56,7 +56,7 @@ func AddDocument(client *elasticsearch.Client, indexName, docID string, doc inte
 	}
 	defer res.Body.Close()
 	if res.IsError() {
-		logger.Error(fmt.Errorf("error response from Elasticsearch: %s", res.String()))
+		logger.Error("error response from Elasticsearch: err: "+ res.String())
 		return fmt.Errorf("error response from Elasticsearch: %s", res.String())
 	}
 
