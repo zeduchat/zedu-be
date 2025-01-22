@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -262,8 +261,9 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 	}
 
 	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
+	exist1 := postgresql.CheckExists(db, &webhook, "channel_id = ?", webhookSlug)
 
-	if !exist {
+	if !exist && !exist1 {
 		return webhook, errors.New("webhook not found")
 	}
 
@@ -277,7 +277,7 @@ func (r *Webhook) GetChannelWebhook(db *gorm.DB, req ChannelInfo) (Webhook, erro
 
 	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", req.ChannelID)
 
-	if !exist && req.UserID != ""{
+	if !exist && req.UserID != "" {
 		webhook = Webhook{
 			ID:        utility.GenerateUUID(),
 			ChannelId: req.ChannelID,
@@ -285,7 +285,7 @@ func (r *Webhook) GetChannelWebhook(db *gorm.DB, req ChannelInfo) (Webhook, erro
 			Status:    "active",
 		}
 
-		slug := strings.Split(webhook.ID, "-")[4]
+		slug := req.ChannelID
 		webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 		webhook.WebhookSlug = slug
 		webhook.WebhookUrl = webhookUrl

@@ -60,6 +60,13 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrationsCtrl.UpdateJSONSchema)
 		organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputIntegrations)
 
+		// Organization Custom Integrations
+		organisationUrl.POST("/:org_id/integrations/custom", integrationsCtrl.CreateCustomIntegration)
+		organisationUrl.DELETE("/:org_id/integrations/custom/:integration_id", integrationsCtrl.DeleteCustomIntegrationApp)
+		organisationUrl.GET("/:org_id/integrations/custom", integrationsCtrl.GetCustomIntegrationApp)
+		organisationUrl.PUT("/:org_id/integrations/custom/:integration_id", integrationsCtrl.UpdateCustomIntegration)
+
+
 		// Channel integrations routes
 		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelIntegrations)
 		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrationsCtrl.ChangeOrgChannelIntSendBackStatus)
