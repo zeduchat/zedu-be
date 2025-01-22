@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,16 +21,6 @@ type Controller struct {
 	Validator *validator.Validate
 	Logger    *utility.Logger
 	ExtReq    request.ExternalRequest
-}
-
-func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.IntegrationResp, error) {
-	integrations := models.Integrations{}
-	intApps, err := integrations.GetAllIntegrationApp(db, org_id, c)
-
-	if err != nil {
-		return nil, err
-	}
-	return intApps, nil
 }
 
 func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
@@ -58,6 +49,38 @@ func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
 
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations)
+	c.JSON(http.StatusOK, rd)
+}
+
+// Fetch Custom Integrations with pagination
+func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	integrations, paginationResponse, err, code := integrations.GetCustomIntegrationApp(c, org_id, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		fmt.Println(err)
+		base.Logger.Error("Failed to fetch integrations", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(integrations),
+	}
+
+	base.Logger.Info("integrations retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -149,6 +172,44 @@ func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+// Delete Custom integration
+
+func (base *Controller) DeleteCustomIntegrationApp(c *gin.Context) {
+	org_id := c.Param("org_id")
+	integration_id := c.Param("integration_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(integration_id); err != nil {
+		base.Logger.Error("invalid integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id":         org_id,
+		"integration_id": integration_id,
+	}
+
+	err, code := integrations.DeleteCustomIntegrationApp(ids, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to delete integration app", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to delete integration app", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Integration app deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
 	var req models.ChangeIntegrationStatus
@@ -191,7 +252,6 @@ func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app status set successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
-
 
 func (base *Controller) ChangeOrgChannelIntSendBackStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
@@ -292,7 +352,54 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetIntegrationSettingsAllOrgs(c *gin.Context){
+func (base *Controller) UpdateCustomIntegration(c *gin.Context) {
+	var (
+		req models.CustomIntegrationRequest
+	)
+
+	org_id := c.Param("org_id")
+	integration_id := c.Param("integration_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(integration_id); err != nil {
+		base.Logger.Error("invalid integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id":         org_id,
+		"integration_id": integration_id,
+	}
+
+	err := integrations.UpdateCustomIntegration(ids, req, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		base.Logger.Error("Failed to update JSON schema", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom integration", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("JSON schema updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom integration updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetIntegrationSettingsAllOrgs(c *gin.Context) {
 	integration_id := c.Param("integration_id")
 	if _, err := uuid.Parse(integration_id); err != nil {
 		base.Logger.Error("invalid integration id format", err)
@@ -312,4 +419,45 @@ func (base *Controller) GetIntegrationSettingsAllOrgs(c *gin.Context){
 	base.Logger.Info("Integration settings across all organisations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration settings across all organisations retrieved successfully.", settings)
 	c.JSON(http.StatusOK, rd)
+}
+
+// Create custom integration
+func (base *Controller) CreateCustomIntegration(c *gin.Context) {
+	var (
+		req models.CustomIntegrationRequest
+	)
+
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	err := integrations.CreateCustomIntegration(org_id, req, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		base.Logger.Error("Failed to Create Custom Integration, invalid url:  "+req.JSONUrl, err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create custom integration", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Custom integration created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom integration created successfully", nil)
+	c.JSON(http.StatusCreated, rd)
 }

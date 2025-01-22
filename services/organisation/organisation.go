@@ -122,7 +122,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
 	}
 
-	slug := strings.Split(webhook.ID, "-")[4]
+	slug := channel.ID
 	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl

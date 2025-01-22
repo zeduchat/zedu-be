@@ -54,6 +54,8 @@ tags:
     description: API for feeding centrifugo server
   - name: Integrations
     description:  API for user integrations operations
+  - name: Custom Integrations
+    description:  API for user integrations operations
   - name: Overview
     description: API for overview operations
   - name: newsletter
@@ -9515,6 +9517,269 @@ paths:
                     example: Integration slashcommands deleted successfully
         404:
           description: Slash command or organisation not found.
+
+  ### Custom Integration Section
+
+  /organisations/{organisationId}/integrations/custom:
+    post:
+      tags:
+        - Custom Integrations
+      summary: "Create a new integration for the organization"
+      description: "Creates a new integration within the specified organization."
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_url:
+                  type: string
+                  description: "The URL that provides JSON metadata for the integration"
+                  example: "https://www.bananaisland.com/banana.json"
+
+      responses:
+        '201':
+          description: "Integration app created successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Integration app created successfully"
+        '400':
+            description: Invalid JSON url supplied.
+            
+    get:
+      summary: Get integrations for an organization
+      description: Retrieve a list of integrations for a specific organization.
+      tags:
+        - Custom Integrations
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: The unique identifier of the integration.
+                          example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                        app_name:
+                          type: string
+                          description: Name of the integrated application.
+                          example: Slack
+                        json_url:
+                          type: string
+                          description: URL where the integration's JSON schema is located.
+                          example: https://system-integration.telex.im/slack.json
+                        app_url:
+                          type: string
+                          description: The URL to the app's official website.
+                          example: https://slack.com
+                        app_logo:
+                          type: string
+                          description: URL to the app's logo.
+                          example: https://media.tifi.tv/telexbucket/public/logos/slack.png
+                        app_description:
+                          type: string
+                          description: A brief description of the application.
+                          example: Slack is a cloud-based team business and communication platform.
+                        is_active:
+                          type: boolean
+                          description: Status of the integration for the organization.
+                          example: false
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp when the integration was added.
+                          example: 2024-09-23T19:59:46.166781+01:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp when the integration was last updated.
+                          example: 2024-09-23T20:00:08.086829+01:00
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.         
+          
+  /organisations/{organisationId}/integrations/custom/{integrationId}:
+    put:
+      tags:
+        - Custom Integrations
+      summary: Update an organization's integration
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_url:
+                  type: string
+                  example: "https://www.bananaisland.com/banana.json"
+      responses:
+        '200':
+          description: Integration updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations updated successfully"
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+    delete:
+      tags:
+        - Custom Integrations
+      summary: Delete an organization's integration
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      
+      responses:
+        '200':
+          description: Integration deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations deleted successfully"
+
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+  
                 
   /threads/organisations/{organisationId}/metrics:
     get:

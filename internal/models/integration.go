@@ -50,6 +50,10 @@ type UpdateJSONSchemaRequest struct {
 	JSONSchema JSONB `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
+type CustomIntegrationRequest struct {
+	JSONUrl string `json:"json_url" validate:"required"`
+}
+
 type ActivateChannelIntegration struct {
 	Status bool `json:"status"`
 }
@@ -61,7 +65,8 @@ type OrganisationIntegrations struct {
 	IsActive      bool      `gorm:"type:boolean;default:false" json:"is_active"`
 	IsArchived    bool      `gorm:"type:boolean;default:false" json:"is_archived"`
 	ArchivedAt    time.Time `gorm:"index" json:"-"`
-	JSONSchema    JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
+	JSONSchema    JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
+	JSONUrl       string    `gorm:"type:text; column:json_url;" json:"json_url"`
 	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
@@ -145,6 +150,13 @@ func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) error {
 
+	var organisation Organisation
+
+	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", oi.OrgID)
+	if !organisationExists {
+		return errors.New("organisation does not exist")
+	}
+
 	exists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", oi.OrgID, oi.IntegrationID)
 	if exists {
 		return errors.New("organisation integration already exists")
@@ -193,6 +205,40 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 	return integrations, nil
 }
 
+// Get custom integrations
+
+func (i *OrganisationIntegrations) GetCustomIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+
+	var (
+		org        Organisation
+		orgIntResp []OrganisationIntegrations
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
+	if !exists {
+		return nil, postgresql.PaginationResponse{}, errors.New("organisation not found"), http.StatusNotFound
+	}
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&OrganisationIntegrations{}).
+		Where("org_id = ? AND json_url != ''", org_id)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&orgIntResp,
+		nil,
+	)
+	if err != nil {
+		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return orgIntResp, paginationResponse, err, http.StatusOK
+}
+
 func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req UpdateIntegration) (Integrations, error) {
 	var integration Integrations
 
@@ -217,6 +263,7 @@ func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req
 	return updatedIntegration, nil
 }
 
+// Delete general integration
 func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) error {
 	var integration Integrations
 
@@ -239,10 +286,45 @@ func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) err
 	return nil
 }
 
+// Delete Custom integration
+func (i *OrganisationIntegrations) DeleteCustomIntegration(db *gorm.DB, ids map[string]string) (error, int ){
+	var org_integration OrganisationIntegrations
+
+	exists := postgresql.CheckExists(db, &org_integration, "integration_id = ?", ids["integration_id"])
+	if !exists {
+		return errors.New("integration app does not exist"), http.StatusBadRequest
+	}
+
+	//also delete entries for the integration in the organisation integrations table
+	err := db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["integration_id"]).Error
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusOK
+}
+
 func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSONSchemaRequest, ids map[string]string) error {
 
 	update := make(map[string]interface{})
 	update["json_schema"] = req.JSONSchema
+
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no record updated")
+	}
+
+	return nil
+}
+
+func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req CustomIntegrationRequest, ids map[string]string) error {
+
+	update := make(map[string]interface{})
+	update["json_url"] = req.JSONUrl
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if err != nil {
