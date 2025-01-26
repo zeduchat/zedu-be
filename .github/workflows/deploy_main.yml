@@ -14,6 +14,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Set up Go environment
+        run: |
+          mkdir -p $HOME/go
+          export GOPATH=$HOME/go
+          export GOBIN=$GOPATH/bin
+          echo "GOPATH=$GOPATH"
+          echo "GOBIN=$GOBIN"
         
       - name: Change directory
         run: cd /var/www/telex_be
