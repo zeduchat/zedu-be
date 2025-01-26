@@ -867,7 +867,7 @@ func (i *CustomIntegrationsSetting) CreateIntegrationSettings(db *gorm.DB) error
 func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB, req CustomIntegrationSettingRequest, ids map[string]string) error {
 
 	update := make(map[string]interface{})
-	update["settings_entry"] = req.SerializedEntry
+	update["setting_entry"] = req.SerializedEntry
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if err != nil {

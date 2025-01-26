@@ -493,6 +493,13 @@ func (base *Controller) UpdateCustomIntegrationSettings(c *gin.Context) {
 		return
 	}
 
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+
 	ids := map[string]string{
 		"org_id":         org_id,
 		"integration_id": integration_id,
