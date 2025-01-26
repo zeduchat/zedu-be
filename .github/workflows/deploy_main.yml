@@ -12,6 +12,9 @@ jobs:
   update_and_restart_app:
     runs-on: telex-server
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
       - name: Change directory
         run: cd /var/www/telex_be
 
