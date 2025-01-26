@@ -1,7 +1,10 @@
 package integrations
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -99,7 +102,7 @@ func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
 }
 
 // Delete Org Custom Integration
-func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int ){
+func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int) {
 	var org_integration models.OrganisationIntegrations
 
 	err, code := org_integration.DeleteCustomIntegration(db, ids)
@@ -150,14 +153,17 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 
 func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
 
-	var orgIntegration models.OrganisationIntegrations
+	var (
+		orgIntegration      models.OrganisationIntegrations
+		integrationSettings models.CustomIntegrationsSetting
+	)
 
 	data := map[string]string{"url": req.JSONUrl}
 
-	_, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+	response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
 
 	if err != nil {
-		return errors.New("Failed to Create Custom Integration, invalid JSON supplied")
+		return errors.New("failed to Create Custom Integration, invalid JSON supplied")
 	}
 
 	orgIntegration.OrgID = org_id
@@ -170,6 +176,29 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 	if err != nil {
 		return err
+	}
+
+	response_data := response.(map[string]interface{})
+	data_r := response_data["data"].(map[string]interface{})
+	settings := data_r["settings"].(map[string]interface{})
+
+	// serialize the settings json
+
+	settingJsonData, err := json.Marshal(settings)
+	if err != nil {
+		return fmt.Errorf("error serializing to JSON: %v", err)
+	}
+	serialized_settings := string(settingJsonData)
+
+	integrationSettings.ID = utility.GenerateUUID()
+	integrationSettings.SettingEntry = serialized_settings
+	integrationSettings.OrgID = org_id
+	integrationSettings.IntegrationID = orgIntegration.IntegrationID
+
+	err = integrationSettings.CreateIntegrationSettings(db)
+
+	if err != nil {
+		return errors.New("failed to create integration settings")
 	}
 
 	return nil
@@ -272,7 +301,7 @@ func CheckIntegrationIsActive(ids map[string]string, db *gorm.DB) (gin.H, error)
 
 	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
 	if !exists {
-		return nil, errors.New("organisation does not have that integration")
+		return nil, errors.New("organisation does not exist or have that integration")
 	}
 
 	status, err := ocIntegrations.CheckIntegrationIsActive(db, ids)
@@ -285,4 +314,67 @@ func CheckIntegrationIsActive(ids map[string]string, db *gorm.DB) (gin.H, error)
 	}
 
 	return res, nil
+}
+
+func UpdateCustomIntegrationSettings(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+
+	var (
+		orgIntegration models.OrganisationIntegrations
+		ucis           models.CustomIntegrationsSetting
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return errors.New("organisation does not exist or have that integration")
+	}
+
+	settings := req.SettingEntry
+	settingJsonData, err := json.Marshal(settings)
+
+	if err != nil {
+		return fmt.Errorf("error serializing to JSON: %v", err)
+	}
+
+	serialized_settings := string(settingJsonData)
+	req.SerializedEntry = serialized_settings
+
+	err = ucis.UpdateCustomIntegrationSettings(db, req, ids)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+
+	var (
+		orgIntegration models.OrganisationIntegrations
+		ucis           models.CustomIntegrationsSetting
+
+		deserialize_settings map[string]interface{}
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return deserialize_settings, http.StatusNotFound, errors.New("organisation does not exist or have that integration")
+	}
+
+	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return deserialize_settings, http.StatusNotFound, errors.New("organisation does not exist or have that integration")
+	}
+
+	settings := ucis.SettingEntry
+
+	// unserialize the settings text
+
+	err := json.Unmarshal([]byte(settings), &deserialize_settings)
+
+	if err != nil {
+		return deserialize_settings, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
+	}
+
+	return deserialize_settings, http.StatusOK, nil
 }

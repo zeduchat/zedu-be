@@ -54,6 +54,11 @@ type CustomIntegrationRequest struct {
 	JSONUrl string `json:"json_url" validate:"required"`
 }
 
+type CustomIntegrationSettingRequest struct {
+	SettingEntry    map[string]interface{} `json:"setting_entry" validate:"required"`
+	SerializedEntry string                 `json:"serialized_entry"`
+}
+
 type ActivateChannelIntegration struct {
 	Status bool `json:"status"`
 }
@@ -116,6 +121,15 @@ type IntegrationChannel struct {
 	IntChannelName      string    `gorm:"type:varchar(100);" json:"int_channel_name"`
 	CreatedAt           time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+}
+
+type CustomIntegrationsSetting struct {
+	ID            string    `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID         string    `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID string    `gorm:"type:uuid;" json:"integration_id"`
+	SettingEntry  string    `gorm:"type:text;" json:"setting_entry"`
+	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type AddIntegrationChannel struct {
@@ -287,7 +301,7 @@ func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) err
 }
 
 // Delete Custom integration
-func (i *OrganisationIntegrations) DeleteCustomIntegration(db *gorm.DB, ids map[string]string) (error, int ){
+func (i *OrganisationIntegrations) DeleteCustomIntegration(db *gorm.DB, ids map[string]string) (error, int) {
 	var org_integration OrganisationIntegrations
 
 	exists := postgresql.CheckExists(db, &org_integration, "integration_id = ?", ids["integration_id"])
@@ -836,4 +850,53 @@ func (ic *IntegrationChannel) DeleteChannelIntegration(db *gorm.DB, req Integrat
 	}
 
 	return http.StatusOK, nil
+}
+
+// Custom Integration Settings CRUD
+
+func (i *CustomIntegrationsSetting) CreateIntegrationSettings(db *gorm.DB) error {
+
+	err := postgresql.CreateOneRecord(db, &i)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB, req CustomIntegrationSettingRequest, ids map[string]string) error {
+
+	update := make(map[string]interface{})
+	update["settings_entry"] = req.SerializedEntry
+
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no record updated")
+	}
+
+	return nil
+}
+
+func (i *CustomIntegrationsSetting) GetCustomIntegrationSettings(db *gorm.DB, org_id string, c *gin.Context) (CustomIntegrationsSetting, int, error) {
+
+	var (
+		org  Organisation
+		resp CustomIntegrationsSetting
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
+	if !exists {
+		return resp, http.StatusNotFound, errors.New("organisation not found")
+	}
+
+	exists = postgresql.CheckExists(db, &resp, "org_id = ? AND integration_id = ?", i.OrgID, i.IntegrationID)
+	if !exists {
+		return resp, http.StatusNotFound, errors.New("organisation not found")
+	}
+
+	return resp, http.StatusOK, nil
 }
