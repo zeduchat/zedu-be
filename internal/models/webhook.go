@@ -261,7 +261,12 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 	}
 
 	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
-	exist1 := postgresql.CheckExists(db, &webhook, "channel_id = ?", webhookSlug)
+
+	exist1 := true
+
+	if len(webhookSlug) > 13 {
+	    exist1 = postgresql.CheckExists(db, &webhook, "channel_id = ?", webhookSlug)
+	}
 
 	if !exist && !exist1 {
 		return webhook, errors.New("webhook not found")
