@@ -79,6 +79,13 @@ func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
 		"total_items":  len(integrations),
 	}
 
+	if len(integrations) == 0 {
+		base.Logger.Info("integrations retrieved successfully.")
+		rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", gin.H{}, paginationData)
+		c.JSON(http.StatusOK, rd)
+		return
+	}
+
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
 	c.JSON(http.StatusOK, rd)
@@ -499,7 +506,6 @@ func (base *Controller) UpdateCustomIntegrationSettings(c *gin.Context) {
 		return
 	}
 
-
 	ids := map[string]string{
 		"org_id":         org_id,
 		"integration_id": integration_id,
@@ -535,7 +541,6 @@ func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 
 	ids := map[string]string{
 		"org_id":         org_id,
