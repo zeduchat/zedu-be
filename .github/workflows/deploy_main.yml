@@ -30,4 +30,3 @@ jobs:
       - name: Restart the application with Supervisor
         run: |
           supervisorctl restart telexbe
-          '
