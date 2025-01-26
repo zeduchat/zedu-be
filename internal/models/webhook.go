@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -255,21 +256,23 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 
 	var webhook Webhook
 
-	_, err := postgresql.SelectOneFromDb(db, &webhook, "webhook_slug = ?", webhookSlug)
-	if err != nil {
-		return webhook, errors.New("error getting webhook by id: " + err.Error())
-	}
-
 	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
 
-	exist1 := true
-
 	if len(webhookSlug) > 13 {
-	    exist1 = postgresql.CheckExists(db, &webhook, "channel_id = ?", webhookSlug)
+		if _, err := uuid.Parse(webhookSlug); err != nil {
+			return webhook, errors.New("webhook not found")
+		}
+		exist1 := postgresql.CheckExists(db, &webhook, "channel_id = ?", webhookSlug)
+
+		if !exist1 {
+			return webhook, errors.New("error getting webhook by id")
+		}
+
+		return webhook, nil
 	}
 
-	if !exist && !exist1 {
-		return webhook, errors.New("webhook not found")
+	if !exist {
+		return webhook, errors.New("webhook deos not exist")
 	}
 
 	return webhook, nil

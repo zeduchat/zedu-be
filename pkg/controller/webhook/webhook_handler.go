@@ -152,7 +152,7 @@ func (base *Controller) GetSlugWebhookQueue(c *gin.Context) {
 	webhookResp, err := webhookmodel.CheckExistBySlug(base.Db.Postgresql, req.WebhookSlug)
 	if err != nil {
 		base.Logger.Error("error getting webhook")
-		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Webhook not found", err, nil)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Webhook does not exist", err, nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}
