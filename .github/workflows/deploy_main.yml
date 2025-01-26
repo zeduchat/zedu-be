@@ -27,7 +27,6 @@ jobs:
       - name: Build the application binary
         run: go build -o telexbe_main
 
-      - name: Restart the application with Supervisor
+      - name: Restart the application
         run: |
           sudo systemctl restart telexbe-prod.service
-          #supervisorctl restart telexbe
