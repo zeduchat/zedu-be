@@ -126,14 +126,15 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 	}
 
 	responseData = gin.H{
-
 		"user": map[string]interface{}{
 			"id":              userData.ID,
 			"email":           userData.Email,
 			"username":        userData.Name,
-			"is_onboarded":    userData.IsOnboarded,
 			"is_verified":     userData.IsVerified,
+			"is_onboarded":    userData.IsOnboarded,
 			"profile_updated": userData.ProfileUpdated,
+			"is_active":       userData.IsActive,
+			"current_org":     userData.CurrentOrg,
 			"first_name":      userData.Profile.FirstName,
 			"last_name":       userData.Profile.LastName,
 			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
@@ -145,7 +146,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 		},
 		"access_token": tokenData.AccessToken,
 	}
-
+	
 	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
 	return responseData, http.StatusOK, nil
