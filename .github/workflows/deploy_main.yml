@@ -29,5 +29,5 @@ jobs:
 
       - name: Restart the application with Supervisor
         run: |
-          systemctl restart telexbe-prod.service
+          sudo systemctl restart telexbe-prod.service
           #supervisorctl restart telexbe
