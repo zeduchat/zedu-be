@@ -315,6 +315,11 @@ func (i *OrganisationIntegrations) DeleteCustomIntegration(db *gorm.DB, ids map[
 		return err, http.StatusInternalServerError
 	}
 
+	err = db.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", ids["integration_id"]).Error
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+
 	return nil, http.StatusOK
 }
 
@@ -365,12 +370,14 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		return errors.New("organisation does not exist")
 	}
 
+	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+
 	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
-	if !integrationExists {
+	
+	
+	if !(integrationExists || orgIntegrationExists) {
 		return errors.New("integration app does not exist")
 	}
-
-	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
 	if integrationExists && !orgIntegrationExists {
