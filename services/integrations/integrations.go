@@ -179,12 +179,23 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	}
 
 	response_data := response.(map[string]interface{})
-	data_r := response_data["data"].(map[string]interface{})
-	settings := data_r["settings"].(map[string]interface{})
+	data_r, ok := response_data["data"].(map[string]interface{})
+
+	if !ok {
+		return errors.New("failed to Create Custom Integration, data field does not exist")
+	}
+
+	settings, ok := data_r["settings"]
+
+	if !ok {
+		return errors.New("failed to Create Custom Integration, settings field does not exist")
+	}
+
+	settings_data := map[string]interface{}{"settings": settings}
 
 	// serialize the settings json
 
-	settingJsonData, err := json.Marshal(settings)
+	settingJsonData, err := json.Marshal(settings_data)
 	if err != nil {
 		return fmt.Errorf("error serializing to JSON: %v", err)
 	}
