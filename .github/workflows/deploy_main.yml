@@ -28,5 +28,6 @@ jobs:
         run: go build -o telexbe_main
 
       - name: Restart the application with Supervisor
-        run: supervisorctl restart telexbe
+        run: |
+          supervisorctl restart telexbe
           '
