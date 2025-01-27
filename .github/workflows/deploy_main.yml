@@ -18,9 +18,6 @@ jobs:
       - name: Change directory
         run: cd /var/www/telex_be
 
-      - name: Reset git to the latest commit
-        run: git reset --hard
-
       - name: Pull latest changes from the main branch
         run: git pull origin main
 
