@@ -113,10 +113,10 @@ func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int)
 	return nil, code
 }
 
-func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
+func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB, extReq request.ExternalRequest) error {
 	var integration models.OrganisationIntegrations
 
-	err := integration.ChangeStatus(db, req, ids)
+	err := integration.ChangeStatus(db, req, ids, extReq)
 	if err != nil {
 		return err
 	}
