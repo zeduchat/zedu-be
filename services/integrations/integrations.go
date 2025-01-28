@@ -113,10 +113,10 @@ func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int)
 	return nil, code
 }
 
-func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
+func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB, extReq request.ExternalRequest) error {
 	var integration models.OrganisationIntegrations
 
-	err := integration.ChangeStatus(db, req, ids)
+	err := integration.ChangeStatus(db, req, ids, extReq)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	orgIntegration.OrgID = org_id
 	orgIntegration.JSONUrl = req.JSONUrl
 	orgIntegration.IntegrationID = utility.GenerateUUID()
-	orgIntegration.IsActive = true
+	orgIntegration.IsActive = false
 	orgIntegration.ID = utility.GenerateUUID()
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
@@ -182,13 +182,54 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	data_r, ok := response_data["data"].(map[string]interface{})
 
 	if !ok {
-		return errors.New("failed to Create Custom Integration, data field does not exist")
+		return errors.New("Failed to Create Custom Integration, data field does not exist")
+	}
+
+	// validate description entry
+
+	descriptions, ok := data_r["descriptions"].(map[string]interface{})
+	if !ok {
+		return errors.New("Failed to Create Custom Integration, descriptions field does not exist")
+	}
+
+	app_name, ok := descriptions["app_name"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to Create Custom Integration, app_name field does not exist or is empty")
+	}
+
+	_, ok = descriptions["app_description"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to Create Custom Integration, app_description field does not exist or is empty")
+	}
+
+	_, ok = descriptions["app_logo"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to Create Custom Integration, app_logo field does not exist or is empty")
+	}
+
+	_, ok = descriptions["app_url"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to Create Custom Integration, app_url field does not exist or is empty")
 	}
 
 	settings, ok := data_r["settings"]
-
 	if !ok {
-		return errors.New("failed to Create Custom Integration, settings field does not exist")
+		return errors.New("Failed to Create Custom Integration, settings field does not exist")
+	}
+
+	_, isArray := settings.([]interface{})
+	if !isArray {
+		return errors.New("Failed to Create Custom Integration, settings field is not an array")
+	}
+
+	_, ok = data_r["key_features"]
+	if !ok {
+		return errors.New("Failed to Create Custom Integration, key_features field does not exist")
+	}
+
+	_, ok = data_r["target_url"]
+	if !ok {
+		return errors.New("Failed to Create Custom Integration, target_url field does not exist")
 	}
 
 	settings_data := map[string]interface{}{"settings": settings}

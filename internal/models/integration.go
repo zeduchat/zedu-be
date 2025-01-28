@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -35,7 +37,7 @@ type UpdateIntegration struct {
 }
 
 type ChangeIntegrationStatus struct {
-	Status        bool   `json:"status"`
+	Status        bool   `json:"status" validate:"required,oneof=true false"`
 	IntegrationID string `json:"integration_id"`
 	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
@@ -357,12 +359,15 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 	return nil
 }
 
-func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string) error {
+func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string, extReq request.ExternalRequest) error {
 	var (
-		integration  Integrations
-		organisation Organisation
-		channels     []Channels
-		orgchannels  []OrganisationChannelsIntegrations
+		integration         Integrations
+		intsettings         CustomIntegrationsSetting
+		organisation        Organisation
+		oci                 OrganisationChannelsIntegrations
+		channels            []Channels
+		orgchannels         []OrganisationChannelsIntegrations
+		integrationSettings CustomIntegrationsSetting
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -373,42 +378,31 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 
 	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
-	
-	
+	ChannelintegrationExists := postgresql.CheckExists(db, &oci, "integration_id = ?", ids["integration_id"])
+	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "integration_id = ?", ids["integration_id"])
+
 	if !(integrationExists || orgIntegrationExists) {
 		return errors.New("integration app does not exist")
 	}
 
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
-	if integrationExists && !orgIntegrationExists {
+	if (integrationExists && !orgIntegrationExists) || !ChannelintegrationExists {
 
-		oi.ID = utility.GenerateUUID()
-		oi.IsActive = req.Status
-		oi.OrgID = ids["org_id"]
-		oi.IntegrationID = ids["integration_id"]
-		oi.JSONSchema = req.JSONSchema
+		if !orgIntegrationExists {
+			oi.ID = utility.GenerateUUID()
+			oi.IsActive = req.Status
+			oi.OrgID = ids["org_id"]
+			oi.IntegrationID = ids["integration_id"]
+			oi.JSONSchema = req.JSONSchema
 
-		err := oi.CreateOrganisationIntegration(db)
-		if err != nil {
-			return err
-		}
-
-		// create an integration setting entry for it
-		integrationSettings := IntegrationSettings{
-			ID:             utility.GenerateUUID(),
-			OrgID:          ids["org_id"],
-			IntegrationID:  ids["integration_id"],
-			FormFieldValue: "",
-			FormFieldLabel: "",
-		}
-
-		err = integrationSettings.CreateIntegrationSettings(db)
-		if err != nil {
-			return err
+			err := oi.CreateOrganisationIntegration(db)
+			if err != nil {
+				return err
+			}
 		}
 
 		//activate integration for all channels in the organisation
-		err = postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", ids["org_id"])
+		err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", ids["org_id"])
 		if err != nil {
 			return err
 		}
@@ -430,7 +424,93 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 			return err
 		}
 
-		return nil
+		// return nil
+	}
+
+	// add settings if not exist
+	if !CheckIntegrationSettings && integration.JSONUrl != "" {
+		data := map[string]string{"url": integration.JSONUrl}
+
+		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+		if err != nil {
+			return errors.New("failed to save integration default settings, invalid JSON supplied")
+		}
+
+		response_data := response.(map[string]interface{})
+		data_r, ok := response_data["data"].(map[string]interface{})
+
+		if !ok {
+			return errors.New("Failed to save integration default settings, data field does not exist")
+		}
+
+		// validate description entry
+
+		descriptions, ok := data_r["descriptions"].(map[string]interface{})
+		if !ok {
+			return errors.New("Failed to save integration default settings, descriptions field does not exist")
+		}
+
+		app_name, ok := descriptions["app_name"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration default settings, app_name field does not exist or is empty")
+		}
+
+		_, ok = descriptions["app_description"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration default settings, app_description field does not exist or is empty")
+		}
+
+		_, ok = descriptions["app_logo"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration default settings, app_logo field does not exist or is empty")
+		}
+
+		_, ok = descriptions["app_url"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration default settings, app_url field does not exist or is empty")
+		}
+
+		settings, ok := data_r["settings"]
+		if !ok {
+			return errors.New("Failed to save integration default settings, settings field does not exist")
+		}
+
+		_, isArray := settings.([]interface{})
+		if !isArray {
+			return errors.New("Failed to save integration default settings, settings field is not an array")
+		}
+
+		_, ok = data_r["key_features"]
+		if !ok {
+			return errors.New("Failed to save integration default settings, key_features field does not exist")
+		}
+
+		_, ok = data_r["target_url"]
+		if !ok {
+			return errors.New("Failed to save integration default settings, target_url field does not exist")
+		}
+
+		settings_data := map[string]interface{}{"settings": settings}
+
+		// serialize the settings json
+
+		settingJsonData, err := json.Marshal(settings_data)
+		if err != nil {
+			return fmt.Errorf("error serializing to JSON: %v", err)
+		}
+		serialized_settings := string(settingJsonData)
+
+		integrationSettings.ID = utility.GenerateUUID()
+		integrationSettings.SettingEntry = serialized_settings
+		integrationSettings.OrgID = ids["org_id"]
+		integrationSettings.IntegrationID = ids["integration_id"]
+
+		err = integrationSettings.CreateIntegrationSettings(db)
+
+		if err != nil {
+			return errors.New("failed to create integration settings")
+		}
 	}
 
 	// Add the missing channels in a bulk insert without using a for loop @cyberguru
