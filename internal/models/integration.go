@@ -35,7 +35,7 @@ type UpdateIntegration struct {
 }
 
 type ChangeIntegrationStatus struct {
-	Status        bool   `json:"status"`
+	Status        bool   `json:"status" validate:"required,oneof=true false"`
 	IntegrationID string `json:"integration_id"`
 	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
@@ -361,6 +361,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	var (
 		integration  Integrations
 		organisation Organisation
+		oci          OrganisationChannelsIntegrations
 		channels     []Channels
 		orgchannels  []OrganisationChannelsIntegrations
 	)
@@ -373,6 +374,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 
 	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	ChannelintegrationExists := postgresql.CheckExists(db, &oci, "integration_id = ?", ids["integration_id"])
 	
 	
 	if !(integrationExists || orgIntegrationExists) {
@@ -380,7 +382,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	}
 
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
-	if integrationExists && !orgIntegrationExists {
+	if (integrationExists && !orgIntegrationExists) || !ChannelintegrationExists{
 
 		oi.ID = utility.GenerateUUID()
 		oi.IsActive = req.Status
@@ -389,20 +391,6 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		oi.JSONSchema = req.JSONSchema
 
 		err := oi.CreateOrganisationIntegration(db)
-		if err != nil {
-			return err
-		}
-
-		// create an integration setting entry for it
-		integrationSettings := IntegrationSettings{
-			ID:             utility.GenerateUUID(),
-			OrgID:          ids["org_id"],
-			IntegrationID:  ids["integration_id"],
-			FormFieldValue: "",
-			FormFieldLabel: "",
-		}
-
-		err = integrationSettings.CreateIntegrationSettings(db)
 		if err != nil {
 			return err
 		}
