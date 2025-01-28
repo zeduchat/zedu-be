@@ -1,29 +1,29 @@
 name: Deploy Telex Backend - main
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
-  pull_request:
     branches:
       - main
 
 jobs:
   update_and_restart_app:
-    runs-on: telex-server
+    runs-on: ubuntu-latest
+    env:
+      SSH_USERNAME: ${{ secrets.TELEX_SERVER_SSH_USER }}
+      SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
+      SSH_PASSWORD: ${{ secrets.TELEX_SERVER_SSH_PASSWORD }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        
-      - name: Change directory
-        run: cd /var/www/telex_be
-
-      - name: Pull latest changes from the main branch
-        run: git pull origin main
-
-      - name: Build the application binary
-        run: go build -o telexbe_main
-
-      - name: Restart the application
+      - name: Install sshpass
         run: |
-          sudo systemctl restart telexbe-prod.service
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+      - name: Restart app
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+            cd /var/www/telex_be
+            git reset --hard
+            git pull origin main
+            go build -o telexbe_main
+            supervisorctl restart telexbe
+          '
