@@ -81,7 +81,7 @@ func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
 
 	if len(integrations) == 0 {
 		base.Logger.Info("integrations retrieved successfully.")
-		rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", gin.H{}, paginationData)
+		rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", []string{}, paginationData)
 		c.JSON(http.StatusOK, rd)
 		return
 	}
