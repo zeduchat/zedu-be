@@ -388,29 +388,29 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	}
 
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
-	if (integrationExists && !orgIntegrationExists) || !ChannelintegrationExists {
 
-		if !orgIntegrationExists {
-			oi.ID = utility.GenerateUUID()
-			oi.IsActive = req.Status
-			oi.OrgID = ids["org_id"]
-			oi.IntegrationID = ids["integration_id"]
-			oi.JSONSchema = req.JSONSchema
-			oi.JSONUrl = integration.JSONUrl
+	if !orgIntegrationExists {
+		oi.ID = utility.GenerateUUID()
+		oi.IsActive = req.Status
+		oi.OrgID = ids["org_id"]
+		oi.IntegrationID = ids["integration_id"]
+		oi.JSONSchema = req.JSONSchema
+		oi.JSONUrl = integration.JSONUrl
 
-			if integrationExists {
-				oi.IsSystem = true
-			} else {
-				oi.IsSystem = false
-			}
-
-			err := oi.CreateOrganisationIntegration(db)
-			if err != nil {
-				return err
-			}
+		if integrationExists {
+			oi.IsSystem = true
+		} else {
+			oi.IsSystem = false
 		}
 
-		//activate integration for all channels in the organisation
+		err := oi.CreateOrganisationIntegration(db)
+		if err != nil {
+			return err
+		}
+	}
+
+	//activate integration for all channels in the organisation
+	if !ChannelintegrationExists {
 		err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", ids["org_id"])
 		if err != nil {
 			return err
@@ -433,9 +433,9 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if err != nil {
 			return err
 		}
-
-		// return nil
 	}
+
+	// return nil
 
 	// add settings if not exist
 	if !CheckIntegrationSettings && integration.JSONUrl != "" {
@@ -649,7 +649,6 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	if err != nil {
 		return orgIntResp, paginationResponse, http.StatusInternalServerError, err
 	}
-
 
 	return orgIntResp, paginationResponse, http.StatusOK, err
 }
