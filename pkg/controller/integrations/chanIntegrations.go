@@ -29,18 +29,19 @@ func (base *Controller) GetOrganisationChannelIntegrations(c *gin.Context) {
 		return
 	}
 
-	integrations, paginationResponse, err := integrations.GetOrganisationChannelIntegrations(base.Db.Postgresql, channel_id, org_id, c)
+	integrations, paginationResponse, code, err := integrations.GetOrganisationChannelIntegrations(base.Db.Postgresql, channel_id, org_id, c, base.ExtReq)
 
 	if err != nil {
 		base.Logger.Error("Failed to get channel integrations")
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get channel integrations", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get channel integrations", err, nil)
+		c.JSON(code, rd)
 		return
 	}
 
+
 	base.Logger.Info("Channel integrations retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Channel integrations retrieved successfully", integrations, paginationResponse)
-	c.JSON(http.StatusOK, rd)
+	rd := utility.BuildSuccessResponse(code, "Channel integrations retrieved successfully", integrations, paginationResponse)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) ActivateDeactivateChannelIntegration(c *gin.Context) {
