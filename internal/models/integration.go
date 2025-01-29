@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"time"
 
@@ -70,6 +69,7 @@ type OrganisationIntegrations struct {
 	OrgID         string    `gorm:"type:uuid;" json:"org_id"`
 	IntegrationID string    `gorm:"type:uuid;" json:"integration_id"`
 	IsActive      bool      `gorm:"type:boolean;default:false" json:"is_active"`
+	IsSystem      bool      `gorm:"type:boolean;default:false" json:"is_system"`
 	IsArchived    bool      `gorm:"type:boolean;default:false" json:"is_archived"`
 	ArchivedAt    time.Time `gorm:"index" json:"-"`
 	JSONSchema    JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
@@ -84,6 +84,7 @@ type OrganisationChannelsIntegrations struct {
 	IntegrationID string    `gorm:"type:uuid;" json:"integration_id"`
 	ChannelID     string    `gorm:"type:uuid;" json:"channel_id"`
 	IsActive      bool      `gorm:"type:boolean;default:false" json:"is_active"`
+	IsSystem      bool      `gorm:"type:boolean;default:false" json:"is_system"`
 	ArchivedAt    time.Time `gorm:"index" json:"-"`
 	SendBack      bool      `gorm:"type:boolean;default:true" json:"send_back"`
 	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
@@ -129,6 +130,7 @@ type CustomIntegrationsSetting struct {
 	ID            string    `gorm:"type:uuid;primary_key" json:"id"`
 	OrgID         string    `gorm:"type:uuid;" json:"org_id"`
 	IntegrationID string    `gorm:"type:uuid;" json:"integration_id"`
+	IsSystem      bool      `gorm:"type:boolean;default:false" json:"is_system"`
 	SettingEntry  string    `gorm:"type:text;" json:"setting_entry"`
 	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
@@ -394,6 +396,13 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 			oi.OrgID = ids["org_id"]
 			oi.IntegrationID = ids["integration_id"]
 			oi.JSONSchema = req.JSONSchema
+			oi.JSONUrl = integration.JSONUrl
+
+			if integrationExists {
+				oi.IsSystem = true
+			} else {
+				oi.IsSystem = false
+			}
 
 			err := oi.CreateOrganisationIntegration(db)
 			if err != nil {
@@ -414,6 +423,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 				ChannelID:     channel.ID,
 				IntegrationID: ids["integration_id"],
 				IsActive:      req.Status,
+				IsSystem:      oi.IsSystem,
 			}
 
 			orgchannels = append(orgchannels, oci)
@@ -505,6 +515,12 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		integrationSettings.SettingEntry = serialized_settings
 		integrationSettings.OrgID = ids["org_id"]
 		integrationSettings.IntegrationID = ids["integration_id"]
+
+		if integrationExists {
+			integrationSettings.IsSystem = true
+		} else {
+			integrationSettings.IsSystem = false
+		}
 
 		err = integrationSettings.CreateIntegrationSettings(db)
 
@@ -606,43 +622,36 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 	return nil
 }
 
-func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) (GetChannelIntResp, postgresql.PaginationResponse, error) {
-	var integrations GetChannelIntResp
+func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, int, error) {
+	var (
+		org        Organisation
+		orgIntResp []OrganisationIntegrations
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return nil, postgresql.PaginationResponse{}, http.StatusNotFound, errors.New("organisation not found")
+	}
+
 	pagination := postgresql.GetPagination(c)
 
-	offset := (pagination.Page - 1) * pagination.Limit
+	query := db.Model(&OrganisationIntegrations{}).
+		Where("org_id = ? AND is_active = ? AND json_url != ''", orgID, true)
 
-	// Query to get paginated integrations
-	if err := db.Table("organisation_channels_integrations AS oci").
-		Select("i.id , i.name, i.json_url, i.app_url, i.app_logo, i.app_description, i.created_at, i.updated_at, i.integration_type ,oci.is_active AS is_active, oci.send_back").
-		Joins("LEFT JOIN integrations AS i ON oci.integration_id = i.id").
-		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
-		Offset(offset).
-		Limit(pagination.Limit).
-		Find(&integrations).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&orgIntResp,
+		nil,
+	)
+	if err != nil {
+		return orgIntResp, paginationResponse, http.StatusInternalServerError, err
 	}
 
-	// Query to get total count of integrations for pagination
-	var totalIntegrations int64
-	if err := db.Table("organisation_channels_integrations AS oci").
-		Joins("JOIN integrations ON oci.integration_id = integrations.id").
-		Where("oci.org_id = ? AND oci.channel_id = ?", orgID, channel_id).
-		Count(&totalIntegrations).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
-	}
 
-	// Calculate total pages
-	totalPages := int(math.Ceil(float64(totalIntegrations) / float64(pagination.Limit)))
-
-	// Build the pagination response
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     pagination.Page,
-		PageCount:       pagination.Limit,
-		TotalPagesCount: totalPages,
-	}
-
-	return integrations, paginationResponse, nil
+	return orgIntResp, paginationResponse, http.StatusOK, err
 }
 
 func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm.DB, req ActivateChannelIntegration, ids map[string]string) error {
@@ -966,24 +975,4 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	}
 
 	return nil
-}
-
-func (i *CustomIntegrationsSetting) GetCustomIntegrationSettings(db *gorm.DB, org_id string, c *gin.Context) (CustomIntegrationsSetting, int, error) {
-
-	var (
-		org  Organisation
-		resp CustomIntegrationsSetting
-	)
-
-	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
-	if !exists {
-		return resp, http.StatusNotFound, errors.New("organisation not found")
-	}
-
-	exists = postgresql.CheckExists(db, &resp, "org_id = ? AND integration_id = ?", i.OrgID, i.IntegrationID)
-	if !exists {
-		return resp, http.StatusNotFound, errors.New("organisation not found")
-	}
-
-	return resp, http.StatusOK, nil
 }

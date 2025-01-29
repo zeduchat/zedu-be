@@ -79,12 +79,6 @@ func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
 		"total_items":  len(integrations),
 	}
 
-	if len(integrations) == 0 {
-		base.Logger.Info("integrations retrieved successfully.")
-		rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", []string{}, paginationData)
-		c.JSON(http.StatusOK, rd)
-		return
-	}
 
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
@@ -247,7 +241,7 @@ func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
 		"integration_id": req.IntegrationID,
 	}
 
-	err := integrations.ChangeIntegrationStatus(ids, req, base.Db.Postgresql)
+	err := integrations.ChangeIntegrationStatus(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to set integration app status", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set integration app status", err.Error(), nil)
