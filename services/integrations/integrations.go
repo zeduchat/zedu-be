@@ -30,7 +30,7 @@ func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.In
 func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
 	var org_integrations models.OrganisationIntegrations
 
-	var int_resp models.IntegrationResp
+	var int_resp = models.IntegrationResp{}
 
 	resp, paginationResult, err, code := org_integrations.GetCustomIntegrationApp(db, org_id, c)
 
@@ -62,7 +62,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
-			IsActive:       true,
+			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
 		}
@@ -170,6 +170,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	orgIntegration.JSONUrl = req.JSONUrl
 	orgIntegration.IntegrationID = utility.GenerateUUID()
 	orgIntegration.IsActive = false
+	orgIntegration.IsSystem = false
 	orgIntegration.ID = utility.GenerateUUID()
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
@@ -245,6 +246,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	integrationSettings.ID = utility.GenerateUUID()
 	integrationSettings.SettingEntry = serialized_settings
 	integrationSettings.OrgID = org_id
+	integrationSettings.IsSystem = false
 	integrationSettings.IntegrationID = orgIntegration.IntegrationID
 
 	err = integrationSettings.CreateIntegrationSettings(db)
@@ -283,15 +285,58 @@ func UpdateCustomIntegration(ids map[string]string, req models.CustomIntegration
 	return nil
 }
 
-func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, c *gin.Context) (models.GetChannelIntResp, postgresql.PaginationResponse, error) {
-	var ocIntegrations models.OrganisationChannelsIntegrations
+func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, c *gin.Context, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, int, error) {
+	var (
+		ocIntegrations models.OrganisationChannelsIntegrations
+	)
 
-	integrations, paginationResponse, err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)
+	var int_resp =  models.IntegrationResp{}
+
+	integrations, paginationResponse, code, err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)
+
 	if err != nil {
-		return nil, paginationResponse, err
+		return nil, paginationResponse, code, err
 	}
 
-	return integrations, paginationResponse, nil
+	for _, org_integrations := range integrations {
+
+		json_url := org_integrations.JSONUrl
+		data := map[string]string{"url": json_url}
+
+		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+		if err != nil {
+			continue
+		}
+
+		response_data := response.(map[string]interface{})
+
+		data_r := response_data["data"].(map[string]interface{})
+
+		description := data_r["descriptions"].(map[string]interface{})
+
+		integration := models.Integrations{
+			ID:             org_integrations.IntegrationID,
+			Name:           description["app_name"].(string),
+			JSONUrl:        org_integrations.JSONUrl,
+			AppUrl:         description["app_url"].(string),
+			AppLogo:        description["app_logo"].(string),
+			AppDescription: description["app_description"].(string),
+			IsActive:       org_integrations.IsActive,
+			CreatedAt:      org_integrations.CreatedAt,
+			UpdatedAt:      org_integrations.UpdatedAt,
+		}
+
+		int_resp = append(int_resp, struct {
+			models.Integrations
+			Linked bool "json:\"linked\""
+		}{
+			Integrations: integration,
+			Linked:       true,
+		})
+	}
+
+	return int_resp, paginationResponse, code, nil
 }
 
 func ActivateChannelIntegration(ids map[string]string, req models.ActivateChannelIntegration, db *gorm.DB) error {
@@ -423,6 +468,9 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 	// unserialize the settings text
 
 	err := json.Unmarshal([]byte(settings), &deserialize_settings)
+
+	deserialize_settings["is_system"] = ucis.IsSystem
+	deserialize_settings["is_active"] = orgIntegration.IsActive
 
 	if err != nil {
 		return deserialize_settings, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
