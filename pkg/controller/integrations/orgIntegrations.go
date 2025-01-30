@@ -518,6 +518,43 @@ func (base *Controller) UpdateCustomIntegrationSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetCustomIntegrationStatus(c *gin.Context) {
+	org_id := c.Param("org_id")
+	integration_id := c.Param("integration_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(integration_id); err != nil {
+		base.Logger.Error("invalid integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id":         org_id,
+		"integration_id": integration_id,
+	}
+
+	integration_setting, code, err := integrations.GetCustomIntegrationStatus(ids, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		fmt.Println(err)
+		base.Logger.Error("Failed to fetch custom integrations settings", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom integrations settings", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("integrations retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations setting retrieved successfully.", integration_setting)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
 	org_id := c.Param("org_id")
 	integration_id := c.Param("integration_id")
