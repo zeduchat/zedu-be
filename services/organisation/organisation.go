@@ -138,6 +138,23 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
+	// this section creates default integration
+	var orgIntResp []models.OrganisationIntegrations
+
+	err = db.Model(&models.Integrations{}).
+		Select("gen_random_uuid() AS id, id as integration_id,? as org_id, json_url,false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at", org.ID).
+		Scan(&orgIntResp).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &org, nil
 }
 

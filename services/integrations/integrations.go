@@ -478,3 +478,24 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 
 	return deserialize_settings, http.StatusOK, nil
 }
+
+
+func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]bool, int, error) {
+
+	var (
+		orgIntegration models.OrganisationIntegrations
+		status map[string]bool
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return status, http.StatusNotFound, errors.New("Integration not connnected yet")
+	}
+
+	status = map[string]bool{}
+
+	status["is_system"] = orgIntegration.IsSystem
+	status["is_active"] = orgIntegration.IsActive
+
+	return status, http.StatusOK, nil
+}
