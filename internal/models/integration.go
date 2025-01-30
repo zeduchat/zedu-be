@@ -380,8 +380,8 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 
 	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
-	ChannelintegrationExists := postgresql.CheckExists(db, &oci, "integration_id = ?", ids["integration_id"])
-	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "integration_id = ?", ids["integration_id"])
+	ChannelintegrationExists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 
 	if !(integrationExists || orgIntegrationExists) {
 		return errors.New("integration app does not exist")
@@ -416,6 +416,13 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 			return err
 		}
 
+		is_system := false
+
+		if integrationExists {
+
+			is_system = true
+		}
+
 		for _, channel := range channels {
 			oci := OrganisationChannelsIntegrations{
 				ID:            utility.GenerateUUID(),
@@ -423,7 +430,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 				ChannelID:     channel.ID,
 				IntegrationID: ids["integration_id"],
 				IsActive:      req.Status,
-				IsSystem:      oi.IsSystem,
+				IsSystem:      is_system,
 			}
 
 			orgchannels = append(orgchannels, oci)
@@ -638,7 +645,7 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	query := db.Table("organisation_channels_integrations AS c").
 		Select("c.id, c.org_id, c.integration_id, c.is_active, c.is_system, c.archived_at, "+
 			"c.created_at, c.updated_at, i.json_url").
-		Joins("LEFT JOIN organisation_integrations AS i ON c.integration_id = i.integration_id").
+		Joins("JOIN organisation_integrations AS i ON c.integration_id = i.integration_id").
 		Where("c.org_id = ? AND c.channel_id = ? AND i.json_url != ''", orgID, channel_id)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(

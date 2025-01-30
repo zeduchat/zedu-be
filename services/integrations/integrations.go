@@ -455,12 +455,12 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if !exists {
-		return deserialize_settings, http.StatusNotFound, errors.New("organisation does not exist or have that integration")
+		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
 
 	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if !exists {
-		return deserialize_settings, http.StatusNotFound, errors.New("organisation does not exist or have that integration")
+		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
 
 	settings := ucis.SettingEntry
