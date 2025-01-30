@@ -643,10 +643,10 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Table("organisation_channels_integrations AS c").
+		Joins("JOIN organisation_integrations AS i ON c.integration_id = i.integration_id AND c.org_id = i.org_id").
+		Where("c.org_id = ? AND c.channel_id = ? AND i.json_url != ''", orgID, channel_id).
 		Select("c.id, c.org_id, c.integration_id, c.is_active, c.is_system, c.archived_at, "+
-			"c.created_at, c.updated_at, i.json_url").
-		Joins("JOIN organisation_integrations AS i ON c.integration_id = i.integration_id").
-		Where("c.org_id = ? AND c.channel_id = ? AND i.json_url != ''", orgID, channel_id)
+		"c.created_at, c.updated_at, i.json_url")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
