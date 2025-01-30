@@ -66,6 +66,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/integrations/custom", integrationsCtrl.GetCustomIntegrationApp)
 		organisationUrl.PUT("/:org_id/integrations/custom/:integration_id", integrationsCtrl.UpdateCustomIntegration)
 		organisationUrl.GET("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.GetCustomIntegrationSettings)
+		organisationUrl.GET("/:org_id/integrations/custom/:integration_id/status", integrationsCtrl.GetCustomIntegrationStatus)
 		organisationUrl.PUT("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.UpdateCustomIntegrationSettings)
 
 		// Channel integrations routes
