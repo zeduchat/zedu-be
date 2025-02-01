@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"time"
@@ -110,6 +111,32 @@ func (c *Organisation) Update(db *gorm.DB) (*Organisation, error) {
 	result, err := postgresql.SaveAllFields(db, &c)
 	if err != nil {
 		return nil, err
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, errors.New("failed to update organisation")
+	}
+
+	return c, nil
+}
+
+func (c *Organisation) UpdateFeilds(db *gorm.DB, updateCon UpdateOrgRequestModel) (*Organisation, error) {
+
+	update := make(map[string]interface{})
+
+	data, _ := json.Marshal(updateCon)
+	json.Unmarshal(data, &update)
+
+	// Loop through update map and remove empty entries
+	for key, value := range update {
+		if value == "" {
+			delete(update, key)
+		}
+	}
+
+	result, err := postgresql.UpdateFields(db, &c, update, "id = ?", c.ID)
+	if err != nil {
+		return c, err
 	}
 
 	if result.RowsAffected == 0 {
