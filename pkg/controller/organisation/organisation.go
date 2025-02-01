@@ -167,23 +167,11 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		return
 	}
 
-	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
+	updatedOrg, code, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 
 	if err != nil {
-		switch err.Error() {
-		case "organisation not found":
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to update organisation", nil)
-			c.JSON(http.StatusNotFound, rd)
-		case "user not authorised to update this organisation":
-			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to update organisation", nil)
-			c.JSON(http.StatusForbidden, rd)
-		case "organisation already exists with the given email":
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update organisation", nil)
-			c.JSON(http.StatusForbidden, rd)
-		default:
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to update organisation", err.Error(), nil)
-			c.JSON(http.StatusInternalServerError, rd)
-		}
+		rd := utility.BuildErrorResponse(code, "error", "failed to update organisation", err.Error(), nil)
+		c.JSON(code, rd)
 		return
 	}
 
