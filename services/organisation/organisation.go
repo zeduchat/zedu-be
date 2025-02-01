@@ -233,7 +233,9 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 		return nil, errors.New("failed to upload organisation logo")
 	}
 
-	updateReq.LogoURL = picUrl
+	if picUrl != "" {
+		updateReq.LogoURL = picUrl
+	}
 
 	copier.Copy(&org, &updateReq)
 	return org.Update(db)
