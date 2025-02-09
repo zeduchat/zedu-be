@@ -458,54 +458,20 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		data_r, ok := response_data["data"].(map[string]interface{})
 
 		if !ok {
-			return errors.New("Failed to save integration default settings, data field does not exist")
+			return errors.New("Failed to save integration, data field does not exist")
 		}
 
-		// validate description entry
+		// validate all entries
 
-		descriptions, ok := data_r["descriptions"].(map[string]interface{})
-		if !ok {
-			return errors.New("Failed to save integration default settings, descriptions field does not exist")
-		}
+		err = ValidateIntegrationData(data_r);
 
-		app_name, ok := descriptions["app_name"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration default settings, app_name field does not exist or is empty")
-		}
-
-		_, ok = descriptions["app_description"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration default settings, app_description field does not exist or is empty")
-		}
-
-		_, ok = descriptions["app_logo"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration default settings, app_logo field does not exist or is empty")
-		}
-
-		_, ok = descriptions["app_url"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration default settings, app_url field does not exist or is empty")
+		if err != nil {
+			return err
 		}
 
 		settings, ok := data_r["settings"]
 		if !ok {
 			return errors.New("Failed to save integration default settings, settings field does not exist")
-		}
-
-		_, isArray := settings.([]interface{})
-		if !isArray {
-			return errors.New("Failed to save integration default settings, settings field is not an array")
-		}
-
-		_, ok = data_r["key_features"]
-		if !ok {
-			return errors.New("Failed to save integration default settings, key_features field does not exist")
-		}
-
-		_, ok = data_r["target_url"]
-		if !ok {
-			return errors.New("Failed to save integration default settings, target_url field does not exist")
 		}
 
 		settings_data := map[string]interface{}{"settings": settings}
@@ -985,4 +951,86 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	}
 
 	return nil
+}
+
+
+func ValidateIntegrationData(data_r map[string]interface{}) error {
+
+	var INTERVAL_TYPE = "interval"
+	var MODIFIER_TYPE = "modifier"
+
+
+	descriptions, ok := data_r["descriptions"].(map[string]interface{})
+		if !ok {
+			return errors.New("Failed to save integration, descriptions field does not exist")
+		}
+
+		app_name, ok := descriptions["app_name"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration, app_name field does not exist or is empty")
+		}
+
+		_, ok = descriptions["app_description"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration, app_description field does not exist or is empty")
+		}
+
+		_, ok = descriptions["app_logo"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration, app_logo field does not exist or is empty")
+		}
+
+		_, ok = descriptions["app_url"].(string)
+		if !ok && app_name == "" {
+			return errors.New("Failed to save integration, app_url field does not exist or is empty")
+		}
+
+		settings, ok := data_r["settings"]
+		if !ok {
+			return errors.New("Failed to save integration, settings field does not exist")
+		}
+
+		_, isArray := settings.([]interface{})
+		if !isArray {
+			return errors.New("Failed to save integration, settings field is not an array")
+		}
+
+		_, ok = data_r["key_features"]
+		if !ok {
+			return errors.New("Failed to save integration, key_features field does not exist")
+		}
+
+
+		int_type, ok := data_r["integraion_type"]
+		if !ok {
+			return errors.New("Failed to save integration, integration_type field does not exist")
+		}
+
+		if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE {
+			return errors.New("Failed to save integration, invalid integration_type integration should be of type interval or modifier")
+		}
+
+		if int_type == INTERVAL_TYPE {
+			
+			_, ok = data_r["target_url"]
+			if !ok {
+				return errors.New("Failed to save integration, target_url field does not exist")
+			}
+
+			_, ok = data_r["tick_url"]
+			if !ok {
+				return errors.New("Failed to save integration, tick_url field does not exist")
+			}
+		}
+
+		if int_type == MODIFIER_TYPE {
+			
+			_, ok = data_r["target_url"]
+			if !ok {
+				return errors.New("Failed to save integration, target_url field does not exist")
+			}
+		}
+
+	return nil
+
 }
