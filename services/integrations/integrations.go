@@ -163,7 +163,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
 
 	if err != nil {
-		return errors.New("failed to Create Custom Integration, invalid JSON supplied")
+		return errors.New("Failed to create custom integration, invalid JSON supplied")
 	}
 
 	orgIntegration.OrgID = org_id
@@ -188,49 +188,15 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 	// validate description entry
 
-	descriptions, ok := data_r["descriptions"].(map[string]interface{})
-	if !ok {
-		return errors.New("Failed to Create Custom Integration, descriptions field does not exist")
-	}
+	err = models.ValidateIntegrationData(data_r)
 
-	app_name, ok := descriptions["app_name"].(string)
-	if !ok && app_name == "" {
-		return errors.New("Failed to Create Custom Integration, app_name field does not exist or is empty")
-	}
-
-	_, ok = descriptions["app_description"].(string)
-	if !ok && app_name == "" {
-		return errors.New("Failed to Create Custom Integration, app_description field does not exist or is empty")
-	}
-
-	_, ok = descriptions["app_logo"].(string)
-	if !ok && app_name == "" {
-		return errors.New("Failed to Create Custom Integration, app_logo field does not exist or is empty")
-	}
-
-	_, ok = descriptions["app_url"].(string)
-	if !ok && app_name == "" {
-		return errors.New("Failed to Create Custom Integration, app_url field does not exist or is empty")
+	if err != nil {
+		return err
 	}
 
 	settings, ok := data_r["settings"]
 	if !ok {
-		return errors.New("Failed to Create Custom Integration, settings field does not exist")
-	}
-
-	_, isArray := settings.([]interface{})
-	if !isArray {
-		return errors.New("Failed to Create Custom Integration, settings field is not an array")
-	}
-
-	_, ok = data_r["key_features"]
-	if !ok {
-		return errors.New("Failed to Create Custom Integration, key_features field does not exist")
-	}
-
-	_, ok = data_r["target_url"]
-	if !ok {
-		return errors.New("Failed to Create Custom Integration, target_url field does not exist")
+		return errors.New("Failed to create custom integration, settings field does not exist")
 	}
 
 	settings_data := map[string]interface{}{"settings": settings}
@@ -252,7 +218,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	err = integrationSettings.CreateIntegrationSettings(db)
 
 	if err != nil {
-		return errors.New("failed to create integration settings")
+		return errors.New("Failed to create integration settings")
 	}
 
 	return nil
@@ -290,7 +256,7 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 		ocIntegrations models.OrganisationChannelsIntegrations
 	)
 
-	var int_resp =  models.IntegrationResp{}
+	var int_resp = models.IntegrationResp{}
 
 	integrations, paginationResponse, code, err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)
 
@@ -479,12 +445,11 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 	return deserialize_settings, http.StatusOK, nil
 }
 
-
 func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]bool, int, error) {
 
 	var (
 		orgIntegration models.OrganisationIntegrations
-		status map[string]bool
+		status         map[string]bool
 	)
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
