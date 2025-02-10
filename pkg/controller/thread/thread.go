@@ -201,7 +201,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	
 	err = base.Validator.Struct(&req)
 	if err != nil {
@@ -243,7 +242,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
 	c.JSON(http.StatusCreated, rd)
-
 }
 
 func (base *Controller) SearchChannel(c *gin.Context) {
