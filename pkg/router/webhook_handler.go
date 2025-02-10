@@ -28,6 +28,7 @@ func WebhookHandler(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	{
 		webhookUrl.POST("/backend-queue", webhook.PostFeedWebhookQueue)
 		webhookUrl.POST("/backend-queue/return", webhook.PostFeedWebhook)
+		webhookUrl.POST("/backend-queue/return-msg", webhook.PostFeedMessage)
 	}
 
 	return r
