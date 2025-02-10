@@ -1001,7 +1001,7 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 		}
 
 
-		int_type, ok := data_r["integraion_type"]
+		int_type, ok := data_r["integration_type"]
 		if !ok {
 			return errors.New("Failed to save integration, integration_type field does not exist")
 		}
