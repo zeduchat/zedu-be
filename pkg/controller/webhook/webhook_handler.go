@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,8 @@ func(base *Controller) PostFeedMessage(c *gin.Context) {
 		req models.CreateThreadMsgReq
 	)
 
+	
+	
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		base.Logger.Info("error parsing request body")
@@ -23,7 +26,13 @@ func(base *Controller) PostFeedMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	
+	//sorry guys, bad hack
+	if req.Content == "" {
+		fmt.Println("message",req.Message)
+		req.Content = req.Message
+	}
+	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
