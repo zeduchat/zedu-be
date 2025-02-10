@@ -132,7 +132,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return SaveThreadMessage(req, db, logger)
 	}
 
-	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue/return-msg", config.Config.App.Url)
+	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
 
 	feed := models.FeedQueue{
 		ChannelsId: req.ChannelsID,
