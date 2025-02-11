@@ -958,6 +958,7 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 
 	var INTERVAL_TYPE = "interval"
 	var MODIFIER_TYPE = "modifier"
+	var OUTPUT_TYPE   = "output"
 
 
 	descriptions, ok := data_r["descriptions"].(map[string]interface{})
@@ -1006,7 +1007,7 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 			return errors.New("Failed to save integration, integration_type field does not exist")
 		}
 
-		if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE {
+		if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE{
 			return errors.New("Failed to save integration, invalid integration_type integration should be of type interval or modifier")
 		}
 
