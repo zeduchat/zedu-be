@@ -257,6 +257,46 @@ func (i *OrganisationIntegrations) GetCustomIntegrationApp(db *gorm.DB, org_id s
 	return orgIntResp, paginationResponse, err, http.StatusOK
 }
 
+func (i *Integrations) GetSystemIntegrationApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+
+	var (
+		IntResp []Integrations
+	)
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&Integrations{}).
+		Where("json_url != ''")
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&IntResp,
+		nil,
+	)
+	if err != nil {
+		return IntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return IntResp, paginationResponse, err, http.StatusOK
+}
+
+func (i *Integrations) GetSystemIntegrationApp(db *gorm.DB, int_id string, c *gin.Context) (Integrations, error, int) {
+
+	var (
+		IntResp Integrations
+	)
+
+	exists := postgresql.CheckExists(db, &IntResp, "json_url != '' AND id = ?", int_id)
+	if !exists {
+		return IntResp, errors.New("integration app does not exist"), http.StatusNotFound
+	}
+
+	return IntResp, nil, http.StatusOK
+}
+
 func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req UpdateIntegration) (Integrations, error) {
 	var integration Integrations
 
@@ -463,7 +503,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 		// validate all entries
 
-		err = ValidateIntegrationData(data_r);
+		err = ValidateIntegrationData(data_r)
 
 		if err != nil {
 			return err
@@ -611,8 +651,8 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	query := db.Table("organisation_channels_integrations AS c").
 		Joins("JOIN organisation_integrations AS i ON c.integration_id = i.integration_id AND c.org_id = i.org_id").
 		Where("c.org_id = ? AND c.channel_id = ? AND i.json_url != ''", orgID, channel_id).
-		Select("c.id, c.org_id, c.integration_id, c.is_active, c.is_system, c.archived_at, "+
-		"c.created_at, c.updated_at, i.json_url")
+		Select("c.id, c.org_id, c.integration_id, c.is_active, c.is_system, c.archived_at, " +
+			"c.created_at, c.updated_at, i.json_url")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -953,84 +993,81 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	return nil
 }
 
-
 func ValidateIntegrationData(data_r map[string]interface{}) error {
 
 	var INTERVAL_TYPE = "interval"
 	var MODIFIER_TYPE = "modifier"
-	var OUTPUT_TYPE   = "output"
-
+	var OUTPUT_TYPE = "output"
 
 	descriptions, ok := data_r["descriptions"].(map[string]interface{})
+	if !ok {
+		return errors.New("Failed to save integration, descriptions field does not exist")
+	}
+
+	app_name, ok := descriptions["app_name"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to save integration, app_name field does not exist or is empty")
+	}
+
+	_, ok = descriptions["app_description"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to save integration, app_description field does not exist or is empty")
+	}
+
+	_, ok = descriptions["app_logo"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to save integration, app_logo field does not exist or is empty")
+	}
+
+	_, ok = descriptions["app_url"].(string)
+	if !ok && app_name == "" {
+		return errors.New("Failed to save integration, app_url field does not exist or is empty")
+	}
+
+	settings, ok := data_r["settings"]
+	if !ok {
+		return errors.New("Failed to save integration, settings field does not exist")
+	}
+
+	_, isArray := settings.([]interface{})
+	if !isArray {
+		return errors.New("Failed to save integration, settings field is not an array")
+	}
+
+	_, ok = data_r["key_features"]
+	if !ok {
+		return errors.New("Failed to save integration, key_features field does not exist")
+	}
+
+	int_type, ok := data_r["integration_type"]
+	if !ok {
+		return errors.New("Failed to save integration, integration_type field does not exist")
+	}
+
+	if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE {
+		return errors.New("Failed to save integration, invalid integration_type integration should be of type interval or modifier")
+	}
+
+	if int_type == INTERVAL_TYPE {
+
+		_, ok = data_r["target_url"]
 		if !ok {
-			return errors.New("Failed to save integration, descriptions field does not exist")
+			return errors.New("Failed to save integration, target_url field does not exist")
 		}
 
-		app_name, ok := descriptions["app_name"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration, app_name field does not exist or is empty")
-		}
-
-		_, ok = descriptions["app_description"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration, app_description field does not exist or is empty")
-		}
-
-		_, ok = descriptions["app_logo"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration, app_logo field does not exist or is empty")
-		}
-
-		_, ok = descriptions["app_url"].(string)
-		if !ok && app_name == "" {
-			return errors.New("Failed to save integration, app_url field does not exist or is empty")
-		}
-
-		settings, ok := data_r["settings"]
+		_, ok = data_r["tick_url"]
 		if !ok {
-			return errors.New("Failed to save integration, settings field does not exist")
+			return errors.New("Failed to save integration, tick_url field does not exist")
 		}
+	}
 
-		_, isArray := settings.([]interface{})
-		if !isArray {
-			return errors.New("Failed to save integration, settings field is not an array")
-		}
+	if int_type == MODIFIER_TYPE {
 
-		_, ok = data_r["key_features"]
+		_, ok = data_r["target_url"]
 		if !ok {
-			return errors.New("Failed to save integration, key_features field does not exist")
+			return errors.New("Failed to save integration, target_url field does not exist")
 		}
-
-
-		int_type, ok := data_r["integration_type"]
-		if !ok {
-			return errors.New("Failed to save integration, integration_type field does not exist")
-		}
-
-		if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE{
-			return errors.New("Failed to save integration, invalid integration_type integration should be of type interval or modifier")
-		}
-
-		if int_type == INTERVAL_TYPE {
-			
-			_, ok = data_r["target_url"]
-			if !ok {
-				return errors.New("Failed to save integration, target_url field does not exist")
-			}
-
-			_, ok = data_r["tick_url"]
-			if !ok {
-				return errors.New("Failed to save integration, tick_url field does not exist")
-			}
-		}
-
-		if int_type == MODIFIER_TYPE {
-			
-			_, ok = data_r["target_url"]
-			if !ok {
-				return errors.New("Failed to save integration, target_url field does not exist")
-			}
-		}
+	}
 
 	return nil
 
