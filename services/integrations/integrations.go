@@ -79,6 +79,98 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 	return int_resp, paginationResult, nil, code
 }
 
+func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
+	var integrations models.Integrations
+
+	var int_resp = models.IntegrationResp{}
+
+	resp, paginationResult, err, code := integrations.GetSystemIntegrationApps(db, c)
+
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err, code
+	}
+
+	for _, org_integrations := range resp {
+
+		json_url := org_integrations.JSONUrl
+		data := map[string]string{"url": json_url}
+
+		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+		if err != nil {
+			continue
+		}
+
+		response_data := response.(map[string]interface{})
+
+		data_r := response_data["data"].(map[string]interface{})
+
+		description := data_r["descriptions"].(map[string]interface{})
+
+		integration := models.Integrations{
+			ID:             org_integrations.ID,
+			Name:           description["app_name"].(string),
+			JSONUrl:        org_integrations.JSONUrl,
+			AppUrl:         description["app_url"].(string),
+			AppLogo:        description["app_logo"].(string),
+			AppDescription: description["app_description"].(string),
+			IsActive:       org_integrations.IsActive,
+			CreatedAt:      org_integrations.CreatedAt,
+			UpdatedAt:      org_integrations.UpdatedAt,
+		}
+
+		int_resp = append(int_resp, struct {
+			models.Integrations
+			Linked bool "json:\"linked\""
+		}{
+			Integrations: integration,
+			Linked:       true,
+		})
+	}
+
+	return int_resp, paginationResult, nil, code
+}
+
+func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq request.ExternalRequest) (models.Integrations, error, int) {
+	var integrations models.Integrations
+
+	resp, err, code := integrations.GetSystemIntegrationApp(db, int_id, c)
+
+	if err != nil {
+		return models.Integrations{}, err, code
+	}
+
+	json_url := resp.JSONUrl
+	data := map[string]string{"url": json_url}
+
+	response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+
+	if err != nil {
+		extReq.Logger.Error("An error occurred while fetching integration json, err: %s ", err)
+		return models.Integrations{}, nil, code
+	}
+
+	response_data := response.(map[string]interface{})
+
+	data_r := response_data["data"].(map[string]interface{})
+
+	description := data_r["descriptions"].(map[string]interface{})
+
+	integration := models.Integrations{
+		ID:             resp.ID,
+		Name:           description["app_name"].(string),
+		JSONUrl:        resp.JSONUrl,
+		AppUrl:         description["app_url"].(string),
+		AppLogo:        description["app_logo"].(string),
+		AppDescription: description["app_description"].(string),
+		IsActive:       resp.IsActive,
+		CreatedAt:      resp.CreatedAt,
+		UpdatedAt:      resp.UpdatedAt,
+	}
+
+	return integration, nil, code
+}
+
 func UpdateIntegrationApp(req models.UpdateIntegration, ids map[string]string, db *gorm.DB) (models.Integrations, error) {
 	var integration models.Integrations
 
