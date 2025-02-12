@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/integrations"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -20,6 +21,16 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 
 	{
 		integrationUrl.GET(":integration_id/settings", integration.GetIntegrationSettingsAllOrgs)
+	}
+
+
+	// Unauthunticated endpoint to fetch integrations
+	
+	intPage := r.Group(fmt.Sprintf("%v/integrations", ApiVersion))
+
+	{
+		intPage.GET("", integration.GetSystemIntegrationApps)
+		intPage.GET(":integration_id", integration.GetSystemIntegrationApp)
 	}
 
 	return r
