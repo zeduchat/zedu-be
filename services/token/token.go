@@ -17,7 +17,7 @@ func GetConnToken(userId string, db *gorm.DB) (gin.H, int, error) {
 	userClaims := jwt.MapClaims{}
 
 	userClaims["sub"] = userId
-	userClaims["exp"] = time.Now().Unix() + int64(120)
+	userClaims["exp"] = time.Now().Unix() + int64(3600)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims)
 
@@ -44,7 +44,7 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 
 	userClaims["sub"] = userId
 	userClaims["channel"] = channelName
-	userClaims["exp"] = time.Now().Unix() + int64(300)
+	userClaims["exp"] = time.Now().Unix() + int64(3600)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims)
 
