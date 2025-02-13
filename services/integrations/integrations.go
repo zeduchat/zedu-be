@@ -54,6 +54,12 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 		data_r := response_data["data"].(map[string]interface{})
 
 		description := data_r["descriptions"].(map[string]interface{})
+		category, ok := data_r["integration_category"].(string)
+
+		if !ok || category == "" {
+
+			category = "Undefined"
+		}
 
 		integration := models.Integrations{
 			ID:             org_integrations.IntegrationID,
@@ -62,6 +68,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
+			Category:       category,
 			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
@@ -107,6 +114,13 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 
 		description := data_r["descriptions"].(map[string]interface{})
 
+		category, ok := data_r["integration_category"].(string)
+
+		if !ok || category == "" {
+
+			category = "Undefined"
+		}
+
 		integration := models.Integrations{
 			ID:             org_integrations.ID,
 			Name:           description["app_name"].(string),
@@ -114,6 +128,7 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
+			Category:       category,
 			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
@@ -373,6 +388,13 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 
 		description := data_r["descriptions"].(map[string]interface{})
 
+		category, ok := data_r["integration_category"].(string)
+
+		if !ok || category == "" {
+
+			category = "Undefined"
+		}
+
 		integration := models.Integrations{
 			ID:             org_integrations.IntegrationID,
 			Name:           description["app_name"].(string),
@@ -380,6 +402,7 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
+			Category:       category,
 			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
