@@ -58,6 +58,8 @@ tags:
     description:  API for user integrations operations
   - name: Custom Integrations
     description:  API for user integrations operations
+  - name: System Integrations
+    description:  API for system integrations operations
   - name: Overview
     description: API for overview operations
   - name: newsletter

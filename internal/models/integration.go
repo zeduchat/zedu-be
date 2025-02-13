@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,7 @@ type Integrations struct {
 	AppDescription  string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
 	IsActive        bool      `gorm:"type:boolean;default:false" json:"is_active"`
+	Category        string    `json:"category"`
 	CreatedAt       time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt       time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
@@ -1005,22 +1007,26 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 	}
 
 	app_name, ok := descriptions["app_name"].(string)
-	if !ok && app_name == "" {
+	if !ok || app_name == "" {
 		return errors.New("Failed to save integration, app_name field does not exist or is empty")
 	}
 
-	_, ok = descriptions["app_description"].(string)
-	if !ok && app_name == "" {
+	app_desc, ok := descriptions["app_description"].(string)
+	if !ok || app_desc == "" {
 		return errors.New("Failed to save integration, app_description field does not exist or is empty")
 	}
 
-	_, ok = descriptions["app_logo"].(string)
-	if !ok && app_name == "" {
+	app_logo, ok := descriptions["app_logo"].(string)
+	if !ok || app_logo == "" {
 		return errors.New("Failed to save integration, app_logo field does not exist or is empty")
 	}
 
-	_, ok = descriptions["app_url"].(string)
-	if !ok && app_name == "" {
+	if !strings.Contains(app_logo, "https:") && !strings.Contains(app_logo, "http:") {
+		return errors.New("Failed to save integration, invalid app_logo url")
+	}
+
+	app_url, ok := descriptions["app_url"].(string)
+	if !ok || app_url == "" {
 		return errors.New("Failed to save integration, app_url field does not exist or is empty")
 	}
 
@@ -1037,6 +1043,11 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 	_, ok = data_r["key_features"]
 	if !ok {
 		return errors.New("Failed to save integration, key_features field does not exist")
+	}
+
+	int_cat, ok := data_r["integration_category"]
+	if !ok || int_cat == "" {
+		return errors.New("Failed to save integration, integration_category field does not exist or is empty")
 	}
 
 	int_type, ok := data_r["integration_type"]
