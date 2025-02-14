@@ -174,10 +174,16 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 	var (
 		CC         ChannelCountInfo
 		CTI        []ChannelMetrics
+		org        Organisation
 		startTime  = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
 		endTime    = time.Now().Format(time.RFC3339)
 		channelIDs = make([]string, 0)
 	)
+
+	exists := postgresql.CheckExists(db.Postgresql, &org, "id = ?", orgId)
+	if !exists {
+		return CC, nil, fmt.Errorf("organisation does not exist")
+	}
 
 	err := db.Postgresql.Model(&Channels{}).
 		Select("channels.id").
@@ -587,6 +593,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		channelIDs []string
 		threadData interface{}
 		threadIDs  []string
+		org        Organisation
 	)
 
 	threads = make([]Threads, 0)
@@ -595,6 +602,11 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	page, limit := pag.Page, pag.Limit
 
 	from := (page - 1) * limit
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", organisationID)
+	if !exists {
+		return nil, nil, fmt.Errorf("organisation does not exist")
+	}
 
 	err := db.Model(&Channels{}).
 		Select("channels.id").
