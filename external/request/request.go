@@ -106,6 +106,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
 				Logger:       er.Logger,
+				Timeout:      true,
 			}
 			return obj.RetriveJsonData()
 		default:

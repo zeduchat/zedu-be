@@ -273,19 +273,6 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 		return errors.New("Failed to create custom integration, invalid JSON supplied")
 	}
 
-	orgIntegration.OrgID = org_id
-	orgIntegration.JSONUrl = req.JSONUrl
-	orgIntegration.IntegrationID = utility.GenerateUUID()
-	orgIntegration.IsActive = false
-	orgIntegration.IsSystem = false
-	orgIntegration.ID = utility.GenerateUUID()
-
-	err = orgIntegration.CreateOrganisationIntegration(db)
-
-	if err != nil {
-		return err
-	}
-
 	response_data := response.(map[string]interface{})
 	data_r, ok := response_data["data"].(map[string]interface{})
 
@@ -314,7 +301,23 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	if err != nil {
 		return fmt.Errorf("error serializing to JSON: %v", err)
 	}
+
 	serialized_settings := string(settingJsonData)
+
+	// create integration in db
+	
+	orgIntegration.OrgID = org_id
+	orgIntegration.JSONUrl = req.JSONUrl
+	orgIntegration.IntegrationID = utility.GenerateUUID()
+	orgIntegration.IsActive = false
+	orgIntegration.IsSystem = false
+	orgIntegration.ID = utility.GenerateUUID()
+
+	err = orgIntegration.CreateOrganisationIntegration(db)
+
+	if err != nil {
+		return err
+	}
 
 	integrationSettings.ID = utility.GenerateUUID()
 	integrationSettings.SettingEntry = serialized_settings
