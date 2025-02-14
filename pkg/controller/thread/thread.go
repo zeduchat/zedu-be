@@ -282,6 +282,13 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		return
 	}
 
+	isValid := utility.IsValidUUID(orgID);
+	if !isValid {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid Organisation UUID", "The provided organisation ID is not a valid UUID", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db, orgID, days)
 	if err != nil {
 		base.Logger.Error("an error occurred while getting channel count metrics: " + err.Error())
