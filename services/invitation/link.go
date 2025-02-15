@@ -100,7 +100,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
 		// chans        = models.Channels{}
-		userID       string
+		userID string
 	)
 
 	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token, logger)
@@ -115,7 +115,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	userID = user.ID		
+	userID = user.ID
 	invitation.Status = "accepted"
 
 	err = invitation.UpdateInvitation(db)
@@ -185,7 +185,7 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			IsActive:    true,
 			CurrentOrg:  orgId,
 			Profile: models.Profile{
-				ID: utility.GenerateUUID(),
+				ID:       utility.GenerateUUID(),
 				UserName: name,
 			},
 		}
@@ -224,7 +224,7 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 }
 
 func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, username string, db *gorm.DB) error {
-	
+
 	reqs := models.JoinChannelsRequest{
 		Username:   username,
 		ChannelsID: chans.ID,

@@ -11,6 +11,40 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func (base *Controller) AdminResend(c *gin.Context) {
+	var (
+		req models.ResendCondition
+	)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Failed to parse request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	url := c.Request.Header.Get("Referer")
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Request Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := invitation.AdminResend(base.Db.Postgresql, base.Logger ,req, url)
+	if err != nil {
+		base.Logger.Error("Request Validation failed", err)
+		rd := utility.BuildErrorResponse(code, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "Invitations created successfully", nil)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	var (
 		inviteReq models.InvitationCreateReq

@@ -123,7 +123,7 @@ func SendChannelsInvitationsEmail(invitationResponseMap []models.ChannelInvitati
 		go func(invite models.ChannelInvitationResponse) {
 			defer wg.Done()
 
-			err := sendEmail(invite.Email, invite.InvitationLink)
+			err := SendEmail(invite.Email, invite.InvitationLink)
 			if err != nil {
 				errorChannel <- fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
 			}

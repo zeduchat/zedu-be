@@ -1,6 +1,8 @@
 package invitation
 
 import (
+	"fmt"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/actions"
@@ -15,7 +17,7 @@ type InvitationDetail struct {
 
 func SendInvitationsEmail(logger *utility.Logger, invitationResponseMap []models.InvitationResponse) error {
 	for _, invite := range invitationResponseMap {
-		err := sendEmail(invite.Email, invite.InvitationLink)
+		err := SendEmail(invite.Email, invite.InvitationLink)
 		if err != nil {
 			logger.Error("Failed to send invitation email", err)
 			continue
@@ -24,11 +26,13 @@ func SendInvitationsEmail(logger *utility.Logger, invitationResponseMap []models
 	return nil
 }
 
-func sendEmail(email, link string) error {
+func SendEmail(email, link string) error {
 	reqData := models.SendInvitationLink{
 		Email:          email,
 		InvitationLink: link,
 	}
+
+	fmt.Println("added to queue", email, link)
 
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
 	if err != nil {
