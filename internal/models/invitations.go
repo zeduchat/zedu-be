@@ -43,6 +43,11 @@ type InvitationResponse struct {
 	Expires_At     time.Time `json:"expires_at"`
 }
 
+type ResendCondition struct {
+	Extension string    `json:"extension" validate:"required"`
+	TimeFrom  string `json:"time_from"`
+}
+
 type ResendInvitationRequest struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`

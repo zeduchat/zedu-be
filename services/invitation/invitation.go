@@ -14,6 +14,53 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func AdminResend(db *gorm.DB, logger *utility.Logger ,req models.ResendCondition, baseURL string) (int, error) {
+	var invites []models.Invitation
+
+	//parse the date
+	parsed_date, err := time.Parse("2006-01-02", req.TimeFrom)
+	if err != nil {
+		return 400, fmt.Errorf("error parsing the time into the right format")
+	}
+
+	err = db.Where("email LIKE ? AND status = 'invited'  AND created_at BETWEEN ? AND ?",
+		"%"+req.Extension,
+		parsed_date,
+		time.Now().UTC(),
+	).Find(&invites).Error
+
+	if err != nil {
+		return 500, fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	successful_reinvites := []string{}
+
+	for _, invite := range invites {
+		invitation_link := utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token)
+
+		err := SendEmail(invite.Email, invitation_link)
+		if err != nil {
+			continue
+		}
+
+		successful_reinvites = append(successful_reinvites, invite.Email)
+	}
+
+	if len(successful_reinvites) > 0 {
+		err := db.Model(&models.Invitation{}).
+			Where("email IN ?", successful_reinvites).
+			Updates(map[string]any{
+				"expires_at": time.Now().Add(48 * time.Hour),
+			})
+
+		if err != nil {
+			logger.Error("error encountered updating reinvited emails expiration time")
+		}
+	}
+
+	return http.StatusOK, nil
+}
+
 func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
@@ -151,7 +198,7 @@ func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req mod
 
 func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
 	var (
-		i   models.Invitation
+		i models.Invitation
 	)
 
 	return i.DeleteInvitation(db, inviteID)
