@@ -57,7 +57,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 				CreatedAt:      org_integrations.CreatedAt,
 				UpdatedAt:      org_integrations.UpdatedAt,
 			}
-	
+
 			int_resp = append(int_resp, struct {
 				models.Integrations
 				Linked bool "json:\"linked\""
@@ -88,6 +88,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
 			Category:       category,
+			Status:         "success",
 			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
@@ -135,7 +136,7 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 				CreatedAt:      org_integrations.CreatedAt,
 				UpdatedAt:      org_integrations.UpdatedAt,
 			}
-	
+
 			int_resp = append(int_resp, struct {
 				models.Integrations
 				Linked bool "json:\"linked\""
@@ -167,6 +168,7 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
 			Category:       category,
+			Status:         "success",
 			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
@@ -225,6 +227,7 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 		ID:             resp.ID,
 		Name:           description["app_name"].(string),
 		JSONUrl:        resp.JSONUrl,
+		Status:         "success",
 		AppUrl:         description["app_url"].(string),
 		AppLogo:        description["app_logo"].(string),
 		AppDescription: description["app_description"].(string),
@@ -477,6 +480,7 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
 			Category:       category,
+			Status:         "success",
 			IsActive:       org_integrations.IsActive,
 			CreatedAt:      org_integrations.CreatedAt,
 			UpdatedAt:      org_integrations.UpdatedAt,
