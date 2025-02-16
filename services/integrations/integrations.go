@@ -46,6 +46,25 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
 
 		if err != nil {
+			integration := models.Integrations{
+				ID:             org_integrations.IntegrationID,
+				Name:           "Unavailable",
+				JSONUrl:        org_integrations.JSONUrl,
+				AppDescription: "This integration is currently unavailable.",
+				Category:       "Unavailable",
+				IsActive:       false,
+				Status:         "failed",
+				CreatedAt:      org_integrations.CreatedAt,
+				UpdatedAt:      org_integrations.UpdatedAt,
+			}
+	
+			int_resp = append(int_resp, struct {
+				models.Integrations
+				Linked bool "json:\"linked\""
+			}{
+				Integrations: integration,
+				Linked:       true,
+			})
 			continue
 		}
 
@@ -105,6 +124,25 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
 
 		if err != nil {
+			integration := models.Integrations{
+				ID:             org_integrations.ID,
+				Name:           "Unavailable",
+				JSONUrl:        org_integrations.JSONUrl,
+				AppDescription: "This integration is currently unavailable.",
+				Category:       "Unavailable",
+				IsActive:       false,
+				Status:         "failed",
+				CreatedAt:      org_integrations.CreatedAt,
+				UpdatedAt:      org_integrations.UpdatedAt,
+			}
+	
+			int_resp = append(int_resp, struct {
+				models.Integrations
+				Linked bool "json:\"linked\""
+			}{
+				Integrations: integration,
+				Linked:       true,
+			})
 			continue
 		}
 
@@ -162,7 +200,19 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 
 	if err != nil {
 		extReq.Logger.Error("An error occurred while fetching integration json, err: %s ", err)
-		return models.Integrations{}, nil, code
+		integration := models.Integrations{
+			ID:             resp.ID,
+			Name:           "Unavailable",
+			JSONUrl:        resp.JSONUrl,
+			AppDescription: "This integration is currently unavailable.",
+			Category:       "Unavailable",
+			IsActive:       false,
+			Status:         "failed",
+			CreatedAt:      resp.CreatedAt,
+			UpdatedAt:      resp.UpdatedAt,
+		}
+
+		return integration, nil, code
 	}
 
 	response_data := response.(map[string]interface{})
@@ -305,7 +355,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	serialized_settings := string(settingJsonData)
 
 	// create integration in db
-	
+
 	orgIntegration.OrgID = org_id
 	orgIntegration.JSONUrl = req.JSONUrl
 	orgIntegration.IntegrationID = utility.GenerateUUID()
@@ -382,6 +432,27 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
 
 		if err != nil {
+
+			integration := models.Integrations{
+				ID:             org_integrations.IntegrationID,
+				Name:           "Unavailable",
+				JSONUrl:        org_integrations.JSONUrl,
+				AppDescription: "This integration is currently unavailable.",
+				Category:       "Unavailable",
+				IsActive:       false,
+				Status:         "failed",
+				CreatedAt:      org_integrations.CreatedAt,
+				UpdatedAt:      org_integrations.UpdatedAt,
+			}
+
+			int_resp = append(int_resp, struct {
+				models.Integrations
+				Linked bool "json:\"linked\""
+			}{
+				Integrations: integration,
+				Linked:       true,
+			})
+
 			continue
 		}
 
