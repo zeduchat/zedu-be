@@ -44,13 +44,13 @@ type InvitationResponse struct {
 }
 
 type ResendCondition struct {
-	Extension string    `json:"extension" validate:"required"`
+	Extension string `json:"extension" validate:"required"`
 	TimeFrom  string `json:"time_from"`
 }
 
 type ResendInvitationRequest struct {
-	Emails         []string `json:"emails" validate:"required"`
-	OrganisationID string   `json:"org_id" validate:"required,uuid"`
+	Email          string `json:"email" validate:"required"`
+	OrganisationID string `json:"org_id" validate:"required,uuid"`
 }
 
 type VerifyInvitationLinkRequest struct {
@@ -119,13 +119,21 @@ func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID stri
 }
 
 func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email, orgId string) (Invitation, bool, error) {
-	var inv Invitation
+	var (
+		inv Invitation
+	)
 
-	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ? AND organisation_id = ?", email, "invited", orgId)
-	if exists {
-		return inv, true, nil
+	err := db.Where("email = ? AND status = ? AND organisation_id = ?",
+		email,
+		"invited",
+		orgId,
+	).Order("created_at DESC").First(&inv).Error
+
+	if err != nil {
+		return inv, false, nil
 	}
-	return inv, false, errors.New("no pending invitations")
+
+	return inv, true, nil
 }
 
 func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string, logger *utility.Logger) (Invitation, int, error) {

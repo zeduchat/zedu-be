@@ -40,7 +40,9 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 
 	url := c.Request.Header.Get("Referer")
 
-	statusCode, msg, err := invitation.CheckerValidator(base.Db, req.Emails, req.OrganisationID, userId, base.Logger)
+	emails := []string{req.Email}
+
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, emails, req.OrganisationID, userId, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err.Error(), nil)
@@ -48,24 +50,24 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 		return
 	}
 
-	response, errors := invitation.ResendLinkGenerator(base.Db, base.Logger, req)
-	if len(errors) > 0 {
-		base.Logger.Error("Failed to generate invitation link mapping", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate invitation link mapping", "", errors)
+	response, err := invitation.ResendLinkGenerator(base.Db, base.Logger, req)
+	if err != nil {
+		base.Logger.Error("Failed to generate invitation resend link", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate invitation resend link", "", err)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	mapData := invitation.InviteLinkMapper(url, response)
+	mapData := invitation.InviteLinkMapper(url, []models.Invitation{response})
 
 	err = invitation.SendInvitationsEmail(base.Logger, mapData)
 	if err != nil {
-		base.Logger.Error("Failed to send invitations", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitations", err.Error(), nil)
+		base.Logger.Error("Failed to send invitation", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "Invitations sent successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "Invitation resent successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

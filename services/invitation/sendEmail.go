@@ -33,7 +33,6 @@ func SendEmail(email, link string) error {
 	}
 
 	fmt.Println("added to queue", email, link)
-
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
 	if err != nil {
 		return err
