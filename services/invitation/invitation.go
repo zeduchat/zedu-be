@@ -159,41 +159,29 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
-func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest) ([]models.Invitation, []string) {
+func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest) (models.Invitation, error) {
 
 	var (
-		emails      = req.Emails
+		email      = req.Email
 		i           models.Invitation
-		invitations []models.Invitation
-		errors      = []string{}
 	)
 
-	for _, email := range emails {
-		invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email, req.OrganisationID)
+	invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email, req.OrganisationID)
 
-		if !pending {
-			errStr := fmt.Sprintf("No pending invitations for %s", email)
-			logger.Error(errStr)
-			errors = append(errors, errStr)
-			continue
-		}
-
-		invite.Token, _ = utility.GenerateInvitationToken()
-		invite.ExpiresAt = time.Now().Add(48 * time.Hour)
-		invite.CreatedAt = time.Now()
-		invitations = append(invitations, invite)
-
-		err := invite.UpdateResendInvitation(base.Postgresql, email)
-		if err != nil {
-			errStr := fmt.Sprintf("Failed to update invitation for %s", email)
-			logger.Error(fmt.Sprintf("%s error: %s", errStr, err))
-			errors = append(errors, errStr)
-			continue
-		}
-
+	if !pending {
+		return invite, fmt.Errorf("user with email %s has already accepted invitation", email)
 	}
 
-	return invitations, errors
+	invite.Token, _ = utility.GenerateInvitationToken()
+	invite.ExpiresAt = time.Now().Add(48 * time.Hour)
+	invite.CreatedAt = time.Now()
+
+	err := invite.UpdateResendInvitation(base.Postgresql, email)
+	if err != nil {
+		return models.Invitation{}, fmt.Errorf("failed to update invitation for %s", email)
+	}
+
+	return invite, nil
 }
 
 func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
