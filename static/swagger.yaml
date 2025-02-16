@@ -5633,7 +5633,7 @@ paths:
       tags:
         - Organisation-Invitation
       summary: Resend invitation emails
-      description: Resends invitations to the specified email addresses.
+      description: Resends invitation ta specified email addresses.
       requestBody:
         required: true
         content:
@@ -5641,18 +5641,18 @@ paths:
             schema:
               type: object
               properties:
-                emails:
-                  type: array
+                email:
+                  type: string
                   items:
                     type: string
-                  example: ["micahshallom1@gmail.com"]
+                  example: "micahshallom1@gmail.com"
                 org_id:
                   type: string
                   format: uuid
                   example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
       responses:
         '200':
-          description: Invitations sent successfully
+          description: Invitation sent successfully
           content:
             application/json:
               schema:
@@ -5669,7 +5669,7 @@ paths:
                     example: "success"
                   data:
                     type: string
-                    example: "Invitations sent successfully"
+                    example: "Invitation sent successfully"
 
   /invite/channel/:
     post:
