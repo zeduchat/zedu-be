@@ -56,7 +56,7 @@ func GenerateOTP(max int) (int, error) {
 }
 
 func GenerateInvitationToken() (string, error) {
-	bytes := make([]byte, 16)
+	bytes := make([]byte, 6)
 	_, err := crand.Read(bytes)
 	if err != nil {
 		return "", err
@@ -65,8 +65,8 @@ func GenerateInvitationToken() (string, error) {
 }
 
 func GenerateInvitationLink(baseurl, orgID, token string) string {
-	return baseurl + fmt.Sprintf("/accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
+	return baseurl + fmt.Sprintf("accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
 func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
-	return baseurl + fmt.Sprintf("/accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
+	return baseurl + fmt.Sprintf("accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
 }

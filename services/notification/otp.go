@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/send"
 )
@@ -50,7 +51,12 @@ func (n NotificationObject) SendOTP() error {
 		baseTemplateFileName = ""
 		errs                 []string
 		user                 models.User
+		configData           = config.GetConfig()
 	)
+	loginUrl := fmt.Sprintf("%v/auth/login", configData.App.FRONTEND_URL)
+	faqUrl := fmt.Sprintf("%v/faq", configData.App.FRONTEND_URL)
+	contactUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
+	policyUrl := fmt.Sprintf("%v/policy", configData.App.FRONTEND_URL)
 
 	err := json.Unmarshal([]byte(n.Notification.Data), &notificationData)
 	if err != nil {
@@ -64,7 +70,14 @@ func (n NotificationObject) SendOTP() error {
 		return fmt.Errorf("error getting user with account id %v, %v", notificationData.Email, err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email), "business_name": thisOrThatStr("", "")})
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
+		"firstname": thisOrThatStr(user.Profile.FirstName, user.Email),
+		"business_name": thisOrThatStr("", ""),
+		"login_url": loginUrl,
+		"faq_url": faqUrl,
+		"contact_us_url": contactUrl,
+		"privacy_policy_url": policyUrl,
+	})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}

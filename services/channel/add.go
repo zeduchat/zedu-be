@@ -1,47 +1,105 @@
 package channel
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AddChannelsMsg(req models.CreateMessageRequest, db *gorm.DB, typesenseDb *typesense.Client,
-	logger *utility.Logger) (*models.Message, int, error) {
+// Reply message fn
+func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
+	logger *utility.Logger) (*models.MessageDocument, int, error) {
+
+	var (
+		profile models.Profile
+		user    models.User
+	)
 
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("invalid thread ID")
 	}
 
-	message := models.Message{
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
+
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
+	}
+
+	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("failed to get user")
+	}
+
+	messageDoc := models.MessageDocument{
 		ID:         utility.GenerateUUID(),
 		Content:    req.Content,
 		ChannelsID: req.ChannelsId,
 		UserID:     req.UserId,
 		ThreadID:   threadId,
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
+		AvatarURL:  profile.AvatarURL,
+		Edited:     false,
+		Username:   profile.UserName,
+		FullName:   profile.FullName,
+		Email:      user.Email,
 	}
 
-	if err := message.CreateMessage(db, typesenseDb); err != nil {
-		return &message, http.StatusBadRequest, errors.New("failed to save message, invalid thread id")
+	err = messageDoc.CreateMessage(db, logger)
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
 	}
 
-	if err := thread.DetectAndAddMentions(message.ID, req.Content, db); err != nil {
-		return &message, http.StatusBadRequest, err
+	if err := thread.DetectAndAddMentions(messageDoc.ID, req.Content, db.Postgresql); err != nil {
+		return &messageDoc, http.StatusBadRequest, err
 	}
 
-	return &message, http.StatusCreated, nil
+	feed := models.FeedMessageRequest{
+		ChannelID: req.ChannelsId,
+		UserName:  profile.UserName,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		AvatarURL: profile.AvatarURL,
+		Type:      "message",
+		Content:   req.Content,
+		ThreadId:  req.ThreadId,
+		Email:     user.Email,
+		FullName:  profile.FullName,
+		OrgId:     req.OrgId,
+		UserId:    req.UserId,
+	}
+
+	err = centrifuge.BroadcastChannel(logger, threadId.String(), feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to threadId: %s, error: %v", threadId.String(), err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to with orgid: %s error: %v", req.OrgId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	return &messageDoc, http.StatusCreated, nil
 }
 
-func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, typesenseDb *typesense.Client,
-	logger *utility.Logger) (*models.Message, int, error) {
+func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Message, int, error) {
 
 	var message models.Message
 
@@ -62,4 +120,124 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, typesenseDb *ty
 	}
 
 	return newMsg, http.StatusOK, nil
+}
+
+// Reply message fn
+func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
+	logger *utility.Logger) (*models.MessageDocument, int, error) {
+
+	var (
+		routing_key = "new_message"
+		oci         models.OrganisationChannelsIntegrations
+		channel     models.Channels
+	)
+
+	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsId)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
+		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
+	}
+
+	chanReq := models.ChannelInfo{
+		ChannelID: req.ChannelsId,
+		UserID:    req.ThreadId,
+	}
+
+	channel_info, err := channel.GetChannelsByID(db.Postgresql, chanReq)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
+		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching orgid, error: %v", err)
+	}
+
+	req.OrgId = channel_info.OrganisationID
+
+	if !res {
+		return SaveChannelsMsg(req, db, logger)
+	}
+
+	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
+
+	feed := models.FeedQueue{
+		ChannelsId: req.ChannelsId,
+		Content:    req.Content,
+		ThreadId:   req.ThreadId,
+		ReturnUrl:  returnUrl,
+		Type:       "message",
+		UserId:     req.UserId,
+		OrgId:      req.OrgId,
+	}
+
+	payload := map[string]interface{}{
+		"args": []map[string]interface{}{
+			{
+				"message_content": map[string]interface{}{
+					"channel_id": feed.ChannelsId,
+					"message":    feed.Content,
+					"thread_id":  feed.ThreadId,
+					"type":       feed.Type,
+					"user_id":    feed.UserId,
+					"org_id":     feed.OrgId,
+				},
+				"channel_id": feed.ChannelsId,
+				"return_url": feed.ReturnUrl,
+			},
+		},
+		"task": "telex_queue_processor.handle_new_message",
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
+		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed to marshal payload, error: %v", err)
+	}
+
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
+		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+	}
+
+	return &models.MessageDocument{}, http.StatusOK, nil
+}
+
+func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
+	logger *utility.Logger) {
+
+	var err error
+
+	reqNew := models.CreateMessageRequest{
+		Content:    req.Content,
+		ChannelsId: req.ChannelsId,
+		ThreadId:   req.ThreadId,
+		UserId:     req.UserId,
+		OrgId:      req.OrgId,
+	}
+
+	if req.Type == "message" {
+
+		logger.Info("saving and broadcasting recieved channel message")
+		_, _, err = SaveChannelsMsg(reqNew, db, logger)
+
+	} else if req.Type == "message/thread" {
+
+		reqNew := models.CreateThreadMsgReq{
+			Content:    req.Content,
+			ChannelsID: req.ChannelsId,
+			ThreadId:   req.ThreadId,
+			UserId:     req.UserId,
+			OrgId:      req.OrgId,
+		}
+
+		logger.Info("saving and broadcasting recieved thread message")
+		_, err = thread.SaveThreadMessage(reqNew, db, logger)
+	}
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error saving and broadcasting recieved message: %v", err.Error()))
+		return
+	}
+
+	logger.Info("saving and broadcasting recieved message successfull !!!")
 }

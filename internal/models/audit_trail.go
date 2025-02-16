@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,10 +36,8 @@ func (l *LoginActivity) Create(db *gorm.DB) error {
 }
 
 func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context, userID, requesterID string, isSuperAdmin bool) ([]LoginActivity, postgresql.PaginationResponse, error) {
-
 	var (
-		ErrNotFound     = errors.New("login activities not found")
-		loginActivities []LoginActivity
+		loginActivities = []LoginActivity{}
 	)
 
 	var isOwner bool
@@ -50,7 +47,7 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 		Find(&isOwner).
 		Error
 	if err != nil {
-		return nil, postgresql.PaginationResponse{}, err
+		return loginActivities, postgresql.PaginationResponse{}, err
 	}
 
 	query := db.Model(&LoginActivity{}).
@@ -61,8 +58,6 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 		query = query.Where("login_activities.user_id = ?", userID)
 	} else if requesterID == userID {
 		query = query.Where("login_activities.user_id = ? AND login_activities.user_id = ?", userID, requesterID)
-	} else {
-		return nil, postgresql.PaginationResponse{}, ErrNotFound
 	}
 
 	pagination := postgresql.GetPagination(c)
@@ -75,10 +70,7 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 		nil,
 	)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, paginationResponse, ErrNotFound
-		}
-		return nil, paginationResponse, err
+		return loginActivities, postgresql.PaginationResponse{}, err
 	}
 
 	return loginActivities, paginationResponse, nil

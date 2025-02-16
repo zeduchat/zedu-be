@@ -94,7 +94,7 @@ func TestChannelsEndpoints(t *testing.T) {
 				OrganisationID: orgId,
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "channel created successfully",
+			Message:      "Channel Created Successfully",
 			Method:       http.MethodPost,
 			RequestURI:   url.URL{Path: "/api/v1/channels/"},
 			Headers: map[string]string{

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/send"
 )
@@ -15,16 +16,23 @@ func (n NotificationObject) SendInvitationLink() error {
 		templateFileName     = "send_invitation.html"
 		baseTemplateFileName = ""
 		errs                 []string
+		configData           = config.GetConfig()
 	)
+	subject := "Subject: Secure Login: Your Invitation..."
+	contactUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
+	policyUrl := fmt.Sprintf("%v/policy", configData.App.FRONTEND_URL)
 
 	err := json.Unmarshal([]byte(n.Notification.Data), &notificationData)
 	if err != nil {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	subject := "Subject: Secure Login: Your Invitation..."
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": notificationData.Email})
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
+		"firstname": notificationData.Email,
+		"contact_us_url": contactUrl,
+		"privacy_policy_url": policyUrl,
+	})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}

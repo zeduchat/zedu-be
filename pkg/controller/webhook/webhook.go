@@ -236,7 +236,7 @@ func (base *Controller) CreateWebhook(c *gin.Context) {
 		return
 	}
 	base.Logger.Info("webhook created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "webhook created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Webhook created successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
 

@@ -10,12 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
-	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -93,8 +91,8 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
-		Name:           "Default",
-		Description:    fmt.Sprintf("%s's default channel", org.Name),
+		Name:           "General",
+		Description:    fmt.Sprintf("%s's general channel", org.Name),
 		OwnerId:        user.ID,
 		OrganisationID: org.ID,
 	}
@@ -105,7 +103,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = user.Profile.UserName
 
-	err = channel.CreateChannels(db, storage.DB.TypeSense)
+	err = channel.CreateChannels(db)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +121,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
 	}
 
-	slug := strings.Split(webhook.ID, "-")[4]
+	slug := channel.ID
 	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
@@ -135,6 +133,23 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	}
 
 	err = CreateOrgUserManagement(db, user.ID, org.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// this section creates default integration
+	var orgIntResp []models.OrganisationIntegrations
+
+	err = db.Model(&models.Integrations{}).
+		Select("gen_random_uuid() AS id, id as integration_id,? as org_id, json_url,false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at", org.ID).
+		Scan(&orgIntResp).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
+
 	if err != nil {
 		return nil, err
 	}
@@ -175,52 +190,58 @@ func GetAllChannelssInTeam(db *gorm.DB, orgID string) (models.ChannelResp, error
 	return channels, nil
 }
 
-func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB, logger *utility.Logger) (*models.Organisation, error) {
+func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB, logger *utility.Logger) (*models.Organisation, int, error) {
 	var org models.Organisation
 	org, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("organisation not found")
+			return nil, http.StatusNotFound, errors.New("organisation not found")
 		}
-		return nil, err
+		return nil, http.StatusBadRequest, err
 	}
 
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusForbidden, err
 	}
 	if !isMember {
-		return nil, errors.New("user not authorised to update this organisation")
+		return nil, http.StatusForbidden, errors.New("user not authorised to update this organisation")
 	}
 
 	if updateReq.Email != "" && updateReq.Email != org.Email {
 		updateReq.Email = strings.ToLower(updateReq.Email)
 		formattedMail, checkBool := utility.EmailValid(updateReq.Email)
 		if !checkBool {
-			return nil, errors.New("email address is invalid")
+			return nil, http.StatusUnprocessableEntity, errors.New("email address is invalid")
 		}
 		updateReq.Email = formattedMail
 		exists := postgresql.CheckExists(db, &org, "email = ?", updateReq.Email)
 		if exists {
-			return nil, errors.New("organisation already exists with the given email")
+			return nil, http.StatusBadRequest, errors.New("organisation already exists with the given email")
 		}
 	}
 	file, ext, err := utility.ValidatePicture(updateReq.LogoURL)
 
 	if err != nil {
-		return nil, errors.New("failed to validate organisation logo")
+		return nil, http.StatusUnprocessableEntity, errors.New("failed to validate organisation logo")
 	}
 
 	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
 
 	if err != nil {
-		return nil, errors.New("failed to upload organisation logo")
+		return nil, http.StatusInternalServerError, errors.New("failed to upload organisation logo")
 	}
 
-	updateReq.LogoURL = picUrl
+	if picUrl != "" {
+		updateReq.LogoURL = picUrl
+	}
 
-	copier.Copy(&org, &updateReq)
-	return org.Update(db)
+	res, err := org.UpdateFeilds(db, updateReq)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to update organisation details")
+	}
+
+	return res, http.StatusOK, nil
 }
 
 func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
@@ -382,7 +403,7 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 	orgmgt.OrganisationID = orgId
 	orgmgt.Status = "active"
 
-	err = orgmgt.AddUserToOrganisation(db, orgId, req.UserID)
+	err = orgmgt.AddUserToOrganisation(db)
 
 	if err != nil {
 		return err

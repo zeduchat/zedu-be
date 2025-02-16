@@ -1,39 +1,53 @@
 package thread
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
 )
 
-func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb *typesense.Client) (*models.Threads, error) {
+func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
 		profile models.Profile
 		user    models.User
+		channel models.Channels
 	)
 
-	err := profile.GetProfileByUserId(db, req.UserId)
+	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
+
 	if err != nil {
-		return nil, errors.New("failed to get user profile")
+		return nil, fmt.Errorf("failed to get profile: %v", err)
 	}
 
-	user, err = user.GetUserByID(db, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+
 	if err != nil {
-		return nil, errors.New("failed to get user")
+		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	thread := models.Threads{
-		ID:            req.ThreadId,
+	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+
+	if !ch || err != nil {
+		return nil, fmt.Errorf("channel does not exist: %v", err)
+	}
+
+	threadDoc := models.ThreadDocument{
+		ID:            utility.GenerateUUID(),
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
@@ -42,13 +56,125 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *gorm.DB, typesenseDb
 		AvatarURL:     profile.AvatarURL,
 		FullName:      profile.FullName,
 		Email:         user.Email,
+		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
+		UserId:        req.UserId,
+		Messages:      []models.MessageDocument{},
+		ChannelName:   channel.Name,
+		Status:        "error",
 	}
-
-	if err = thread.CreateThread(db, typesenseDb); err != nil {
+	err = threadDoc.CreateThread(db, logger)
+	if err != nil {
 		return nil, err
 	}
-	return &thread, nil
+
+	feed := models.FeedMessageRequest{
+		ChannelID: req.ChannelsID,
+		UserName:  profile.UserName,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		AvatarURL: profile.AvatarURL,
+		Type:      "message",
+		Content:   req.Content,
+		ThreadId:  req.ThreadId,
+		Email:     user.Email,
+		FullName:  profile.FullName,
+		UserId:    req.UserId,
+		OrgId:     req.OrgId,
+	}
+
+	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		fmt.Println("failed here")
+		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
+	}
+
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
+		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
+	}
+
+	return &threadDoc, nil
+}
+
+// main channel thread
+func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
+
+	var (
+		routing_key = "new_message"
+		oci         models.OrganisationChannelsIntegrations
+		channel     models.Channels
+	)
+
+	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
+		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
+	}
+
+	chanReq := models.ChannelInfo{
+		ChannelID: req.ChannelsID,
+		UserID:    req.UserId,
+	}
+
+	channel_info, err := channel.GetChannelsByID(db.Postgresql, chanReq)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
+		return &models.ThreadDocument{}, fmt.Errorf("failed fetching orgid, error: %v", err)
+	}
+
+	req.OrgId = channel_info.OrganisationID
+
+	if !res {
+		return SaveThreadMessage(req, db, logger)
+	}
+
+	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
+
+	feed := models.FeedQueue{
+		ChannelsId: req.ChannelsID,
+		Content:    req.Content,
+		ThreadId:   req.ThreadId,
+		ReturnUrl:  returnUrl,
+		Type:       "message/thread",
+		UserId:     req.UserId,
+		OrgId:      req.OrgId,
+	}
+
+	payload := map[string]interface{}{
+		"args": []map[string]interface{}{
+			{
+				"message_content": map[string]interface{}{
+					"channel_id": feed.ChannelsId,
+					"message":    feed.Content,
+					"thread_id":  feed.ThreadId,
+					"type":       feed.Type,
+					"user_id":    feed.UserId,
+					"org_id":     feed.OrgId,
+				},
+				"channel_id": feed.ChannelsId,
+				"return_url": feed.ReturnUrl,
+			},
+		},
+		"task": "telex_queue_processor.handle_new_message",
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
+		return &models.ThreadDocument{}, fmt.Errorf("failed to marshal payload, error: %v", err)
+	}
+
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
+		return &models.ThreadDocument{}, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+	}
+
+	return &models.ThreadDocument{}, nil
 }
 
 func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {

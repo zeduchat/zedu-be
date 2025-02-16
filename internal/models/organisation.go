@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"time"
@@ -38,9 +39,9 @@ type Organisation struct {
 type CreateOrgRequestModel struct {
 	Name        string `json:"name" validate:"required,min=2,max=255"`
 	Description string `json:"description" `
-	Email       string `json:"email" validate:"required"`
+	Email       string `json:"email"`
 	Type        string `json:"type" validate:"required"`
-	Location    string `json:"location" validate:"required"`
+	Location    string `json:"location"`
 	Country     string `json:"country" validate:"required"`
 	LogoURL     string `json:"logo_url" `
 }
@@ -110,6 +111,32 @@ func (c *Organisation) Update(db *gorm.DB) (*Organisation, error) {
 	result, err := postgresql.SaveAllFields(db, &c)
 	if err != nil {
 		return nil, err
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, errors.New("failed to update organisation")
+	}
+
+	return c, nil
+}
+
+func (c *Organisation) UpdateFeilds(db *gorm.DB, updateCon UpdateOrgRequestModel) (*Organisation, error) {
+
+	update := make(map[string]interface{})
+
+	data, _ := json.Marshal(updateCon)
+	json.Unmarshal(data, &update)
+
+	// Loop through update map and remove empty entries
+	for key, value := range update {
+		if value == "" {
+			delete(update, key)
+		}
+	}
+
+	result, err := postgresql.UpdateFields(db, &c, update, "id = ?", c.ID)
+	if err != nil {
+		return c, err
 	}
 
 	if result.RowsAffected == 0 {
@@ -379,7 +406,7 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Table("invitations AS i").
-		Select("i.id, i.email, i.token, i.status, org_roles.name AS role, i.organisation_id, i.is_telex_user, i.created_at, i.expires_at").
+		Select("i.id, i.email, i.status, org_roles.name AS role, i.organisation_id, i.is_telex_user, i.created_at, i.expires_at").
 		Joins("JOIN org_roles ON org_roles.id = i.role::uuid").
 		Where("i.organisation_id = ?", orgID).
 		Order("i.created_at DESC").

@@ -19,6 +19,8 @@ type Configuration struct {
 	Stripe       Stripe
 	TypeSense    TypeSense
 	Channels     Channels
+	RabbitMQ     RabbitMQ
+	Elastic      ElasticDb
 }
 
 type BaseConfig struct {
@@ -82,6 +84,9 @@ type BaseConfig struct {
 	SLACK_CLIENT_SECRET string `mapstructure:"SLACK_CLIENT_SECRET"`
 	SLACK_REDIRECT_URI  string `mapstructure:"SLACK_REDIRECT_URI"`
 	SLACK_BASE_URL      string `mapstructure:"SLACK_BASE_URL"`
+	SLACK_MANIFEST_URL  string `mapstructure:"SLACK_MANIFEST_URL"`
+	SLACK_APP_ID        string `mapstructure:"SLACK_APP_ID"`
+	SLACK_REFRESH_TOKEN string `mapstructure:"SLACK_REFRESH_TOKEN"`
 
 	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
 	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
@@ -94,6 +99,12 @@ type BaseConfig struct {
 
 	TELEX_LOGIN_CHANNEL  string `mapstructure:"TELEX_LOGIN_CHANNEL"`
 	TELEX_SIGNUP_CHANNEL string `mapstructure:"TELEX_SIGNUP_CHANNEL"`
+
+	RABBITMQ_CONNECTION string `mapstructure:"RABBITMQ_CONNECTION"`
+	RABBITMQ_EXCHANGE   string `mapstructure:"RABBITMQ_EXCHANGE"`
+
+	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
+	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -181,6 +192,9 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ClientSecret: config.SLACK_CLIENT_SECRET,
 			RedirectURI:  config.SLACK_REDIRECT_URI,
 			BaseUrl:      config.SLACK_BASE_URL,
+			ManifestUrl:  config.SLACK_MANIFEST_URL,
+			AppId:        config.SLACK_APP_ID,
+			RefreshToken: config.SLACK_REFRESH_TOKEN,
 		},
 
 		Stripe: Stripe{
@@ -199,6 +213,14 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Channels: Channels{
 			Login:  config.TELEX_LOGIN_CHANNEL,
 			Signup: config.TELEX_SIGNUP_CHANNEL,
+		},
+		RabbitMQ: RabbitMQ{
+			Connection: config.RABBITMQ_CONNECTION,
+			Exchange:   config.RABBITMQ_EXCHANGE,
+		},
+		Elastic: ElasticDb{
+			ElasticEndpoint: config.ELASTIC_URL,
+			ElasticApiKey:   config.ELASTIC_API_KEY,
 		},
 	}
 }

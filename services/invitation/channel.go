@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
-	"gorm.io/gorm"
 )
 
 func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, owner_id string, logger *utility.Logger) (int, string, error) {
@@ -122,7 +123,7 @@ func SendChannelsInvitationsEmail(invitationResponseMap []models.ChannelInvitati
 		go func(invite models.ChannelInvitationResponse) {
 			defer wg.Done()
 
-			err := sendEmail(invite.Email, invite.InvitationLink)
+			err := SendEmail(invite.Email, invite.InvitationLink)
 			if err != nil {
 				errorChannel <- fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
 			}

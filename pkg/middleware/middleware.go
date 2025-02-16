@@ -17,6 +17,7 @@ func CORS() gin.HandlerFunc {
 		"https://staging.telex.im": true,
 		"https://telex.im":         true,
 		"http://localhost:3000":    true,
+		"https://telex-auth.vercel.app": true,
 	}
 
 	return func(c *gin.Context) {

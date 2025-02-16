@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -28,11 +28,20 @@ func TestGetSlackAccessInfo(t *testing.T) {
 		Password: password,
 	}
 
+	orgId := utility.GenerateUUID()
+
 	slackTelex := models.SlackTelex{
-		ID:             utility.GenerateUUID(),
-		UserID:         regularUser.ID,
-		OrganisationID: utility.GenerateUUID(),
-		AccessToken:    "acesstoken-accestoken",
+		ID:               utility.GenerateUUID(),
+		UserID:           regularUser.ID,
+		OrganisationID:   orgId,
+		IntegrationID:    utility.GenerateUUID(),
+		AccessToken:      "acesstoken-accestoken",
+		TeamID:           "teamid-teamid",
+		TeamName:         "teamname-teamname",
+		Channel:          "channel-channel",
+		ChannelID:        "channelid-channelid",
+		ConfigurationURL: "configurationurl-configurationurl",
+		URL:              "url-url",
 	}
 
 	db.Create(&regularUser)
@@ -70,7 +79,7 @@ func TestGetSlackAccessInfo(t *testing.T) {
 			Name:         "Successful Retrieval of Slack Information",
 			OrgId:        slackTelex.OrganisationID,
 			ExpectedCode: http.StatusOK,
-			Message:      "slack access info fetched successfully",
+			Message:      "slack info fetched successfully",
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -80,12 +89,7 @@ func TestGetSlackAccessInfo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodGet, "/api/v1/slack/access-token", nil)
-
-			query := url.Values{}
-			query.Add("organisation_id", test.OrgId)
-
-			req.URL.RawQuery = query.Encode()
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/slack/organisations/%s", orgId), nil)
 
 			for i, v := range test.Headers {
 				req.Header.Set(i, v)

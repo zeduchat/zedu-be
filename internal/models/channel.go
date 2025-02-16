@@ -1,35 +1,41 @@
 package models
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
-	"github.com/typesense/typesense-go/v2/typesense/api"
+	"google.golang.org/appengine/log"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
 
 type Channels struct {
-	ID          string `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name        string `gorm:"column:name;unique type:text; not null" json:"name"`
-	Description string `gorm:"column:description; type:text; not null" json:"description"`
+	ID             string `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name           string `gorm:"column:name; type:text; not null" json:"name"`
+	Description    string `gorm:"column:description; type:text; not null" json:"description"`
+	OrganisationID string `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId        string `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	Users          []User `gorm:"many2many:user_channels;" json:"users"`
+	UserCount      int64  `gorm:"-" json:"user_count"`
+	MessageCount   int64  `gorm:"-" json:"message_count"`
+	Archived       bool   `gorm:"column:archived;null; default:false" json:"archived"`
+	// GroupID        sql.NullString `gorm:"column:group_id; type:uuid;index; null" json:"group_id"`
+	GroupID *string `gorm:"column:group_id; type:uuid;index;" json:"group_id"`
 
-	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
-	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	Users          []User    `gorm:"many2many:user_channels;" json:"users"`
-	UserCount      int64     `gorm:"-" json:"user_count"`
-	MessageCount   int64     `gorm:"-" json:"message_count"`
-	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived"`
-	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
-	Threads        []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+	Threads   []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
 }
 
 type UserChannels struct {
@@ -44,7 +50,7 @@ type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
-	Description    string `json:"description" validate:"required"`
+	Description    string `json:"description"`
 }
 
 type GetChannelsRequest struct {
@@ -71,7 +77,7 @@ type GetUserNotChannelResp []struct {
 	Access      bool   `json:"access"`
 }
 type JoinChannelsRequest struct {
-	Username   string `json:"username" validate:"required"`
+	Username   string `json:"username"`
 	ChannelsID string `json:"channels_id" `
 	UserID     string `json:"user_id" `
 }
@@ -101,7 +107,7 @@ type MessagesResp []struct {
 	ID        string    `json:"id"`
 	Edited    bool      `json:"edited"`
 	Message   string    `json:"message"`
-	Username  string    `json:"user_name"`
+	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	UserMsgProfile
@@ -122,29 +128,23 @@ type ArchiveChannelRequest struct {
 	UserId   string `json:"user_id" `
 }
 
-func (r *Channels) CreateChannels(db *gorm.DB, typesenseDb *typesense.Client) error {
+func (r *Channels) CreateChannels(db *gorm.DB) error {
 
-	fields := []api.Field{
-		{Name: "id", Type: "string"},
-		{Name: "type", Type: "string"},
-		{Name: "channels_id", Type: "string"},
-		{Name: "thread_id", Type: "string"},
-		{Name: "event_name", Type: "string"},
-		{Name: "username", Type: "string"},
-		{Name: "action_type", Type: "string"},
-		{Name: "status", Type: "string"},
-		{Name: "content", Type: "string"},
-		{Name: "created_at", Type: "int64"},
-	}
-
-	err := tydb.CreateCollection(typesenseDb, r.ID, fields)
+	err := postgresql.CreateOneRecord(db, &r)
 	if err != nil {
-		return errors.New("could not create channel collection in Typesense")
-	}
-
-	err = postgresql.CreateOneRecord(db, r)
-	if err != nil {
+		fmt.Println(err)
 		return errors.New("could not create channel, invalid organisation id")
+	}
+
+	query := `
+	INSERT INTO organisation_channels_integrations (id, org_id, integration_id, channel_id, is_active, created_at, updated_at)
+	SELECT
+		gen_random_uuid(), org_id, integration_id, ?, TRUE, NOW(), NOW()
+	FROM organisation_integrations
+	WHERE org_id = ?`
+
+	if err := db.Exec(query, r.ID, r.OrganisationID).Error; err != nil {
+		return fmt.Errorf("error inserting into OrganisationChannelsIntegrations: %v", err)
 	}
 
 	return nil
@@ -351,6 +351,10 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 		return channel, errors.New("user already in channel")
 	}
 
+	if  req.Username == "" {
+		req.Username = user.Email
+	}
+
 	userChannels = UserChannels{
 		ChannelsID: channelID,
 		UserID:     userID,
@@ -389,6 +393,13 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 	err = db.Model(&channel).Where("id = ?", channelId).Update("archived", req.Archived).Error
 	if err != nil {
 		return req.Archived, errors.New("could not update the archived status of the channel")
+	}
+
+	if req.Archived {
+		err = db.Model(&channel).Where("id = ?", channelId).Update("group_id", nil).Error
+		if err != nil {
+			return req.Archived, errors.New("could not remove channel from group")
+		}
 	}
 
 	return req.Archived, nil
@@ -439,6 +450,17 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	}
 
 	return addError, nil
+}
+
+func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {
+	var channels []Channels
+
+	err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND archived = ?", ids["organisation_id"], true)
+	if err != nil {
+		return channels, errors.New("could not get archived channels")
+	}
+
+	return channels, nil
 }
 
 func (r *Channels) RemoveUserFromChannels(db *gorm.DB, channelID, userID string) error {
@@ -589,9 +611,8 @@ func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name strin
 }
 
 func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
-	var channel Channels
 
-	exists := postgresql.CheckExists(db, &channel, "id = ?", channelID)
+	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
 		return exists, errors.New("channel does not exist")
 	}
@@ -599,13 +620,15 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	return exists, nil
 }
 
-func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetUserChannelResp, error) {
+func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID string) (GetUserChannelResp, error) {
 
 	var (
-		channels Channels
-		thread   Threads
+		channels []Channels
 		org      Organisation
 		chanResp GetUserChannelResp
+		c        context.Context
+		es       = base.Elastic
+		db       = base.Postgresql
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
@@ -613,18 +636,70 @@ func (uc *UserChannels) GetUserChannels(db *gorm.DB, userId, orgID string) (GetU
 		return chanResp, errors.New("organisation does not exist")
 	}
 
-	threadCountSubquery := db.Model(&thread).Select("count(*)").
-		Where("threads.channels_id = channels.id").
-		Where("threads.type = 'thread'")
-
-	if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.organisation_id, channels.archived, (?) AS thread_count, 'true' AS access",
-			threadCountSubquery).
+	if err := db.Model(&[]Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").
 		Joins("join user_channels on channels.id = user_channels.channels_id").
 		Where("channels.organisation_id = ?", orgID).
 		Where("user_channels.user_id = ?", userId).
-		Scan(&chanResp).Error; err != nil {
+		Order("channels.created_at").
+		Scan(&channels).Error; err != nil {
 		return nil, errors.New("error fetching channels")
+	}
+
+	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
+		query := map[string]interface{}{
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []map[string]interface{}{
+						{
+							"term": map[string]interface{}{
+								"channels_id.keyword": channelID,
+							},
+						},
+						{
+							"term": map[string]interface{}{
+								"type.keyword": "thread",
+							},
+						},
+					},
+				},
+			},
+			"size": 0,
+			"aggs": map[string]interface{}{
+				"thread_count": map[string]interface{}{
+					"value_count": map[string]interface{}{
+						"field": "thread_id.keyword",
+					},
+				},
+			},
+		}
+
+		var countInfo any
+		err := elastic.SelectAll(es, "threads", query, &countInfo)
+		if err != nil {
+			log.Errorf(c, "error fetching thread count from elastic: %v", err)
+			return 0
+		}
+
+		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
+
+		return int(count)
+
+	}
+
+	for _, channel := range channels {
+		count := getThreadCountFromElastic(es, channel.ID)
+		chanResp = append(chanResp, struct {
+			Channels
+			WebhookUrl  string `json:"webhook_url"`
+			ThreadCount int64  `json:"thread_count"`
+			Access      bool   `json:"access"`
+		}{
+			Channels:    channel,
+			WebhookUrl:  "",
+			ThreadCount: int64(count),
+			Access:      true,
+		})
 	}
 
 	return chanResp, nil
@@ -645,6 +720,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
 		Where("channels.organisation_id = ?", orgId).
+		Order("channels.created_at").
 		Scan(&chanResp).Error
 
 	if err != nil {

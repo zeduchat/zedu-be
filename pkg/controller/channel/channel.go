@@ -46,6 +46,13 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(req.OrganisationID); err != nil {
+		base.Logger.Info("error parsing organisation id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
@@ -54,16 +61,16 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId, base.Db.TypeSense)
+	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
 	if err != nil {
-		base.Logger.Info("error creating channel")
+		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("channel created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "channel created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Channel Created Successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
 
@@ -520,7 +527,7 @@ func (base *Controller) AddMembersToChannel(c *gin.Context) {
 	}
 
 	base.Logger.Info("members added to channel successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "members added to channel successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Members added to channel successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -546,7 +553,7 @@ func (base *Controller) GetUserChannels(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	userchannels, err := channel.GetUserChannels(base.Db.Postgresql, userId, org_id)
+	userchannels, err := channel.GetUserChannels(base.Db, userId, org_id)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch user channels", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -655,11 +662,42 @@ func (base *Controller) ArchiveChannel(c *gin.Context) {
 	}
 
 	res := "archived"
-	if !status{
+	if !status {
 		res = "unarchived"
 	}
 
 	base.Logger.Info("channel archived successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "channel "+res+" successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetArchivedChannels(c *gin.Context) {
+	var org_id string = c.Param("org_id")
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	ids := map[string]string{
+		"organisation_id": org_id,
+		"user_id":         userId,
+	}	
+
+	respData, code, err := channel.GetArchivedChannels(base.Db.Postgresql, ids)
+	if err != nil {
+		base.Logger.Info("error getting archived channels")
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("archived channels retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "archived channels retrieved successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }

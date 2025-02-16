@@ -5,11 +5,14 @@ import "github.com/hngprojects/telex_be/internal/models"
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.Group{},
+		models.ChannelIntegrationSettings{},
 		models.Testimonial{},
 		models.APIStatus{},
 		models.NewsLetter{},
 		models.TelexSlackChannelMapping{},
 		models.SlackTelex{},
+		models.SlackToken{},
 		models.ContactUs{},
 		models.BlogFeedback{},
 		models.BlogCategory{},
@@ -37,11 +40,18 @@ func AuthMigrationModels() []interface{} {
 		models.HelpCenterCategory{},
 		models.HelpCenterArticle{},
 		models.Integrations{},
-		models.IntegrationsSettings{},
+		models.IntegrationSettings{},
 		models.NotificationPreferences{},
 		models.Plan{},
 		models.OrganisationPlan{},
 		models.ProcessedStripeWebhook{},
+		models.OptIn{},
+		models.OrganisationIntegrations{},
+		models.OrganisationChannelsIntegrations{},
+		models.SlashCommand{},
+		models.IntegrationChannel{},
+		models.IntegrationOutput{},
+		models.CustomIntegrationsSetting{},
 	} // an array of db models, example: User{}
 }
 

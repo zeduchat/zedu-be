@@ -53,7 +53,9 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Subscriptions(r, ApiVersion, validator, db, logger)
 	WebhookHandler(r, ApiVersion, validator, db, logger)
 	HelpCenter(r, ApiVersion, validator, db, logger)
-	Integrations(r, ApiVersion, validator, db, logger)
+	OptIn(r, ApiVersion, validator, db, logger)
+	Group(r, ApiVersion, validator, db, logger)
+	Integration(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

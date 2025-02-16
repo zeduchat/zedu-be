@@ -3,7 +3,6 @@ package webhook
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -23,7 +22,7 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook
 		Status:    "active",
 	}
 
-	slug := strings.Split(webhook.ID, "-")[4]
+	slug := req.ChannelID
 	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl

@@ -66,8 +66,8 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	var (
 		email        = strings.ToLower(req.Email)
-		firstName    = strings.Title(strings.ToLower(req.FirstName))
-		lastName     = strings.Title(strings.ToLower(req.LastName))
+		firstName    = strings.ToTitle(strings.ToLower(req.FirstName))
+		lastName     = strings.ToTitle(strings.ToLower(req.LastName))
 		phoneNumber  = req.PhoneNumber
 		password     = req.Password
 		responseData gin.H
@@ -85,6 +85,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		Name:     name,
 		Email:    email,
 		Password: password,
+		ProfileUpdated: true,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),
 			FirstName: name,
@@ -143,21 +144,22 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	responseData = gin.H{
 		"user": map[string]interface{}{
-			"id":           userData.ID,
-			"email":        userData.Email,
-			"username":     userData.Name,
-			"is_verified":  userData.IsVerified,
-			"is_onboarded": userData.IsOnboarded,
-			"is_active":    userData.IsActive,
-			"current_org":  userData.CurrentOrg,
-			"first_name":   userData.Profile.FirstName,
-			"last_name":    userData.Profile.LastName,
-			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":        userData.Profile.Phone,
-			"avatar_url":   userData.Profile.AvatarURL,
-			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":              userData.ID,
+			"email":           userData.Email,
+			"username":        userData.Name,
+			"is_verified":     userData.IsVerified,
+			"is_onboarded":    userData.IsOnboarded,
+			"profile_updated": userData.ProfileUpdated,
+			"is_active":       userData.IsActive,
+			"current_org":     userData.CurrentOrg,
+			"first_name":      userData.Profile.FirstName,
+			"last_name":       userData.Profile.LastName,
+			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":           userData.Profile.Phone,
+			"avatar_url":      userData.Profile.AvatarURL,
+			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}
@@ -208,26 +210,27 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 
 	responseData = gin.H{
 		"user": map[string]interface{}{
-			"id":           userData.ID,
-			"email":        userData.Email,
-			"username":     userData.Name,
-			"is_verified":  userData.IsVerified,
-			"is_onboarded": userData.IsOnboarded,
-			"is_active":    userData.IsActive,
-			"current_org":  userData.CurrentOrg,
-			"first_name":   userData.Profile.FirstName,
-			"last_name":    userData.Profile.LastName,
-			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":        userData.Profile.Phone,
-			"avatar_url":   userData.Profile.AvatarURL,
-			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":              userData.ID,
+			"email":           userData.Email,
+			"username":        userData.Name,
+			"is_verified":     userData.IsVerified,
+			"is_onboarded":    userData.IsOnboarded,
+			"profile_updated": userData.ProfileUpdated,
+			"is_active":       userData.IsActive,
+			"current_org":     userData.CurrentOrg,
+			"first_name":      userData.Profile.FirstName,
+			"last_name":       userData.Profile.LastName,
+			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":           userData.Profile.Phone,
+			"avatar_url":      userData.Profile.AvatarURL,
+			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
-	
+
 	return responseData, http.StatusOK, nil
 }
 

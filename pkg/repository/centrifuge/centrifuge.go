@@ -42,18 +42,16 @@ func NewCentrifugoService(logger *utility.Logger, config config.Centrifuge) *goc
 }
 
 func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload interface{}) error {
-
 	payload, err := json.Marshal(broadcastPayload)
 	if err != nil {
 		return err
 	}
-
+	
 	client := Client.C
-
+	
 	err = client.Publish(context.Background(), channelID, payload)
-
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channel %s: %v", channelID, err))
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channel %s: %v", channelID, err.Error()))
 		return err
 	}
 

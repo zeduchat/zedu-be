@@ -2,6 +2,7 @@ package thread
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -39,6 +40,7 @@ func (base *Controller) GetAllUserOrgThreads(c *gin.Context) {
 	usersData, paginationResponse, code, err := service.GetAllUserOrgThreads(orgID, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		c.JSON(code, rd)
 		return
 	}
@@ -57,19 +59,20 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 	if _, err := uuid.Parse(channelID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
 	usersData, paginationResponse, code, err := service.GetAllChannelThreads(channelID, base.Db.Postgresql, c)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
-
-	c.JSON(http.StatusOK, rd)
+	rd := utility.BuildSuccessResponse(code, "Data retrieved successfully", usersData, paginationResponse)
+	c.JSON(code, rd)
 
 }
 
@@ -89,6 +92,7 @@ func (base *Controller) GetChannelThreads(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -121,6 +125,7 @@ func (base *Controller) GetUserSingleThreads(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -168,6 +173,7 @@ func (base *Controller) UpdateAThread(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
@@ -195,15 +201,15 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
-			utility.ValidationResponse(err, base.Validator), nil)
+		utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-
+	
 	if _, err := uuid.Parse(req.ThreadId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -223,17 +229,19 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	ThreadData, err := service.CreateThreadMessage(req, base.Db.Postgresql, base.Db.TypeSense)
+	ThreadData, err := service.CreateThreadMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
+	base.Logger.Info("thread message added successfully")
+
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
 	c.JSON(http.StatusCreated, rd)
-
 }
 
 func (base *Controller) SearchChannel(c *gin.Context) {
@@ -274,8 +282,16 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		return
 	}
 
-	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db.Postgresql, orgID, days)
+	isValid := utility.IsValidUUID(orgID);
+	if !isValid {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid Organisation UUID", "The provided organisation ID is not a valid UUID", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db, orgID, days)
 	if err != nil {
+		base.Logger.Error("an error occurred while getting channel count metrics: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return

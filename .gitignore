@@ -30,9 +30,12 @@ _ignore/
 app.env
 tmp/
 .idea/
+playground/
 
 temp
 telex_be
+telexbe_staging
+telexbe_main
 cypress_tests/node_modules
 cypress_tests/cypress.env.json
 cypress_tests/cypress/screenshots

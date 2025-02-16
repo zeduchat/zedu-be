@@ -3,10 +3,13 @@ package models
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Invitation struct {
@@ -17,7 +20,7 @@ type Invitation struct {
 	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
 	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
-	Organisation   Organisation `gorm:"foreignKey:OrganisationID"`
+	Organisation   Organisation `gorm:"foreignKey:OrganisationID" json:"-"`
 	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	ExpiresAt      time.Time    `gorm:"column:expires_at; not null" json:"expires_at"`
 }
@@ -25,7 +28,7 @@ type Invitation struct {
 type InvitationCreateReq struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
-	RoleID           string   `json:"role_id" validate:"required,uuid"`
+	RoleID         string   `json:"role_id" validate:"required,uuid"`
 }
 
 type InvitationResponse struct {
@@ -40,6 +43,11 @@ type InvitationResponse struct {
 	Expires_At     time.Time `json:"expires_at"`
 }
 
+type ResendCondition struct {
+	Extension string    `json:"extension" validate:"required"`
+	TimeFrom  string `json:"time_from"`
+}
+
 type ResendInvitationRequest struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
@@ -50,7 +58,7 @@ type VerifyInvitationLinkRequest struct {
 }
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
-	
+
 	if len(invitations) == 0 {
 		return errors.New("no invitations to save")
 	}
@@ -82,52 +90,88 @@ func (i *Invitation) GetInvitationByID(db *gorm.DB, id string) (Invitation, erro
 }
 
 func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
-	result := db.Delete(i, id)
+	result := db.Delete(i, "id = ?", id)
 	if result.RowsAffected == 0 {
 		return errors.New("no record found")
 	}
 	return nil
 }
 
-func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email string) (Invitation, bool, error) {
+func (i *Invitation) CheckForTelexPresence(db *gorm.DB, email string, orgID string) (map[string]string, error) {
+	var (
+		user  User
+		ogmt  OrgUserManagement
+		creds map[string]string
+	)
+
+	exists := postgresql.CheckExists(db, &user, "email = ?", email)
+	if !exists {
+		return creds, errors.New("user with email does not exist")
+	}
+
+	_ = postgresql.CheckExists(db, &ogmt, "user_id = ? AND organisation_id = ?", user.ID, orgID)
+
+	creds = map[string]string{
+		"role":   ogmt.RoleID,
+		"status": ogmt.Status,
+	}
+	return creds, nil
+}
+
+func (i *Invitation) CheckPendingInvitations(db *gorm.DB, email, orgId string) (Invitation, bool, error) {
 	var inv Invitation
 
-	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ?", email, "invited")
+	exists := postgresql.CheckExists(db, &inv, "email = ? AND status = ? AND organisation_id = ?", email, "invited", orgId)
 	if exists {
 		return inv, true, nil
 	}
 	return inv, false, errors.New("no pending invitations")
 }
 
-func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string) (Invitation, error) {
+func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string, logger *utility.Logger) (Invitation, int, error) {
 	var invitation Invitation
 
 	err, _ := postgresql.SelectOneFromDb(db, &invitation, "token = ?", token)
 	if err != nil {
-		return invitation, errors.New("token does not exist")
+		logger.Error("invalid token", err)
+		return invitation, http.StatusUnauthorized, errors.New("token invalid")
+	}
+
+	if invitation.Status == "accepted" {
+		logger.Info("invitation alreadt accepted")
+		return invitation, http.StatusBadRequest, errors.New("invitation already accepted")
 	}
 
 	expired := invitation.ExpiresAt.Before(time.Now().UTC())
 	if expired {
-		return invitation, errors.New("invitation link has expired")
+		logger.Error("invitation link has expired")
+		return invitation, http.StatusBadRequest, errors.New("invitation link has expired")
 	}
 
-	if invitation.Status == "accepted" {
-		return invitation, errors.New("invitation link already accepted")
-	}
-
-	return invitation, nil
+	return invitation, http.StatusOK, nil
 }
 
-func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
+func (i *Invitation) UpdateInvitation(db *gorm.DB) error {
 
-	invites := Invitation{
-		Status: status,
-	}
-
-	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
+	result, err := postgresql.UpdateFields(db, i, &i, "email = ? AND organisation_id = ?", i.Email, i.OrganisationID)
 	if err != nil {
 		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("User already verified")
+	}
+
+	return nil
+}
+
+func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string) error {
+
+	result, err := postgresql.UpdateFields(db, i, &i, "email = ? AND organisation_id = ?", email, i.OrganisationID)
+
+	if err != nil {
+
+		return fmt.Errorf("error updating %s's invitation: %v", email, err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -137,19 +181,12 @@ func (i *Invitation) UpdateInvitation(db *gorm.DB, email, status string) error {
 	return nil
 }
 
-func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string, expiry time.Time) error {
+func (i *Invitation) GetInvitationByEmail(db *gorm.DB, email, orgId string) error {
 
-	invites := Invitation{
-		ExpiresAt: expiry,
-	}
+	err, err2 := postgresql.SelectOneFromDb(db, &i, "organisation_id = ? AND email = ?", orgId, email)
 
-	result, err := postgresql.UpdateFields(db, i, invites, "email = ?", email)
-	if err != nil {
-		return fmt.Errorf("error updating %s's invitation: %v", email, err)
-	}
-
-	if result.RowsAffected == 0 {
-		return errors.New("no record found")
+	if err != nil || err2 != nil {
+		return errors.New("invitation does not exist")
 	}
 
 	return nil

@@ -26,19 +26,21 @@ func Webhook(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		webhookUrl.DELETE("/:channel_id/:webhook_id", webhook.DeleteWebhook)
 		webhookUrl.PUT("/:channel_id/:webhook_id", webhook.UpdateWebhook)
 		webhookUrl.PUT("/:channel_id/:webhook_id/change-status", webhook.ChangeWebhookStatus)
-
 	}
 
 	incomingPastUrl := r.Group(fmt.Sprintf("%v/webhooks", ApiVersion))
 	{
-		incomingPastUrl.GET("/feed/:webhook_slug", webhook.GetWebhook)
-		incomingPastUrl.POST("/feed/:webhook_slug", webhook.PostWebhook)
+		incomingPastUrl.GET("/feed/:webhook_slug", webhook.GetSlugWebhook)
+		incomingPastUrl.POST("/feed/:webhook_slug", webhook.PostSlugWebhook)
 	}
 
 	incomingUrl := r.Group(fmt.Sprintf("%v/webhooks", "v1"))
 	{
-		incomingUrl.GET("/:webhook_slug", webhook.GetWebhook)
-		incomingUrl.POST("/:webhook_slug", webhook.PostWebhook)
+		incomingUrl.GET("/:webhook_slug", webhook.GetSlugWebhookQueue)
+		incomingUrl.POST("/:webhook_slug", webhook.PostSlugWebhookQueue)
+
+		incomingUrl.GET("/:webhook_slug/return", webhook.GetSlugWebhook)
+		incomingUrl.POST("/:webhook_slug/return", webhook.PostSlugWebhook)
 	}
 	return r
 }

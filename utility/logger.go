@@ -151,6 +151,10 @@ func (l *Logger) Audit(record *AuditLog) {
 	l.logger.Log(log.INFO, getSource(), string(js))
 }
 
+func(l *Logger) LogToStdout(arg0 interface{}, args ...interface{}) {
+	
+}
+
 func Header2Map(header http.Header) map[string]interface{} {
 	head := make(map[string]interface{})
 	for k, v := range header {
@@ -173,3 +177,5 @@ func SpewResultForDebugging(description string, v interface{}) {
 	spew.Dump(v)
 	fmt.Println("**** End Result ******")
 }
+
+

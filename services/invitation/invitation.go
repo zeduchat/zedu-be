@@ -2,16 +2,64 @@ package invitation
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
+func AdminResend(db *gorm.DB, logger *utility.Logger ,req models.ResendCondition, baseURL string) (int, error) {
+	var invites []models.Invitation
+
+	//parse the date
+	parsed_date, err := time.Parse("2006-01-02", req.TimeFrom)
+	if err != nil {
+		return 400, fmt.Errorf("error parsing the time into the right format")
+	}
+
+	err = db.Where("email LIKE ? AND status = 'invited'  AND created_at BETWEEN ? AND ?",
+		"%"+req.Extension,
+		parsed_date,
+		time.Now().UTC(),
+	).Find(&invites).Error
+
+	if err != nil {
+		return 500, fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	successful_reinvites := []string{}
+
+	for _, invite := range invites {
+		invitation_link := utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token)
+
+		err := SendEmail(invite.Email, invitation_link)
+		if err != nil {
+			continue
+		}
+
+		successful_reinvites = append(successful_reinvites, invite.Email)
+	}
+
+	if len(successful_reinvites) > 0 {
+		err := db.Model(&models.Invitation{}).
+			Where("email IN ?", successful_reinvites).
+			Updates(map[string]any{
+				"expires_at": time.Now().Add(48 * time.Hour),
+			})
+
+		if err != nil {
+			logger.Error("error encountered updating reinvited emails expiration time")
+		}
+	}
+
+	return http.StatusOK, nil
+}
 
 func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
@@ -111,61 +159,47 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
-func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest, userId string) ([]models.Invitation, error) {
+func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest) ([]models.Invitation, []string) {
 
 	var (
 		emails      = req.Emails
 		i           models.Invitation
 		invitations []models.Invitation
+		errors      = []string{}
 	)
 
 	for _, email := range emails {
-		invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email)
+		invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email, req.OrganisationID)
 
 		if !pending {
-			logger.Info("No pending invitations for email", email)
+			errStr := fmt.Sprintf("No pending invitations for %s", email)
+			logger.Error(errStr)
+			errors = append(errors, errStr)
 			continue
 		}
 
-		invite.ExpiresAt = time.Now().Add(24 * time.Hour)
+		invite.Token, _ = utility.GenerateInvitationToken()
+		invite.ExpiresAt = time.Now().Add(48 * time.Hour)
+		invite.CreatedAt = time.Now()
 		invitations = append(invitations, invite)
 
-		err := i.UpdateResendInvitation(base.Postgresql, email, invite.ExpiresAt)
+		err := invite.UpdateResendInvitation(base.Postgresql, email)
 		if err != nil {
-			logger.Error("Failed to update invitation", err)
+			errStr := fmt.Sprintf("Failed to update invitation for %s", email)
+			logger.Error(fmt.Sprintf("%s error: %s", errStr, err))
+			errors = append(errors, errStr)
 			continue
 		}
 
 	}
 
-	return invitations, nil
+	return invitations, errors
 }
 
 func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
 	var (
-		i   models.Invitation
-		org models.Organisation
+		i models.Invitation
 	)
 
-	invitation, err := i.GetInvitationByID(db, inviteID)
-	if err != nil {
-		return err
-	}
-
-	orgID := invitation.OrganisationID
-	org, err = org.GetOrgByID(db, orgID)
-	if err != nil {
-		return err
-	}
-
-	if org.OwnerID != userID {
-		return errors.New("User is not an admin of the organisation")
-	}
-
-	err = i.UpdateInvitation(db, invitation.Email, "cancelled")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return i.DeleteInvitation(db, inviteID)
 }

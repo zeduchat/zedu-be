@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/typesense/typesense-go/v2/typesense"
@@ -12,11 +11,12 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string, typesenseDb *typesense.Client) (models.Channels, int, error) {
+func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string) (models.Channels, int, error) {
 	var joinChannelsReq models.JoinChannelsRequest
 
 	channel := models.Channels{
@@ -31,7 +31,7 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = req.Username
 
-	err := channel.CreateChannels(db, typesenseDb)
+	err := channel.CreateChannels(db)
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
@@ -49,7 +49,7 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
 	}
 
-	slug := strings.Split(webhook.ID, "-")[4]
+	slug := channel.ID
 	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
@@ -247,7 +247,7 @@ func AddMultipleMembersToChannel(db *gorm.DB, req models.AddMultipleMembersReque
 	return addError, nil
 }
 
-func ArchiveChannel(db *gorm.DB, channelId string ,req models.ArchiveChannelRequest) (bool, int, error) {
+func ArchiveChannel(db *gorm.DB, channelId string, req models.ArchiveChannelRequest) (bool, int, error) {
 	var channel models.Channels
 
 	status, err := channel.ArchiveChannel(db, channelId, req)
@@ -257,13 +257,35 @@ func ArchiveChannel(db *gorm.DB, channelId string ,req models.ArchiveChannelRequ
 	return status, http.StatusOK, nil
 }
 
-func GetUserChannels(db *gorm.DB, userID, orgID string) (models.GetUserChannelResp, error) {
+func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels, int, error) {
+	var (
+		channel models.Channels
+		org     models.Organisation
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids["organisation_id"])
+	if !exists {
+		return nil, http.StatusBadRequest, errors.New("organisation not found")
+	}
+
+	// if org.OwnerID != ids["user_id"] {
+	// 	return nil, http.StatusUnauthorized, errors.New("user not authorized")
+	// }
+
+	channels, err := channel.GetArchivedChannels(db, ids)
+	if err != nil {
+		return channels, http.StatusBadRequest, err
+	}
+	return channels, http.StatusOK, nil
+}
+
+func GetUserChannels(db *storage.Database, userID, orgID string) (models.GetUserChannelResp, error) {
 	var (
 		uc models.UserChannels
 		o  models.Organisation
 	)
 
-	_, err := o.CheckOrgExists(orgID, db)
+	_, err := o.CheckOrgExists(orgID, db.Postgresql)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +300,7 @@ func GetUserChannels(db *gorm.DB, userID, orgID string) (models.GetUserChannelRe
 func GetUserNotInChannels(db *gorm.DB, userID, orgID string) (models.GetUserNotChannelResp, error) {
 	var (
 		uc models.UserChannels
-		o models.Organisation
+		o  models.Organisation
 	)
 
 	_, err := o.CheckOrgExists(orgID, db)

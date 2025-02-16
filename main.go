@@ -14,7 +14,9 @@ import (
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
@@ -34,6 +36,9 @@ func main() {
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)
+	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
+	rabbitmq.QueueClient.QM.Start(logger)
+	elastic.ConnectToElastic(logger, configuration.Elastic)
 
 	validatorRef := validator.New()
 	db := storage.Connection()
@@ -44,6 +49,8 @@ func main() {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 		seed.SeedPlans(logger, db.Postgresql)
+		seed.SeedIntegrations(logger, db.Postgresql)
+		seed.SeedIndex(logger, db.Elastic)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

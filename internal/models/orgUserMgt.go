@@ -2,11 +2,12 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
-	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -57,6 +58,12 @@ type OrgUserMetricsResponse struct {
 type UpdateMemberRequest struct {
 	Status string `json:"status"`
 	RoleID string `json:"role_id"`
+}
+
+type OrgUserRoleInfo struct {
+	RoleID          string `json:"role_id"`
+	RoleName        string `json:"role_name"`
+	OrganisationID  string `json:"organisation_id"`
 }
 
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
@@ -205,24 +212,23 @@ func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, use
 	return nil
 }
 
-// now a function that adds a user to an organisation
-func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB, orgID, userID string) error {
+func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) error {
 	var (
 		user User
 		org  Organisation
 	)
 
-	user, err := user.GetUserByID(db, userID)
+	user, err := user.GetUserByID(db, o.UserID)
 	if err != nil {
 		return err
 	}
 
-	org, err = org.GetOrgByID(db, orgID)
+	org, err = org.GetOrgByID(db, o.OrganisationID)
 	if err != nil {
 		return err
 	}
 
-	exists := postgresql.CheckExists(db, &o, "organisation_id = ? AND user_id = ?", orgID, userID)
+	exists := postgresql.CheckExists(db, &o, "organisation_id = ? AND user_id = ?", o.OrganisationID, o.UserID)
 	if exists {
 		return errors.New("user already exists in organisation")
 	}
@@ -266,4 +272,26 @@ func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, rol
 	}
 
 	return postgresql.UpdateFieldsInTransaction(db, []postgresql.ModelUpdate{orgUserManagementUpdate, userUpdate})
+}
+
+func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID string) (OrgUserRoleInfo, error) {
+	var userRoleInfo OrgUserRoleInfo
+
+	err := db.Table("org_user_managements").
+    Select(`
+        org_user_managements.role_id,
+        org_user_managements.organisation_id,
+        org_roles.name AS role_name
+    `).
+    Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
+    Where("org_user_managements.user_id = ?", userID).
+    Where("org_user_managements.organisation_id = ?", orgID).
+    Scan(&userRoleInfo).Error
+
+
+	if err != nil {
+		return userRoleInfo, fmt.Errorf("failed to get user role in organisation: %v", err)
+	}
+
+	return userRoleInfo, nil
 }

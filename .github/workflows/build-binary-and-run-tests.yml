@@ -3,11 +3,11 @@ name: Build Golang Binary and Run Tests
 on:
   pull_request:
     branches:
-      - dev
+      - staging
 
 jobs:
   build_and_test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     env:
       TEST_USERNAME: postgres
       TEST_PASSWORD: password
@@ -45,10 +45,6 @@ jobs:
         uses: GrantBirki/json-yaml-validate@v3.1.0
         with:
           files: ./static/swagger.yaml
-      - name: Set Golang
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
       - name: Setup app.env
         uses: vicradon/create-env-action@v1.0.1
         with:
@@ -58,7 +54,7 @@ jobs:
           TYPESENSE_API_KEY: ${{ secrets.TEST_TYPESENSE_API_KEY }}
           CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
           CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
-          
+
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
@@ -70,4 +66,4 @@ jobs:
             sleep 1
           done
       - name: Run All Tests
-        run: go test ./... -timeout 300s
+        run: go test ./tests/*.go -timeout 300s

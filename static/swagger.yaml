@@ -12,6 +12,8 @@ info:
   version: 1.0.0
 servers:
   - url: https://api.staging.telex.im/api/v1
+  - url: https://api.telex.im/api/v1
+
 
 tags:
   - name: auth
@@ -54,12 +56,24 @@ tags:
     description: API for feeding centrifugo server
   - name: Integrations
     description:  API for user integrations operations
+  - name: Custom Integrations
+    description:  API for user integrations operations
+  - name: System Integrations
+    description:  API for system integrations operations
   - name: Overview
     description: API for overview operations
   - name: newsletter
     description: API for newsletter related operations
-
-
+  - name: squeeze
+    description: API for squeeze optin related operations  
+  - name: IntegrationSettings
+    description: API for Integrations settings
+  - name: IntegrationSlashCommands
+    description: API for Integration Slash Commands
+  - name: Channel Integration Settings
+    description: API for channel integration settings
+  - name: Channel Grouping
+    description: API for channel grouping
 
 
 paths:
@@ -1741,7 +1755,77 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-                
+  /users/{user_id}/organisations/{organisation_id}/roles:
+    get:
+      tags:
+        - user
+      summary: Fetch user role in an organisation
+      description: Retrieves the role of a user within a specific organisation.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID of the user.
+          schema:
+            type: string
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User role fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      role_id:
+                        type: string
+                      role_name:
+                        type: string
+                      organisation_id:
+                        type: string
+                      organisation_name:
+                        type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "User role fetched successfully"
+                  data:
+                    role_id: "0191be6d-28ca-7b3b-8516-02ed527c671e"
+                    role_name: "Administrator"
+                    organisation_id: "0192673b-3447-7c2a-856b-46522721798d"
+                    organisation_name: ""
+        '404':
+          description: User or organisation not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "User or organisation not found"
+          
 
   /users/{userId}/login-audit:
     get:
@@ -2772,6 +2856,94 @@ paths:
                           type: string
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
+                          
+  /organisations/{organisation_id}/channels/archived:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve archived channels
+      description: Fetch all archived channels for a specific organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation whose archived channels are to be retrieved.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved archived channels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channels_id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        organisation_id:
+                          type: string
+                        owner_id:
+                          type: string
+                        users:
+                          type: array
+                          items:
+                            type: string
+                          nullable: true
+                        user_count:
+                          type: integer
+                        message_count:
+                          type: integer
+                        archived:
+                          type: boolean
+                        group_id:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        deleted_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        threads:
+                          type: array
+                          items:
+                            type: string
+                          nullable: true
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "archived channels retrieved successfully"
+                  data:
+                    - channels_id: "0191be6e-4742-7b48-b3fd-437e8f5452ad"
+                      name: "Default"
+                      description: "shallom's org's default channel"
+                      organisation_id: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      owner_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                      users: null
+                      user_count: 0
+                      message_count: 0
+                      archived: true
+                      group_id: null
+                      created_at: "2024-09-04T20:06:24.257395+01:00"
+                      deleted_at: "0001-01-01T00:13:35+00:13"
+                      threads: null
+
   /channels/add-multiple:
     post:
       tags:
@@ -3766,7 +3938,7 @@ paths:
                     type: string
                     description: Error message explaining the server failure
 
-  /api/v1/subscriptions/create:
+  /subscriptions/create:
     post:
       summary: Create a new subscription
       tags:
@@ -5105,7 +5277,7 @@ paths:
             example:
               email: "newemail@example.com"
               full_name: "New Full Name"
-              user_name: "new_username"
+              username: "new_username"
               phone: "1234567890"
               avatar_url: "https://example.com/avatar.jpg"
       responses:
@@ -7096,86 +7268,24 @@ paths:
                           total_pages:
                             type: integer
                             example: 1   
-  /integrations:
-  
-    post:
-      summary: Create a new integration application
-      security:
-        - bearerAuth: [] 
-      description: This endpoint allows the creation of a new integration application.
-      tags:
-        - Integrations
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateIntegrationAppRequest'
-      responses:
-        '201':
-          description: Application added successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IntegrationAppResponse'
-        '401':
-          description: Invalid request body
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '409':
-          description: Integration app already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
 
-    get:
-      summary: Get all integration applications
-      security:
-        - bearerAuth: [] 
-      description: Retrieve a paginated list of all integration applications.
-      tags:
-        - Integrations
-      parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-          description: The page number to retrieve.
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-          description: The number of items per page.
-      responses:
-        '200':
-          description: Topics retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GetAllIntegrationAppResponse'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+# integrations 
                 
-  /slack/access-token:
+  /slack/organisations/{organisationId}/token-exchg:
     post:
       tags:
       - Integrations
-      summary: slack oauth code to access token
+      summary: slack oauth code to access token exchg
       security:
         - bearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
       requestBody:
         required: true
         content:
@@ -7185,12 +7295,8 @@ paths:
               properties:
                 oauth_code:
                   type: string
-                organisation_id:
-                  type: string
-                  format: uuid
               required:
                 - oauth_code
-                - organisation_id
       
       responses:
         '200':
@@ -7225,13 +7331,27 @@ paths:
                             type: string
                           url:
                             type: string
-        '500':
-          description: Server error
+
+        '401':
+          description: Invalid request body
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
-                
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '409':
+          description: Integration app already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+  /slack/organisations/{organisationId}:
     get:
       tags:
       - Integrations
@@ -7239,12 +7359,14 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: query
-          name: organisation_id
+        - name: organisationId
+          in: path
+          required: true
           schema:
             type: string
-            format: uuid
-          description: The ID of organisation.
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+    
       responses:
         '200':
           description: Slack access info fetched successfully
@@ -7294,13 +7416,2630 @@ paths:
                       updated_at:
                         type: string
                         format: date-time
-        '500':
-          description: Server error
+        '401':
+          description: Invalid request body
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '409':
+          description: Integration app already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
                 
+                
+  /organisations/{organisationId}/integrations:
+    post:
+      tags:
+      - Integrations
+      summary: "Create a new integration for the organization"
+      description: "Creates a new integration within the specified organization."
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: "The name of the integration"
+                  example: "teleximsss"
+                json_url:
+                  type: string
+                  description: "The URL that provides JSON metadata for the integration"
+                  example: "https://www.telex.im"
+                auth_credential:
+                  type: string
+                  description: "The authorization credential for the integration"
+                  example: "some-auth-credential"
+                integration_type:
+                  type: string
+                  description: "The type of the integration"
+                  example: "filter"
+      responses:
+        '201':
+          description: "Integration app created successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Integration app created successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "019202fe-57ba-7bc7-b0ae-e2629fec3c8b"
+                      name:
+                        type: string
+                        example: "teleximsss"
+                      json_url:
+                        type: string
+                        example: "https://www.telex.im"
+                      json_schema:
+                        type: object
+                        properties:
+                          properties:
+                            type: object
+                            properties:
+                              event:
+                                type: string
+                                description: "The name of the event"
+                              timestamp:
+                                type: string
+                                description: "The time when the event was triggered"
+                          type:
+                            type: string
+                            example: "object"
+                      auth_credential:
+                        type: string
+                        example: "some-auth-credential"
+                      integration_type:
+                        type: string
+                        example: "filter"
+                      is_system_integration:
+                        type: boolean
+                        example: false
+                      created_at:
+                        type: string
+                        example: "2024-09-18T03:37:56.026341265+01:00"
+            
+    get:
+      summary: Get integrations for an organization
+      description: Retrieve a list of system integrations for a specific organization.
+      tags:
+        - Integrations
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: The unique identifier of the integration.
+                          example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                        app_name:
+                          type: string
+                          description: Name of the integrated application.
+                          example: Slack
+                        json_url:
+                          type: string
+                          description: URL where the integration's JSON schema is located.
+                          example: https://system-integration.telex.im/slack.json
+                        app_url:
+                          type: string
+                          description: The URL to the app's official website.
+                          example: https://slack.com
+                        app_logo:
+                          type: string
+                          description: URL to the app's logo.
+                          example: https://media.tifi.tv/telexbucket/public/logos/slack.png
+                        app_description:
+                          type: string
+                          description: A brief description of the application.
+                          example: Slack is a cloud-based team business and communication platform.
+                        is_system_integration:
+                          type: boolean
+                          description: Whether this is a system-wide integration.
+                          example: true
+                        is_active:
+                          type: boolean
+                          description: Status of the integration for the organization.
+                          example: false
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp when the integration was added.
+                          example: 2024-09-23T19:59:46.166781+01:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp when the integration was last updated.
+                          example: 2024-09-23T20:00:08.086829+01:00
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.
+
+  /organisations/{org_id}/integrations/output:
+    get:
+      tags:
+        - Integrations
+      summary: "Retrieve output integrations"
+      description: "Fetches the available output integrations for a given organization, such as Slack, Discord, etc."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: "The ID of the organization"
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      responses:
+        200:
+          description: "Output integrations retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "output integrations retrieved successfully."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        name:
+                          type: string
+                          example: "Slack"
+                        channels_url:
+                          type: string
+                          example: "https://system-integrations.telex.im/slack/channels"          
+          
+  /organisations/{organisationId}/integrations/{integrationId}:
+    patch:
+      tags:
+        - Integrations
+      summary: Update an organization's integration
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_url:
+                  type: string
+                  example: "some-very-weird-logo-url"
+      responses:
+        '200':
+          description: Integration updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "0191f134-05b5-7e5d-9cd8-ec29833633da"
+                      name:
+                        type: string
+                        example: "instagram"
+                      json_url:
+                        type: string
+                        example: "some-very-weird-logo-url"
+                      auth_credential:
+                        type: string
+                        example: "some-auth-credential"
+                      integration_type:
+                        type: string
+                        example: ""
+                      is_system_integration:
+                        type: boolean
+                        example: false
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-09-14T16:43:24.086604+01:00"
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+    delete:
+      tags:
+        - Integrations
+      summary: Delete an organization's integration
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      
+      responses:
+        '200':
+          description: Integration deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations deleted successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "0191f134-05b5-7e5d-9cd8-ec29833633da"
+                      name:
+                        type: string
+                        example: "instagram"
+                      json_url:
+                        type: string
+                        example: "some-very-weird-logo-url"
+                      auth_credential:
+                        type: string
+                        example: "some-auth-credential"
+                      integration_type:
+                        type: string
+                        example: ""
+                      is_system_integration:
+                        type: boolean
+                        example: false
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-09-14T16:43:24.086604+01:00"
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+  /organisations/{organisationId}/integrations/{integrationId}/channels:
+    get:
+      tags:
+        - Integrations
+      summary: Get organization's integration channels
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+
+      responses:
+        '200':
+          description: Integration channels fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration channels fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      channels:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            channel_name:
+                              type: string
+                              example: "Default"
+                            channel_id:
+                              type: string
+                              format: uuid
+                              example: "019192ab-ece1-748c-9c4f-59267a35bfd9"
+                            is_active:
+                              type: boolean
+                              example: true
+                      is_allchannels:
+                        type: boolean
+                        example: true
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+
+  /organisations/{organisationId}/integrations/{integrationId}/status:
+    get:
+      tags:
+        - Integrations
+      summary: Get organization's integration channels
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+
+      responses:
+        '200':
+          description: Fetched Integration status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration status fetched successfully
+                  data:
+                      type: object
+                      properties:
+                        status:
+                          type: boolean
+                          example: true
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+  /organisations/{organizationId}/channels/{channelId}/integrations:
+    get:
+      summary: Get Channel Integrations
+      tags:
+        - Integrations
+      description: Retrieve a list of integrations for a specific channel within an organization.
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          description: ID of the organization.
+          schema:
+            type: string
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Successful response with channel integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel integrations retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "a6c1525a-8f8b-4aea-88ad-81578f69d976"
+                        app_name:
+                          type: string
+                          example: "Slack"
+                        json_url:
+                          type: string
+                          example: ""
+                        app_url:
+                          type: string
+                          example: "https://slack.com/api/"
+                        app_logo:
+                          type: string
+                          example: "https://a.slack-edge.com/fd21de4/marketing/img/nav/logo.svg"
+                        app_description:
+                          type: string
+                          example: "Slack is a cloud-based team business and communication platform."
+                        is_active:
+                          type: boolean
+                          example: true
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-21T09:09:00.029285-05:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-21T09:09:00.029285-05:00"
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_count:
+                          type: integer
+                          example: 20
+                        total_pages_count:
+                          type: integer
+                          example: 1
+
+  /organisations/{organisation_id}/integrations/{integration_id}/updatejson:
+    patch:
+      summary: Update the JSON schema of an organisation's integration
+      description: Update the JSON schema for a specific integration of an organization.
+      tags:
+        - Integrations
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_schema:
+                  type: object
+                  description: The updated JSON schema for the integration.
+                  properties:
+                    date:
+                      type: object
+                      properties:
+                        created_at:
+                          type: string
+                          format: date
+                          example: "2024-09-10"
+                        updated_at:
+                          type: string
+                          format: date
+                          example: "2024-09-25"
+                    settings:
+                      type: object
+                      properties:
+                        form_fields:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              current_key:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Current Key"
+                                  value:
+                                    type: string
+                                    example: "abc123xyz"
+                              endpoint:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Endpoint Configuration"
+                                  value:
+                                    type: string
+                                    example: "https://telex.im/slack/command"
+                    permissions:
+                      type: object
+                      properties:
+                        events:
+                          type: array
+                          items:
+                            type: string
+                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Telex."
+                        bot_user:
+                          type: object
+                          properties:
+                            display_name:
+                              type: string
+                              example: "Telex"
+                            always_online:
+                              type: boolean
+                              example: false
+                    descriptions:
+                      type: object
+                      properties:
+                        app_url:
+                          type: string
+                          example: "https://slack.com"
+                        app_logo:
+                          type: string
+                          example: "https://media.tifi.tv/telexbucket/public/logos/slack.png"
+                        app_name:
+                          type: string
+                          example: "Slack"
+                        app_description:
+                          type: string
+                          example: "Slackzzzzzzzzzzzzz is a cloud-based team business and communication platform."
+                        background_color:
+                          type: string
+                          example: "#262626"
+                    slash_commands:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            example: "https://telex.im/slack/command"
+                          command:
+                            type: string
+                            example: "/slack"
+                          description:
+                            type: string
+                            example: "Open slack"
+                          should_escape:
+                            type: boolean
+                            example: false
+      responses:
+        200:
+          description: Successfully updated the JSON schema of the integration.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: JSON schema updated successfully
+                    description: A message indicating the result of the update.
+        400:
+          description: Invalid request or missing parameters.
+        404:
+          description: Organisation or integration not found.
+          
+  /organisations/{organisation_id}/integrations/change_status:
+    patch:
+      summary: Change the status and JSON schema of an integration
+      description: Update the activation status and modify the JSON schema of a specific integration for an organization.
+      tags:
+        - Integrations
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integration_id:
+                  type: string
+                  format: uuid
+                  description: The UUID of the integration whose status and schema needs to be updated.
+                  example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                status:
+                  type: boolean
+                  description: The new status of the integration (true for active, false for inactive).
+                  example: false
+                json_schema:
+                  type: object
+                  description: The modified JSON schema of the integration.
+                  properties:
+                    date:
+                      type: object
+                      properties:
+                        created_at:
+                          type: string
+                          format: date
+                          example: "2024-09-10"
+                        updated_at:
+                          type: string
+                          format: date
+                          example: "2024-09-25"
+                    settings:
+                      type: object
+                      properties:
+                        form_fields:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              current_key:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Current Key"
+                                  value:
+                                    type: string
+                                    example: "abc123xyz"
+                              endpoint:
+                                type: object
+                                properties:
+                                  label:
+                                    type: string
+                                    example: "Endpoint Configuration"
+                                  value:
+                                    type: string
+                                    example: "https://telex.im/slack/command"
+                    permissions:
+                      type: object
+                      properties:
+                        events:
+                          type: array
+                          items:
+                            type: string
+                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Telex."
+                        bot_user:
+                          type: object
+                          properties:
+                            display_name:
+                              type: string
+                              example: "Telex"
+                            always_online:
+                              type: boolean
+                              example: false
+                    descriptions:
+                      type: object
+                      properties:
+                        app_url:
+                          type: string
+                          example: "https://slack.com"
+                        app_logo:
+                          type: string
+                          example: "https://media.tifi.tv/telexbucket/public/logos/slack.png"
+                        app_name:
+                          type: string
+                          example: "Slack"
+                        app_description:
+                          type: string
+                          example: "Slack is a cloud-based team business and communication platform."
+                        background_color:
+                          type: string
+                          example: "#262626"
+                    slash_commands:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            example: "https://telex.im/slack/command"
+                          command:
+                            type: string
+                            example: "/slack"
+                          description:
+                            type: string
+                            example: "Open slack"
+                          should_escape:
+                            type: boolean
+                            example: false
+      responses:
+        200:
+          description: Successfully updated the status and schema of the integration.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: Integration app status set successfully
+                    description: A message describing the result.
+        400:
+          description: Invalid request or missing parameters.
+        404:
+          description: Organisation or integration not found.
+                    
+  /organisations/{organisationId}/integrations/{integrationId}/channels/{channelId}:
+    post:
+      tags:
+      - Integrations
+      summary: "Activate or deactivate a channel integration"
+      description: "Activates or deactivates a channel integration for the specified organization and channel."
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the channel"
+          example: "0191be6e-4742-7b48-b3fd-437e8f5452ad"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the integration"
+          example: "019202fe-57ba-7bc7-b0ae-e2629fec3c8b"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: boolean
+                  description: "Boolean value to activate or deactivate the integration"
+                  example: true
+      responses:
+        '200':
+          description: "Channel integration activated successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel integration activated successfully"
+
+
+  /channels/{channel_id}/integration-channels/{integration_modifier_id}:
+
+    get:
+      tags:
+      - Integrations
+      summary: Retrieve all integration channels for a specified channel.
+      parameters:
+        - in: path
+          name: channel_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the channel.
+        - in: path
+          name: integration_modifier_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the modifier integration.
+      responses:
+        '200':
+          description: Channel retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channel retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: 0192b948-faf2-73d0-99d1-797305d18ae1
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                        integration_name:
+                          type: string
+                          example: Slack1
+                        channel_id:
+                          type: string
+                          format: uuid
+                          example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                        send_back:
+                          type: boolean
+                          example: true
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2024-10-23T07:10:20.786885-05:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: 2024-10-23T07:10:20.786885-05:00
+                        integration_channels:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                                example: 0192b948-faf1-73d0-9162-3f452a40f295
+                              integration_id:
+                                type: string
+                                format: uuid
+                                example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                              channel_id:
+                                type: string
+                                format: uuid
+                                example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                              int_channel_id:
+                                type: string
+                                example: Ck0904kdfi
+                              int_channel_name:
+                                type: string
+                                example: channel1
+                              created_at:
+                                type: string
+                                format: date-time
+                                example: 2024-10-23T07:10:20.787924-05:00
+                              updated_at:
+                                type: string
+                                format: date-time
+                                example: 2024-10-23T07:10:20.787924-05:00
+
+
+  /channels/{channel_id}/integration-channels:
+    post:
+      tags:
+      - Integrations
+      summary: Add a new integration channel to a specified channel.
+      parameters:
+        - in: path
+          name: channel_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                int_output_id:
+                  type: string
+                  format: uuid
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                int_modifier_id:
+                  type: string
+                  format: uuid
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                int_channel_name:
+                  type: string
+                  example: channel1
+                int_channel_id:
+                  type: string
+                  example: Ck0904kdfi
+              required:
+                - int_modifier_id
+                - int_channel_name
+                - int_channel_id
+                - int_output_id
+      responses:
+        '201':
+          description: Integration channel added successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: integration channel added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: 0192b948-faf1-73d0-9162-3f452a40f295
+                      integration_id:
+                        type: string
+                        format: uuid
+                        example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                      channel_id:
+                        type: string
+                        format: uuid
+                        example: 01916476-b76b-7588-b9f5-2e8094088dc3
+                      int_channel_id:
+                        type: string
+                        example: Ck0904kdfi
+                      int_channel_name:
+                        type: string
+                        example: channel1
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: 2024-10-23T07:10:20.787924395-05:00
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: 2024-10-23T07:10:20.787924395-05:00
+
+    delete:
+      tags:
+      - Integrations
+      summary: Delete an integration channel from a specified channel.
+      parameters:
+        - in: path
+          name: channel_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                int_modifier_id:
+                  type: string
+                  format: uuid
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                int_output_id:
+                  type: string
+                  format: uuid
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d977
+                int_channel_id:
+                  type: string
+                  example: Ck0904kdfi
+              required:
+                - int_modifier_id
+                - int_channel_id
+                - int_output_id
+      responses:
+        '200':
+          description: Integration channel deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: integration channel deleted successfully
+
+  /organisations/{org_id}/channels/{channel_id}/integrations/change-sendback-status:
+    patch:
+      tags:
+      - Integrations
+      summary: Update Integration Status
+      description: Update the status of SendBack to channel of a specific integration within a channel for an organization.
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization.
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the channel.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                integration_id:
+                  type: string
+                  format: uuid
+                  description: The ID of the integration.
+                  example: a6c1525a-8f8b-4aea-88ad-81578f69d976
+                status:
+                  type: boolean
+                  description: The status of the integration (enabled or disabled).
+                  example: true
+      responses:
+        '200':
+          description: Integration status updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Integration status updated successfully."
+        '400':
+          description: Bad request, possibly due to invalid input data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid integration ID or status format."
+        '404':
+          description: Organization, channel, or integration not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Organization or channel not found."
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "An unexpected error occurred."
+
+
+  /organisations/{organisation_id}/integrations/{integration_id}/settings:
+    post:
+      summary: Add a new integration setting
+      description: Adds a new form field value and label to the integration settings for a specific organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_value:
+                  type: string
+                  example: "shallom"
+                  description: Value for the form field.
+                form_field_label:
+                  type: string
+                  example: "micah bawa"
+                  description: Label for the form field.
+      responses:
+        200:
+          description: Successfully added the integration setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting added successfully
+        400:
+          description: Invalid request.
+    
+    get:
+      summary: Retrieve integration settings
+      description: Retrieves all form field settings for a specific integration and organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      responses:
+        200:
+          description: Successfully retrieved the integration settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01923bd2-7453-792c-a496-ccfdf7e63e27"
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        form_field_value:
+                          type: string
+                          example: "This is "
+                        form_field_label:
+                          type: string
+                          example: "Shallom Micah Bawa"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-29T04:28:21.076005+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-09-29T04:28:21.076005+01:00"
+        404:
+          description: Organisation or integration not found.
+    patch:
+      summary: Update an existing integration setting
+      description: Updates a form field's label in the integration settings for a specific organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_label:
+                  type: string
+                  example: "Shallom Micah Bawa"
+                  description: Updated label for the form field.
+      responses:
+        200:
+          description: Successfully updated the integration setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting updated successfully
+        404:
+          description: Organisation or integration not found.
+        400:
+          description: Invalid request.
+          
+  /organisations/{org_id}/integrations/{integration_id}/channels/{channel_id}/settings:
+    post:
+      tags:
+        - Channel Integration Settings
+      summary: "Add Channel Integration Setting"
+      description: "Add a new setting for a channel integration within an organization."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_label:
+                  type: string
+                  example: "Shallom Micah"
+                form_field_value:
+                  type: string
+                  example: "Bawa"
+      responses:
+        200:
+          description: "Channel Integration setting added successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel Integration setting added successfully"
+
+    get:
+      tags:
+        - Channel Integration Settings
+      summary: "Retrieve Channel Integration Settings"
+      description: "Retrieve all settings for a specific channel integration."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+      responses:
+        200:
+          description: "Channel Integration settings retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel Integration settings retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "0192ecdd-ce6d-7348-a3cd-0c7742c687e1"
+                        org_id:
+                          type: string
+                          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+                        integration_id:
+                          type: string
+                          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+                        channel_id:
+                          type: string
+                          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+                        form_field_value:
+                          type: string
+                          example: "you"
+                        form_field_label:
+                          type: string
+                          example: "I love"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-11-02T13:33:32.269698+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-11-02T13:33:32.269698+01:00"
+
+  /organisations/{org_id}/integrations/{integration_id}/channels/{channel_id}/settings/{setting_id}:
+    patch:
+      tags:
+        - Channel Integration Settings
+      summary: "Update a Channel Integration Setting"
+      description: "Update the value of a specific setting for a channel integration."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+        - name: setting_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192ecd9-60a9-7348-b545-e5f78d410847"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_value:
+                  type: string
+                  example: "ouuuuuuu"
+      responses:
+        200:
+          description: "Integration setting updated successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integration setting updated successfully"
+
+    delete:
+      tags:
+        - Channel Integration Settings
+      summary: "Delete a Channel Integration Setting"
+      description: "Delete a specific setting for a channel integration."
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192202e-b6f3-7d29-89c1-1a8bacf93e8d"
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "01927560-dbba-728a-a3f0-90ad5562f3f5"
+        - name: setting_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "0192ecd9-60a9-7348-b545-e5f78d410847"
+      responses:
+        200:
+          description: "Channel Integration setting deleted successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Channel Integration setting deleted successfully"
+          
+  /organisations/{org_id}/integrations/{integration_id}/slash-commands:
+    post:
+      summary: Add a new slash command
+      description: Adds a new slash command and processing URL for a specific integration within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                  example: "/jiraslashcomms"
+                  description: The slash command to add.
+                processing_url:
+                  type: string
+                  example: "www.normals.com"
+                  description: The URL that will process the slash command.
+                description:
+                  type: string
+      responses:
+        200:
+          description: Slash command added successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting added successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "01926dd6-b1ad-775a-bef6-f10cd4d35425"
+                      org_id:
+                        type: string
+                        format: uuid
+                        example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      integration_id:
+                        type: string
+                        format: uuid
+                        example: "0192202e-b6f3-7d26-958e-aed59bf1e84b"
+                      command:
+                        type: string
+                        example: "/jiraslashcomms"
+                      processing_url:
+                        type: string
+                        example: "www.normals.com"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:33:59.725411972+01:00"
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:33:59.725411972+01:00"
+        400:
+          description: Invalid request.
+    get:
+      summary: Retrieve all slash commands
+      description: Retrieves all slash commands and their corresponding processing URLs for a specific integration within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      responses:
+        200:
+          description: Slash commands retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration slashcommands retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01926dc1-6760-775a-a8fb-65402def6d3e"
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                        command:
+                          type: string
+                          example: "/normals"
+                        processing_url:
+                          type: string
+                          example: "www.normals.com"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+        404:
+          description: Organisation or integration not found.
+
+    
+  /organisations/{org_id}/slash-commands:
+    get:
+      summary: Retrieve all slash commands for an organization
+      description: Retrieves all slash commands for all integrations within a specified organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+      responses:
+        200:
+          description: Organisation slash commands retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Organisation slashcommands retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01926dd6-b1ad-775a-bef6-f10cd4d35425"
+                        org_id:
+                          type: string
+                          format: uuid
+                          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                        integration_id:
+                          type: string
+                          format: uuid
+                          example: "0192202e-b6f3-7d26-958e-aed59bf1e84b"
+                        command:
+                          type: string
+                          example: "/jiraslashcomms"
+                        processing_url:
+                          type: string
+                          example: "www.normals.com"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:33:59.725411+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:33:59.725411+01:00"
+        404:
+          description: Organisation not found.
+          
+  /organisations/{org_id}/integrations/{integration_id}/slash-commands/{command_id}:
+    patch:
+      summary: Update a slash command
+      description: Updates the command and processing URL for a specific integration slash command within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+        - name: command_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the slash command.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                  example: "/shapiru"
+                  description: The updated slash command.
+                processing_url:
+                  type: string
+                  example: "www.shapiru.com"
+                  description: The updated URL that processes the slash command.
+                description:
+                  type: string
+      responses:
+        200:
+          description: Integration setting updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration setting updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "01926dc1-2d92-775a-9177-7a2da36f7ee6"
+                      org_id:
+                        type: string
+                        format: uuid
+                        example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                      integration_id:
+                        type: string
+                        format: uuid
+                        example: "0192202e-b6f3-7d23-8025-3f60675cc031"
+                      command:
+                        type: string
+                        example: "/shapiru"
+                      processing_url:
+                        type: string
+                        example: "www.shapiru.com"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:10:29.651045+01:00"
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2024-10-08T21:10:29.651045+01:00"
+        404:
+          description: Slash command or organisation not found.
+    delete:
+      summary: Delete a slash command
+      description: Deletes a specific slash command for a given integration within an organization.
+      tags:
+        - IntegrationSlashCommands
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+        - name: command_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the slash command.
+      responses:
+        200:
+          description: Integration slash command deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Integration slashcommands deleted successfully
+        404:
+          description: Slash command or organisation not found.
+
+  ### Custom Integration Section
+
+  /organisations/{organisationId}/integrations/custom:
+    post:
+      tags:
+        - Custom Integrations
+      summary: "Create a new integration for the organization"
+      description: "Creates a new integration within the specified organization."
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID of the organization"
+          example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_url:
+                  type: string
+                  description: "The URL that provides JSON metadata for the integration"
+                  example: "https://www.bananaisland.com/banana.json"
+
+      responses:
+        '201':
+          description: "Integration app created successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Integration app created successfully"
+        '400':
+            description: Invalid JSON url supplied.
+            
+    get:
+      summary: Get integrations for an organization
+      description: Retrieve a list of integrations for a specific organization.
+      tags:
+        - Custom Integrations
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: The unique identifier of the integration.
+                          example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                        app_name:
+                          type: string
+                          description: Name of the integrated application.
+                          example: Slack
+                        json_url:
+                          type: string
+                          description: URL where the integration's JSON schema is located.
+                          example: https://system-integration.telex.im/slack.json
+                        app_url:
+                          type: string
+                          description: The URL to the app's official website.
+                          example: https://slack.com
+                        app_logo:
+                          type: string
+                          description: URL to the app's logo.
+                          example: https://media.tifi.tv/telexbucket/public/logos/slack.png
+                        app_description:
+                          type: string
+                          description: A brief description of the application.
+                          example: Slack is a cloud-based team business and communication platform.
+                        is_active:
+                          type: boolean
+                          description: Status of the integration for the organization.
+                          example: false
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp when the integration was added.
+                          example: 2024-09-23T19:59:46.166781+01:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp when the integration was last updated.
+                          example: 2024-09-23T20:00:08.086829+01:00
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.         
+          
+  /organisations/{organisationId}/integrations/custom/{integrationId}:
+    put:
+      tags:
+        - Custom Integrations
+      summary: Update an organization's integration
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json_url:
+                  type: string
+                  example: "https://www.bananaisland.com/banana.json"
+      responses:
+        '200':
+          description: Integration updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations updated successfully"
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+
+    delete:
+      tags:
+        - Custom Integrations
+      summary: Delete an organization's integration
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      
+      responses:
+        '200':
+          description: Integration deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations deleted successfully"
+
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+          
+  /organisations/{organisationId}/integrations/custom/{integrationId}/settings:
+    put:
+      tags:
+        - Custom Integrations
+      summary: Update an organization's custom integration settings
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                setting_entry:
+                  type: object
+                  properties:
+                      field_name:
+                        type: string
+                      value:
+                        type: string
+      responses:
+        '200':
+          description: Custom integration settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Integrations Settings updated successfully"
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        '404':
+          description: Integration not found
+             
+    get:
+      summary: Get integrations settings for an organization
+      description: Retrieve a list of integration settings for a specific organization.
+      tags:
+        - Custom Integrations
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: object
+                    properties:
+                      field_name:
+                        type: string
+                      value:
+                        type: string
+
+ 
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.       
+          
+  /organisations/{organisationId}/integrations/custom/{integrationId}/status:
+    get:
+      summary: Get integrations settings for an organization
+      description: Retrieve a list of integration settings for a specific organization.
+      tags:
+        - Custom Integrations
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: object
+                    properties:
+                      is_system:
+                        type: boolean
+                      is_active:
+                        type: boolean
+
+ 
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found. 
+
+  /integrations:
+    get:
+      summary: Get system integrations for telex
+      description: Retrieve a list of system integration.
+      tags:
+        - System Integrations
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: object
+ 
+        400:
+          description: Invalid integration_id or request.
+        404:
+          description: Integrations not found. 
+
+
+  /integrations/{integrationId}:
+    get:
+      summary: Get a single integration 
+      description: Retrieve a system integration from telex.
+      tags:
+        - System Integrations
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      responses:
+        200:
+          description: Successfully retrieved the integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: object
+                    properties:
+
+ 
+        400:
+          description: Invalid integration_id or request.
+        404:
+          description: Integration not found. 
+  
   /threads/organisations/{organisationId}/metrics:
     get:
       tags:
@@ -7529,9 +10268,682 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
+  /optin:
+    post:
+      tags:
+        - squeeze
+      summary: Opt-in for notifications
+      description: Add a new entry to the opt-in list for receiving updates and notifications.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptInSchema'
+      responses:
+        '201':
+          description: Opt-in record created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema2'
+        '400':
+          description: Bad Request - Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '409':
+          description: Conflict - Email already opted in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+                
+  /organisations/{organisation_id}/groups:
+    post:
+      summary: Create a new group
+      tags:
+        - Channel Grouping
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: C-Group
+                description:
+                  type: string
+                  example: This is a group for the C warriors
+      responses:
+        '200':
+          description: Group created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      organisation_id:
+                        type: string
+                      channels:
+                        type: object
+                        nullable: true
+                      archived:
+                        type: boolean
+                      created_at:
+                        type: string
+                      updated_at:
+                        type: string
+                      deleted_at:
+                        type: string
+
+    get:
+      summary: Fetch all groups
+      tags:
+        - Channel Grouping
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation
+      responses:
+        '200':
+          description: Groups fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        organisation_id:
+                          type: string
+                        channels:
+                          type: object
+                          nullable: true
+                        archived:
+                          type: boolean
+                        created_at:
+                          type: string
+                        updated_at:
+                          type: string
+                        deleted_at:
+                          type: string
+
+  /organisations/{organisation_id}/groups/{group_id}:
+    get:
+      summary: Fetch a specific group
+      tags:
+        - Channel Grouping
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      organisation_id:
+                        type: string
+                      channels:
+                        type: object
+                        nullable: true
+                      archived:
+                        type: boolean
+                      created_at:
+                        type: string
+                      updated_at:
+                        type: string
+                      deleted_at:
+                        type: string
+
+    patch:
+      summary: Update a group
+      tags:
+        - Channel Grouping
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Group updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      organisation_id:
+                        type: string
+                      channels:
+                        type: object
+                        nullable: true
+                      created_at:
+                        type: string
+                      updated_at:
+                        type: string
+                      deleted_at:
+                        type: string
+
+    delete:
+      summary: Delete a group
+      tags:
+        - Channel Grouping
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                    
+  /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
+    post:
+      tags:
+        - Channel Grouping
+      summary: Assign a channel to a group
+      description: Assign a specified channel to a group within an organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the group.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully assigned channel to group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel assigned successfully"
+
+    delete:
+      tags:
+        - Channel Grouping
+      summary: Remove a channel from a group
+      description: Remove a specified channel from a group within an organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the group.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully removed channel from group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel removed successfully"
+    patch:
+      tags:
+        - Channel Grouping
+      summary: Move a channel to a different group
+      description: Move a specified channel from one group to another within the same organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the new group to move the channel to.
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          description: ID of the channel to be moved.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully moved the channel to a new group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group channel moved successfully"
+                  
+  /organisations/{organisation_id}/groups/{group_id}/channels:
+    get:
+      tags:
+        - Channel Grouping
+      summary: Fetch all channels in a group
+      description: Retrieve a list of channels assigned to a specified group.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+        - name: group_id
+          in: path
+          required: true
+          description: ID of the group.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully fetched group channels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channels_id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        organisation_id:
+                          type: string
+                        owner_id:
+                          type: string
+                        users:
+                          type: array
+                          items:
+                            type: string
+                        user_count:
+                          type: integer
+                        message_count:
+                          type: integer
+                        archived:
+                          type: boolean
+                        group_id:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        deleted_at:
+                          type: string
+                          format: date-time
+              example:
+                status: "success"
+                status_code: 200
+                message: "Group channels fetched successfully"
+                data:
+                  - channels_id: "01936c28-ed81-71b9-a629-edecb2d24418"
+                    name: "Channel-4"
+                    description: "Channel-4"
+                    organisation_id: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                    owner_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                    users: null
+                    user_count: 0
+                    message_count: 0
+                    archived: false
+                    group_id: "01936966-2276-7b22-98dd-2bb8fe2f0797"
+                    created_at: "2024-11-27T06:47:21.857515+01:00"
+                    deleted_at: "0001-01-01T00:13:35+00:13"
+                    
+
+
+  /organisations/{organisation_id}/groups/channels/no-group:
+    get:
+      tags:
+        - Channel Grouping
+      summary: Fetch channels not in any group
+      description: Retrieve a list of channels that are not assigned to any group.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully fetched ungrouped channels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channels_id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        organisation_id:
+                          type: string
+                        owner_id:
+                          type: string
+                        users:
+                          type: array
+                          items:
+                            type: string
+                        user_count:
+                          type: integer
+                        message_count:
+                          type: integer
+                        archived:
+                          type: boolean
+                        group_id:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        deleted_at:
+                          type: string
+                          format: date-time
+              example:
+                status: "success"
+                status_code: 200
+                message: "Channels not in group fetched successfully"
+                data:
+                  - channels_id: "01936c11-130d-78ea-a2f6-998cd7f67b60"
+                    name: "Channel-3"
+                    description: "Channel-3"
+                    organisation_id: "0191be6e-473e-7b48-888f-810f4c449dc9"
+                    owner_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                    users: null
+                    user_count: 0
+                    message_count: 0
+                    archived: false
+                    group_id: null
+                    created_at: "2024-11-27T06:21:18.605535+01:00"
+                    deleted_at: "0001-01-01T00:13:35+00:13"
+
+  /organisations/{organisation_id}/groups/channels/user-no-group:
+    get:
+      tags:
+        - Channel Grouping
+      summary: Fetch discoverable channels for a user 
+      description: Retrieves a list of channels that are discoverable for a user who is not assigned to any group in a specific organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          description: ID of the organisation.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of discoverable channels retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Discoverable Channels for user fetched successfully"
+                  data: []
+        '404':
+          description: Organisation not found or invalid request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "Organisation not found"
+
+
 components:
 
   schemas:
+    OptInSchema:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - email
+      properties:
+        first_name:
+          type: string
+          example: John
+        last_name:
+          type: string
+          example: Doe
+        email:
+          type: string
+          format: email
+          example: johndoe@example.com
+
+    ConflictErrorSchema:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Email already opted in, please use a different email or stay tuned"      
+
     GetAllIntegrationAppResponse:
       type: object
       properties:
@@ -7874,7 +11286,7 @@ components:
           type: string
           description: Updated full name
           example: "New Full Name"
-        user_name:
+        username:
           type: string
           description: Updated username
           example: "new_username"
@@ -7898,7 +11310,7 @@ components:
         full_name:
           type: string
           description: Full name of the user
-        user_name:
+        username:
           type: string
           description: Username
         phone:
@@ -7911,7 +11323,7 @@ components:
       example:
         email: "newemail@example.com"
         full_name: "New Full Name"
-        user_name: "new_username"
+        username: "new_username"
         phone: "1234567890"
         avatar_url: "https://example.com/avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
@@ -7937,7 +11349,7 @@ components:
         full_name:
           type: string
           example: "Testinp Update"
-        user_name:
+        username:
           type: string
           example: "What_b_Heck"
         avatar_url:
@@ -9662,7 +13074,7 @@ components:
     TerminateSessionRequest:
       type: object
       properties:
-        userId:
+        user_id:
           type: string
           format: uuid
           example: 01913f91-57e0-7875-b795-a25984e7594c
