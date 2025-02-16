@@ -26,6 +26,7 @@ type Integrations struct {
 	IntegrationType string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
 	IsActive        bool      `gorm:"type:boolean;default:false" json:"is_active"`
 	Category        string    `json:"category"`
+	Status          string    `json:"status"`
 	CreatedAt       time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt       time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
@@ -1001,6 +1002,29 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 	var MODIFIER_TYPE = "modifier"
 	var OUTPUT_TYPE = "output"
 
+	var categories = map[string]bool{
+		"Monitoring & Logging":           true,
+		"Communication & Collaboration":  true,
+		"Security & Compliance":          true,
+		"Performance Monitoring":         true,
+		"Website Uptime":                 true,
+		"Social Media Management":        true,
+		"CRM & Customer Support":         true,
+		"Marketing Automation":           true,
+		"Data Analytics & Visualization": true,
+		"Finance & Payments":             true,
+		"Project Management":             true,
+		"E-commerce & Retail":            true,
+		"AI & Machine Learning":          true,
+		"Task Automation":                true,
+		"Cloud Services":                 true,
+		"Human Resources & Payroll":      true,
+		"Email & Messaging":              true,
+		"IT Service Management":          true,
+		"Development & Code Management":  true,
+		"DevOps & CI/CD":                 true,
+	}
+
 	descriptions, ok := data_r["descriptions"].(map[string]interface{})
 	if !ok {
 		return errors.New("Failed to save integration, descriptions field does not exist")
@@ -1040,14 +1064,23 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 		return errors.New("Failed to save integration, settings field is not an array")
 	}
 
-	_, ok = data_r["key_features"]
+	key_features, ok := data_r["key_features"]
 	if !ok {
-		return errors.New("Failed to save integration, key_features field does not exist")
+		return errors.New("Failed to save integration, key_features field does not exist or is empty")
+	}
+
+	_, ok = key_features.([]interface{})
+	if !ok {
+		return errors.New("Failed to save integration, key_features field is not an array")
 	}
 
 	int_cat, ok := data_r["integration_category"]
 	if !ok || int_cat == "" {
 		return errors.New("Failed to save integration, integration_category field does not exist or is empty")
+	}
+
+	if !categories[int_cat.(string)] {
+		return errors.New(fmt.Sprintf("Failed to save integration, integration_category type not supported, supplied: %s, check docs for supported types.", int_cat))
 	}
 
 	int_type, ok := data_r["integration_type"]
