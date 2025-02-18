@@ -14,6 +14,29 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id string) (models.ShareableInviteResponse,int,error){
+	var (
+		resp models.ShareableInviteResponse
+		og models.Organisation
+	)
+
+	//check user is the admin of the organisation
+	org, err :=og.CheckOrgExists(req.OrganisationID, db)
+	if err != nil {
+		return resp, http.StatusNotFound, err
+	}
+
+	if org.OwnerID != user_id  {
+		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
+	}
+
+	
+
+
+
+	return resp, http.StatusCreated, nil
+}
+
 func AdminResend(db *gorm.DB, logger *utility.Logger ,req models.ResendCondition, baseURL string) (int, error) {
 	var invites []models.Invitation
 

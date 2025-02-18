@@ -21,14 +21,29 @@ type Invitation struct {
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
 	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
 	Organisation   Organisation `gorm:"foreignKey:OrganisationID" json:"-"`
-	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	ExpiresAt      time.Time    `gorm:"column:expires_at; not null" json:"expires_at"`
+	IsShareable    bool         `gorm:"type:boolean;default:false" json:"is_shareable"`
+	InvitedBy      string       `gorm:"type:uuid" json:"invited_by"`
+
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ExpiresAt time.Time `gorm:"column:expires_at; not null" json:"expires_at"`
 }
 
 type InvitationCreateReq struct {
 	Emails         []string `json:"emails" validate:"required"`
 	OrganisationID string   `json:"org_id" validate:"required,uuid"`
 	RoleID         string   `json:"role_id" validate:"required,uuid"`
+}
+
+type ShareableInviteRequest struct {
+	OrganisationID string `json:"organisation_id" validate:"required,uuid"`
+	RoleID         string `json:"role_id" validate:"required,uuid"`
+	ExpiresIn      int    `json:"expires_in" validate:"required,min=1,max=168"` //hours ; max 1 week
+}
+
+type ShareableInviteResponse struct {
+	InvitationLink string    `json:"invitation_link"`
+	Expires_At     time.Time `json:"expires_at"`
+	Created_At     time.Time `json:"created_at"`
 }
 
 type InvitationResponse struct {
