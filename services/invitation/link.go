@@ -135,11 +135,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	// err = addUserToChannel(&chans, orgmgt, user.Name, db)
-	// if err != nil {
-	// 	logger.Error("error adding user to the channel", err)
-	// 	return responseData, http.StatusInternalServerError, err
-	// }
 
 	userData, err := user.GetUserByEmail(db, invitation.Email)
 	if err != nil {

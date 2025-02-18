@@ -72,6 +72,28 @@ type VerifyInvitationLinkRequest struct {
 	Token string `json:"token" validate:"required"`
 }
 
+func (i *Invitation) CreateShareableInvite(db *gorm.DB, req ShareableInviteRequest, created_by string) error {
+	i.ID = utility.GenerateUUID()
+	token, err := utility.GenerateInvitationToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate invitaiton token: %w", err)
+	}
+	i.Token = token
+	i.Status = "active"
+	i.Role = req.RoleID
+	i.OrganisationID = req.OrganisationID
+	i.IsShareable = true
+	i.InvitedBy = created_by
+	i.ExpiresAt = time.Now().UTC().Add(time.Duration(req.ExpiresIn) * time.Hour)
+
+	err = postgresql.CreateOneRecord(db, &i)
+	if err != nil {
+		return fmt.Errorf("failed to create integration: %w", err)
+	}
+
+	return nil
+}
+
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
 
 	if len(invitations) == 0 {

@@ -44,7 +44,10 @@ func (base *Controller) AdminInvitationCreate(c *gin.Context) {
 		return
 	}
 
-	response, code, err := invitation.AdminInvitationCreate(base.Db.Postgresql, req, userID.(string))
+	//baseurl
+	url := c.Request.Header.Get("Referer")
+
+	response, code, err := invitation.AdminInvitationCreate(base.Db.Postgresql, req, userID.(string), url)
 	if err != nil {
 		base.Logger.Error("Failed to create invitation link", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to create invitation link", utility.ValidationResponse(err, base.Validator), nil)

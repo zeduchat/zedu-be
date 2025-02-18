@@ -14,9 +14,10 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id string) (models.ShareableInviteResponse,int,error){
+func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse,int,error){
 	var (
 		resp models.ShareableInviteResponse
+		invite models.Invitation
 		og models.Organisation
 	)
 
@@ -30,10 +31,15 @@ func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_
 		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
 	}
 
+	if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
+		return resp, http.StatusBadRequest, err
+	}
+
+	resp.InvitationLink = utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.Token)
+	resp.Created_At = invite.CreatedAt
+	resp.Expires_At = invite.ExpiresAt
+
 	
-
-
-
 	return resp, http.StatusCreated, nil
 }
 
