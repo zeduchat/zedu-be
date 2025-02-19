@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -519,6 +520,23 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 		settings_data := map[string]interface{}{"settings": settings}
 
+		is_auth, ok := data_r["is_oauth"].(bool)
+
+		if ok && is_auth {
+			enc_key := config.Config.Server.EncKey
+
+			auth_credentials := map[string]interface{}{"integration_auth_credentials": "Not-Set-Yet"}
+
+			api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["integration_id"], enc_key)
+
+			auth_credentials["telex_api_key"] = api_key
+			settings_data["auth_credentials"] = auth_credentials
+
+			if err != nil {
+				return errors.New("Failed to create external API key")
+			}
+		}
+
 		// serialize the settings json
 
 		settingJsonData, err := json.Marshal(settings_data)
@@ -982,7 +1000,37 @@ func (i *CustomIntegrationsSetting) CreateIntegrationSettings(db *gorm.DB) error
 func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB, req CustomIntegrationSettingRequest, ids map[string]string) error {
 
 	update := make(map[string]interface{})
-	update["setting_entry"] = req.SerializedEntry
+
+	deserialize_settings := make(map[string]interface{})
+
+	var ucis CustomIntegrationsSetting
+
+	// fetch existing settings
+
+	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return errors.New("Integration not connnected yet")
+	}
+
+	settings := ucis.SettingEntry
+
+	// unserialize the settings text
+
+	err := json.Unmarshal([]byte(settings), &deserialize_settings)
+
+	// update the important field (settings)
+
+	deserialize_settings["settings"] = req.SettingEntry["settings"]
+
+	settingJsonData, err := json.Marshal(deserialize_settings)
+
+	if err != nil {
+		return fmt.Errorf("error serializing to JSON: %v", err)
+	}
+
+	serialized_settings := string(settingJsonData)
+
+	update["setting_entry"] = serialized_settings
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if err != nil {
@@ -1111,6 +1159,16 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 		if !ok {
 			return errors.New("Failed to save integration, target_url field does not exist")
 		}
+	}
+
+	is_auth, ok := data_r["is_oauth"].(bool)
+	if ok && is_auth {
+
+		auth_init, ok := data_r["auth_initiate_url"]
+		if !ok || auth_init == "" {
+			return errors.New("Failed to save integration, auth_initiate_url field does not exist or is empty, consult the docs for more details")
+		}
+
 	}
 
 	return nil

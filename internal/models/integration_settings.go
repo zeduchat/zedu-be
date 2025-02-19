@@ -1,11 +1,15 @@
 package models
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type IntegrationSettings struct {
@@ -22,7 +26,6 @@ type AddIntegrationSettingsRequest struct {
 	FormFieldValue string `json:"form_field_value" binding:"required"`
 	FormFieldLabel string `json:"form_field_label" binding:"required"`
 }
-
 
 type UpdateIntegrationSettingsRequest struct {
 	FormFieldValue string `json:"form_field_value"`
@@ -48,7 +51,7 @@ func (us *IntegrationSettings) GetIntegrationSettingsAllOrgs(db *gorm.DB, integr
 	return intSettings, nil
 }
 
-func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]IntegrationSettings,error) {
+func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]IntegrationSettings, error) {
 	var intSettings []IntegrationSettings
 
 	err := postgresql.SelectAllFromDb(db, "", &intSettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
@@ -58,7 +61,41 @@ func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string
 	return intSettings, nil
 }
 
-func (is *IntegrationSettings) UpdateIntegrationSetting(db *gorm.DB, ids map[string]string ,req UpdateIntegrationSettingsRequest) error {
+func (is *CustomIntegrationsSetting) GetIntegrationApiKey(db *gorm.DB, ids map[string]string) (string, int, error) {
+	var (
+		ucis                 CustomIntegrationsSetting
+		deserialize_settings map[string]interface{}
+	)
+
+	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return "", http.StatusNotFound, errors.New("Integration not connnected yet")
+	}
+
+	db_settings := ucis.SettingEntry
+
+	// unserialize the settings text
+
+	err := json.Unmarshal([]byte(db_settings), &deserialize_settings)
+
+	if err != nil {
+		return "", http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON")
+	}
+
+	api_key, ok := deserialize_settings["api_key"].(string)
+
+	if !ok {
+		return "", http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON")
+	}
+
+	if api_key == "" {
+		return "", http.StatusNotFound, errors.New("Integration not of auth type")
+	}
+
+	return api_key, http.StatusOK, nil
+}
+
+func (is *IntegrationSettings) UpdateIntegrationSetting(db *gorm.DB, ids map[string]string, req UpdateIntegrationSettingsRequest) error {
 
 	exists := postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if !exists {

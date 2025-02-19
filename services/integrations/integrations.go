@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -348,15 +349,6 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 	settings_data := map[string]interface{}{"settings": settings}
 
-	// serialize the settings json
-
-	settingJsonData, err := json.Marshal(settings_data)
-	if err != nil {
-		return fmt.Errorf("error serializing to JSON: %v", err)
-	}
-
-	serialized_settings := string(settingJsonData)
-
 	// create integration in db
 
 	orgIntegration.OrgID = org_id
@@ -371,6 +363,32 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 	if err != nil {
 		return err
 	}
+
+	is_auth, ok := data_r["is_oauth"].(bool)
+
+	if ok && is_auth {
+		enc_key := config.Config.Server.EncKey
+
+		api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
+
+		auth_credentials := map[string]interface{}{"integration_auth_credentials": "Not-Set-Yet"}
+
+		auth_credentials["telex_api_key"] = api_key
+		settings_data["auth_credentials"] = auth_credentials
+
+		if err != nil {
+			return errors.New("Failed to create external API key")
+		}
+	}
+
+	// serialize the settings json
+
+	settingJsonData, err := json.Marshal(settings_data)
+	if err != nil {
+		return fmt.Errorf("error serializing to JSON: %v", err)
+	}
+
+	serialized_settings := string(settingJsonData)
 
 	integrationSettings.ID = utility.GenerateUUID()
 	integrationSettings.SettingEntry = serialized_settings
@@ -585,6 +603,13 @@ func UpdateCustomIntegrationSettings(ids map[string]string, req models.CustomInt
 	}
 
 	settings := req.SettingEntry
+
+	_, ok := settings["settings"]
+	if !ok {
+
+		return fmt.Errorf("Settings field is required")
+
+	}
 	settingJsonData, err := json.Marshal(settings)
 
 	if err != nil {
@@ -610,6 +635,7 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 		ucis           models.CustomIntegrationsSetting
 
 		deserialize_settings map[string]interface{}
+		resp                 map[string]interface{}
 	)
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
@@ -628,14 +654,27 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 
 	err := json.Unmarshal([]byte(settings), &deserialize_settings)
 
-	deserialize_settings["is_system"] = ucis.IsSystem
-	deserialize_settings["is_active"] = orgIntegration.IsActive
-
 	if err != nil {
-		return deserialize_settings, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
+		return resp, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
 	}
 
-	return deserialize_settings, http.StatusOK, nil
+	resp = make(map[string]interface{})
+
+	resp["is_system"] = ucis.IsSystem
+	resp["is_active"] = orgIntegration.IsActive
+	resp["settings"] = deserialize_settings["settings"]
+
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+
+	if ok {
+		api_key, ok := auth_credentials["telex_api_key"].(string)
+
+		if ok && api_key != "" {
+			resp["telex_api_key"] = api_key
+		}
+	}
+
+	return resp, http.StatusOK, nil
 }
 
 func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]bool, int, error) {
@@ -656,4 +695,91 @@ func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq reque
 	status["is_active"] = orgIntegration.IsActive
 
 	return status, http.StatusOK, nil
+}
+
+// Integration External Requests
+
+func GetCustomIntegrationSettingsExteranl(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+
+	var (
+		ucis models.CustomIntegrationsSetting
+
+		deserialize_settings map[string]interface{}
+	)
+
+	exists := postgresql.CheckExists(db, &ucis, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pintegration_id"])
+	if !exists {
+		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
+	}
+
+	settings := ucis.SettingEntry
+
+	// unserialize the settings text
+
+	err := json.Unmarshal([]byte(settings), &deserialize_settings)
+
+	if err != nil {
+		return deserialize_settings, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
+	}
+
+	return deserialize_settings, http.StatusOK, nil
+}
+
+func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+
+	var (
+		orgIntegration       models.OrganisationIntegrations
+		ucis                 models.CustomIntegrationsSetting
+		deserialize_settings map[string]interface{}
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pintegration_id"])
+	if !exists {
+		return errors.New("Integration not connected yet")
+	}
+
+	exists = postgresql.CheckExists(db, &ucis, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pintegration_id"])
+	if !exists {
+		return errors.New("Integration not connnected yet")
+	}
+
+	db_settings := ucis.SettingEntry
+
+	// unserialize the settings text
+
+	err := json.Unmarshal([]byte(db_settings), &deserialize_settings)
+
+	if err != nil {
+		return fmt.Errorf("Error deserializing JSON")
+	}
+
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+
+	if ok {
+		api_key, ok := auth_credentials["telex_api_key"].(string)
+		if ok && api_key != ids["telex_api_key"] {
+			return errors.New("An error occured: api_key Mismatch")
+		}
+	}
+
+	settings := req.SettingEntry
+	settingJsonData, err := json.Marshal(settings)
+
+	if err != nil {
+		return fmt.Errorf("error serializing to JSON")
+	}
+
+	serialized_settings := string(settingJsonData)
+	req.SerializedEntry = serialized_settings
+
+	ids["org_id"] = ucis.OrgID
+	ids["integration_id"] = ucis.IntegrationID
+
+	err = ucis.UpdateCustomIntegrationSettings(db, req, ids)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
