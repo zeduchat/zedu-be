@@ -3,6 +3,7 @@ package config
 type ServerConfiguration struct {
 	Port                      string
 	Secret                    string
+	EncKey                    string
 	AccessTokenExpireDuration int
 	RequestPerSecond          float64
 	TrustedProxies            []string

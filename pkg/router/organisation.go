@@ -79,6 +79,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		// Organisation integration settings routes
 		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrationsCtrl.AddIntegrationSetting)
 		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrationsCtrl.GetIntegrationSettings)
+		organisationUrl.GET("/:org_id/integrations/:integration_id/integration-api-key", integrationsCtrl.GetIntegrationSettings)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrationsCtrl.UpdateIntegrationSetting)
 
 		// Organisation channel integration settings routes

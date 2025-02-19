@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/integrations"
@@ -78,7 +79,6 @@ func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
 		"page_size":    paginationResponse.PageCount,
 		"total_items":  len(integrations),
 	}
-
 
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
@@ -556,6 +556,7 @@ func (base *Controller) GetCustomIntegrationStatus(c *gin.Context) {
 }
 
 func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
+
 	org_id := c.Param("org_id")
 	integration_id := c.Param("integration_id")
 
@@ -589,5 +590,119 @@ func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
 
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations setting retrieved successfully.", integration_setting)
+	c.JSON(http.StatusOK, rd)
+}
+
+// Integrations External
+func (base *Controller) GetCustomIntegrationSettingsExteranl(c *gin.Context) {
+	api_key := c.Query("api_key")
+
+	if api_key == "" {
+		base.Logger.Error("made a request without api_key")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "api_key is missing in query params, consult the docs", "failed to parse api_key", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	key := config.Config.Server.EncKey
+
+	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+
+	if err != nil {
+		base.Logger.Error("An error occured: %s", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to parse api_key", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"porg_id":         porg_id,
+		"pintegration_id": pint_id,
+	}
+
+	integration_setting, code, err := integrations.GetCustomIntegrationSettingsExteranl(ids, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		base.Logger.Error("Failed to fetch custom integrations settings", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations settings", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("integrations retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations setting retrieved successfully.", integration_setting)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateCustomIntegrationSettingsExternal(c *gin.Context) {
+	var (
+		req models.CustomIntegrationSettingRequest
+	)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	auth_credentials, ok := req.SettingEntry["auth_credentials"].(map[string]interface{})
+
+	if !ok {
+		base.Logger.Error("auth_credentials is missing in request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "auth_credentials is missing in request body, consult telex docs", "invalid auth_credentials supplied", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	_, ok = req.SettingEntry["settings"].(map[string]interface{})
+	if !ok {
+		base.Logger.Error("auth_credentials is missing in request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "settings field not returned, consult telex docs", "invalid request body supplied", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	api_key, ok := auth_credentials["telex_api_key"].(string)
+
+	if !ok {
+		base.Logger.Error("api_key is missing in request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "api_key is missing in request body", "invalid api_key supplied", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	key := config.Config.Server.EncKey
+
+	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+
+	if err != nil {
+		base.Logger.Error("An error occured: %s", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to parse api_key", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"porg_id":         porg_id,
+		"pintegration_id": pint_id,
+		"telex_api_key":   api_key,
+	}
+
+	err = integrations.UpdateCustomIntegrationSettingsExternal(ids, req, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		base.Logger.Error("Failed to update integration settings", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update integration settings", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("JSON schema updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration settings updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
