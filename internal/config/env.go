@@ -26,6 +26,7 @@ type Configuration struct {
 type BaseConfig struct {
 	SERVER_PORT                      string  `mapstructure:"SERVER_PORT"`
 	SERVER_SECRET                    string  `mapstructure:"SERVER_SECRET"`
+	SERVER_ENCKEY                    string  `mapstructure:"SERVER_ENCKEY"`
 	SERVER_ACCESSTOKENEXPIREDURATION int     `mapstructure:"SERVER_ACCESSTOKENEXPIREDURATION"`
 	REQUEST_PER_SECOND               float64 `mapstructure:"REQUEST_PER_SECOND"`
 	TRUSTED_PROXIES                  string  `mapstructure:"TRUSTED_PROXIES"`
@@ -119,6 +120,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Server: ServerConfiguration{
 			Port:                      config.SERVER_PORT,
 			Secret:                    config.SERVER_SECRET,
+			EncKey:                    config.SERVER_ENCKEY,
 			AccessTokenExpireDuration: config.SERVER_ACCESSTOKENEXPIREDURATION,
 			RequestPerSecond:          config.REQUEST_PER_SECOND,
 			TrustedProxies:            trustedProxies,

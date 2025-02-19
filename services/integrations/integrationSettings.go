@@ -2,14 +2,16 @@ package integrations
 
 import (
 	"fmt"
+	"net/http"
+
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
-func AddIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.AddIntegrationSettingsRequest) error {
+func AddIntegrationSettings(db *gorm.DB, ids map[string]string, req models.AddIntegrationSettingsRequest) error {
 
 	is := models.IntegrationSettings{
 		ID:             utility.GenerateUUID(),
@@ -30,8 +32,8 @@ func AddIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.AddIn
 func GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]models.IntegrationSettings, error) {
 	var (
 		organisation models.Organisation
-		integration models.Integrations
-		setting models.IntegrationSettings
+		integration  models.Integrations
+		setting      models.IntegrationSettings
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -51,11 +53,36 @@ func GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]models.Integra
 	return settings, nil
 }
 
-func UpdateIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.UpdateIntegrationSettingsRequest) error {
+func GetCustomIntegrationApiKey(db *gorm.DB, ids map[string]string) (string, int, error) {
 	var (
-		setting models.IntegrationSettings
 		organisation models.Organisation
-		integration models.Integrations
+		integration  models.Integrations
+		setting      models.CustomIntegrationsSetting
+	)
+
+	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
+	if !exists {
+		return "", http.StatusNotFound, fmt.Errorf("organisation does not exist")
+	}
+
+	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	if !exists {
+		return "", http.StatusNotFound, fmt.Errorf("integration does not exist")
+	}
+
+	api_key, code, err := setting.GetIntegrationApiKey(db, ids)
+	if err != nil {
+		return "", code, err
+	}
+
+	return api_key, code, nil
+}
+
+func UpdateIntegrationSettings(db *gorm.DB, ids map[string]string, req models.UpdateIntegrationSettingsRequest) error {
+	var (
+		setting      models.IntegrationSettings
+		organisation models.Organisation
+		integration  models.Integrations
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -68,7 +95,7 @@ func UpdateIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.Up
 		return fmt.Errorf("integration does not exist")
 	}
 
-	err := setting.UpdateIntegrationSetting(db, ids ,req)
+	err := setting.UpdateIntegrationSetting(db, ids, req)
 	if err != nil {
 		return err
 	}
@@ -79,8 +106,8 @@ func UpdateIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.Up
 func GetOrgIntegrationSettings(db *gorm.DB, ids map[string]string) ([]models.IntegrationSettings, error) {
 	var (
 		organisation models.Organisation
-		integration models.Integrations
-		setting models.IntegrationSettings
+		integration  models.Integrations
+		setting      models.IntegrationSettings
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])

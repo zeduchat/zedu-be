@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/integrations"
 	"github.com/hngprojects/telex_be/utility"
@@ -94,7 +95,47 @@ func (base *Controller) GetIntegrationSettings(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation Integration setting retrieved successfully", setting)
 	c.JSON(http.StatusOK, rd)
 }
+func (base *Controller) GetIntegrationApiKey(c *gin.Context) {
+	var (
+		org_id         = c.Param("org_id")
+		integration_id = c.Param("integration_id")
+	)
 
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(integration_id); err != nil {
+		base.Logger.Error("invalid integration id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id":         org_id,
+		"integration_id": integration_id,
+	}
+
+	api_key, code, err := integrations.GetCustomIntegrationApiKey(base.Db.Postgresql, ids)
+	if err != nil {
+		base.Logger.Error("Failed to get integration api_key", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get integration api_key", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	resp := gin.H{
+		"api_key": api_key,
+	}
+
+	base.Logger.Info("Integration api_key retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration api_key retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}
 func (base *Controller) UpdateChannelIntegrationSetting(c *gin.Context) {
 	var (
 		req            models.UpdateIntegrationSettingsRequest
