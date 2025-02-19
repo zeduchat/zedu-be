@@ -664,35 +664,46 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 	resp["is_active"] = orgIntegration.IsActive
 	resp["settings"] = deserialize_settings["settings"]
 
-	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
-
-	if ok {
-		api_key, ok := auth_credentials["telex_api_key"].(string)
-
-		if ok && api_key != "" {
-			resp["telex_api_key"] = api_key
-		}
-	}
-
 	return resp, http.StatusOK, nil
 }
 
-func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]bool, int, error) {
+func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
 
 	var (
-		orgIntegration models.OrganisationIntegrations
-		status         map[string]bool
+		orgIntegration       models.OrganisationIntegrations
+		ucis                 models.CustomIntegrationsSetting
+		deserialize_settings map[string]interface{}
 	)
+	status := make(map[string]interface{})
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if !exists {
 		return status, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
 
-	status = map[string]bool{}
+	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	if !exists {
+		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
+	}
+
+	err := json.Unmarshal([]byte(ucis.SettingEntry), &deserialize_settings)
+
+	if err != nil {
+		return status, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
+	}
 
 	status["is_system"] = orgIntegration.IsSystem
 	status["is_active"] = orgIntegration.IsActive
+
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+
+	if ok {
+		api_key, ok := auth_credentials["telex_api_key"].(string)
+
+		if ok && api_key != "" {
+			status["telex_api_key"] = api_key
+		}
+	}
 
 	return status, http.StatusOK, nil
 }
