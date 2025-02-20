@@ -14,36 +14,47 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse,int,error){
+func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse, int, error) {
 	var (
-		resp models.ShareableInviteResponse
-		invite models.Invitation
-		og models.Organisation
+		resp   models.ShareableInviteResponse
+		invite models.GeneralInvitation
+		og     models.Organisation
 	)
 
-	//check user is the admin of the organisation
-	org, err :=og.CheckOrgExists(req.OrganisationID, db)
+	org, err := og.CheckOrgExists(req.OrganisationID, db)
 	if err != nil {
 		return resp, http.StatusNotFound, err
 	}
 
-	if org.OwnerID != user_id  {
+	if org.OwnerID != user_id {
 		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
 	}
 
-	if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
-		return resp, http.StatusBadRequest, err
+	err, _ = postgresql.SelectOneFromDb(db, &invite, "organisation_id = ? AND status=? AND expires_at > ?",
+		req.OrganisationID,
+		"active",
+		time.Now().UTC())
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
+				return resp, http.StatusBadRequest, err
+			}
+
+			token := 
+
+			resp.InvitationLink = utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.Token)
+			resp.Created_At = invite.CreatedAt
+			resp.Expires_At = invite.ExpiresAt
+			return resp, http.StatusCreated, nil
+
+		}
 	}
-
-	resp.InvitationLink = utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.Token)
-	resp.Created_At = invite.CreatedAt
-	resp.Expires_At = invite.ExpiresAt
-
 	
-	return resp, http.StatusCreated, nil
 }
 
-func AdminResend(db *gorm.DB, logger *utility.Logger ,req models.ResendCondition, baseURL string) (int, error) {
+
+func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition, baseURL string) (int, error) {
 	var invites []models.Invitation
 
 	//parse the date
@@ -191,8 +202,8 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest) (models.Invitation, error) {
 
 	var (
-		email      = req.Email
-		i           models.Invitation
+		email = req.Email
+		i     models.Invitation
 	)
 
 	invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email, req.OrganisationID)
