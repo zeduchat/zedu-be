@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1021,6 +1022,25 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	// update the important field (settings)
 
 	deserialize_settings["settings"] = req.SettingEntry["settings"]
+
+	auth_creds, ok := req.SettingEntry["auth_credentials"]
+
+	if ok {
+		deserialize_settings["auth_credentials"] = auth_creds
+
+		encoded_auth_cred, ok := auth_creds.(map[string]interface{})["integration_auth_credentials"].(string)
+
+		if ok {
+
+			_, err := base64.StdEncoding.DecodeString(encoded_auth_cred)
+			if err != nil {
+				return fmt.Errorf("Invalid integration_auth_credentials supplied, ensure it's base64 encoded")
+			}
+
+		} else {
+			return fmt.Errorf("intergration_auth_credentials field is missing")
+		}
+	}
 
 	settingJsonData, err := json.Marshal(deserialize_settings)
 
