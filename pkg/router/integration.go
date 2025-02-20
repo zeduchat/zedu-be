@@ -33,6 +33,13 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 		intPage.GET(":integration_id", integration.GetSystemIntegrationApp)
 	}
 
+	external_int := r.Group(fmt.Sprintf("%v/integrations/settings", ApiVersion))
+
+	{
+		external_int.GET("", integration.GetCustomIntegrationSettingsExteranl)
+		external_int.PUT("", integration.UpdateCustomIntegrationSettingsExternal)
+	}
+
 	return r
 
 }
