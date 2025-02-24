@@ -27,6 +27,7 @@ func Invite(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		inviteUrl.DELETE("/:invite_id", middleware.Authorize(db.Postgresql), invite.CancelInvitation)
 		inviteUrl.POST("/admin-create", middleware.Authorize(db.Postgresql), invite.GeneralInvitationCreate)
 		inviteUrl.POST("/admin-verify", middleware.Authorize(db.Postgresql), invite.GeneralInvitationVerify)
+		inviteUrl.POST("/change-status", middleware.Authorize(db.Postgresql), invite.ChangeGeneralInviteStatus)
 
 		inviteUrl.POST("/admin-resend", invite.AdminResend)
 	}
