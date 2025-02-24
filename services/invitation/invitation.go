@@ -14,6 +14,28 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (string, int, error){
+	var (
+		invite models.GeneralInvitation
+	)
+	
+	exists := postgresql.CheckExists(db, &invite, "id = ?", req.InvitationID)
+	if !exists {
+		return "", http.StatusNotFound, errors.New("invitation does not exists")
+	}
+
+	if userID != invite.InvitedBy {
+		return "", http.StatusBadRequest, errors.New("only invitees can change invitation status")
+	}
+
+	err := invite.ChangeGeneralInviteStatus(db, req)
+	if err != nil {
+		return "", http.StatusBadRequest, fmt.Errorf("unable to change general invite status: %s", err)
+	}
+
+	return "", http.StatusOK, nil
+}
+
 func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
 	var (
 		user   models.User

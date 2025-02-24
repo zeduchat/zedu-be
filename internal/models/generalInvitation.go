@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,7 +28,8 @@ type ShareableInviteRequest struct {
 }
 
 type ChangeStatus struct {
-	Status bool `json:"status" validate:"required, oneof=true false`
+	Status       bool   `json:"status" validate:"required, oneof=true false`
+	InvitationID string `gorm:"type:uuid" json:"invitation_id" validate:"required"`
 }
 
 type ShareableInviteResponse struct {
@@ -49,6 +51,23 @@ func (i *GeneralInvitation) CreateShareableInvite(db *gorm.DB, req ShareableInvi
 	err := postgresql.CreateOneRecord(db, &i)
 	if err != nil {
 		return fmt.Errorf("failed to create integration: %w", err)
+	}
+
+	return nil
+}
+
+func (i *GeneralInvitation) ChangeGeneralInviteStatus(db *gorm.DB, req ChangeStatus) error {
+	updates := map[string]any{
+		"active_status": req.Status,
+	}
+
+	result, err := postgresql.UpdateFields(db, &i, updates, "id = ?", req.InvitationID)
+	if err != nil {
+		return fmt.Errorf("failed to update general invitation status: %s", err)
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("invitation not found")
 	}
 
 	return nil
