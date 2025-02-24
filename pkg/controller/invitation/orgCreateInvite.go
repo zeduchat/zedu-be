@@ -7,14 +7,13 @@ import (
 	"github.com/golang-jwt/jwt"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) AdminResend(c *gin.Context) {
-	var (
-		req models.ResendCondition
-	)
+func (base *Controller) GeneralInvitationCreate(c *gin.Context) {
+	var req models.ShareableInviteRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Failed to parse request body", err)
@@ -23,27 +22,43 @@ func (base *Controller) AdminResend(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
-
 	err := base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Error("Request Validation failed", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	code, err := invitation.AdminResend(base.Db.Postgresql, base.Logger ,req, url)
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
-		base.Logger.Error("Request Validation failed", err)
-		rd := utility.BuildErrorResponse(code, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		if err.Error() == "user claims not found" {
+			base.Logger.Error("error validating user_id", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "user claims not found", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		base.Logger.Error("error validating user_id", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "error validating user_id", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	//baseurl
+	url := c.Request.Header.Get("Referer")
+
+	response, code, err := invitation.GeneralInvitationCreate(base.Db.Postgresql, req, userID.(string), url)
+	if err != nil {
+		base.Logger.Error("Failed to create invitation link", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to create invitation link", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(code, "Invitations created successfully", nil)
-	c.JSON(code, rd)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitation created successfully", response)
+	c.JSON(http.StatusCreated, rd)
 }
+
 
 func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	var (

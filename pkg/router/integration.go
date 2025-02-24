@@ -24,8 +24,8 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 	}
 
 
-	// Unauthunticated endpoint to fetch integrations
-	
+	// Unauthnticated endpoint to fetch integrations
+
 	intPage := r.Group(fmt.Sprintf("%v/integrations", ApiVersion))
 
 	{
