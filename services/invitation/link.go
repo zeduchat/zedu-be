@@ -92,6 +92,10 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 	return response
 }
 
+func AdminInvitationVerify(db *gorm.DB, req models.VerifyInvitationLinkRequest, logger *utility.Logger) {
+	
+}
+
 func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 
 	var (

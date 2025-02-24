@@ -14,7 +14,63 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse, int, error) {
+func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
+	var (
+		user   models.User
+		invite models.GeneralInvitation
+		org    models.Organisation
+		orgmgt models.OrgUserManagement
+	)
+
+	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
+	if !exists {
+		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
+	}
+
+	err := db.Where("invite_slug = ? and active_status = ? AND expires_at > ?",
+		req.Token,
+		true,
+		time.Now().UTC(),
+	).First(&invite).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("invitation not found or expired", err)
+			return "", http.StatusNotFound, fmt.Errorf("invalid or expired invitation")
+		}
+
+		logger.Error("database error", err)
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
+	}
+
+	_, err = org.CheckOrgExists(invite.OrganisationID, db)
+	if err != nil {
+		return "", http.StatusNotFound, fmt.Errorf("organisation not found or has been deleted")
+	}
+
+	exists = postgresql.CheckExists(db, &orgmgt,
+		"user_id = ? AND organisation_id = ?",
+		userID, invite.OrganisationID)
+	if exists {
+		return "", http.StatusConflict, fmt.Errorf("user is already a member of this organisation")
+	}
+
+	addToOrg := models.OrgUserManagement{
+		UserID:         userID,
+		OrganisationID: invite.OrganisationID,
+		RoleID:         invite.Role,
+		Status:         "active",
+	}
+
+	err = addToOrg.AddUserToOrganisation(db)
+	if err != nil {
+		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
+	}
+
+	return "User verified successfully", http.StatusOK, nil
+}
+
+func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse, int, error) {
 	var (
 		resp   models.ShareableInviteResponse
 		invite models.GeneralInvitation
@@ -30,29 +86,36 @@ func AdminInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_
 		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
 	}
 
-	err, _ = postgresql.SelectOneFromDb(db, &invite, "organisation_id = ? AND status=? AND expires_at > ?",
+	err, _ = postgresql.SelectOneFromDb(db, &invite,
+		"organisation_id = ? AND active_status = ? AND expires_at > ?",
 		req.OrganisationID,
-		"active",
+		true,
 		time.Now().UTC())
 
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
-				return resp, http.StatusBadRequest, err
-			}
-
-			token := 
-
-			resp.InvitationLink = utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.Token)
-			resp.Created_At = invite.CreatedAt
-			resp.Expires_At = invite.ExpiresAt
-			return resp, http.StatusCreated, nil
-
+	if err == nil {
+		resp = models.ShareableInviteResponse{
+			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.ID[len(invite.ID)-12:]),
+			Expires_At:     invite.ExpiresAt,
+			Created_At:     invite.CreatedAt,
 		}
+		return resp, http.StatusOK, nil
 	}
-	
-}
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		
+		if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
+			return resp, http.StatusBadRequest, fmt.Errorf("failed to create invitation: %w", err)
+		}
+
+		resp = models.ShareableInviteResponse{
+			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.ID[len(invite.ID)-12:]),
+			Expires_At:     invite.ExpiresAt,
+			Created_At:     invite.CreatedAt,
+		}
+		return resp, http.StatusCreated, nil
+	}
+	return resp, http.StatusInternalServerError, fmt.Errorf("database error: %w", err)
+}
 
 func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition, baseURL string) (int, error) {
 	var invites []models.Invitation

@@ -11,19 +11,23 @@ import (
 
 type GeneralInvitation struct {
 	ID             string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Status         string       `gorm:"type:varchar(100);" json:"status"`
+	InviteSlug     string       `gorm:"column:invite_slug; type:text;null" json:"invite_slug"`
+	ActiveStatus   bool         `gorm:"type:bool;" json:"active_status"`
 	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
 	Organisation   Organisation `gorm:"foreignKey:OrganisationID" json:"-"`
 	InvitedBy      string       `gorm:"type:uuid" json:"invited_by"`
-
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	ExpiresAt time.Time `gorm:"column:expires_at; not null" json:"expires_at"`
+	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ExpiresAt      time.Time    `gorm:"column:expires_at; not null" json:"expires_at"`
 }
 
 type ShareableInviteRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required,uuid"`
 	RoleID         string `json:"role_id" validate:"required,uuid"`
+}
+
+type ChangeStatus struct {
+	Status bool `json:"status" validate:"required, oneof=true false`
 }
 
 type ShareableInviteResponse struct {
@@ -35,7 +39,8 @@ type ShareableInviteResponse struct {
 func (i *GeneralInvitation) CreateShareableInvite(db *gorm.DB, req ShareableInviteRequest, created_by string) error {
 
 	i.ID = utility.GenerateUUID()
-	i.Status = "active"
+	i.InviteSlug = i.ID[len(i.ID)-12:]
+	i.ActiveStatus = true
 	i.Role = req.RoleID
 	i.OrganisationID = req.OrganisationID
 	i.InvitedBy = created_by

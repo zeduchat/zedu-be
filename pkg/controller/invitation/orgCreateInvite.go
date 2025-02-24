@@ -12,7 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) AdminInvitationCreate(c *gin.Context) {
+func (base *Controller) GeneralInvitationCreate(c *gin.Context) {
 	var req models.ShareableInviteRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -25,7 +25,7 @@ func (base *Controller) AdminInvitationCreate(c *gin.Context) {
 	err := base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Error("Request Validation failed", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -47,19 +47,18 @@ func (base *Controller) AdminInvitationCreate(c *gin.Context) {
 	//baseurl
 	url := c.Request.Header.Get("Referer")
 
-	response, code, err := invitation.AdminInvitationCreate(base.Db.Postgresql, req, userID.(string), url)
+	response, code, err := invitation.GeneralInvitationCreate(base.Db.Postgresql, req, userID.(string), url)
 	if err != nil {
 		base.Logger.Error("Failed to create invitation link", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to create invitation link", utility.ValidationResponse(err, base.Validator), nil)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to create invitation link", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitation created successfully", response)
 	c.JSON(http.StatusCreated, rd)
-
 }
+
 
 func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	var (
