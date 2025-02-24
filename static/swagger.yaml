@@ -5872,6 +5872,241 @@ paths:
                             type: string
                             example: ""
                             description: The username of the user.
+  
+  /invite/admin-create:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Create an invitation as an admin
+      description: Generates an invitation link for a user to join an organisation with a specified role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organisation_id:
+                  type: string
+                  description: The unique identifier of the organisation.
+                role_id:
+                  type: string
+                  description: The unique identifier of the role to be assigned.
+              required:
+                - organisation_id
+                - role_id
+              example:
+                organisation_id: "019397e4-c4da-7778-b9a8-6a4c68679681"
+                role_id: "0191be6d-28ca-7b3c-b0e1-58dc5487ad88"
+      responses:
+        '201':
+          description: Invitation created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      invitation_link:
+                        type: string
+                      expires_at:
+                        type: string
+                        format: date-time
+                      created_at:
+                        type: string
+                        format: date-time
+                example:
+                  status: "success"
+                  status_code: 201
+                  message: "Invitation created successfully"
+                  data:
+                    invitation_link: "accept_org_invitation?org_id=019397e4-c4da-7778-b9a8-6a4c68679681&invitation_token=aab3393bfbb6"
+                    expires_at: "2025-02-26T12:20:05.240276+01:00"
+                    created_at: "2025-02-24T12:20:05.241043+01:00"
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 400
+                  message: "Invalid request parameters"
+  
+  /invite/admin-verify:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Verify an invitation token
+      description: Verifies the validity of an invitation token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: The invitation token to be verified.
+              required:
+                - token
+              example:
+                token: "aab3393bfbb6"
+      responses:
+        '200':
+          description: Invitation verified successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  error:
+                    type: object
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "invitation verified successfully"
+                  error: {}
+        '400':
+          description: Invalid token or request parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 400
+                  message: "Invalid token"
+        '404':
+          description: Invitation not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "Invitation not found"
+
+  /invite/change-status:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Change invitation status
+      description: Updates the status of an invitation, such as cancelling or reactivating it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: boolean
+                  description: The new status of the invitation (`true` for active, `false` for cancelled).
+                invitation_id:
+                  type: string
+                  description: The unique identifier of the invitation.
+              required:
+                - status
+                - invitation_id
+              example:
+                status: false
+                invitation_id: "01953735-db7c-7e16-bf9a-623c5f66d024"
+      responses:
+        '200':
+          description: Invitation status changed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "invitation cancelled successfully"
+                  data: ""
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 400
+                  message: "Invalid request parameters"
+        '404':
+          description: Invitation not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "Invitation not found"
+
+
    
   /threads/organisations/{orgId}:
     get:
