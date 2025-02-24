@@ -21,8 +21,8 @@ type Invitation struct {
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
 	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
 	Organisation   Organisation `gorm:"foreignKey:OrganisationID" json:"-"`
-	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	ExpiresAt      time.Time    `gorm:"column:expires_at; not null" json:"expires_at"`
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ExpiresAt time.Time `gorm:"column:expires_at; not null" json:"expires_at"`
 }
 
 type InvitationCreateReq struct {
@@ -56,6 +56,12 @@ type ResendInvitationRequest struct {
 type VerifyInvitationLinkRequest struct {
 	Token string `json:"token" validate:"required"`
 }
+
+type VerifyShareableInvitationLink struct {
+	Token string `json:"token" validate:"required"`
+}
+
+
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
 

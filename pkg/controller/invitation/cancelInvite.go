@@ -11,6 +11,8 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+
+
 func (base *Controller) CancelInvitation(c *gin.Context) {
 	inviteID := c.Param("invite_id")
 
