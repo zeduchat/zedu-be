@@ -660,9 +660,9 @@ func (base *Controller) UpdateCustomIntegrationSettingsExternal(c *gin.Context) 
 		return
 	}
 
-	_, ok = req.SettingEntry["settings"].(map[string]interface{})
+	_, ok = req.SettingEntry["settings"].([]interface{})
 	if !ok {
-		base.Logger.Error("auth_credentials is missing in request body")
+		base.Logger.Error("settings is missing in request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "settings field not returned, consult telex docs", "invalid request body supplied", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
