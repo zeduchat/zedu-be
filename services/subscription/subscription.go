@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/customer"
 	"github.com/stripe/stripe-go/v72/product"
 	"github.com/stripe/stripe-go/v72/sub"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/models"
 )
 
 func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
@@ -202,7 +203,7 @@ func GetCurrentSubscription(customerID string, db *gorm.DB) (models.OrgPlanDetai
 		return currentPlan, http.StatusNotFound, errors.New("org not found")
 	}
 
-	currentPlan, err = orgPlan.GetOrgPlanDetailsByOrgID(db, customerID)
+	currentPlan, err = orgPlan.GetOrgPlanDetailByOrgID(db, customerID)
 	if err != nil {
 		return currentPlan, http.StatusNotFound, errors.New("failed to retrieve")
 	}
@@ -210,4 +211,26 @@ func GetCurrentSubscription(customerID string, db *gorm.DB) (models.OrgPlanDetai
 	currentPlan.EndDate = currentPlan.StartDate.AddDate(0, 0, 30)
 
 	return currentPlan, http.StatusOK, nil
+}
+
+func GetSubscriptions(customerID string, db *gorm.DB) ([]models.OrgPlanDetails, int, error) {
+	var org models.Organisation
+	var orgPlan models.OrganisationPlan
+	var currentPlans []models.OrgPlanDetails
+
+	org, err := org.GetOrgByID(db, customerID)
+	if err != nil {
+		return currentPlans, http.StatusNotFound, errors.New("org not found")
+	}
+
+	currentPlans, err = orgPlan.GetOrgPlanDetailsByOrgID(db, customerID)
+	if err != nil {
+		return currentPlans, http.StatusNotFound, errors.New("failed to retrieve")
+	}
+
+	for i := 0; i < len(currentPlans); i++ {
+		currentPlans[i].EndDate = currentPlans[i].StartDate.AddDate(0, 0, 30)
+	}
+
+	return currentPlans, http.StatusOK, nil
 }

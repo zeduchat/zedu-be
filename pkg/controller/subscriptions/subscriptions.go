@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -180,6 +181,25 @@ func (base *Controller) GetCurrentSubscription(c *gin.Context) {
 	}
 
 	base.Logger.Info("subscription retreived")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription retrieved successfully", subscriptionsData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Current subscription retrieved successfully", subscriptionsData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetSubscriptions(c *gin.Context) {
+
+	var (
+		orgID = c.Param("org_id")
+	)
+
+	subscriptionsData, code, err := service.GetSubscriptions(orgID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		base.Logger.Error(err.Error())
+		return
+	}
+
+	base.Logger.Info("subscription retreived")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscriptions retrieved successfully", subscriptionsData)
 	c.JSON(http.StatusOK, rd)
 }

@@ -20,7 +20,8 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	webhookUrl := r.Group(fmt.Sprintf("%v/subscriptions", ApiVersion))
 	{
 		subscriptionUrl.POST("/create", subscription.CreateSubscription)
-		subscriptionUrl.GET("/list/:org_id", subscription.GetCurrentSubscription)
+		subscriptionUrl.GET("/current/:org_id", subscription.GetCurrentSubscription)
+		subscriptionUrl.GET("/list/:org_id", subscription.GetSubscriptions)
 		subscriptionUrl.PUT("/modify", subscription.ModifySubscription)
 		subscriptionUrl.DELETE("/:org_id", subscription.DeleteSubscription)
 		subscriptionUrl.POST("/complete", subscription.CompleteSubscription)
