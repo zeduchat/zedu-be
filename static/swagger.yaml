@@ -2177,54 +2177,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-    delete:
-      tags:
-        - messages
-      summary: Delete a reply message
-      security:
-        - bearerAuth: []
-      description: Delete a reply message within a thread.
-      parameters:
-        - name: channel_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: ID of the channel to delete the message in.
-
-      responses:
-        '201':
-          description: Message deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageCreateResponseSchema'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BadRequestErrorSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-        '422':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
     get:
       tags:
         - messages
@@ -2293,12 +2245,9 @@ paths:
           description: ID of the reply message to delete the message in.
 
       responses:
-        '201':
+        '200':
           description: Message deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageCreateResponseSchema'
+
         '400':
           description: Bad request
           content:
@@ -6441,10 +6390,7 @@ paths:
       responses:
         '200':
           description: Thread updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
+
         '400':
           description: Bad request
           content:
@@ -6494,10 +6440,6 @@ paths:
       responses:
         '200':
           description: Thread deleted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
         '400':
           description: Bad request
           content:
