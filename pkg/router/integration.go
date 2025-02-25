@@ -21,6 +21,7 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 
 	{
 		integrationUrl.GET(":integration_id/settings", integration.GetIntegrationSettingsAllOrgs)
+		integrationUrl.POST("/trigger-tick", integration.TriggerTick)
 	}
 
 
@@ -41,5 +42,4 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 	}
 
 	return r
-
 }

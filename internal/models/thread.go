@@ -166,6 +166,11 @@ type Mentions struct {
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
+type TriggerTickRequest struct {
+	ChannelID      string `gorm:"type:uuid" json:"channel_id" validate:"required"`
+	OrganisationID string `gorm:"type:uuid" json:"organisation_id" validate:"required"`
+}
+
 type UpdateThreadStatus struct {
 	Status string `json:"status" validate:"required,oneof=pending completed"`
 }
