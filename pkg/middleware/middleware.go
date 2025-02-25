@@ -14,14 +14,15 @@ func CORS() gin.HandlerFunc {
 	origin := "http://localhost*"
 
 	allowList := map[string]bool{
-		"https://staging.telex.im": true,
-		"https://telex.im":         true,
-		"http://localhost:3000":    true,
+		"https://staging.telex.im":      true,
+		"https://telex.im":              true,
+		"https://www.telex.im":          true,
+		"http://localhost:3000":         true,
 		"https://telex-auth.vercel.app": true,
 	}
 
 	return func(c *gin.Context) {
-		
+
 		if allowList[c.Request.Header.Get("Origin")] {
 			origin = c.Request.Header.Get("Origin")
 		}

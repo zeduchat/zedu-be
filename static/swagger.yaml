@@ -2218,6 +2218,61 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
+  
+  /channels/{channel_id}/messages/message_id:
+
+    delete:
+      tags:
+        - messages
+      summary: Delete a reply message
+      security:
+        - bearerAuth: []
+      description: Delete a reply message within a thread.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to delete the message in.
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the reply message to delete the message in.
+
+      responses:
+        '200':
+          description: Message deleted successfully
+
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
   /channels/name/{channelName}:
     get:
       tags:
@@ -6570,10 +6625,56 @@ paths:
       responses:
         '200':
           description: Thread updated successfully
+
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+    delete:
+      tags:
+        - threads
+      summary: Delete a specific thread for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: ID of the thread
+          schema:
+            type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
+      responses:
+        '200':
+          description: Thread deleted successfully
         '400':
           description: Bad request
           content:
