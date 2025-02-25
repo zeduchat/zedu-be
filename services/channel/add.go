@@ -122,6 +122,19 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Messag
 	return newMsg, http.StatusOK, nil
 }
 
+func DeleteChannelsMsg(req models.EditMessageRequest) (*models.Message, int, error) {
+
+	var message models.Message
+
+	message.ID = req.MessageId
+
+	if _, err := message.DeleteMessage(); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
+
+	return nil, http.StatusOK, nil
+}
+
 // Reply message fn
 func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
@@ -203,6 +216,46 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 }
 
 func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
+	logger *utility.Logger) {
+
+	var err error
+
+	reqNew := models.CreateMessageRequest{
+		Content:    req.Content,
+		ChannelsId: req.ChannelsId,
+		ThreadId:   req.ThreadId,
+		UserId:     req.UserId,
+		OrgId:      req.OrgId,
+	}
+
+	if req.Type == "message" {
+
+		logger.Info("saving and broadcasting recieved channel message")
+		_, _, err = SaveChannelsMsg(reqNew, db, logger)
+
+	} else if req.Type == "message/thread" {
+
+		reqNew := models.CreateThreadMsgReq{
+			Content:    req.Content,
+			ChannelsID: req.ChannelsId,
+			ThreadId:   req.ThreadId,
+			UserId:     req.UserId,
+			OrgId:      req.OrgId,
+		}
+
+		logger.Info("saving and broadcasting recieved thread message")
+		_, err = thread.SaveThreadMessage(reqNew, db, logger)
+	}
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error saving and broadcasting recieved message: %v", err.Error()))
+		return
+	}
+
+	logger.Info("saving and broadcasting recieved message successfull !!!")
+}
+
+func UpdateIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 	logger *utility.Logger) {
 
 	var err error
