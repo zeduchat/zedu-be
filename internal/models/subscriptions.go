@@ -66,6 +66,7 @@ type OrganisationPlan struct {
 	StartedAt      time.Time      `gorm:"column:started_at;null; autoCreateTime" json:"started_at"`
 	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at"`
 	Status         string         `gorm:"null" json:"status"`
+	SessionID      string         `gorm:"null" json:"session_id"`
 	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
@@ -143,11 +144,13 @@ func (r *Plan) GetAPlanByAmount(db *gorm.DB, planAmt int) (Plan, error) {
 }
 
 type OrgPlanDetails struct {
+	ID                    string    `json:"id,omitempty"`
 	Name                  string    `json:"name"`
 	Fee                   float64   `json:"fee"`
 	StartDate             time.Time `json:"start_date"`
 	EndDate               time.Time `json:"end_date"`
 	Status                string    `json:"status"`
+	SessionID             string    `json:"session_id"`
 	OrganisationCreatedAt time.Time `json:"organisation_created_at"`
 }
 
@@ -174,12 +177,25 @@ func (r *OrganisationPlan) GetOrgPlanDetailByOrgID(db *gorm.DB, orgID string) (O
 	}
 
 	if details.StartDate.IsZero() && details.EndDate.IsZero() {
+
+		StartDate := details.OrganisationCreatedAt
+
+		err := db.Raw(query, "Inactive", orgID).Scan(&details).Error
+		if err != nil {
+			return details, err
+		}
+
+		if !(details.StartDate.IsZero() && details.EndDate.IsZero()) {
+			StartDate = details.EndDate
+
+		}
+
 		details = OrgPlanDetails{
 			Name:                  "Free",
 			Fee:                   0.0,
 			Status:                "Active",
-			StartDate:             details.OrganisationCreatedAt,
-			EndDate:               details.OrganisationCreatedAt.AddDate(0, 0, 30),
+			StartDate:             StartDate,
+			EndDate:               StartDate.AddDate(0, 0, 30),
 			OrganisationCreatedAt: details.OrganisationCreatedAt,
 		}
 	}
@@ -196,7 +212,9 @@ func (r *OrganisationPlan) GetOrgPlanDetailsByOrgID(db *gorm.DB, orgID string) (
                op.started_at AS start_date, 
                op.ended_at AS end_date,
                o.created_at AS organisation_created_at,
-			   op.status AS  status
+			   op.status AS  status,
+			   op.session_id AS session_id,
+			   op.id AS id
         FROM organisations o
         LEFT JOIN organisation_plans op ON o.id = op.organisation_id
         LEFT JOIN plans p ON op.plan_id::uuid = p.id

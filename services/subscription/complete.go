@@ -7,13 +7,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
-	"github.com/hngprojects/telex_be/internal/models"
-	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
-	"github.com/hngprojects/telex_be/utility"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
 	"github.com/stripe/stripe-go/v72/invoice"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/models"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
@@ -59,6 +60,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 			PlanID:         plan.ID,
 			StartedAt:      time.Now(),
 			Status:         "Active",
+			SessionID:      req.StripeSessionID,
 		}
 		org.OrgPlanID = orgPlan.ID
 		org.OrganisationPlan = orgPlan
@@ -82,6 +84,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 			PlanID:         plan.ID,
 			StartedAt:      time.Now(),
 			Status:         "Active",
+			SessionID:      req.StripeSessionID,
 		}
 
 		org.OrgPlanID = newOrgPlan.ID
