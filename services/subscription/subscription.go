@@ -228,9 +228,5 @@ func GetSubscriptions(customerID string, db *gorm.DB) ([]models.OrgPlanDetails, 
 		return currentPlans, http.StatusNotFound, errors.New("failed to retrieve")
 	}
 
-	for i := 0; i < len(currentPlans); i++ {
-		currentPlans[i].EndDate = currentPlans[i].StartDate.AddDate(0, 0, 30)
-	}
-
 	return currentPlans, http.StatusOK, nil
 }
