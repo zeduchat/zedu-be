@@ -4132,7 +4132,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /invoice/download/sessionId/orgId:
+  /subscriptions/invoice/download/sessionId/orgId:
     get:
       summary: Complete a subscription and retrieve invoice items
       description: This endpoint completes a subscription based on the provided session ID and returns the associated invoice items.
