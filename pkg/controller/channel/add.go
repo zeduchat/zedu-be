@@ -113,6 +113,49 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
+
+func (base *Controller) DeleteChannelsMsg(c *gin.Context) {
+	var (
+		req models.EditMessageRequest
+	)
+
+	req.ChannelsId = c.Param("channelId")
+	req.MessageId = c.Param("messageId")
+
+	if _, err := uuid.Parse(req.ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	if _, err := uuid.Parse(req.MessageId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", errors.New("failed to parse message id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+
+	response, code, err := channel.DeleteChannelsMsg(req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("message deleted successfully")
+	rd := utility.BuildSuccessResponse(code, "message deleted successfully", response)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) SaveIncomingQueueMsg(c *gin.Context) {
 	var (
 		req models.FeedQueue

@@ -31,8 +31,10 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
 
 		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
+
+		channelUrl.DELETE("/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
 		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
-		
+
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.GET("/:channelId", channel.GetChannels)

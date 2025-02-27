@@ -2218,6 +2218,61 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
+  
+  /channels/{channel_id}/messages/message_id:
+
+    delete:
+      tags:
+        - messages
+      summary: Delete a reply message
+      security:
+        - bearerAuth: []
+      description: Delete a reply message within a thread.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to delete the message in.
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the reply message to delete the message in.
+
+      responses:
+        '200':
+          description: Message deleted successfully
+
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorSchema'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+
   /channels/name/{channelName}:
     get:
       tags:
@@ -3978,7 +4033,7 @@ paths:
    
   /subscriptions/list/{orgId}:
     get:
-      summary: List subscriptions for a user
+      summary: List subscriptions for an organization
       tags:
         - subscription
       security:
@@ -3993,10 +4048,6 @@ paths:
       responses:
         '200':
           description: Subscriptions retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
         '401':
           description: Unauthorized
         '404':
@@ -4011,6 +4062,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /subscriptions/current/{orgId}:
+    get:
+      summary: Current subscription for an organization
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orgId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Subscriptions retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
 
   /subscriptions/modify:
     put:
@@ -4047,7 +4132,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /invoice/download/sessionId/orgId:
+  /subscriptions/invoice/download/sessionId/orgId:
     get:
       summary: Complete a subscription and retrieve invoice items
       description: This endpoint completes a subscription based on the provided session ID and returns the associated invoice items.
@@ -6570,10 +6655,56 @@ paths:
       responses:
         '200':
           description: Thread updated successfully
+
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseSchema'
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
+    delete:
+      tags:
+        - threads
+      summary: Delete a specific thread for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: ID of the thread
+          schema:
+            type: string
+            format: uuid
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+
+      responses:
+        '200':
+          description: Thread deleted successfully
         '400':
           description: Bad request
           content:

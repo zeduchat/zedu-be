@@ -216,6 +216,17 @@ func (m *Message) GetMessageByID(db *gorm.DB, messageID string) (Message, error)
 	return message, nil
 }
 
+func (c *Message) DeleteMessage() (*Message, error) {
+
+	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, c.ID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete message, err: %v", err)
+	}
+
+	return c, nil
+}
+
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument
