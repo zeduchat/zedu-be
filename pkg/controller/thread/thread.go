@@ -182,6 +182,88 @@ func (base *Controller) UpdateAThread(c *gin.Context) {
 
 }
 
+
+func (base *Controller) DeleteAThread(c *gin.Context) {
+
+	var (
+		threadID  = c.Param("thread_id")
+		channelID = c.Param("channel_id")
+	)
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(threadID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+
+	code, err := service.DeleteAThread(threadID, channelID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+
+}
+
+func (base *Controller) UpdateThreadMessage(c *gin.Context) {
+
+	var (
+		threadID  = c.Param("thread_id")
+		channelID = c.Param("channel_id")
+		req       = models.UpdateThreadStatus{}
+	)
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(threadID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := service.UpdateAThread(req, threadID, channelID, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+
+}
+
 func (base *Controller) AddAThread(c *gin.Context) {
 
 	var (

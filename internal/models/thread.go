@@ -166,8 +166,17 @@ type Mentions struct {
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
+type TriggerTickRequest struct {
+	ChannelID      string `gorm:"type:uuid" json:"channel_id" validate:"required"`
+	OrganisationID string `gorm:"type:uuid" json:"organisation_id" validate:"required"`
+}
+
 type UpdateThreadStatus struct {
 	Status string `json:"status" validate:"required,oneof=pending completed"`
+}
+
+type UpdateThreadMessage struct {
+	Message string `json:"message" validate:"required"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -451,6 +460,31 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to update thread, err: %v", err)
+	}
+
+	return c, nil
+}
+
+func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match": map[string]interface{}{
+				"thread_id": c.ID,
+			},
+		},
+	}
+
+
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+	}
+
+	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete thread, err: %v", err)
 	}
 
 	return c, nil

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/integrations"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -69,9 +70,8 @@ func (base *Controller) GetSystemIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	integration, err, code := integrations.GetSystemIntegrationApp(c, base.Db.Postgresql,int_id, base.ExtReq)
+	integration, err, code := integrations.GetSystemIntegrationApp(c, base.Db.Postgresql, int_id, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch integrations", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations", err.Error(), nil)
 		c.JSON(code, rd)
@@ -80,5 +80,38 @@ func (base *Controller) GetSystemIntegrationApp(c *gin.Context) {
 
 	base.Logger.Info("integrations retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integration)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) TriggerTick(c *gin.Context) {
+	var req models.TriggerTickRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	response, code, err := integrations.TriggerTick(base.Db, base.Logger, req)
+	if err != nil {
+		base.Logger.Error("Failed to trigger tick", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to trigger tick", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("tick called successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "tick called successfully", response)
 	c.JSON(http.StatusOK, rd)
 }

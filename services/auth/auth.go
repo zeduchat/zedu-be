@@ -117,17 +117,17 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	user.IsActive = true
 	if err := db.Save(&user).Error; err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: %w", err)
 	}
 
 	userData, err := user.GetUserByID(db, user.ID)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
 	}
 
 	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
 	tokens := map[string]string{
@@ -139,7 +139,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
 	responseData = gin.H{
@@ -183,17 +183,17 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 
 	user.IsActive = true
 	if err := db.Save(&user).Error; err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: %w", err)
 	}
 
 	userData, err := user.GetUserByID(db, user.ID)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
 	}
 
 	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
 	tokens := map[string]string{
@@ -205,7 +205,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
 	responseData = gin.H{
@@ -297,7 +297,7 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context)
 
 	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
 	tokens := map[string]string{
@@ -310,7 +310,7 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context)
 	err = access_token.CreateAccessToken(db, tokens)
 
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
 	responseData = gin.H{
@@ -341,7 +341,7 @@ func GetOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 
 	user, err := user.GetUserByID(db, owner_id)
 	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+		return nil, http.StatusInternalServerError, fmt.Errorf("error fetching user: %w", err)
 	}
 
 	status := user.IsOnboarded
@@ -362,14 +362,14 @@ func UpdateOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 
 	user, err := user.GetUserByID(db, owner_id)
 	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("error fetching user: " + err.Error())
+		return nil, http.StatusInternalServerError, fmt.Errorf("error fetching user: %w", err)
 	}
 
 	user.IsOnboarded = true
 	err = user.Update(db)
 
 	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("error updating user status: " + err.Error())
+		return nil, http.StatusInternalServerError, fmt.Errorf("error updating user status: %w", err)
 	}
 
 	responseData = gin.H{}

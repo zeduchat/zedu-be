@@ -1,5 +1,65 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OTP Code</title>
+  </head>
+  <body style="background-color: #f5f5f5; font-family: Arial, sans-serif; margin: 0; padding: 0">
+    <table
+      width="100%"
+      bgcolor="#f5f5f5"
+      cellpadding="0"
+      cellspacing="0"
+      style="max-width: 600px; margin: auto; background: #ffffff;"
+    >
+      <tr>
+        <td align="center" style="padding:50px 10px 30px 10px">
+          <img src="https://media.tifi.tv/telexbucket/public/logos/otp.png" alt="Illustration" width="250" style="display: block;" />
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding: 0px 30px;">
+          <h2 style="color: #000000; margin-bottom: 55px;font-size:20px;text-align:center">One Time OTP Code</h2>
+          <h4 style="color: #666666; font-size: 15px;">Hi {{.firstname}},</h4>
+          <p style="color: #666666; font-size: 14px; line-height: 1.5;">
+            You recently requested for a one time OTP code. If you did not make this request, kindly ignore this email.
+          </p>
+          <p style="color: #666666; font-size: 14px;line-height: 1.5;">Kindly copy and paste this code in the column for OTP on your
+          browser to proceed with your verification.
+
+          For further questions, kindly visit our FAQ page
+          <a href="{{ .faq_url }}"> faq </a></p>
+
+           <h2 style="color: #000000; margin-bottom: 25px; margin-top:30px; font-size:24px;text-align:center">{{ .otp_token }}</h2>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding: 40px 30px; font-size: 12px;">
+          Regards,<br /><br/>
+          The Telex Team.
+        </td>
+      </tr>
+
+      <tr>
+        <td align="center" style="font-size: 12px; color: #999999; padding: 50px 30px; background-color: #F9FAFB">
+          Thank you for choosing Telex.com. Need help? <a href="#" style="color: #7c50f8;">Contact our customer support</a>.
+          <br /><br />
+          You are receiving this email because you signed up at Telex.com. Want to change how you receive these emails?
+          <br /><br />
+          You can <a href="#" style="color: #7c50f8;">update your preferences</a> or <a href="#" style="color: #7c50f8;">unsubscribe</a> from this list.
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+
+
+
+<!-- <!DOCTYPE html>
+<html>
   <body
     style='background-color: #7c50f8; padding: 20px;  font-size: 14px; line-height: 1.43; font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;'
   >
@@ -27,21 +87,6 @@
     >
       <table style="width: 100%">
         <tr>
-          <!-- <td style="background-color: #fff">
-            {{if not (eq .business_logo_uri "")}}
-            <img
-              alt=""
-              src="{{ .business_logo_uri }}"
-              width="200px"
-              height="50px"
-            />
-            {{else}}
-            <img
-              alt=""
-              src=""
-            />
-            {{end}}
-          </td> -->
           <td
             style="padding-left: 50px; text-align: right; padding-right: 20px"
           >
@@ -104,4 +149,7 @@
       </div>
     </div>
   </body>
-</html>
+</html> -->
+
+
+
