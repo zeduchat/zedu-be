@@ -232,6 +232,7 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 		AppUrl:         description["app_url"].(string),
 		AppLogo:        description["app_logo"].(string),
 		AppDescription: description["app_description"].(string),
+		Info:           description["info"].(string),
 		IsActive:       resp.IsActive,
 		CreatedAt:      resp.CreatedAt,
 		UpdatedAt:      resp.UpdatedAt,
