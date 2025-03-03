@@ -77,7 +77,6 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 		category, ok := data_r["integration_category"].(string)
 
 		if !ok || category == "" {
-
 			category = "Undefined"
 		}
 
@@ -156,7 +155,10 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 
 		category, ok := data_r["integration_category"].(string)
 
-		info := data_r["info"].(string)
+		info, ok := data_r["info"].(string)
+		if !ok || info == "" {
+			info = "Undefined"
+		}
 
 		if !ok || category == "" {
 
@@ -227,7 +229,10 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 
 	description := data_r["descriptions"].(map[string]interface{})
 
-	info := data_r["info"].(string)
+	info, ok := data_r["info"].(string)
+	if !ok  {
+		info = "Undefined"
+	}
 
 	integration := models.Integrations{
 		ID:             resp.ID,
