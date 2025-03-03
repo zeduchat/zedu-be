@@ -16,7 +16,7 @@ func (base *Controller) DownloadInvoice(ctx *gin.Context) {
 		orgID     = ctx.Param("org_id")
 	)
 
-	err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, base.Db.Redis, orgID)
+	resp, err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, base.Db.Redis, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		base.Logger.Error("An error occured while fetching invoice: %v", err)
@@ -24,4 +24,7 @@ func (base *Controller) DownloadInvoice(ctx *gin.Context) {
 		return
 	}
 
+	base.Logger.Info("invoiced retrived")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Invoiced retrived successfully", resp)
+	ctx.JSON(http.StatusOK, rd)
 }

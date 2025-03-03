@@ -4159,10 +4159,22 @@ paths:
               schema:
                 type: object
                 properties:
-                  invoice_items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/InvoiceResponse'
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Invoice retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      invoice_url:
+                        type: string
+                        example: "https://pay.stripe.com/invoice/acct_1Pt6R7P14KvS6i2O/test_YWNjdF8xUHQ2UjdQMTRLdlM2aTJPLF9ScVpQWWxVMmNRbXNUVEN6aFNlYXBTUWRIZFFvMUpmLDEzMTUzMTc3OQ0200dueRb7ZR/pdf?s=ap"
+                 
         '400':
           description: Bad request
           content:
