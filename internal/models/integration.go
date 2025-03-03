@@ -26,7 +26,7 @@ type Integrations struct {
 	AppLogo         string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
 	AppDescription  string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
-	Info            string    `gorm:"colummn:info; type:varchar(255);"`
+	Info            string    `gorm:"colummn:info; type:varchar(255);" json:"info"`
 	IsActive        bool      `gorm:"type:boolean;default:false" json:"is_active"`
 	Category        string    `json:"category"`
 	Status          string    `json:"status"`
