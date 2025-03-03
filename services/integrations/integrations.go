@@ -156,6 +156,8 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 
 		category, ok := data_r["integration_category"].(string)
 
+		info := data_r["info"].(string)
+
 		if !ok || category == "" {
 
 			category = "Undefined"
@@ -168,6 +170,7 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
+			Info:           info,
 			Category:       category,
 			Status:         "success",
 			IsActive:       org_integrations.IsActive,
@@ -224,6 +227,8 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 
 	description := data_r["descriptions"].(map[string]interface{})
 
+	info := data_r["info"].(string)
+
 	integration := models.Integrations{
 		ID:             resp.ID,
 		Name:           description["app_name"].(string),
@@ -232,7 +237,7 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 		AppUrl:         description["app_url"].(string),
 		AppLogo:        description["app_logo"].(string),
 		AppDescription: description["app_description"].(string),
-		Info:           description["info"].(string),
+		Info:           info,
 		IsActive:       resp.IsActive,
 		CreatedAt:      resp.CreatedAt,
 		UpdatedAt:      resp.UpdatedAt,
