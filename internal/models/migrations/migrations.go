@@ -52,6 +52,7 @@ func AuthMigrationModels() []interface{} {
 		models.IntegrationChannel{},
 		models.IntegrationOutput{},
 		models.CustomIntegrationsSetting{},
+		models.DmChannels{},
 	} // an array of db models, example: User{}
 }
 

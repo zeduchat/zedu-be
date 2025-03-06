@@ -8,6 +8,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
+	dm "github.com/hngprojects/telex_be/pkg/controller/directMessage"
 	"github.com/hngprojects/telex_be/pkg/controller/integrations"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -20,7 +21,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	organisationCtrl := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channelCtrl := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	integrationsCtrl := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-
+	dmCtrl := dm.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		// Organisation routes
@@ -94,6 +95,11 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/slash-commands", integrationsCtrl.GetAllOrgSlashCommands)
 		organisationUrl.PATCH("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.UpdateIntegrationSlashCommand)
 		organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.DeleteIntegrationSlashCommand)
+
+		// DM endpoints
+		organisationUrl.POST("/:org_id/dm", dmCtrl.CreateDmChannel)
+		organisationUrl.DELETE("/:org_id/dm/:channel_id", dmCtrl.DeleteDmChannel)
+		organisationUrl.GET("/:org_id/dm", dmCtrl.GetDmChannels)
 
 	}
 
