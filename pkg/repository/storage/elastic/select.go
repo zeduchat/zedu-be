@@ -173,3 +173,51 @@ func SelectByID(Client *elasticsearch.Client, indexName string, docID string, re
 
 	return nil
 }
+
+func CheckExists(Client *elasticsearch.Client, indexName string, query map[string]interface{}) (bool, error) {
+	body, err := json.Marshal(query)
+	if err != nil {
+		return false, fmt.Errorf("failed to marshal query: %v", err)
+	}
+
+	ctx := context.Background()
+	res, err := Client.Search(
+		Client.Search.WithContext(ctx),
+		Client.Search.WithIndex(indexName),
+		Client.Search.WithBody(bytes.NewReader(body)),
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to execute search query: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return false, fmt.Errorf("error in search response: %s", res.String())
+	}
+
+	var raw map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
+		return false, fmt.Errorf("failed to decode raw response: %v", err)
+	}
+
+	// Check if any hits exist.
+	hitsObj, ok := raw["hits"].(map[string]interface{})
+	if !ok {
+		return false, fmt.Errorf("unexpected response format: missing hits")
+	}
+
+	// Elasticsearch 7.x returns total as a map.
+	if totalObj, ok := hitsObj["total"].(map[string]interface{}); ok {
+		if value, ok := totalObj["value"].(float64); ok {
+			return value > 0, nil
+		}
+		return false, fmt.Errorf("unexpected response format: total.value is missing")
+	}
+
+	// In case total is returned as a number (older versions)
+	if total, ok := hitsObj["total"].(float64); ok {
+		return total > 0, nil
+	}
+
+	return false, fmt.Errorf("unexpected response format for total")
+}

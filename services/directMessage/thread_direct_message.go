@@ -18,7 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
+func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 
 	var (
 		profile models.Profile
@@ -29,19 +29,19 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
 	if err != nil {
-		return nil, errors.New("failed to get user profile")
+		return nil, http.StatusInternalServerError, errors.New("failed to get user profile")
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
 	if err != nil {
-		return nil, errors.New("failed to get user")
+		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
 	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
 
 	if !ch || err != nil {
-		return nil, errors.New("channel does not exist")
+		return nil, http.StatusBadRequest, errors.New("channel does not exist")
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -63,7 +63,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusBadRequest, err
 	}
 
 	feed := models.FeedMessageRequest{
@@ -82,22 +82,63 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
+		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
 	err = centrifuge.BroadcastChannel(logger, channel.PaticipantId, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
-		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
+		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	return &threadDoc, nil
+	return &threadDoc, http.StatusCreated, nil
 }
 
 // main channel thread
-func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
+func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 
 	// Provision for bot dms later
+
+	// Create pair room if first message and not a bot
+
+	thread := models.ThreadDocument{
+		UserId:     req.UserId,
+		ChannelsID: req.ChannelsID,
+	}
+
+	pairRoom, code, err := thread.CheckExists()
+
+	if err != nil {
+		return &thread, code, err
+	}
+
+	if !pairRoom {
+
+		dmchannel := models.DmChannels{}
+
+		res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+
+		if !res || err != nil {
+			return &thread, http.StatusBadRequest, err
+		}
+
+		if dmchannel.ChatType != "bot" {
+
+			pairRoomChan := models.DmChannels{}
+
+			pairRoomChan.ChatType = dmchannel.ChatType
+			pairRoomChan.UserId = dmchannel.PaticipantId
+			pairRoomChan.PaticipantId = dmchannel.UserId
+			pairRoomChan.ID = dmchannel.ID
+			pairRoomChan.OrgId = dmchannel.OrgId
+
+			_, err = pairRoomChan.CreateDmChannel(db.Postgresql)
+
+			if err != nil {
+				return &thread, http.StatusInternalServerError, err
+			}
+		}
+	}
 
 	return SaveThreadDmMessage(req, db, logger)
 

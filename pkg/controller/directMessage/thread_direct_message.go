@@ -61,19 +61,19 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	ThreadData, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger)
+	ThreadData, code, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
 	base.Logger.Info("thread message added successfully")
 
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
-	c.JSON(http.StatusCreated, rd)
+	rd := utility.BuildSuccessResponse(code, "Thread message added successfully", ThreadData)
+	c.JSON(code, rd)
 
 }
 
