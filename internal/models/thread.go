@@ -59,6 +59,7 @@ type ThreadDocument struct {
 	FullName      string            `json:"full_name"`
 	Email         string            `json:"email"`
 	UserId        string            `json:"user_id"`
+	Edited        bool              `json:"edited"`
 	Messages      []MessageDocument `json:"messages,omitempty"`
 	Count         int               `json:"frequency,omitempty"`
 }
@@ -70,6 +71,7 @@ var Thread_mapping = map[string]interface{}{
 			"id":          map[string]string{"type": "keyword"},
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
+			"edited":      map[string]string{"type": "boolean"},
 			"event_name":  map[string]string{"type": "text"},
 			"username":    map[string]string{"type": "keyword"},
 			"action_type": map[string]string{"type": "text"},
@@ -177,7 +179,7 @@ type UpdateThreadStatus struct {
 }
 
 type UpdateThreadMessage struct {
-	Message string `json:"message" validate:"required"`
+	Message string `json:"content" validate:"required"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -460,7 +462,7 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 	err := elastic.UpdateDocument(storage.DB.Elastic, ThreadIndexName, c.ID, req)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to update thread, err: %v", err)
+		return nil, fmt.Errorf("thread not found")
 	}
 
 	return c, nil
@@ -484,7 +486,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete thread, err: %v", err)
+		return nil, fmt.Errorf("Invalid thread uuid supplied")
 	}
 
 	return c, nil
@@ -499,7 +501,7 @@ func (m *Mentions) CreateMention(db *gorm.DB) error {
 	return nil
 }
 
-func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) {
+func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
 
 	var (
 		threadData interface{}
@@ -508,17 +510,17 @@ func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) 
 	err := elastic.SelectByID(storage.DB.Elastic, ThreadIndexName, threadID, &threadData)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch thread records, error: %v", err)
+		return fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &t); err != nil {
-		return nil, fmt.Errorf("failed to decode search response: %v", err)
+		return fmt.Errorf("failed to decode search response: %v", err)
 
 	}
 
-	return t, nil
+	return nil
 }
 
 func (t *ThreadDocument) CheckExists() (bool, int, error) {

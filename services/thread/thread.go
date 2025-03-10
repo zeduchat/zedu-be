@@ -232,43 +232,51 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context) (int
 	thread.ID = threadID
 
 	if _, err := thread.DeleteThread(db); err != nil {
-		return http.StatusInternalServerError, err
+		return http.StatusBadRequest, err
 	}
 
 	return http.StatusOK, nil
 }
 
-func UpdateThreadMessage(req models.UpdateThreadMessage, threadID string, db *gorm.DB, c *gin.Context) (int, error) {
+func UpdateThreadMessage(req models.UpdateThreadMessage, threadID string, db *gorm.DB, c *gin.Context) (models.ThreadDocument, int, error) {
 	var (
-		thread models.Threads
+		thread     models.Threads
+		threadResp models.ThreadDocument
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
-		return http.StatusNotFound, err
+		return threadResp, http.StatusNotFound, err
 	}
 
 	userID, ok := userId.(string)
 	if !ok {
-		return http.StatusBadRequest, errors.New("user_id is not of type string")
+		return threadResp, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
 	_, code, err := user.GetUser(userID, db)
 	if err != nil {
-		return code, err
+		return threadResp, code, err
 	}
 
 	thread.ID = threadID
 
 	updateKey := map[string]interface{}{
 		"message": req.Message,
+		"edited":  true,
 	}
 
 	if _, err := thread.UpdateThread(db, updateKey); err != nil {
-		return http.StatusInternalServerError, err
+		return threadResp, http.StatusNotFound, err
 	}
 
-	return http.StatusOK, nil
+	err = threadResp.GetThreadById(db, thread.ID)
+
+	if err != nil {
+		return threadResp, http.StatusInternalServerError, err
+	}
+
+	return threadResp, http.StatusOK, nil
 }
 
 func ChannelCountInfo(c *gin.Context, db *storage.Database, org_id string, days int) (models.ChannelCountInfo, []models.ChannelMetrics, error) {

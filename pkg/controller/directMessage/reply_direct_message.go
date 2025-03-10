@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/services/channel"
 	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -101,7 +102,7 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := dm.EditChannelsDmMsg(req, base.Db.Postgresql)
+	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

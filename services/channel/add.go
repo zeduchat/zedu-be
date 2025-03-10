@@ -7,15 +7,18 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
+	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -99,27 +102,50 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	return &messageDoc, http.StatusCreated, nil
 }
 
-func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Message, int, error) {
+func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context) (*models.MessageDocument, int, error) {
 
-	var message models.Message
+	var (
+		message models.Message
+		newMsg  models.MessageDocument
+	)
 
-	theMessage, err := message.GetMessageByID(db, req.MessageId)
+	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("invalid message ID")
+		return &newMsg, http.StatusNotFound, err
 	}
 
-	theMessage.Content = req.Content
-	theMessage.Edited = true
-	newMsg, err := theMessage.UpdateMessage(db)
+	userID, ok := userId.(string)
+	if !ok {
+		return &newMsg, http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	_, code, err := user.GetUser(userID, db)
 	if err != nil {
+		return &newMsg, code, err
+	}
+
+	message.ID = req.MessageId
+
+	updateKey := map[string]interface{}{
+		"message": req.Content,
+		"edited":  true,
+	}
+
+	if _, err := message.UpdateMessage(db, updateKey); err != nil {
+		return &newMsg, http.StatusNotFound, err
+	}
+
+	if err := thread.DetectAndAddMentions(message.ID, req.Content, db); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
 
-	if err := thread.DetectAndAddMentions(theMessage.ID, req.Content, db); err != nil {
-		return nil, http.StatusBadRequest, err
+	err = newMsg.GetMessageById(db, message.ID)
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
 	}
 
-	return newMsg, http.StatusOK, nil
+	return &newMsg, http.StatusOK, nil
 }
 
 func DeleteChannelsMsg(req models.EditMessageRequest) (*models.Message, int, error) {
