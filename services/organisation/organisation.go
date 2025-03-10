@@ -255,6 +255,11 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		return errors.New("user not authorised to delete this organisation")
 	}
 
+	//remove all channels in that organisation
+	
+
+	//remove all organisation-integrations mapping
+
 	return org.Delete(db, orgId)
 }
 
