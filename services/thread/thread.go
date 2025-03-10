@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/services/user"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func CalculateStartTime(rangeStr string) time.Time {
@@ -290,4 +291,15 @@ func ChannelCountInfo(c *gin.Context, db *storage.Database, org_id string, days 
 		return channel, cm, err
 	}
 	return response, channelInfoMetrics, nil
+}
+
+func PostFeedMessage(db *storage.Database, logger *utility.Logger, req models.CreateThreadMsgReq) (models.ThreadDocument, int, error) {
+
+	thread_doc, err := SaveThreadMessage(req, db, logger)
+	if err != nil {
+		logger.Error("failed to create message thread" + err.Error())
+		return models.ThreadDocument{}, http.StatusInternalServerError, err
+	}
+
+	return *thread_doc, http.StatusOK, nil
 }

@@ -92,6 +92,10 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 	return response
 }
 
+func AdminInvitationVerify(db *gorm.DB, req models.VerifyInvitationLinkRequest, logger *utility.Logger) {
+	
+}
+
 func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
@@ -100,7 +104,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
 		// chans        = models.Channels{}
-		userID       string
+		userID string
 	)
 
 	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token, logger)
@@ -115,7 +119,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	userID = user.ID		
+	userID = user.ID
 	invitation.Status = "accepted"
 
 	err = invitation.UpdateInvitation(db)
@@ -135,11 +139,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	// err = addUserToChannel(&chans, orgmgt, user.Name, db)
-	// if err != nil {
-	// 	logger.Error("error adding user to the channel", err)
-	// 	return responseData, http.StatusInternalServerError, err
-	// }
 
 	userData, err := user.GetUserByEmail(db, invitation.Email)
 	if err != nil {
@@ -185,7 +184,7 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			IsActive:    true,
 			CurrentOrg:  orgId,
 			Profile: models.Profile{
-				ID: utility.GenerateUUID(),
+				ID:       utility.GenerateUUID(),
 				UserName: name,
 			},
 		}
@@ -224,7 +223,7 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 }
 
 func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, username string, db *gorm.DB) error {
-	
+
 	reqs := models.JoinChannelsRequest{
 		Username:   username,
 		ChannelsID: chans.ID,

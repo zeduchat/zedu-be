@@ -21,11 +21,12 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 
 	{
 		integrationUrl.GET(":integration_id/settings", integration.GetIntegrationSettingsAllOrgs)
+		integrationUrl.POST("/trigger-tick", integration.TriggerTick)
 	}
 
 
-	// Unauthunticated endpoint to fetch integrations
-	
+	// Unauthnticated endpoint to fetch integrations
+
 	intPage := r.Group(fmt.Sprintf("%v/integrations", ApiVersion))
 
 	{
@@ -41,5 +42,4 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 	}
 
 	return r
-
 }

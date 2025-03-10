@@ -24,7 +24,13 @@ func Invite(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		inviteUrl.POST("/channel", middleware.Authorize(db.Postgresql), invite.ChannelCreateInvite)
 		inviteUrl.POST("/channel/verify", invite.ChannelVerifyInvite)
 		inviteUrl.POST("/resend", middleware.Authorize(db.Postgresql), invite.ResendInvitation)
+		inviteUrl.POST("/admin-create", middleware.Authorize(db.Postgresql), invite.GeneralInvitationCreate)
+		inviteUrl.POST("/admin-verify", middleware.Authorize(db.Postgresql), invite.GeneralInvitationVerify)
+		inviteUrl.POST("/change-status", middleware.Authorize(db.Postgresql), invite.ChangeGeneralInviteStatus)
+		inviteUrl.POST("/admin-resend", invite.AdminResend)
+		
 		inviteUrl.DELETE("/:invite_id", middleware.Authorize(db.Postgresql), invite.CancelInvitation)
 	}
+
 	return r
 }

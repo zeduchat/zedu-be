@@ -282,6 +282,7 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
+	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
@@ -322,7 +323,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
 	c.JSON(http.StatusCreated, rd)
-
 }
 
 func (base *Controller) SearchChannel(c *gin.Context) {
@@ -359,6 +359,13 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 	days, err := strconv.Atoi(daysStr)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid days parameter", err.Error(), nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	isValid := utility.IsValidUUID(orgID);
+	if !isValid {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid Organisation UUID", "The provided organisation ID is not a valid UUID", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

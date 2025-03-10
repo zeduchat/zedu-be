@@ -2,7 +2,6 @@ package thread
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -32,23 +31,23 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
 	if err != nil {
-		return nil, errors.New("failed to get user profile")
+		return nil, fmt.Errorf("failed to get profile: %v", err)
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
 	if err != nil {
-		return nil, errors.New("failed to get user")
+		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
 	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
 
 	if !ch || err != nil {
-		return nil, errors.New("channel does not exist")
+		return nil, fmt.Errorf("channel does not exist: %v", err)
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            req.ThreadId,
+		ID:            utility.GenerateUUID(),
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
@@ -65,7 +64,6 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Status:        "error",
 		Edited:        false,
 	}
-
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
 		return nil, err
@@ -82,18 +80,20 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
+		OrgId:     req.OrgId,
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
+		fmt.Println("failed here")
+		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
 	}
 
 	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
-		return nil, errors.New("failed to broadcast webhook data: " + err.Error())
+		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
 	}
 
 	return &threadDoc, nil
@@ -176,7 +176,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	return &models.ThreadDocument{}, nil
-
 }
 
 func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {

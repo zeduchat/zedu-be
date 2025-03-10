@@ -132,7 +132,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
-				Emails:         []string{test_email},
+				Email:         test_email,
 				OrganisationID: orgId,
 			},
 			RequestURI:   url.URL{Path: "/api/v1/invite/resend"},

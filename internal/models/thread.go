@@ -140,7 +140,8 @@ type ChannelMetrics struct {
 }
 
 type CreateThreadMsgReq struct {
-	Content    string `json:"content" validate:"required"`
+	Content    string `json:"content"`
+	Message    string `json:"message"`
 	ChannelsID string `json:"channels_id"`
 	UserId     string `json:"user_id"`
 	ThreadId   string `json:"thread_id"`
@@ -168,6 +169,11 @@ type Mentions struct {
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
+type TriggerTickRequest struct {
+	ChannelID      string `gorm:"type:uuid" json:"channel_id" validate:"required"`
+	OrganisationID string `gorm:"type:uuid" json:"organisation_id" validate:"required"`
+}
+
 type UpdateThreadStatus struct {
 	Status string `json:"status" validate:"required,oneof=pending completed"`
 }
@@ -180,10 +186,16 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 	var (
 		CC         ChannelCountInfo
 		CTI        []ChannelMetrics
+		org        Organisation
 		startTime  = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
 		endTime    = time.Now().Format(time.RFC3339)
 		channelIDs = make([]string, 0)
 	)
+
+	exists := postgresql.CheckExists(db.Postgresql, &org, "id = ?", orgId)
+	if !exists {
+		return CC, nil, fmt.Errorf("organisation does not exist")
+	}
 
 	err := db.Postgresql.Model(&Channels{}).
 		Select("channels.id").
@@ -647,6 +659,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		channelIDs []string
 		threadData interface{}
 		threadIDs  []string
+		org        Organisation
 	)
 
 	threads = make([]Threads, 0)
@@ -655,6 +668,11 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	page, limit := pag.Page, pag.Limit
 
 	from := (page - 1) * limit
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", organisationID)
+	if !exists {
+		return nil, nil, fmt.Errorf("organisation does not exist")
+	}
 
 	err := db.Model(&Channels{}).
 		Select("channels.id").
