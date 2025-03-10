@@ -54,6 +54,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	WebhookHandler(r, ApiVersion, validator, db, logger)
 	HelpCenter(r, ApiVersion, validator, db, logger)
 	OptIn(r, ApiVersion, validator, db, logger)
+	Dms(r, ApiVersion, validator, db, logger)
 	Group(r, ApiVersion, validator, db, logger)
 	Integration(r, ApiVersion, validator, db, logger)
 
