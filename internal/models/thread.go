@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -475,7 +476,6 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 		},
 	}
 
-
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
 
 	if err != nil {
@@ -519,6 +519,36 @@ func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) 
 	}
 
 	return t, nil
+}
+
+func (t *ThreadDocument) CheckExists() (bool, int, error) {
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"term": map[string]interface{}{
+							"channels_id.keyword": t.ChannelsID,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"user_id.keyword": t.UserId,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	check, err := elastic.CheckExists(storage.DB.Elastic, ThreadIndexName, query)
+
+	if err != nil {
+		return false, http.StatusInternalServerError, err
+	}
+
+	return check, http.StatusOK, err
 }
 
 func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
