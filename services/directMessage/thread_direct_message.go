@@ -59,6 +59,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		Status:        "error",
+		Edited:        false,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -199,7 +200,7 @@ func DeleteAThreadDm(threadID, channelID string, db *gorm.DB, c *gin.Context) (i
 	thread.ID = threadID
 
 	if _, err := thread.DeleteThread(db); err != nil {
-		return http.StatusInternalServerError, err
+		return http.StatusBadRequest, err
 	}
 
 	return http.StatusOK, nil
