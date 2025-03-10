@@ -85,7 +85,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, channel.PaticipantId, feed)
+	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
 		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
@@ -127,9 +127,10 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 			pairRoomChan := models.DmChannels{}
 
 			pairRoomChan.ChatType = dmchannel.ChatType
-			pairRoomChan.UserId = dmchannel.PaticipantId
-			pairRoomChan.PaticipantId = dmchannel.UserId
-			pairRoomChan.ID = dmchannel.ID
+			pairRoomChan.UserId = dmchannel.ParticipantId
+			pairRoomChan.ParticipantId = dmchannel.UserId
+			pairRoomChan.ID = utility.GenerateUUID()
+			pairRoomChan.ChannelId = dmchannel.ChannelId
 			pairRoomChan.OrgId = dmchannel.OrgId
 
 			_, err = pairRoomChan.CreateDmChannel(db.Postgresql)

@@ -22,14 +22,15 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 	threadUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		threadUrl.GET("/channels/:channel_id", thread.GetAllChannelThreads)
-		threadUrl.GET("/:thread_id/channels/:channel_id", thread.GetUserSingleThreads)
-		threadUrl.PUT("/:thread_id/channels/:channel_id", thread.UpdateAThread)
-		threadUrl.DELETE("/:thread_id/channels/:channel_id", dmCtrl.DeleteAThreadDm)
-		threadUrl.POST("/:channel_id", dmCtrl.AddAThreadDm)
+		threadUrl.GET("/thread/:thread_id/channels/:channel_id", thread.GetUserSingleThreads)
+		threadUrl.PUT("/thread/:thread_id/channels/:channel_id", thread.UpdateAThread)
+		threadUrl.DELETE("/thread/:thread_id/channels/:channel_id", dmCtrl.DeleteAThreadDm)
+		threadUrl.POST("/channels/:channel_id", dmCtrl.AddAThreadDm)
 
-		threadUrl.POST("/:channelId/messages", dmCtrl.AddChannelsMsg)
-		threadUrl.PUT("/:channelId/messages", dmCtrl.EditChannelsMsg)
-		threadUrl.DELETE("/:channelId/messages/:messageId", dmCtrl.DeleteChannelsMsg)
+		threadUrl.POST("/messages/:channelId", dmCtrl.AddChannelsMsg)
+		threadUrl.PUT("/messages/:channelId", dmCtrl.EditChannelsMsg)
+		threadUrl.DELETE("/channels/:channelId/messages/:messageId", dmCtrl.DeleteChannelsMsg)
 	}
 	return r
 }
+

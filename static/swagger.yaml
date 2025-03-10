@@ -6576,7 +6576,7 @@ paths:
 
 ## Thread Dms
 
-  /dms/{threadId}/channels/{channelId}:
+  /dms/thread/{threadId}/channels/{channelId}:
     get:
       tags:
         - Direct Message
@@ -6737,7 +6737,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /dms/{channelId}:
+  /dms/channels{channelId}:
     post:
       tags:
         - threads
@@ -6804,7 +6804,7 @@ paths:
 
 ## Reply Message Dms
 
-  /dms/{channel_id}/messages:
+  /dms/messages/{channel_id}:
     post:
       tags:
         - Direct Message
@@ -6912,7 +6912,7 @@ paths:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
   
-  /dms/{channel_id}/messages/message_id:
+  /dms/channels/{channel_id}/messages/message_id:
 
     delete:
       tags:

@@ -11,14 +11,15 @@ import (
 )
 
 type DmChannels struct {
-	ID           string         `gorm:"type:uuid;primary_key;" json:"id"`
-	UserId       string         `gorm:"type:uuid" json:"-"`
-	OrgId        string         `gorm:"type:uuid" json:"-"`
-	PaticipantId string         `gorm:"type:uuid" json:"-"`
-	ChatType     string         `gorm:"type:string" json:"chat_type"`
-	CreatedAt    time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt    time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID            string         `gorm:"type:uuid" json:"id"`
+	UserId        string         `gorm:"type:uuid" json:"-"`
+	ChannelId     string         `gorm:"type:uuid" json:"channel_id"`
+	OrgId         string         `gorm:"type:uuid" json:"-"`
+	ParticipantId string         `gorm:"type:uuid" json:"-"`
+	ChatType      string         `gorm:"type:string" json:"chat_type"`
+	CreatedAt     time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt     time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type DmChannelsResponse struct {
@@ -28,23 +29,34 @@ type DmChannelsResponse struct {
 }
 
 type DmChannelsRequest struct {
-	ChatType     string `json:"chat_type" validate:"required,oneof=user bot"`
-	PaticipantId string `json:"particpant_id" validate:"required"`
-	UserId       string `json:"user_id"`
-	OrgId        string `json:"org_id"`
-	ChannelId    string `json:"channel_id"`
+	ChatType      string `json:"chat_type" validate:"required,oneof=user bot"`
+	ParticipantId string `json:"participant_id" validate:"required"`
+	UserId        string `json:"user_id"`
+	OrgId         string `json:"org_id"`
+	ChannelId     string `json:"channel_id"`
 }
 
 func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	var (
-		user       User
-		dmchanresp DmChannelsResponse
+		user        User
+		dmchanresp  DmChannelsResponse
+		existDmchan DmChannels
 	)
 
-	userDetails, err := user.GetUserByID(db, dm.PaticipantId)
+	userDetails, err := user.GetUserByID(db, dm.ParticipantId)
 
 	if err != nil {
 		return dmchanresp, errors.New("Particpant does not exist")
+	}
+
+	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ?", dm.UserId, dm.ParticipantId)
+	if exists {
+
+		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
+		dmchanresp.Name = userDetails.Profile.UserName
+		dmchanresp.ID = existDmchan.ChannelId
+
+		return dmchanresp, nil
 	}
 
 	err = postgresql.CreateOneRecord(db, &dm)
@@ -54,7 +66,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 	dmchanresp.Name = userDetails.Profile.UserName
-	dmchanresp.ID = dm.ID
+	dmchanresp.ID = dm.ChannelId
 
 	return dmchanresp, nil
 }
@@ -63,7 +75,7 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 
 	var user User
 
-	_, err := user.GetUserByID(db, dm.PaticipantId)
+	_, err := user.GetUserByID(db, dm.ParticipantId)
 
 	if err != nil {
 		return err
@@ -72,8 +84,8 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 	err = postgresql.DeleteSpecificRecord(
 		db,
 		&DmChannels{},
-		"id = ? AND user_id = ?",
-		dm.ID,
+		"channel_id = ? AND user_id = ?",
+		dm.ChannelId,
 		dm.UserId,
 	)
 
@@ -110,14 +122,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	for _, dmchans := range dmchans {
 
-		userDetails, err := user.GetUserByID(db, dmchans.PaticipantId)
+		userDetails, err := user.GetUserByID(db, dmchans.ParticipantId)
 
 		if err != nil {
 			return nil, paginationResp, err
 		}
 
 		dmChansResp = append(dmChansResp, DmChannelsResponse{
-			ID:        dmchans.ID,
+			ID:        dmchans.ChannelId,
 			Name:      userDetails.Profile.UserName,
 			AvatarUrl: userDetails.Profile.AvatarURL,
 		})
@@ -133,7 +145,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
 
-	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
+	exists := postgresql.CheckExists(db, &r, "channel_id = ?", channelID)
 	if !exists {
 		return exists, errors.New("channel does not exist")
 	}

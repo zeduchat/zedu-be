@@ -61,7 +61,7 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		return
 	}
 
-	if req.PaticipantId == req.UserId {
+	if req.ParticipantId == req.UserId {
 		base.Logger.Info("error user can not chat with self")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "User can not chat with self", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -75,8 +75,6 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		c.JSON(code, rd)
 		return
 	}
-
-
 
 	base.Logger.Info("Dm channel created successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "DM channel created successfully", respData)

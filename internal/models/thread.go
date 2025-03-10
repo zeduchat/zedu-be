@@ -516,7 +516,7 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 			"bool": map[string]interface{}{
 				"must": []map[string]interface{}{
 					{
-						"terms": map[string]interface{}{
+						"term": map[string]interface{}{
 							"channels_id.keyword": t.ChannelsID,
 						},
 					},
