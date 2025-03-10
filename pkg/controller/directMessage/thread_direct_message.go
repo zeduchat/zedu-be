@@ -134,3 +134,4 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 	c.JSON(code, rd)
 
 }
+
