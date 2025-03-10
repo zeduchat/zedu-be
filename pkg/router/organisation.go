@@ -97,9 +97,9 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.DeleteIntegrationSlashCommand)
 
 		// DM endpoints
-		organisationUrl.POST("/:org_id/dm", dmCtrl.CreateDmChannel)
-		organisationUrl.DELETE("/:org_id/dm/:channel_id", dmCtrl.DeleteDmChannel)
-		organisationUrl.GET("/:org_id/dm", dmCtrl.GetDmChannels)
+		organisationUrl.POST("/:org_id/dms", dmCtrl.CreateDmChannel)
+		organisationUrl.DELETE("/:org_id/dms/:channel_id", dmCtrl.DeleteDmChannel)
+		organisationUrl.GET("/:org_id/dms", dmCtrl.GetDmChannels)
 
 	}
 
