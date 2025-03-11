@@ -190,7 +190,7 @@ func (u *User) GetUserByIDsAdmin(db *gorm.DB, userID, requesterID string) (User,
 		query := db.Model(&User{}).
 			Joins("INNER JOIN user_organisations uo ON users.id = uo.user_id").
 			Where("uo.organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = ?)", userID)
-		query = postgresql.PreloadEntities(query, &user, "Profile", "Products", "Organisations")
+		query = postgresql.PreloadEntities(query, &user, "Profile", "Organisations")
 
 		if err := query.First(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -204,7 +204,7 @@ func (u *User) GetUserByIDsAdmin(db *gorm.DB, userID, requesterID string) (User,
 	query := db.Model(&User{}).
 		Joins("INNER JOIN user_organisations uo ON users.id = uo.user_id").
 		Where("users.id = ? AND users.id = ?", userID, requesterID)
-	query = postgresql.PreloadEntities(query, &user, "Profile", "Products", "Organisations")
+	query = postgresql.PreloadEntities(query, &user, "Profile", "Organisations")
 
 	if err := query.First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
