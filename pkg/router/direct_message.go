@@ -21,11 +21,11 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 
 	threadUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		threadUrl.GET("/channels/:channel_id", thread.GetAllChannelThreads)
+		threadUrl.GET("/channels/:channel_id/threads", thread.GetAllChannelThreads)
 		threadUrl.GET("/thread/:thread_id/channels/:channel_id", thread.GetUserSingleThreads)
 		threadUrl.PUT("/thread/:thread_id/channels/:channel_id", thread.UpdateThreadMessage)
 		threadUrl.DELETE("/thread/:thread_id/channels/:channel_id", dmCtrl.DeleteAThreadDm)
-		threadUrl.POST("/channels/:channel_id", dmCtrl.AddAThreadDm)
+		threadUrl.POST("/channels/:channel_id/threads", dmCtrl.AddAThreadDm)
 
 		threadUrl.POST("/messages/:channelId", dmCtrl.AddChannelsMsg)
 		threadUrl.PUT("/messages/:channelId", dmCtrl.EditChannelsMsg)

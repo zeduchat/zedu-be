@@ -2076,10 +2076,10 @@ paths:
     post:
       tags:
         - messages
-      summary: Create a new message
+      summary: Create a new thread reply message
       security:
         - bearerAuth: []
-      description: Creates a new message within a channel.
+      description: Creates a new reply message within a channel for a thread.
       parameters:
         - name: channel_id
           in: path
@@ -2129,10 +2129,10 @@ paths:
     put:
       tags:
         - messages
-      summary: Edit a message
+      summary: Edit a reply message
       security:
         - bearerAuth: []
-      description: Edit a message within a thread.
+      description: Edit a reply message within a thread.
       parameters:
         - name: channel_id
           in: path
@@ -2140,7 +2140,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: ID of the channel to create the message in.
+          description: ID of the channel to edit the message in.
       requestBody:
         required: true
         content:
@@ -6641,7 +6641,7 @@ paths:
     put:
       tags:
         - threads
-      summary: Update the status of a specific thread for a user
+      summary: Update a specific thread
       security:
         - bearerAuth: []
       parameters:
@@ -6665,7 +6665,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateThreadStatusRequestSchema'
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: string
+                  description: Message Content
+                  example: some sample message from client
+
       responses:
         '200':
           description: Thread updated successfully
@@ -6697,7 +6704,7 @@ paths:
     delete:
       tags:
         - threads
-      summary: Delete a specific thread for a user
+      summary: Delete a specific thread
       security:
         - bearerAuth: []
       parameters:
@@ -6815,7 +6822,7 @@ paths:
     get:
       tags:
         - Direct Message
-      summary: Retrieve a specific thread messages
+      summary: Retrieve a specific thread reply messages
       security:
         - bearerAuth: []
       parameters:
@@ -6836,7 +6843,7 @@ paths:
 
       responses:
         '200':
-          description: Thread retrieved successfully
+          description: Thread reply messages retrieved successfully
           content:
             application/json:
               schema:
@@ -6868,8 +6875,8 @@ paths:
 
     put:
       tags:
-        - threads
-      summary: Update the status of a specific thread for a user
+        - Direct Message
+      summary: Update the thread
       security:
         - bearerAuth: []
       parameters:
@@ -6893,7 +6900,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateThreadStatusRequestSchema'
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: string
+                  description: Message Content
+                  example: some sample message from client
+
       responses:
         '200':
           description: Thread updated successfully
@@ -6924,8 +6938,8 @@ paths:
                 $ref: '#/components/schemas/ServerErrorSchema'
     delete:
       tags:
-        - threads
-      summary: Delete a specific thread for a user
+        - Direct Message
+      summary: Delete a thread
       security:
         - bearerAuth: []
       parameters:
@@ -6972,10 +6986,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-  /dms/channels{channelId}:
+  /dms/channels/{channelId}/threads:
     post:
       tags:
-        - threads
+        - Direct Message
       summary: Post a thread messages
       security:
         - bearerAuth: []
@@ -7006,7 +7020,7 @@ paths:
         
       responses:
         '200':
-          description: Thread retrieved successfully
+          description: Thread created successfully
           content:
             application/json:
               schema:
@@ -7035,7 +7049,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-  
+    get:
+      tags:
+        - Direct Message
+      summary: Get all thread messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: ID of the channel
+          schema:
+            type: string
+            format: uuid
+        
+      responses:
+        '200':
+          description: Threads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSchema'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestErrorSchema'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorSchema'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerErrorSchema'
 
 ## Reply Message Dms
 
@@ -7043,10 +7102,10 @@ paths:
     post:
       tags:
         - Direct Message
-      summary: Create a new message
+      summary: Create a new reply message for a thread
       security:
         - bearerAuth: []
-      description: Creates a new message within a channel.
+      description: Creates a new reply message within a thread.
       parameters:
         - name: channel_id
           in: path
@@ -7096,10 +7155,10 @@ paths:
     put:
       tags:
         - Direct Message
-      summary: Edit a message
+      summary: Edit a reply message
       security:
         - bearerAuth: []
-      description: Edit a message within a thread.
+      description: Edit a reply message within a thread.
       parameters:
         - name: channel_id
           in: path
@@ -7107,7 +7166,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: ID of the channel to create the message in.
+          description: ID of the channel
       requestBody:
         required: true
         content:
@@ -7115,8 +7174,8 @@ paths:
             schema:
               $ref: '#/components/schemas/MessageCreateSchema'
       responses:
-        '201':
-          description: Message created successfully
+        '200':
+          description: Message updated successfully
           content:
             application/json:
               schema:
@@ -7200,8 +7259,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
-
 
 
   /organisations/{org_id}/users:
@@ -14233,14 +14290,6 @@ components:
         content:
           type: string
           description: Content of the message
-        channels_id:
-          type: string
-          format: uuid
-          description: ID of the channel the message belongs to
-        user_id:
-          type: string
-          format: uuid
-          description: ID of the user who sent the message
         thread_id:
           type: string
           format: uuid      
