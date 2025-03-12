@@ -282,7 +282,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		return
 	}
 
-	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
@@ -363,7 +362,7 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		return
 	}
 
-	isValid := utility.IsValidUUID(orgID);
+	isValid := utility.IsValidUUID(orgID)
 	if !isValid {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid Organisation UUID", "The provided organisation ID is not a valid UUID", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
