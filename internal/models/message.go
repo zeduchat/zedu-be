@@ -104,8 +104,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		return errors.New("user not in channel")
 	}
 
-	m.Username = userChannels.Username
-
 	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
