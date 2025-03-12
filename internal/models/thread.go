@@ -39,6 +39,7 @@ type Threads struct {
 	Email         string     `json:"email"`
 	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int        `json:"frequency,omitempty"`
+	UserId        string     `json:"user_id"`
 }
 
 type ThreadDocument struct {
