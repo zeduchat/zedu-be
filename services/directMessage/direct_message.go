@@ -1,7 +1,9 @@
 package dm
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -46,6 +48,40 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	}
 
 	return resp, pagResp, http.StatusOK, err
+}
+
+func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+
+	var (
+		userProfile models.Profile
+		user        models.User
+
+		resp gin.H
+	)
+
+	user, err := user.GetUserByID(db, req.UserId)
+
+	if err != nil {
+		return resp, http.StatusNotFound, fmt.Errorf("User does not exist")
+	}
+
+	err = userProfile.GetProfileByUserId(db, req.UserId)
+
+	if err != nil {
+		return resp, http.StatusInternalServerError, err
+	}
+
+	resp = gin.H{
+		"avatar_url": userProfile.AvatarURL,
+		"username":   userProfile.UserName,
+		"email":      user.Email,
+	}
+
+	if resp["username"] == "" {
+		resp["username"] = strings.Split(user.Email, "@")[0]
+	}
+
+	return resp, http.StatusOK, err
 }
 
 func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {

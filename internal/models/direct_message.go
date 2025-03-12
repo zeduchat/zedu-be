@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,10 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 
 	if err != nil {
 		return dmchanresp, errors.New("Particpant does not exist")
+	}
+
+	if userDetails.Profile.UserName == "" {
+		userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 	}
 
 	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ?", dm.UserId, dm.ParticipantId)
@@ -130,6 +135,10 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 		if err != nil {
 			return nil, paginationResp, err
+		}
+
+		if userDetails.Profile.UserName == "" {
+			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
 		dmChansResp = append(dmChansResp, DmChannelsResponse{
