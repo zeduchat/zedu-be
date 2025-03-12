@@ -23,10 +23,11 @@ type DmChannels struct {
 }
 
 type DmChannelsResponse struct {
-	ID            string `json:"channel_id"`
-	Name          string `json:"username"`
-	ParticipantId string `json:"participant_id"`
-	AvatarUrl     string `json:"avatar_url"`
+	ID               string `json:"channel_id"`
+	Name             string `json:"username"`
+	ParticipantId    string `json:"participant_id"`
+	AvatarUrl        string `json:"avatar_url"`
+	ParticipantEmail string `json:"participant_email"`
 }
 
 type DmChannelsRequest struct {
@@ -69,6 +70,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	dmchanresp.Name = userDetails.Profile.UserName
 	dmchanresp.ID = dm.ChannelId
 	dmchanresp.ParticipantId = dm.ParticipantId
+	dmchanresp.ParticipantEmail = userDetails.Email
 
 	return dmchanresp, nil
 }
@@ -131,10 +133,11 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		}
 
 		dmChansResp = append(dmChansResp, DmChannelsResponse{
-			ID:            dmchans.ChannelId,
-			Name:          userDetails.Profile.UserName,
-			AvatarUrl:     userDetails.Profile.AvatarURL,
-			ParticipantId: dmchans.ParticipantId,
+			ID:               dmchans.ChannelId,
+			Name:             userDetails.Profile.UserName,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			ParticipantId:    dmchans.ParticipantId,
+			ParticipantEmail: userDetails.Email,
 		})
 	}
 
