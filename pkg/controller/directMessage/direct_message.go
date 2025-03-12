@@ -124,6 +124,30 @@ func (base *Controller) GetDmChannels(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
+func (base *Controller) GetDmUser(c *gin.Context) {
+
+	var req models.DmChannelsRequest
+
+	req.UserId = c.Param("user_id")
+
+	if _, err := uuid.Parse(req.UserId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, code, err := dm.GetDmUser(req, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("User retrived successfully")
+	rd := utility.BuildSuccessResponse(code, "User retrived successfully", resp)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) DeleteDmChannel(c *gin.Context) {
 	var (
 		req models.DmChannelsRequest
