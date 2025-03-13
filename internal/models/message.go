@@ -94,13 +94,16 @@ type EditMessageRequest struct {
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) error {
 	var (
-		userChannels DmChannels
+		dmChannels   DmChannels
+		userChannels Channels
 		profile      Profile
 		thread       ThreadDocument
 	)
 
-	exist := postgresql.CheckExists(db.Postgresql, &userChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
-	if !exist {
+	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+
+	if !(dmChanExist || chanExist) {
 		return errors.New("user not in channel")
 	}
 
