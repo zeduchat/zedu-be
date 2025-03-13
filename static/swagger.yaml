@@ -76,6 +76,8 @@ tags:
     description: API for channel grouping
   - name: Direct Message
     description: API for direct message
+  - name: Bots
+    description: API endpoints for bots
 
 
 paths:
@@ -12024,6 +12026,168 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Organisation not found"
+  /organisations/{organisation_id}/fetch-bots:
+    get:
+      tags:
+        - Bots
+      summary: Fetch bots linked to an organisation
+      description: Retrieves a list of bots associated with a specific organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
+      responses:
+        '200':
+          description: Bots in the organisation fetched successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Unique identifier of the bot.
+                        app_name:
+                          type: string
+                          description: Name of the bot.
+                        json_url:
+                          type: string
+                          format: uri
+                          description: URL to the bot’s JSON configuration.
+                        app_url:
+                          type: string
+                          format: uri
+                          description: URL of the bot’s application.
+                        app_logo:
+                          type: string
+                          format: uri
+                          description: URL of the bot’s logo.
+                        app_description:
+                          type: string
+                          description: Brief description of the bot’s functionality.
+                        info:
+                          type: string
+                          description: Additional information about the bot.
+                        is_active:
+                          type: boolean
+                          description: Indicates if the bot is currently active.
+                        category:
+                          type: string
+                          description: Category of the bot.
+                        status:
+                          type: string
+                          description: Status of the bot.
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp of when the bot was created.
+                        updated_at:
+                          type: string
+                          format: date-time
+                          description: Timestamp of when the bot was last updated.
+                        linked:
+                          type: boolean
+                          description: Indicates if the bot is linked to the organisation.
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        description: The current page number.
+                      page_size:
+                        type: integer
+                        description: The number of items per page.
+                      total_items:
+                        type: integer
+                        description: The total number of items.
+                      total_pages:
+                        type: integer
+                        description: The total number of pages.
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Bots in organisation fetched successfully"
+                  data:
+                    - id: "01958fe4-0106-71c9-b09f-3ac489a45f38"
+                      app_name: "Profanity Checker"
+                      json_url: "http://127.0.0.1:8020/profanity-filter.json"
+                      app_url: "https://system-integration.telex.im"
+                      app_logo: "https://res.cloudinary.com/devsource/image/upload/v1737510989/pngtree-no-cursing-sign-png-image_6610915_meqkww.png"
+                      app_description: "Detects and tracks profane words in all messages."
+                      info: ""
+                      is_active: false
+                      category: "Communication & Collaboration"
+                      status: "success"
+                      created_at: "2025-03-13T15:23:59.240007+01:00"
+                      updated_at: "2025-03-13T15:23:59.240007+01:00"
+                      linked: true
+                    - id: "01958fd5-78cd-7e5a-9d68-b7db6f883a93"
+                      app_name: "Profanity Checker"
+                      json_url: "http://127.0.0.1:8020/profanity-filter.json"
+                      app_url: "https://system-integration.telex.im"
+                      app_logo: "https://res.cloudinary.com/devsource/image/upload/v1737510989/pngtree-no-cursing-sign-png-image_6610915_meqkww.png"
+                      app_description: "Detects and tracks profane words in all messages."
+                      info: ""
+                      is_active: false
+                      category: "Communication & Collaboration"
+                      status: "success"
+                      created_at: "2025-03-13T15:08:06.864586+01:00"
+                      updated_at: "2025-03-13T15:08:06.864586+01:00"
+                      linked: true
+                  pagination:
+                    current_page: 1
+                    page_size: 2
+                    total_items: 2
+                    total_pages: 1
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 400
+                  message: "Invalid request parameters"
+        '404':
+          description: Organisation not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "Organisation not found"
+
 
 
 components:
