@@ -102,6 +102,9 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/dms", dmCtrl.GetDmChannels)
 		organisationUrl.GET("/:org_id/dms/user/:user_id", dmCtrl.GetDmUser)
 
+		//bots
+		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)
+
 	}
 
 	// Test routes
