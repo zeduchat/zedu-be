@@ -1008,16 +1008,14 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	var ucis CustomIntegrationsSetting
 
 	// fetch existing settings
-
 	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
 	if !exists {
-		return errors.New("Integration not connnected yet")
+		return errors.New("integration not connnected yet")
 	}
 
 	settings := ucis.SettingEntry
 
 	// unserialize the settings text
-
 	err := json.Unmarshal([]byte(settings), &deserialize_settings)
 
 	// update the important field (settings)
@@ -1035,7 +1033,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 
 			_, err := base64.StdEncoding.DecodeString(encoded_auth_cred)
 			if err != nil {
-				return fmt.Errorf("Invalid integration_auth_credentials supplied, ensure it's base64 encoded")
+				return fmt.Errorf("invalid integration_auth_credentials supplied, ensure it's base64 encoded")
 			}
 
 		} else {
