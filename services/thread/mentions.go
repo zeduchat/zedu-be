@@ -61,7 +61,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   channel.Name,
-		Status:        "error",
+		Status:        "success",
 		Edited:        false,
 	}
 	err = threadDoc.CreateThread(db, logger)
@@ -76,7 +76,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
-		ThreadId:  req.ThreadId,
+		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
@@ -90,7 +90,11 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	notification := models.Notifcation[models.NewMessage]
+	notification.SectionType = models.ThreadSection
+	notification.Content = feed
+
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
 		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())

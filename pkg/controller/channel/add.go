@@ -101,7 +101,7 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, c)
+	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -143,7 +143,7 @@ func (base *Controller) DeleteChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.DeleteChannelsMsg(req)
+	response, code, err := channel.DeleteChannelsMsg(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
