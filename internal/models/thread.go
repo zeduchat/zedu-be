@@ -145,7 +145,7 @@ type CreateThreadMsgReq struct {
 	ChannelsID string `json:"channels_id"`
 	Message    string `json:"message"`
 	UserId     string `json:"user_id"`
-	ThreadId   string `json:"thread_id" validate:"required"`
+	ThreadId   string `json:"thread_id"`
 	OrgId      string `json:"org_id"`
 }
 
@@ -180,7 +180,9 @@ type UpdateThreadStatus struct {
 }
 
 type UpdateThreadMessage struct {
-	Message string `json:"content" validate:"required"`
+	Message   string `json:"content" validate:"required"`
+	ThreadId  string `json:"thread_id"`
+	ChannelId string `json:"channel_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {

@@ -2,6 +2,7 @@ package thread
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/services/user"
@@ -209,9 +211,13 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 	return http.StatusOK, nil
 }
 
-func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context) (int, error) {
+func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (int, error) {
 	var (
-		thread models.Threads
+		thread       models.Threads
+		threadDoc    models.ThreadDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		broadcastDst string
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -229,19 +235,54 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context) (int
 		return code, err
 	}
 
+	chanExist, _ := channel.CheckChannelExists(db, channelID)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, channelID)
+
+	if !(dmChanExist || chanExist) {
+		return http.StatusNotFound, errors.New("channel does not exist")
+	}
+
 	thread.ID = threadID
+
+	err = threadDoc.GetThreadById(db, threadID)
+	if err != nil {
+		return http.StatusNotFound, errors.New("thread not found")
+	}
 
 	if _, err := thread.DeleteThread(db); err != nil {
 		return http.StatusBadRequest, err
 	}
 
+	notification := models.Notifcation[models.Deleted]
+	notification.SectionType = models.ThreadSection
+	notification.ModifcationDetails = models.ModifcationDetails{
+		ThreadId:  threadID,
+		ChannelId: channelID,
+	}
+
+	if channel.OrganisationID != "" {
+		broadcastDst = channel.OrganisationID
+
+	} else {
+		broadcastDst = dmChannel.ParticipantId
+	}
+
+	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to destination: %s error: %v", broadcastDst, err.Error()))
+		return http.StatusBadRequest, errors.New("failed to broadcast data to centrifugo")
+	}
+
 	return http.StatusOK, nil
 }
 
-func UpdateThreadMessage(req models.UpdateThreadMessage, threadID string, db *gorm.DB, c *gin.Context) (models.ThreadDocument, int, error) {
+func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Context, logger *utility.Logger) (models.ThreadDocument, int, error) {
 	var (
-		thread     models.Threads
-		threadResp models.ThreadDocument
+		thread       models.Threads
+		threadResp   models.ThreadDocument
+		broadcastDst string
+		dmChannel    models.DmChannels
+		channel      models.Channels
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -254,12 +295,19 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, threadID string, db *go
 		return threadResp, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
+	chanExist, _ := channel.CheckChannelExists(db, req.ChannelId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelId)
+
+	if !(dmChanExist || chanExist) {
+		return threadResp, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
 	_, code, err := user.GetUser(userID, db)
 	if err != nil {
 		return threadResp, code, err
 	}
 
-	thread.ID = threadID
+	thread.ID = req.ThreadId
 
 	updateKey := map[string]interface{}{
 		"message": req.Message,
@@ -268,6 +316,26 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, threadID string, db *go
 
 	if _, err := thread.UpdateThread(db, updateKey); err != nil {
 		return threadResp, http.StatusNotFound, err
+	}
+
+	if channel.OrganisationID != "" {
+		broadcastDst = channel.OrganisationID
+
+	} else {
+		broadcastDst = dmChannel.ParticipantId
+	}
+
+	notification := models.Notifcation[models.Updated]
+	notification.SectionType = models.ThreadSection
+	notification.ModifcationDetails = models.ModifcationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelId,
+	}
+
+	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+		return threadResp, http.StatusBadRequest, errors.New("failed to broadcast data: " + err.Error())
 	}
 
 	err = threadResp.GetThreadById(db, thread.ID)

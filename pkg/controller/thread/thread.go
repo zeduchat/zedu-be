@@ -201,7 +201,7 @@ func (base *Controller) DeleteAThread(c *gin.Context) {
 		return
 	}
 
-	code, err := service.DeleteAThread(threadID, channelID, base.Db.Postgresql, c)
+	code, err := service.DeleteAThread(threadID, channelID, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -227,12 +227,15 @@ func (base *Controller) UpdateThreadMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	req.ChannelId = channelID
 
 	if _, err := uuid.Parse(threadID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	req.ThreadId = threadID
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -249,7 +252,7 @@ func (base *Controller) UpdateThreadMessage(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := service.UpdateThreadMessage(req, threadID, base.Db.Postgresql, c)
+	resp, code, err := service.UpdateThreadMessage(req, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -287,12 +290,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
-	if _, err := uuid.Parse(req.ThreadId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 

@@ -45,7 +45,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            req.ThreadId,
+		ID:            utility.GenerateUUID(),
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
@@ -58,7 +58,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		CurrentStatus: "pending",
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
-		Status:        "error",
+		Status:        "success",
 		Edited:        false,
 	}
 
@@ -74,7 +74,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
-		ThreadId:  req.ThreadId,
+		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
@@ -86,7 +86,11 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, feed)
+	notification := models.Notifcation[models.NewMessage]
+	notification.SectionType = models.ThreadSection
+	notification.Content = feed
+
+	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
 		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
@@ -175,33 +179,4 @@ func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mo
 	}
 
 	return accessResp, paginationResponse, http.StatusOK, nil
-}
-
-func DeleteAThreadDm(threadID, channelID string, db *gorm.DB, c *gin.Context) (int, error) {
-	var (
-		thread models.Threads
-	)
-
-	userId, err := middleware.GetUserClaims(c, db, "user_id")
-	if err != nil {
-		return http.StatusNotFound, err
-	}
-
-	userID, ok := userId.(string)
-	if !ok {
-		return http.StatusBadRequest, errors.New("user_id is not of type string")
-	}
-
-	_, code, err := user.GetUser(userID, db)
-	if err != nil {
-		return code, err
-	}
-
-	thread.ID = threadID
-
-	if _, err := thread.DeleteThread(db); err != nil {
-		return http.StatusBadRequest, err
-	}
-
-	return http.StatusOK, nil
 }

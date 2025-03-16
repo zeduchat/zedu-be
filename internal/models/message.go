@@ -90,12 +90,13 @@ type EditMessageRequest struct {
 	ChannelsId string `json:"channels_id"`
 	ThreadId   string `json:"thread_id" validate:"required"`
 	MessageId  string `json:"message_id" validate:"required"`
+	OrgId      string `json:"org_id"`
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) error {
 	var (
 		dmChannels   DmChannels
-		userChannels Channels
+		userChannels UserChannels
 		profile      Profile
 		thread       ThreadDocument
 	)

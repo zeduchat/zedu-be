@@ -93,7 +93,11 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, feed)
+	notification := models.Notifcation[models.NewMessage]
+	notification.SectionType = models.ReplySection
+	notification.Content = feed
+
+	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to particpant id: %s error: %v", channel.ParticipantId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
