@@ -1,6 +1,7 @@
 package mongogrations
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -116,7 +117,7 @@ func (base *Controller) DeleteEntry(c *gin.Context) {
 		return
 	}
 	if deletedCount == 0 {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to delete", errors.New("failed to delete"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
