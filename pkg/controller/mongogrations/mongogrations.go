@@ -27,7 +27,8 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -35,10 +36,12 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 	err := mongogrations.CreateEntry(base.Db.Mongo, req.Collection, req.Document)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Document created successfully"})
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Document created successfully", nil, nil)
+	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) ReadEntries(c *gin.Context) {
@@ -49,7 +52,8 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 
 	var req ReadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -57,10 +61,12 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 	results, err := mongogrations.ReadEntries(base.Db.Mongo, req.Collection, req.Filter)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Document retrieved successfully", results, nil)
+	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) UpdateEntry(c *gin.Context) {
@@ -72,7 +78,8 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -80,10 +87,12 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 	err := mongogrations.UpdateEntry(base.Db.Mongo, req.Collection, req.Filter, req.Document)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Document updated successfully"})
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Document Updated successfully", nil, nil)
+	c.JSON(http.StatusCreated, rd)
 }
 
 func (base *Controller) DeleteEntry(c *gin.Context) {
@@ -94,20 +103,23 @@ func (base *Controller) DeleteEntry(c *gin.Context) {
 
 	var req DeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	// Call the service layer
 	deletedCount, err := mongogrations.DeleteEntry(base.Db.Mongo, req.Collection, req.Id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 	if deletedCount == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Deletion Failed"})
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Document deleted successfully"})
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Document Deleted successfully", nil, nil)
+	c.JSON(http.StatusOK, rd)
 }
