@@ -10,8 +10,8 @@ import (
 
 func ReadEntries(db *mongo.Client, collection string, filter interface{}) ([]bson.M, error) {
 
-	dbCollection := db.Database("test").Collection(collection)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	dbCollection := db.Database(databaseName).Collection(collection)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	var results []bson.M

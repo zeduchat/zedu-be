@@ -8,50 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type UpdateRequest struct {
-	Collection string      `json:"collection"`
-	Filter     interface{} `json:"filter"`
-	Update     interface{} `json:"update"`
-}
-
-type ReadRequest struct {
-	Collection string      `json:"collection"`
-	Filter     interface{} `json:"filter"`
-}
-
-type CreateRequest struct {
-	Collection string      `json:"collection"`
-	Document   interface{} `json:"document"`
-}
-
-type DeleteRequest struct {
-	Collection string      `json:"collection"`
-	Filter     interface{} `json:"filter"`
-}
-
-/***
-
-var req CreateRequest
-if err := c.ShouldBindJSON(&req); err != nil {
-	return err
-}
-
-var req ReadRequest
-if err := c.ShouldBindJSON(&req); err != nil {
-	return nil, err
-}
-
-var req UpdateRequest
-if err := c.ShouldBindJSON(&req); err != nil {
-	return err
-}
-
-var req DeleteRequest
-if err := c.ShouldBindJSON(&req); err != nil {
-	return err
-}
-***/
-
 func CreateEntry(db *mongo.Client, collection string, document map[string]interface{}) error {
 	if collection == "" {
 		return fmt.Errorf("collection cannot be empty")
@@ -76,9 +32,7 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	}
 
 	// Convert the filter map to bson.M
-	if len(filter) == 0 {
-		return nil, fmt.Errorf("filter cannot be empty")
-	}
+
 	bsonFilter := bson.M(filter)
 
 	// Call the storage layer
@@ -116,23 +70,20 @@ func UpdateEntry(db *mongo.Client, collection string, filter map[string]interfac
 	return nil
 }
 
-func DeleteEntry(db *mongo.Client, collection string, filter map[string]interface{}) error {
+func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) {
 	if collection == "" {
-		return fmt.Errorf("collection name is required")
+		return 0, fmt.Errorf("collection name is required")
 	}
 
-	if len(filter) == 0 {
-		return fmt.Errorf("filter cannot be empty")
+	if id == "" {
+		return 0, fmt.Errorf("id cannot be empty")
 	}
-
-	// Convert the filter map to bson.M
-	bsonFilter := bson.M(filter)
 
 	// Call the storage layer
-	err := mongodb.DeleteEntry(db, collection, bsonFilter)
+	deletedCount, err := mongodb.DeleteEntry(db, collection, id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return deletedCount, nil
 }

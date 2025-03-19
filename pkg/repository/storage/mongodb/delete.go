@@ -2,20 +2,32 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func DeleteEntry(db *mongo.Client, collection string, filter interface{}) error {
+func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) {
 
-	dbCollection := db.Database("test").Collection(collection)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	dbCollection := db.Database(databaseName).Collection(collection)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-
-	_, err := dbCollection.DeleteMany(ctx, filter)
+	ObjectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	del, err := dbCollection.DeleteOne(ctx, bson.M{"_id": ObjectID})
+	deletedCount := del.DeletedCount
+	fmt.Printf("deleted count = %d", deletedCount)
+	if err != nil {
+		return 0, err
+	}
+	if deletedCount == 0 {
+		fmt.Printf("No document found with ID: %s", id)
+		return 0, fmt.Errorf("no document found with ID: %s", id)
+	}
+	return deletedCount, err
 }

@@ -88,8 +88,8 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 
 func (base *Controller) DeleteEntry(c *gin.Context) {
 	type DeleteRequest struct {
-		Collection string                 `json:"collection"`
-		Filter     map[string]interface{} `json:"filter"`
+		Collection string `json:"collection"`
+		Id         string `json:"id"`
 	}
 
 	var req DeleteRequest
@@ -99,9 +99,13 @@ func (base *Controller) DeleteEntry(c *gin.Context) {
 	}
 
 	// Call the service layer
-	err := mongogrations.DeleteEntry(base.Db.Mongo, req.Collection, req.Filter)
+	deletedCount, err := mongogrations.DeleteEntry(base.Db.Mongo, req.Collection, req.Id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if deletedCount == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Deletion Failed"})
 		return
 	}
 

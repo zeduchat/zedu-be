@@ -10,8 +10,8 @@ import (
 
 func UpdateEntry(db *mongo.Client, collection string, filter interface{}, document interface{}) error {
 
-	dbCollection := db.Database("test").Collection(collection)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	dbCollection := db.Database(databaseName).Collection(collection)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	_, err := dbCollection.UpdateMany(ctx, filter, bson.M{"$set": document})

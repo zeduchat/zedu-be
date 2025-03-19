@@ -57,6 +57,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Dms(r, ApiVersion, validator, db, logger)
 	Group(r, ApiVersion, validator, db, logger)
 	Integration(r, ApiVersion, validator, db, logger)
+	Mongogrations(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
