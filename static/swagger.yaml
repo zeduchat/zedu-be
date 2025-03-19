@@ -78,6 +78,9 @@ tags:
     description: API for direct message
   - name: Bots
     description: API endpoints for bots
+  - name: TelexAI
+    description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
+
 
 
 paths:
@@ -12188,7 +12191,44 @@ paths:
                   status_code: 404
                   message: "Organisation not found"
 
+  # TelexAI
 
+  /telexai/chat/:
+    post:
+      tags:
+       - TelexAI
+      summary: Handle chat completions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIProxyChatCompletionsReq'
+      responses:
+        '200':
+          description: Chat completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIProxyChatCompletionsResp'
+        '400':
+          description: Bad request due to malformed JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
 
@@ -12644,6 +12684,40 @@ components:
           type: string
           format: date-time
           example: "0001-01-01T00:00:00Z"
+    
+    AIProxyChatCompletionsReq:
+      type: object
+      required:
+        # - org_id
+        - messages
+      properties:
+        # org_id:
+          # type: string
+          # example: "0191475b-7a5d-795f-a04b-8c2ff5344778"
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [system, user, assistant]
+                example: "user"
+              content:
+                type: string
+                example: "Who is Elon?"
+    AIProxyChatCompletionsResp:
+      type: object
+      properties:
+        Messages:
+          type: object
+          properties:
+            role:
+              type: string
+              example: "assistant"
+            content:
+              type: string
+              example: "Hi there, a query ticket has been created and we handle your query in no time"
 
     NotFoundErrorSchema:
       type: object

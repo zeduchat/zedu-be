@@ -106,6 +106,8 @@ type BaseConfig struct {
 
 	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
 	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
+
+	OPENROUTER_API_KEY string `mapstructure:"OPENROUTER_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -134,6 +136,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,
 			WebhookApiUrl:         config.WEBHOOK_API_URL,
 			FRONTEND_URL:          config.FRONTEND_URL,
+			OpenRouterApiKey:      config.OPENROUTER_API_KEY,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,
