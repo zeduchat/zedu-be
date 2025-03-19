@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/elliotchance/phpserialize"
-
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -68,10 +68,11 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	}
 
 	logger.Info("before prefix", name, r.Path, data, buf)
+	slog.Info("before prefix", name, r.Path)
 	if r.UrlPrefix != "" {
 		r.Path += r.UrlPrefix
 	}
-	logger.Info("after prefix", name, r.Path, data, buf)
+	slog.Info("after prefix", name, r.Path)
 
 	var req *http.Request
 	client := &http.Client{}
@@ -93,6 +94,8 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 
 	if r.Method == http.MethodGet {
 		req, err = http.NewRequest(r.Method, r.Path, nil)
+	} else if r.Method == http.MethodPost && r.Headers["Content-Type"] == "application/json" {
+		req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
 	} else {
 		switch r.Headers["Content-Type"] {
 		case "application/x-www-form-urlencoded":

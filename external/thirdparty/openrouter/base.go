@@ -1,4 +1,4 @@
-package slack
+package openrouter
 
 import (
 	"github.com/hngprojects/telex_be/external"
@@ -17,7 +17,8 @@ type RequestObj struct {
 }
 
 var (
-	JsonDecodeMethod string = "json"
+	JsonDecodeMethod = "json"
+	OpenRouterUrl    = "https://openrouter.ai/api/v1/chat/completions"
 )
 
 func (r *RequestObj) getNewSendRequestObject(data interface{}, headers map[string]string, urlprefix string) *external.SendRequestObject {

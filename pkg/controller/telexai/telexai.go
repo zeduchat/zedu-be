@@ -17,37 +17,36 @@ type Controller struct {
 	Validator *validator.Validate
 	Logger    *utility.Logger
 	ExtReq    request.ExternalRequest
-	ApiKey    string
 }
 
-func (aiProxyCtrl *Controller) RespondToChat(c *gin.Context) {
+func (tctrl *Controller) RespondToChat(c *gin.Context) {
 	var req models.TelexAIChatCompletionsReq
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		aiProxyCtrl.Logger.Info("error parsing request body")
+		tctrl.Logger.Info("error parsing request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err = aiProxyCtrl.Validator.Struct(&req)
+	err = tctrl.Validator.Struct(&req)
 	if err != nil {
-		aiProxyCtrl.Logger.Info("validation failed")
+		tctrl.Logger.Info("validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
-			"Validation failed", utility.ValidationResponse(err, aiProxyCtrl.Validator), nil)
+			"Validation failed", utility.ValidationResponse(err, tctrl.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	response, code, err := aisvc.ChatCompletions(aiProxyCtrl.Db, aiProxyCtrl.Logger, req, aiProxyCtrl.ApiKey)
+	response, code, err := aisvc.ChatCompletions(tctrl.Db, tctrl.Logger, req, tctrl.ExtReq)
 	if err != nil {
-		aiProxyCtrl.Logger.Error("Failed to make chat completions", err)
+		tctrl.Logger.Error("Failed to make chat completions", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to make chat completions", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
-	aiProxyCtrl.Logger.Info("chat completed  successfully")
+	tctrl.Logger.Info("chat completed  successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "chat completed successfully", response)
 	c.JSON(http.StatusOK, rd)
 }

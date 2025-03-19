@@ -2226,7 +2226,7 @@ paths:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
   
-  /channels/{channel_id}/messages/message_id:
+  /channels/{channel_id}/messages/{message_id}:
 
     delete:
       tags:
@@ -7211,7 +7211,7 @@ paths:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
   
-  /dms/channels/{channel_id}/messages/message_id:
+  /dms/channels/{channel_id}/messages/{message_id}:
 
     delete:
       tags:
@@ -7740,7 +7740,7 @@ paths:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
 
   /organisations/{org_id}/dms/{channel_id}:
-    Delete:
+    delete:
       tags:
         - Direct Message
       summary: Retrieve DM channels
@@ -12203,14 +12203,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AIProxyChatCompletionsReq'
+              $ref: '#/components/schemas/TelexAIChatCompletionsReq'
       responses:
         '200':
           description: Chat completed successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AIProxyChatCompletionsResp'
+                $ref: '#/components/schemas/TelexAIChatCompletionsResp'
         '400':
           description: Bad request due to malformed JSON
           content:
@@ -12685,7 +12685,7 @@ components:
           format: date-time
           example: "0001-01-01T00:00:00Z"
     
-    AIProxyChatCompletionsReq:
+    TelexAIChatCompletionsReq:
       type: object
       required:
         # - org_id
@@ -12706,7 +12706,7 @@ components:
               content:
                 type: string
                 example: "Who is Elon?"
-    AIProxyChatCompletionsResp:
+    TelexAIChatCompletionsResp:
       type: object
       properties:
         Messages:
