@@ -21,6 +21,7 @@ type Configuration struct {
 	Channels     Channels
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
+	MongoDB      MongoDB
 }
 
 type BaseConfig struct {
@@ -106,6 +107,7 @@ type BaseConfig struct {
 
 	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
 	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
+	MONGO_URI       string `mapstructure:"MONGO_URI"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -223,6 +225,9 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Elastic: ElasticDb{
 			ElasticEndpoint: config.ELASTIC_URL,
 			ElasticApiKey:   config.ELASTIC_API_KEY,
+		},
+		MongoDB: MongoDB{
+			Mongo_URI: config.MONGO_URI,
 		},
 	}
 }
