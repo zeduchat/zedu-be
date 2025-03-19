@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -68,11 +67,10 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	}
 
 	logger.Info("before prefix", name, r.Path, data, buf)
-	slog.Info("before prefix", name, r.Path)
 	if r.UrlPrefix != "" {
 		r.Path += r.UrlPrefix
 	}
-	slog.Info("after prefix", name, r.Path)
+	logger.Info("after prefix", name, r.Path, data, buf)
 
 	var req *http.Request
 	client := &http.Client{}
@@ -94,11 +92,9 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 
 	if r.Method == http.MethodGet {
 		req, err = http.NewRequest(r.Method, r.Path, nil)
-	} else if r.Method == http.MethodPost && r.Headers["Content-Type"] == "application/json" {
-		req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
 	} else {
 		switch r.Headers["Content-Type"] {
-		case "application/x-www-form-urlencoded":
+		case "application/x-www-form-urlencoded", "application/json":
 			req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
 		default:
 			req, err = http.NewRequest(r.Method, r.Path, buf)

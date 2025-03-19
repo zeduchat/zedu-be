@@ -43,6 +43,5 @@ func (r *RequestObj) GetChatCompletions() (external_models.OpenRouterResp, error
 		logger.Error("open router get chat completions", openRouterResponse, err.Error())
 		return openRouterResponse, err
 	}
-	fmt.Println(openRouterResponse)
 	return openRouterResponse, nil
 }
