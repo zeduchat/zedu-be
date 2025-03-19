@@ -2,12 +2,16 @@ package mongodb
 
 import (
 	"context"
+	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var databaseName = "yelp-camp"
+var _ = godotenv.Load()
+
+var databaseName = os.Getenv("MONGO_DB_NAME")
 
 func CreateEntry(db *mongo.Client, collection string, document interface{}) error {
 
