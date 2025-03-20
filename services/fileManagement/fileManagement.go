@@ -99,12 +99,9 @@ func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.
 }
 
 func GeneratePresignedURL(logger *utility.Logger, objectName string) (string, error) {
-	exists, err := FileExists(logger, objectName)
+	_, err := FileExists(logger, objectName)
 	if err != nil {
 		return "", err
-	}
-	if !exists {
-		return "", fmt.Errorf("file %s does not exist in the bucket", objectName)
 	}
 
 	// Set expiration time (e.g. 30 minutes)
