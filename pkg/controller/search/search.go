@@ -1,7 +1,6 @@
 package search
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +24,6 @@ func (base *Controller) Search(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
-		fmt.Println(claims, exists)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "could not perform search", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -35,8 +33,6 @@ func (base *Controller) Search(c *gin.Context) {
 
 	query := c.Query("query")
 
-	// sortby -> relavance
-	// recency -> recency
 	sortby := c.Query("sortby")
 	searchResult, code, err := search.Search(base.Db, c, userId, query, sortby)
 
