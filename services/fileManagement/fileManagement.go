@@ -75,9 +75,12 @@ func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.
 		return "", fmt.Errorf("could not detect file type: %v", mimeTypeErr)
 	}
 
-	_, existsErr := FileExists(logger, header.Filename)
+	exists, existsErr := FileExists(logger, header.Filename)
 	if existsErr != nil {
 		return "", existsErr
+	}
+	if !exists {
+		return "", fmt.Errorf("file does not exist in the bucket")
 	}
 
 	storagePath, valid := GetFileCategory(mimeType)
@@ -99,9 +102,12 @@ func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.
 }
 
 func GeneratePresignedURL(logger *utility.Logger, objectName string) (string, error) {
-	_, err := FileExists(logger, objectName)
+	exists, err := FileExists(logger, objectName)
 	if err != nil {
 		return "", err
+	}
+	if !exists {
+		return "", fmt.Errorf("file does not exist in the bucket")
 	}
 
 	// Set expiration time (e.g. 30 minutes)
