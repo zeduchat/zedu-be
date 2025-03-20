@@ -101,6 +101,8 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		// Process hit and append to results
 		qResults = append(qResults, utility.ProcessMessageHit(index, source))
 	}
+	b, _ := json.MarshalIndent(qResults, "", "  ")
+	fmt.Println(string(b))
 	return qResults, nil
 }
 
@@ -115,13 +117,13 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 	addChannelFilter(boolQuery, opts)
 
 	// // 4. Date filters: on, before, and after
-	// addDateFilters(boolQuery, opts)
+	addDateFilters(boolQuery, opts)
 
 	// // 5. Additional content filter ("has")
-	// addContentFilter(boolQuery, opts)
+	addContentFilter(boolQuery, opts)
 
 	// // 6. Sorting (recency or relevance)
-	// addSorting(query, opts)
+	addSorting(query, opts)
 
 	return query, nil
 }
@@ -226,38 +228,30 @@ func addSenderFilter(query map[string]interface{}, opts *SearchQueryFiltersKeywo
 	}
 
 }
-
 func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
 	if opts.In != "" {
 		channelName := strings.Trim(opts.In, "\"")
 
-		// Ensure "should" exists
-		if _, exists := boolQuery["should"]; !exists {
-			boolQuery["should"] = []interface{}{}
+		// Ensure "must" exists
+		if _, exists := boolQuery["must"]; !exists {
+			boolQuery["must"] = []interface{}{}
 		}
 
-		shouldClauses := boolQuery["should"].([]interface{})
+		mustClauses := boolQuery["must"].([]interface{})
 
-		shouldClauses = append(shouldClauses, map[string]interface{}{
-			"match": map[string]interface{}{
-				"channel_name": map[string]interface{}{
-					"query":     channelName,
-					"fuzziness": "AUTO", // Allows minor spelling variations
-				},
+		// Use "match_phrase" for exact word matching
+		mustClauses = append(mustClauses, map[string]interface{}{
+			"match_phrase": map[string]interface{}{
+				"channel_name": channelName,
 			},
 		})
 
 		// Assign back to boolQuery
-		boolQuery["should"] = shouldClauses
-		boolQuery["minimum_should_match"] = 2
+		boolQuery["must"] = mustClauses
 	}
 
 	// Print the generated Elasticsearch query
-	b, _ := json.MarshalIndent(map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": boolQuery,
-		},
-	}, "", "  ")
+	b, _ := json.MarshalIndent(boolQuery, "", "  ")
 	fmt.Println(string(b))
 }
 
@@ -365,40 +359,3 @@ func addSorting(query map[string]interface{}, opts *SearchQueryFiltersKeywords) 
 	query["sort"] = sorting
 	return query, nil
 }
-
-// func GetUserChannelsByName(db *gorm.DB, userId string, channelName string) (*Channels, error) {
-// 	var channel Channels
-// 	err := db.Joins("JOIN user_channels ON user_channels.channels_id = channels.id").
-// 		Where("user_channels.user_id = ? AND channels.name ILIKE ?", userId, "%"+channelName+"%").
-// 		First(&channel).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	fmt.Printf("%+v", channel)
-// 	return &channel, nil
-// }
-
-// // using ts_vector
-// func SearchUserChannelByFullText(db *gorm.DB, userId string, searchTerm string) (*Channels, error) {
-// 	var channel Channels
-// 	err := db.
-// 		Joins("JOIN user_channels ON user_channels.channels_id = channels.id").
-// 		Where("user_channels.user_id = ? AND to_tsvector('english', channels.name) @@ plainto_tsquery(?)", userId, searchTerm).
-// 		First(&channel).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	fmt.Printf("%+v", channel)
-// 	return &channel, nil
-// }
-
-// // implement get channel by ID
-// func GetChannelById(db *gorm.DB, channel_id string) (*Channels, error) {
-// 	var channel Channels
-// 	err := db.Where("id = ?", channel_id).First(&channel).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &channel, nil
-// }
