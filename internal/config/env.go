@@ -21,6 +21,7 @@ type Configuration struct {
 	Channels     Channels
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
+	Clamav       Clamav
 }
 
 type BaseConfig struct {
@@ -106,6 +107,9 @@ type BaseConfig struct {
 
 	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
 	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
+
+	CLAMAV_HOST     string `mapstructure:"CLAMAV_HOST"`
+	CLAMAV_PORT string `mapstructure:"CLAMAV_PORT"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -223,6 +227,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Elastic: ElasticDb{
 			ElasticEndpoint: config.ELASTIC_URL,
 			ElasticApiKey:   config.ELASTIC_API_KEY,
+		},
+		Clamav: Clamav{
+			ClamavHost: config.CLAMAV_HOST,
+			ClamavPort:   config.CLAMAV_PORT,
 		},
 	}
 }
