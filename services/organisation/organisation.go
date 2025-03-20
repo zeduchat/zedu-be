@@ -251,7 +251,7 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		oi models.OrganisationIntegrations
 	)
 
-	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
+	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId) //already checks if org exists
 	if err != nil {
 		return err
 	}
