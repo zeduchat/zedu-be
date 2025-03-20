@@ -7,15 +7,18 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
+	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -90,7 +93,11 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.OrgId, feed)
+	notification := models.Notifcation[models.NewMessage]
+	notification.SectionType = models.ReplySection
+	notification.Content = feed
+
+	err = centrifuge.BroadcastChannel(logger, req.OrgId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to with orgid: %s error: %v", req.OrgId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
@@ -99,37 +106,133 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	return &messageDoc, http.StatusCreated, nil
 }
 
-func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Message, int, error) {
+func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*models.MessageDocument, int, error) {
 
-	var message models.Message
+	var (
+		message      models.Message
+		newMsg       models.MessageDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		broadcastDst string
+	)
 
-	theMessage, err := message.GetMessageByID(db, req.MessageId)
+	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("invalid message ID")
+		return &newMsg, http.StatusNotFound, err
 	}
 
-	theMessage.Content = req.Content
-	theMessage.Edited = true
-	newMsg, err := theMessage.UpdateMessage(db)
+	userID, ok := userId.(string)
+	if !ok {
+		return &newMsg, http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	_, code, err := user.GetUser(userID, db)
 	if err != nil {
-		return nil, http.StatusBadRequest, err
+		return &newMsg, code, err
 	}
 
-	if err := thread.DetectAndAddMentions(theMessage.ID, req.Content, db); err != nil {
-		return nil, http.StatusBadRequest, err
+	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
+
+	if !(dmChanExist || chanExist) {
+		return &newMsg, http.StatusNotFound, errors.New("channel does not exist")
 	}
-
-	return newMsg, http.StatusOK, nil
-}
-
-func DeleteChannelsMsg(req models.EditMessageRequest) (*models.Message, int, error) {
-
-	var message models.Message
 
 	message.ID = req.MessageId
 
-	if _, err := message.DeleteMessage(); err != nil {
+	updateKey := map[string]interface{}{
+		"message": req.Content,
+		"edited":  true,
+	}
+
+	if _, err := message.UpdateMessage(db, updateKey); err != nil {
+		return &newMsg, http.StatusNotFound, err
+	}
+
+	if err := thread.DetectAndAddMentions(message.ID, req.Content, db); err != nil {
 		return nil, http.StatusBadRequest, err
+	}
+
+	if channel.OrganisationID != "" {
+		broadcastDst = channel.OrganisationID
+
+	} else {
+		broadcastDst = dmChannel.ParticipantId
+	}
+
+	notification := models.Notifcation[models.Updated]
+	notification.SectionType = models.ReplySection
+	notification.ModifcationDetails = models.ModifcationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelsId,
+		MessageId: req.MessageId,
+	}
+
+	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast data: " + err.Error())
+	}
+
+	err = newMsg.GetMessageById(db, message.ID)
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	return &newMsg, http.StatusOK, nil
+}
+
+func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
+
+	var (
+		message      models.Message
+		newMsg       models.MessageDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		broadcastDst string
+	)
+
+	message.ID = req.MessageId
+
+	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
+
+	if !(dmChanExist || chanExist) {
+		return nil, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	err := newMsg.GetMessageById(db, message.ID)
+
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("message not found")
+	}
+
+	req.ThreadId = newMsg.ThreadID.String()
+
+	if _, err := message.DeleteMessage(); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	notification := models.Notifcation[models.Deleted]
+	notification.SectionType = models.ReplySection
+	notification.ModifcationDetails = models.ModifcationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelsId,
+		MessageId: req.MessageId,
+	}
+
+	if channel.OrganisationID != "" {
+		broadcastDst = channel.OrganisationID
+
+	} else {
+		broadcastDst = dmChannel.ParticipantId
+	}
+
+	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Broadcasting to destination: %s error: %v", broadcastDst, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast data to centrifugo ")
 	}
 
 	return nil, http.StatusOK, nil

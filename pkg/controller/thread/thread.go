@@ -182,7 +182,6 @@ func (base *Controller) UpdateAThread(c *gin.Context) {
 
 }
 
-
 func (base *Controller) DeleteAThread(c *gin.Context) {
 
 	var (
@@ -202,8 +201,7 @@ func (base *Controller) DeleteAThread(c *gin.Context) {
 		return
 	}
 
-
-	code, err := service.DeleteAThread(threadID, channelID, base.Db.Postgresql, c)
+	code, err := service.DeleteAThread(threadID, channelID, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -221,7 +219,7 @@ func (base *Controller) UpdateThreadMessage(c *gin.Context) {
 	var (
 		threadID  = c.Param("thread_id")
 		channelID = c.Param("channel_id")
-		req       = models.UpdateThreadStatus{}
+		req       = models.UpdateThreadMessage{}
 	)
 
 	if _, err := uuid.Parse(channelID); err != nil {
@@ -229,12 +227,15 @@ func (base *Controller) UpdateThreadMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	req.ChannelId = channelID
 
 	if _, err := uuid.Parse(threadID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	req.ThreadId = threadID
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -251,7 +252,7 @@ func (base *Controller) UpdateThreadMessage(c *gin.Context) {
 		return
 	}
 
-	code, err := service.UpdateAThread(req, threadID, channelID, base.Db.Postgresql, c)
+	resp, code, err := service.UpdateThreadMessage(req, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -259,7 +260,7 @@ func (base *Controller) UpdateThreadMessage(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread updated successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread updated successfully", resp)
 	c.JSON(http.StatusOK, rd)
 
 }
@@ -283,18 +284,12 @@ func (base *Controller) AddAThread(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
-		utility.ValidationResponse(err, base.Validator), nil)
+			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-	
-	if _, err := uuid.Parse(req.ThreadId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -364,7 +359,7 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		return
 	}
 
-	isValid := utility.IsValidUUID(orgID);
+	isValid := utility.IsValidUUID(orgID)
 	if !isValid {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid Organisation UUID", "The provided organisation ID is not a valid UUID", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)

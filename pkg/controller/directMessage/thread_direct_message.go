@@ -42,12 +42,6 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(req.ThreadId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	req.ChannelsID = channelID
 
 	claims, exists := c.Get("userClaims")
@@ -77,38 +71,6 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 
 }
 
-func (base *Controller) DeleteAThreadDm(c *gin.Context) {
-
-	var (
-		threadID  = c.Param("thread_id")
-		channelID = c.Param("channel_id")
-	)
-
-	if _, err := uuid.Parse(channelID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if _, err := uuid.Parse(threadID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	code, err := dm.DeleteAThreadDm(threadID, channelID, base.Db.Postgresql, c)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread deleted successfully", nil)
-	c.JSON(http.StatusOK, rd)
-
-}
-
 func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 	var (
@@ -134,4 +96,3 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 	c.JSON(code, rd)
 
 }
-

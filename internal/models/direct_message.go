@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,9 +24,11 @@ type DmChannels struct {
 }
 
 type DmChannelsResponse struct {
-	ID        string `json:"channel_id"`
-	Name      string `json:"username"`
-	AvatarUrl string `json:"avatar_url"`
+	ID               string `json:"channel_id"`
+	Name             string `json:"username"`
+	ParticipantId    string `json:"participant_id"`
+	AvatarUrl        string `json:"avatar_url"`
+	ParticipantEmail string `json:"participant_email"`
 }
 
 type DmChannelsRequest struct {
@@ -49,6 +52,10 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		return dmchanresp, errors.New("Particpant does not exist")
 	}
 
+	if userDetails.Profile.UserName == "" {
+		userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+	}
+
 	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ?", dm.UserId, dm.ParticipantId)
 	if exists {
 
@@ -67,6 +74,8 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 	dmchanresp.Name = userDetails.Profile.UserName
 	dmchanresp.ID = dm.ChannelId
+	dmchanresp.ParticipantId = dm.ParticipantId
+	dmchanresp.ParticipantEmail = userDetails.Email
 
 	return dmchanresp, nil
 }
@@ -128,10 +137,16 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			return nil, paginationResp, err
 		}
 
+		if userDetails.Profile.UserName == "" {
+			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		}
+
 		dmChansResp = append(dmChansResp, DmChannelsResponse{
-			ID:        dmchans.ChannelId,
-			Name:      userDetails.Profile.UserName,
-			AvatarUrl: userDetails.Profile.AvatarURL,
+			ID:               dmchans.ChannelId,
+			Name:             userDetails.Profile.UserName,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			ParticipantId:    dmchans.ParticipantId,
+			ParticipantEmail: userDetails.Email,
 		})
 	}
 

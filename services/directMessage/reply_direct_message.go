@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -94,36 +93,17 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, feed)
+	notification := models.Notifcation[models.NewMessage]
+	notification.SectionType = models.ReplySection
+	notification.Content = feed
+
+	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to particpant id: %s error: %v", channel.ParticipantId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
 	return &messageDoc, http.StatusCreated, nil
-}
-
-func EditChannelsDmMsg(req models.EditMessageRequest, db *gorm.DB) (*models.Message, int, error) {
-
-	var message models.Message
-
-	theMessage, err := message.GetMessageByID(db, req.MessageId)
-	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("invalid message ID")
-	}
-
-	theMessage.Content = req.Content
-	theMessage.Edited = true
-	newMsg, err := theMessage.UpdateMessage(db)
-	if err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-
-	if err := thread.DetectAndAddMentions(theMessage.ID, req.Content, db); err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-
-	return newMsg, http.StatusOK, nil
 }
 
 func DeleteChannelsDmMsg(req models.EditMessageRequest) (*models.Message, int, error) {

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/services/channel"
 	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -101,7 +102,7 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := dm.EditChannelsDmMsg(req, base.Db.Postgresql)
+	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -110,47 +111,5 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 
 	base.Logger.Info("message edited successfully")
 	rd := utility.BuildSuccessResponse(code, "message edited successfully", response)
-	c.JSON(code, rd)
-}
-
-func (base *Controller) DeleteChannelsMsg(c *gin.Context) {
-	var (
-		req models.EditMessageRequest
-	)
-
-	req.ChannelsId = c.Param("channelId")
-	req.MessageId = c.Param("messageId")
-
-	if _, err := uuid.Parse(req.ChannelsId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	if _, err := uuid.Parse(req.MessageId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", errors.New("failed to parse message id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	claims, exists := c.Get("userClaims")
-
-	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	userClaims := claims.(jwt.MapClaims)
-
-	req.UserId = userClaims["user_id"].(string)
-
-	response, code, err := dm.DeleteChannelsDmMsg(req)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	base.Logger.Info("message deleted successfully")
-	rd := utility.BuildSuccessResponse(code, "message deleted successfully", response)
 	c.JSON(code, rd)
 }
