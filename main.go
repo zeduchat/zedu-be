@@ -41,6 +41,7 @@ func main() {
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
 	mongodb.ConnectMongoDB(logger, configuration.MongoDB.Mongo_URI)
+	mongodb.GetDBName(configuration.MongoDB.DB_Name)
 
 	validatorRef := validator.New()
 	db := storage.Connection()

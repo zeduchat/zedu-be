@@ -21,12 +21,10 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 	}
 	del, err := dbCollection.DeleteOne(ctx, bson.M{"_id": ObjectID})
 	deletedCount := del.DeletedCount
-	fmt.Printf("deleted count = %d", deletedCount)
 	if err != nil {
 		return 0, err
 	}
 	if deletedCount == 0 {
-		fmt.Printf("No document found with ID: %s", id)
 		return 0, fmt.Errorf("no document found with ID: %s", id)
 	}
 	return deletedCount, err

@@ -23,7 +23,7 @@ type Controller struct {
 
 func (base *Controller) CreateEntry(c *gin.Context) {
 
-	var req models.CreateRequest
+	var req models.CreateMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -44,7 +44,7 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 
 func (base *Controller) ReadEntries(c *gin.Context) {
 
-	var req models.ReadRequest
+	var req models.ReadMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -65,7 +65,7 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 
 func (base *Controller) UpdateEntry(c *gin.Context) {
 
-	var req models.UpdateRequest
+	var req models.UpdateMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -73,7 +73,7 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 	}
 
 	// Call the service layer
-	err := mongogrations.UpdateEntry(base.Db.Mongo, req.Collection, req.Filter, req.Document)
+	err := mongogrations.UpdateEntry(base.Db.Mongo, req.Collection, req.ID, req.Document)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -86,7 +86,7 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 
 func (base *Controller) DeleteEntry(c *gin.Context) {
 
-	var req models.DeleteRequest
+	var req models.DeleteMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -94,7 +94,7 @@ func (base *Controller) DeleteEntry(c *gin.Context) {
 	}
 
 	// Call the service layer
-	deletedCount, err := mongogrations.DeleteEntry(base.Db.Mongo, req.Collection, req.Id)
+	deletedCount, err := mongogrations.DeleteEntry(base.Db.Mongo, req.Collection, req.ID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

@@ -3,7 +3,7 @@ package mongogrations
 import (
 	"fmt"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
+	"github.com/hngprojects/telex_be/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -18,7 +18,7 @@ func CreateEntry(db *mongo.Client, collection string, document map[string]interf
 	}
 
 	// Call the storage layer
-	err := mongodb.CreateEntry(db, collection, document)
+	err := models.CreateEntry(db, collection, document)
 	if err != nil {
 		return err
 	}
@@ -31,12 +31,8 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 		return nil, fmt.Errorf("collection cannot be empty")
 	}
 
-	// Convert the filter map to bson.M
-
-	bsonFilter := bson.M(filter)
-
 	// Call the storage layer
-	results, err := mongodb.ReadEntries(db, collection, bsonFilter)
+	results, err := models.ReadEntries(db, collection, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -44,25 +40,17 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	return results, nil
 }
 
-func UpdateEntry(db *mongo.Client, collection string, filter map[string]interface{}, update map[string]interface{}) error {
+func UpdateEntry(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
 	if collection == "" {
 		return fmt.Errorf("collection name is required")
-	}
-
-	if len(filter) == 0 {
-		return fmt.Errorf("filter cannot be empty")
 	}
 
 	if len(update) == 0 {
 		return fmt.Errorf("update data cannot be empty")
 	}
 
-	// Convert the filter and update maps to bson.M
-	bsonFilter := bson.M(filter)
-	bsonUpdate := bson.M(update)
-
 	// Call the storage layer
-	err := mongodb.UpdateEntry(db, collection, bsonFilter, bsonUpdate)
+	err := models.UpdateEntry(db, collection, id, update)
 	if err != nil {
 		return err
 	}
@@ -80,7 +68,7 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 	}
 
 	// Call the storage layer
-	deletedCount, err := mongodb.DeleteEntry(db, collection, id)
+	deletedCount, err := models.DeleteEntry(db, collection, id)
 	if err != nil {
 		return 0, err
 	}
