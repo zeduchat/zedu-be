@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func ConnectMongoDB(logger *utility.Logger, uri string) *mongo.Client {
-	clientOptions := options.Client().ApplyURI(uri) // Replace with your MongoDB URI
+func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB) *mongo.Client {
+	GetDBName(MongoConfig.DB_Name)
+
+	clientOptions := options.Client().ApplyURI(MongoConfig.Mongo_URI) // Replace with your MongoDB URI
 	clientOptions.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
