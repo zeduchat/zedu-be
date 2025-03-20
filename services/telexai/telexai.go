@@ -19,19 +19,11 @@ var (
 )
 
 func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest) (models.TelexAIChatCompletionsResp, int, error) {
-	// apiKey := config.Config.App.OpenRouterApiKey
-	// if apiKey == "" {
-	// 	return models.TelexAIChatCompletionsResp{}, http.StatusInternalServerError, ErrNoOpenRouterAPIKeyConfig
-	// }
-
+	// TODO: OrgID is useful for handling payments and premium access per organisation
 	openRouterPayload := external_models.OpenRouterReq{
 		Model:    model,
 		Messages: req.Messages,
 	}
-
-	// TODO: OrgID is useful for handling payments and premium access per organisation
-	fmt.Println("The organisation ID:", req.OrgID)
-
 	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
 	if err != nil {
 		return models.TelexAIChatCompletionsResp{}, http.StatusInternalServerError, err
