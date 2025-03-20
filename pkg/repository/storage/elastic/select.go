@@ -17,6 +17,12 @@ var (
 	defaultLimit = 20
 )
 
+const (
+	ThreadIndex  = "threads"
+	MessageIndex = "messages"
+	PersonIndex  = "persons"
+)
+
 type Pagination struct {
 	Page  int
 	Limit int
@@ -220,4 +226,43 @@ func CheckExists(Client *elasticsearch.Client, indexName string, query map[strin
 	}
 
 	return false, fmt.Errorf("unexpected response format for total")
+}
+
+func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[string]interface{}, reciever interface{}) (map[string]interface{}, error) {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		return nil, fmt.Errorf("error encoding query: %w", err)
+	}
+
+	// Perform the search request
+	ctx := context.Background()
+	res, err := client.Search(
+		client.Search.WithContext(ctx),
+		client.Search.WithIndex(ThreadIndex, MessageIndex),
+		client.Search.WithBody(&buf),
+		client.Search.WithTrackTotalHits(true),
+		// client.Search.WithFrom((opts.PageNumber-1)*opts.PageSize),
+		// client.Search.WithSize(opts.PageSize),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("error performing search: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+			return nil, fmt.Errorf("error parsing error response: %w", err)
+		}
+		return nil, fmt.Errorf("search error: %v", e)
+	}
+
+	// Parse the response
+	var result map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("error parsing response: %w", err)
+	}
+	return result, nil
 }
