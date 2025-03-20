@@ -28,35 +28,35 @@ func GetAllAgentApp(c *gin.Context, org_id string, db *gorm.DB) (models.AgentsRe
 	return resp, nil
 }
 
-func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
-	var org_integrations models.OrganisationIntegrations
+func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, error, int) {
+	var org_agents models.OrganisationIntegrations
 
 	var int_resp = models.AgentsResp{}
 
-	resp, paginationResult, err, code := org_integrations.GetCustomAgentApp(db, org_id, c)
+	resp, paginationResult, err, code := org_agents.GetCustomAgentApp(db, org_id, c)
 
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err, code
 	}
 
-	for _, org_integrations := range resp {
+	for _, org_agents := range resp {
 
-		json_url := org_integrations.JSONUrl
+		json_url := org_agents.JSONUrl
 		data := map[string]string{"url": json_url}
 
-		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 		if err != nil {
 			agent := models.Integrations{
-				ID:             org_integrations.IntegrationID,
+				ID:             org_agents.IntegrationID,
 				Name:           "Unavailable",
-				JSONUrl:        org_integrations.JSONUrl,
+				JSONUrl:        org_agents.JSONUrl,
 				AppDescription: "This agent is currently unavailable.",
 				Category:       "Unavailable",
 				IsActive:       false,
 				Status:         "failed",
-				CreatedAt:      org_integrations.CreatedAt,
-				UpdatedAt:      org_integrations.UpdatedAt,
+				CreatedAt:      org_agents.CreatedAt,
+				UpdatedAt:      org_agents.UpdatedAt,
 			}
 
 			int_resp = append(int_resp, struct {
@@ -81,17 +81,17 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 		}
 
 		agent := models.Integrations{
-			ID:             org_integrations.IntegrationID,
+			ID:             org_agents.IntegrationID,
 			Name:           description["app_name"].(string),
-			JSONUrl:        org_integrations.JSONUrl,
+			JSONUrl:        org_agents.JSONUrl,
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
 			Category:       category,
 			Status:         "success",
-			IsActive:       org_integrations.IsActive,
-			CreatedAt:      org_integrations.CreatedAt,
-			UpdatedAt:      org_integrations.UpdatedAt,
+			IsActive:       org_agents.IsActive,
+			CreatedAt:      org_agents.CreatedAt,
+			UpdatedAt:      org_agents.UpdatedAt,
 		}
 
 		int_resp = append(int_resp, struct {
@@ -106,42 +106,42 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 	return int_resp, paginationResult, nil, code
 }
 
-func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
-	var integrations models.Integrations
+func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, error, int) {
+	var agents models.Integrations
 
-	var int_resp = models.IntegrationResp{}
+	var int_resp = models.AgentsResp{}
 
-	resp, paginationResult, err, code := integrations.GetSystemIntegrationApps(db, c)
+	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c)
 
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err, code
 	}
 
-	for _, org_integrations := range resp {
+	for _, org_agents := range resp {
 
-		json_url := org_integrations.JSONUrl
+		json_url := org_agents.JSONUrl
 		data := map[string]string{"url": json_url}
 
-		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 		if err != nil {
-			integration := models.Integrations{
-				ID:             org_integrations.ID,
+			agent := models.Integrations{
+				ID:             org_agents.ID,
 				Name:           "Unavailable",
-				JSONUrl:        org_integrations.JSONUrl,
-				AppDescription: "This integration is currently unavailable.",
+				JSONUrl:        org_agents.JSONUrl,
+				AppDescription: "This agent is currently unavailable.",
 				Category:       "Unavailable",
 				IsActive:       false,
 				Status:         "failed",
-				CreatedAt:      org_integrations.CreatedAt,
-				UpdatedAt:      org_integrations.UpdatedAt,
+				CreatedAt:      org_agents.CreatedAt,
+				UpdatedAt:      org_agents.UpdatedAt,
 			}
 
 			int_resp = append(int_resp, struct {
 				models.Integrations
 				Linked bool "json:\"linked\""
 			}{
-				Integrations: integration,
+				Integrations: agent,
 				Linked:       true,
 			})
 			continue
@@ -165,26 +165,26 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 			category = "Undefined"
 		}
 
-		integration := models.Integrations{
-			ID:             org_integrations.ID,
+		agent := models.Integrations{
+			ID:             org_agents.ID,
 			Name:           description["app_name"].(string),
-			JSONUrl:        org_integrations.JSONUrl,
+			JSONUrl:        org_agents.JSONUrl,
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
 			Info:           info,
 			Category:       category,
 			Status:         "success",
-			IsActive:       org_integrations.IsActive,
-			CreatedAt:      org_integrations.CreatedAt,
-			UpdatedAt:      org_integrations.UpdatedAt,
+			IsActive:       org_agents.IsActive,
+			CreatedAt:      org_agents.CreatedAt,
+			UpdatedAt:      org_agents.UpdatedAt,
 		}
 
 		int_resp = append(int_resp, struct {
 			models.Integrations
 			Linked bool "json:\"linked\""
 		}{
-			Integrations: integration,
+			Integrations: agent,
 			Linked:       true,
 		})
 	}
@@ -192,10 +192,10 @@ func GetSystemIntegrationApps(c *gin.Context, db *gorm.DB, extReq request.Extern
 	return int_resp, paginationResult, nil, code
 }
 
-func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq request.ExternalRequest) (models.Integrations, error, int) {
-	var integrations models.Integrations
+func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq request.ExternalRequest) (models.Integrations, error, int) {
+	var agents models.Integrations
 
-	resp, err, code := integrations.GetSystemIntegrationApp(db, int_id, c)
+	resp, err, code := agents.GetSystemAgentApp(db, int_id, c)
 
 	if err != nil {
 		return models.Integrations{}, err, code
@@ -204,15 +204,15 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 	json_url := resp.JSONUrl
 	data := map[string]string{"url": json_url}
 
-	response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 	if err != nil {
-		extReq.Logger.Error("An error occurred while fetching integration json, err: %s ", err)
-		integration := models.Integrations{
+		extReq.Logger.Error("An error occurred while fetching agent json, err: %s ", err)
+		agent := models.Integrations{
 			ID:             resp.ID,
 			Name:           "Unavailable",
 			JSONUrl:        resp.JSONUrl,
-			AppDescription: "This integration is currently unavailable.",
+			AppDescription: "This agent is currently unavailable.",
 			Category:       "Unavailable",
 			IsActive:       false,
 			Status:         "failed",
@@ -220,7 +220,7 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 			UpdatedAt:      resp.UpdatedAt,
 		}
 
-		return integration, nil, code
+		return agent, nil, code
 	}
 
 	response_data := response.(map[string]interface{})
@@ -230,11 +230,11 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 	description := data_r["descriptions"].(map[string]interface{})
 
 	info, ok := data_r["info"].(string)
-	if !ok  {
+	if !ok {
 		info = "Undefined"
 	}
 
-	integration := models.Integrations{
+	agent := models.Integrations{
 		ID:             resp.ID,
 		Name:           description["app_name"].(string),
 		JSONUrl:        resp.JSONUrl,
@@ -248,13 +248,13 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 		UpdatedAt:      resp.UpdatedAt,
 	}
 
-	return integration, nil, code
+	return agent, nil, code
 }
 
 func UpdateAgentApp(req models.UpdateAgent, ids map[string]string, db *gorm.DB) (models.Integrations, error) {
-	var integration models.Integrations
+	var agent models.Integrations
 
-	updatedAgent, err := integration.UpdateAgent(db, ids, req)
+	updatedAgent, err := agent.UpdateAgent(db, ids, req)
 	if err != nil {
 		return models.Integrations{}, err
 	}
@@ -263,9 +263,9 @@ func UpdateAgentApp(req models.UpdateAgent, ids map[string]string, db *gorm.DB) 
 }
 
 func DeleteAgentApp(ids map[string]string, db *gorm.DB) error {
-	var integration models.Integrations
+	var agent models.Integrations
 
-	err := integration.DeleteAgent(db, ids)
+	err := agent.DeleteAgent(db, ids)
 	if err != nil {
 		return err
 	}
@@ -275,9 +275,9 @@ func DeleteAgentApp(ids map[string]string, db *gorm.DB) error {
 
 // Delete Org Custom Integration
 func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
-	var org_integration models.OrganisationIntegrations
+	var org_agent models.OrganisationIntegrations
 
-	err, code := org_integration.DeleteCustomAgent(db, ids)
+	err, code := org_agent.DeleteCustomAgent(db, ids)
 	if err != nil {
 		return err, code
 	}
@@ -286,9 +286,9 @@ func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
 }
 
 func ChangeAgentStatus(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
-	var integration models.OrganisationIntegrations
+	var agent models.OrganisationIntegrations
 
-	err := integration.ChangeStatus(db, req, ids, extReq)
+	err := agent.ChangeStatus(db, req, ids, extReq)
 	if err != nil {
 		return err
 	}
@@ -296,10 +296,10 @@ func ChangeAgentStatus(ids map[string]string, req models.ChangeAgentStatus, db *
 	return nil
 }
 
-func ChangeIntegrationSendBackStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB) error {
-	var integration models.OrganisationChannelsIntegrations
+func ChangeAgentSendBackStatus(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB) error {
+	var agent models.OrganisationChannelsIntegrations
 
-	err := integration.ChangeSendBackStatus(db, req, ids)
+	err := agent.ChangeSendBackStatus(db, req, ids)
 	if err != nil {
 		return err
 	}
@@ -310,9 +310,9 @@ func ChangeIntegrationSendBackStatus(ids map[string]string, req models.ChangeInt
 func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest, db *gorm.DB) error {
 	var orgIntegration models.OrganisationIntegrations
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
-		return errors.New("organisation does not have that integration")
+		return errors.New("organisation does not have that agent")
 	}
 
 	err := orgIntegration.UpdateJSONSchema(db, req, ids)
@@ -323,19 +323,19 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 	return nil
 }
 
-func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
 
 	var (
-		orgIntegration      models.OrganisationIntegrations
-		integrationSettings models.CustomIntegrationsSetting
+		orgIntegration models.OrganisationIntegrations
+		agentSettings  models.CustomIntegrationsSetting
 	)
 
 	data := map[string]string{"url": req.JSONUrl}
 
-	response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 	if err != nil {
-		return errors.New("Failed to create custom integration, invalid JSON supplied")
+		return errors.New("Failed to create custom agent, invalid JSON supplied")
 	}
 
 	response_data := response.(map[string]interface{})
@@ -347,7 +347,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 	// validate description entry
 
-	err = models.ValidateIntegrationData(data_r)
+	err = models.ValidateAgentData(data_r)
 
 	if err != nil {
 		return err
@@ -355,13 +355,12 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 	settings, ok := data_r["settings"]
 	if !ok {
-		return errors.New("Failed to create custom integration, settings field does not exist")
+		return errors.New("Failed to create custom agent, settings field does not exist")
 	}
 
 	settings_data := map[string]interface{}{"settings": settings}
 
-	// create integration in db
-
+	// create agent in db
 	orgIntegration.OrgID = org_id
 	orgIntegration.JSONUrl = req.JSONUrl
 	orgIntegration.IntegrationID = utility.GenerateUUID()
@@ -382,7 +381,7 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 		api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
 
-		auth_credentials := map[string]interface{}{"integration_auth_credentials": "Not-Set-Yet"}
+		auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
 
 		auth_credentials["telex_api_key"] = api_key
 		settings_data["auth_credentials"] = auth_credentials
@@ -401,37 +400,37 @@ func CreateCustomIntegration(org_id string, req models.CustomIntegrationRequest,
 
 	serialized_settings := string(settingJsonData)
 
-	integrationSettings.ID = utility.GenerateUUID()
-	integrationSettings.SettingEntry = serialized_settings
-	integrationSettings.OrgID = org_id
-	integrationSettings.IsSystem = false
-	integrationSettings.IntegrationID = orgIntegration.IntegrationID
+	agentSettings.ID = utility.GenerateUUID()
+	agentSettings.SettingEntry = serialized_settings
+	agentSettings.OrgID = org_id
+	agentSettings.IsSystem = false
+	agentSettings.IntegrationID = orgIntegration.IntegrationID
 
-	err = integrationSettings.CreateIntegrationSettings(db)
+	err = agentSettings.CreateIntegrationSettings(db)
 
 	if err != nil {
-		return errors.New("Failed to create integration settings")
+		return errors.New("Failed to create agent settings")
 	}
 
 	return nil
 }
 
 // Update CustomIntegration
-func UpdateCustomIntegration(ids map[string]string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func UpdateCustomAgent(ids map[string]string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
 
 	var orgIntegration models.OrganisationIntegrations
 
 	data := map[string]string{"url": req.JSONUrl}
 
-	_, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+	_, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 	if err != nil {
 		return errors.New("Failed to Update Custom Integration, invalid JSON supplied")
 	}
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
-		return errors.New("organisation does not have that integration")
+		return errors.New("organisation does not have that agent")
 	}
 
 	err = orgIntegration.UpdateCustomIntegration(db, req, ids)
@@ -443,45 +442,45 @@ func UpdateCustomIntegration(ids map[string]string, req models.CustomIntegration
 	return nil
 }
 
-func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, c *gin.Context, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, int, error) {
+func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin.Context, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, int, error) {
 	var (
 		ocIntegrations models.OrganisationChannelsIntegrations
 	)
 
-	var int_resp = models.IntegrationResp{}
+	var int_resp = models.AgentsResp{}
 
-	integrations, paginationResponse, code, err := ocIntegrations.GetOrganisationChannelIntegrations(db, channel_id, org_id, c)
+	agents, paginationResponse, code, err := ocIntegrations.GetOrganisationChannelAgents(db, channel_id, org_id, c)
 
 	if err != nil {
 		return nil, paginationResponse, code, err
 	}
 
-	for _, org_integrations := range integrations {
+	for _, org_agents := range agents {
 
-		json_url := org_integrations.JSONUrl
+		json_url := org_agents.JSONUrl
 		data := map[string]string{"url": json_url}
 
-		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 		if err != nil {
 
-			integration := models.Integrations{
-				ID:             org_integrations.IntegrationID,
+			agent := models.Integrations{
+				ID:             org_agents.IntegrationID,
 				Name:           "Unavailable",
-				JSONUrl:        org_integrations.JSONUrl,
-				AppDescription: "This integration is currently unavailable.",
+				JSONUrl:        org_agents.JSONUrl,
+				AppDescription: "This agent is currently unavailable.",
 				Category:       "Unavailable",
 				IsActive:       false,
 				Status:         "failed",
-				CreatedAt:      org_integrations.CreatedAt,
-				UpdatedAt:      org_integrations.UpdatedAt,
+				CreatedAt:      org_agents.CreatedAt,
+				UpdatedAt:      org_agents.UpdatedAt,
 			}
 
 			int_resp = append(int_resp, struct {
 				models.Integrations
 				Linked bool "json:\"linked\""
 			}{
-				Integrations: integration,
+				Integrations: agent,
 				Linked:       true,
 			})
 
@@ -494,32 +493,32 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 
 		description := data_r["descriptions"].(map[string]interface{})
 
-		category, ok := data_r["integration_category"].(string)
+		category, ok := data_r["agent_category"].(string)
 
 		if !ok || category == "" {
 
 			category = "Undefined"
 		}
 
-		integration := models.Integrations{
-			ID:             org_integrations.IntegrationID,
+		agent := models.Integrations{
+			ID:             org_agents.IntegrationID,
 			Name:           description["app_name"].(string),
-			JSONUrl:        org_integrations.JSONUrl,
+			JSONUrl:        org_agents.JSONUrl,
 			AppUrl:         description["app_url"].(string),
 			AppLogo:        description["app_logo"].(string),
 			AppDescription: description["app_description"].(string),
 			Category:       category,
 			Status:         "success",
-			IsActive:       org_integrations.IsActive,
-			CreatedAt:      org_integrations.CreatedAt,
-			UpdatedAt:      org_integrations.UpdatedAt,
+			IsActive:       org_agents.IsActive,
+			CreatedAt:      org_agents.CreatedAt,
+			UpdatedAt:      org_agents.UpdatedAt,
 		}
 
 		int_resp = append(int_resp, struct {
 			models.Integrations
 			Linked bool "json:\"linked\""
 		}{
-			Integrations: integration,
+			Integrations: agent,
 			Linked:       true,
 		})
 	}
@@ -527,16 +526,16 @@ func GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, org_id string, 
 	return int_resp, paginationResponse, code, nil
 }
 
-func ActivateChannelIntegration(ids map[string]string, req models.ActivateChannelIntegration, db *gorm.DB) error {
+func ActivateChannelAgent(ids map[string]string, req models.ActivateChannelAgent, db *gorm.DB) error {
 	var (
 		ocIntegrations  models.OrganisationChannelsIntegrations
 		orgIntegrations models.OrganisationIntegrations
 		channels        models.Channels
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["agent_id"])
 	if !exists {
-		return errors.New("organisation does not have that integration")
+		return errors.New("organisation does not have that agent")
 	}
 
 	exists = postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", ids["channel_id"], ids["organisation_id"])
@@ -544,7 +543,7 @@ func ActivateChannelIntegration(ids map[string]string, req models.ActivateChanne
 		return errors.New("organisation does not have that channel")
 	}
 
-	err := ocIntegrations.ActivateChannelIntegration(db, req, ids)
+	err := ocIntegrations.ActivateChannelAgent(db, req, ids)
 	if err != nil {
 		return err
 	}
@@ -552,16 +551,16 @@ func ActivateChannelIntegration(ids map[string]string, req models.ActivateChanne
 	return nil
 }
 
-func IntegrationChannels(ids map[string]string, db *gorm.DB) (gin.H, error) {
+func AgentChannels(ids map[string]string, db *gorm.DB) (gin.H, error) {
 	var (
 		ocIntegrations  models.OrganisationChannelsIntegrations
 		orgIntegrations models.OrganisationIntegrations
 		res             gin.H
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["agent_id"])
 	if !exists {
-		return nil, errors.New("organisation does not have that integration")
+		return nil, errors.New("organisation does not have that agent")
 	}
 
 	response, is_allChannels, err := ocIntegrations.FetchIntegrationChannels(db, ids)
@@ -577,16 +576,16 @@ func IntegrationChannels(ids map[string]string, db *gorm.DB) (gin.H, error) {
 	return res, nil
 }
 
-func CheckIntegrationIsActive(ids map[string]string, db *gorm.DB) (gin.H, error) {
+func CheckAgentIsActive(ids map[string]string, db *gorm.DB) (gin.H, error) {
 	var (
 		ocIntegrations  models.OrganisationChannelsIntegrations
 		orgIntegrations models.OrganisationIntegrations
 		res             gin.H
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegrations, "org_id = ? AND integration_id = ?", ids["organisation_id"], ids["agent_id"])
 	if !exists {
-		return nil, errors.New("organisation does not exist or have that integration")
+		return nil, errors.New("organisation does not exist or have that agent")
 	}
 
 	status, err := ocIntegrations.CheckIntegrationIsActive(db, ids)
@@ -601,16 +600,16 @@ func CheckIntegrationIsActive(ids map[string]string, db *gorm.DB) (gin.H, error)
 	return res, nil
 }
 
-func UpdateCustomIntegrationSettings(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func UpdateCustomAgentSettings(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
 
 	var (
 		orgIntegration models.OrganisationIntegrations
 		ucis           models.CustomIntegrationsSetting
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
-		return errors.New("organisation does not exist or have that integration")
+		return errors.New("organisation does not exist or have that agent")
 	}
 
 	settings := req.SettingEntry
@@ -618,7 +617,7 @@ func UpdateCustomIntegrationSettings(ids map[string]string, req models.CustomInt
 	_, ok := settings["settings"]
 	if !ok {
 
-		return fmt.Errorf("Settings field is required")
+		return fmt.Errorf("settings field is required")
 
 	}
 	settingJsonData, err := json.Marshal(settings)
@@ -639,7 +638,7 @@ func UpdateCustomIntegrationSettings(ids map[string]string, req models.CustomInt
 	return nil
 }
 
-func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
 
 	var (
 		orgIntegration models.OrganisationIntegrations
@@ -649,12 +648,12 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 		resp                 map[string]interface{}
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
 
-	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
@@ -678,7 +677,7 @@ func GetCustomIntegrationSettings(ids map[string]string, db *gorm.DB, extReq req
 	return resp, http.StatusOK, nil
 }
 
-func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
 
 	var (
 		orgIntegration       models.OrganisationIntegrations
@@ -687,12 +686,12 @@ func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq reque
 	)
 	status := make(map[string]interface{})
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return status, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
 
-	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
@@ -721,7 +720,7 @@ func GetCustomIntegrationStatus(ids map[string]string, db *gorm.DB, extReq reque
 
 // Integration External Requests
 
-func GetCustomIntegrationSettingsExteranl(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+func GetCustomAgentSettingsExteranl(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
 
 	var (
 		ucis models.CustomIntegrationsSetting
@@ -729,7 +728,7 @@ func GetCustomIntegrationSettingsExteranl(ids map[string]string, db *gorm.DB, ex
 		deserialize_settings map[string]interface{}
 	)
 
-	exists := postgresql.CheckExists(db, &ucis, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pintegration_id"])
+	exists := postgresql.CheckExists(db, &ucis, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pagent_id"])
 	if !exists {
 		return deserialize_settings, http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
@@ -747,7 +746,7 @@ func GetCustomIntegrationSettingsExteranl(ids map[string]string, db *gorm.DB, ex
 	return deserialize_settings, http.StatusOK, nil
 }
 
-func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
 
 	var (
 		orgIntegration       models.OrganisationIntegrations
@@ -755,14 +754,14 @@ func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.C
 		deserialize_settings map[string]interface{}
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pintegration_id"])
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pagent_id"])
 	if !exists {
-		return errors.New("Integration not connected yet")
+		return errors.New("integration not connected yet")
 	}
 
-	exists = postgresql.CheckExists(db, &ucis, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pintegration_id"])
+	exists = postgresql.CheckExists(db, &ucis, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pagent_id"])
 	if !exists {
-		return errors.New("Integration not connnected yet")
+		return errors.New("integration not connnected yet")
 	}
 
 	db_settings := ucis.SettingEntry
@@ -772,7 +771,7 @@ func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.C
 	err := json.Unmarshal([]byte(db_settings), &deserialize_settings)
 
 	if err != nil {
-		return fmt.Errorf("Error deserializing JSON")
+		return fmt.Errorf("error deserializing JSON")
 	}
 
 	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
@@ -780,7 +779,7 @@ func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.C
 	if ok {
 		api_key, ok := auth_credentials["telex_api_key"].(string)
 		if ok && api_key != ids["telex_api_key"] {
-			return errors.New("An error occured: api_key Mismatch")
+			return errors.New("an error occured: api_key Mismatch")
 		}
 	}
 
@@ -795,7 +794,7 @@ func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.C
 	req.SerializedEntry = serialized_settings
 
 	ids["org_id"] = ucis.OrgID
-	ids["integration_id"] = ucis.IntegrationID
+	ids["agent_id"] = ucis.IntegrationID
 
 	err = ucis.UpdateCustomIntegrationSettings(db, req, ids)
 

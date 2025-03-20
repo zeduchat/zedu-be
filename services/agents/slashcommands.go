@@ -6,12 +6,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func AddIntegrationsSlashCommand(db *gorm.DB, ids map[string]string, req models.AddSlashCommandRequest) (models.SlashCommand, error) {
+func AddAgentsSlashCommand(db *gorm.DB, ids map[string]string, req models.AddSlashCommandRequest) (models.SlashCommand, error) {
 
 	slashCommand := models.SlashCommand{
 		ID:            utility.GenerateUUID(),
 		OrgID:         ids["org_id"],
-		IntegrationID: ids["integration_id"],
+		IntegrationID: ids["agent_id"],
 		Command:       req.Command,
 		ProcessingURL: req.ProcessingURL,
 		Description:   req.Description,
@@ -49,7 +49,7 @@ func GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]models.SlashCommand, e
 	return response, nil
 }
 
-func UpdateIntegrationSlashCommand(db *gorm.DB, ids map[string]string, req models.UpdateSlashCommandRequest) (models.SlashCommand, error) {
+func UpdateAgentSlashCommand(db *gorm.DB, ids map[string]string, req models.UpdateSlashCommandRequest) (models.SlashCommand, error) {
 	var (
 		slashCommand models.SlashCommand
 	)
@@ -61,7 +61,7 @@ func UpdateIntegrationSlashCommand(db *gorm.DB, ids map[string]string, req model
 	return response, err
 }
 
-func DeleteIntegrationSlashCommand(db *gorm.DB, ids map[string]string) error {
+func DeleteAgentSlashCommand(db *gorm.DB, ids map[string]string) error {
 	var (
 		slashCommand models.SlashCommand
 	)

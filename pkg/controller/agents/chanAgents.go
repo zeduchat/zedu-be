@@ -1,4 +1,4 @@
-package integrations
+package agents
 
 import (
 	"net/http"
@@ -7,11 +7,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/services/integrations"
+	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) GetOrganisationChannelIntegrations(c *gin.Context) {
+func (base *Controller) GetOrganisationChannelAgents(c *gin.Context) {
 	channel_id := c.Param("channel_id")
 	org_id := c.Param("org_id")
 
@@ -29,26 +29,26 @@ func (base *Controller) GetOrganisationChannelIntegrations(c *gin.Context) {
 		return
 	}
 
-	integrations, paginationResponse, code, err := integrations.GetOrganisationChannelIntegrations(base.Db.Postgresql, channel_id, org_id, c, base.ExtReq)
+	agents, paginationResponse, code, err := agents.GetOrganisationChannelAgents(base.Db.Postgresql, channel_id, org_id, c, base.ExtReq)
 
 	if err != nil {
-		base.Logger.Error("Failed to get channel integrations")
-		rd := utility.BuildErrorResponse(code, "error", "Failed to get channel integrations", err, nil)
+		base.Logger.Error("Failed to get channel agents")
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get channel agents", err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 
-	base.Logger.Info("Channel integrations retrieved successfully")
-	rd := utility.BuildSuccessResponse(code, "Channel integrations retrieved successfully", integrations, paginationResponse)
+	base.Logger.Info("Channel agents retrieved successfully")
+	rd := utility.BuildSuccessResponse(code, "Channel agents retrieved successfully", agents, paginationResponse)
 	c.JSON(code, rd)
 }
 
-func (base *Controller) ActivateDeactivateChannelIntegration(c *gin.Context) {
+func (base *Controller) ActivateDeactivateChannelAgent(c *gin.Context) {
 	org_id := c.Param("org_id")
 	channel_id := c.Param("channel_id")
-	integration_id := c.Param("integration_id")
-	req := models.ActivateChannelIntegration{}
+	agent_id := c.Param("agent_id")
+	req := models.ActivateChannelAgent{}
 
 	var msg string
 
@@ -66,9 +66,9 @@ func (base *Controller) ActivateDeactivateChannelIntegration(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -83,21 +83,21 @@ func (base *Controller) ActivateDeactivateChannelIntegration(c *gin.Context) {
 	ids := map[string]string{
 		"organisation_id": org_id,
 		"channel_id":      channel_id,
-		"integration_id":  integration_id,
+		"agent_id":  agent_id,
 	}
 
-	err := integrations.ActivateChannelIntegration(ids, req, base.Db.Postgresql)
+	err := agents.ActivateChannelAgent(ids, req, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to activate channel integration")
+		base.Logger.Error("Failed to activate channel agent")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if req.Status {
-		msg = "Channel integration activated successfully"
+		msg = "Channel agent activated successfully"
 	} else {
-		msg = "Channel integration deactivated successfully"
+		msg = "Channel agent deactivated successfully"
 	}
 
 	base.Logger.Info(msg)
@@ -105,9 +105,9 @@ func (base *Controller) ActivateDeactivateChannelIntegration(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) IntegrationChannels(c *gin.Context) {
+func (base *Controller) AgentChannels(c *gin.Context) {
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -116,34 +116,34 @@ func (base *Controller) IntegrationChannels(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	ids := map[string]string{
 		"organisation_id": org_id,
-		"integration_id":  integration_id,
+		"agent_id":  agent_id,
 	}
 
-	res, err := integrations.IntegrationChannels(ids, base.Db.Postgresql)
+	res, err := agents.AgentChannels(ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to activate channel integration", err)
+		base.Logger.Error("Failed to activate channel agent", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Integration channels fetched successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration channels fetched successfully", res)
+	base.Logger.Info("Agent channels fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent channels fetched successfully", res)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) CheckIntegrationIsActive(c *gin.Context) {
+func (base *Controller) CheckAgentIsActive(c *gin.Context) {
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -152,27 +152,27 @@ func (base *Controller) CheckIntegrationIsActive(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	ids := map[string]string{
 		"organisation_id": org_id,
-		"integration_id":  integration_id,
+		"agent_id":  agent_id,
 	}
 
-	res, err := integrations.CheckIntegrationIsActive(ids, base.Db.Postgresql)
+	res, err := agents.CheckAgentIsActive(ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to fetch integration status", err)
+		base.Logger.Error("Failed to fetch agent status", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Integration status fetched successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration status fetched successfully", res)
+	base.Logger.Info("Agent status fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent status fetched successfully", res)
 	c.JSON(http.StatusOK, rd)
 }

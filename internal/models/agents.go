@@ -66,7 +66,7 @@ type CustomIntegrationSettingRequest struct {
 	SerializedEntry string                 `json:"serialized_entry"`
 }
 
-type ActivateChannelIntegration struct {
+type ActivateChannelAgent struct {
 	Status bool `json:"status"`
 }
 
@@ -194,10 +194,10 @@ func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) e
 	return nil
 }
 
-func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context) (IntegrationResp, error) {
+func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context) (AgentsResp, error) {
 
 	var (
-		agents IntegrationResp
+		agents AgentsResp
 		org    Organisation
 	)
 
@@ -263,7 +263,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApp(db *gorm.DB, org_id string,
 	return orgIntResp, paginationResponse, err, http.StatusOK
 }
 
-func (i *Integrations) GetSystemIntegrationApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
 
 	var (
 		IntResp []Integrations
@@ -289,7 +289,7 @@ func (i *Integrations) GetSystemIntegrationApps(db *gorm.DB, c *gin.Context) ([]
 	return IntResp, paginationResponse, err, http.StatusOK
 }
 
-func (i *Integrations) GetSystemIntegrationApp(db *gorm.DB, int_id string, c *gin.Context) (Integrations, error, int) {
+func (i *Integrations) GetSystemAgentApp(db *gorm.DB, int_id string, c *gin.Context) (Integrations, error, int) {
 
 	var (
 		IntResp Integrations
@@ -600,7 +600,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 	return nil
 }
 
-func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string) error {
+func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string) error {
 	var (
 		integration  Integrations
 		organisation Organisation
@@ -618,20 +618,20 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 		return errors.New("channel does not exist")
 	}
 
-	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["agent_id"])
 	if !integrationExists {
-		return errors.New("integration app does not exist")
+		return errors.New("agent app does not exist")
 	}
 
-	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 
 	if !orgAgentExists {
 		return errors.New("organisation not integrated with this app")
 	}
 
-	orgChannelIntegrationExists := postgresql.CheckExists(db, &oci, "is_active = ? AND org_id = ? AND integration_id = ? AND channel_id = ?", "true", ids["org_id"], ids["integration_id"], ids["channel_id"])
+	orgChannelAgentExists := postgresql.CheckExists(db, &oci, "is_active = ? AND org_id = ? AND integration_id = ? AND channel_id = ?", "true", ids["org_id"], ids["agent_id"], ids["channel_id"])
 
-	if !orgChannelIntegrationExists {
+	if !orgChannelAgentExists {
 		return errors.New("organisation not found or not active")
 	}
 
@@ -645,13 +645,13 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("integration not found or not active")
+		return errors.New("agent not found or not active")
 	}
 
 	return nil
 }
 
-func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, int, error) {
+func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelAgents(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, int, error) {
 	var (
 		org        Organisation
 		orgIntResp []OrganisationIntegrations
@@ -686,7 +686,7 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	return orgIntResp, paginationResponse, http.StatusOK, err
 }
 
-func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm.DB, req ActivateChannelIntegration, ids map[string]string) error {
+func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, req ActivateChannelAgent, ids map[string]string) error {
 
 	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
 

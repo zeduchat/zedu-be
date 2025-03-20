@@ -1,4 +1,4 @@
-package integrations
+package agents
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
+func (base *Controller) GetAllAgentApp(c *gin.Context) {
 	org_id := c.Param("org_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -48,12 +48,12 @@ func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", agents)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents)
 	c.JSON(http.StatusOK, rd)
 }
 
-// Fetch Custom Integrations with pagination
+// Fetch Custom Agents with pagination
 func (base *Controller) GetCustomAgentApp(c *gin.Context) {
 	org_id := c.Param("org_id")
 
@@ -256,7 +256,7 @@ func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 func (base *Controller) ChangeOrgChannelIntSendBackStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
 	channel_id := c.Param("channel_id")
-	var req models.ChangeIntegrationStatus
+	var req models.ChangeAgentStatus
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Invalid request body")
@@ -279,29 +279,29 @@ func (base *Controller) ChangeOrgChannelIntSendBackStatus(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(req.IntegrationID); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(req.AgentID); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"channel_id":     channel_id,
-		"integration_id": req.IntegrationID,
+		"org_id":     org_id,
+		"channel_id": channel_id,
+		"agent_id":   req.AgentID,
 	}
 
-	err := integrations.ChangeIntegrationSendBackStatus(ids, req, base.Db.Postgresql)
+	err := agents.ChangeAgentSendBackStatus(ids, req, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to set integration app status", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set integration app status", err.Error(), nil)
+		base.Logger.Error("Failed to set agent app status", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set agent app status", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Integration app status set successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app status set successfully", nil)
+	base.Logger.Info("Agent app status set successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app status set successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -311,7 +311,7 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	)
 
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -320,9 +320,9 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -335,11 +335,11 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": integration_id,
+		"org_id":   org_id,
+		"agent_id": agent_id,
 	}
 
-	err := integrations.UpdateJSONSchema(ids, req, base.Db.Postgresql)
+	err := agents.UpdateJSONSchema(ids, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to update JSON schema", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update JSON schema", nil)
@@ -352,13 +352,13 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) UpdateCustomIntegration(c *gin.Context) {
+func (base *Controller) UpdateCustomAgent(c *gin.Context) {
 	var (
 		req models.CustomIntegrationRequest
 	)
 
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -367,9 +367,9 @@ func (base *Controller) UpdateCustomIntegration(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -382,47 +382,47 @@ func (base *Controller) UpdateCustomIntegration(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": integration_id,
+		"org_id":   org_id,
+		"agent_id": agent_id,
 	}
 
-	err := integrations.UpdateCustomIntegration(ids, req, base.Db.Postgresql, base.ExtReq)
+	err := agents.UpdateCustomAgent(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to update JSON schema", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom integration", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom agent", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("JSON schema updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom integration updated successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom agent updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetIntegrationSettingsAllOrgs(c *gin.Context) {
-	integration_id := c.Param("integration_id")
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+func (base *Controller) GetAgentSettingsAllOrgs(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	settings, err := integrations.GetIntegrationSettingsAllOrgs(base.Db.Postgresql, integration_id)
+	settings, err := agents.GetAgentSettingsAllOrgs(base.Db.Postgresql, agent_id)
 	if err != nil {
-		base.Logger.Error("Failed to get integration settings across all organisations", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get integration settings across all organisations", err, nil)
+		base.Logger.Error("Failed to get agent settings across all organisations", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get agent settings across all organisations", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	base.Logger.Info("Integration settings across all organisations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration settings across all organisations retrieved successfully.", settings)
+	base.Logger.Info("Agent settings across all organisations retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent settings across all organisations retrieved successfully.", settings)
 	c.JSON(http.StatusOK, rd)
 }
 
-// Create custom integration
-func (base *Controller) CreateCustomIntegration(c *gin.Context) {
+// Create custom agent
+func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	var (
 		req models.CustomIntegrationRequest
 	)
@@ -449,22 +449,22 @@ func (base *Controller) CreateCustomIntegration(c *gin.Context) {
 		return
 	}
 
-	err := integrations.CreateCustomIntegration(org_id, req, base.Db.Postgresql, base.ExtReq)
+	err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		base.Logger.Error("Failed to Create Custom Integration, invalid url:  "+req.JSONUrl, err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create custom integration", nil)
+		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create custom agent", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Custom integration created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom integration created successfully", nil)
+	base.Logger.Info("Custom agent created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom agent created successfully", nil)
 	c.JSON(http.StatusCreated, rd)
 }
 
-// Integration Settings
+// Agent Settings
 
-func (base *Controller) UpdateCustomIntegrationSettings(c *gin.Context) {
+func (base *Controller) UpdateCustomAgentSettings(c *gin.Context) {
 	var (
 		req models.CustomIntegrationSettingRequest
 	)
@@ -480,8 +480,8 @@ func (base *Controller) UpdateCustomIntegrationSettings(c *gin.Context) {
 	}
 
 	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -504,20 +504,20 @@ func (base *Controller) UpdateCustomIntegrationSettings(c *gin.Context) {
 		"integration_id": integration_id,
 	}
 
-	err := integrations.UpdateCustomIntegrationSettings(ids, req, base.Db.Postgresql, base.ExtReq)
+	err := agents.UpdateCustomAgentSettings(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		base.Logger.Error("Failed to update custom integration settings", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom integration settings", nil)
+		base.Logger.Error("Failed to update custom agent settings", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom agent settings", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("JSON schema updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom integration settings updated successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom agent settings updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetCustomIntegrationStatus(c *gin.Context) {
+func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
 	integration_id := c.Param("integration_id")
 
@@ -529,8 +529,8 @@ func (base *Controller) GetCustomIntegrationStatus(c *gin.Context) {
 	}
 
 	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -540,21 +540,21 @@ func (base *Controller) GetCustomIntegrationStatus(c *gin.Context) {
 		"integration_id": integration_id,
 	}
 
-	integration_setting, code, err := integrations.GetCustomIntegrationStatus(ids, base.Db.Postgresql, base.ExtReq)
+	integration_setting, code, err := agents.GetCustomAgentStatus(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		fmt.Println(err)
-		base.Logger.Error("Failed to fetch custom integrations settings", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom integrations settings", err.Error(), nil)
+		base.Logger.Error("Failed to fetch custom agents settings", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom agents settings", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations setting retrieved successfully.", integration_setting)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents setting retrieved successfully.", integration_setting)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
+func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 
 	org_id := c.Param("org_id")
 	integration_id := c.Param("integration_id")
@@ -567,8 +567,8 @@ func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
 	}
 
 	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -578,22 +578,22 @@ func (base *Controller) GetCustomIntegrationSettings(c *gin.Context) {
 		"integration_id": integration_id,
 	}
 
-	integration_setting, code, err := integrations.GetCustomIntegrationSettings(ids, base.Db.Postgresql, base.ExtReq)
+	integration_setting, code, err := agents.GetCustomAgentSettings(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		fmt.Println(err)
-		base.Logger.Error("Failed to fetch custom integrations settings", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom integrations settings", err.Error(), nil)
+		base.Logger.Error("Failed to fetch custom agents settings", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom agents settings", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations setting retrieved successfully.", integration_setting)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents setting retrieved successfully.", integration_setting)
 	c.JSON(http.StatusOK, rd)
 }
 
-// Integrations External
-func (base *Controller) GetCustomIntegrationSettingsExteranl(c *gin.Context) {
+// Agents External
+func (base *Controller) GetCustomAgentSettingsExteranl(c *gin.Context) {
 	api_key := c.Query("api_key")
 
 	if api_key == "" {
@@ -619,20 +619,20 @@ func (base *Controller) GetCustomIntegrationSettingsExteranl(c *gin.Context) {
 		"pintegration_id": pint_id,
 	}
 
-	integration_setting, code, err := integrations.GetCustomIntegrationSettingsExteranl(ids, base.Db.Postgresql, base.ExtReq)
+	integration_setting, code, err := agents.GetCustomAgentSettingsExteranl(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		base.Logger.Error("Failed to fetch custom integrations settings", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations settings", err.Error(), nil)
+		base.Logger.Error("Failed to fetch custom agents settings", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents settings", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations setting retrieved successfully.", integration_setting)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents setting retrieved successfully.", integration_setting)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) UpdateCustomIntegrationSettingsExternal(c *gin.Context) {
+func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 	var (
 		req models.CustomIntegrationSettingRequest
 	)
@@ -693,15 +693,15 @@ func (base *Controller) UpdateCustomIntegrationSettingsExternal(c *gin.Context) 
 		"telex_api_key":   api_key,
 	}
 
-	err = integrations.UpdateCustomIntegrationSettingsExternal(ids, req, base.Db.Postgresql, base.ExtReq)
+	err = agents.UpdateCustomAgentSettingsExternal(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		base.Logger.Error("Failed to update integration settings", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update integration settings", nil)
+		base.Logger.Error("Failed to update agent settings", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update agent settings", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("JSON schema updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration settings updated successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent settings updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
