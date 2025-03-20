@@ -34,7 +34,11 @@ func (base *Controller) Search(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	query := c.Query("query")
-	searchResult, code, err := search.Search(base.Db, c, userId, query)
+
+	// sortby -> relavance
+	// recency -> recency
+	sortby := c.Query("sortby")
+	searchResult, code, err := search.Search(base.Db, c, userId, query, sortby)
 
 	if err != nil && code == http.StatusNotFound {
 		resp := utility.BuildErrorResponse(code, http.StatusText(code), "failed to find user result base on query", err, nil)

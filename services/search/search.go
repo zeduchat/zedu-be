@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -11,7 +13,14 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func Search(db *storage.Database, c *gin.Context, userId string, query string) ([]utility.SearchQueryResult, int, error) {
+var SortkeyWords = []string{"recency", "relevance"}
+
+func ValidateSortKey(sortby string) bool {
+	sortby = strings.ToLower(sortby)
+	return slices.Contains(SortkeyWords, sortby)
+}
+
+func Search(db *storage.Database, c *gin.Context, userId string, query string, sortby string) ([]utility.SearchQueryResult, int, error) {
 	searchQuery := models.NewSearchQueryFilterKeywords()
 	queryArr := utility.CheckQueryStringContainKeyword(query)
 	if queryArr != nil && len(queryArr) >= 1 {
@@ -24,9 +33,20 @@ func Search(db *storage.Database, c *gin.Context, userId string, query string) (
 		return nil, http.StatusBadRequest, errors.New("invalid search query, empty query provided")
 	}
 
+	//  sort key validation
+	if sortby != "" {
+		if !ValidateSortKey(sortby) {
+			return nil, http.StatusBadRequest, errors.New("invalid sort key provided")
+		}
+		searchQuery.SortBy = sortby
+	}
+
 	searchResult, err := models.SearchQuery(db, c, searchQuery, userId)
 
 	if err != nil {
+		if err.Error() == "no search results found" {
+			return nil, http.StatusNotFound, err
+		}
 		return nil, http.StatusInternalServerError, err
 	}
 

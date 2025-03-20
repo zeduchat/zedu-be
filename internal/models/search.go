@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -65,9 +66,9 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	}
 
 	// Perform search on ElasticSearch
-	res, err := elastic.PerformSearchWithMultipleIndices(db.Elastic, query, nil)
+	res, err := elastic.PerformSearchWithMultipleIndices(db.Elastic, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to perform search: %w", err)
+		return nil, errors.New(err.Error())
 	}
 
 	// Extract hits data
@@ -116,13 +117,10 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 
 	addChannelFilter(boolQuery, opts)
 
-	// // 4. Date filters: on, before, and after
 	addDateFilters(boolQuery, opts)
 
-	// // 5. Additional content filter ("has")
 	addContentFilter(boolQuery, opts)
 
-	// // 6. Sorting (recency or relevance)
 	addSorting(query, opts)
 
 	return query, nil
