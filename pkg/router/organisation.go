@@ -54,47 +54,47 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
 
 		// Organisation integrations routes
-		organisationUrl.GET("/:org_id/integrations", integrationsCtrl.GetAllIntegrationApp)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrationsCtrl.UpdateIntegrationApp)
-		organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrationsCtrl.DeleteIntegrationApp)
-		organisationUrl.PATCH("/:org_id/integrations/change_status", integrationsCtrl.ChangeIntegrationStatus)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrationsCtrl.UpdateJSONSchema)
-		organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputIntegrations)
+		// organisationUrl.GET("/:org_id/integrations", integrationsCtrl.GetAllIntegrationApp)
+		// organisationUrl.PATCH("/:org_id/integrations/:integration_id", integrationsCtrl.UpdateIntegrationApp)
+		// organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrationsCtrl.DeleteIntegrationApp)
+		// organisationUrl.PATCH("/:org_id/integrations/change_status", integrationsCtrl.ChangeIntegrationStatus)
+		// organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrationsCtrl.UpdateJSONSchema)
+		// organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputIntegrations)
 
-		// Organization Custom Integrations
-		organisationUrl.POST("/:org_id/integrations/custom", integrationsCtrl.CreateCustomIntegration)
-		organisationUrl.DELETE("/:org_id/integrations/custom/:integration_id", integrationsCtrl.DeleteCustomIntegrationApp)
-		organisationUrl.GET("/:org_id/integrations/custom", integrationsCtrl.GetCustomIntegrationApp)
-		organisationUrl.PUT("/:org_id/integrations/custom/:integration_id", integrationsCtrl.UpdateCustomIntegration)
-		organisationUrl.GET("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.GetCustomIntegrationSettings)
-		organisationUrl.GET("/:org_id/integrations/custom/:integration_id/status", integrationsCtrl.GetCustomIntegrationStatus)
-		organisationUrl.PUT("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.UpdateCustomIntegrationSettings)
+		// // Organization Custom Integrations
+		// organisationUrl.POST("/:org_id/integrations/custom", integrationsCtrl.CreateCustomIntegration)
+		// organisationUrl.DELETE("/:org_id/integrations/custom/:integration_id", integrationsCtrl.DeleteCustomIntegrationApp)
+		// organisationUrl.GET("/:org_id/integrations/custom", integrationsCtrl.GetCustomIntegrationApp)
+		// organisationUrl.PUT("/:org_id/integrations/custom/:integration_id", integrationsCtrl.UpdateCustomIntegration)
+		// organisationUrl.GET("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.GetCustomIntegrationSettings)
+		// organisationUrl.GET("/:org_id/integrations/custom/:integration_id/status", integrationsCtrl.GetCustomIntegrationStatus)
+		// organisationUrl.PUT("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.UpdateCustomIntegrationSettings)
 
-		// Channel integrations routes
-		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelIntegrations)
-		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrationsCtrl.ChangeOrgChannelIntSendBackStatus)
-		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrationsCtrl.ActivateDeactivateChannelIntegration)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrationsCtrl.IntegrationChannels)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/status", integrationsCtrl.CheckIntegrationIsActive)
+		// // Channel integrations routes
+		// organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelIntegrations)
+		// organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrationsCtrl.ChangeOrgChannelIntSendBackStatus)
+		// organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrationsCtrl.ActivateDeactivateChannelIntegration)
+		// organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrationsCtrl.IntegrationChannels)
+		// organisationUrl.GET("/:org_id/integrations/:integration_id/status", integrationsCtrl.CheckIntegrationIsActive)
 
-		// Organisation integration settings routes
-		organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrationsCtrl.AddIntegrationSetting)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrationsCtrl.GetIntegrationSettings)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/integration-api-key", integrationsCtrl.GetIntegrationSettings)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrationsCtrl.UpdateIntegrationSetting)
+		// // Organisation integration settings routes
+		// organisationUrl.POST("/:org_id/integrations/:integration_id/settings", integrationsCtrl.AddIntegrationSetting)
+		// organisationUrl.GET("/:org_id/integrations/:integration_id/settings", integrationsCtrl.GetIntegrationSettings)
+		// organisationUrl.GET("/:org_id/integrations/:integration_id/integration-api-key", integrationsCtrl.GetIntegrationSettings)
+		// organisationUrl.PATCH("/:org_id/integrations/:integration_id/settings/:setting_id", integrationsCtrl.UpdateIntegrationSetting)
 
-		// Organisation channel integration settings routes
-		organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrationsCtrl.AddChannelIntegrationSetting)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrationsCtrl.GetChannelIntegrationSetting)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.UpdateChannelIntegrationSetting)
-		organisationUrl.DELETE("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.DeleteChannelIntegrationSetting)
+		// // Organisation channel integration settings routes
+		// organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrationsCtrl.AddChannelIntegrationSetting)
+		// organisationUrl.GET("/:org_id/integrations/:integration_id/channels/:channel_id/settings", integrationsCtrl.GetChannelIntegrationSetting)
+		// organisationUrl.PATCH("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.UpdateChannelIntegrationSetting)
+		// organisationUrl.DELETE("/:org_id/integrations/:integration_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.DeleteChannelIntegrationSetting)
 
-		// Integration slash commands routes
-		organisationUrl.POST("/:org_id/integrations/:integration_id/slash-commands", integrationsCtrl.AddIntegrationSlashCommand)
-		organisationUrl.GET("/:org_id/integrations/:integration_id/slash-commands", integrationsCtrl.GetIntegrationSlashCommands)
-		organisationUrl.GET("/:org_id/slash-commands", integrationsCtrl.GetAllOrgSlashCommands)
-		organisationUrl.PATCH("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.UpdateIntegrationSlashCommand)
-		organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.DeleteIntegrationSlashCommand)
+		// // Integration slash commands routes
+		// organisationUrl.POST("/:org_id/integrations/:integration_id/slash-commands", integrationsCtrl.AddIntegrationSlashCommand)
+		// organisationUrl.GET("/:org_id/integrations/:integration_id/slash-commands", integrationsCtrl.GetIntegrationSlashCommands)
+		// organisationUrl.GET("/:org_id/slash-commands", integrationsCtrl.GetAllOrgSlashCommands)
+		// organisationUrl.PATCH("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.UpdateIntegrationSlashCommand)
+		// organisationUrl.DELETE("/:org_id/integrations/:integration_id/slash-commands/:command_id", integrationsCtrl.DeleteIntegrationSlashCommand)
 
 		// DM endpoints
 		organisationUrl.POST("/:org_id/dms", dmCtrl.CreateDmChannel)

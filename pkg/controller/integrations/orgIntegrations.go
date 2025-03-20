@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/integrations"
+	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -34,27 +34,27 @@ func (base *Controller) GetAllIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	integrations, err := integrations.GetAllIntegrationApp(c, org_id, base.Db.Postgresql)
+	agents, err := agents.GetAllAgentApp(c, org_id, base.Db.Postgresql)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			base.Logger.Error("integrations not found", err)
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "integrations not found", err, nil)
+			base.Logger.Error("agents not found", err)
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "agents not found", err, nil)
 			c.JSON(http.StatusNotFound, rd)
 		} else {
-			base.Logger.Error("Failed to fetch integrations", err)
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch integrations", err, nil)
+			base.Logger.Error("Failed to fetch agents", err)
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch agents", err, nil)
 			c.JSON(http.StatusInternalServerError, rd)
 		}
 		return
 	}
 
 	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", agents)
 	c.JSON(http.StatusOK, rd)
 }
 
 // Fetch Custom Integrations with pagination
-func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
+func (base *Controller) GetCustomAgentApp(c *gin.Context) {
 	org_id := c.Param("org_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -64,11 +64,11 @@ func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	integrations, paginationResponse, err, code := integrations.GetCustomIntegrationApp(c, org_id, base.Db.Postgresql, base.ExtReq)
+	agents, paginationResponse, err, code := agents.GetCustomAgentApp(c, org_id, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		fmt.Println(err)
-		base.Logger.Error("Failed to fetch integrations", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations", err.Error(), nil)
+		base.Logger.Error("Failed to fetch agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -77,18 +77,18 @@ func (base *Controller) GetCustomIntegrationApp(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(integrations),
+		"total_items":  len(agents),
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) UpdateIntegrationApp(c *gin.Context) {
-	var req models.UpdateIntegration
+func (base *Controller) UpdateAgentApp(c *gin.Context) {
+	var req models.UpdateAgent
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -97,9 +97,9 @@ func (base *Controller) UpdateIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -120,26 +120,26 @@ func (base *Controller) UpdateIntegrationApp(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": integration_id,
+		"org_id":   org_id,
+		"agent_id": agent_id,
 	}
 
-	updatedIntegration, err := integrations.UpdateIntegrationApp(req, ids, base.Db.Postgresql)
+	updatedAgents, err := agents.UpdateAgentApp(req, ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to update integration app", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update integration app", err, nil)
+		base.Logger.Error("Failed to update agent app", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update agent app", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	base.Logger.Info("Integrations updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integrations updated successfully", updatedIntegration)
+	base.Logger.Info("Agents updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agents updated successfully", updatedAgents)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
+func (base *Controller) DeleteAgentApp(c *gin.Context) {
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -148,36 +148,35 @@ func (base *Controller) DeleteIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": integration_id,
+		"org_id":   org_id,
+		"agent_id": agent_id,
 	}
 
-	err := integrations.DeleteIntegrationApp(ids, base.Db.Postgresql)
+	err := agents.DeleteAgentApp(ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to delete integration app", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete integration app", err, nil)
+		base.Logger.Error("Failed to delete agent app", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete agent app", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	base.Logger.Info("Integration app deleted successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app deleted successfully", nil)
+	base.Logger.Info("Agent app deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
-// Delete Custom integration
-
-func (base *Controller) DeleteCustomIntegrationApp(c *gin.Context) {
+// Delete Custom agent
+func (base *Controller) DeleteCustomAgentApp(c *gin.Context) {
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -186,34 +185,34 @@ func (base *Controller) DeleteCustomIntegrationApp(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": integration_id,
+		"org_id":   org_id,
+		"agent_id": agent_id,
 	}
 
-	err, code := integrations.DeleteCustomIntegrationApp(ids, base.Db.Postgresql)
+	err, code := agents.DeleteCustomAgentApp(ids, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to delete integration app", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to delete integration app", err.Error(), nil)
+		base.Logger.Error("Failed to delete agent app", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to delete agent app", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("Integration app deleted successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app deleted successfully", nil)
+	base.Logger.Info("Agent app deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
+func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
-	var req models.ChangeIntegrationStatus
+	var req models.ChangeAgentStatus
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Invalid request body")
@@ -229,28 +228,28 @@ func (base *Controller) ChangeIntegrationStatus(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(req.IntegrationID); err != nil {
-		base.Logger.Error("invalid integration id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+	if _, err := uuid.Parse(req.AgentID); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": req.IntegrationID,
+		"org_id":   org_id,
+		"agent_id": req.AgentID,
 	}
 
-	err := integrations.ChangeIntegrationStatus(ids, req, base.Db.Postgresql, base.ExtReq)
+	err := agents.ChangeAgentStatus(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		base.Logger.Error("Failed to set integration app status", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set integration app status", err.Error(), nil)
+		base.Logger.Error("Failed to set agent app status", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set agent app status", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Integration app status set successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Integration app status set successfully", nil)
+	base.Logger.Info("Agent app status set successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app status set successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 

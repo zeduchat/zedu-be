@@ -1,4 +1,4 @@
-package integrations
+package agents
 
 import (
 	"github.com/hngprojects/telex_be/internal/models"
