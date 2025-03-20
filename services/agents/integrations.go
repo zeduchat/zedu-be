@@ -1,4 +1,4 @@
-package integrations
+package agents
 
 import (
 	"encoding/json"
@@ -16,10 +16,10 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.IntegrationResp, error) {
-	var integrations models.Integrations
+func GetAllAgentApp(c *gin.Context, org_id string, db *gorm.DB) (models.AgentsResp, error) {
+	var agents models.Integrations
 
-	resp, err := integrations.GetAllIntegrationApp(db, org_id, c)
+	resp, err := agents.GetAllAgentApp(db, org_id, c)
 
 	if err != nil {
 		return nil, err
@@ -28,12 +28,12 @@ func GetAllIntegrationApp(c *gin.Context, org_id string, db *gorm.DB) (models.In
 	return resp, nil
 }
 
-func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
+func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.IntegrationResp, postgresql.PaginationResponse, error, int) {
 	var org_integrations models.OrganisationIntegrations
 
-	var int_resp = models.IntegrationResp{}
+	var int_resp = models.AgentsResp{}
 
-	resp, paginationResult, err, code := org_integrations.GetCustomIntegrationApp(db, org_id, c)
+	resp, paginationResult, err, code := org_integrations.GetCustomAgentApp(db, org_id, c)
 
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err, code
@@ -47,11 +47,11 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
 
 		if err != nil {
-			integration := models.Integrations{
+			agent := models.Integrations{
 				ID:             org_integrations.IntegrationID,
 				Name:           "Unavailable",
 				JSONUrl:        org_integrations.JSONUrl,
-				AppDescription: "This integration is currently unavailable.",
+				AppDescription: "This agent is currently unavailable.",
 				Category:       "Unavailable",
 				IsActive:       false,
 				Status:         "failed",
@@ -63,7 +63,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 				models.Integrations
 				Linked bool "json:\"linked\""
 			}{
-				Integrations: integration,
+				Integrations: agent,
 				Linked:       true,
 			})
 			continue
@@ -80,7 +80,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 			category = "Undefined"
 		}
 
-		integration := models.Integrations{
+		agent := models.Integrations{
 			ID:             org_integrations.IntegrationID,
 			Name:           description["app_name"].(string),
 			JSONUrl:        org_integrations.JSONUrl,
@@ -98,7 +98,7 @@ func GetCustomIntegrationApp(c *gin.Context, org_id string, db *gorm.DB, extReq 
 			models.Integrations
 			Linked bool "json:\"linked\""
 		}{
-			Integrations: integration,
+			Integrations: agent,
 			Linked:       true,
 		})
 	}
@@ -251,21 +251,21 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 	return integration, nil, code
 }
 
-func UpdateIntegrationApp(req models.UpdateIntegration, ids map[string]string, db *gorm.DB) (models.Integrations, error) {
+func UpdateAgentApp(req models.UpdateAgent, ids map[string]string, db *gorm.DB) (models.Integrations, error) {
 	var integration models.Integrations
 
-	updatedIntegration, err := integration.UpdateIntegration(db, ids, req)
+	updatedAgent, err := integration.UpdateAgent(db, ids, req)
 	if err != nil {
 		return models.Integrations{}, err
 	}
 
-	return updatedIntegration, nil
+	return updatedAgent, nil
 }
 
-func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
+func DeleteAgentApp(ids map[string]string, db *gorm.DB) error {
 	var integration models.Integrations
 
-	err := integration.DeleteIntegration(db, ids)
+	err := integration.DeleteAgent(db, ids)
 	if err != nil {
 		return err
 	}
@@ -274,10 +274,10 @@ func DeleteIntegrationApp(ids map[string]string, db *gorm.DB) error {
 }
 
 // Delete Org Custom Integration
-func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int) {
+func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
 	var org_integration models.OrganisationIntegrations
 
-	err, code := org_integration.DeleteCustomIntegration(db, ids)
+	err, code := org_integration.DeleteCustomAgent(db, ids)
 	if err != nil {
 		return err, code
 	}
@@ -285,7 +285,7 @@ func DeleteCustomIntegrationApp(ids map[string]string, db *gorm.DB) (error, int)
 	return nil, code
 }
 
-func ChangeIntegrationStatus(ids map[string]string, req models.ChangeIntegrationStatus, db *gorm.DB, extReq request.ExternalRequest) error {
+func ChangeAgentStatus(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
 	var integration models.OrganisationIntegrations
 
 	err := integration.ChangeStatus(db, req, ids, extReq)
