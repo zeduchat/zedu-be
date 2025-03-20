@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"mime/multipart"
 
 	"github.com/dutchcoders/go-clamd"
 	"github.com/hngprojects/telex_be/internal/config"
@@ -27,4 +28,24 @@ func ConnectToClamAV(logger *utility.Logger, clamav config.Clamav) *clamd.Clamd 
 	utility.LogAndPrint(logger, fmt.Sprintf("ClamAV as seen: %v", ClamAV))
 
 	return ClamAV
+}
+
+// Scan file with ClamAV before uploading
+func ScanFileWithClamAV(file multipart.File) error {
+	if ClamAV == nil {
+		return fmt.Errorf("ClamAV is not initialized. Line 36")
+	}
+
+	response, err := ClamAV.ScanStream(file, make(chan bool)) // Use global clamAV instance
+	if err != nil {
+		return fmt.Errorf("ClamAV scan failed: %v", err)
+	}
+
+	for result := range response {
+		if result.Status == clamd.RES_FOUND || result.Status == "FOUND" {
+			return fmt.Errorf("malware detected: %s", result.Description)
+		}
+	}
+
+	return nil
 }

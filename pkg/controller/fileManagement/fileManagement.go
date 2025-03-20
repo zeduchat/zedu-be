@@ -1,14 +1,14 @@
 package fileManagement
 
 import (
-	"net/http"
 	"github.com/gin-gonic/gin"
+	"net/http"
 
-	services "github.com/hngprojects/telex_be/services/fileManagement"
-	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/go-playground/validator/v10"
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	services "github.com/hngprojects/telex_be/services/fileManagement"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -40,9 +40,9 @@ func (base *Controller) UploadController(c *gin.Context) {
 			return
 		}
 		defer file.Close()
-		
+
 		// Call the UploadFile service
-		filePath, err := services.UploadFiles(file, fileHeader)
+		filePath, err := services.UploadFiles(base.Logger, file, fileHeader)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Upload failed: ", err, nil)
 			c.JSON(http.StatusInternalServerError, rd)
@@ -58,9 +58,10 @@ func (base *Controller) UploadController(c *gin.Context) {
 }
 
 func (base *Controller) FileController(c *gin.Context) {
+
 	objectName := c.Param("filename")
 
-	preSignedUrl, err := services.GeneratePresignedURL(objectName)
+	preSignedUrl, err := services.GeneratePresignedURL(base.Logger, objectName)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate presigned URL", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)

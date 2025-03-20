@@ -1,6 +1,7 @@
 package minio
 
 import (
+	// "context"
 	"context"
 	"fmt"
 
@@ -15,9 +16,11 @@ import (
 func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Client {
 	vsn := configBucket
 	minioClient, err := minio.New(vsn.MinioEndpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(vsn.AccessKey, vsn.Secret, ""),
-		Secure: true,
+		Creds: credentials.NewStaticV4(vsn.AccessKey, vsn.Secret, ""),
+		// Secure: true,
+		Secure: false,
 	})
+
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to initialize MinIO client: %v", err))
 		return nil
@@ -39,6 +42,7 @@ func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Cl
 	}
 
 	storage.DB.Minio = minioClient
+	utility.LogAndPrint(logger, fmt.Sprintf("Bucket %s exists", storage.DB.Minio))
 
 	return minioClient
 }

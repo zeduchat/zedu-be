@@ -7,56 +7,25 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dutchcoders/go-clamd"
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
-	minioService "github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/minio/minio-go/v7"
 )
 
-var AllowedMimeTypes = map[string]string{
-	// Image
-	"image/png":  "images",
-	"image/jpeg": "images",
-	"image/jpg":  "images",
-
-	// Document
-	"text/csv":        "documents",
-	"application/pdf": "documents",
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": "documents",
-
-	// Audio
-	"audio/mpeg": "audio",
-	"audio/wav":  "audio",
-
-	// Video
-	"video/mp4":       "videos",
-	"video/quicktime": "videos",
+func GetFileCategory(mimeType string) (string, bool) {
+	for _, fileType := range models.AllowedFileTypes {
+		if fileType.MimeType == mimeType {
+			return fileType.Category, true
+		}
+	}
+	return "", false
 }
 
 const maxFileSize = 50 * 1024 * 1024
 
 // Scan file with ClamAV before uploading
-func ScanFileWithClamAV(file multipart.File) error {
-	if minioService.ClamAV == nil {
-		return fmt.Errorf("ClamAV is not initialized")
-	}
-
-	response, err := minioService.ClamAV.ScanStream(file, make(chan bool)) // Use global clamAV instance
-	if err != nil {
-		return fmt.Errorf("ClamAV scan failed: %v", err)
-	}
-
-	for result := range response {
-		if result.Status == clamd.RES_FOUND || result.Status == "FOUND" {
-			return fmt.Errorf("malware detected: %s", result.Description)
-		}
-	}
-
-	return nil
-}
-
 func DetectMimeType(file multipart.File) (string, error) {
 	buffer := make([]byte, 512)
 	_, err := file.Read(buffer)
@@ -68,61 +37,50 @@ func DetectMimeType(file multipart.File) (string, error) {
 	return mimeType, nil
 }
 
-func FileExists(fileName string) (bool, error) {
-	var logger *utility.Logger
-	path := "public/uploads/" + fileName
+func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	minioClient := storage.DB.Minio
+
 	bucketName := config.Config.Minio.BucketName
 
-	if minioClient == nil || bucketName == "" {
-		return false, fmt.Errorf("minio is not properly initialized")
-	}
-
-	_, err := minioClient.StatObject(context.Background(), bucketName, path, minio.StatObjectOptions{})
+	_, err := minioClient.StatObject(context.Background(), bucketName, fileName, minio.StatObjectOptions{})
 	if err != nil {
 		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
-			utility.LogAndPrint(logger, fmt.Sprintf("File %s does not exist in bucket %s", path, bucketName))
+			utility.LogAndPrint(logger, fmt.Sprintf("File %s does not exist in bucket %s", fileName, bucketName))
 			return false, nil
 		}
-		utility.LogAndPrint(logger, fmt.Sprintf("Error checking if file %s exists: %v", path, err))
-		return false, fmt.Errorf("error checking if file %s exists: %v", path, err)
+		utility.LogAndPrint(logger, fmt.Sprintf("Error checking if file %s exists: %v", fileName, err))
+		return false, fmt.Errorf("error checking if file %s exists: %v", fileName, err)
 	}
 
-	utility.LogAndPrint(logger, fmt.Sprintf("File %s exists in bucket %s", path, bucketName))
-	return true, fmt.Errorf("file %s exists in bucket %s", path, bucketName)
+	utility.LogAndPrint(logger, fmt.Sprintf("File %s exists in bucket %s", fileName, bucketName))
+	return true, fmt.Errorf("file %s exists in bucket %s", fileName, bucketName)
 }
 
-func UploadFiles(file multipart.File, header *multipart.FileHeader) (string, error) {
-	var logger *utility.Logger
+func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.FileHeader) (string, error) {
 	var url string
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
 
 	if header.Size > maxFileSize {
 		return "", fmt.Errorf("file exists max size")
 	}
 
-	scanErr := ScanFileWithClamAV(file)
-	if scanErr != nil {
-		return "", scanErr
-	}
-
-	minioClient := storage.DB.Minio
-	bucketName := config.Config.Minio.BucketName
-
-	if minioClient == nil || bucketName == "" {
-		return "", fmt.Errorf("minio is not properly initialized")
-	}
+	// scanErr := minioService.ScanFileWithClamAV(file)
+	// if scanErr != nil {
+	// 	return "", scanErr
+	// }
 
 	mimeType, mimeTypeErr := DetectMimeType(file)
 	if mimeTypeErr != nil {
 		return "", fmt.Errorf("could not detect file type: %v", mimeTypeErr)
 	}
 
-	_, existsErr := FileExists(header.Filename)
+	_, existsErr := FileExists(logger, header.Filename)
 	if existsErr != nil {
 		return "", existsErr
 	}
 
-	storagePath, valid := AllowedMimeTypes[mimeType]
+	storagePath, valid := GetFileCategory(mimeType)
 	if !valid {
 		return "", fmt.Errorf("invalid file type")
 	}
@@ -140,7 +98,15 @@ func UploadFiles(file multipart.File, header *multipart.FileHeader) (string, err
 	return url, nil
 }
 
-func GeneratePresignedURL(objectName string) (string, error) {
+func GeneratePresignedURL(logger *utility.Logger, objectName string) (string, error) {
+	exists, err := FileExists(logger, objectName)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", fmt.Errorf("file %s does not exist in the bucket", objectName)
+	}
+
 	// Set expiration time (e.g. 30 minutes)
 	expiry := 30 * time.Minute
 	minioClient := storage.DB.Minio
