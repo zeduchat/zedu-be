@@ -15,7 +15,6 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
-
 var AllowedMimeTypes = map[string]string{
 	// Image
 	"image/png":  "images",
@@ -100,16 +99,17 @@ func UploadFiles(file multipart.File, header *multipart.FileHeader) (string, err
 	if header.Size > maxFileSize {
 		return "", fmt.Errorf("file exists max size")
 	}
+
+	scanErr := ScanFileWithClamAV(file)
+	if scanErr != nil {
+		return "", scanErr
+	}
+
 	minioClient := storage.DB.Minio
 	bucketName := config.Config.Minio.BucketName
 
 	if minioClient == nil || bucketName == "" {
 		return "", fmt.Errorf("minio is not properly initialized")
-	}
-
-	scanErr := ScanFileWithClamAV(file)
-	if scanErr != nil {
-		return "", scanErr
 	}
 
 	mimeType, mimeTypeErr := DetectMimeType(file)
