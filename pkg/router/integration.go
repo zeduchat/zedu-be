@@ -18,24 +18,19 @@ func Integration(r *gin.Engine, ApiVersion string, validator *validator.Validate
 	integration := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	integrationUrl := r.Group(fmt.Sprintf("%v/integrations", ApiVersion), middleware.Authorize(db.Postgresql))
-
 	{
 		integrationUrl.GET(":integration_id/settings", integration.GetIntegrationSettingsAllOrgs)
 		integrationUrl.POST("/trigger-tick", integration.TriggerTick)
 	}
 
-
-	// Unauthnticated endpoint to fetch integrations
-
+	// Unauthenticated endpoint to fetch integrations
 	intPage := r.Group(fmt.Sprintf("%v/integrations", ApiVersion))
-
 	{
 		intPage.GET("", integration.GetSystemIntegrationApps)
 		intPage.GET(":integration_id", integration.GetSystemIntegrationApp)
 	}
 
 	external_int := r.Group(fmt.Sprintf("%v/integrations/settings", ApiVersion))
-
 	{
 		external_int.GET("", integration.GetCustomIntegrationSettingsExteranl)
 		external_int.PUT("", integration.UpdateCustomIntegrationSettingsExternal)

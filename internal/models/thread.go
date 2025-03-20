@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -36,8 +37,10 @@ type Threads struct {
 	CurrentStatus string     `json:"current_status"`
 	FullName      string     `json:"full_name"`
 	Email         string     `json:"email"`
+	Edited        bool       `json:"edited"`
 	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int        `json:"frequency,omitempty"`
+	UserId        string     `json:"user_id"`
 }
 
 type ThreadDocument struct {
@@ -58,6 +61,7 @@ type ThreadDocument struct {
 	FullName      string            `json:"full_name"`
 	Email         string            `json:"email"`
 	UserId        string            `json:"user_id"`
+	Edited        bool              `json:"edited"`
 	Messages      []MessageDocument `json:"messages,omitempty"`
 	Count         int               `json:"frequency,omitempty"`
 }
@@ -69,6 +73,7 @@ var Thread_mapping = map[string]interface{}{
 			"id":          map[string]string{"type": "keyword"},
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
+			"edited":      map[string]string{"type": "boolean"},
 			"event_name":  map[string]string{"type": "text"},
 			"username":    map[string]string{"type": "keyword"},
 			"action_type": map[string]string{"type": "text"},
@@ -137,9 +142,9 @@ type ChannelMetrics struct {
 }
 
 type CreateThreadMsgReq struct {
-	Content    string `json:"content"`
-	Message    string `json:"message"`
+	Content    string `json:"content" validate:"required"`
 	ChannelsID string `json:"channels_id"`
+	Message    string `json:"message"`
 	UserId     string `json:"user_id"`
 	ThreadId   string `json:"thread_id"`
 	OrgId      string `json:"org_id"`
@@ -176,7 +181,9 @@ type UpdateThreadStatus struct {
 }
 
 type UpdateThreadMessage struct {
-	Message string `json:"message" validate:"required"`
+	Message   string `json:"content" validate:"required"`
+	ThreadId  string `json:"thread_id"`
+	ChannelId string `json:"channel_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -459,7 +466,7 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 	err := elastic.UpdateDocument(storage.DB.Elastic, ThreadIndexName, c.ID, req)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to update thread, err: %v", err)
+		return nil, fmt.Errorf("thread not found")
 	}
 
 	return c, nil
@@ -475,7 +482,6 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 		},
 	}
 
-
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
 
 	if err != nil {
@@ -484,7 +490,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete thread, err: %v", err)
+		return nil, fmt.Errorf("Invalid thread uuid supplied")
 	}
 
 	return c, nil
@@ -499,7 +505,7 @@ func (m *Mentions) CreateMention(db *gorm.DB) error {
 	return nil
 }
 
-func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) {
+func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
 
 	var (
 		threadData interface{}
@@ -508,17 +514,47 @@ func (t *Threads) GetThreadById(db *gorm.DB, threadID string) (*Threads, error) 
 	err := elastic.SelectByID(storage.DB.Elastic, ThreadIndexName, threadID, &threadData)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch thread records, error: %v", err)
+		return fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &t); err != nil {
-		return nil, fmt.Errorf("failed to decode search response: %v", err)
+		return fmt.Errorf("failed to decode search response: %v", err)
 
 	}
 
-	return t, nil
+	return nil
+}
+
+func (t *ThreadDocument) CheckExists() (bool, int, error) {
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"term": map[string]interface{}{
+							"channels_id.keyword": t.ChannelsID,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"user_id.keyword": t.UserId,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	check, err := elastic.CheckExists(storage.DB.Elastic, ThreadIndexName, query)
+
+	if err != nil {
+		return false, http.StatusInternalServerError, err
+	}
+
+	return check, http.StatusOK, err
 }
 
 func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {

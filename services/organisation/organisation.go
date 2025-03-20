@@ -245,7 +245,11 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 }
 
 func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
-	var org models.Organisation
+	var (
+		org models.Organisation
+		ch models.Channels
+		oi models.OrganisationIntegrations
+	)
 
 	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
 	if err != nil {
@@ -253,6 +257,18 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 	}
 	if !isOwner {
 		return errors.New("user not authorised to delete this organisation")
+	}
+
+	//remove all channels in that organisation
+	err = postgresql.DeleteSpecificRecord(db, &ch, "organisation_id = ?", orgId)
+	if err != nil {
+		return errors.New("unable to delete organisation channels")
+	}
+
+	//remove all organisation-integrations mapping
+	err = postgresql.DeleteSpecificRecord(db, &oi, "org_id = ?", orgId)
+	if err != nil{
+		return errors.New("unable to remove organisation integrations")
 	}
 
 	return org.Delete(db, orgId)

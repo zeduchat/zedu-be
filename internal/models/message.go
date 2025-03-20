@@ -80,7 +80,7 @@ type CreateMessageRequest struct {
 	Content    string `json:"content" validate:"required"`
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id"`
+	ThreadId   string `json:"thread_id" validate:"required"`
 	OrgId      string `json:"org_id"`
 }
 
@@ -88,30 +88,36 @@ type EditMessageRequest struct {
 	Content    string `json:"content" validate:"required"`
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id"`
+	ThreadId   string `json:"thread_id" validate:"required"`
 	MessageId  string `json:"message_id" validate:"required"`
+	OrgId      string `json:"org_id"`
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) error {
 	var (
+		dmChannels   DmChannels
 		userChannels UserChannels
 		profile      Profile
-		thread       Threads
+		thread       ThreadDocument
 	)
 
-	exist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
-	if !exist {
+	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+
+	if !(dmChanExist || chanExist) {
 		return errors.New("user not in channel")
 	}
-
-	m.Username = userChannels.Username
 
 	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
 	}
 
-	_, err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+
+	if err != nil {
+		return err
+	}
 
 	if len(thread.Messages) < 5 {
 
@@ -177,14 +183,12 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 	return nil
 }
 
-func (m *Message) UpdateMessage(db *gorm.DB) (*Message, error) {
-	result, err := postgresql.SaveAllFields(db, &m)
-	if err != nil {
-		return nil, err
-	}
+func (m *Message) UpdateMessage(db *gorm.DB, req map[string]interface{}) (*Message, error) {
 
-	if result.RowsAffected == 0 {
-		return nil, errors.New("failed to update message")
+	err := elastic.UpdateDocument(storage.DB.Elastic, MessageIndexName, m.ID, req)
+
+	if err != nil {
+		return nil, fmt.Errorf("message not found")
 	}
 
 	return m, nil
@@ -206,14 +210,26 @@ func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string)
 	return messages, nil
 }
 
-func (m *Message) GetMessageByID(db *gorm.DB, messageID string) (Message, error) {
-	var message Message
+func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 
-	err, nerr := postgresql.SelectOneFromDb(db, &message, "id = ?", messageID)
+	var (
+		messageData interface{}
+	)
+
+	err := elastic.SelectByID(storage.DB.Elastic, MessageIndexName, messageID, &messageData)
+
 	if err != nil {
-		return message, nerr
+		return fmt.Errorf("failed to fetch message records, error: %v", err)
 	}
-	return message, nil
+
+	rawJSON, _ := json.MarshalIndent(messageData.(map[string]interface{}), "", "  ")
+
+	if err := json.Unmarshal(rawJSON, &t); err != nil {
+		return fmt.Errorf("failed to decode search response: %v", err)
+
+	}
+
+	return nil
 }
 
 func (c *Message) DeleteMessage() (*Message, error) {

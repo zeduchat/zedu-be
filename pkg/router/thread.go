@@ -23,8 +23,9 @@ func Threads(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		threadUrl.GET("/channels/:channel_id/threads", thread.GetChannelThreads)
 		threadUrl.GET("/channels/:channel_id", thread.GetAllChannelThreads)
 		threadUrl.GET("/:thread_id/channels/:channel_id", thread.GetUserSingleThreads)
-		threadUrl.PUT("/:thread_id/channels/:channel_id", thread.UpdateAThread)
+		threadUrl.PUT("/:thread_id/channels/:channel_id", thread.UpdateThreadMessage)
 		threadUrl.DELETE("/:thread_id/channels/:channel_id", thread.DeleteAThread)
+
 		// main channel thread
 		threadUrl.POST("/:channel_id", thread.AddAThread)
 		threadUrl.GET("/channels/:channel_id/:searching", thread.SearchChannel)
