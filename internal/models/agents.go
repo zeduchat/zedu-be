@@ -34,17 +34,17 @@ type Integrations struct {
 	UpdatedAt       time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
-type UpdateIntegration struct {
+type UpdateAgent struct {
 	Name            string `json:"name"`
 	JSONUrl         string `json:"json_url"`
 	AuthCredential  string `json:"auth_credential"`
 	IntegrationType string `json:"integration_type"`
 }
 
-type ChangeIntegrationStatus struct {
-	Status        bool   `json:"status" validate:"required,oneof=true false"`
-	IntegrationID string `json:"integration_id"`
-	JSONSchema    JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
+type ChangeAgentStatus struct {
+	Status     bool   `json:"status" validate:"required,oneof=true false"`
+	AgentID    string `json:"agent_id"`
+	JSONSchema JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
 type OutputIntegrationsResponse struct {
@@ -66,7 +66,7 @@ type CustomIntegrationSettingRequest struct {
 	SerializedEntry string                 `json:"serialized_entry"`
 }
 
-type ActivateChannelIntegration struct {
+type ActivateChannelAgent struct {
 	Status bool `json:"status"`
 }
 
@@ -157,7 +157,7 @@ type IntegrationChannelReq struct {
 	IntegrationOutputID   string `json:"int_output_id" validate:"required"`
 }
 
-type IntegrationResp []struct {
+type AgentsResp []struct {
 	Integrations
 	Linked bool `json:"linked"`
 }
@@ -194,11 +194,11 @@ func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) e
 	return nil
 }
 
-func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) (IntegrationResp, error) {
+func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context) (AgentsResp, error) {
 
 	var (
-		integrations IntegrationResp
-		org          Organisation
+		agents AgentsResp
+		org    Organisation
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
@@ -221,17 +221,17 @@ func (i *Integrations) GetAllIntegrationApp(db *gorm.DB, org_id string, c *gin.C
 					ELSE false 
 				END AS linked`).
 		Joins("LEFT JOIN organisation_integrations AS oi ON oi.integration_id = i.id AND oi.org_id = ?", org_id).
-		Find(&integrations).Error
+		Find(&agents).Error
 	if err != nil {
 		return nil, err
 	}
 
-	return integrations, nil
+	return agents, nil
 }
 
 // Get custom integrations
 
-func (i *OrganisationIntegrations) GetCustomIntegrationApp(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+func (i *OrganisationIntegrations) GetCustomAgentApp(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
 
 	var (
 		org        Organisation
@@ -263,7 +263,7 @@ func (i *OrganisationIntegrations) GetCustomIntegrationApp(db *gorm.DB, org_id s
 	return orgIntResp, paginationResponse, err, http.StatusOK
 }
 
-func (i *Integrations) GetSystemIntegrationApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
 
 	var (
 		IntResp []Integrations
@@ -289,7 +289,7 @@ func (i *Integrations) GetSystemIntegrationApps(db *gorm.DB, c *gin.Context) ([]
 	return IntResp, paginationResponse, err, http.StatusOK
 }
 
-func (i *Integrations) GetSystemIntegrationApp(db *gorm.DB, int_id string, c *gin.Context) (Integrations, error, int) {
+func (i *Integrations) GetSystemAgentApp(db *gorm.DB, int_id string, c *gin.Context) (Integrations, error, int) {
 
 	var (
 		IntResp Integrations
@@ -303,46 +303,46 @@ func (i *Integrations) GetSystemIntegrationApp(db *gorm.DB, int_id string, c *gi
 	return IntResp, nil, http.StatusOK
 }
 
-func (i *Integrations) UpdateIntegration(db *gorm.DB, ids map[string]string, req UpdateIntegration) (Integrations, error) {
-	var integration Integrations
+func (i *Integrations) UpdateAgent(db *gorm.DB, ids map[string]string, req UpdateAgent) (Integrations, error) {
+	var agent Integrations
 
-	exists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	exists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	if !exists {
-		return integration, errors.New("integration app does not exist")
+		return agent, errors.New("agent app does not exist")
 	}
 
-	result, err := postgresql.UpdateFields(db, &integration, req, "id = ?", integration.ID)
+	result, err := postgresql.UpdateFields(db, &agent, req, "id = ?", agent.ID)
 	if err != nil {
-		return integration, errors.New("failed to update integration app")
+		return agent, errors.New("failed to update agent app")
 	}
 	if result.RowsAffected == 0 {
-		return integration, errors.New("no record updated")
+		return agent, errors.New("no record updated")
 	}
 
-	updatedIntegration := Integrations{}
-	err = db.Where("id = ?", integration.ID).First(&updatedIntegration).Error
+	updatedAgent := Integrations{}
+	err = db.Where("id = ?", agent.ID).First(&updatedAgent).Error
 	if err != nil {
-		return updatedIntegration, err
+		return updatedAgent, err
 	}
-	return updatedIntegration, nil
+	return updatedAgent, nil
 }
 
 // Delete general integration
-func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) error {
-	var integration Integrations
+func (i *Integrations) DeleteAgent(db *gorm.DB, ids map[string]string) error {
+	var agent Integrations
 
-	exists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	exists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	if !exists {
-		return errors.New("integration app does not exist")
+		return errors.New("agent app does not exist")
 	}
 
-	err := db.Delete(&integration, "id = ?", ids["integration_id"]).Error
+	err := db.Delete(&agent, "id = ?", ids["agent_id"]).Error
 	if err != nil {
 		return err
 	}
 
-	//also delete entries for the integration in the organisation integrations table
-	err = db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["integration_id"]).Error
+	//also delete entries for the agent in the organisation agents table
+	err = db.Delete(&OrganisationIntegrations{}, "agent_id = ?", ids["agent_id"]).Error
 	if err != nil {
 		return err
 	}
@@ -351,21 +351,21 @@ func (i *Integrations) DeleteIntegration(db *gorm.DB, ids map[string]string) err
 }
 
 // Delete Custom integration
-func (i *OrganisationIntegrations) DeleteCustomIntegration(db *gorm.DB, ids map[string]string) (error, int) {
+func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, ids map[string]string) (error, int) {
 	var org_integration OrganisationIntegrations
 
-	exists := postgresql.CheckExists(db, &org_integration, "integration_id = ?", ids["integration_id"])
+	exists := postgresql.CheckExists(db, &org_integration, "integration_id = ?", ids["agent_id"])
 	if !exists {
-		return errors.New("integration app does not exist"), http.StatusBadRequest
+		return errors.New("agent app does not exist"), http.StatusBadRequest
 	}
 
-	//also delete entries for the integration in the organisation integrations table
-	err := db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["integration_id"]).Error
+	//also delete entries for the agent in the organisation agents table
+	err := db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["agent_id"]).Error
 	if err != nil {
 		return err, http.StatusInternalServerError
 	}
 
-	err = db.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", ids["integration_id"]).Error
+	err = db.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", ids["agent_id"]).Error
 	if err != nil {
 		return err, http.StatusInternalServerError
 	}
@@ -407,9 +407,9 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 	return nil
 }
 
-func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string, extReq request.ExternalRequest) error {
+func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string, extReq request.ExternalRequest) error {
 	var (
-		integration         Integrations
+		agent               Integrations
 		intsettings         CustomIntegrationsSetting
 		organisation        Organisation
 		oci                 OrganisationChannelsIntegrations
@@ -423,27 +423,25 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		return errors.New("organisation does not exist")
 	}
 
-	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	agentExists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
+	ChannelagentExists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 
-	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
-	ChannelintegrationExists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
-	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
-
-	if !(integrationExists || orgIntegrationExists) {
+	if !(agentExists || orgAgentExists) {
 		return errors.New("integration app does not exist")
 	}
 
 	//if the integration exists but does not have an entry in the organisation integrations table, create one
-
-	if !orgIntegrationExists {
+	if !orgAgentExists {
 		oi.ID = utility.GenerateUUID()
 		oi.IsActive = req.Status
 		oi.OrgID = ids["org_id"]
-		oi.IntegrationID = ids["integration_id"]
+		oi.IntegrationID = ids["agent_id"]
 		oi.JSONSchema = req.JSONSchema
-		oi.JSONUrl = integration.JSONUrl
+		oi.JSONUrl = agent.JSONUrl
 
-		if integrationExists {
+		if agentExists {
 			oi.IsSystem = true
 		} else {
 			oi.IsSystem = false
@@ -456,7 +454,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	}
 
 	//activate integration for all channels in the organisation
-	if !ChannelintegrationExists {
+	if !ChannelagentExists {
 		err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ?", ids["org_id"])
 		if err != nil {
 			return err
@@ -464,8 +462,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 		is_system := false
 
-		if integrationExists {
-
+		if agentExists {
 			is_system = true
 		}
 
@@ -474,7 +471,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 				ID:            utility.GenerateUUID(),
 				OrgID:         ids["org_id"],
 				ChannelID:     channel.ID,
-				IntegrationID: ids["integration_id"],
+				IntegrationID: ids["agent_id"],
 				IsActive:      req.Status,
 				IsSystem:      is_system,
 			}
@@ -491,25 +488,24 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	// return nil
 
 	// add settings if not exist
-	if !CheckIntegrationSettings && integration.JSONUrl != "" {
-		data := map[string]string{"url": integration.JSONUrl}
+	if !CheckIntegrationSettings && agent.JSONUrl != "" {
+		data := map[string]string{"url": agent.JSONUrl}
 
-		response, err := extReq.SendExternalRequest(request.IntegrationJsonContent, data)
+		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 		if err != nil {
-			return errors.New("failed to save integration default settings, invalid JSON supplied")
+			return errors.New("failed to save agent default settings, invalid JSON supplied")
 		}
 
 		response_data := response.(map[string]interface{})
 		data_r, ok := response_data["data"].(map[string]interface{})
 
 		if !ok {
-			return errors.New("Failed to save integration, data field does not exist")
+			return errors.New("Failed to save agent, data field does not exist")
 		}
 
 		// validate all entries
-
-		err = ValidateIntegrationData(data_r)
+		err = ValidateAgentData(data_r)
 
 		if err != nil {
 			return err
@@ -517,7 +513,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 
 		settings, ok := data_r["settings"]
 		if !ok {
-			return errors.New("Failed to save integration default settings, settings field does not exist")
+			return errors.New("Failed to save agent default settings, settings field does not exist")
 		}
 
 		settings_data := map[string]interface{}{"settings": settings}
@@ -527,13 +523,12 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		if ok && is_auth {
 			enc_key := config.Config.Server.EncKey
 
-			auth_credentials := map[string]interface{}{"integration_auth_credentials": "Not-Set-Yet"}
+			auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
 
-			api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["integration_id"], enc_key)
+			api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
 
 			auth_credentials["telex_api_key"] = api_key
 			settings_data["auth_credentials"] = auth_credentials
-
 			if err != nil {
 				return errors.New("Failed to create external API key")
 			}
@@ -550,18 +545,17 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 		integrationSettings.ID = utility.GenerateUUID()
 		integrationSettings.SettingEntry = serialized_settings
 		integrationSettings.OrgID = ids["org_id"]
-		integrationSettings.IntegrationID = ids["integration_id"]
+		integrationSettings.IntegrationID = ids["agent_id"]
 
-		if integrationExists {
+		if agentExists {
 			integrationSettings.IsSystem = true
 		} else {
 			integrationSettings.IsSystem = false
 		}
 
 		err = integrationSettings.CreateIntegrationSettings(db)
-
 		if err != nil {
-			return errors.New("failed to create integration settings")
+			return errors.New("failed to create agent settings")
 		}
 	}
 
@@ -574,7 +568,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 			AND NOT EXISTS (
 				SELECT 1 FROM organisation_channels_integrations oci 
 				WHERE oci.channel_id = c.id AND oci.org_id = ? AND oci.integration_id = ?
-		)`, ids["org_id"], ids["integration_id"], req.Status, ids["org_id"], ids["org_id"], ids["integration_id"]).Error
+		)`, ids["org_id"], ids["agent_id"], req.Status, ids["org_id"], ids["org_id"], ids["agent_id"]).Error
 
 	if err != nil {
 		return err
@@ -583,7 +577,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	//when the integration has been deactivated/activated for the integration, deactivate/activate it for all channels in the organisation
 	if req.Status || !req.Status {
 		err := db.Model(&OrganisationChannelsIntegrations{}).
-			Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"]).
+			Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"]).
 			Update("is_active", req.Status).Error
 		if err != nil {
 			return err
@@ -595,7 +589,6 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	update["json_schema"] = req.JSONSchema
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", oi.OrgID, oi.IntegrationID)
-
 	if err != nil {
 		return err
 	}
@@ -607,7 +600,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeIntegrat
 	return nil
 }
 
-func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, req ChangeIntegrationStatus, ids map[string]string) error {
+func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string) error {
 	var (
 		integration  Integrations
 		organisation Organisation
@@ -625,20 +618,20 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 		return errors.New("channel does not exist")
 	}
 
-	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	integrationExists := postgresql.CheckExists(db, &integration, "id = ?", ids["agent_id"])
 	if !integrationExists {
-		return errors.New("integration app does not exist")
+		return errors.New("agent app does not exist")
 	}
 
-	orgIntegrationExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 
-	if !orgIntegrationExists {
+	if !orgAgentExists {
 		return errors.New("organisation not integrated with this app")
 	}
 
-	orgChannelIntegrationExists := postgresql.CheckExists(db, &oci, "is_active = ? AND org_id = ? AND integration_id = ? AND channel_id = ?", "true", ids["org_id"], ids["integration_id"], ids["channel_id"])
+	orgChannelAgentExists := postgresql.CheckExists(db, &oci, "is_active = ? AND org_id = ? AND integration_id = ? AND channel_id = ?", "true", ids["org_id"], ids["agent_id"], ids["channel_id"])
 
-	if !orgChannelIntegrationExists {
+	if !orgChannelAgentExists {
 		return errors.New("organisation not found or not active")
 	}
 
@@ -652,13 +645,13 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("integration not found or not active")
+		return errors.New("agent not found or not active")
 	}
 
 	return nil
 }
 
-func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, int, error) {
+func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelAgents(db *gorm.DB, channel_id, orgID string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, int, error) {
 	var (
 		org        Organisation
 		orgIntResp []OrganisationIntegrations
@@ -693,7 +686,7 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelIntegrations(
 	return orgIntResp, paginationResponse, http.StatusOK, err
 }
 
-func (oci *OrganisationChannelsIntegrations) ActivateChannelIntegration(db *gorm.DB, req ActivateChannelIntegration, ids map[string]string) error {
+func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, req ActivateChannelAgent, ids map[string]string) error {
 
 	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
 
@@ -1063,7 +1056,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	return nil
 }
 
-func ValidateIntegrationData(data_r map[string]interface{}) error {
+func ValidateAgentData(data_r map[string]interface{}) error {
 
 	var INTERVAL_TYPE = "interval"
 	var MODIFIER_TYPE = "modifier"
@@ -1094,81 +1087,81 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 
 	descriptions, ok := data_r["descriptions"].(map[string]interface{})
 	if !ok {
-		return errors.New("Failed to save integration, descriptions field does not exist")
+		return errors.New("Failed to save agent, descriptions field does not exist")
 	}
 
 	app_name, ok := descriptions["app_name"].(string)
 	if !ok || app_name == "" {
-		return errors.New("Failed to save integration, app_name field does not exist or is empty")
+		return errors.New("Failed to save agent, app_name field does not exist or is empty")
 	}
 
 	app_desc, ok := descriptions["app_description"].(string)
 	if !ok || app_desc == "" {
-		return errors.New("Failed to save integration, app_description field does not exist or is empty")
+		return errors.New("Failed to save agent, app_description field does not exist or is empty")
 	}
 
 	app_logo, ok := descriptions["app_logo"].(string)
 	if !ok || app_logo == "" {
-		return errors.New("Failed to save integration, app_logo field does not exist or is empty")
+		return errors.New("Failed to save agent, app_logo field does not exist or is empty")
 	}
 
 	if !strings.Contains(app_logo, "https:") && !strings.Contains(app_logo, "http:") {
-		return errors.New("Failed to save integration, invalid app_logo url")
+		return errors.New("Failed to save agent, invalid app_logo url")
 	}
 
 	app_url, ok := descriptions["app_url"].(string)
 	if !ok || app_url == "" {
-		return errors.New("Failed to save integration, app_url field does not exist or is empty")
+		return errors.New("Failed to save agent, app_url field does not exist or is empty")
 	}
 
 	settings, ok := data_r["settings"]
 	if !ok {
-		return errors.New("Failed to save integration, settings field does not exist")
+		return errors.New("Failed to save agent, settings field does not exist")
 	}
 
 	_, isArray := settings.([]interface{})
 	if !isArray {
-		return errors.New("Failed to save integration, settings field is not an array")
+		return errors.New("Failed to save agent, settings field is not an array")
 	}
 
 	key_features, ok := data_r["key_features"]
 	if !ok {
-		return errors.New("Failed to save integration, key_features field does not exist or is empty")
+		return errors.New("Failed to save agent, key_features field does not exist or is empty")
 	}
 
 	_, ok = key_features.([]interface{})
 	if !ok {
-		return errors.New("Failed to save integration, key_features field is not an array")
+		return errors.New("Failed to save agent, key_features field is not an array")
 	}
 
-	int_cat, ok := data_r["integration_category"]
+	int_cat, ok := data_r["agent_category"]
 	if !ok || int_cat == "" {
-		return errors.New("Failed to save integration, integration_category field does not exist or is empty")
+		return errors.New("Failed to save agent, agent_category field does not exist or is empty")
 	}
 
 	if !categories[int_cat.(string)] {
-		return errors.New(fmt.Sprintf("Failed to save integration, integration_category type not supported, supplied: %s, check docs for supported types.", int_cat))
+		return errors.New(fmt.Sprintf("Failed to save agent, agent_category type not supported, supplied: %s, check docs for supported types.", int_cat))
 	}
 
-	int_type, ok := data_r["integration_type"]
+	int_type, ok := data_r["agent_type"]
 	if !ok {
-		return errors.New("Failed to save integration, integration_type field does not exist")
+		return errors.New("Failed to save agent, agent_type field does not exist")
 	}
 
 	if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE {
-		return errors.New("Failed to save integration, invalid integration_type integration should be of type interval or modifier")
+		return errors.New("Failed to save agent, invalid agent_type agent should be of type interval or modifier")
 	}
 
 	if int_type == INTERVAL_TYPE {
 
 		_, ok = data_r["target_url"]
 		if !ok {
-			return errors.New("Failed to save integration, target_url field does not exist")
+			return errors.New("Failed to save agent, target_url field does not exist")
 		}
 
 		_, ok = data_r["tick_url"]
 		if !ok {
-			return errors.New("Failed to save integration, tick_url field does not exist")
+			return errors.New("Failed to save agent, tick_url field does not exist")
 		}
 	}
 
@@ -1176,7 +1169,7 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 
 		_, ok = data_r["target_url"]
 		if !ok {
-			return errors.New("Failed to save integration, target_url field does not exist")
+			return errors.New("Failed to save agent, target_url field does not exist")
 		}
 	}
 
@@ -1185,7 +1178,7 @@ func ValidateIntegrationData(data_r map[string]interface{}) error {
 
 		auth_init, ok := data_r["auth_initiate_url"]
 		if !ok || auth_init == "" {
-			return errors.New("Failed to save integration, auth_initiate_url field does not exist or is empty, consult the docs for more details")
+			return errors.New("Failed to save agent, auth_initiate_url field does not exist or is empty, consult the docs for more details")
 		}
 
 	}
