@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -102,8 +101,6 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		// Process hit and append to results
 		qResults = append(qResults, utility.ProcessMessageHit(index, source))
 	}
-	b, _ := json.MarshalIndent(qResults, "", "  ")
-	fmt.Println(string(b))
 	return qResults, nil
 }
 
@@ -248,9 +245,6 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 		boolQuery["must"] = mustClauses
 	}
 
-	// Print the generated Elasticsearch query
-	b, _ := json.MarshalIndent(boolQuery, "", "  ")
-	fmt.Println(string(b))
 }
 
 func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
