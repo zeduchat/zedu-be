@@ -1,11 +1,11 @@
-package integrations
+package agents
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/hngprojects/telex_be/services/integrations"
+	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -19,7 +19,7 @@ func (base *Controller) FetchOrganisationBots(c *gin.Context) {
 		return
 	}
 
-	response,paginationResponse, code, err := integrations.FetchOrganisationBots(base.Db.Postgresql, base.Logger, org_id, c, base.ExtReq)
+	response,paginationResponse, code, err := agents.FetchOrganisationBots(base.Db.Postgresql, base.Logger, org_id, c, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("failed to fetch bots in organisation", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to fetch bots in organisation", err.Error(), nil)

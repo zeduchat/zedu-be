@@ -251,7 +251,7 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		oi models.OrganisationIntegrations
 	)
 
-	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
+	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId) //already checks if org exists
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users AS u").
-		Select(`u.id, u.email, p.phone AS phone_number, p.full_name AS name, p.avatar_url AS avatar_url, u.created_at, o.status, org.name AS role`).
+		Select(`u.id, u.email, p.phone AS phone_number, p.full_name AS name, p.avatar_url AS avatar_url, u.created_at, o.status, org.name AS role, p.user_name`).
 		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
 		Joins("JOIN profiles AS p ON p.userid = u.id").
 		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
