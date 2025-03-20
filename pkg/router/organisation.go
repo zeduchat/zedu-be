@@ -9,7 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	dm "github.com/hngprojects/telex_be/pkg/controller/directMessage"
-	"github.com/hngprojects/telex_be/pkg/controller/integrations"
+	"github.com/hngprojects/telex_be/pkg/controller/agents"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -20,7 +20,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	organisationCtrl := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channelCtrl := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	integrationsCtrl := integrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	integrationsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	dmCtrl := dm.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
@@ -59,7 +59,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		// organisationUrl.DELETE("/:org_id/integrations/:integration_id", integrationsCtrl.DeleteIntegrationApp)
 		// organisationUrl.PATCH("/:org_id/integrations/change_status", integrationsCtrl.ChangeIntegrationStatus)
 		// organisationUrl.PATCH("/:org_id/integrations/:integration_id/updatejson", integrationsCtrl.UpdateJSONSchema)
-		// organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputIntegrations)
+		// organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputAgents)
 
 		// // Organization Custom Integrations
 		// organisationUrl.POST("/:org_id/integrations/custom", integrationsCtrl.CreateCustomIntegration)
@@ -71,7 +71,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		// organisationUrl.PUT("/:org_id/integrations/custom/:integration_id/settings", integrationsCtrl.UpdateCustomIntegrationSettings)
 
 		// // Channel integrations routes
-		// organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelIntegrations)
+		// organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelAgents)
 		// organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrationsCtrl.ChangeOrgChannelIntSendBackStatus)
 		// organisationUrl.POST("/:org_id/integrations/:integration_id/channels/:channel_id", integrationsCtrl.ActivateDeactivateChannelIntegration)
 		// organisationUrl.GET("/:org_id/integrations/:integration_id/channels", integrationsCtrl.IntegrationChannels)
