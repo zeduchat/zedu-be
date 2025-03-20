@@ -8,6 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/mongogrations"
 	"github.com/hngprojects/telex_be/utility"
@@ -21,12 +22,8 @@ type Controller struct {
 }
 
 func (base *Controller) CreateEntry(c *gin.Context) {
-	type CreateRequest struct {
-		Collection string                 `json:"collection"`
-		Document   map[string]interface{} `json:"document"`
-	}
 
-	var req CreateRequest
+	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -46,12 +43,8 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 }
 
 func (base *Controller) ReadEntries(c *gin.Context) {
-	type ReadRequest struct {
-		Collection string                 `json:"collection"`
-		Filter     map[string]interface{} `json:"filter"`
-	}
 
-	var req ReadRequest
+	var req models.ReadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -71,13 +64,8 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 }
 
 func (base *Controller) UpdateEntry(c *gin.Context) {
-	type UpdateRequest struct {
-		Collection string                 `json:"collection"`
-		Filter     map[string]interface{} `json:"filter"`
-		Document   map[string]interface{} `json:"document"`
-	}
 
-	var req UpdateRequest
+	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -97,12 +85,8 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 }
 
 func (base *Controller) DeleteEntry(c *gin.Context) {
-	type DeleteRequest struct {
-		Collection string `json:"collection"`
-		Id         string `json:"id"`
-	}
 
-	var req DeleteRequest
+	var req models.DeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
