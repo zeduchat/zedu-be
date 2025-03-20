@@ -60,6 +60,7 @@ type UpdateOrgRequestModel struct {
 type UserInOrgResponse struct {
 	ID          string    `json:"id"`
 	Email       string    `json:"email"`
+	UserName    string    `json:"user_name"`
 	PhoneNumber string    `json:"phone_number"`
 	AvatarURL   string    `json:"profile_url"`
 	Name        string    `json:"name"`
