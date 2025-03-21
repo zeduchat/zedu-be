@@ -19,6 +19,17 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
+// UploadController handles file uploads
+// @Summary Upload multiple files
+// @Description Uploads files and stores them in MinIO
+// @Tags File Management
+// @Accept multipart/form-data
+// @Produce json
+// @Param files formData file true "Files to upload"
+// @Success 200 {object} map[string]interface{} "Upload success"
+// @Failure 400 {object} map[string]interface{} "Invalid file format"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /files/upload-files [post]
 func (base *Controller) UploadController(c *gin.Context) {
 	var req models.UploadRequest
 
@@ -57,6 +68,16 @@ func (base *Controller) UploadController(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+// FileController retrieves a file from MinIO
+// @Summary Get a file by filename
+// @Description Fetches a file from storage and returns a presigned URL
+// @Tags File Management
+// @Produce json
+// @Param filename path string true "File Name"
+// @Success 200 {object} map[string]string "Presigned URL returned"
+// @Failure 404 {object} map[string]interface{} "File not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /files/file/{filename} [get]
 func (base *Controller) FileController(c *gin.Context) {
 	
 	objectName := c.Param("filename")

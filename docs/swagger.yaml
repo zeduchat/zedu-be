@@ -1,0 +1,67 @@
+info:
+  contact: {}
+paths:
+  /files/file/{filename}:
+    get:
+      description: Fetches a file from storage and returns a presigned URL
+      parameters:
+      - description: File Name
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Presigned URL returned
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: File not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get a file by filename
+      tags:
+      - File Management
+  /files/upload-files:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads files and stores them in MinIO
+      parameters:
+      - description: Files to upload
+        in: formData
+        name: files
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Upload success
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file format
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Upload multiple files
+      tags:
+      - File Management
+swagger: "2.0"

@@ -45,12 +45,6 @@ func main() {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
-	if db.Minio != nil {
-		fmt.Printf("Minio dey here ooo: %v", db.Minio)
-	} else {
-		fmt.Printf("E nor dey here")
-	}
-
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 
 	if configuration.Database.Migrate {
