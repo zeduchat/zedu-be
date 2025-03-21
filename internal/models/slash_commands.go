@@ -51,12 +51,12 @@ func (sc *SlashCommand) GetIntegrationSlashCommands(db *gorm.DB, ids map[string]
 		return nil, fmt.Errorf("organisation does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["agent_id"])
 	if !exists {
 		return nil, fmt.Errorf("integration does not exist")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "", &slashCommands, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	err := postgresql.SelectAllFromDb(db, "", &slashCommands, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to get slash commands: %v", err)
 	}
@@ -76,7 +76,7 @@ func (sc *SlashCommand) GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]Sla
 
 func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, req UpdateSlashCommandRequest) (SlashCommand, error) {
 
-	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ? AND id = ?", ids["org_id"], ids["integration_id"], ids["command_id"])
+	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ? AND id = ?", ids["org_id"], ids["agent_id"], ids["command_id"])
 	if !exists {
 		return *sc, fmt.Errorf("slash command does not exist")
 	}
@@ -93,7 +93,7 @@ func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, r
 }
 
 func (sc *SlashCommand) DeleteSlashCommand(db *gorm.DB, ids map[string]string) error {
-	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return fmt.Errorf("slash command does not exist")
 	}
