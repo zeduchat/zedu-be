@@ -1134,13 +1134,13 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("Failed to save agent, key_features field is not an array")
 	}
 
-	int_cat, ok := data_r["agent_category"]
+	int_cat, ok := data_r["integration_category"]
 	if !ok || int_cat == "" {
-		return errors.New("Failed to save agent, agent_category field does not exist or is empty")
+		return errors.New("Failed to save agent, agent_category/integration_categrory field does not exist or is empty")
 	}
 
 	if !categories[int_cat.(string)] {
-		return errors.New(fmt.Sprintf("Failed to save agent, agent_category type not supported, supplied: %s, check docs for supported types.", int_cat))
+		return errors.New(fmt.Sprintf("Failed to save agent, agent_category/integration_categrory type not supported, supplied: %s, check docs for supported types.", int_cat))
 	}
 
 	int_type, ok := data_r["agent_type"]
