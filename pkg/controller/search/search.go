@@ -44,7 +44,7 @@ func (base *Controller) Search(c *gin.Context) {
 	query := c.Query("query")
 
 	sortby := c.Query("sortby")
-	searchResult, code, err := search.Search(base.Db, c, userId, query, sortby)
+	searchResult, code, err := search.Search(base.Db, c, userId, orgId, query, sortby)
 
 	if err != nil && code == http.StatusNotFound {
 		resp := utility.BuildErrorResponse(code, http.StatusText(code), "failed to find user result base on query", err, nil)

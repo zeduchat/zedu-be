@@ -20,7 +20,9 @@ func ValidateSortKey(sortby string) bool {
 	return slices.Contains(SortkeyWords, sortby)
 }
 
-func Search(db *storage.Database, c *gin.Context, userId string, query string, sortby string) ([]utility.SearchQueryResult, int, error) {
+func Search(db *storage.Database, c *gin.Context, userId string,
+	orgId string, query string, sortby string) ([]utility.SearchQueryResult, int, error) {
+
 	searchQuery := models.NewSearchQueryFilterKeywords()
 	queryArr := utility.CheckQueryStringContainKeyword(query)
 	if queryArr != nil && len(queryArr) >= 1 {
@@ -41,7 +43,7 @@ func Search(db *storage.Database, c *gin.Context, userId string, query string, s
 		searchQuery.SortBy = sortby
 	}
 
-	searchResult, err := models.SearchQuery(db, c, searchQuery, userId)
+	searchResult, err := models.SearchQuery(db, c, searchQuery, userId, orgId)
 
 	if err != nil {
 		if err.Error() == "no search results found" {

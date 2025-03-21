@@ -55,7 +55,9 @@ func (s *SearchQueryFiltersKeywords) ProcessQueryString(queryArr [][]string) {
 	}
 }
 
-func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryFiltersKeywords, userId string) ([]utility.SearchQueryResult, error) {
+// query postgres and find channels by organisations
+func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryFiltersKeywords, userId string, orgId string) ([]utility.SearchQueryResult, error) {
+
 	var qResults []utility.SearchQueryResult
 
 	// Build the search query
