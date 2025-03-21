@@ -378,7 +378,7 @@ func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSON
 	update := make(map[string]interface{})
 	update["json_schema"] = req.JSONSchema
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return err
 	}
@@ -395,7 +395,7 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 	update := make(map[string]interface{})
 	update["json_url"] = req.JSONUrl
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return err
 	}
@@ -688,14 +688,14 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelAgents(db *go
 
 func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, req ActivateChannelAgent, ids map[string]string) error {
 
-	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["agent_id"])
 
 	if exists {
 
 		update := make(map[string]interface{})
 		update["is_active"] = req.Status
 
-		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["agent_id"])
 
 		if err != nil {
 			return err
@@ -711,7 +711,7 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, r
 			ID:            utility.GenerateUUID(),
 			OrgID:         ids["organisation_id"],
 			ChannelID:     ids["channel_id"],
-			IntegrationID: ids["integration_id"],
+			IntegrationID: ids["agent_id"],
 			IsActive:      req.Status,
 		}
 
@@ -801,7 +801,7 @@ func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.D
 
 	var res IntegrationChansResp
 
-	orgId, intId := ids["organisation_id"], ids["integration_id"]
+	orgId, intId := ids["organisation_id"], ids["agent_id"]
 
 	err := db.Table("organisation_channels_integrations AS oci").
 		Joins("JOIN channels ON channels.id = oci.channel_id").
@@ -824,7 +824,7 @@ func (i *OrganisationChannelsIntegrations) CheckIntegrationIsActive(db *gorm.DB,
 		organisation Organisation
 		orgInt       OrganisationIntegrations
 	)
-	orgId, intId := ids["organisation_id"], ids["integration_id"]
+	orgId, intId := ids["organisation_id"], ids["agent_id"]
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", orgId)
 	if !organisationExists {
@@ -1001,7 +1001,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	var ucis CustomIntegrationsSetting
 
 	// fetch existing settings
-	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return errors.New("integration not connnected yet")
 	}
@@ -1044,7 +1044,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 
 	update["setting_entry"] = serialized_settings
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return err
 	}
