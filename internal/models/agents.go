@@ -1143,13 +1143,13 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New(fmt.Sprintf("Failed to save agent, agent_category/integration_categrory type not supported, supplied: %s, check docs for supported types.", int_cat))
 	}
 
-	int_type, ok := data_r["agent_type"]
+	int_type, ok := data_r["integration_type"]
 	if !ok {
-		return errors.New("Failed to save agent, agent_type field does not exist")
+		return errors.New("Failed to save agent, agent_type/integration_type field does not exist")
 	}
 
 	if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE {
-		return errors.New("Failed to save agent, invalid agent_type agent should be of type interval or modifier")
+		return errors.New("Failed to save agent, invalid agent_type/integration_type agent should be of type interval or modifier")
 	}
 
 	if int_type == INTERVAL_TYPE {
