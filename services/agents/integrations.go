@@ -493,7 +493,7 @@ func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin
 
 		description := data_r["descriptions"].(map[string]interface{})
 
-		category, ok := data_r["agent_category"].(string)
+		category, ok := data_r["integration_category"].(string)
 
 		if !ok || category == "" {
 
