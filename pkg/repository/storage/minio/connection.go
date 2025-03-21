@@ -41,7 +41,6 @@ func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Cl
 	}
 
 	storage.DB.Minio = minioClient
-	utility.LogAndPrint(logger, fmt.Sprintf("Bucket %s exists", storage.DB.Minio))
 
 	return minioClient
 }
