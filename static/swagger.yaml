@@ -15794,7 +15794,3 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
-<<<<<<< HEAD
-=======
-        
->>>>>>> 69bcdde03b62e0b7955be8c595a9df5a61565789
