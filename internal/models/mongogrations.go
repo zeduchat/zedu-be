@@ -7,24 +7,24 @@ import (
 )
 
 type CreateMongoRequest struct {
-	Collection string                 `json:"collection"`
-	Document   map[string]interface{} `json:"document"`
+	Collection string                 `json:"collection" validate:"required"`
+	Document   map[string]interface{} `json:"document" validate:"required"`
 }
 
 type ReadMongoRequest struct {
-	Collection string                 `json:"collection"`
-	Filter     map[string]interface{} `json:"filter"`
+	Collection string                 `json:"collection" validate:"required"`
+	Filter     map[string]interface{} `json:"filter" validate:"required"`
 }
 
 type UpdateMongoRequest struct {
-	Collection string                 `json:"collection"`
-	ID         string                 `json:"id"`
-	Document   map[string]interface{} `json:"document"`
+	Collection string                 `json:"collection" validate:"required"`
+	ID         string                 `json:"id" validate:"required"`
+	Document   map[string]interface{} `json:"document" validate:"required"`
 }
 
 type DeleteMongoRequest struct {
-	Collection string `json:"collection"`
-	ID         string `json:"id"`
+	Collection string `json:"collection" validate:"required"`
+	ID         string `json:"id" validate:"required"`
 }
 
 func ReadEntries(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {

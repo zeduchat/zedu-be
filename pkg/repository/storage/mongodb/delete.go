@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -12,6 +13,7 @@ import (
 
 func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) {
 
+	databaseName := config.Config.MongoDB.DB_Name
 	dbCollection := db.Database(databaseName).Collection(collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()

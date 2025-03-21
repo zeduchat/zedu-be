@@ -14,7 +14,6 @@ import (
 )
 
 func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB) *mongo.Client {
-	GetDBName(MongoConfig.DB_Name)
 
 	clientOptions := options.Client().ApplyURI(MongoConfig.Mongo_URI) // Replace with your MongoDB URI
 	clientOptions.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})

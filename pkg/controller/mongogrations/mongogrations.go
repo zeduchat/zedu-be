@@ -29,9 +29,17 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
+			"Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
 
 	// Call the service layer
-	err := mongogrations.CreateEntry(base.Db.Mongo, req.Collection, req.Document)
+	err = mongogrations.CreateEntry(base.Db.Mongo, req.Collection, req.Document)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -51,6 +59,14 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 		return
 	}
 
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
+			"Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
 	// Call the service layer
 	results, err := mongogrations.ReadEntries(base.Db.Mongo, req.Collection, req.Filter)
 
@@ -72,8 +88,17 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 		return
 	}
 
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
+			"Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
 	// Call the service layer
-	err := mongogrations.UpdateEntry(base.Db.Mongo, req.Collection, req.ID, req.Document)
+	err = mongogrations.UpdateEntry(base.Db.Mongo, req.Collection, req.ID, req.Document)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -90,6 +115,14 @@ func (base *Controller) DeleteEntry(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
+			"Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
