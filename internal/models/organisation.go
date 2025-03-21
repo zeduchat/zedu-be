@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -59,6 +60,7 @@ type UpdateOrgRequestModel struct {
 type UserInOrgResponse struct {
 	ID          string    `json:"id"`
 	Email       string    `json:"email"`
+	UserName    string    `json:"user_name"`
 	PhoneNumber string    `json:"phone_number"`
 	AvatarURL   string    `json:"profile_url"`
 	Name        string    `json:"name"`
@@ -92,17 +94,17 @@ func (c *Organisation) Delete(db *gorm.DB, orgId string) error {
 	if err := postgresql.DeleteRecordWithNoModel(db,
 		"DELETE FROM user_organisations WHERE organisation_id = ?",
 		orgId); err != nil {
-		return err
+		return fmt.Errorf("failed to remove user_organisation mapping: %v", err)
 	}
 
 	err := postgresql.DeleteSpecificRecord(db, &OrgUserManagement{}, "organisation_id = ?", orgId)
 	if err != nil {
-		return err
+		return errors.New("failed to remove organisation-user management mapping")
 	}
 
 	err = postgresql.DeleteRecordFromDb(db, c)
 	if err != nil {
-		return err
+		return errors.New("failed to delete organisation")
 	}
 	return nil
 }
@@ -371,11 +373,11 @@ func (o *Organisation) CheckUserIsMemberOfOrg(userId string, orgId string, db *g
 func (o *Organisation) IsOwnerOfOrganisation(db *gorm.DB, requesterID, organisationID string) (bool, error) {
 	org, err := o.GetOrgByID(db, organisationID)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to retrieve organisation: %v", err)
 	}
 
 	if org.OwnerID != requesterID {
-		return false, nil
+		return false, errors.New("requester is not the owner of the organisation")
 	}
 
 	return true, nil

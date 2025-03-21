@@ -56,7 +56,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	OptIn(r, ApiVersion, validator, db, logger)
 	Dms(r, ApiVersion, validator, db, logger)
 	Group(r, ApiVersion, validator, db, logger)
-	Integration(r, ApiVersion, validator, db, logger)
+	Agents(r, ApiVersion, validator, db, logger)
 	FcmToken(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
