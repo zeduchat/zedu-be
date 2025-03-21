@@ -20,15 +20,15 @@ type ExternalRequest struct {
 }
 
 var (
-	JsonDecodeMethod       string = "json"
-	PhpSerializerMethod    string = "phpserializer"
-	IpinfoResolveIp        string = "ipinfo_resolve_ip"
-	SlackOAuthExchange     string = "slack_oauth_exchange"
-	SlackGetChannels       string = "slack_get_channels"
-	SlackGetManifest       string = "slack_get_manifest"
-	SlackGetAccessToken    string = "slack_get_access_token"
-	IntegrationJsonContent string = "fetch_integration_json_content"
-	GetChatCompletions     string = "get_open_router_chat_completions"
+	JsonDecodeMethod    string = "json"
+	PhpSerializerMethod string = "phpserializer"
+	IpinfoResolveIp     string = "ipinfo_resolve_ip"
+	SlackOAuthExchange  string = "slack_oauth_exchange"
+	SlackGetChannels    string = "slack_get_channels"
+	SlackGetManifest    string = "slack_get_manifest"
+	SlackGetAccessToken string = "slack_get_access_token"
+	AgentJsonContent    string = "fetch_agent_json_content"
+  GetChatCompletions     string = "get_open_router_chat_completions"
 )
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
@@ -98,7 +98,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			}
 			return obj.GetSlackToken(refresh_token)
 
-		case IntegrationJsonContent:
+		case AgentJsonContent:
 
 			data_content := data.(map[string]string)
 

@@ -1,4 +1,4 @@
-package integrations
+package agents
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/services/integrations"
+	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) FetchOutputIntegrations(c *gin.Context) {
+func (base *Controller) FetchOutputAgents(c *gin.Context) {
 	org_id := c.Param("org_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -22,26 +22,26 @@ func (base *Controller) FetchOutputIntegrations(c *gin.Context) {
 		return
 	}
 
-	integrations, err := integrations.GetActiveOutputIntegrations(base.Db.Postgresql, org_id)
+	agents, err := agents.GetActiveOutputIntegrations(base.Db.Postgresql, org_id)
 	if err != nil {
-		base.Logger.Error("Failed to get out putintegrations")
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get output integrations", err, nil)
+		base.Logger.Error("Failed to get out putagents")
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get output agents", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
-	base.Logger.Info("output integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "output integrations retrieved successfully.", integrations)
+	base.Logger.Info("output agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "output agents retrieved successfully.", agents)
 	c.JSON(http.StatusOK, rd)
 }
 
 // Fetch System Integration without org details (Unauthorized)
-func (base *Controller) GetSystemIntegrationApps(c *gin.Context) {
+func (base *Controller) GetSystemAgentApps(c *gin.Context) {
 
-	integrations, paginationResponse, err, code := integrations.GetSystemIntegrationApps(c, base.Db.Postgresql, base.ExtReq)
+	agents, paginationResponse, err, code := agents.GetSystemAgentApps(c, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		fmt.Println(err)
-		base.Logger.Error("Failed to fetch integrations", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations", err.Error(), nil)
+		base.Logger.Error("Failed to fetch agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -50,36 +50,36 @@ func (base *Controller) GetSystemIntegrationApps(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(integrations),
+		"total_items":  len(agents),
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integrations, paginationData)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
 
 // Get Single Integration App
-func (base *Controller) GetSystemIntegrationApp(c *gin.Context) {
+func (base *Controller) GetSystemAgentApp(c *gin.Context) {
 
-	int_id := c.Param("integration_id")
+	int_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(int_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integration id", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	integration, err, code := integrations.GetSystemIntegrationApp(c, base.Db.Postgresql, int_id, base.ExtReq)
+	agent, err, code := agents.GetSystemAgentApp(c, base.Db.Postgresql, int_id, base.ExtReq)
 	if err != nil {
-		base.Logger.Error("Failed to fetch integrations", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch integrations", err.Error(), nil)
+		base.Logger.Error("Failed to fetch agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("integrations retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "integrations retrieved successfully.", integration)
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agent)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -94,7 +94,6 @@ func (base *Controller) TriggerTick(c *gin.Context) {
 		return
 	}
 
-
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
@@ -103,7 +102,7 @@ func (base *Controller) TriggerTick(c *gin.Context) {
 		return
 	}
 
-	response, code, err := integrations.TriggerTick(base.Db, base.Logger, req)
+	response, code, err := agents.TriggerTick(base.Db, base.Logger, req)
 	if err != nil {
 		base.Logger.Error("Failed to trigger tick", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to trigger tick", err.Error(), nil)

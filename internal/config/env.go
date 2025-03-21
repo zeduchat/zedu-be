@@ -21,6 +21,7 @@ type Configuration struct {
 	Channels     Channels
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
+	Firebae      Firebae
 }
 
 type BaseConfig struct {
@@ -104,10 +105,11 @@ type BaseConfig struct {
 	RABBITMQ_CONNECTION string `mapstructure:"RABBITMQ_CONNECTION"`
 	RABBITMQ_EXCHANGE   string `mapstructure:"RABBITMQ_EXCHANGE"`
 
-	ELASTIC_URL     string `mapstructure:"ELASTIC_URL"`
-	ELASTIC_API_KEY string `mapstructure:"ELASTIC_API_KEY"`
+	ELASTIC_URL                string `mapstructure:"ELASTIC_URL"`
+	ELASTIC_API_KEY            string `mapstructure:"ELASTIC_API_KEY"`
+	FIREBASE_SERVICE_FILE_PATH string `mapstructure:"FIREBASE_SERVICE_FILE_PATH"`
+  OPENROUTER_API_KEY string `mapstructure:"OPENROUTER_API_KEY"`
 
-	OPENROUTER_API_KEY string `mapstructure:"OPENROUTER_API_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -226,6 +228,9 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Elastic: ElasticDb{
 			ElasticEndpoint: config.ELASTIC_URL,
 			ElasticApiKey:   config.ELASTIC_API_KEY,
+		},
+		Firebae: Firebae{
+			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
 		},
 	}
 }
