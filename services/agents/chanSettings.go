@@ -1,4 +1,4 @@
-package integrations
+package agents
 
 import (
 	"fmt"
@@ -9,12 +9,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func AddChannelIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.AddIntegrationSettingsRequest) error {
+func AddChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.AddIntegrationSettingsRequest) error {
 
 	is := models.ChannelIntegrationSettings{
 		ID:             utility.GenerateUUID(),
 		OrgID:          ids["org_id"],
-		IntegrationID:  ids["integration_id"],
+		IntegrationID:  ids["agent_id"],
 		ChannelID:      ids["channel_id"],
 		FormFieldValue: req.FormFieldValue,
 		FormFieldLabel: req.FormFieldLabel,
@@ -28,10 +28,10 @@ func AddChannelIntegrationSettings(db *gorm.DB, ids map[string]string ,req model
 	return nil
 }
 
-func GetChannelIntegrationSettings(db *gorm.DB, ids map[string]string) ([]models.ChannelIntegrationSettings, error) {
+func GetChannelAgentSettings(db *gorm.DB, ids map[string]string) ([]models.ChannelIntegrationSettings, error) {
 	var (
 		organisation models.Organisation
-		integration models.Integrations
+		agent models.Integrations
 		channel models.Channels
 		setting models.ChannelIntegrationSettings
 	)
@@ -41,9 +41,9 @@ func GetChannelIntegrationSettings(db *gorm.DB, ids map[string]string) ([]models
 		return []models.ChannelIntegrationSettings{}, fmt.Errorf("organisation does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	exists = postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	if !exists {
-		return []models.ChannelIntegrationSettings{}, fmt.Errorf("integration does not exist")
+		return []models.ChannelIntegrationSettings{}, fmt.Errorf("agent does not exist")
 	}
 
 	exists = postgresql.CheckExists(db, &channel, "id = ?", ids["channel_id"])
@@ -55,11 +55,11 @@ func GetChannelIntegrationSettings(db *gorm.DB, ids map[string]string) ([]models
 	return settings, nil
 }
 
-func UpdateChannelIntegrationSettings(db *gorm.DB, ids map[string]string ,req models.UpdateIntegrationSettingsRequest) error {
+func UpdateChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.UpdateIntegrationSettingsRequest) error {
 	var (
 		setting models.ChannelIntegrationSettings
 		organisation models.Organisation
-		integration models.Integrations
+		agent models.Integrations
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -67,9 +67,9 @@ func UpdateChannelIntegrationSettings(db *gorm.DB, ids map[string]string ,req mo
 		return fmt.Errorf("organisation does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	exists = postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	if !exists {
-		return fmt.Errorf("integration does not exist")
+		return fmt.Errorf("agent does not exist")
 	}
 
 	err := setting.UpdateChannelIntegrationSetting(db, ids ,req)
@@ -80,11 +80,11 @@ func UpdateChannelIntegrationSettings(db *gorm.DB, ids map[string]string ,req mo
 	return nil
 }
 
-func DeleteChannelIntegrationSettings(db *gorm.DB, ids map[string]string) error {
+func DeleteChannelAgentSettings(db *gorm.DB, ids map[string]string) error {
 	var (
 		setting models.ChannelIntegrationSettings
 		organisation models.Organisation
-		integration models.Integrations
+		agent models.Integrations
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -92,14 +92,14 @@ func DeleteChannelIntegrationSettings(db *gorm.DB, ids map[string]string) error 
 		return fmt.Errorf("organisation does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &integration, "id = ?", ids["integration_id"])
+	exists = postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	if !exists {
-		return fmt.Errorf("integration does not exist")
+		return fmt.Errorf("agent does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &setting, "org_id = ? AND integration_id = ? AND channel_id = ? AND id = ?", ids["org_id"], ids["integration_id"], ids["channel_id"], ids["setting_id"])
+	exists = postgresql.CheckExists(db, &setting, "org_id = ? AND agent_id = ? AND channel_id = ? AND id = ?", ids["org_id"], ids["agent_id"], ids["channel_id"], ids["setting_id"])
 	if !exists {
-		return fmt.Errorf("channel integration setting does not exist")
+		return fmt.Errorf("channel agent setting does not exist")
 	}
 
 	err := setting.DeleteChannelIntegrationSetting(db, ids)
