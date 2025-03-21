@@ -43,7 +43,7 @@ type UpdateAgent struct {
 
 type ChangeAgentStatus struct {
 	Status     bool   `json:"status" validate:"required,oneof=true false"`
-	AgentID    string `json:"agent_id"`
+	AgentID    string `json:"integration_id"`
 	JSONSchema JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
