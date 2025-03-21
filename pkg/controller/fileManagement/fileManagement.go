@@ -24,7 +24,7 @@ func (base *Controller) UploadController(c *gin.Context) {
 
 	err := c.ShouldBind(&req)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body: ", err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -35,7 +35,7 @@ func (base *Controller) UploadController(c *gin.Context) {
 		// Open the file
 		file, err := fileHeader.Open()
 		if err != nil {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file: ", err, nil)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file", err, nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
@@ -44,8 +44,8 @@ func (base *Controller) UploadController(c *gin.Context) {
 		// Call the UploadFile service
 		filePath, err := services.UploadFiles(base.Logger, file, fileHeader)
 		if err != nil {
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Upload failed: ", err, nil)
-			c.JSON(http.StatusInternalServerError, rd)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err, nil)
+			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
 
@@ -53,22 +53,22 @@ func (base *Controller) UploadController(c *gin.Context) {
 	}
 
 	base.Logger.Info("Files uploaded successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Files uploaded successfully: ", uploadedFiles)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Files uploaded successfully", uploadedFiles)
 	c.JSON(http.StatusOK, rd)
 }
 
 func (base *Controller) FileController(c *gin.Context) {
-
+	
 	objectName := c.Param("filename")
-
+	
 	preSignedUrl, err := services.GeneratePresignedURL(base.Logger, objectName)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate presigned URL: ", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate presigned URL", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("URL generated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "URL generated successfully: ", preSignedUrl)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "URL generated successfully", preSignedUrl)
 	c.JSON(http.StatusOK, rd)
 }

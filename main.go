@@ -33,7 +33,6 @@ func main() {
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)
 	minio.ConnectToMinio(logger, configuration.Minio)
-	minio.ConnectToClamAV(logger, configuration.Clamav)
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)

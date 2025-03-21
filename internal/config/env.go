@@ -21,7 +21,6 @@ type Configuration struct {
 	Channels     Channels
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
-	Clamav       Clamav
 }
 
 type BaseConfig struct {
@@ -227,10 +226,6 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Elastic: ElasticDb{
 			ElasticEndpoint: config.ELASTIC_URL,
 			ElasticApiKey:   config.ELASTIC_API_KEY,
-		},
-		Clamav: Clamav{
-			ClamavHost: config.CLAMAV_HOST,
-			ClamavPort:   config.CLAMAV_PORT,
 		},
 	}
 }
