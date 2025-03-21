@@ -350,7 +350,7 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 		return channel, errors.New("user already in channel")
 	}
 
-	if  req.Username == "" {
+	if req.Username == "" {
 		req.Username = user.Email
 	}
 
