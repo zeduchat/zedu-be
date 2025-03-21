@@ -40,6 +40,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Slack(r, ApiVersion, validator, db, logger)
 	Contact(r, ApiVersion, validator, db, logger)
 	Blog(r, ApiVersion, validator, db, logger)
+	FileManagement(r, ApiVersion, validator, db, logger)
 	Health(r, ApiVersion, validator, db, logger)
 	Auth(r, ApiVersion, validator, db, logger)
 	Channels(r, ApiVersion, validator, db, logger)
