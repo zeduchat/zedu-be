@@ -99,7 +99,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 	var (
 		dmChannels   DmChannels
 		userChannels UserChannels
-		profile      Profile
 		thread       ThreadDocument
 		chanOrg      Channels
 	)
@@ -183,11 +182,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 			return err
 		}
 
-	}
-
-	err = profile.GetProfileByUserId(db.Postgresql, m.UserID)
-	if err != nil {
-		return err
 	}
 
 	return nil

@@ -727,3 +727,16 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 	}
 	return chanResp, nil
 }
+
+func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChannels, error) {
+	var users []UserChannels
+
+	if err := db.Table("user_channels").
+		Select("user_channels.*").
+		Where("user_channels.channels_id = ?", channelId).
+		Scan(&users).Error; err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
