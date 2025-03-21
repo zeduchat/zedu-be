@@ -12199,7 +12199,6 @@ paths:
                   status_code: 404
                   message: "Organisation not found"
 
-  
   # firebase fcmtokenpath
   /fcmtoken:
     post:
@@ -12208,12 +12207,18 @@ paths:
       security:
         - bearerAuth: []
       summary: Save users fcm token
-      type: object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
               properties:
                 fcm_token:
                   type: string
               required:
                 - fcm_token
+
       responses:
         '201':
           description: Fcm token saved successfully
@@ -12232,6 +12237,7 @@ paths:
                   status_code:
                     type: integer
                     example: 201
+
         '400':
           description: Invalid input
           content:
