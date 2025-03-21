@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -21,6 +22,15 @@ type Controller struct {
 }
 
 func (base *Controller) Search(c *gin.Context) {
+
+	// verify organisation id
+	orgId := c.Param("orgId")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
