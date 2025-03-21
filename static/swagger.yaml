@@ -55,20 +55,20 @@ tags:
   - name: Feed_Webhook
     description: API for feeding centrifugo server
   - name: Agents
-    description:  API for user integrations operations
+    description:  API for user agents operations
   - name: Custom Agents
-    description:  API for user integrations operations
+    description:  API for user agents operations
   - name: System Agents
-    description:  API for system integrations operations
+    description:  API for system agents operations
   - name: Overview
     description: API for overview operations
   - name: newsletter
     description: API for newsletter related operations
   - name: squeeze
     description: API for squeeze optin related operations  
-  - name: IntegrationSettings
+  - name: AgentSettings
     description: API for Agents settings
-  - name: IntegrationSlashCommands
+  - name: AgentSlashCommands
     description: API for Agent Slash Commands
   - name: Channel Agent Settings
     description: API for channel agent settings
@@ -8381,7 +8381,7 @@ paths:
                             type: integer
                             example: 1   
 
-# integrations 
+# agents 
                 
   /slack/organisations/{organisationId}/token-exchg:
     post:
@@ -8571,7 +8571,7 @@ paths:
               properties:
                 name:
                   type: string
-                  description: "The name of the integration"
+                  description: "The name of the agent"
                   example: "teleximsss"
                 json_url:
                   type: string
@@ -8583,11 +8583,11 @@ paths:
                   example: "some-auth-credential"
                 integration_type:
                   type: string
-                  description: "The type of the integration"
+                  description: "The type of the agent"
                   example: "filter"
       responses:
         '201':
-          description: "Integration app created successfully"
+          description: "Agent app created successfully"
           content:
             application/json:
               schema:
@@ -8601,7 +8601,7 @@ paths:
                     example: 201
                   message:
                     type: string
-                    example: "Integration app created successfully"
+                    example: "Agent app created successfully"
                   data:
                     type: object
                     properties:
@@ -8643,8 +8643,8 @@ paths:
                         example: "2024-09-18T03:37:56.026341265+01:00"
             
     get:
-      summary: Get integrations for an organization
-      description: Retrieve a list of system integrations for a specific organization.
+      summary: Get agents for an organization
+      description: Retrieve a list of system agents for a specific organization.
       tags:
         - Agents
       parameters:
@@ -8657,7 +8657,7 @@ paths:
           description: The UUID of the organization.
       responses:
         200:
-          description: Successfully retrieved the list of integrations.
+          description: Successfully retrieved the list of agents.
           content:
             application/json:
               schema:
@@ -8673,7 +8673,7 @@ paths:
                     description: HTTP status code.
                   message:
                     type: string
-                    example: integrations retrieved successfully.
+                    example: agents retrieved successfully.
                     description: A message describing the result.
                   data:
                     type: array
@@ -8683,7 +8683,7 @@ paths:
                         id:
                           type: string
                           format: uuid
-                          description: The unique identifier of the integration.
+                          description: The unique identifier of the agent.
                           example: 0192202e-b6f3-7d23-8025-3f60675cc031
                         app_name:
                           type: string
@@ -8691,7 +8691,7 @@ paths:
                           example: Slack
                         json_url:
                           type: string
-                          description: URL where the integration's JSON schema is located.
+                          description: URL where the agent's JSON schema is located.
                           example: https://system-integration.telex.im/slack.json
                         app_url:
                           type: string
@@ -8707,7 +8707,7 @@ paths:
                           example: Slack is a cloud-based team business and communication platform.
                         is_system_integration:
                           type: boolean
-                          description: Whether this is a system-wide integration.
+                          description: Whether this is a system-wide agent.
                           example: true
                         is_active:
                           type: boolean
@@ -8732,8 +8732,8 @@ paths:
     get:
       tags:
         - Agents
-      summary: "Retrieve output integrations"
-      description: "Fetches the available output integrations for a given organization, such as Slack, Discord, etc."
+      summary: "Retrieve output agents"
+      description: "Fetches the available output agents for a given organization, such as Slack, Discord, etc."
       parameters:
         - name: org_id
           in: path
@@ -8744,7 +8744,7 @@ paths:
             example: "0191be6e-473e-7b48-888f-810f4c449dc9"
       responses:
         200:
-          description: "Output integrations retrieved successfully"
+          description: "Output agents retrieved successfully"
           content:
             application/json:
               schema:
@@ -8758,7 +8758,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "output integrations retrieved successfully."
+                    example: "output agents retrieved successfully."
                   data:
                     type: array
                     items:
@@ -8778,7 +8778,7 @@ paths:
     patch:
       tags:
         - Agents
-      summary: Update an organization's integration
+      summary: Update an organization's agent
       parameters:
         - name: organisationId
           in: path
@@ -8871,7 +8871,7 @@ paths:
     delete:
       tags:
         - Agents
-      summary: Delete an organization's integration
+      summary: Delete an organization's agent
       parameters:
         - name: organisationId
           in: path
@@ -9108,7 +9108,7 @@ paths:
       summary: Get Channel Agents
       tags:
         - Agents
-      description: Retrieve a list of integrations for a specific channel within an organization.
+      description: Retrieve a list of agents for a specific channel within an organization.
       parameters:
         - name: organizationId
           in: path
@@ -9124,7 +9124,7 @@ paths:
             type: string
       responses:
         200:
-          description: Successful response with channel integrations.
+          description: Successful response with channel agents.
           content:
             application/json:
               schema:
@@ -9138,7 +9138,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Channel integrations retrieved successfully"
+                    example: "Channel agents retrieved successfully"
                   data:
                     type: array
                     items:
@@ -9190,7 +9190,7 @@ paths:
 
   /organisations/{organisation_id}/agents/{agent_id}/updatejson:
     patch:
-      summary: Update the JSON schema of an organisation's integration
+      summary: Update the JSON schema of an organisation's agent
       description: Update the JSON schema for a specific agent of an organization.
       tags:
         - Agents
@@ -9208,7 +9208,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
       requestBody:
         required: true
         content:
@@ -9218,7 +9218,7 @@ paths:
               properties:
                 json_schema:
                   type: object
-                  description: The updated JSON schema for the integration.
+                  description: The updated JSON schema for the agent.
                   properties:
                     date:
                       type: object
@@ -9311,7 +9311,7 @@ paths:
                             example: false
       responses:
         200:
-          description: Successfully updated the JSON schema of the integration.
+          description: Successfully updated the JSON schema of the agent.
           content:
             application/json:
               schema:
@@ -9336,7 +9336,7 @@ paths:
           
   /organisations/{organisation_id}/agents/change_status:
     patch:
-      summary: Change the status and JSON schema of an integration
+      summary: Change the status and JSON schema of an agent
       description: Update the activation status and modify the JSON schema of a specific agent for an organization.
       tags:
         - Agents
@@ -9366,7 +9366,7 @@ paths:
                   example: false
                 json_schema:
                   type: object
-                  description: The modified JSON schema of the integration.
+                  description: The modified JSON schema of the agent.
                   properties:
                     date:
                       type: object
@@ -9459,7 +9459,7 @@ paths:
                             example: false
       responses:
         200:
-          description: Successfully updated the status and schema of the integration.
+          description: Successfully updated the status and schema of the agent.
           content:
             application/json:
               schema:
@@ -9486,7 +9486,7 @@ paths:
     post:
       tags:
       - Agents
-      summary: "Activate or deactivate a channel integration"
+      summary: "Activate or deactivate a channel agent"
       description: "Activates or deactivates a channel agent for the specified organization and channel."
       parameters:
         - name: organisationId
@@ -9508,7 +9508,7 @@ paths:
           required: true
           schema:
             type: string
-          description: "ID of the integration"
+          description: "ID of the agent"
           example: "019202fe-57ba-7bc7-b0ae-e2629fec3c8b"
       requestBody:
         required: true
@@ -9519,7 +9519,7 @@ paths:
               properties:
                 status:
                   type: boolean
-                  description: "Boolean value to activate or deactivate the integration"
+                  description: "Boolean value to activate or deactivate the agent"
                   example: true
       responses:
         '200':
@@ -9554,11 +9554,11 @@ paths:
             type: string
           description: The ID of the channel.
         - in: path
-          name: integration_modifier_id
+          name: agent_modifier_id
           required: true
           schema:
             type: string
-          description: The ID of the modifier integration.
+          description: The ID of the modifier agent.
       responses:
         '200':
           description: Channel retrieved successfully.
@@ -9807,7 +9807,7 @@ paths:
                 integration_id:
                   type: string
                   format: uuid
-                  description: The ID of the integration.
+                  description: The ID of the agent.
                   example: a6c1525a-8f8b-4aea-88ad-81578f69d976
                 status:
                   type: boolean
@@ -9823,7 +9823,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Integration status updated successfully."
+                    example: "Agent status updated successfully."
         '400':
           description: Bad request, possibly due to invalid input data.
           content:
@@ -9861,7 +9861,7 @@ paths:
       summary: Add a new agent setting
       description: Adds a new form field value and label to the agent settings for a specific organization.
       tags:
-        - IntegrationSettings
+        - AgentSettings
       parameters:
         - name: organisation_id
           in: path
@@ -9870,13 +9870,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
       requestBody:
         required: true
         content:
@@ -9916,7 +9916,7 @@ paths:
       summary: Retrieve agent settings
       description: Retrieves all form field settings for a specific agent and organization.
       tags:
-        - IntegrationSettings
+        - AgentSettings
       parameters:
         - name: organisation_id
           in: path
@@ -9925,13 +9925,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
       responses:
         200:
           description: Successfully retrieved the agent settings.
@@ -9986,7 +9986,7 @@ paths:
       summary: Update an existing agent setting
       description: Updates a form field's label in the agent settings for a specific organization.
       tags:
-        - IntegrationSettings
+        - AgentSettings
       parameters:
         - name: organisation_id
           in: path
@@ -9995,13 +9995,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
       requestBody:
         required: true
         content:
@@ -10048,7 +10048,7 @@ paths:
           schema:
             type: string
           example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
@@ -10095,7 +10095,7 @@ paths:
       tags:
         - Channel Agent Settings
       summary: "Retrieve Channel Agent Settings"
-      description: "Retrieve all settings for a specific channel integration."
+      description: "Retrieve all settings for a specific channel agent."
       parameters:
         - name: org_id
           in: path
@@ -10103,7 +10103,7 @@ paths:
           schema:
             type: string
           example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
@@ -10169,7 +10169,7 @@ paths:
       tags:
         - Channel Agent Settings
       summary: "Update a Channel Agent Setting"
-      description: "Update the value of a specific setting for a channel integration."
+      description: "Update the value of a specific setting for a channel agent."
       parameters:
         - name: org_id
           in: path
@@ -10177,7 +10177,7 @@ paths:
           schema:
             type: string
           example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
@@ -10207,7 +10207,7 @@ paths:
                   example: "ouuuuuuu"
       responses:
         200:
-          description: "Integration setting updated successfully"
+          description: "Agent setting updated successfully"
           content:
             application/json:
               schema:
@@ -10221,13 +10221,13 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Integration setting updated successfully"
+                    example: "Agent setting updated successfully"
 
     delete:
       tags:
         - Channel Agent Settings
       summary: "Delete a Channel Agent Setting"
-      description: "Delete a specific setting for a channel integration."
+      description: "Delete a specific setting for a channel agent."
       parameters:
         - name: org_id
           in: path
@@ -10235,7 +10235,7 @@ paths:
           schema:
             type: string
           example: "0192755e-cdba-728a-859a-5c90dd3b28d9"
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
@@ -10276,7 +10276,7 @@ paths:
       summary: Add a new slash command
       description: Adds a new slash command and processing URL for a specific agent within an organization.
       tags:
-        - IntegrationSlashCommands
+        - AgentSlashCommands
       parameters:
         - name: org_id
           in: path
@@ -10285,13 +10285,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
       requestBody:
         required: true
         content:
@@ -10361,7 +10361,7 @@ paths:
       summary: Retrieve all slash commands
       description: Retrieves all slash commands and their corresponding processing URLs for a specific agent within an organization.
       tags:
-        - IntegrationSlashCommands
+        - AgentSlashCommands
       parameters:
         - name: org_id
           in: path
@@ -10370,13 +10370,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
       responses:
         200:
           description: Slash commands retrieved successfully.
@@ -10432,9 +10432,9 @@ paths:
   /organisations/{org_id}/slash-commands:
     get:
       summary: Retrieve all slash commands for an organization
-      description: Retrieves all slash commands for all integrations within a specified organization.
+      description: Retrieves all slash commands for all agents within a specified organization.
       tags:
-        - IntegrationSlashCommands
+        - AgentSlashCommands
       parameters:
         - name: org_id
           in: path
@@ -10499,7 +10499,7 @@ paths:
       summary: Update a slash command
       description: Updates the command and processing URL for a specific agent slash command within an organization.
       tags:
-        - IntegrationSlashCommands
+        - AgentSlashCommands
       parameters:
         - name: org_id
           in: path
@@ -10508,13 +10508,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
         - name: command_id
           in: path
           required: true
@@ -10591,7 +10591,7 @@ paths:
       summary: Delete a slash command
       description: Deletes a specific slash command for a given agent within an organization.
       tags:
-        - IntegrationSlashCommands
+        - AgentSlashCommands
       parameters:
         - name: org_id
           in: path
@@ -10600,13 +10600,13 @@ paths:
             type: string
             format: uuid
           description: The UUID of the organization.
-        - name: integration_id
+        - name: agent_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: The UUID of the integration.
+          description: The UUID of the agent.
         - name: command_id
           in: path
           required: true
@@ -10659,12 +10659,12 @@ paths:
               properties:
                 json_url:
                   type: string
-                  description: "The URL that provides JSON metadata for the integration"
+                  description: "The URL that provides JSON metadata for the agent"
                   example: "https://www.bananaisland.com/banana.json"
 
       responses:
         '201':
-          description: "Integration app created successfully"
+          description: "Agent app created successfully"
           content:
             application/json:
               schema:
@@ -10678,13 +10678,13 @@ paths:
                     example: 201
                   message:
                     type: string
-                    example: "Integration app created successfully"
+                    example: "Agent app created successfully"
         '400':
             description: Invalid JSON url supplied.
             
     get:
-      summary: Get integrations for an organization
-      description: Retrieve a list of integrations for a specific organization.
+      summary: Get agents for an organization
+      description: Retrieve a list of agents for a specific organization.
       tags:
         - Custom Agents
       parameters:
@@ -10697,7 +10697,7 @@ paths:
           description: The UUID of the organization.
       responses:
         200:
-          description: Successfully retrieved the list of integrations.
+          description: Successfully retrieved the list of agents.
           content:
             application/json:
               schema:
@@ -10713,7 +10713,7 @@ paths:
                     description: HTTP status code.
                   message:
                     type: string
-                    example: integrations retrieved successfully.
+                    example: agents retrieved successfully.
                     description: A message describing the result.
                   data:
                     type: array
@@ -10723,7 +10723,7 @@ paths:
                         id:
                           type: string
                           format: uuid
-                          description: The unique identifier of the integration.
+                          description: The unique identifier of the agent.
                           example: 0192202e-b6f3-7d23-8025-3f60675cc031
                         app_name:
                           type: string
@@ -10731,7 +10731,7 @@ paths:
                           example: Slack
                         json_url:
                           type: string
-                          description: URL where the integration's JSON schema is located.
+                          description: URL where the agent's JSON schema is located.
                           example: https://system-integration.telex.im/slack.json
                         app_url:
                           type: string
@@ -10768,7 +10768,7 @@ paths:
     put:
       tags:
         - Custom Agents
-      summary: Update an organization's integration
+      summary: Update an organization's agent
       parameters:
         - name: organisationId
           in: path
@@ -10837,7 +10837,7 @@ paths:
     delete:
       tags:
         - Custom Agents
-      summary: Delete an organization's integration
+      summary: Delete an organization's agent
       parameters:
         - name: organisationId
           in: path
@@ -10970,7 +10970,7 @@ paths:
           description: Agent not found
              
     get:
-      summary: Get integrations settings for an organization
+      summary: Get agents settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
@@ -10989,7 +10989,7 @@ paths:
             example: "0191e724-de59-78f8-a582-5cbc83f377fe"
       responses:
         200:
-          description: Successfully retrieved the list of integrations.
+          description: Successfully retrieved the list of agents.
           content:
             application/json:
               schema:
@@ -11005,7 +11005,7 @@ paths:
                     description: HTTP status code.
                   message:
                     type: string
-                    example: integrations retrieved successfully.
+                    example: agents retrieved successfully.
                     description: A message describing the result.
                   data:
                     type: object
@@ -11023,7 +11023,7 @@ paths:
           
   /organisations/{organisationId}/agents/custom/{agentId}/status:
     get:
-      summary: Get integrations settings for an organization
+      summary: Get agents settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
@@ -11042,7 +11042,7 @@ paths:
             example: "0191e724-de59-78f8-a582-5cbc83f377fe"
       responses:
         200:
-          description: Successfully retrieved the list of integrations.
+          description: Successfully retrieved the list of agents.
           content:
             application/json:
               schema:
@@ -11058,7 +11058,7 @@ paths:
                     description: HTTP status code.
                   message:
                     type: string
-                    example: integrations retrieved successfully.
+                    example: agents retrieved successfully.
                     description: A message describing the result.
                   data:
                     type: object
@@ -11076,13 +11076,13 @@ paths:
 
   /agents:
     get:
-      summary: Get system integrations for telex
-      description: Retrieve a list of system integration.
+      summary: Get system agents for telex
+      description: Retrieve a list of system agent.
       tags:
         - System Agents
       responses:
         200:
-          description: Successfully retrieved the list of integrations.
+          description: Successfully retrieved the list of agents.
           content:
             application/json:
               schema:
@@ -11098,7 +11098,7 @@ paths:
                     description: HTTP status code.
                   message:
                     type: string
-                    example: integrations retrieved successfully.
+                    example: agents retrieved successfully.
                     description: A message describing the result.
                   data:
                     type: object
@@ -11124,7 +11124,7 @@ paths:
             example: "0191e724-de59-78f8-a582-5cbc83f377fe"
       responses:
         200:
-          description: Successfully retrieved the integrations.
+          description: Successfully retrieved the agents.
           content:
             application/json:
               schema:
@@ -11140,7 +11140,7 @@ paths:
                     description: HTTP status code.
                   message:
                     type: string
-                    example: integrations retrieved successfully.
+                    example: agents retrieved successfully.
                     description: A message describing the result.
                   data:
                     type: object
@@ -12218,13 +12218,13 @@ components:
           type: string
           example: "Email already opted in, please use a different email or stay tuned"      
 
-    GetAllIntegrationAppResponse:
+    GetAllAgentAppResponse:
       type: object
       properties:
         integrations:
           type: array
           items:
-            $ref: '#/components/schemas/IntegrationAppResponse'
+            $ref: '#/components/schemas/AgentAppResponse'
         pagination:
           type: object
           properties:
@@ -12240,14 +12240,14 @@ components:
             total_items:
               type: integer
               example: 200
-    CreateIntegrationAppRequest:
+    CreateAgentAppRequest:
       type: object
       required:
         - name
       properties:
         name:
           type: string
-          example: "IntegrationApp1"
+          example: "AgentApp1"
         api_endpoint_url:
           type: string
           example: "http://api.endpoint.com"
@@ -12255,15 +12255,15 @@ components:
           type: string
           example: "some-auth-credential"
 
-    IntegrationAppResponse:
+    AgentAppResponse:
       type: object
       properties:
         id:
           type: string
-          example: "uuid-integration-app"
+          example: "uuid-agent-app"
         name:
           type: string
-          example: "IntegrationApp1"
+          example: "AgentApp1"
         logo_url:
           type: string
           example: "http://api.endpoint.com.png"  
