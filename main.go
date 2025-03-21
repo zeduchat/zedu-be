@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
@@ -41,6 +42,7 @@ func main() {
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
 	firebase.ConnectFirebase(logger, configuration.Firebae)
+	mongodb.ConnectMongoDB(logger, configuration.MongoDB)
 
 	validatorRef := validator.New()
 	db := storage.Connection()

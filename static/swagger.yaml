@@ -85,6 +85,8 @@ tags:
   - name: Search
     description: API endpoints for searching user query
 
+  - name: Mongogrations
+    description: API endpoints for integrations to interact with a mongoDB instance through telex
 
 
 paths:
@@ -12203,7 +12205,115 @@ paths:
                   status_code: 404
                   message: "Organisation not found"
 
-
+#mongogrations
+  /mongo-integrations:
+    get:
+      summary: Read entries from a MongoDB collection
+      description: Retrieves documents from the specified collection based on the provided filter.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name and filter.
+          required: true
+          schema:
+            $ref: "#/definitions/ReadMongoRequest"
+      responses:
+        200:
+          description: A list of documents matching the filter.
+          schema:
+            type: array
+            items:
+              type: object
+        400:
+          description: Bad request. Invalid input.
+        500:
+          description: Internal server error.
+    post:
+      summary: Create a new entry in a MongoDB collection
+      description: Creates a new document in the specified collection.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name and document to create.
+          required: true
+          schema:
+            $ref: "#/definitions/CreateMongoRequest"
+      responses:
+        201:
+          description: Document created successfully.
+          schema:
+            type: object
+            properties:
+              insertedID:
+                type: string
+        400:
+          description: Bad request. Invalid input.
+        500:
+          description: Internal server error.
+    put:
+      summary: Update an entry in a MongoDB collection
+      description: Updates an existing document in the specified collection based on ID.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name, ID, and document to update.
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateMongoRequest"
+      responses:
+        200:
+          description: Document updated successfully.
+          schema:
+            type: object
+            properties:
+              modifiedCount:
+                type: integer
+        400:
+          description: Bad request. Invalid input.
+        404:
+            description: Document not found.
+        500:
+          description: Internal server error.
+    delete:
+      summary: Delete an entry from a MongoDB collection
+      description: Deletes a document from the specified collection based on ID.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name and ID to delete.
+          required: true
+          schema:
+            $ref: "#/definitions/DeleteMongoRequest"
+      responses:
+        200:
+          description: Document deleted successfully.
+          schema:
+            type: object
+            properties:
+              deletedCount:
+                type: integer
+        400:
+          description: Bad request. Invalid input.
+        404:
+            description: Document not found.
+        500:
+          description: Internal server error.
   # firebase fcmtokenpath
   /fcmtoken:
     post:
@@ -15684,3 +15794,7 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
+<<<<<<< HEAD
+=======
+        
+>>>>>>> 69bcdde03b62e0b7955be8c595a9df5a61565789
