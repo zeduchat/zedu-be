@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type SlashCommand struct {
@@ -75,8 +76,6 @@ func (sc *SlashCommand) GetAllOrgSlashCommands(db *gorm.DB, orgID string) ([]Sla
 }
 
 func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, req UpdateSlashCommandRequest) (SlashCommand, error) {
-
-	fmt.Println("ids", ids)
 
 	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ? AND id = ?", ids["org_id"], ids["integration_id"], ids["command_id"])
 	if !exists {

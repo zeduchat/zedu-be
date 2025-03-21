@@ -350,7 +350,7 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 		return channel, errors.New("user already in channel")
 	}
 
-	if  req.Username == "" {
+	if req.Username == "" {
 		req.Username = user.Email
 	}
 
@@ -726,4 +726,17 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 		return chanResp, errors.New("could not get channels user is not part of")
 	}
 	return chanResp, nil
+}
+
+func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChannels, error) {
+	var users []UserChannels
+
+	if err := db.Table("user_channels").
+		Select("user_channels.*").
+		Where("user_channels.channels_id = ?", channelId).
+		Scan(&users).Error; err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }

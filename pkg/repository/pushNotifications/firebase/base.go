@@ -1,8 +1,8 @@
 package firebase
 
 import (
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/messaging"
+	"firebase.google.com/go/v4/messaging"
+	firebase "firebase.google.com/go/v4"
 )
 
 type FirebaseClient struct {

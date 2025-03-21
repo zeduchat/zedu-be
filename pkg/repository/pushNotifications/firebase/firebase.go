@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/messaging"
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"google.golang.org/api/option"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -37,14 +37,15 @@ func ConnectFirebase(logger *utility.Logger, config config.Firebae) {
 }
 
 // Send push notification to a single FCM token
-func SendNotificationByFCMToken(logger *utility.Logger, fcmToken string, title string, body string) error {
+func SendNotificationByFCMToken(logger *utility.Logger, fcmToken string, title string, body, avatarUrl string) error {
 	client := Connection().Client
 
 	message := &messaging.Message{
 		Token: fcmToken,
 		Notification: &messaging.Notification{
-			Title: title,
-			Body:  body,
+			Title:    title,
+			Body:     body,
+			ImageURL: avatarUrl,
 		},
 	}
 
@@ -67,7 +68,7 @@ func SendNotificationByFCMTokens(logger *utility.Logger, fcmTokens []string, tit
 		Body:  body,
 	}
 
-	response, err := client.SendMulticast(context.Background(), &messaging.MulticastMessage{
+	response, err := client.SendEachForMulticast(context.Background(), &messaging.MulticastMessage{
 		Tokens:       fcmTokens,
 		Notification: notification,
 	})

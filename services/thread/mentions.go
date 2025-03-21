@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
@@ -86,8 +87,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		fmt.Println("failed here")
-		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
+		return nil, fmt.Errorf("failed to broadcast thread data")
 	}
 
 	notification := models.Notifcation[models.NewMessage]
@@ -97,8 +97,24 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	err = centrifuge.BroadcastChannel(logger, req.OrgId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
-		return nil, fmt.Errorf("failed to broadcast webhook data: %v", err.Error())
+		return nil, fmt.Errorf("failed to broadcast thread data")
 	}
+
+	// Push notification to channel users
+
+	pushReq := models.PushFCMRequest{
+		ChannelId:   req.ChannelsID,
+		ChannelName: channel.Name,
+		UserId:      req.UserId,
+		Message:     req.Content,
+	}
+
+	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send push notifcation to channel users")
+	}
+
+	logger.Info(fmt.Sprintf("sent push notification to channel users"))
 
 	return &threadDoc, nil
 }
