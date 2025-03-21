@@ -802,5 +802,14 @@ func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomI
 		return err
 	}
 
+	reqStatus := models.ChangeIntegrationStatus{
+		Status: true,
+	}
+
+	err = orgIntegration.ChangeStatus(db, reqStatus, ids, extReq)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/firebase"
 	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
@@ -40,6 +41,7 @@ func main() {
 	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
+	firebase.ConnectFirebase(logger, configuration.Firebae)
 	mongodb.ConnectMongoDB(logger, configuration.MongoDB)
 
 	validatorRef := validator.New()
