@@ -16,7 +16,7 @@ func AddAgentSettings(db *gorm.DB, ids map[string]string, req models.AddIntegrat
 	is := models.IntegrationSettings{
 		ID:             utility.GenerateUUID(),
 		OrgID:          ids["org_id"],
-		IntegrationID:  ids["integration_id"],
+		IntegrationID:  ids["agent_id"],
 		FormFieldValue: req.FormFieldValue,
 		FormFieldLabel: req.FormFieldLabel,
 	}
@@ -32,7 +32,7 @@ func AddAgentSettings(db *gorm.DB, ids map[string]string, req models.AddIntegrat
 func GetAgentSetting(db *gorm.DB, ids map[string]string) ([]models.IntegrationSettings, error) {
 	var (
 		organisation models.Organisation
-		agent  models.Integrations
+		agent        models.Integrations
 		setting      models.IntegrationSettings
 	)
 
@@ -56,7 +56,7 @@ func GetAgentSetting(db *gorm.DB, ids map[string]string) ([]models.IntegrationSe
 func GetCustomAgentApiKey(db *gorm.DB, ids map[string]string) (string, int, error) {
 	var (
 		organisation models.Organisation
-		agent  models.Integrations
+		agent        models.Integrations
 		setting      models.CustomIntegrationsSetting
 	)
 
@@ -82,7 +82,7 @@ func UpdateAgentSettings(db *gorm.DB, ids map[string]string, req models.UpdateIn
 	var (
 		setting      models.IntegrationSettings
 		organisation models.Organisation
-		agent  models.Integrations
+		agent        models.Integrations
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -106,7 +106,7 @@ func UpdateAgentSettings(db *gorm.DB, ids map[string]string, req models.UpdateIn
 func GetOrgAgentSettings(db *gorm.DB, ids map[string]string) ([]models.IntegrationSettings, error) {
 	var (
 		organisation models.Organisation
-		agent  models.Integrations
+		agent        models.Integrations
 		setting      models.IntegrationSettings
 	)
 
