@@ -8,6 +8,7 @@ toolchain go1.22.8
 
 require (
 	firebase.google.com/go v3.13.0+incompatible
+	firebase.google.com/go v3.13.0+incompatible
 	github.com/anthonycorbacho/slack-webhook v1.0.1
 	github.com/centrifugal/gocent v2.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc

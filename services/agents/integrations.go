@@ -802,7 +802,7 @@ func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomI
 		return err
 	}
 
-	reqStatus := models.ChangeIntegrationStatus{
+	reqStatus := models.ChangeAgentStatus{
 		Status: true,
 	}
 

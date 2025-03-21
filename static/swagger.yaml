@@ -77,7 +77,8 @@ tags:
   - name: Direct Message
     description: API for direct message
   - name: Firebase FcmToken
-    description: API for Saving Firebase fcmToken  - name: Bots
+    description: API for Saving Firebase fcmToken
+  - name: Bots
     description: API endpoints for bots
   - name: Mongogrations
     description: API endpoints for integrations to interact with a mongoDB instance through telex
