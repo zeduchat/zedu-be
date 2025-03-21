@@ -335,7 +335,6 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 
 	for i, channel := range channels {
 		count := getThreadCountFromElastic(db.Elastic, channel.ID)
-		fmt.Println("count for grouped channels", count)
 		channels[i].MessageCount = int64(count)
 	}
 
@@ -410,7 +409,6 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]s
 
 	for _, channel := range channels {
 		count := getThreadCountFromElastic(db.Elastic, channel.ID)
-		fmt.Println("count for channels not in group", count)
 		channel.MessageCount = int64(count)
 		chanResp = append(chanResp, struct {
 			Channels
