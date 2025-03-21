@@ -34,7 +34,7 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string,c 
 		response_data := response.(map[string]interface{})
 		data_r := response_data["data"].(map[string]interface{})
 		description := data_r["descriptions"].(map[string]interface{})
-		category, ok := data_r["agent_category"].(string)
+		category, ok := data_r["integration_category"].(string)
 		if !ok || category == "" {
 			category = "Undefined"
 		}

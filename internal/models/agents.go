@@ -43,7 +43,7 @@ type UpdateAgent struct {
 
 type ChangeAgentStatus struct {
 	Status     bool   `json:"status" validate:"required,oneof=true false"`
-	AgentID    string `json:"agent_id"`
+	AgentID    string `json:"integration_id"`
 	JSONSchema JSONB  `gorm:"column:json_schema; type:jsonb;serializer:json" json:"json_schema"`
 }
 
@@ -342,7 +342,7 @@ func (i *Integrations) DeleteAgent(db *gorm.DB, ids map[string]string) error {
 	}
 
 	//also delete entries for the agent in the organisation agents table
-	err = db.Delete(&OrganisationIntegrations{}, "agent_id = ?", ids["agent_id"]).Error
+	err = db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["agent_id"]).Error
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSON
 	update := make(map[string]interface{})
 	update["json_schema"] = req.JSONSchema
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return err
 	}
@@ -395,7 +395,7 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 	update := make(map[string]interface{})
 	update["json_url"] = req.JSONUrl
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return err
 	}
@@ -688,14 +688,14 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelAgents(db *go
 
 func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, req ActivateChannelAgent, ids map[string]string) error {
 
-	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &oci, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["agent_id"])
 
 	if exists {
 
 		update := make(map[string]interface{})
 		update["is_active"] = req.Status
 
-		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["integration_id"])
+		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["agent_id"])
 
 		if err != nil {
 			return err
@@ -711,7 +711,7 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, r
 			ID:            utility.GenerateUUID(),
 			OrgID:         ids["organisation_id"],
 			ChannelID:     ids["channel_id"],
-			IntegrationID: ids["integration_id"],
+			IntegrationID: ids["agent_id"],
 			IsActive:      req.Status,
 		}
 
@@ -801,7 +801,7 @@ func (oci *OrganisationChannelsIntegrations) FetchIntegrationChannels(db *gorm.D
 
 	var res IntegrationChansResp
 
-	orgId, intId := ids["organisation_id"], ids["integration_id"]
+	orgId, intId := ids["organisation_id"], ids["agent_id"]
 
 	err := db.Table("organisation_channels_integrations AS oci").
 		Joins("JOIN channels ON channels.id = oci.channel_id").
@@ -824,7 +824,7 @@ func (i *OrganisationChannelsIntegrations) CheckIntegrationIsActive(db *gorm.DB,
 		organisation Organisation
 		orgInt       OrganisationIntegrations
 	)
-	orgId, intId := ids["organisation_id"], ids["integration_id"]
+	orgId, intId := ids["organisation_id"], ids["agent_id"]
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", orgId)
 	if !organisationExists {
@@ -1001,7 +1001,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	var ucis CustomIntegrationsSetting
 
 	// fetch existing settings
-	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return errors.New("integration not connnected yet")
 	}
@@ -1044,7 +1044,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 
 	update["setting_entry"] = serialized_settings
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return err
 	}
@@ -1134,22 +1134,22 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("Failed to save agent, key_features field is not an array")
 	}
 
-	int_cat, ok := data_r["agent_category"]
+	int_cat, ok := data_r["integration_category"]
 	if !ok || int_cat == "" {
-		return errors.New("Failed to save agent, agent_category field does not exist or is empty")
+		return errors.New("Failed to save agent, agent_category/integration_categrory field does not exist or is empty")
 	}
 
 	if !categories[int_cat.(string)] {
-		return errors.New(fmt.Sprintf("Failed to save agent, agent_category type not supported, supplied: %s, check docs for supported types.", int_cat))
+		return errors.New(fmt.Sprintf("Failed to save agent, agent_category/integration_categrory type not supported, supplied: %s, check docs for supported types.", int_cat))
 	}
 
-	int_type, ok := data_r["agent_type"]
+	int_type, ok := data_r["integration_type"]
 	if !ok {
-		return errors.New("Failed to save agent, agent_type field does not exist")
+		return errors.New("Failed to save agent, agent_type/integration_type field does not exist")
 	}
 
 	if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE {
-		return errors.New("Failed to save agent, invalid agent_type agent should be of type interval or modifier")
+		return errors.New("Failed to save agent, invalid agent_type/integration_type agent should be of type interval or modifier")
 	}
 
 	if int_type == INTERVAL_TYPE {

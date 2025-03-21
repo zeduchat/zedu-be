@@ -54,7 +54,7 @@ func (us *IntegrationSettings) GetIntegrationSettingsAllOrgs(db *gorm.DB, integr
 func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]IntegrationSettings, error) {
 	var intSettings []IntegrationSettings
 
-	err := postgresql.SelectAllFromDb(db, "", &intSettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	err := postgresql.SelectAllFromDb(db, "", &intSettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to get integration settings: %v", err)
 	}
@@ -67,7 +67,7 @@ func (is *CustomIntegrationsSetting) GetIntegrationApiKey(db *gorm.DB, ids map[s
 		deserialize_settings map[string]interface{}
 	)
 
-	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return "", http.StatusNotFound, errors.New("Integration not connnected yet")
 	}
@@ -97,7 +97,7 @@ func (is *CustomIntegrationsSetting) GetIntegrationApiKey(db *gorm.DB, ids map[s
 
 func (is *IntegrationSettings) UpdateIntegrationSetting(db *gorm.DB, ids map[string]string, req UpdateIntegrationSettingsRequest) error {
 
-	exists := postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists := postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return fmt.Errorf("integration setting does not exist")
 	}

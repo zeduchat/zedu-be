@@ -80,6 +80,11 @@ tags:
     description: API for Saving Firebase fcmToken
   - name: Bots
     description: API endpoints for bots
+  - name: File Management
+    description: API for uploading and retrieving files
+
+  - name: Mongogrations
+    description: API endpoints for integrations to interact with a mongoDB instance through telex
 
 
 paths:
@@ -12198,7 +12203,115 @@ paths:
                   status_code: 404
                   message: "Organisation not found"
 
-
+#mongogrations
+  /mongo-integrations:
+    get:
+      summary: Read entries from a MongoDB collection
+      description: Retrieves documents from the specified collection based on the provided filter.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name and filter.
+          required: true
+          schema:
+            $ref: "#/definitions/ReadMongoRequest"
+      responses:
+        200:
+          description: A list of documents matching the filter.
+          schema:
+            type: array
+            items:
+              type: object
+        400:
+          description: Bad request. Invalid input.
+        500:
+          description: Internal server error.
+    post:
+      summary: Create a new entry in a MongoDB collection
+      description: Creates a new document in the specified collection.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name and document to create.
+          required: true
+          schema:
+            $ref: "#/definitions/CreateMongoRequest"
+      responses:
+        201:
+          description: Document created successfully.
+          schema:
+            type: object
+            properties:
+              insertedID:
+                type: string
+        400:
+          description: Bad request. Invalid input.
+        500:
+          description: Internal server error.
+    put:
+      summary: Update an entry in a MongoDB collection
+      description: Updates an existing document in the specified collection based on ID.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name, ID, and document to update.
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateMongoRequest"
+      responses:
+        200:
+          description: Document updated successfully.
+          schema:
+            type: object
+            properties:
+              modifiedCount:
+                type: integer
+        400:
+          description: Bad request. Invalid input.
+        404:
+            description: Document not found.
+        500:
+          description: Internal server error.
+    delete:
+      summary: Delete an entry from a MongoDB collection
+      description: Deletes a document from the specified collection based on ID.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Request body containing collection name and ID to delete.
+          required: true
+          schema:
+            $ref: "#/definitions/DeleteMongoRequest"
+      responses:
+        200:
+          description: Document deleted successfully.
+          schema:
+            type: object
+            properties:
+              deletedCount:
+                type: integer
+        400:
+          description: Bad request. Invalid input.
+        404:
+            description: Document not found.
+        500:
+          description: Internal server error.
   # firebase fcmtokenpath
   /fcmtoken:
     post:
@@ -12251,6 +12364,98 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+
+  /files/upload-files:
+    post:
+      tags:
+        - File Management
+      summary: Upload multiple files
+      description: Uploads files and stores them in MinIO
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Upload success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "Files uploaded successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        '400':
+          description: Invalid file format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerErrorSchema"
+
+  /files/file/{filename}:
+    get:
+      tags:
+        - File Management
+      summary: Get a file by filename
+      description: Fetches a file from storage and returns a presigned URL
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Presigned URL returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  presigned_url:
+                    type: string
+                    example: "https://your-minio-server.com/presigned-url"
+                  status_code:
+                    type: integer
+                    example: 200
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerErrorSchema"
+
 
 components:
 
@@ -15417,3 +15622,4 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
+        
