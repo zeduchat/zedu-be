@@ -17,7 +17,7 @@ func Search(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	search := search.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	searchUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		searchUrl.GET("/search/user/:userId/organisations/:orgId", search.Search)
+		searchUrl.GET("/search/organisation/:orgId/user/:userId/", search.Search)
 	}
 	return r
 }

@@ -61,7 +61,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	var qResults []utility.SearchQueryResult
 
 	// Build the search query
-	query, err := buildSearchQuery(db.Postgresql, searchQuery, userId)
+	query, err := buildSearchQuery(db.Postgresql, searchQuery, userId, orgId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build search query: %w", err)
 	}
@@ -106,9 +106,13 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	return qResults, nil
 }
 
-func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId string) (map[string]interface{}, error) {
+func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId string, orgId string) (map[string]interface{}, error) {
 	query := initializeQuery()
 	boolQuery := query["query"].(map[string]interface{})["bool"].(map[string]interface{})
+	channels, err := GetChannelsByOrgIDs(db, orgId, userId)
+	if err != nil {
+		return nil, err
+	}
 
 	addFullTextSearch(boolQuery, opts)
 
@@ -119,6 +123,7 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 	addDateFilters(boolQuery, opts)
 
 	addContentFilter(boolQuery, opts)
+	addOrgOrChannelFilter(boolQuery, orgId, channels)
 
 	addSorting(query, opts)
 
@@ -135,6 +140,26 @@ func initializeQuery() map[string]interface{} {
 		},
 	}
 }
+
+func addOrgOrChannelFilter(boolQuery map[string]interface{}, orgID string, channelIDs []string) {
+	orgOrChannelFilter := map[string]interface{}{
+		"bool": map[string]interface{}{
+			"should": []interface{}{
+				map[string]interface{}{"term": map[string]interface{}{"org_id": orgID}},
+				map[string]interface{}{"terms": map[string]interface{}{"channel_id": channelIDs}},
+			},
+			"minimum_should_match": 1,
+		},
+	}
+
+	// Ensure "filter" exists and is a slice
+	if existingFilters, ok := boolQuery["filter"].([]interface{}); ok {
+		boolQuery["filter"] = append(existingFilters, orgOrChannelFilter)
+	} else {
+		boolQuery["filter"] = []interface{}{orgOrChannelFilter}
+	}
+}
+
 func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
 	mustClauses := boolQuery["must"].([]interface{})
 
@@ -352,4 +377,25 @@ func addSorting(query map[string]interface{}, opts *SearchQueryFiltersKeywords) 
 	}
 	query["sort"] = sorting
 	return query, nil
+}
+
+func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, error) {
+	var channels Channels
+	var channs []string
+
+	org := Organisation{}
+	orgs, err := org.GetUserOrganisations(db, userId)
+	if err != nil && orgs == nil {
+		return nil, err
+	} else if orgs == nil {
+		return nil, errors.New("User does not exist in this organisation")
+	}
+
+	if err := db.Model(&channels).
+		Select("channels.id").
+		Where("channels.organisation_id = ?", orgId).
+		Scan(&channs).Error; err != nil {
+		return nil, errors.New("error fetching channels")
+	}
+	return channs, nil
 }
