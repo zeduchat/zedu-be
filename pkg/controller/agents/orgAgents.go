@@ -470,7 +470,7 @@ func (base *Controller) UpdateCustomAgentSettings(c *gin.Context) {
 	)
 
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -479,7 +479,7 @@ func (base *Controller) UpdateCustomAgentSettings(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
+	if _, err := uuid.Parse(agent_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -500,8 +500,8 @@ func (base *Controller) UpdateCustomAgentSettings(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"integration_id": integration_id,
+		"org_id":   org_id,
+		"agent_id": agent_id,
 	}
 
 	err := agents.UpdateCustomAgentSettings(ids, req, base.Db.Postgresql, base.ExtReq)
@@ -519,7 +519,7 @@ func (base *Controller) UpdateCustomAgentSettings(c *gin.Context) {
 
 func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -528,7 +528,7 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
+	if _, err := uuid.Parse(agent_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -537,7 +537,7 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 
 	ids := map[string]string{
 		"org_id":         org_id,
-		"integration_id": integration_id,
+		"agent_id": agent_id,
 	}
 
 	integration_setting, code, err := agents.GetCustomAgentStatus(ids, base.Db.Postgresql, base.ExtReq)
@@ -557,7 +557,7 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 
 	org_id := c.Param("org_id")
-	integration_id := c.Param("integration_id")
+	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("invalid organisation id format", err)
@@ -566,7 +566,7 @@ func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(integration_id); err != nil {
+	if _, err := uuid.Parse(agent_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -575,7 +575,7 @@ func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 
 	ids := map[string]string{
 		"org_id":         org_id,
-		"integration_id": integration_id,
+		"agent_id": agent_id,
 	}
 
 	integration_setting, code, err := agents.GetCustomAgentSettings(ids, base.Db.Postgresql, base.ExtReq)
@@ -616,7 +616,7 @@ func (base *Controller) GetCustomAgentSettingsExteranl(c *gin.Context) {
 
 	ids := map[string]string{
 		"porg_id":         porg_id,
-		"pintegration_id": pint_id,
+		"pagent_id": pint_id,
 	}
 
 	integration_setting, code, err := agents.GetCustomAgentSettingsExteranl(ids, base.Db.Postgresql, base.ExtReq)
@@ -689,7 +689,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 
 	ids := map[string]string{
 		"porg_id":         porg_id,
-		"pintegration_id": pint_id,
+		"pagent_id": pint_id,
 		"telex_api_key":   api_key,
 	}
 
