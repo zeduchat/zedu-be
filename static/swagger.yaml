@@ -80,6 +80,9 @@ tags:
     description: API for Saving Firebase fcmToken
   - name: Bots
     description: API endpoints for bots
+  - name: File Management
+    description: API for uploading and retrieving files
+
   - name: Mongogrations
     description: API endpoints for integrations to interact with a mongoDB instance through telex
 
@@ -12361,6 +12364,98 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+
+  /files/upload-files:
+    post:
+      tags:
+        - File Management
+      summary: Upload multiple files
+      description: Uploads files and stores them in MinIO
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Upload success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "Files uploaded successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        '400':
+          description: Invalid file format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerErrorSchema"
+
+  /files/file/{filename}:
+    get:
+      tags:
+        - File Management
+      summary: Get a file by filename
+      description: Fetches a file from storage and returns a presigned URL
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Presigned URL returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  presigned_url:
+                    type: string
+                    example: "https://your-minio-server.com/presigned-url"
+                  status_code:
+                    type: integer
+                    example: 200
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerErrorSchema"
+
 
 components:
 
