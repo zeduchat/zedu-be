@@ -58,6 +58,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Dms(r, ApiVersion, validator, db, logger)
 	Group(r, ApiVersion, validator, db, logger)
 	Agents(r, ApiVersion, validator, db, logger)
+	Mongogrations(r, ApiVersion, validator, db, logger)
 	FcmToken(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
