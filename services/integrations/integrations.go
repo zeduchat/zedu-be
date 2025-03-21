@@ -230,7 +230,7 @@ func GetSystemIntegrationApp(c *gin.Context, db *gorm.DB, int_id string, extReq 
 	description := data_r["descriptions"].(map[string]interface{})
 
 	info, ok := data_r["info"].(string)
-	if !ok  {
+	if !ok {
 		info = "Undefined"
 	}
 
@@ -799,6 +799,15 @@ func UpdateCustomIntegrationSettingsExternal(ids map[string]string, req models.C
 
 	err = ucis.UpdateCustomIntegrationSettings(db, req, ids)
 
+	if err != nil {
+		return err
+	}
+
+	reqStatus := models.ChangeIntegrationStatus{
+		Status: true,
+	}
+
+	err = orgIntegration.ChangeStatus(db, reqStatus, ids, extReq)
 	if err != nil {
 		return err
 	}

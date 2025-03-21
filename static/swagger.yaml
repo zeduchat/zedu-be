@@ -76,7 +76,8 @@ tags:
     description: API for channel grouping
   - name: Direct Message
     description: API for direct message
-
+  - name: Firebase FcmToken
+    description: API for Saving Firebase fcmToken
 
 paths:
 
@@ -2220,7 +2221,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
-  
+ 
   /channels/{channel_id}/messages/message_id:
 
     delete:
@@ -6779,10 +6780,6 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
-                thread_id:
-                  type: string
-                  format: uuid
-                  description: uuidv7
         
       responses:
         '200':
@@ -7013,10 +7010,6 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
-                thread_id:
-                  type: string
-                  format: uuid
-                  description: uuidv7
         
       responses:
         '200':
@@ -7688,6 +7681,22 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chat_type:
+                  type: string
+                  example: user
+                  description: The chat type is between users
+                participant_id:
+                  type: string
+                  format: uuid
+                  description: The user id of the chat participant
+
       responses:
         '201':
           description: Dm channels created successfully
@@ -12025,6 +12034,58 @@ paths:
                   status_code: 404
                   message: "Organisation not found"
 
+  # firebase fcmtokenpath
+  /fcmtoken:
+    post:
+      tags:
+        - Firebase FcmToken
+      security:
+        - bearerAuth: []
+      summary: Save users fcm token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fcm_token:
+                  type: string
+              required:
+                - fcm_token
+
+      responses:
+        '201':
+          description: Fcm token saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: success response
+                    example: success
+                  message:
+                    type: string
+                    example: "Fcm token saved successfully"
+                  status_code:
+                    type: integer
+                    example: 201
+
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+                
+        '422':
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
 components:
 
@@ -12246,7 +12307,7 @@ components:
         channel:
           type: string
           description: The name of the channel to subscribe to
-          example: "channel_name"
+          example: "channel_id"
 
     SubscriptionTokenResponseSchema:
       type: object
