@@ -31,7 +31,7 @@ type UpdateChannelIntegrationSettingsRequest struct {
 
 func (is *ChannelIntegrationSettings) CreateChannelIntegrationSettings(db *gorm.DB) error {
 	var (
-		channel Channels
+		channel                 Channels
 		organisationIntegration OrganisationIntegrations
 	)
 
@@ -55,7 +55,7 @@ func (is *ChannelIntegrationSettings) CreateChannelIntegrationSettings(db *gorm.
 func (is *ChannelIntegrationSettings) GetChannelIntegrationSetting(db *gorm.DB, ids map[string]string) ([]ChannelIntegrationSettings, error) {
 	var intSettings []ChannelIntegrationSettings
 
-	err := postgresql.SelectAllFromDb(db, "", &intSettings, "org_id = ? AND integration_id = ? AND channel_id = ?", ids["org_id"], ids["integration_id"], ids["channel_id"])
+	err := postgresql.SelectAllFromDb(db, "", &intSettings, "org_id = ? AND integration_id = ? AND channel_id = ?", ids["org_id"], ids["agent_id"], ids["channel_id"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to get channel integration settings: %v", err)
 	}
@@ -64,7 +64,7 @@ func (is *ChannelIntegrationSettings) GetChannelIntegrationSetting(db *gorm.DB, 
 
 func (is *ChannelIntegrationSettings) UpdateChannelIntegrationSetting(db *gorm.DB, ids map[string]string, req UpdateIntegrationSettingsRequest) error {
 	var (
-		channel Channels
+		channel                 Channels
 		organisationIntegration OrganisationIntegrations
 	)
 
@@ -73,12 +73,12 @@ func (is *ChannelIntegrationSettings) UpdateChannelIntegrationSetting(db *gorm.D
 		return fmt.Errorf("channel does not exist in organisation")
 	}
 
-	exists = postgresql.CheckExists(db, &organisationIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["integration_id"])
+	exists = postgresql.CheckExists(db, &organisationIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
 		return fmt.Errorf("integration is not enabled for organisation")
 	}
 
-	exists = postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ? AND channel_id = ? AND id = ?", ids["org_id"], ids["integration_id"], ids["channel_id"], ids["setting_id"])
+	exists = postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ? AND channel_id = ? AND id = ?", ids["org_id"], ids["agent_id"], ids["channel_id"], ids["setting_id"])
 	if !exists {
 		return fmt.Errorf("channel integration setting does not exist")
 	}
@@ -94,8 +94,8 @@ func (is *ChannelIntegrationSettings) UpdateChannelIntegrationSetting(db *gorm.D
 }
 
 func (is *ChannelIntegrationSettings) DeleteChannelIntegrationSetting(db *gorm.DB, ids map[string]string) error {
-	
-	exists := postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ? AND channel_id = ?", ids["org_id"], ids["integration_id"], ids["channel_id"])
+
+	exists := postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ? AND channel_id = ?", ids["org_id"], ids["agent_id"], ids["channel_id"])
 	if !exists {
 		return fmt.Errorf("channel integration setting does not exist")
 	}

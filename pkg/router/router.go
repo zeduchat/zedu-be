@@ -60,6 +60,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Search(r, ApiVersion, validator, db, logger)
 
 	Agents(r, ApiVersion, validator, db, logger)
+	FcmToken(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
