@@ -342,7 +342,7 @@ func (i *Integrations) DeleteAgent(db *gorm.DB, ids map[string]string) error {
 	}
 
 	//also delete entries for the agent in the organisation agents table
-	err = db.Delete(&OrganisationIntegrations{}, "agent_id = ?", ids["agent_id"]).Error
+	err = db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["agent_id"]).Error
 	if err != nil {
 		return err
 	}
