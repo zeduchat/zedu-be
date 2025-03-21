@@ -38,7 +38,6 @@ func (base *Controller) GetOrganisationChannelAgents(c *gin.Context) {
 		return
 	}
 
-
 	base.Logger.Info("Channel agents retrieved successfully")
 	rd := utility.BuildSuccessResponse(code, "Channel agents retrieved successfully", agents, paginationResponse)
 	c.JSON(code, rd)
@@ -83,7 +82,7 @@ func (base *Controller) ActivateDeactivateChannelAgent(c *gin.Context) {
 	ids := map[string]string{
 		"organisation_id": org_id,
 		"channel_id":      channel_id,
-		"agent_id":  agent_id,
+		"agent_id":        agent_id,
 	}
 
 	err := agents.ActivateChannelAgent(ids, req, base.Db.Postgresql)
@@ -125,7 +124,7 @@ func (base *Controller) AgentChannels(c *gin.Context) {
 
 	ids := map[string]string{
 		"organisation_id": org_id,
-		"agent_id":  agent_id,
+		"agent_id":        agent_id,
 	}
 
 	res, err := agents.AgentChannels(ids, base.Db.Postgresql)
@@ -161,7 +160,7 @@ func (base *Controller) CheckAgentIsActive(c *gin.Context) {
 
 	ids := map[string]string{
 		"organisation_id": org_id,
-		"agent_id":  agent_id,
+		"agent_id":        agent_id,
 	}
 
 	res, err := agents.CheckAgentIsActive(ids, base.Db.Postgresql)

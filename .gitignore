@@ -23,6 +23,7 @@ main
 go.work
 go.work.sum
 
+docs/
 logs/
 cronlogs/
 config.yaml
@@ -31,6 +32,7 @@ app.env
 tmp/
 .idea/
 playground/
+build-errors.log
 
 temp
 telex_be

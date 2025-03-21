@@ -97,7 +97,7 @@ func DeleteChannelAgentSettings(db *gorm.DB, ids map[string]string) error {
 		return fmt.Errorf("agent does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &setting, "org_id = ? AND agent_id = ? AND channel_id = ? AND id = ?", ids["org_id"], ids["agent_id"], ids["channel_id"], ids["setting_id"])
+	exists = postgresql.CheckExists(db, &setting, "org_id = ? AND integration_id = ? AND channel_id = ? AND id = ?", ids["org_id"], ids["agent_id"], ids["channel_id"], ids["setting_id"])
 	if !exists {
 		return fmt.Errorf("channel agent setting does not exist")
 	}
