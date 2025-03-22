@@ -12458,7 +12458,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/InternalServerErrorSchema"
 
-  /search/organisation/{orgId}/user/{userId}/:
+  /search/organisation/{orgId}/:
     get:
       tags:
         - Search
