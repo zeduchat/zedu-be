@@ -90,7 +90,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 
-	err = centrifuge.BroadcastChannel(logger, channel.ParticipantId, notification)
+	err = centrifuge.BroadcastChannel(logger, *channel.ParticipantId, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
 		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
@@ -105,14 +105,12 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 	// Provision for bot dms later
 
 	// Create pair room if first message and not a bot
-
 	thread := models.ThreadDocument{
 		UserId:     req.UserId,
 		ChannelsID: req.ChannelsID,
 	}
 
 	pairRoom, code, err := thread.CheckExists()
-
 	if err != nil {
 		return &thread, code, err
 	}
@@ -132,8 +130,8 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 			pairRoomChan := models.DmChannels{}
 
 			pairRoomChan.ChatType = dmchannel.ChatType
-			pairRoomChan.UserId = dmchannel.ParticipantId
-			pairRoomChan.ParticipantId = dmchannel.UserId
+			pairRoomChan.UserId = *dmchannel.ParticipantId
+			*pairRoomChan.ParticipantId = dmchannel.UserId
 			pairRoomChan.ID = utility.GenerateUUID()
 			pairRoomChan.ChannelId = dmchannel.ChannelId
 			pairRoomChan.OrgId = dmchannel.OrgId
@@ -147,7 +145,6 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 	}
 
 	return SaveThreadDmMessage(req, db, logger)
-
 }
 
 func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {

@@ -18,9 +18,10 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.DmChann
 	var dmchans models.DmChannels
 
 	dmchans.ChatType = req.ChatType
+	dmchans.ChannelType = "dm"
 	dmchans.OrgId = req.OrgId
 	dmchans.UserId = req.UserId
-	dmchans.ParticipantId = req.ParticipantId
+	*dmchans.ParticipantId = req.ParticipantId
 	dmchans.ChannelId = utility.GenerateUUID()
 	dmchans.ID = utility.GenerateUUID()
 
@@ -31,8 +32,8 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.DmChann
 	}
 
 	return &resp, http.StatusCreated, nil
-
 }
+
 
 func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([]models.DmChannelsResponse, postgresql.PaginationResponse, int, error) {
 

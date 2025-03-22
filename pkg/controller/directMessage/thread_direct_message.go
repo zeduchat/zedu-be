@@ -45,7 +45,6 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 	req.ChannelsID = channelID
 
 	claims, exists := c.Get("userClaims")
-
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)

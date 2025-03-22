@@ -12,15 +12,17 @@ import (
 )
 
 type DmChannels struct {
-	ID            string         `gorm:"type:uuid" json:"id"`
-	UserId        string         `gorm:"type:uuid" json:"-"`
-	ChannelId     string         `gorm:"type:uuid" json:"channel_id"`
-	OrgId         string         `gorm:"type:uuid" json:"-"`
-	ParticipantId string         `gorm:"type:uuid" json:"-"`
-	ChatType      string         `gorm:"type:string" json:"chat_type"`
-	CreatedAt     time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt     time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	ID              string         `gorm:"type:uuid" json:"id"`
+	UserId          string         `gorm:"type:uuid" json:"-"`
+	ChannelId       string         `gorm:"type:uuid" json:"channel_id"`
+	OrgId           string         `gorm:"type:uuid" json:"-"`
+	ParticipantId   *string         `gorm:"type:uuid" json:"-"`
+	ParticipantHash string         `gorm:"type:string" json:"participant_hash"`
+	ChatType        string         `gorm:"type:string" json:"chat_type"`    // user or bot
+	ChannelType     string         `gorm:"type:string" json:"channel_type"` // dm or group_dm
+	CreatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type DmChannelsResponse struct {
@@ -46,19 +48,17 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		existDmchan DmChannels
 	)
 
-	userDetails, err := user.GetUserByID(db, dm.ParticipantId)
-
+	userDetails, err := user.GetUserByID(db, *dm.ParticipantId)
 	if err != nil {
-		return dmchanresp, errors.New("Particpant does not exist")
+		return dmchanresp, errors.New("participant does not exist")
 	}
 
 	if userDetails.Profile.UserName == "" {
 		userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 	}
 
-	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ?", dm.UserId, dm.ParticipantId)
+	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ?", dm.UserId, *dm.ParticipantId)
 	if exists {
-
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 		dmchanresp.Name = userDetails.Profile.UserName
 		dmchanresp.ID = existDmchan.ChannelId
@@ -74,7 +74,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 	dmchanresp.Name = userDetails.Profile.UserName
 	dmchanresp.ID = dm.ChannelId
-	dmchanresp.ParticipantId = dm.ParticipantId
+	dmchanresp.ParticipantId = *dm.ParticipantId
 	dmchanresp.ParticipantEmail = userDetails.Email
 
 	return dmchanresp, nil
@@ -84,7 +84,7 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 
 	var user User
 
-	_, err := user.GetUserByID(db, dm.ParticipantId)
+	_, err := user.GetUserByID(db, *dm.ParticipantId)
 
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	for _, dmchans := range dmchans {
 
-		userDetails, err := user.GetUserByID(db, dmchans.ParticipantId)
+		userDetails, err := user.GetUserByID(db, *dmchans.ParticipantId)
 
 		if err != nil {
 			return nil, paginationResp, err
@@ -145,7 +145,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			ID:               dmchans.ChannelId,
 			Name:             userDetails.Profile.UserName,
 			AvatarUrl:        userDetails.Profile.AvatarURL,
-			ParticipantId:    dmchans.ParticipantId,
+			ParticipantId:    *dmchans.ParticipantId,
 			ParticipantEmail: userDetails.Email,
 		})
 	}

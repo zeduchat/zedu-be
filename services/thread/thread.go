@@ -264,7 +264,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		broadcastDst = channel.OrganisationID
 
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		broadcastDst = *dmChannel.ParticipantId
 	}
 
 	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
@@ -322,7 +322,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		broadcastDst = channel.OrganisationID
 
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		broadcastDst = *dmChannel.ParticipantId
 	}
 
 	notification := models.Notifcation[models.Updated]

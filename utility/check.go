@@ -27,3 +27,15 @@ func RemoveString(slice []string, s string) []string {
 	}
 	return slice
 }
+
+func HasDuplicates(ids []string) bool {
+	seen := map[string]int{}
+
+	for _, id := range ids {
+		if _, exist := seen[id]; exist {
+			return true
+		}
+		seen[id] = 0
+	}
+	return false
+}

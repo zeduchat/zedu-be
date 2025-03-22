@@ -157,7 +157,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		broadcastDst = channel.OrganisationID
 
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		broadcastDst = *dmChannel.ParticipantId
 	}
 
 	notification := models.Notifcation[models.Updated]
@@ -226,7 +226,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		broadcastDst = channel.OrganisationID
 
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		broadcastDst = *dmChannel.ParticipantId
 	}
 
 	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)

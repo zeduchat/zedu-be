@@ -1,0 +1,194 @@
+package models
+
+import (
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
+	"gorm.io/gorm"
+)
+
+type ChannelParticipant struct {
+	ID        string         `gorm:"type:uuid" json:"id"`
+	ChannelId string         `gorm:"type:uuid" json:"channel_id"`
+	UserId    string         `gorm:"type:uuid" json:"user_id"`
+	CreatedAt time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type GroupDMChannelsRequest struct {
+	Participants []string `json:"participants" validate:"required,min=2,max=6,dive,uuid"`
+	OrgId        string   `json:"org_id"`
+	ChatType     string   `json:"chat_type" validate:"required,oneof=user bot"`
+	UserId       string   `json:"user_id"`
+	ChannelId    string   `json:"channel_id"`
+}
+
+type ParticipantInfo struct {
+	UserId    string `json:"user_id"`
+	Name      string `json:"username"`
+	AvatarUrl string `json:"avatar_url"`
+	Email     string `json:"email"`
+}
+
+type GroupDMChannelsResponse struct {
+	ChannelId    string            `json:"channel_id"`
+	ChannelType  string            `json:"channel_type"` // "group_dm"
+	Participants []ParticipantInfo `json:"participants"` // List of all participants (excluding initiator)
+}
+
+func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsRequest) (GroupDMChannelsResponse, int, error) {
+	var (
+		user                User
+		gpdmchanresp        GroupDMChannelsResponse
+		existDmchan         DmChannels
+		chParts             ChannelParticipant
+		partInfo            ParticipantInfo
+		invalidParticipants []string
+		validParticipants   []string
+	)
+
+	for _, participantID := range req.Participants {
+		_, err := user.GetUserByID(db, participantID)
+		if err != nil {
+			invalidParticipants = append(invalidParticipants, participantID)
+			continue
+		}
+		validParticipants = append(validParticipants, participantID)
+	}
+
+	if len(validParticipants) < 2 {
+		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("group DM channel must have at least 2 valid additional participants")
+	}
+
+	allParticipants, participantHash := utility.GenerateParticipantHash(dm.UserId, validParticipants)
+
+	exists := postgresql.CheckExists(db, &existDmchan, "participant_hash = ?", participantHash)
+	if exists {
+		return gpdmchanresp, http.StatusConflict, fmt.Errorf("group DM channel with the same participants already exists")
+	}
+
+	dm.ParticipantHash = participantHash
+	err := postgresql.CreateOneRecord(db, &dm)
+	if err != nil {
+		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to create group DM channel")
+	}
+
+	for _, participantID := range allParticipants {
+		userDetails, err := user.GetUserByID(db, participantID)
+		if err != nil {
+			continue
+		}
+
+		if userDetails.Profile.UserName == "" {
+			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		}
+
+		partInfo.UserId = participantID
+		partInfo.Name = userDetails.Profile.UserName
+		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+		partInfo.Email = userDetails.Email
+
+		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+
+		// Add the participant to the channel
+		chParts.ID = utility.GenerateUUID()
+		chParts.ChannelId = dm.ChannelId
+		chParts.UserId = participantID
+		err = postgresql.CreateOneRecord(db, &chParts)
+		if err != nil {
+			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to add participant %s to the channel", userDetails.Name)
+		}
+	}
+
+	gpdmchanresp.ChannelId = dm.ChannelId
+	gpdmchanresp.ChannelType = "group_dm"
+
+	if len(invalidParticipants) > 0 {
+		return gpdmchanresp, http.StatusMultiStatus, fmt.Errorf("group DM channel created with valid participants only. Invalid participants were skipped: %v", invalidParticipants)
+	}
+
+	return gpdmchanresp, http.StatusCreated, nil
+}
+
+func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
+	var (
+		user      User
+		existDM   DmChannels
+		chanParts ChannelParticipant
+	)
+
+	_, err := user.GetUserByID(db, dm.UserId)
+	if err != nil {
+		return http.StatusNotFound, fmt.Errorf("user does not exist")
+	}
+
+	exists := postgresql.CheckExists(db, &existDM, "channel_id = ?", dm.ChannelId)
+	if !exists {
+		return http.StatusNotFound, fmt.Errorf("group DM channel does not exist")
+	}
+
+	isParticipant := postgresql.CheckExists(db, &chanParts, "channel_id = ? AND user_id = ?", dm.ChannelId, dm.UserId)
+	if !isParticipant {
+		return http.StatusForbidden, fmt.Errorf("user is not a participant in the group DM channel")
+	}
+
+	if existDM.UserId == dm.UserId {
+		// Perform a hard delete of the group DM channel since the initiator is deleting it
+		err = postgresql.HardDeleteSpecificRecord(
+			db,
+			&DmChannels{},
+			"channel_id = ?",
+			dm.ChannelId,
+		)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel: %v", err)
+		}
+
+		err = postgresql.HardDeleteSpecificRecord(
+			db,
+			&chanParts,
+			"channel_id = ?",
+			dm.ChannelId,
+		)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel participants: %v", err)
+		}
+
+		return http.StatusOK, nil
+	}
+
+	err = postgresql.HardDeleteSpecificRecord(
+		db,
+		&chanParts,
+		"channel_id = ? AND user_id = ?",
+		dm.ChannelId,
+		dm.UserId,
+	)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	count, err := postgresql.CountSpecificRecords(db, &chanParts, "channel_id = ?", dm.ChannelId)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to count group DM channel participants: %v", err)
+	}
+
+	if count == 0 {
+		err = postgresql.HardDeleteSpecificRecord(
+			db,
+			&DmChannels{},
+			"channel_id = ?",
+			dm.ChannelId,
+		)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel: %v", err)
+		}
+	}
+
+	return http.StatusOK, nil
+}
