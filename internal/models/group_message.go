@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
@@ -191,4 +192,70 @@ func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
 	}
 
 	return http.StatusOK, nil
+}
+
+func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDMChannelsResponse, postgresql.PaginationResponse, error) {
+	var user User
+
+	dmchans := []DmChannels{}
+	gpDMChansResp := []GroupDMChannelsResponse{}
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+		db,
+		"created_at",
+		"desc",
+		pagination,
+		&dmchans,
+		"org_id = ? AND user_id = ? AND chat_type = ? AND channel_type = ?",
+		dm.OrgId,
+		dm.UserId,
+		"user", //remove this later to get both user and bot
+		"group_dm",
+	)
+
+	if err != nil {
+		return nil, paginationResp, err
+	}
+
+	for _, dmchan := range dmchans {
+
+		var (
+			chanPart []ChannelParticipant
+			partInfo ParticipantInfo
+			allPartsInfo []ParticipantInfo
+		)
+
+		
+		err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
+		if err != nil {
+			return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
+		}
+		
+		for _, part := range chanPart {
+			userDetails, err := user.GetUserByID(db, part.UserId)
+			if err != nil {
+				return nil, paginationResp, err
+			}
+	
+			if userDetails.Profile.UserName == "" {
+				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+			}
+			partInfo.UserId = part.UserId
+			partInfo.Name = userDetails.Profile.UserName
+			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+			partInfo.Email = userDetails.Email
+
+			allPartsInfo = append(allPartsInfo, partInfo)
+		}
+
+		gpDMChansResp = append(gpDMChansResp, GroupDMChannelsResponse{
+			ChannelId: dmchan.ChannelId,
+			ChannelType: dmchan.ChannelType,
+			Participants: allPartsInfo,
+		})
+	}
+
+	return gpDMChansResp, paginationResp, nil
 }

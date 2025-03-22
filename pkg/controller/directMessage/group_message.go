@@ -14,6 +14,71 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func (base *Controller) GetGroupDMChannels(c *gin.Context) {
+
+	var req models.GroupDMChannelsRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	UserId := userClaims["user_id"].(string)
+
+	req.UserId = UserId
+	req.OrgId = c.Param("org_id")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, paginationResponse, statusCode, err := dm.GetGroupDMChannels(req, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(resp),
+	}
+
+	base.Logger.Info("Group DM channels retrived successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "Group DM channels retrived successfully", resp, paginationData)
+	c.JSON(statusCode, rd)
+}
+
+func (base *Controller) GetUserGroupDMs(c *gin.Context) {
+
+	var req models.GroupDMChannelsRequest
+
+	req.UserId = c.Param("user_id")
+
+	if _, err := uuid.Parse(req.UserId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, statusCode, err := dm.GetUserGroupDMs(req, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("User retrived successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "User retrived successfully", resp)
+	c.JSON(statusCode, rd)
+}
+
 func (base *Controller) CreateGroupDMChannel(c *gin.Context) {
 	var req models.GroupDMChannelsRequest
 
@@ -59,11 +124,11 @@ func (base *Controller) CreateGroupDMChannel(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := dm.CreateGroupDMChannel(req, base.Db.Postgresql)
+	respData, statusCode, err := dm.CreateGroupDMChannel(req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(code, rd)
+		c.JSON(statusCode, rd)
 		return
 	}
 
@@ -102,7 +167,7 @@ func (base *Controller) DeleteGroupDMChannel(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	code, err := dm.DeleteGroupDMChannel(req, base.Db.Postgresql)
+	statusCode, err := dm.DeleteGroupDMChannel(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -110,6 +175,6 @@ func (base *Controller) DeleteGroupDMChannel(c *gin.Context) {
 	}
 
 	base.Logger.Info("Dm channel deleted successfully")
-	rd := utility.BuildSuccessResponse(code, "Dm channel deleted successfully", nil)
-	c.JSON(code, rd)
+	rd := utility.BuildSuccessResponse(statusCode, "Dm channel deleted successfully", nil)
+	c.JSON(statusCode, rd)
 }

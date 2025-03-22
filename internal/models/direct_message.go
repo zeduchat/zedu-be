@@ -122,7 +122,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		"org_id = ? AND user_id = ? AND chat_type = ?",
 		dm.OrgId,
 		dm.UserId,
-		"user",
+		"user", //remove this later to get both user and bot
 	)
 
 	if err != nil {
@@ -150,12 +150,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		})
 	}
 
-	if err != nil {
-		return nil, paginationResp, err
-	}
 
 	return dmChansResp, paginationResp, nil
-
 }
 
 func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {

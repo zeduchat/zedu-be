@@ -63,7 +63,7 @@ func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H
 	user, err := user.GetUserByID(db, req.UserId)
 
 	if err != nil {
-		return resp, http.StatusNotFound, fmt.Errorf("User does not exist")
+		return resp, http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
 
 	err = userProfile.GetProfileByUserId(db, req.UserId)
