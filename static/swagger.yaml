@@ -31,7 +31,7 @@ tags:
   - name: blogs
     description: API for blogs
   - name: contact
-    description: API for contact 
+    description: API for contact
   - name: testimonials
     description: API for testimomials
   - name: Channel-Invitation
@@ -65,7 +65,7 @@ tags:
   - name: newsletter
     description: API for newsletter related operations
   - name: squeeze
-    description: API for squeeze optin related operations  
+    description: API for squeeze optin related operations
   - name: AgentSettings
     description: API for Agents settings
   - name: AgentSlashCommands
@@ -82,6 +82,8 @@ tags:
     description: API endpoints for bots
   - name: File Management
     description: API for uploading and retrieving files
+  - name: Search
+    description: API endpoints for searching user query
 
   - name: Mongogrations
     description: API endpoints for integrations to interact with a mongoDB instance through telex
@@ -142,15 +144,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
-                
+
         '422':
           description: Unprocessed Entity
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
-  
-     
+
+
   /auth/login:
     post:
       tags:
@@ -210,7 +212,7 @@ paths:
            application/json:
             schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
-                
+
   /auth/logout:
     post:
       tags:
@@ -335,7 +337,7 @@ paths:
                             type: string
                             format: date-time
                             example: "1748982383"
-                    
+
         '400':
           description: Invalid input
           content:
@@ -441,7 +443,7 @@ paths:
         - auth
       summary: Request a magic link for authentication
       description: |-
-            Uses Cases: 
+            Uses Cases:
               - Sign up a new user
               - Sign in an existing user
               - Sign in with auto sign-up a new user if not exists
@@ -473,7 +475,7 @@ paths:
                 statusCode:
                   type: integer
                   example: 200
-                  
+
         '400':
           description: Invalid input
           content:
@@ -492,7 +494,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                  
+
   /auth/magick-link/verify:
     post:
       tags:
@@ -546,7 +548,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                  
+
 
   /auth/password-reset:
     post:
@@ -599,8 +601,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                  
-  
+
+
   /auth/password-reset/verify:
     post:
       tags:
@@ -708,13 +710,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                  
-  
+
+
   /auth/email-request/verify:
     post:
       tags:
         - auth
-      summary: Verify the token 
+      summary: Verify the token
       requestBody:
         required: true
         content:
@@ -762,13 +764,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
- 
-  
+
+
   /auth/onboard-status:
     get:
       tags:
         - auth
-      summary: get user onboarding status 
+      summary: get user onboarding status
       security:
         - bearerAuth: []
       responses:
@@ -812,9 +814,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
- 
-   
-  
+
+
+
     put:
       tags:
         - auth
@@ -856,7 +858,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-  
+
   /organisations/{orgId}/roles:
     post:
       tags:
@@ -1240,7 +1242,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-                
+
   /organisations/{orgId}:
     put:
       tags:
@@ -1293,7 +1295,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
     get:
       tags:
         - organisation
@@ -1339,7 +1341,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
     delete:
       tags:
         - organisation
@@ -1353,7 +1355,7 @@ paths:
             type: string
             format: uuid
           required: true
-      
+
       responses:
         '204':
           description: Organisations deleted successfully
@@ -1371,30 +1373,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-                
-                
+
+
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-                
+
         '404':
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-                
+
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-                
-                
+
+
   /organisations/{orgId}/users:
     post:
       tags:
@@ -1434,7 +1436,7 @@ paths:
                   message:
                     type: string
                     example: User added successfully
-                  
+
 
         '400':
           description: Bad request
@@ -1460,7 +1462,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
     get:
       tags:
         - organisation
@@ -1836,7 +1838,7 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "User or organisation not found"
-          
+
 
   /users/{userId}/login-audit:
     get:
@@ -1991,10 +1993,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
 
-    
-                
 
-                 
+
+
+
 
   /channels:
     post:
@@ -2229,7 +2231,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
 
- 
+
   /channels/{channel_id}/messages/message_id:
 
     delete:
@@ -2378,7 +2380,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-  
+
   /channels/{channelId}/leave:
     post:
       tags:
@@ -2529,7 +2531,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
     patch:
         tags:
           - channels
@@ -2684,7 +2686,7 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
-                  
+
   /organisations/{organisationId}/channels:
       get:
         tags:
@@ -2732,7 +2734,7 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
-    
+
   /channels/{channelId}/num-users:
       get:
         tags:
@@ -2780,7 +2782,7 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
-  
+
   /channels/{channelId}/users:
     get:
       tags:
@@ -2828,7 +2830,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundErrorSchema'
-                
+
   /organisations/:org_id/user-channels:
     get:
       summary: Fetch User Channels
@@ -2871,7 +2873,7 @@ paths:
                           type: string
                           format: date-time
                           example: "2024-08-27T15:28:20.499875+01:00"
-                          
+
   /organisations/{organisation_id}/user-not-channels:
     get:
       tags:
@@ -2922,7 +2924,7 @@ paths:
                           type: string
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
-                          
+
   /organisations/{organisation_id}/channels/archived:
     get:
       tags:
@@ -3061,7 +3063,7 @@ paths:
                         message:
                           type: string
                           example: success
-                    
+
   /channels/{channel_id}/archive:
     put:
       summary: Archive or unarchive a channel
@@ -3125,8 +3127,8 @@ paths:
                   error:
                     type: object
                     example: {}
-  
-        
+
+
   /token/connection:
     get:
       tags:
@@ -3154,7 +3156,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedErrorSchema'
-  
+
   /token/subscription:
     post:
       tags:
@@ -3188,7 +3190,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedErrorSchema'
-  
+
   /blogs:
     post:
       tags:
@@ -3228,7 +3230,7 @@ paths:
                     example: 201
                   message:
                     type: string
-                    example: blog created successfully.   
+                    example: blog created successfully.
 
         '400':
           description: Bad request
@@ -3247,7 +3249,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
+                $ref: '#/components/schemas/ServerErrorSchema'
 
     get:
       tags:
@@ -3283,7 +3285,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: Blogs retrieved successfully.   
+                    example: Blogs retrieved successfully.
                   data:
                     type: array
                     items:
@@ -3350,7 +3352,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: Blog post retrieved successfully.   
+                    example: Blog post retrieved successfully.
                   data:
                     type: object
                     properties:
@@ -3397,9 +3399,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
-                
-                
+                $ref: '#/components/schemas/ServerErrorSchema'
+
+
     delete:
       tags:
         - blogs
@@ -3413,7 +3415,7 @@ paths:
             type: string
             format: uuid
           required: true
-      
+
       responses:
         '204':
           description: blog deleted successfully
@@ -3431,22 +3433,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-                
-                
+
+
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-                
+
         '404':
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-                
+
         '500':
           description: Internal server error
           content:
@@ -3522,7 +3524,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
+                $ref: '#/components/schemas/ServerErrorSchema'
 
     get:
       tags:
@@ -3547,7 +3549,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: blog categories retrieved successfully.   
+                    example: blog categories retrieved successfully.
                   data:
                     type: array
                     items:
@@ -3572,7 +3574,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-                
+
   /blog_categories/{categoryId}:
     get:
       tags:
@@ -3600,7 +3602,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: Blog category retrieved successfully.   
+                    example: Blog category retrieved successfully.
                   data:
                     type: object
                     properties:
@@ -3648,7 +3650,7 @@ paths:
             type: string
             format: uuid
           required: true
-      
+
       responses:
         '204':
           description: blog category deleted successfully
@@ -3666,30 +3668,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-                
-                
+
+
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-                
+
         '404':
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-                
+
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-  
-                
+
+
   /blogs/feedback:
     post:
       tags:
@@ -3728,7 +3730,7 @@ paths:
                   message:
                     type: string
                     example: "blog feedback submitted successfully"
-                    
+
   /testimonials:
     post:
         tags:
@@ -3812,7 +3814,7 @@ paths:
               application/json:
                 schema:
                  $ref: '#/components/schemas/ServerErrorSchema'
-                 
+
     get:
       tags:
         - testimonials
@@ -3836,7 +3838,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: testimonials retrieved successfully.   
+                    example: testimonials retrieved successfully.
                   data:
                     type: array
                     items:
@@ -3873,8 +3875,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-                
-                
+
+
   /contact:
     post:
       tags:
@@ -4041,7 +4043,7 @@ paths:
 
 
 
-   
+
   /subscriptions/list/{orgId}:
     get:
       summary: List subscriptions for an organization
@@ -4185,7 +4187,7 @@ paths:
                       invoice_url:
                         type: string
                         example: "https://pay.stripe.com/invoice/acct_1Pt6R7P14KvS6i2O/test_YWNjdF8xUHQ2UjdQMTRLdlM2aTJPLF9ScVpQWWxVMmNRbXNUVEN6aFNlYXBTUWRIZFFvMUpmLDEzMTUzMTc3OQ0200dueRb7ZR/pdf?s=ap"
-                 
+
         '400':
           description: Bad request
           content:
@@ -4203,7 +4205,7 @@ paths:
                 type: object
                 properties:
                   error:
-                    type: string   
+                    type: string
 
   /subscriptions/{orgId}:
     delete:
@@ -4256,7 +4258,7 @@ paths:
           schema:
             type: string
             format: uuid
-            
+
       responses:
         '200':
           description: Channel webhook
@@ -4285,7 +4287,7 @@ paths:
       tags:
         - webhooks
       security:
-        - bearerAuth: []        
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -4293,7 +4295,7 @@ paths:
           schema:
             type: string
             format: uuid
-              
+
       responses:
         '201':
           description: Webhook created successfully
@@ -4370,7 +4372,7 @@ paths:
             default: 10
           required: false
           description: The number of items per page. Default is 10.
-            
+
       responses:
         '200':
           description: A list of webhooks
@@ -4436,7 +4438,7 @@ paths:
             default: 10
           required: false
           description: The number of items per page. Default is 10.
-  
+
       responses:
         '200':
           description: Webhook details
@@ -4488,7 +4490,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-    
+
   /webhooks/{channel_id}/{webhook_id}:
     put:
       summary: Update a webhook
@@ -4524,7 +4526,7 @@ paths:
                 event_name:
                   type: string
                   description: The name of the event associated with the webhook.
-              
+
       responses:
         '200':
           description: Webhook updated successfully
@@ -4573,7 +4575,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-                
+
     delete:
       summary: Delete a webhook
       tags:
@@ -4638,7 +4640,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-  
+
   /webhooks/{channel_id}/{webhook_id}/change-status:
     put:
       summary: Update webhook status
@@ -4724,8 +4726,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-                
-  
+
+
   /webhooks/feed/backend-queue:
     post:
       summary: send data to webhook
@@ -4809,7 +4811,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-  
+
   /webhooks/feed/{webhook_slug}:
     post:
       summary: send data to webhook
@@ -4941,7 +4943,7 @@ paths:
             type: string
             format: string
             example: success
-  
+
       responses:
         '200':
           description: Data recieved successfully
@@ -4989,8 +4991,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-  
-    
+
+
   /users/organisations:
     get:
       tags:
@@ -5037,7 +5039,7 @@ paths:
     get:
       tags:
         - user
-      summary: Retrieve a specific user   
+      summary: Retrieve a specific user
       security:
         - bearerAuth: []
       parameters:
@@ -5236,7 +5238,7 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ServerErrorSchema'
-              
+
   /users/reactivate/{userId}:
       put:
         tags:
@@ -5332,7 +5334,7 @@ paths:
     get:
       tags:
         - Profile
-      summary: get user profile  
+      summary: get user profile
       security:
         - bearerAuth: []
       responses:
@@ -5368,7 +5370,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+                $ref: '#/components/schemas/ServerErrorSchema'
     patch:
       tags:
         - Profile
@@ -5424,9 +5426,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+                $ref: '#/components/schemas/ServerErrorSchema'
   /profile/image:
-    
+
     delete:
       tags:
         - Profile
@@ -5468,8 +5470,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'                               
-              
+                $ref: '#/components/schemas/ServerErrorSchema'
+
   /invite:
     post:
       tags:
@@ -5523,7 +5525,7 @@ paths:
                         items:
                           type: string
                         description: A list of errors encountered during the invitation process.
-                        example: 
+                        example:
                           - "An invitation has already been sent to micahshallom@gmail.com"
                           - "Error checking for telex presence: user with email micahshallom24@gmail.com does not exist"
                       invitations:
@@ -5571,7 +5573,7 @@ paths:
                               format: date-time
                               description: The expiration timestamp of the invitation.
                               example: "2024-08-26T19:40:26.548423408+01:00"
-                
+
   /invite/verify:
     post:
       tags:
@@ -5704,7 +5706,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-                
+
   /invite/{invite_id}:
     delete:
       tags:
@@ -5875,7 +5877,7 @@ paths:
                           format: date-time
                           example: "2024-08-18T17:57:59.386170646+01:00"
                           description: The expiration timestamp for the invitation.
-                          
+
   /invite/channels/verify:
     post:
       tags:
@@ -5980,7 +5982,7 @@ paths:
                             type: string
                             example: ""
                             description: The username of the user.
-  
+
   /invite/admin-create:
     post:
       tags:
@@ -6056,7 +6058,7 @@ paths:
                   status: "error"
                   status_code: 400
                   message: "Invalid request parameters"
-  
+
   /invite/admin-verify:
     post:
       tags:
@@ -6215,7 +6217,7 @@ paths:
                   message: "Invitation not found"
 
 
-   
+
   /threads/organisations/{orgId}:
     get:
       tags:
@@ -6231,7 +6233,7 @@ paths:
           schema:
             type: string
             format: uuid
-            
+
       responses:
         '200':
           description: Threads retrieved successfully
@@ -6788,7 +6790,7 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
-        
+
       responses:
         '200':
           description: Thread retrieved successfully
@@ -7018,7 +7020,7 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
-        
+
       responses:
         '200':
           description: Thread created successfully
@@ -7064,7 +7066,7 @@ paths:
           schema:
             type: string
             format: uuid
-        
+
       responses:
         '200':
           description: Threads retrieved successfully
@@ -7206,7 +7208,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  
+
   /dms/channels/{channel_id}/messages/message_id:
 
     delete:
@@ -7361,7 +7363,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
-                
+
   /organisations/{org_id}/metrics:
     get:
       tags:
@@ -7433,7 +7435,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
-  
+
   /organisations/{org_id}/users/{user_id}:
     put:
       tags:
@@ -7585,7 +7587,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
 
-  
+
   /organisations/{org_id}/dms:
     get:
       tags:
@@ -7809,7 +7811,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
 
-  
+
   /organisations/{org_id}/dms/user/{user_id}:
     get:
       tags:
@@ -7832,7 +7834,7 @@ paths:
           schema:
             type: string
             format: uuid
-  
+
       responses:
         '200':
           description: Dm channels retrieved successfully
@@ -8034,14 +8036,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ForbiddenErrorSchema'
-                
+
   /help-center/categories:
     post:
       tags:
         - help center
-      summary: create help center category 
+      summary: create help center category
       security:
-        - bearerAuth: [] 
+        - bearerAuth: []
       requestBody:
         description: input valid characters
         required: true
@@ -8056,7 +8058,7 @@ paths:
                 description:
                   type: string
                   format: string
-              required:   
+              required:
                  - name
                  - description
       responses:
@@ -8075,7 +8077,7 @@ paths:
                   example: 201
                 message:
                   type: string
-                  example: "Category added successfully"  
+                  example: "Category added successfully"
                 data:
                   type: object
                   properties:
@@ -8111,7 +8113,7 @@ paths:
                     example: "success"
                   status_code:
                     type: integer
-                    example: 200  
+                    example: 200
                   message:
                     type: string
                     example: "Categories retrieved successfully."
@@ -8136,7 +8138,7 @@ paths:
                             example: 1
                           total_pages:
                             type: integer
-                            example: 1   
+                            example: 1
         '404':
           description: Category not found
           content:
@@ -8148,7 +8150,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'            
+                $ref: '#/components/schemas/ServerErrorSchema'
 
   /help-center/articles/{category_id}:
     post:
@@ -8178,9 +8180,9 @@ paths:
                 content:
                   type: string
                   format: string
-              required:   
+              required:
                  - title
-                 - description      
+                 - description
       responses:
         '201':
           description: Help center article created successfully
@@ -8194,7 +8196,7 @@ paths:
                     example: "success"
                   statusCode:
                     type: integer
-                    example: 201  
+                    example: 201
                   message:
                     type: string
                     example: "Article added successfully"
@@ -8285,7 +8287,7 @@ paths:
                             example: 1
                           total_pages:
                             type: integer
-                            example: 1 
+                            example: 1
         '404':
           description: Category not found
           content:
@@ -8297,7 +8299,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'  
+                $ref: '#/components/schemas/ServerErrorSchema'
 
   /help-center/articles/{article_id}:
     get:
@@ -8341,9 +8343,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema' 
+                $ref: '#/components/schemas/ServerErrorSchema'
 
-  /help-center/articles/search: 
+  /help-center/articles/search:
     get:
       summary: Search Help Center articles
       description: Searches Help Center topics by title.
@@ -8369,7 +8371,7 @@ paths:
                     example: "success"
                   status_code:
                     type: integer
-                    example: 200  
+                    example: 200
                   message:
                     type: string
                     example: "Articles retrieved successfully."
@@ -8394,10 +8396,10 @@ paths:
                             example: 1
                           total_pages:
                             type: integer
-                            example: 1   
+                            example: 1
 
-# agents 
-                
+# agents
+
   /slack/organisations/{organisationId}/token-exchg:
     post:
       tags:
@@ -8424,7 +8426,7 @@ paths:
                   type: string
               required:
                 - oauth_code
-      
+
       responses:
         '200':
           description: Slack OAuth token exchange successful
@@ -8493,7 +8495,7 @@ paths:
             type: string
           description: "ID of the organization"
           example: "0191be6e-473e-7b48-888f-810f4c449dc9"
-    
+
       responses:
         '200':
           description: Slack access info fetched successfully
@@ -8561,8 +8563,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
-                
+
+
   /organisations/{organisationId}/agents:
     post:
       tags:
@@ -8656,7 +8658,7 @@ paths:
                       created_at:
                         type: string
                         example: "2024-09-18T03:37:56.026341265+01:00"
-            
+
     get:
       summary: Get agents for an organization
       description: Retrieve a list of system agents for a specific organization.
@@ -8787,8 +8789,8 @@ paths:
                           example: "Slack"
                         channels_url:
                           type: string
-                          example: "https://system-integrations.telex.im/slack/channels"          
-          
+                          example: "https://system-integrations.telex.im/slack/channels"
+
   /organisations/{organisationId}/agents/{agentId}:
     patch:
       tags:
@@ -8900,7 +8902,7 @@ paths:
           schema:
             type: string
             example: "0191e724-de59-78f8-a582-5cbc83f377fe"
-      
+
       responses:
         '200':
           description: Agent deleted successfully
@@ -9348,7 +9350,7 @@ paths:
           description: Invalid request or missing parameters.
         404:
           description: Organisation or agent not found.
-          
+
   /organisations/{organisation_id}/agents/change_status:
     patch:
       summary: Change the status and JSON schema of an agent
@@ -9496,7 +9498,7 @@ paths:
           description: Invalid request or missing parameters.
         404:
           description: Organisation or agent not found.
-                    
+
   /organisations/{organisationId}/agents/{agentId}/channels/{channelId}:
     post:
       tags:
@@ -9926,7 +9928,7 @@ paths:
                     example: Agent setting added successfully
         400:
           description: Invalid request.
-    
+
     get:
       summary: Retrieve agent settings
       description: Retrieves all form field settings for a specific agent and organization.
@@ -10049,7 +10051,7 @@ paths:
           description: Organisation or agent not found.
         400:
           description: Invalid request.
-          
+
   /organisations/{org_id}/agents/{agent_id}/channels/{channel_id}/settings:
     post:
       tags:
@@ -10285,7 +10287,7 @@ paths:
                   message:
                     type: string
                     example: "Channel Agent setting deleted successfully"
-          
+
   /organisations/{org_id}/agents/{agent_id}/slash-commands:
     post:
       summary: Add a new slash command
@@ -10443,7 +10445,7 @@ paths:
         404:
           description: Organisation or agent not found.
 
-    
+
   /organisations/{org_id}/slash-commands:
     get:
       summary: Retrieve all slash commands for an organization
@@ -10508,7 +10510,7 @@ paths:
                           example: "2024-10-08T21:33:59.725411+01:00"
         404:
           description: Organisation not found.
-          
+
   /organisations/{org_id}/agents/{agent_id}/slash-commands/{command_id}:
     patch:
       summary: Update a slash command
@@ -10696,7 +10698,7 @@ paths:
                     example: "Agent app created successfully"
         '400':
             description: Invalid JSON url supplied.
-            
+
     get:
       summary: Get agents for an organization
       description: Retrieve a list of agents for a specific organization.
@@ -10777,8 +10779,8 @@ paths:
         400:
           description: Invalid organisation_id or request.
         404:
-          description: Organisation not found.         
-          
+          description: Organisation not found.
+
   /organisations/{organisationId}/agents/custom/{agentId}:
     put:
       tags:
@@ -10866,7 +10868,7 @@ paths:
           schema:
             type: string
             example: "0191e724-de59-78f8-a582-5cbc83f377fe"
-      
+
       responses:
         '200':
           description: Agent deleted successfully
@@ -10909,7 +10911,7 @@ paths:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
         '404':
           description: Agent not found
-          
+
   /organisations/{organisationId}/agents/custom/{agentId}/settings:
     put:
       tags:
@@ -10983,7 +10985,7 @@ paths:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
         '404':
           description: Agent not found
-             
+
     get:
       summary: Get agents settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
@@ -11030,12 +11032,12 @@ paths:
                       value:
                         type: string
 
- 
+
         400:
           description: Invalid organisation_id or request.
         404:
-          description: Organisation not found.       
-          
+          description: Organisation not found.
+
   /organisations/{organisationId}/agents/custom/{agentId}/status:
     get:
       summary: Get agents settings for an organization
@@ -11083,11 +11085,11 @@ paths:
                       is_active:
                         type: boolean
 
- 
+
         400:
           description: Invalid organisation_id or request.
         404:
-          description: Organisation not found. 
+          description: Organisation not found.
 
   /agents:
     get:
@@ -11117,16 +11119,16 @@ paths:
                     description: A message describing the result.
                   data:
                     type: object
- 
+
         400:
           description: Invalid agent_idor request.
         404:
-          description: Agents not found. 
+          description: Agents not found.
 
 
   /agents/{agentId}:
     get:
-      summary: Get a single agent 
+      summary: Get a single agent
       description: Retrieve a system agent from telex.
       tags:
         - System Agents
@@ -11161,12 +11163,12 @@ paths:
                     type: object
                     properties:
 
- 
+
         400:
           description: Invalid agent_idor request.
         404:
-          description: Agent not found. 
-  
+          description: Agent not found.
+
   /threads/organisations/{organisationId}/metrics:
     get:
       tags:
@@ -11271,7 +11273,7 @@ paths:
           description: Organisation not found
         '500':
           description: Internal server error
-          
+
   /newsletter:
     post:
       tags:
@@ -11309,7 +11311,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-  
+
   /users/notification-preferences:
     get:
       tags:
@@ -11438,7 +11440,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerErrorSchema'
-                
+
   /organisations/{organisation_id}/groups:
     post:
       summary: Create a new group
@@ -11694,7 +11696,7 @@ paths:
                     type: integer
                   message:
                     type: string
-                    
+
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
     post:
       tags:
@@ -11823,7 +11825,7 @@ paths:
                   status: "success"
                   status_code: 200
                   message: "Group channel moved successfully"
-                  
+
   /organisations/{organisation_id}/groups/{group_id}/channels:
     get:
       tags:
@@ -11907,7 +11909,7 @@ paths:
                     group_id: "01936966-2276-7b22-98dd-2bb8fe2f0797"
                     created_at: "2024-11-27T06:47:21.857515+01:00"
                     deleted_at: "0001-01-01T00:13:35+00:13"
-                    
+
 
 
   /organisations/{organisation_id}/groups/channels/no-group:
@@ -11992,7 +11994,7 @@ paths:
     get:
       tags:
         - Channel Grouping
-      summary: Fetch discoverable channels for a user 
+      summary: Fetch discoverable channels for a user
       description: Retrieves a list of channels that are discoverable for a user who is not assigned to any group in a specific organisation.
       parameters:
         - name: organisation_id
@@ -12357,7 +12359,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
-                
+
         '422':
           description: Unprocessed Entity
           content:
@@ -12456,6 +12458,176 @@ paths:
               schema:
                 $ref: "#/components/schemas/InternalServerErrorSchema"
 
+  /search/organisation/{orgId}/:
+    get:
+      tags:
+        - Search
+      summary: Search for messages within an organization for a specific user
+      description: |
+          Search for messages within an organization based on various keyword-based filters.
+          The entire search query, including keywords, is passed in the `query` parameter.
+          Example format: `"Hello word how are you from:layo before:2024-12-31"`
+
+          #### Supported Keywords:
+          - **from:** *Filter messages by sender* (e.g., `from:layo`)
+          - **in:** *Filter messages by channel name* (e.g., `in:general`)
+          - **has:** *Search for messages containing a specific word* (e.g., `has:meeting`)
+          - **before:** *Find messages sent before a specific date* (e.g., `before:2024-12-31`)
+          - **on:** *Find messages sent on a specific date* (e.g., `on:2024-12-27`)
+          - **after:** *Find messages sent after a specific date* (e.g., `after:2024-12-25`)
+          - **exact:** *Find messages matching an exact phrase* (e.g., `exact:Project deadline`)
+
+          You can chain multiple keywords together, for example:
+          `"Hello team has:meeting before:2024-12-31 from:layo"`
+      security:
+        - bearerAuth: []  # 🔹 JWT Authentication required
+      parameters:
+        # Path Parameters
+        - name: orgId
+          in: path
+          required: true
+          description: The unique identifier for the organization
+          schema:
+            type: string
+            format: uuid
+
+        - name: userId
+          in: path
+          required: true
+          description: The unique identifier for the user
+          schema:
+            type: string
+            format: uuid
+
+        # Query Parameters (Optional)
+        - name: query
+          in: query
+          required: false
+          description: The keyword(s) to filter messages by
+          schema:
+            type: string
+
+        - name: sortBy
+          in: query
+          required: false
+          description: Sort the results by relevance or recency
+          schema:
+            type: string
+            enum: [relevance, recency]
+
+
+      responses:
+        200:
+          description: Successful response with filtered messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              format: uuid
+                              example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                            user_name:
+                              type: string
+                              example: "layo bright"
+                            avatar_url:
+                              type: string
+                              format: uri
+                              example: "https://example.com/avatar.jpg"
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              message_id:
+                                type: string
+                                example: "12345"
+                              message:
+                                type: string
+                                example: "Hello how are you and where do you come from"
+                              timestamp:
+                                type: string
+                                format: date-time
+                                example: "2024-12-27T10:57:34.648525826Z"
+                        channel:
+                          type: object
+                          properties:
+                            channel_id:
+                              type: string
+                              format: uuid
+                              example: "019407ad-81aa-7c71-af9c-d6609e918809"
+                            channel_name:
+                              type: string
+                              example: "General"
+
+        400:
+          description: Bad Request - Invalid parameters or missing required query parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid query parameters provided"
+
+        401:
+          description: Unauthorized - Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: "Unauthorized access - Invalid token"
+
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "An unexpected error occurred"
 
 components:
 
@@ -12483,7 +12655,7 @@ components:
       properties:
         message:
           type: string
-          example: "Email already opted in, please use a different email or stay tuned"      
+          example: "Email already opted in, please use a different email or stay tuned"
 
     GetAllAgentAppResponse:
       type: object
@@ -12533,7 +12705,7 @@ components:
           example: "AgentApp1"
         logo_url:
           type: string
-          example: "http://api.endpoint.com.png"  
+          example: "http://api.endpoint.com.png"
         api_endpoint_url:
           type: string
           example: "http://api.endpoint.com"
@@ -12543,7 +12715,7 @@ components:
         created_at:
           type: string
           format: date-time
-          example: "2024-08-14T12:34:56Z"  
+          example: "2024-08-14T12:34:56Z"
     CategoryResponseSchema:
       type: object
       properties:
@@ -12686,7 +12858,7 @@ components:
           type: string
           description: The generated subscription token
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- 
+
     ChannelUsersResponseSchema:
       type: object
       properties:
@@ -12814,7 +12986,7 @@ components:
             total_pages:
               type: integer
               example: 1
-    
+
     UpdateProfileResponse:
       type: object
       properties:
@@ -12840,7 +13012,7 @@ components:
           format: uri
           description: Updated avatar URL
           example: "https://example.com/avatar.jpg"
-    
+
     UpdateProfileRequest:
       type: object
       properties:
@@ -12868,7 +13040,7 @@ components:
         phone: "1234567890"
         avatar_url: "https://example.com/avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
-    
+
     ProfileResponseSchema:
       type: object
       properties:
@@ -13088,7 +13260,7 @@ components:
           type: string
           description: >
             A basic message describing the problem with the request. Usually missing if `error` is present.
-    
+
     UnprocessedEntityErrorSchema:
       type: object
       properties:
@@ -13777,7 +13949,7 @@ components:
           description: firstname of the user
         fullname:
           type: string
-          description: fullname of the user      
+          description: fullname of the user
         last_name:
           type: string
           description: lastname of the user
@@ -13796,7 +13968,7 @@ components:
           description: User's primary contact phone number.
         username:
           type: string
-          description: Last updated time        
+          description: Last updated time
         created_at:
           type: string
           format: date-time
@@ -13820,7 +13992,7 @@ components:
         name:
           type: string
           description: organisation name
-        description: 
+        description:
           type: string
           description: organisation description
 
@@ -13899,7 +14071,7 @@ components:
           type: string
         description:
           type: string
-        
+
     UsersListResponseSchema:
       type: object
       properties:
@@ -14003,7 +14175,7 @@ components:
           type: integer
         message:
           type: string
-    
+
     UserRegionResponseSchema:
       type: object
       properties:
@@ -14146,7 +14318,7 @@ components:
           type: integer
         message:
           type: string
-    
+
     CreateJobPost:
       type: object
       properties:
@@ -14298,8 +14470,8 @@ components:
         message:
           type: string
           example: An error occurred
-          
-          
+
+
     addUserToOrganizationReq:
       type: object
       properties:
@@ -14311,8 +14483,8 @@ components:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec92
-          
-          
+
+
     createOrganizationReq:
       type: object
       properties:
@@ -14330,9 +14502,9 @@ components:
           type: string
         logo_url:
           type: string
-    
-    
-          
+
+
+
     organizationResData:
       type: object
       description: Object describing the organisation data
@@ -14344,35 +14516,35 @@ components:
         name:
           type: string
           example: daveOrg
-        description: 
+        description:
           type: string
           example: something something
         email:
           type: string
           example: org@gmail.com
-        country: 
+        country:
           type: string
           example: some Country
         industry:
           type: string
           example: tech
-        location: 
+        location:
           type: string
           example: lagos
-        owner_id: 
+        owner_id:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c76167489ng7
-        logo_url: 
+        logo_url:
           type: string
           example: some url of org logo
-        channels_count: 
+        channels_count:
           type: number
           example: 3
-        total_messages_count: 
+        total_messages_count:
           type: number
-          example: 45      
-        org_role: 
+          example: 45
+        org_role:
           type: string
           example: null
         created_at:
@@ -14383,7 +14555,7 @@ components:
           type: string
           format: date-time
           example: 2024-07-30T21:11:21.9538358+01:00
-          
+
     organizationSuccessResponse:
       type: object
       properties:
@@ -14398,7 +14570,7 @@ components:
           example: organization created successfully
         data:
           $ref: '#/components/schemas/organizationResData'
-    
+
     organizationUSuccessResponse:
       type: object
       properties:
@@ -14413,7 +14585,7 @@ components:
           example: organization updated successfully
         data:
           $ref: '#/components/schemas/organizationResData'
-          
+
     organizationGSuccessResponse:
       type: object
       properties:
@@ -14428,7 +14600,7 @@ components:
           example: organization retrieved successfully
         data:
           $ref: '#/components/schemas/organizationResData'
-          
+
     CreateHelpCenter:
       type: object
       properties:
@@ -14464,7 +14636,7 @@ components:
         updated_at:
           type: string
           format: date-time
-    
+
     ContactSchema:
       type: object
       properties:
@@ -14649,7 +14821,7 @@ components:
           type: string
           format: string
           description: username user who created the channel
-        
+
     CreateChannelResponseSchema:
       type: object
       properties:
@@ -14783,7 +14955,7 @@ components:
             checkout_session_id:
               type: string
             checkout_session_url:
-              type: string 
+              type: string
 
     MessageCreateSchema:
       type: object
@@ -14793,11 +14965,11 @@ components:
           description: Content of the message
         thread_id:
           type: string
-          format: uuid      
+          format: uuid
           description: thread id
         message_id:
           type: string
-          format: uuid      
+          format: uuid
           description: message id(optional)
 
     MessageCreateResponseSchema:
@@ -14838,7 +15010,7 @@ components:
               type: string
               format: date-time
               example: 2024-07-30T21:11:21.9538358+01:00
-      
+
 
     MessagesListResponseSchema:
       type: object
@@ -15008,7 +15180,7 @@ components:
               type: string
               format: date-time
               example: 2024-07-30T21:11:21.9538358+01:00
-            
+
     ChannelUpdateSchema:
       type: object
       properties:
@@ -15144,7 +15316,7 @@ components:
           format: date-time
           description: The timestamp when the access token was last updated.
 
-    
+
     UserSessionsListResponseSchema:
       type: object
       properties:
@@ -15197,7 +15369,7 @@ components:
           last_page: 1
           next_page_url: null
           prev_page_url: null
-          
+
     UserResponseSchema:
       type: object
       properties:
@@ -15242,7 +15414,7 @@ components:
         data: null
         pagination: null
 
-          
+
     UserUpdateResponseSchema:
       type: object
       properties:
@@ -15311,7 +15483,7 @@ components:
             num_users:
               type: integer
               example: 10
-            
+
     Webhook:
       type: object
       properties:
@@ -15375,7 +15547,7 @@ components:
         language:
           type: string
 
-          
+
     UserSession:
       type: object
       properties:
@@ -15398,7 +15570,7 @@ components:
           type: string
           format: date-time
           example: "2024-08-12T20:44:06.734784+01:00"
-    
+
     CreateSubscriptionRequest:
       type: object
       required:
@@ -15432,7 +15604,7 @@ components:
         plan_name:
           type: string
           description: The new name of the subscription plan
-        
+
     DeleteSubscriptionRequest:
       type: object
       required:
@@ -15477,7 +15649,7 @@ components:
           description: Additional data related to the response, typically null in this case.
       required:
         - status
-        - message 
+        - message
 
     WebhookHistory:
       type: object
@@ -15597,7 +15769,7 @@ components:
                 example: error
               message:
                 type: string
-                example: Not Found      
+                example: Not Found
 
   parameters:
     PageLimitParam:
@@ -15622,4 +15794,3 @@ components:
         type: http
         scheme: bearer
         bearerFormat: JWT
-        
