@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -89,6 +90,32 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	notification := models.Notifcation[models.NewMessage]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
+	errorsOccurred := false
+	
+	if channel.ChannelType == "group_dm" {
+		var chanParts []models.ChannelParticipant
+
+		err := postgresql.SelectAllFromDb(db.Postgresql,"", &chanParts, "channel_id  = ?", channel.ChannelId)
+		if err != nil {
+			return &threadDoc, http.StatusNotFound, fmt.Errorf("failed to fetch participants")
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != req.UserId {
+				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error Broadcasting to userID: %s, error: %v", participant.UserId, err))
+					errorsOccurred = true
+				}
+			}
+		}
+
+		if errorsOccurred {
+			return &threadDoc, http.StatusPartialContent, errors.New("some notifications failed to be sent")
+		}
+
+		return &threadDoc, http.StatusCreated, nil
+	}
 
 	err = centrifuge.BroadcastChannel(logger, *channel.ParticipantId, notification)
 	if err != nil {
@@ -98,6 +125,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	return &threadDoc, http.StatusCreated, nil
 }
+
 
 // main channel thread
 func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {

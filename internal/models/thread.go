@@ -549,7 +549,6 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 	}
 
 	check, err := elastic.CheckExists(storage.DB.Elastic, ThreadIndexName, query)
-
 	if err != nil {
 		return false, http.StatusInternalServerError, err
 	}
