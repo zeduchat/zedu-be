@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/services/user"
@@ -191,6 +192,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		channel      models.Channels
 		dmChannel    models.DmChannels
 		broadcastDst string
+		chanParts    []models.ChannelParticipant
 	)
 
 	message.ID = req.MessageId
@@ -224,15 +226,34 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	if channel.OrganisationID != "" {
 		broadcastDst = channel.OrganisationID
-
 	} else {
-		broadcastDst = *dmChannel.ParticipantId
+		if dmChannel.ChannelType == "dm" {
+			broadcastDst = *dmChannel.ParticipantId
+		}
+	}
+
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != req.UserId {
+				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+				}
+			}
+		}
+
+		return nil, http.StatusOK, nil
 	}
 
 	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to destination: %s error: %v", broadcastDst, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast data to centrifugo ")
+		logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to broadcast data: " + err.Error())
 	}
 
 	return nil, http.StatusOK, nil

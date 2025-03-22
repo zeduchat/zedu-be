@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -218,6 +219,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		channel      models.Channels
 		dmChannel    models.DmChannels
 		broadcastDst string
+		chanParts    []models.ChannelParticipant
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -262,16 +264,36 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 	if channel.OrganisationID != "" {
 		broadcastDst = channel.OrganisationID
-
 	} else {
-		broadcastDst = *dmChannel.ParticipantId
+		if dmChannel.ChannelType == "dm" {
+			broadcastDst = *dmChannel.ParticipantId
+		}
+	}
+
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != userID {
+				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+				}
+			}
+		}
+
+		return http.StatusOK, nil
 	}
 
 	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to destination: %s error: %v", broadcastDst, err.Error()))
-		return http.StatusBadRequest, errors.New("failed to broadcast data to centrifugo")
+		logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+		return http.StatusBadRequest, errors.New("failed to broadcast data: " + err.Error())
 	}
+
 
 	return http.StatusOK, nil
 }
@@ -283,6 +305,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		broadcastDst string
 		dmChannel    models.DmChannels
 		channel      models.Channels
+		chanParts    []models.ChannelParticipant
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -320,9 +343,10 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 
 	if channel.OrganisationID != "" {
 		broadcastDst = channel.OrganisationID
-
 	} else {
-		broadcastDst = *dmChannel.ParticipantId
+		if dmChannel.ChannelType == "dm" {
+			broadcastDst = *dmChannel.ParticipantId
+		}
 	}
 
 	notification := models.Notifcation[models.Updated]
@@ -330,6 +354,29 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelId,
+	}
+
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return threadResp, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != userID {
+				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
+				}
+			}
+		}
+		err = threadResp.GetThreadById(db, thread.ID)
+
+		if err != nil {
+			return threadResp, http.StatusInternalServerError, err
+		}
+
+		return threadResp, http.StatusOK, nil
 	}
 
 	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)

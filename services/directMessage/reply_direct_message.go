@@ -11,11 +11,12 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-// Reply message fn
+// Reply message fn (in dm / group_dm)
 func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
 
@@ -96,10 +97,36 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 	notification := models.Notifcation[models.NewMessage]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
+	errorsOccurred := false
+
+	if channel.ChannelType == "group_dm" {
+		var chanParts []models.ChannelParticipant
+
+		err := postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id  = ?", channel.ChannelId)
+		if err != nil {
+			return &messageDoc, http.StatusNotFound, fmt.Errorf("failed to fetch participants")
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != req.UserId {
+				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error Broadcasting to userID: %s, error: %v", participant.UserId, err))
+					errorsOccurred = true
+				}
+			}
+		}
+
+		if errorsOccurred {
+			return &messageDoc, http.StatusPartialContent, errors.New("some notifications failed to be sent")
+		}
+
+		return &messageDoc, http.StatusCreated, nil
+	}
 
 	err = centrifuge.BroadcastChannel(logger, *channel.ParticipantId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to particpant id: %s error: %v", channel.ParticipantId, err.Error()))
+		logger.Error(fmt.Sprintf("error Broadcasting to particpant id: %s error: %v", *channel.ParticipantId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
 	}
 
