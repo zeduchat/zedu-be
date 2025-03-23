@@ -46,6 +46,7 @@ type Threads struct {
 type ThreadDocument struct {
 	ID            string            `json:"thread_id"`
 	ChannelsID    string            `json:"channels_id"`
+	OrgansationID string            `json:"org_id"`
 	EventName     string            `json:"event_name"`
 	Username      string            `json:"username"`
 	ActionType    string            `json:"action_type"`
@@ -73,6 +74,7 @@ var Thread_mapping = map[string]interface{}{
 			"id":          map[string]string{"type": "keyword"},
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
+			"org_id":      map[string]string{"type": "keyword"},
 			"edited":      map[string]string{"type": "boolean"},
 			"event_name":  map[string]string{"type": "text"},
 			"username":    map[string]string{"type": "keyword"},
@@ -452,7 +454,14 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
 
-	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
+	var chanOrg Channels
+	chanInfo := ChannelInfo{UserID: t.UserId, ChannelID: t.ChannelsID}
+	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
+	if err != nil {
+		return err
+	}
+	t.OrgansationID = chans.OrganisationID
+	err = elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
 	if err != nil {
 		return err

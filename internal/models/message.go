@@ -34,19 +34,20 @@ type Message struct {
 }
 
 type MessageDocument struct {
-	ID         string         `json:"id"`
-	Content    string         `json:"message"`
-	ChannelsID string         `json:"channels_id"`
-	UserID     string         `json:"user_id"`
-	Username   string         `json:"username"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `json:"-"`
-	ThreadID   uuid.UUID      `json:"thread_id"`
-	AvatarURL  string         `json:"avatar_url"`
-	Edited     bool           `json:"edited"`
-	FullName   string         `json:"full_name"`
-	Email      string         `json:"email"`
+	ID             string         `json:"id"`
+	Content        string         `json:"message"`
+	OrganisationID string         `json:"org_id"`
+	ChannelsID     string         `json:"channels_id"`
+	UserID         string         `json:"user_id"`
+	Username       string         `json:"username"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `json:"-"`
+	ThreadID       uuid.UUID      `json:"thread_id"`
+	AvatarURL      string         `json:"avatar_url"`
+	Edited         bool           `json:"edited"`
+	FullName       string         `json:"full_name"`
+	Email          string         `json:"email"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -54,6 +55,7 @@ var MessageMapping = map[string]interface{}{
 		"id":          map[string]string{"type": "keyword"},
 		"channels_id": map[string]string{"type": "keyword"},
 		"user_id":     map[string]string{"type": "keyword"},
+		"org_id":      map[string]string{"type": "keyword"},
 		"username":    map[string]string{"type": "keyword"},
 		"thread_id":   map[string]string{"type": "keyword"},
 		"avatar_url":  map[string]string{"type": "text"},
@@ -97,8 +99,8 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 	var (
 		dmChannels   DmChannels
 		userChannels UserChannels
-		profile      Profile
 		thread       ThreadDocument
+		chanOrg      Channels
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
@@ -108,7 +110,14 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		return errors.New("user not in channel")
 	}
 
-	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
+	// set OrganisationID in elasticDB
+	chanInfo := ChannelInfo{UserID: m.UserID, ChannelID: m.ChannelsID}
+	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
+	if err != nil {
+		return err
+	}
+	m.OrganisationID = chans.OrganisationID
+	err = elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
 	}
@@ -173,11 +182,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 			return err
 		}
 
-	}
-
-	err = profile.GetProfileByUserId(db.Postgresql, m.UserID)
-	if err != nil {
-		return err
 	}
 
 	return nil

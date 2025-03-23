@@ -22,6 +22,7 @@ type Configuration struct {
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
 	Firebae      Firebae
+	MongoDB      MongoDB
 }
 
 type BaseConfig struct {
@@ -108,6 +109,8 @@ type BaseConfig struct {
 	ELASTIC_URL                string `mapstructure:"ELASTIC_URL"`
 	ELASTIC_API_KEY            string `mapstructure:"ELASTIC_API_KEY"`
 	FIREBASE_SERVICE_FILE_PATH string `mapstructure:"FIREBASE_SERVICE_FILE_PATH"`
+	MONGO_URI                  string `mapstructure:"MONGO_URI"`
+	MONGO_DB_NAME              string `mapstructure:"MONGO_DB_NAME"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -228,6 +231,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		},
 		Firebae: Firebae{
 			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
+		},
+		MongoDB: MongoDB{
+			Mongo_URI: config.MONGO_URI,
+			DB_Name:   config.MONGO_DB_NAME,
 		},
 	}
 }

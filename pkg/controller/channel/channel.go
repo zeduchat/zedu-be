@@ -611,20 +611,16 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 		return
 	}
 
-	addError, err := channel.AddMultipleMembersToChannel(base.Db.Postgresql, req)
+	err = channel.AddMultipleMembersToChannel(base.Db.Postgresql, req)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add users to channel", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to add users to channel", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	response := gin.H{
-		"errors":  addError,
-		"message": "success",
-	}
 
 	base.Logger.Info("users added to channel successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 

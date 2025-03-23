@@ -17,6 +17,12 @@ var (
 	defaultLimit = 20
 )
 
+const (
+	ThreadIndex  = "threads"
+	MessageIndex = "messages"
+	PersonIndex  = "persons"
+)
+
 type Pagination struct {
 	Page  int
 	Limit int
@@ -220,4 +226,53 @@ func CheckExists(Client *elasticsearch.Client, indexName string, query map[strin
 	}
 
 	return false, fmt.Errorf("unexpected response format for total")
+}
+
+func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[string]interface{}) (map[string]interface{}, error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		return nil, fmt.Errorf("error encoding query: %w", err)
+	}
+
+	// Perform the search request
+	ctx := context.Background()
+	res, err := client.Search(
+		client.Search.WithContext(ctx),
+		client.Search.WithIndex(ThreadIndex, MessageIndex),
+		client.Search.WithBody(&buf),
+		client.Search.WithTrackTotalHits(true),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("error performing search: %w", err)
+	}
+	defer res.Body.Close()
+
+	// Handle Elasticsearch errors
+	if res.IsError() {
+		var e map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+			return nil, fmt.Errorf("error parsing error response: %w", err)
+		}
+		return nil, fmt.Errorf("Elasticsearch error: %v", e)
+	}
+
+	// Parse the response
+	var result map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("error parsing response: %w", err)
+	}
+
+	// Check if there are any hits
+	hits, ok := result["hits"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected response structure, 'hits' field missing")
+	}
+
+	hitsArray, ok := hits["hits"].([]interface{})
+	if !ok || len(hitsArray) == 0 {
+		return nil, fmt.Errorf("no search results found")
+	}
+
+	return result, nil
 }

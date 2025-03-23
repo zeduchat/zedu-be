@@ -350,7 +350,7 @@ func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Chan
 		return channel, errors.New("user already in channel")
 	}
 
-	if  req.Username == "" {
+	if req.Username == "" {
 		req.Username = user.Email
 	}
 
@@ -404,51 +404,48 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 	return req.Archived, nil
 }
 
-func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
+func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) error {
 	var (
 		users        = req.UserIDs
 		channelID    = req.ChannelID
-		userChannels UserChannels
 		userChanList []UserChannels
-		addError     []string
 	)
-
+	
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
-		return addError, errors.New("channel does not exist")
+		return errors.New("channel does not exist")
 	}
-
+	
 	if len(users) > 10 {
-		return addError, errors.New("maximum of 10 users can be added")
+		return errors.New("maximum of 10 users can be added")
 	}
-
+	
 	for _, user := range users {
+		var userChannels UserChannels
 
 		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
-		if exist {
-			addError = append(addError, fmt.Sprintf("%s already in the channel", userChannels.Username))
-			continue
+		fmt.Println(exist, channelID, user)
+		if !exist {
+			newUserChannels := UserChannels{
+				ChannelsID: channelID,
+				UserID:     user,
+				Username:   userChannels.Username,
+			}
+			userChanList = append(userChanList, newUserChannels)
 		}
-
-		userChannels = UserChannels{
-			ChannelsID: channelID,
-			UserID:     user,
-			Username:   userChannels.Username,
-		}
-
-		userChanList = append(userChanList, userChannels)
 	}
+	fmt.Println(userChanList)
 
 	if len(userChanList) == 0 {
-		return addError, errors.New("no user added to channel. All users already in channel")
+		return errors.New("no user added to channel. All users already in channel")
 	}
 
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
-		return addError, errors.New("could not add user to channel")
+		return fmt.Errorf("could not add users to channel: %v", err)
 	}
 
-	return addError, nil
+	return nil
 }
 
 func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {
@@ -726,4 +723,17 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) 
 		return chanResp, errors.New("could not get channels user is not part of")
 	}
 	return chanResp, nil
+}
+
+func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChannels, error) {
+	var users []UserChannels
+
+	if err := db.Table("user_channels").
+		Select("user_channels.*").
+		Where("user_channels.channels_id = ?", channelId).
+		Scan(&users).Error; err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
