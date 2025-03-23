@@ -30,7 +30,7 @@ func (base *Controller) UploadController(c *gin.Context) {
 		return
 	}
 
-	var uploadedFiles []string
+	var uploadedFiles []*models.UploadedFileResponse
 
 	for _, fileHeader := range req.Files {
 		// Open the file
@@ -43,33 +43,17 @@ func (base *Controller) UploadController(c *gin.Context) {
 		defer file.Close()
 
 		// Call the UploadFile service
-		filePath, err := services.UploadFiles(base.Logger, file, fileHeader)
+		fileData, err := services.UploadFiles(base.Logger, file, fileHeader)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err, nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
 
-		uploadedFiles = append(uploadedFiles, filePath)
+		uploadedFiles = append(uploadedFiles, fileData)
 	}
 
 	base.Logger.Info("Files uploaded successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Files uploaded successfully", uploadedFiles)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) FileController(c *gin.Context) {
-
-	objectName := c.Param("filename")
-
-	preSignedUrl, err := services.GeneratePresignedURL(base.Logger, objectName)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate presigned URL", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	base.Logger.Info("URL generated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "URL generated successfully", preSignedUrl)
 	c.JSON(http.StatusOK, rd)
 }

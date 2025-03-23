@@ -2,13 +2,15 @@ package fileManagement
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -22,6 +24,10 @@ func FormatFileName(filename string) string {
 }
 
 func GetFileCategory(mimeType string) (string, bool) {
+	if strings.Contains(mimeType, ";") {
+		mimeType = strings.Split(mimeType, ";")[0]
+	}
+
 	for _, fileType := range models.AllowedFileTypes {
 		if fileType.MimeType == mimeType {
 			return fileType.Category, true
@@ -57,6 +63,18 @@ func GetMimeTypeFromFileName(filename string) (string, error) {
 	return mimeType, nil
 }
 
+func HashFile(file multipart.File) (string, error) {
+	hasher := sha256.New()
+
+	// Copy file content into the hasher
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", err
+	}
+
+	// Convert hash to a hexadecimal string
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
 func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	minioClient := storage.DB.Minio
 
@@ -76,90 +94,85 @@ func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	return true, fmt.Errorf("file %s exists in bucket %s", fileName, bucketName)
 }
 
-func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.FileHeader) (string, error) {
+func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.FileHeader) (*models.UploadedFileResponse, error) {
 	var generatedUrl string
 	minioClient := storage.DB.Minio
 	bucketName := config.Config.Minio.BucketName
 
 	if header.Size > maxFileSize {
-		utility.LogAndPrint(logger, fmt.Sprintf("file exceeds max size"))
-		return "", fmt.Errorf("file exceeds max size")
+		errMsg := "file exceeds max size"
+		utility.LogAndPrint(logger, errMsg)
+		return nil, fmt.Errorf("file exceeds max size")
+	}
+
+	// Compute SHA256 hash of the file
+	fileHash, hashErr := HashFile(file)
+	if hashErr != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to hash file: %v", hashErr))
+		return nil, fmt.Errorf("failed to hash file: %v", hashErr)
+	}
+
+	// Reset file pointer to the beginning after reading the file to the end
+	if seeker, ok := file.(io.Seeker); ok {
+		_, err := seeker.Seek(0, io.SeekStart)
+		if err != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("failed to seek file: %v", err))
+			return nil, fmt.Errorf("failed to seek file: %v", err)
+		}
 	}
 
 	mimeType, mimeTypeErr := DetectMimeType(file)
 	if mimeTypeErr != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("could not detect file type: %v", mimeTypeErr))
-		return "", fmt.Errorf("could not detect file type: %v", mimeTypeErr)
+		utility.LogAndPrint(logger, fmt.Sprintf("could not detect file type: %v", mimeTypeErr.Error()))
+		return nil, fmt.Errorf("could not detect file type: %w", mimeTypeErr)
 	}
 
 	storagePath, valid := GetFileCategory(mimeType)
 	if !valid {
-		utility.LogAndPrint(logger, fmt.Sprintf("invalid file type"))
-		return "", fmt.Errorf("invalid file type")
+		utility.LogAndPrint(logger, "invalid file type")
+		return nil, fmt.Errorf("invalid file type")
 	}
 	if storagePath == "" {
-		utility.LogAndPrint(logger, fmt.Sprintf("Could not find storage path for file type"))
-		return "", fmt.Errorf("could not find storage path for file type")
+		utility.LogAndPrint(logger, "Could not find storage path for file type")
+		return nil, fmt.Errorf("could not find storage path for file type")
 	}
 
-	fullPath := storagePath + header.Filename
-	encodedFilePath := FormatFileName(fullPath)
+	extension := filepath.Ext(header.Filename)
+
+	hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
+	encodedFilePath := storagePath + hashedFileName
 
 	exists, existsErr := FileExists(logger, encodedFilePath)
 	if existsErr != nil && exists {
-		utility.LogAndPrint(logger, fmt.Sprintf("file existence error: %v", existsErr))
-		return "", existsErr
-	}
+		utility.LogAndPrint(logger, fmt.Sprintf("error: %v. using existing file reference", existsErr.Error()))
+		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
-	_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
-	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err))
-		return "", fmt.Errorf("failed to upload file to %s: %v", encodedFilePath, err)
-	}
-
-	(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
-
-	generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
-
-	return generatedUrl, nil
-}
-
-func GeneratePresignedURL(logger *utility.Logger, objectName string) (string, error) {
-	mimeType, mimeTypeErr := GetMimeTypeFromFileName(objectName)
-	if mimeTypeErr != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Could not detect file type: %v", mimeTypeErr))
-		return "", fmt.Errorf("could not detect file type: %v", mimeTypeErr)
-	}
-
-	storagePath, valid := GetFileCategory(mimeType)
-	if !valid {
-		utility.LogAndPrint(logger, fmt.Sprintf("Invalid file type"))
-		return "", fmt.Errorf("invalid file type")
-	}
-	if storagePath == "" {
-		utility.LogAndPrint(logger, fmt.Sprintf("Could not find storage path for file type"))
-		return "", fmt.Errorf("could not find storage path for file type")
-	}
-
-	fullPath := storagePath + objectName
-	encodedFilePath := FormatFileName(fullPath)
-
-	exists, existsErr := FileExists(logger, fullPath)
-	if existsErr != nil && exists {
-		// Set expiration time (e.g. 30 minutes)
-		expiry := 30 * time.Minute
-		minioClient := storage.DB.Minio
-		bucketName := config.Config.Minio.BucketName
-
-		presignedURL, err := minioClient.PresignedGetObject(context.Background(), bucketName, encodedFilePath, expiry, nil)
-		if err != nil {
-			utility.LogAndPrint(logger, fmt.Sprintf("Error retrieving URL: %v", err))
-			return "", err
+		response := &models.UploadedFileResponse{
+			FileName: header.Filename,
+			FileType: filepath.Ext(header.Filename)[1:], // Trying to extract file extension (without the dot)
+			MimeType: mimeType,
+			FileLink: existingFileURL,
 		}
-		return presignedURL.String(), nil
-	} else {
-		utility.LogAndPrint(logger, fmt.Sprintf("File does not exist"))
-		return "", fmt.Errorf("file does not exist")
-	}
 
+		return response, nil
+	} else {
+		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
+		if err != nil {
+			errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
+			utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err.Error()))
+			return nil, errMsg
+		}
+
+		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
+
+		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
+
+		response := &models.UploadedFileResponse{
+			FileName: header.Filename,
+			FileType: filepath.Ext(header.Filename)[1:], // Trying to extract file extension (without the dot)
+			MimeType: mimeType,
+			FileLink: generatedUrl,
+		}
+		return response, nil
+	}
 }

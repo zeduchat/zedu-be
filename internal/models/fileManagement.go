@@ -6,6 +6,13 @@ type UploadRequest struct {
 	Files []*multipart.FileHeader `form:"files" binding:"required"` // Multiple file headers
 }
 
+type UploadedFileResponse struct {
+	FileName string `json:"file_name"`
+	FileType string `json:"file_type"`
+	MimeType string `json:"mime_type"`
+	FileLink string `json:"file_link"`
+}
+
 type FileType struct {
 	MimeType string `json:"mime_type"`
 	Category string `json:"category"`
@@ -21,9 +28,10 @@ var AllowedFileTypes = []FileType{
 	{"image/webp", "file-uploads/images/"},
 
 	// Documents
-	{"text/csv", "file-uploads/documents/"},           // .csv
-	{"application/pdf", "file-uploads/documents/"},    // .pdf
-	{"application/msword", "file-uploads/documents/"}, // .doc (legacy Word)
+	{"text/plain", "file-uploads/documents/"},                                                                // .csv
+	{"text/csv", "file-uploads/documents/"},                                                                  // .csv
+	{"application/pdf", "file-uploads/documents/"},                                                           // .pdf
+	{"application/msword", "file-uploads/documents/"},                                                        // .doc (legacy Word)
 	{"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "file-uploads/documents/"},   // .docx
 	{"application/vnd.ms-word.document.macroEnabled.12", "file-uploads/documents/"},                          // .docm (macro-enabled Word)
 	{"application/x-msword", "file-uploads/documents/"},                                                      // Alternative .doc MIME
@@ -32,7 +40,6 @@ var AllowedFileTypes = []FileType{
 	{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "file-uploads/documents/"},         // .xlsx
 	{"application/vnd.ms-powerpoint", "file-uploads/documents/"},                                             // .ppt (legacy PowerPoint)
 	{"application/vnd.openxmlformats-officedocument.presentationml.presentation", "file-uploads/documents/"}, // .pptx
-	{"text/plain", "file-uploads/documents/"},                                                                // .txt (plain text)
 
 	// Audio
 	{"audio/mpeg", "file-uploads/audio/"}, // .mp3
