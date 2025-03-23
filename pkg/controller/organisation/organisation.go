@@ -3,6 +3,7 @@ package organisation
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
@@ -309,6 +310,12 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
 		"total_items":  len(users),
+	}
+
+	for _, user := range users {
+		if user.UserName == "" {
+			user.UserName = strings.Split(user.Email, "@")[0]
+		}
 	}
 
 	base.Logger.Info("users retrieved successfully")
