@@ -11,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
@@ -128,6 +129,28 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 	if err != nil {
 		logger.Error(fmt.Sprintf("error Broadcasting to particpant id: %s error: %v", *channel.ParticipantId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	username := ""
+	if profile.UserName != "" {
+		username = profile.UserName
+	} else if profile.FullName != "" {
+		username = profile.FullName
+	} else {
+		username = user.Email
+	}
+
+	pushReq := models.PushFCMRequest{
+		ChannelName: username,
+		UserId:      channel.ParticipantId,
+		Message:     req.Content,
+		TimeStamp:   messageDoc.CreatedAt.String(),
+		AvatarUrl:   profile.AvatarURL,
+	}
+
+	err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
+	if err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to send push notifcation to channel users")
 	}
 
 	return &messageDoc, http.StatusCreated, nil

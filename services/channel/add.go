@@ -17,6 +17,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/services/user"
@@ -28,13 +30,20 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
-		profile models.Profile
-		user    models.User
+		profile  models.Profile
+		user     models.User
+		channels models.Channels
 	)
 
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("invalid thread ID")
+	}
+
+	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
+
+	if !chanExist {
+		return nil, http.StatusBadRequest, errors.New("channel does not exist")
 	}
 
 	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -102,6 +111,19 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Broadcasting to with orgid: %s error: %v", req.OrgId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+	}
+
+	pushReq := models.PushFCMRequest{
+		ChannelId:   req.ChannelsId,
+		ChannelName: channels.Name,
+		UserId:      req.UserId,
+		Message:     req.Content,
+		TimeStamp: messageDoc.CreatedAt.String(),
+	}
+
+	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
+	if err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to send push notifcation to channel users")
 	}
 
 	return &messageDoc, http.StatusCreated, nil

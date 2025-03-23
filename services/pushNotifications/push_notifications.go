@@ -1,0 +1,83 @@
+package push_notifications
+
+import (
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/firebase"
+	fcmtokens "github.com/hngprojects/telex_be/services/fcmTokens"
+	"github.com/hngprojects/telex_be/utility"
+)
+
+func PushFCMToUser(req models.PushFCMRequest, logger *utility.Logger, db *gorm.DB) error {
+
+	title := fmt.Sprintf("Notification from user %s", req.ChannelName)
+	body := req.Message
+
+	fcmtoken, exists, err := fcmtokens.GetFcmTokenByUserId(req.UserId, db)
+
+	if !exists {
+		return nil
+	}
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+	}
+
+
+	err = firebase.SendNotificationByFCMToken(logger, fcmtoken, title, body, req.AvatarUrl)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+	}
+
+	return nil
+
+}
+
+func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.DB) error {
+
+	var channel models.Channels
+
+	userArr := make([]string, 0)
+
+	users, err := channel.FetchChannelUsers(db, req.ChannelId)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return err
+	}
+
+	for _, user := range users {
+		if user.UserID == req.UserId {
+			continue
+		}
+
+		userArr = append(userArr, user.UserID)
+	}
+
+
+	fcmTokens, err := fcmtokens.GetFcmTokenByUserIds(userArr, db)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return err
+	}
+
+	title := fmt.Sprintf("Notification from %s channel", req.ChannelName)
+	body := req.Message
+
+	err = firebase.SendNotificationByFCMTokens(logger, fcmTokens, title, body)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+	}
+
+	return nil
+}
