@@ -83,7 +83,6 @@ tags:
     description: API for uploading and retrieving files
   - name: Search
     description: API endpoints for searching user query
-
   - name: Mongogrations
     description: API endpoints for integrations to interact with a mongoDB instance through telex
 
@@ -12190,6 +12189,8 @@ paths:
 #mongogrations
   /mongo-integrations:
     get:
+      tags:
+          - Mongogrations
       summary: Read entries from a MongoDB collection
       description: Retrieves documents from the specified collection based on the provided filter.
       consumes:
@@ -12215,6 +12216,8 @@ paths:
         500:
           description: Internal server error.
     post:
+      tags:
+        - Mongogrations
       summary: Create a new entry in a MongoDB collection
       description: Creates a new document in the specified collection.
       consumes:
@@ -12241,6 +12244,8 @@ paths:
         500:
           description: Internal server error.
     put:
+      tags:
+        - Mongogrations
       summary: Update an entry in a MongoDB collection
       description: Updates an existing document in the specified collection based on ID.
       consumes:
@@ -12269,6 +12274,8 @@ paths:
         500:
           description: Internal server error.
     delete:
+      tags:
+        - Mongogrations
       summary: Delete an entry from a MongoDB collection
       description: Deletes a document from the specified collection based on ID.
       consumes:
