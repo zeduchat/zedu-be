@@ -237,14 +237,14 @@ func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Ch
 	}
 	return channels, nil
 }
-func AddMultipleMembersToChannel(db *gorm.DB, req models.AddMultipleMembersRequest) ([]string, error) {
+func AddMultipleMembersToChannel(db *gorm.DB, req models.AddMultipleMembersRequest) error {
 	var ch models.Channels
 
-	addError, err := ch.AddMultipleUsersToChannel(db, req)
+	err := ch.AddMultipleUsersToChannel(db, req)
 	if err != nil {
-		return addError, err
+		return err
 	}
-	return addError, nil
+	return nil
 }
 
 func ArchiveChannel(db *gorm.DB, channelId string, req models.ArchiveChannelRequest) (bool, int, error) {
