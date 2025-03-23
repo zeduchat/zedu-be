@@ -3750,7 +3750,7 @@ paths:
                 required:
                   - company_name
                   - content
-        responses:
+      responses:
           '201':
             description: Testimonial created successfully
             content:
