@@ -135,7 +135,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	pushReq := models.PushFCMRequest{
 		ChannelName: username,
-		UserId:      channel.ParticipantId,
+		UserId:      *channel.ParticipantId,
 		Message:     req.Content,
 		TimeStamp:   threadDoc.CreatedAt.String(),
 		AvatarUrl:   profile.AvatarURL,

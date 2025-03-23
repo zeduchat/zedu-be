@@ -142,7 +142,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	pushReq := models.PushFCMRequest{
 		ChannelName: username,
-		UserId:      channel.ParticipantId,
+		UserId:      *channel.ParticipantId,
 		Message:     req.Content,
 		TimeStamp:   messageDoc.CreatedAt.String(),
 		AvatarUrl:   profile.AvatarURL,
