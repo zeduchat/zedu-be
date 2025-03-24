@@ -30,10 +30,16 @@ func (base *Controller) UploadController(c *gin.Context) {
 		return
 	}
 
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
 	var uploadedFiles []*models.UploadedFileResponse
 
 	for _, fileHeader := range req.Files {
-		// Open the file
 		file, err := fileHeader.Open()
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file", err, nil)
@@ -42,10 +48,9 @@ func (base *Controller) UploadController(c *gin.Context) {
 		}
 		defer file.Close()
 
-		// Call the UploadFile service
-		fileData, err := services.UploadFiles(base.Logger, file, fileHeader)
+		fileData, err := services.UploadFiles(base.Db.Postgresql, base.Logger, file, fileHeader)
 		if err != nil {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err, nil)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err.Error(), nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
@@ -55,5 +60,21 @@ func (base *Controller) UploadController(c *gin.Context) {
 
 	base.Logger.Info("Files uploaded successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Files uploaded successfully", uploadedFiles)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetFileDetailsByID(c *gin.Context) {
+	var fileModel models.UploadedFileResponse
+	fileId := c.Param("id")
+
+	file, err := fileModel.GetFileByID(base.Db.Postgresql, fileId)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	base.Logger.Info("Files located successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Files located successfully", file)
 	c.JSON(http.StatusOK, rd)
 }

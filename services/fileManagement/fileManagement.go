@@ -17,6 +17,7 @@ import (
 	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/minio/minio-go/v7"
+	"gorm.io/gorm"
 )
 
 func FormatFileName(filename string) string {
@@ -27,13 +28,8 @@ func GetFileCategory(mimeType string) (string, bool) {
 	if strings.Contains(mimeType, ";") {
 		mimeType = strings.Split(mimeType, ";")[0]
 	}
-
-	for _, fileType := range models.AllowedFileTypes {
-		if fileType.MimeType == mimeType {
-			return fileType.Category, true
-		}
-	}
-	return "", false
+	category, exists := models.AllowedFileTypes[mimeType]
+	return category, exists
 }
 
 const maxFileSize = 100 * 1024 * 1024
@@ -94,7 +90,7 @@ func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	return true, fmt.Errorf("file %s exists in bucket %s", fileName, bucketName)
 }
 
-func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.FileHeader) (*models.UploadedFileResponse, error) {
+func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, header *multipart.FileHeader) (*models.UploadedFileResponse, error) {
 	var generatedUrl string
 	minioClient := storage.DB.Minio
 	bucketName := config.Config.Minio.BucketName
@@ -143,18 +139,14 @@ func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.
 	encodedFilePath := storagePath + hashedFileName
 
 	exists, existsErr := FileExists(logger, encodedFilePath)
-	if existsErr != nil && exists {
+	if existsErr != nil && !exists {
 		utility.LogAndPrint(logger, fmt.Sprintf("error: %v. using existing file reference", existsErr.Error()))
+		return nil, existsErr
+	} else if exists {
+		utility.LogAndPrint(logger, "using existing file reference")
 		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
-		response := &models.UploadedFileResponse{
-			FileName: header.Filename,
-			FileType: filepath.Ext(header.Filename)[1:], // Trying to extract file extension (without the dot)
-			MimeType: mimeType,
-			FileLink: existingFileURL,
-		}
-
-		return response, nil
+		return nil, fmt.Errorf("file already exists at %v", existingFileURL)
 	} else {
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
 		if err != nil {
@@ -167,12 +159,20 @@ func UploadFiles(logger *utility.Logger, file multipart.File, header *multipart.
 
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
-		response := &models.UploadedFileResponse{
+		response := models.UploadedFileResponse{
 			FileName: header.Filename,
-			FileType: filepath.Ext(header.Filename)[1:], // Trying to extract file extension (without the dot)
+			FileType: filepath.Ext(header.Filename)[1:],
 			MimeType: mimeType,
 			FileLink: generatedUrl,
 		}
-		return response, nil
+
+		storageErr := response.CreateFileRecord(db)
+		if storageErr != nil {
+			errMsg := fmt.Errorf("error saving file details: %w", storageErr)
+			utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
+			return nil, errMsg
+		}
+
+		return &response, nil
 	}
 }
