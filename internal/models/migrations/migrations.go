@@ -57,6 +57,7 @@ func AuthMigrationModels() []interface{} {
 		models.CustomIntegrationsSetting{},
 		models.DmChannels{},
 		models.FcmTokens{},
+		models.UploadedFileResponse{},
 	} // an array of db models, example: User{}
 }
 
