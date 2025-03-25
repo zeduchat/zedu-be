@@ -454,14 +454,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
 
-	var chanOrg Channels
-	chanInfo := ChannelInfo{UserID: t.UserId, ChannelID: t.ChannelsID}
-	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
-	if err != nil {
-		return err
-	}
-	t.OrgansationID = chans.OrganisationID
-	err = elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
+	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
 	if err != nil {
 		return err

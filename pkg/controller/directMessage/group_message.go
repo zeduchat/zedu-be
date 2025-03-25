@@ -50,8 +50,8 @@ func (base *Controller) GetGroupDMChannels(c *gin.Context) {
 		"total_items":  len(resp),
 	}
 
-	base.Logger.Info("Group DM channels retrived successfully")
-	rd := utility.BuildSuccessResponse(statusCode, "Group DM channels retrived successfully", resp, paginationData)
+	base.Logger.Info("Group DM channels retreived successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "Group DM channels retreived successfully", resp, paginationData)
 	c.JSON(statusCode, rd)
 }
 
@@ -174,7 +174,7 @@ func (base *Controller) DeleteGroupDMChannel(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Dm channel deleted successfully")
-	rd := utility.BuildSuccessResponse(statusCode, "Dm channel deleted successfully", nil)
+	base.Logger.Info("Group DM channel deleted successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "Group DM channel deleted successfully", nil)
 	c.JSON(statusCode, rd)
 }

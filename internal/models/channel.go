@@ -244,7 +244,7 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
-		return chanResp, errors.New("channel not found")
+		return chanResp, errors.New("channel not found in organisation")
 	}
 
 	count, err := ur.CountChannelsUsers(db, chanReq.ChannelID)

@@ -16,7 +16,7 @@ type DmChannels struct {
 	UserId          string         `gorm:"type:uuid" json:"-"`
 	ChannelId       string         `gorm:"type:uuid" json:"channel_id"`
 	OrgId           string         `gorm:"type:uuid" json:"-"`
-	ParticipantId   *string         `gorm:"type:uuid" json:"-"`
+	ParticipantId   *string        `gorm:"type:uuid" json:"-"`
 	ParticipantHash string         `gorm:"type:string" json:"participant_hash"`
 	ChatType        string         `gorm:"type:string" json:"chat_type"`    // user or bot
 	ChannelType     string         `gorm:"type:string" json:"channel_type"` // dm or group_dm
@@ -62,6 +62,8 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 		dmchanresp.Name = userDetails.Profile.UserName
 		dmchanresp.ID = existDmchan.ChannelId
+		dmchanresp.ParticipantId = *dm.ParticipantId
+		dmchanresp.ParticipantEmail = userDetails.Email
 
 		return dmchanresp, nil
 	}
@@ -84,8 +86,7 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 
 	var user User
 
-	_, err := user.GetUserByID(db, *dm.ParticipantId)
-
+	_, err := user.GetUserByID(db, dm.UserId)
 	if err != nil {
 		return err
 	}
@@ -94,10 +95,9 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 		db,
 		&DmChannels{},
 		"channel_id = ? AND user_id = ?",
-		dm.ChannelId,
+		dm.ID,
 		dm.UserId,
 	)
-
 	if err != nil {
 		return err
 	}
@@ -129,27 +129,27 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		return nil, paginationResp, err
 	}
 
-	for _, dmchans := range dmchans {
+	for _, dmchan := range dmchans {
+		if dmchan.ChannelType == "dm" {
+			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
+			if err != nil {
+				return nil, paginationResp, err
+			}
 
-		userDetails, err := user.GetUserByID(db, *dmchans.ParticipantId)
+			if userDetails.Profile.UserName == "" {
+				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+			}
 
-		if err != nil {
-			return nil, paginationResp, err
+			dmChansResp = append(dmChansResp, DmChannelsResponse{
+				ID:               dmchan.ChannelId,
+				Name:             userDetails.Profile.UserName,
+				AvatarUrl:        userDetails.Profile.AvatarURL,
+				ParticipantId:    *dmchan.ParticipantId,
+				ParticipantEmail: userDetails.Email,
+			})
 		}
 
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-		}
-
-		dmChansResp = append(dmChansResp, DmChannelsResponse{
-			ID:               dmchans.ChannelId,
-			Name:             userDetails.Profile.UserName,
-			AvatarUrl:        userDetails.Profile.AvatarURL,
-			ParticipantId:    *dmchans.ParticipantId,
-			ParticipantEmail: userDetails.Email,
-		})
 	}
-
 
 	return dmChansResp, paginationResp, nil
 }
@@ -157,6 +157,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ?", channelID)
+
 	if !exists {
 		return exists, errors.New("channel does not exist")
 	}

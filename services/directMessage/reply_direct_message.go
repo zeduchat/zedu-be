@@ -11,8 +11,8 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -51,18 +51,19 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	messageDoc := models.MessageDocument{
-		ID:         utility.GenerateUUID(),
-		Content:    req.Content,
-		ChannelsID: req.ChannelsId,
-		UserID:     req.UserId,
-		ThreadID:   threadId,
-		CreatedAt:  time.Now().UTC(),
-		UpdatedAt:  time.Now().UTC(),
-		AvatarURL:  profile.AvatarURL,
-		Edited:     false,
-		Username:   profile.UserName,
-		FullName:   profile.FullName,
-		Email:      user.Email,
+		ID:             utility.GenerateUUID(),
+		Content:        req.Content,
+		ChannelsID:     req.ChannelsId,
+		UserID:         req.UserId,
+		ThreadID:       threadId,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+		AvatarURL:      profile.AvatarURL,
+		Edited:         false,
+		Username:       profile.UserName,
+		FullName:       profile.FullName,
+		Email:          user.Email,
+		OrganisationID: channel.OrgId,
 	}
 
 	err = messageDoc.CreateMessage(db, logger)
@@ -89,10 +90,10 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 		UserId:    req.UserId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, threadId.String(), feed)
+	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to threadId: %s, error: %v", threadId.String(), err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to threadId: %s, error: %v", threadId.String(), err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
 	notification := models.Notifcation[models.NewMessage]
@@ -110,9 +111,9 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 
 		for _, participant := range chanParts {
 			if participant.UserId != req.UserId {
-				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				err = centrifuge.PublishChannel(logger, participant.UserId, notification)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Error Broadcasting to userID: %s, error: %v", participant.UserId, err))
+					logger.Error(fmt.Sprintf("Error Publishing to userID: %s, error: %v", participant.UserId, err))
 					errorsOccurred = true
 				}
 			}
@@ -125,10 +126,10 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 		return &messageDoc, http.StatusCreated, nil
 	}
 
-	err = centrifuge.BroadcastChannel(logger, *channel.ParticipantId, notification)
+	err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("error Broadcasting to particpant id: %s error: %v", *channel.ParticipantId, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("error Publishing to particpant id: %s error: %v", *channel.ParticipantId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
 	username := ""

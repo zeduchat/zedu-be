@@ -14,8 +14,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
-	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -35,15 +35,13 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
-
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
-	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
-
-	if !ch || err != nil {
-		return nil, http.StatusBadRequest, errors.New("channel does not exist")
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+	if !exists {
+		return nil, http.StatusBadRequest, err
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -62,6 +60,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Messages:      []models.MessageDocument{},
 		Status:        "success",
 		Edited:        false,
+		OrgansationID: req.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -82,30 +81,30 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserId:    req.UserId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
+	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		return nil, http.StatusInternalServerError, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
 	notification := models.Notifcation[models.NewMessage]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 	errorsOccurred := false
-	
+
 	if channel.ChannelType == "group_dm" {
 		var chanParts []models.ChannelParticipant
 
-		err := postgresql.SelectAllFromDb(db.Postgresql,"", &chanParts, "channel_id  = ?", channel.ChannelId)
+		err := postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id  = ?", channel.ChannelId)
 		if err != nil {
 			return &threadDoc, http.StatusNotFound, fmt.Errorf("failed to fetch participants")
 		}
 
 		for _, participant := range chanParts {
 			if participant.UserId != req.UserId {
-				err = centrifuge.BroadcastChannel(logger, participant.UserId, notification)
+				err = centrifuge.PublishChannel(logger, participant.UserId, notification)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Error Broadcasting to userID: %s, error: %v", participant.UserId, err))
+					logger.Error(fmt.Sprintf("Error Publishing to userID: %s, error: %v", participant.UserId, err))
 					errorsOccurred = true
 				}
 			}
@@ -115,13 +114,15 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 			return &threadDoc, http.StatusPartialContent, errors.New("some notifications failed to be sent")
 		}
 
+		//remember to add the push notification functionality in this block or replace if statment condidion for DM
+
 		return &threadDoc, http.StatusCreated, nil
 	}
 
-	err = centrifuge.BroadcastChannel(logger, *channel.ParticipantId, notification)
+	err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		return nil, http.StatusInternalServerError, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
 	username := ""
@@ -149,7 +150,6 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	return &threadDoc, http.StatusCreated, nil
 }
 
-
 // main channel thread
 func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 
@@ -176,19 +176,21 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 			return &thread, http.StatusBadRequest, err
 		}
 
+		req.OrgId = dmchannel.OrgId
+
 		if dmchannel.ChatType != "bot" {
 
 			pairRoomChan := models.DmChannels{}
 
 			pairRoomChan.ChatType = dmchannel.ChatType
+			pairRoomChan.ChannelType = "dm"
 			pairRoomChan.UserId = *dmchannel.ParticipantId
-			*pairRoomChan.ParticipantId = dmchannel.UserId
+			pairRoomChan.ParticipantId = &dmchannel.UserId
 			pairRoomChan.ID = utility.GenerateUUID()
 			pairRoomChan.ChannelId = dmchannel.ChannelId
 			pairRoomChan.OrgId = dmchannel.OrgId
 
 			_, err = pairRoomChan.CreateDmChannel(db.Postgresql)
-
 			if err != nil {
 				return &thread, http.StatusInternalServerError, err
 			}

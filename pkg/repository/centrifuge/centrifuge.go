@@ -41,8 +41,8 @@ func NewCentrifugoService(logger *utility.Logger, config config.Centrifuge) *goc
 	return c
 }
 
-func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload interface{}) error {
-	payload, err := json.Marshal(broadcastPayload)
+func PublishChannel(logger *utility.Logger, channelID string, publishPayload interface{}) error {
+	payload, err := json.Marshal(publishPayload)
 	if err != nil {
 		return err
 	}
@@ -60,10 +60,10 @@ func BroadcastChannel(logger *utility.Logger, channelID string, broadcastPayload
 	return nil
 }
 
-func BroadcastToThreadSubChannel(logger *utility.Logger, channelID string, threadID string, broadcastPayload interface{}) error {
+func PublishToThreadSubChannel(logger *utility.Logger, channelID string, threadID string, publishPayload interface{}) error {
 
 	subChannelID := fmt.Sprintf("%s:%s", channelID, threadID)
-	payload, err := json.Marshal(broadcastPayload)
+	payload, err := json.Marshal(publishPayload)
 	if err != nil {
 		return err
 	}

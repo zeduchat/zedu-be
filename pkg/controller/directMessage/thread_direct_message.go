@@ -54,20 +54,17 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	ThreadData, code, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger)
+	threadData, statusCode, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), nil, nil)
+		c.JSON(statusCode, rd)
 		return
 	}
 
-	base.Logger.Info("thread message added successfully")
-
-	rd := utility.BuildSuccessResponse(code, "Thread message added successfully", ThreadData)
-	c.JSON(code, rd)
-
+	base.Logger.Info("dm thread message added successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "dm thread message added successfully", threadData)
+	c.JSON(statusCode, rd)
 }
 
 func (base *Controller) GetAllChannelThreads(c *gin.Context) {

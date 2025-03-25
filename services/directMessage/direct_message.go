@@ -21,9 +21,9 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.DmChann
 	dmchans.ChannelType = "dm"
 	dmchans.OrgId = req.OrgId
 	dmchans.UserId = req.UserId
-	*dmchans.ParticipantId = req.ParticipantId
 	dmchans.ChannelId = utility.GenerateUUID()
 	dmchans.ID = utility.GenerateUUID()
+	dmchans.ParticipantId = &req.ParticipantId
 
 	resp, err := dmchans.CreateDmChannel(db)
 

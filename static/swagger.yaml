@@ -4935,7 +4935,7 @@ paths:
           schema:
             type: string
             format: string
-            example: broadcast
+            example: publish
         - name: status
           in: query
           required: true

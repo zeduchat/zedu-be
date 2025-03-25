@@ -49,24 +49,13 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		existDmchan         DmChannels
 		chParts             ChannelParticipant
 		partInfo            ParticipantInfo
-		invalidParticipants []string
-		validParticipants   []string
 	)
 
-	for _, participantID := range req.Participants {
-		_, err := user.GetUserByID(db, participantID)
-		if err != nil {
-			invalidParticipants = append(invalidParticipants, participantID)
-			continue
-		}
-		validParticipants = append(validParticipants, participantID)
-	}
-
-	if len(validParticipants) < 2 {
+	if len(req.Participants) < 2 {
 		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("group DM channel must have at least 2 valid additional participants")
 	}
 
-	allParticipants, participantHash := utility.GenerateParticipantHash(dm.UserId, validParticipants)
+	allParticipants, participantHash := utility.GenerateParticipantHash(dm.UserId, req.Participants)
 
 	exists := postgresql.CheckExists(db, &existDmchan, "participant_hash = ?", participantHash)
 	if exists {
@@ -108,10 +97,6 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 
 	gpdmchanresp.ChannelId = dm.ChannelId
 	gpdmchanresp.ChannelType = "group_dm"
-
-	if len(invalidParticipants) > 0 {
-		return gpdmchanresp, http.StatusMultiStatus, fmt.Errorf("group DM channel created with valid participants only. Invalid participants were skipped: %v", invalidParticipants)
-	}
 
 	return gpdmchanresp, http.StatusCreated, nil
 }
