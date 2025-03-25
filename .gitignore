@@ -33,6 +33,7 @@ tmp/
 .idea/
 playground/
 build-errors.log
+*.toml
 
 temp
 telex_be
