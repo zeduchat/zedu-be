@@ -12387,125 +12387,126 @@ paths:
                   error:
                     type: string
                     example: "Invalid file format"
-
+            
         "500":
           description: Internal server error
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  example: error
-                status_code:
-                  type: integer
-                  example: 500
-                message:
-                  type: string
-                  example: "Internal server error"
-                error:
-                  type: string
-                  example: "Unexpected database failure"
-                data:
-                  type: object
-                  nullable: true
-                  example: null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
 
   /files/file/{id}:
-  get:
-    tags:
-      - File Management
-    summary: Retrieve file details by ID
-    description: Fetches file metadata and a file link from the database using a unique file ID.
-    parameters:
-      - name: id
-        in: path
-        required: true
-        description: The unique ID of the file
-        schema:
-          type: string
-          format: uuid
-          example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-    responses:
-      "200":
-        description: File found successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  example: success
-                status_code:
-                  type: integer
-                  example: 200
-                message:
-                  type: string
-                  example: "Files located successfully"
-                data:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                      example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                    file_name:
-                      type: string
-                      example: "Deployment and Rollback Procedure.pdf"
-                    file_type:
-                      type: string
-                      example: "pdf"
-                    mime_type:
-                      type: string
-                      example: "application/pdf"
-                    file_link:
-                      type: string
-                      format: uri
-                      example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
-      "404":
-        description: File not found
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  example: error
-                status_code:
-                  type: integer
-                  example: 404
-                message:
-                  type: string
-                  example: "File not found"
-                error:
-                  type: string
-                  example: "record not found"
-      "500":
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  example: error
-                status_code:
-                  type: integer
-                  example: 500
-                message:
-                  type: string
-                  example: "Internal server error"
-                error:
-                  type: string
-                  example: "Unexpected database failure"
-                data:
-                  type: object
-                  nullable: true
-                  example: null
+    get:
+      tags:
+        - File Management
+      summary: Retrieve file details by ID
+      description: Fetches file metadata and a file link from the database using a unique file ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      responses:
+        "200":
+          description: File found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Files located successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Deployment and Rollback Procedure.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
 
   /search/organisation/{orgId}/:
     get:
