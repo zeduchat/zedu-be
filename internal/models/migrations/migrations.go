@@ -47,6 +47,7 @@ func AuthMigrationModels() []interface{} {
 		models.NotificationPreferences{},
 		models.Plan{},
 		models.OrganisationPlan{},
+		models.UploadedFileResponse{},
 		models.ProcessedStripeWebhook{},
 		models.OptIn{},
 		models.OrganisationIntegrations{},
@@ -57,7 +58,6 @@ func AuthMigrationModels() []interface{} {
 		models.CustomIntegrationsSetting{},
 		models.DmChannels{},
 		models.FcmTokens{},
-		models.UploadedFileResponse{},
 	} // an array of db models, example: User{}
 }
 

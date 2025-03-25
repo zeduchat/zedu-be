@@ -146,7 +146,21 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		utility.LogAndPrint(logger, "using existing file reference")
 		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
-		return nil, fmt.Errorf("file already exists at %v", existingFileURL)
+		var existingFile models.UploadedFileResponse
+		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
+		if err != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("failed to retrieve existing file metadata: %v", err.Error()))
+			return nil, fmt.Errorf("failed to retrieve existing file metadata: %v", err)
+		}
+
+		response := models.UploadedFileResponse{
+			ID:       existingFile.ID,
+			FileName: existingFile.FileName,
+			FileType: existingFile.FileType,
+			MimeType: existingFile.MimeType,
+			FileLink: existingFile.FileLink,
+		}
+		return &response, nil
 	} else {
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
 		if err != nil {
@@ -155,11 +169,14 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 			return nil, errMsg
 		}
 
+		id := utility.GenerateUUID()
+
 		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
 
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		response := models.UploadedFileResponse{
+			ID:       id,
 			FileName: header.Filename,
 			FileType: filepath.Ext(header.Filename)[1:],
 			MimeType: mimeType,
