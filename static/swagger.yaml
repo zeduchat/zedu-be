@@ -12461,9 +12461,8 @@ paths:
           You can chain multiple keywords together, for example:
           `"Hello team has:meeting before:2024-12-31 from:layo"`
       security:
-        - bearerAuth: []  # 🔹 JWT Authentication required
+        - bearerAuth: []
       parameters:
-        # Path Parameters
         - name: orgId
           in: path
           required: true
@@ -12472,15 +12471,6 @@ paths:
             type: string
             format: uuid
 
-        - name: userId
-          in: path
-          required: true
-          description: The unique identifier for the user
-          schema:
-            type: string
-            format: uuid
-
-        # Query Parameters (Optional)
         - name: query
           in: query
           required: false

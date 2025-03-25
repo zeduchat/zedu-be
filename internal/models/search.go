@@ -142,17 +142,23 @@ func initializeQuery() map[string]interface{} {
 }
 
 func addOrgOrChannelFilter(boolQuery map[string]interface{}, orgID string, channelIDs []string) {
+	shouldClauses := []interface{}{
+		map[string]interface{}{"term": map[string]interface{}{"org_id": orgID}},
+	}
+
+	if len(channelIDs) > 0 {
+		shouldClauses = append(shouldClauses, map[string]interface{}{
+			"terms": map[string]interface{}{"channel_id": channelIDs},
+		})
+	}
+
 	orgOrChannelFilter := map[string]interface{}{
 		"bool": map[string]interface{}{
-			"should": []interface{}{
-				map[string]interface{}{"term": map[string]interface{}{"org_id": orgID}},
-				map[string]interface{}{"terms": map[string]interface{}{"channel_id": channelIDs}},
-			},
+			"should":               shouldClauses,
 			"minimum_should_match": 1,
 		},
 	}
 
-	// Ensure "filter" exists and is a slice
 	if existingFilters, ok := boolQuery["filter"].([]interface{}); ok {
 		boolQuery["filter"] = append(existingFilters, orgOrChannelFilter)
 	} else {

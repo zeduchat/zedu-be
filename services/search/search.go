@@ -2,7 +2,6 @@ package search
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -31,11 +30,9 @@ func Search(db *storage.Database, c *gin.Context, userId string,
 	} else if queryArr == nil && query != "" {
 		searchQuery.Message = query
 	} else {
-		fmt.Println(query, queryArr)
 		return nil, http.StatusBadRequest, errors.New("invalid search query, empty query provided")
 	}
 
-	//  sort key validation
 	if sortby != "" {
 		if !ValidateSortKey(sortby) {
 			return nil, http.StatusBadRequest, errors.New("invalid sort key provided")
