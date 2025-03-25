@@ -44,11 +44,11 @@ type GroupDMChannelsResponse struct {
 
 func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsRequest) (GroupDMChannelsResponse, int, error) {
 	var (
-		user                User
-		gpdmchanresp        GroupDMChannelsResponse
-		existDmchan         DmChannels
-		chParts             ChannelParticipant
-		partInfo            ParticipantInfo
+		user         User
+		gpdmchanresp GroupDMChannelsResponse
+		existDmchan  DmChannels
+		chParts      ChannelParticipant
+		partInfo     ParticipantInfo
 	)
 
 	if len(req.Participants) < 2 {
@@ -106,6 +106,7 @@ func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
 		user      User
 		existDM   DmChannels
 		chanParts ChannelParticipant
+		thread    Threads
 	)
 
 	_, err := user.GetUserByID(db, dm.UserId)
@@ -145,6 +146,12 @@ func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
 			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel participants: %v", err)
 		}
 
+		thread.ID = dm.ChannelId
+
+		if _, err := thread.DeleteThread(db); err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel threads: %v", err)
+		}
+
 		return http.StatusOK, nil
 	}
 
@@ -174,6 +181,13 @@ func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
 		if err != nil {
 			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel: %v", err)
 		}
+
+		thread.ID = dm.ChannelId
+
+		if _, err := thread.DeleteThread(db); err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel threads: %v", err)
+		}
+
 	}
 
 	return http.StatusOK, nil
@@ -196,7 +210,7 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 		"org_id = ? AND user_id = ? AND chat_type = ? AND channel_type = ?",
 		dm.OrgId,
 		dm.UserId,
-		"user", //remove this later to get both user and bot
+		"user",
 		"group_dm",
 	)
 
@@ -207,23 +221,22 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 	for _, dmchan := range dmchans {
 
 		var (
-			chanPart []ChannelParticipant
-			partInfo ParticipantInfo
+			chanPart     []ChannelParticipant
+			partInfo     ParticipantInfo
 			allPartsInfo []ParticipantInfo
 		)
 
-		
 		err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
 		if err != nil {
 			return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
 		}
-		
+
 		for _, part := range chanPart {
 			userDetails, err := user.GetUserByID(db, part.UserId)
 			if err != nil {
 				return nil, paginationResp, err
 			}
-	
+
 			if userDetails.Profile.UserName == "" {
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 			}
@@ -236,8 +249,8 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 		}
 
 		gpDMChansResp = append(gpDMChansResp, GroupDMChannelsResponse{
-			ChannelId: dmchan.ChannelId,
-			ChannelType: dmchan.ChannelType,
+			ChannelId:    dmchan.ChannelId,
+			ChannelType:  dmchan.ChannelType,
 			Participants: allPartsInfo,
 		})
 	}
