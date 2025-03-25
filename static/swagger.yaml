@@ -79,13 +79,12 @@ tags:
     description: API for Saving Firebase fcmToken
   - name: Bots
     description: API endpoints for bots
+  - name: Mongogrations
+    description: API endpoints for integrations to interact with a mongoDB instance through telex
   - name: File Management
     description: API for uploading and retrieving files
   - name: Search
     description: API endpoints for searching user query
-  - name: Mongogrations
-    description: API endpoints for integrations to interact with a mongoDB instance through telex
-
 
 paths:
   # Auth paths
@@ -142,13 +141,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
 
-        '422':
+        "422":
           description: Unprocessed Entity
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
-
 
   /auth/login:
     post:
@@ -335,7 +333,7 @@ paths:
                             format: date-time
                             example: "1748982383"
 
-        '400':
+        "400":
           description: Invalid input
           content:
             application/json:
@@ -440,10 +438,10 @@ paths:
         - auth
       summary: Request a magic link for authentication
       description: |-
-            Uses Cases:
-              - Sign up a new user
-              - Sign in an existing user
-              - Sign in with auto sign-up a new user if not exists
+        Uses Cases:
+          - Sign up a new user
+          - Sign in an existing user
+          - Sign in with auto sign-up a new user if not exists
       requestBody:
         required: true
         content:
@@ -459,21 +457,21 @@ paths:
         "200":
           description: Magic link sent successfully
           content:
-           application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  example: "success"
-                message:
-                  type: string
-                  example: "Magic link sent succesfully"
-                statusCode:
-                  type: integer
-                  example: 200
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Magic link sent succesfully"
+                  statusCode:
+                    type: integer
+                    example: 200
 
-        '400':
+        "400":
           description: Invalid input
           content:
             application/json:
@@ -490,7 +488,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /auth/magick-link/verify:
     post:
@@ -544,8 +542,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /auth/password-reset:
     post:
@@ -597,8 +594,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /auth/password-reset/verify:
     post:
@@ -706,8 +702,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /auth/email-request/verify:
     post:
@@ -760,8 +755,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /auth/onboard-status:
     get:
@@ -810,9 +804,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     put:
       tags:
@@ -854,7 +846,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /organisations/{orgId}/roles:
     post:
@@ -1237,8 +1229,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /organisations/{orgId}:
     put:
@@ -1291,7 +1282,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     get:
       tags:
@@ -1337,7 +1328,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     delete:
       tags:
@@ -1371,28 +1362,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
-
-        '403':
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-        '404':
+        "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-        '500':
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /organisations/{orgId}/users:
     post:
@@ -1434,8 +1423,7 @@ paths:
                     type: string
                     example: User added successfully
 
-
-        '400':
+        "400":
           description: Bad request
           content:
             application/json:
@@ -1458,7 +1446,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     get:
       tags:
@@ -1835,7 +1823,6 @@ paths:
                   status_code: 404
                   message: "User or organisation not found"
 
-
   /users/{userId}/login-audit:
     get:
       tags:
@@ -1987,12 +1974,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
-
-
-
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /channels:
     post:
@@ -2225,8 +2207,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundErrorSchema'
-
+                $ref: "#/components/schemas/NotFoundErrorSchema"
 
   /channels/{channel_id}/messages/message_id:
     delete:
@@ -2374,7 +2355,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /channels/{channelId}/leave:
     post:
@@ -2524,7 +2505,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     patch:
       tags:
@@ -2627,155 +2608,155 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /channels/{channelId}/user-exist:
-      get:
-        tags:
-          - channels
-        summary: Check if a user exists in a channel
-        security:
-          - bearerAuth: []
-        description: Checks if a user exists in a channel.
-        parameters:
-          - name: channelId
-            in: path
-            required: true
-            schema:
-              type: string
-              format: uuid
-            description: ID of the channel to check for the user.
-          - name: userId
-            in: query
-            required: true
-            schema:
-              type: string
-              format: uuid
-            description: ID of the user to check for.
-        responses:
-          '200':
-            description: User exists in channel
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UserExistResponseSchema'
-          '400':
-            description: Bad request
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/BadRequestErrorSchema'
-          '401':
-            description: Unauthorized
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
-          '404':
-            description: Not found
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/NotFoundErrorSchema'
-          '500':
-            description: Server error
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ServerErrorSchema'
+    get:
+      tags:
+        - channels
+      summary: Check if a user exists in a channel
+      security:
+        - bearerAuth: []
+      description: Checks if a user exists in a channel.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to check for the user.
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to check for.
+      responses:
+        "200":
+          description: User exists in channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserExistResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /organisations/{organisationId}/channels:
-      get:
-        tags:
-          - channels
-        summary: Get all channels in an organisation
-        security:
-          - bearerAuth: []
-        description: Get all channels in an organisation
-        parameters:
-          - name: organisationId
-            in: path
-            required: true
-            schema:
-              type: string
-              format: uuid
-            description: ID of the organisation to check for the channel.
-        responses:
-          '200':
-            description: Get all channels in an organisation
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ChannelsFetchResponseSchema'
-          '400':
-            description: Bad request
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/BadRequestErrorSchema'
-          '401':
-            description: Unauthorized
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
-          '404':
-            description: Not found
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/NotFoundErrorSchema'
-          '500':
-            description: Server error
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ServerErrorSchema'
+    get:
+      tags:
+        - channels
+      summary: Get all channels in an organisation
+      security:
+        - bearerAuth: []
+      description: Get all channels in an organisation
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to check for the channel.
+      responses:
+        "200":
+          description: Get all channels in an organisation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelsFetchResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /channels/{channelId}/num-users:
-      get:
-        tags:
-          - channels
-        summary: Retrieve the number of users in a channel
-        security:
-          - bearerAuth: []
-        description: Retrieves the number of users in a channel.
-        parameters:
-          - name: channelId
-            in: path
-            required: true
-            schema:
-              type: string
-              format: uuid
-            description: ID of the channel to retrieve the number of users for.
-        responses:
-          '200':
-            description: Number of users retrieved successfully
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/NumUsersResponseSchema'
-          '400':
-            description: Bad request
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/BadRequestErrorSchema'
-          '401':
-            description: Unauthorized
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
-          '404':
-            description: Not found
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/NotFoundErrorSchema'
-          '500':
-            description: Server error
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ServerErrorSchema'
+    get:
+      tags:
+        - channels
+      summary: Retrieve the number of users in a channel
+      security:
+        - bearerAuth: []
+      description: Retrieves the number of users in a channel.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to retrieve the number of users for.
+      responses:
+        "200":
+          description: Number of users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NumUsersResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /channels/{channelId}/users:
     get:
@@ -2823,7 +2804,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundErrorSchema'
+                $ref: "#/components/schemas/NotFoundErrorSchema"
 
   /organisations/:org_id/user-channels:
     get:
@@ -3030,33 +3011,33 @@ paths:
                     format: uuid
                     example: 0191a069-7123-7dbe-a1d5-36a882f08521
       responses:
-          200:
-            description: Users added to channel successfully.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: success
-                    status_code:
-                      type: integer
-                      example: 200
-                    message:
-                      type: string
-                      example: users added to channel successfully
-                    data:
-                      type: object
-                      properties:
-                        errors:
-                          type: array
-                          items:
-                            type: string
-                            example: " already in the channel"
-                        message:
+        200:
+          description: Users added to channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: users added to channel successfully
+                  data:
+                    type: object
+                    properties:
+                      errors:
+                        type: array
+                        items:
                           type: string
-                          example: success
+                          example: " already in the channel"
+                      message:
+                        type: string
+                        example: success
 
   /channels/{channel_id}/archive:
     put:
@@ -3122,7 +3103,6 @@ paths:
                     type: object
                     example: {}
 
-
   /token/connection:
     get:
       tags:
@@ -3149,7 +3129,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
   /token/subscription:
     post:
@@ -3183,7 +3163,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnauthorizedErrorSchema'
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
   /blogs:
     post:
@@ -3243,7 +3223,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     get:
       tags:
@@ -3393,8 +3373,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     delete:
       tags:
@@ -3428,22 +3407,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
-
-        '403':
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-        '404':
+        "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-        '500':
+        "500":
           description: Internal server error
           content:
             application/json:
@@ -3518,7 +3496,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     get:
       tags:
@@ -3567,7 +3545,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /blog_categories/{categoryId}:
     get:
@@ -3663,28 +3641,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
-
-        '403':
+        "403":
           description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-        '404':
+        "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-        '500':
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /blogs/feedback:
     post:
@@ -3734,80 +3710,80 @@ paths:
       security:
         - bearerAuth: []
       requestBody:
-          required: true
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_name:
+                  type: string
+                  example: "paystack"
+                content:
+                  type: string
+                  example: "The service is fantastic, great experience."
+              required:
+                - company_name
+                - content
+      responses:
+        "201":
+          description: Testimonial created successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  company_name:
+                  status:
                     type: string
-                    example: "paystack"
-                  content:
+                    example: "success"
+                  message:
                     type: string
-                    example: "The service is fantastic, great experience."
-                required:
-                  - company_name
-                  - content
-      responses:
-          '201':
-            description: Testimonial created successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: "success"
-                    message:
-                      type: string
-                      example: "Testimonial created successfully"
-                    data:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          format: uuid
-                          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-                        user_id:
-                          type: string
-                          format: uuid
-                          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
-                        company_name:
-                          type: string
-                          example: "paystack"
-                        image_url:
-                          type: string
-                          example: "https://image.com"
-                        name:
-                          type: string
-                          example: "Charles Ugberaese"
-                        content:
-                          type: string
-                          example: "The service is fantastic, great experience."
-                        created_at:
-                          type: string
-                          format: date-time
-                          example: "2024-07-18T00:00:00Z"
-          '400':
-              description: Bad Request
-              content:
-               application/json:
-                  schema:
-                    $ref: '#/components/schemas/BadRequestErrorSchema'
-          '401':
-            description: Authentication error
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
-          '500':
-            description: Server error
-            content:
-              application/json:
-                schema:
-                 $ref: '#/components/schemas/ServerErrorSchema'
+                    example: "Testimonial created successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                      user_id:
+                        type: string
+                        format: uuid
+                        example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+                      company_name:
+                        type: string
+                        example: "paystack"
+                      image_url:
+                        type: string
+                        example: "https://image.com"
+                      name:
+                        type: string
+                        example: "Charles Ugberaese"
+                      content:
+                        type: string
+                        example: "The service is fantastic, great experience."
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2024-07-18T00:00:00Z"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     get:
       tags:
@@ -3868,8 +3844,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
+                $ref: "#/components/schemas/ErrorResponse"
 
   /contact:
     post:
@@ -4032,10 +4007,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-
-
+                $ref: "#/components/schemas/ErrorResponse"
 
   /subscriptions/list/{orgId}:
     get:
@@ -4179,7 +4151,7 @@ paths:
                         type: string
                         example: "https://pay.stripe.com/invoice/acct_1Pt6R7P14KvS6i2O/test_YWNjdF8xUHQ2UjdQMTRLdlM2aTJPLF9ScVpQWWxVMmNRbXNUVEN6aFNlYXBTUWRIZFFvMUpmLDEzMTUzMTc3OQ0200dueRb7ZR/pdf?s=ap"
 
-        '400':
+        "400":
           description: Bad request
           content:
             application/json:
@@ -4478,7 +4450,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /webhooks/{channel_id}/{webhook_id}:
     put:
@@ -4562,8 +4534,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
     delete:
       summary: Delete a webhook
@@ -4628,7 +4599,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /webhooks/{channel_id}/{webhook_id}/change-status:
     put:
@@ -4714,8 +4685,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /webhooks/feed/backend-queue:
     post:
@@ -4799,7 +4769,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /webhooks/feed/{webhook_slug}:
     post:
@@ -4979,8 +4949,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /users/organisations:
     get:
@@ -5176,57 +5145,57 @@ paths:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /users/deactivate/{userId}:
-      delete:
-        tags:
-          - user
-        summary: Deactivate a specific user
-        security:
-          - bearerAuth: []
-        parameters:
-          - name: userId
-            in: path
-            required: true
-            schema:
-              type: string
-              format: uuid
-            description: ID of the user to deactivate.
-        responses:
-          '200':
-            description: User deactivated successfully
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UserDeactivateResponseSchema'
-          '400':
-            description: Bad request
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/BadRequestErrorSchema'
-          '401':
-            description: Unauthorized
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UnauthorizedErrorSchema'
-          '403':
-            description: Forbidden
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ForbiddenErrorSchema'
-          '404':
-            description: Not found
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/NotFoundErrorSchema'
-          '500':
-            description: Server error
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ServerErrorSchema'
+    delete:
+      tags:
+        - user
+      summary: Deactivate a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user to deactivate.
+      responses:
+        "200":
+          description: User deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDeactivateResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /users/reactivate/{userId}:
     put:
@@ -5359,7 +5328,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
     patch:
       tags:
         - Profile
@@ -5415,9 +5384,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
   /profile/image:
-
     delete:
       tags:
         - Profile
@@ -5459,7 +5427,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /invite:
     post:
@@ -5695,7 +5663,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /invite/{invite_id}:
     delete:
@@ -6205,8 +6173,6 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Invitation not found"
-
-
 
   /threads/organisations/{orgId}:
     get:
@@ -7195,8 +7161,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
-
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /dms/channels/{channel_id}/messages/message_id:
     delete:
@@ -7349,7 +7314,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/metrics:
     get:
@@ -7421,7 +7386,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/users/{user_id}:
     put:
@@ -7572,8 +7537,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/dms:
     get:
@@ -7796,8 +7760,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
-
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/dms/user/{user_id}:
     get:
@@ -8022,7 +7985,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ForbiddenErrorSchema'
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /help-center/categories:
     post:
@@ -8046,31 +8009,31 @@ paths:
                   type: string
                   format: string
               required:
-                 - name
-                 - description
+                - name
+                - description
       responses:
         "201":
           description: help center category Created successfully
           content:
-           application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  example: "success"
-                statusCode:
-                  type: integer
-                  example: 201
-                message:
-                  type: string
-                  example: "Category added successfully"
-                data:
-                  type: object
-                  properties:
-                    schema:
-                      $ref: '#/components/schemas/CategoryResponseSchema'
-        '401':
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  statusCode:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Category added successfully"
+                  data:
+                    type: object
+                    properties:
+                      schema:
+                        $ref: "#/components/schemas/CategoryResponseSchema"
+        "401":
           description: Unauthenticated
           content:
             application/json:
@@ -8126,7 +8089,7 @@ paths:
                           total_pages:
                             type: integer
                             example: 1
-        '404':
+        "404":
           description: Category not found
           content:
             application/json:
@@ -8137,7 +8100,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /help-center/articles/{category_id}:
     post:
@@ -8168,8 +8131,8 @@ paths:
                   type: string
                   format: string
               required:
-                 - title
-                 - description
+                - title
+                - description
       responses:
         "201":
           description: Help center article created successfully
@@ -8275,7 +8238,7 @@ paths:
                           total_pages:
                             type: integer
                             example: 1
-        '404':
+        "404":
           description: Category not found
           content:
             application/json:
@@ -8286,7 +8249,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /help-center/articles/{article_id}:
     get:
@@ -8330,7 +8293,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /help-center/articles/search:
     get:
@@ -8385,7 +8348,7 @@ paths:
                             type: integer
                             example: 1
 
-# agents
+  # agents
 
   /slack/organisations/{organisationId}/token-exchg:
     post:
@@ -8549,8 +8512,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
-
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /organisations/{organisationId}/agents:
     post:
@@ -10427,7 +10389,6 @@ paths:
         404:
           description: Organisation or agent not found.
 
-
   /organisations/{org_id}/slash-commands:
     get:
       summary: Retrieve all slash commands for an organization
@@ -10678,8 +10639,8 @@ paths:
                   message:
                     type: string
                     example: "Agent app created successfully"
-        '400':
-            description: Invalid JSON url supplied.
+        "400":
+          description: Invalid JSON url supplied.
 
     get:
       summary: Get agents for an organization
@@ -11014,7 +10975,6 @@ paths:
                       value:
                         type: string
 
-
         400:
           description: Invalid organisation_id or request.
         404:
@@ -11066,7 +11026,6 @@ paths:
                         type: boolean
                       is_active:
                         type: boolean
-
 
         400:
           description: Invalid organisation_id or request.
@@ -11143,7 +11102,6 @@ paths:
                   data:
                     type: object
                     properties:
-
 
         400:
           description: Invalid agent_idor request.
@@ -11291,7 +11249,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /users/notification-preferences:
     get:
@@ -11420,7 +11378,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerErrorSchema'
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /organisations/{organisation_id}/groups:
     post:
@@ -11891,8 +11849,6 @@ paths:
                     created_at: "2024-11-27T06:47:21.857515+01:00"
                     deleted_at: "0001-01-01T00:13:35+00:13"
 
-
-
   /organisations/{organisation_id}/groups/channels/no-group:
     get:
       tags:
@@ -12186,11 +12142,11 @@ paths:
                   status_code: 404
                   message: "Organisation not found"
 
-#mongogrations
+  #mongogrations
   /mongo-integrations:
     get:
       tags:
-          - Mongogrations
+        - Mongogrations
       summary: Read entries from a MongoDB collection
       description: Retrieves documents from the specified collection based on the provided filter.
       consumes:
@@ -12270,7 +12226,7 @@ paths:
         400:
           description: Bad request. Invalid input.
         404:
-            description: Document not found.
+          description: Document not found.
         500:
           description: Internal server error.
     delete:
@@ -12300,7 +12256,7 @@ paths:
         400:
           description: Bad request. Invalid input.
         404:
-            description: Document not found.
+          description: Document not found.
         500:
           description: Internal server error.
 
@@ -12350,14 +12306,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
 
-        '422':
+        "422":
           description: Unprocessed Entity
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
-# file management
+  # file management
   /files/upload-files:
     post:
       tags:
@@ -12437,7 +12393,120 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/InternalServerErrorSchema"
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+
+  /files/file/{id}:
+    get:
+      tags:
+        - File Management
+      summary: Retrieve file details by ID
+      description: Fetches file metadata and a file link from the database using a unique file ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      responses:
+        "200":
+          description: File found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Files located successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Deployment and Rollback Procedure.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
 
   /search/organisation/{orgId}/:
     get:
@@ -12445,21 +12514,21 @@ paths:
         - Search
       summary: Search for messages within an organization for a specific user
       description: |
-          Search for messages within an organization based on various keyword-based filters.
-          The entire search query, including keywords, is passed in the `query` parameter.
-          Example format: `"Hello word how are you from:layo before:2024-12-31"`
+        Search for messages within an organization based on various keyword-based filters.
+        The entire search query, including keywords, is passed in the `query` parameter.
+        Example format: `"Hello word how are you from:layo before:2024-12-31"`
 
-          #### Supported Keywords:
-          - **from:** *Filter messages by sender* (e.g., `from:layo`)
-          - **in:** *Filter messages by channel name* (e.g., `in:general`)
-          - **has:** *Search for messages containing a specific word* (e.g., `has:meeting`)
-          - **before:** *Find messages sent before a specific date* (e.g., `before:2024-12-31`)
-          - **on:** *Find messages sent on a specific date* (e.g., `on:2024-12-27`)
-          - **after:** *Find messages sent after a specific date* (e.g., `after:2024-12-25`)
-          - **exact:** *Find messages matching an exact phrase* (e.g., `exact:Project deadline`)
+        #### Supported Keywords:
+        - **from:** *Filter messages by sender* (e.g., `from:layo`)
+        - **in:** *Filter messages by channel name* (e.g., `in:general`)
+        - **has:** *Search for messages containing a specific word* (e.g., `has:meeting`)
+        - **before:** *Find messages sent before a specific date* (e.g., `before:2024-12-31`)
+        - **on:** *Find messages sent on a specific date* (e.g., `on:2024-12-27`)
+        - **after:** *Find messages sent after a specific date* (e.g., `after:2024-12-25`)
+        - **exact:** *Find messages matching an exact phrase* (e.g., `exact:Project deadline`)
 
-          You can chain multiple keywords together, for example:
-          `"Hello team has:meeting before:2024-12-31 from:layo"`
+        You can chain multiple keywords together, for example:
+        `"Hello team has:meeting before:2024-12-31 from:layo"`
       security:
         - bearerAuth: []
       parameters:
@@ -12485,7 +12554,6 @@ paths:
           schema:
             type: string
             enum: [relevance, recency]
-
 
       responses:
         200:
@@ -14439,7 +14507,6 @@ components:
           type: string
           example: An error occurred
 
-
     addUserToOrganizationReq:
       type: object
       properties:
@@ -14451,7 +14518,6 @@ components:
           type: string
           format: uuid
           example: 01910544-d1e1-7ada-bdac-c761e527ec92
-
 
     createOrganizationReq:
       type: object
@@ -14470,8 +14536,6 @@ components:
           type: string
         logo_url:
           type: string
-
-
 
     organizationResData:
       type: object
@@ -14537,7 +14601,7 @@ components:
           type: string
           example: organization created successfully
         data:
-          $ref: '#/components/schemas/organizationResData'
+          $ref: "#/components/schemas/organizationResData"
 
     organizationUSuccessResponse:
       type: object
@@ -14552,7 +14616,7 @@ components:
           type: string
           example: organization updated successfully
         data:
-          $ref: '#/components/schemas/organizationResData'
+          $ref: "#/components/schemas/organizationResData"
 
     organizationGSuccessResponse:
       type: object
@@ -14567,7 +14631,7 @@ components:
           type: string
           example: organization retrieved successfully
         data:
-          $ref: '#/components/schemas/organizationResData'
+          $ref: "#/components/schemas/organizationResData"
 
     CreateHelpCenter:
       type: object
@@ -14979,7 +15043,6 @@ components:
               format: date-time
               example: 2024-07-30T21:11:21.9538358+01:00
 
-
     MessagesListResponseSchema:
       type: object
       properties:
@@ -15282,7 +15345,6 @@ components:
           format: date-time
           description: The timestamp when the access token was last updated.
 
-
     UserSessionsListResponseSchema:
       type: object
       properties:
@@ -15379,7 +15441,6 @@ components:
         message: "user delete successfully"
         data: null
         pagination: null
-
 
     UserUpdateResponseSchema:
       type: object
@@ -15512,7 +15573,6 @@ components:
           format: phone
         language:
           type: string
-
 
     UserSession:
       type: object
@@ -15756,7 +15816,7 @@ components:
         default: 10
 
   securitySchemes:
-      bearerAuth:
-        type: http
-        scheme: bearer
-        bearerFormat: JWT
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
