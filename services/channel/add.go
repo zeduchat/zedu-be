@@ -102,7 +102,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
 
@@ -182,7 +182,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		publishDst = *dmChannel.ParticipantId
 	}
 
-	notification := models.Notifcation[models.Updated]
+	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ReplySection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
@@ -237,7 +237,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		return nil, http.StatusInternalServerError, err
 	}
 
-	notification := models.Notifcation[models.Deleted]
+	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,

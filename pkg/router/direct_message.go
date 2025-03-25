@@ -29,8 +29,8 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		threadUrl.DELETE("/thread/:thread_id/channels/:channel_id", thread.DeleteAThread)
 		
 		threadUrl.POST("/channels/:channel_id/threads", dmCtrl.AddAThreadDm)
-		threadUrl.POST("/messages/:channelId", dmCtrl.AddChannelsMsg)
-		threadUrl.PUT("/messages/:channelId", dmCtrl.EditChannelsMsg)
+		threadUrl.POST("/messages/:channelId", dmCtrl.ReplyThreadDm)
+		threadUrl.PUT("/messages/:channelId", dmCtrl.EditThreadDm)
 		threadUrl.DELETE("/channels/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
 	}
 	return r

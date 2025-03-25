@@ -90,7 +90,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 

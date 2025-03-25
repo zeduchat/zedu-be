@@ -255,7 +255,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusBadRequest, err
 	}
 
-	notification := models.Notifcation[models.Deleted]
+	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  threadID,
@@ -348,7 +348,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		}
 	}
 
-	notification := models.Notifcation[models.Updated]
+	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ThreadSection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,

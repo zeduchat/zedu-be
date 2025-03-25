@@ -87,7 +87,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 	errorsOccurred := false

@@ -96,7 +96,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
 	errorsOccurred := false
