@@ -84,20 +84,20 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		OrgId:     req.OrgId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
+	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		return nil, fmt.Errorf("failed to broadcast thread data")
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 
-	err = centrifuge.BroadcastChannel(logger, req.OrgId, notification)
+	err = centrifuge.PublishChannel(logger, req.OrgId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
-		return nil, fmt.Errorf("failed to broadcast thread data")
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
+		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
 	// Push notification to channel users

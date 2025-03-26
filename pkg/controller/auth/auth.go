@@ -58,7 +58,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 
 	err = telexaudit.SignupAudit(base.Db, base.Logger, respData)
 	if err != nil {
-		base.Logger.Error("error broadcasting signup audit: ", err.Error())
+		base.Logger.Error("error publishing signup audit: ", err.Error())
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "User Created Successfully", respData)
@@ -129,7 +129,7 @@ func (base *Controller) LoginUser(c *gin.Context) {
 
 	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
 	if err != nil {
-		base.Logger.Error("error broadcasting login audit: ", err.Error())
+		base.Logger.Error("error publishing login audit: ", err.Error())
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user login successfully", respData)

@@ -96,20 +96,20 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		UserId:    req.UserId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, threadId.String(), feed)
+	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to threadId: %s, error: %v", threadId.String(), err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to threadId: %s, error: %v", threadId.String(), err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
 
-	err = centrifuge.BroadcastChannel(logger, req.OrgId, notification)
+	err = centrifuge.PublishChannel(logger, req.OrgId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to with orgid: %s error: %v", req.OrgId, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to with orgid: %s error: %v", req.OrgId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
 	pushReq := models.PushFCMRequest{
@@ -117,7 +117,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		ChannelName: channels.Name,
 		UserId:      req.UserId,
 		Message:     req.Content,
-		TimeStamp: messageDoc.CreatedAt.String(),
+		TimeStamp:   messageDoc.CreatedAt.String(),
 	}
 
 	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
@@ -131,11 +131,11 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
-		message      models.Message
-		newMsg       models.MessageDocument
-		channel      models.Channels
-		dmChannel    models.DmChannels
-		broadcastDst string
+		message    models.Message
+		newMsg     models.MessageDocument
+		channel    models.Channels
+		dmChannel  models.DmChannels
+		publishDst string
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -176,13 +176,13 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	}
 
 	if channel.OrganisationID != "" {
-		broadcastDst = channel.OrganisationID
+		publishDst = channel.OrganisationID
 
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		publishDst = *dmChannel.ParticipantId
 	}
 
-	notification := models.Notifcation[models.Updated]
+	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ReplySection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
@@ -190,10 +190,10 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		MessageId: req.MessageId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
 	err = newMsg.GetMessageById(db, message.ID)
@@ -208,11 +208,12 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
-		message      models.Message
-		newMsg       models.MessageDocument
-		channel      models.Channels
-		dmChannel    models.DmChannels
-		broadcastDst string
+		message    models.Message
+		newMsg     models.MessageDocument
+		channel    models.Channels
+		dmChannel  models.DmChannels
+		publishDst string
+		chanParts  []models.ChannelParticipant
 	)
 
 	message.ID = req.MessageId
@@ -236,7 +237,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		return nil, http.StatusInternalServerError, err
 	}
 
-	notification := models.Notifcation[models.Deleted]
+	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
@@ -245,16 +246,35 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	}
 
 	if channel.OrganisationID != "" {
-		broadcastDst = channel.OrganisationID
-
+		publishDst = channel.OrganisationID
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		if dmChannel.ChannelType == "dm" {
+			publishDst = *dmChannel.ParticipantId
+		}
 	}
 
-	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != req.UserId {
+				err = centrifuge.PublishChannel(logger, participant.UserId, notification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+				}
+			}
+		}
+
+		return nil, http.StatusOK, nil
+	}
+
+	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to destination: %s error: %v", broadcastDst, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast data to centrifugo ")
+		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
 	return nil, http.StatusOK, nil
@@ -355,7 +375,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 
 	if req.Type == "message" {
 
-		logger.Info("saving and broadcasting recieved channel message")
+		logger.Info("saving and publishing recieved channel message")
 		_, _, err = SaveChannelsMsg(reqNew, db, logger)
 
 	} else if req.Type == "message/thread" {
@@ -368,16 +388,16 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 			OrgId:      req.OrgId,
 		}
 
-		logger.Info("saving and broadcasting recieved thread message")
+		logger.Info("saving and publishing recieved thread message")
 		_, err = thread.SaveThreadMessage(reqNew, db, logger)
 	}
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error saving and broadcasting recieved message: %v", err.Error()))
+		logger.Error(fmt.Sprintf("Error saving and publishing recieved message: %v", err.Error()))
 		return
 	}
 
-	logger.Info("saving and broadcasting recieved message successfull !!!")
+	logger.Info("saving and publishing recieved message successfull !!!")
 }
 
 func UpdateIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
@@ -395,7 +415,7 @@ func UpdateIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 
 	if req.Type == "message" {
 
-		logger.Info("saving and broadcasting recieved channel message")
+		logger.Info("saving and publishing recieved channel message")
 		_, _, err = SaveChannelsMsg(reqNew, db, logger)
 
 	} else if req.Type == "message/thread" {
@@ -408,14 +428,14 @@ func UpdateIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 			OrgId:      req.OrgId,
 		}
 
-		logger.Info("saving and broadcasting recieved thread message")
+		logger.Info("saving and publishing recieved thread message")
 		_, err = thread.SaveThreadMessage(reqNew, db, logger)
 	}
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error saving and broadcasting recieved message: %v", err.Error()))
+		logger.Error(fmt.Sprintf("Error saving and publishing recieved message: %v", err.Error()))
 		return
 	}
 
-	logger.Info("saving and broadcasting recieved message successfull !!!")
+	logger.Info("saving and publishing recieved message successfull !!!")
 }

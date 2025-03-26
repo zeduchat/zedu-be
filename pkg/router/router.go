@@ -56,6 +56,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	HelpCenter(r, ApiVersion, validator, db, logger)
 	OptIn(r, ApiVersion, validator, db, logger)
 	Dms(r, ApiVersion, validator, db, logger)
+	GroupDMs(r, ApiVersion, validator, db, logger)
 	Group(r, ApiVersion, validator, db, logger)
 
 	Search(r, ApiVersion, validator, db, logger)

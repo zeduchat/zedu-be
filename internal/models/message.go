@@ -100,7 +100,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		dmChannels   DmChannels
 		userChannels UserChannels
 		thread       ThreadDocument
-		chanOrg      Channels
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
@@ -110,14 +109,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		return errors.New("user not in channel")
 	}
 
-	// set OrganisationID in elasticDB
-	chanInfo := ChannelInfo{UserID: m.UserID, ChannelID: m.ChannelsID}
-	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
-	if err != nil {
-		return err
-	}
-	m.OrganisationID = chans.OrganisationID
-	err = elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
+	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
 	}

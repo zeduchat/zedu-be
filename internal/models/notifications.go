@@ -26,7 +26,7 @@ type ModifcationDetails struct {
 	OrgId     string `json:"org_id,omitempty"`
 }
 
-var Notifcation = map[NotificationType]Content{
+var Notification = map[NotificationType]Content{
 
 	Updated: Content{
 		NotificationType: Updated,
@@ -42,5 +42,3 @@ var Notifcation = map[NotificationType]Content{
 		NotificationType: NewMessage,
 	},
 }
-
-
