@@ -8,13 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
-
 	"github.com/hngprojects/telex_be/internal/models"
 	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) AddAThreadDm(c *gin.Context) {
+func (base *Controller) AddAGroupThreadDM(c *gin.Context) {
 
 	var (
 		req       = models.CreateThreadMsgReq{}
@@ -54,41 +53,20 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	threadData, statusCode, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger)
+	ThreadData, code, err := dm.CreateGroupThreadDMMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
-		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), nil, nil)
-		c.JSON(statusCode, rd)
-		return
-	}
-
-	base.Logger.Info("dm thread message added successfully")
-	rd := utility.BuildSuccessResponse(statusCode, "dm thread message added successfully", threadData)
-	c.JSON(statusCode, rd)
-}
-
-func (base *Controller) GetAllChannelThreads(c *gin.Context) {
-
-	var (
-		channelID = c.Param("channel_id")
-	)
-
-	if _, err := uuid.Parse(channelID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
-		return
-	}
-
-	usersData, paginationResponse, code, err := dm.GetAllChannelDmThreads(channelID, base.Db.Postgresql, c)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(code, "Data retrieved successfully", usersData, paginationResponse)
+	base.Logger.Info("thread message added successfully")
+
+	rd := utility.BuildSuccessResponse(code, "Thread message added successfully", ThreadData)
 	c.JSON(code, rd)
 
 }
+
+

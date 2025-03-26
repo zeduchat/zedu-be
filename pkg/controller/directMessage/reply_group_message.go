@@ -7,14 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
-
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/channel"
 	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) ReplyThreadDm(c *gin.Context) {
+func (base *Controller) ReplyGroupChannelsMsg(c *gin.Context) {
 	var (
 		req models.CreateMessageRequest
 	)
@@ -52,19 +51,19 @@ func (base *Controller) ReplyThreadDm(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := dm.AddChannelsDmMsg(req, base.Db, base.Logger)
+	response, code, err := dm.ReplyGroupChannelsMsg(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("channel message added successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", response)
+	base.Logger.Info("group channel message reply added successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "group channel message reply added successfully", response)
 	c.JSON(code, rd)
 }
 
-func (base *Controller) EditThreadDm(c *gin.Context) {
+func (base *Controller) EditGroupChannelsMsg(c *gin.Context) {
 	var (
 		req models.EditMessageRequest
 	)
@@ -109,7 +108,7 @@ func (base *Controller) EditThreadDm(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("message edited successfully")
-	rd := utility.BuildSuccessResponse(code, "message edited successfully", response)
+	base.Logger.Info("group channel message edited successfully")
+	rd := utility.BuildSuccessResponse(code, "group channel message edited successfully", response)
 	c.JSON(code, rd)
 }
