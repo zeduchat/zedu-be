@@ -30,10 +30,16 @@ func (base *Controller) UploadController(c *gin.Context) {
 		return
 	}
 
-	var uploadedFiles []string
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	var uploadedFiles []*models.UploadedFileResponse
 
 	for _, fileHeader := range req.Files {
-		// Open the file
 		file, err := fileHeader.Open()
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file", err, nil)
@@ -42,15 +48,14 @@ func (base *Controller) UploadController(c *gin.Context) {
 		}
 		defer file.Close()
 
-		// Call the UploadFile service
-		filePath, err := services.UploadFiles(base.Logger, file, fileHeader)
+		fileData, err := services.UploadFiles(base.Db.Postgresql, base.Logger, file, fileHeader)
 		if err != nil {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err, nil)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err.Error(), nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
 
-		uploadedFiles = append(uploadedFiles, filePath)
+		uploadedFiles = append(uploadedFiles, fileData)
 	}
 
 	base.Logger.Info("Files uploaded successfully")
@@ -58,18 +63,18 @@ func (base *Controller) UploadController(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) FileController(c *gin.Context) {
+func (base *Controller) GetFileDetailsByID(c *gin.Context) {
+	var fileModel models.UploadedFileResponse
+	fileId := c.Param("id")
 
-	objectName := c.Param("filename")
-
-	preSignedUrl, err := services.GeneratePresignedURL(base.Logger, objectName)
+	file, err := fileModel.GetFileByID(base.Db.Postgresql, fileId)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate presigned URL", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
-	base.Logger.Info("URL generated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "URL generated successfully", preSignedUrl)
+	base.Logger.Info("Files located successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Files located successfully", file)
 	c.JSON(http.StatusOK, rd)
 }

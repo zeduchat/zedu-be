@@ -48,6 +48,7 @@ func AuthMigrationModels() []interface{} {
 		models.NotificationPreferences{},
 		models.Plan{},
 		models.OrganisationPlan{},
+		models.UploadedFileResponse{},
 		models.ProcessedStripeWebhook{},
 		models.OptIn{},
 		models.OrganisationIntegrations{},
