@@ -43,8 +43,10 @@ func Search(db *storage.Database, c *gin.Context, userId string,
 	searchResult, err := models.SearchQuery(db, c, searchQuery, userId, orgId)
 
 	if err != nil {
-		if err.Error() == "no search results found" {
+		if err.Error() == "no search results found" || err.Error() == "Organisation does not exist" {
 			return nil, http.StatusNotFound, err
+		} else if err.Error() == "error fetching channels" || err.Error() == "User does not exist in this organisation" {
+			return nil, http.StatusBadRequest, err
 		}
 		return nil, http.StatusInternalServerError, err
 	}
