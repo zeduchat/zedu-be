@@ -2,6 +2,7 @@ package search
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -39,17 +40,15 @@ func Search(db *storage.Database, c *gin.Context, userId string,
 		}
 		searchQuery.SortBy = sortby
 	}
-
 	searchResult, err := models.SearchQuery(db, c, searchQuery, userId, orgId)
-
 	if err != nil {
-		if err.Error() == "no search results found" || err.Error() == "Organisation does not exist" {
+		if err.Error() == "no search results found" || strings.Contains(err.Error(), "Organisation does not exist") {
 			return nil, http.StatusNotFound, err
-		} else if err.Error() == "error fetching channels" || err.Error() == "User does not exist in this organisation" {
+		} else if err.Error() == "error fetching channels" || strings.Contains(err.Error(), "User does not exist in the organisation") {
 			return nil, http.StatusBadRequest, err
 		}
+		fmt.Println(err)
 		return nil, http.StatusInternalServerError, err
 	}
-
 	return searchResult, http.StatusOK, nil
 }
