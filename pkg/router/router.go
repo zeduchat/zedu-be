@@ -59,6 +59,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Group(r, ApiVersion, validator, db, logger)
 
 	Search(r, ApiVersion, validator, db, logger)
+	DmFilter(r, ApiVersion, validator, db, logger)
 
 	Agents(r, ApiVersion, validator, db, logger)
 	Mongogrations(r, ApiVersion, validator, db, logger)
