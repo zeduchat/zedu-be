@@ -26,33 +26,33 @@ type FileType struct {
 
 var AllowedFileTypes = map[string]string{
 	// Images
-	"image/png":  "file-uploads/",
-	"image/jpeg": "file-uploads/",
-	"image/jpg":  "file-uploads/",
-	"image/gif":  "file-uploads/",
-	"image/webp": "file-uploads/",
+	"image/png":  "public/file-uploads/",
+	"image/jpeg": "public/file-uploads/",
+	"image/jpg":  "public/file-uploads/",
+	"image/gif":  "public/file-uploads/",
+	"image/webp": "public/file-uploads/",
 
 	// Documents
-	"text/plain":         "file-uploads/", // .txt or .csv
-	"text/csv":           "file-uploads/",
-	"application/pdf":    "file-uploads/",
-	"application/msword": "file-uploads/",
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": "file-uploads/", // .docx
-	"application/vnd.ms-word.document.macroEnabled.12":                        "file-uploads/", // .docm
-	"application/x-msword":     "file-uploads/", // Alternative .doc MIME
-	"application/zip":          "file-uploads/", // Some .docx files are detected as ZIP
-	"application/vnd.ms-excel": "file-uploads/", // .xls
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         "file-uploads/", // .xlsx
-	"application/vnd.ms-powerpoint":                                             "file-uploads/", // .ppt
-	"application/vnd.openxmlformats-officedocument.presentationml.presentation": "file-uploads/", // .pptx
+	"text/plain":         "public/file-uploads/", // .txt or .csv
+	"text/csv":           "public/file-uploads/",
+	"application/pdf":    "public/file-uploads/",
+	"application/msword": "public/file-uploads/",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": "public/file-uploads/", // .docx
+	"application/vnd.ms-word.document.macroEnabled.12":                        "public/file-uploads/", // .docm
+	"application/x-msword":     "public/file-uploads/", // Alternative .doc MIME
+	"application/zip":          "public/file-uploads/", // Some .docx files are detected as ZIP
+	"application/vnd.ms-excel": "public/file-uploads/", // .xls
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         "public/file-uploads/", // .xlsx
+	"application/vnd.ms-powerpoint":                                             "public/file-uploads/", // .ppt
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": "public/file-uploads/", // .pptx
 
 	// Audio
-	"audio/mpeg": "file-uploads/", // .mp3
-	"audio/wav":  "file-uploads/", // .wav
+	"audio/mpeg": "public/file-uploads/", // .mp3
+	"audio/wav":  "public/file-uploads/", // .wav
 
 	// Video
-	"video/mp4":  "file-uploads/", // .mp4
-	"video/webm": "file-uploads/", // .webm
+	"video/mp4":  "public/file-uploads/", // .mp4
+	"video/webm": "public/file-uploads/", // .webm
 }
 
 func (file *UploadedFileResponse) CreateFileRecord(db *gorm.DB) error {
