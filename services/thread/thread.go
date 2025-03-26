@@ -291,7 +291,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-		return http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
+		return http.StatusBadRequest, errors.New("failed to publish data")
 	}
 
 	return http.StatusOK, nil
@@ -381,7 +381,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-		return threadResp, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
+		return threadResp, http.StatusBadRequest, errors.New("failed to publish data")
 	}
 
 	err = threadResp.GetThreadById(db, thread.ID)

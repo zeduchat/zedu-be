@@ -127,14 +127,14 @@ func (base *Controller) CreateGroupDMChannel(c *gin.Context) {
 	respData, statusCode, err := dm.CreateGroupDMChannel(req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
 		c.JSON(statusCode, rd)
 		return
 	}
 
 	base.Logger.Info("Group DM channel created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Group DM channel created successfully", respData)
-	c.JSON(http.StatusCreated, rd)
+	rd := utility.BuildSuccessResponse(statusCode, "Group DM channel created successfully", respData)
+	c.JSON(statusCode, rd)
 }
 
 func (base *Controller) DeleteGroupDMChannel(c *gin.Context) {

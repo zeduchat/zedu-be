@@ -3,6 +3,7 @@ package centrifuge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -77,6 +78,31 @@ func PublishToThreadSubChannel(logger *utility.Logger, channelID string, threadI
 	}
 
 	logger.Info(fmt.Sprintf("Published to sub-channel %s", subChannelID))
+
+	return nil
+}
+
+func BatchBroadcastToChannel(logger *utility.Logger, channelIDs []string, publishPayload interface{}) error {
+	ctx := context.Background()
+
+	payload, err := json.Marshal(publishPayload)
+	if err != nil {
+		return err
+	}
+
+	client := Client.C
+
+	if len(channelIDs) == 0 {
+		return errors.New("no channels to broadcast to")
+	}
+
+	err = client.Broadcast(ctx, channelIDs, payload)
+	if err != nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to broadcast to channel %s: %v", channelIDs, err.Error()))
+		return err
+	}
+
+	logger.Info(fmt.Sprintf("broadcasted to %s", channelIDs))
 
 	return nil
 }
