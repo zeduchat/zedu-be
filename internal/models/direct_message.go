@@ -2,12 +2,14 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -39,6 +41,72 @@ type DmChannelsRequest struct {
 	UserId        string `json:"user_id"`
 	OrgId         string `json:"org_id"`
 	ChannelId     string `json:"channel_id"`
+}
+
+func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL string) (map[string]interface{}, error) {
+	data := map[string]string{"url": agentJSONURL}
+
+	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch agent json: %v", err)
+	}
+
+	response_data := response.(map[string]interface{})
+	data_r, ok := response_data["data"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("could not fetch data from agent json")
+	}
+
+	err = ValidateAgentData(data_r)
+	if err != nil {
+		return nil, fmt.Errorf("invalid agent json data: %v", err)
+	}
+
+	return data_r, nil
+}
+
+func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *gorm.DB) (DmChannelsResponse, error) {
+	var (
+		orgAgent       OrganisationIntegrations
+		dmChanResponse DmChannelsResponse
+	)
+
+	exists := postgresql.CheckExists(db, &orgAgent, "org_id = ? AND integration_id = ?", dm.OrgId, *dm.ParticipantId)
+	if !exists {
+		return DmChannelsResponse{}, errors.New("agent does not exist in organisation")
+	}
+
+	agentJSONURL := orgAgent.JSONUrl
+	agentDetails, err := FetchDetailsFromAgentJSON(extReq, agentJSONURL)
+	if err != nil {
+		return DmChannelsResponse{}, err
+	}
+
+	agentDescription := agentDetails["descriptions"].(map[string]interface{})
+
+	exists = postgresql.CheckExists(db, &dm, "user_id = ? AND participant_id = ?", dm.UserId, *dm.ParticipantId)
+	if exists {
+		dmChanResponse.ID = dm.ChannelId
+		dmChanResponse.ParticipantId = *dm.ParticipantId
+		dmChanResponse.ParticipantEmail = agentDescription["app_name"].(string)
+		dmChanResponse.AvatarUrl = agentDescription["app_logo"].(string)
+		dmChanResponse.Name = agentDescription["app_name"].(string)
+
+		return dmChanResponse, nil
+	}
+
+	err = postgresql.CreateOneRecord(db, &dm)
+	if err != nil {
+		return DmChannelsResponse{}, err
+	}
+
+	dmChanResponse.ID = dm.ChannelId
+	dmChanResponse.ParticipantId = *dm.ParticipantId
+	dmChanResponse.ParticipantEmail = agentDescription["app_name"].(string)
+	dmChanResponse.AvatarUrl = agentDescription["app_logo"].(string)
+	dmChanResponse.Name = agentDescription["app_name"].(string)
+
+	return dmChanResponse, nil
 }
 
 func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
