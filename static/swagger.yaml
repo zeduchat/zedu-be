@@ -12397,6 +12397,772 @@ paths:
                     nullable: true
                     example: null
 
+  /organisations/{organisation_id}/group-dms/:
+    get:
+      tags:
+        - Group Direct Message
+      summary: Retrieve Group DM Channels
+      description: Retrieves all Group DM channels within a given organisation.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
+      responses:
+        '200':
+          description: Group DM channels retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channel_id:
+                          type: string
+                        channel_type:
+                          type: string
+                        participants:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: string
+                              username:
+                                type: string
+                              avatar_url:
+                                type: string
+                              email:
+                                type: string
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                        page_size:
+                          type: integer
+                        total_items:
+                          type: integer
+                        total_pages:
+                          type: integer
+    post:
+      tags:
+        - Group Direct Message
+      summary: Create a Group DM Channel
+      description: Creates a new Group DM channel with specified participants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chat_type:
+                  type: string
+                  enum: [user]
+                  description: Type of chat (currently only "user" is supported).
+                participants:
+                  type: array
+                  items:
+                    type: string
+                  description: List of user IDs to be added to the Group DM.
+              required:
+                - chat_type
+                - participants
+            example:
+              chat_type: "user"
+              participants: 
+                - "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
+                - "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
+                - "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
+      responses:
+        '201':
+          description: Group DM channel created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      channel_id:
+                        type: string
+                        description: Unique identifier for the newly created Group DM channel.
+                      channel_type:
+                        type: string
+                        description: Type of channel.
+                      participants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              description: Unique identifier of the participant.
+                            username:
+                              type: string
+                              description: Username of the participant.
+                            avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
+                            email:
+                              type: string
+                              format: email
+                              description: Email of the participant.
+                example:
+                  status: "success"
+                  status_code: 201
+                  message: "Group DM channel created successfully"
+                  data:
+                    channel_id: "0195c046-c8fa-7341-b9ea-f463de6a82d5"
+                    channel_type: "group_dm"
+                    participants:
+                      - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                        username: "micahshallom"
+                        avatar_url: ""
+                        email: "micahshallom@gmail.com"
+                      - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
+                        username: "user1"
+                        avatar_url: ""
+                        email: "user1@gmail.com"
+                      - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
+                        username: "user2"
+                        avatar_url: ""
+                        email: "user2@gmail.com"
+                      - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b6"
+                        username: "user6"
+                        avatar_url: ""
+                        email: "user6@gmail.com"
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 400
+                  message: "Invalid request payload"
+        '404':
+          description: Organisation not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "Organisation not found"
+  
+    /organisations/{organisation_id}/group-dms/{channel_id}:
+      delete:
+        tags:
+          - Group Direct Message
+        summary: Delete a Group DM Channel
+        description: Deletes a specified Group DM channel.
+        parameters:
+          - name: organisation_id
+            in: path
+            required: true
+            schema:
+              type: string
+            description: The unique identifier of the organisation.
+          - name: channel_id
+            in: path
+            required: true
+            schema:
+              type: string
+            description: The unique identifier of the Group DM channel to delete.
+        responses:
+          '200':
+            description: Group DM channel deleted successfully.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    status_code:
+                      type: integer
+                    message:
+                      type: string
+                example:
+                  status: "success"
+                  status_code: 200
+                  message: "Group DM channel deleted successfully"
+          '400':
+            description: Invalid request parameters.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    status_code:
+                      type: integer
+                    message:
+                      type: string
+                example:
+                  status: "error"
+                  status_code: 400
+                  message: "Invalid group DM ID"
+          '404':
+            description: Group DM channel not found.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    status_code:
+                      type: integer
+                    message:
+                      type: string
+                example:
+                  status: "error"
+                  status_code: 404
+                  message: "Group DM channel not found"
+  
+    /organisations/{organisation_id}/group-dms/{user_id}:
+      get:
+        tags:
+          - Group Direct Message
+        summary: Retrieve Group DM User Details
+        description: Retrieves details of a specific user in a Group DM.
+        parameters:
+          - name: organisation_id
+            in: path
+            required: true
+            schema:
+              type: string
+            description: The unique identifier of the organisation.
+          - name: user_id
+            in: path
+            required: true
+            schema:
+              type: string
+            description: The unique identifier of the Group DM channel.
+        responses:
+          '200':
+            description: User retrieved successfully.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    status_code:
+                      type: integer
+                    message:
+                      type: string
+                    data:
+                      type: object
+                      properties:
+                        avatar_url:
+                          type: string
+                        email:
+                          type: string
+                        username:
+                          type: string
+  
+    /group-dms/channels/{channel_id}/threads:
+      post:
+        tags:
+          - Group Direct Message
+        summary: Create a Thread in a Group DM Channel
+        description: Adds a new thread message to a specified Group DM channel.
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                  thread_id:
+                    type: string
+                required:
+                  - content
+                  - thread_id
+        responses:
+          '201':
+            description: Thread message added successfully.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    status_code:
+                      type: integer
+                    message:
+                      type: string
+                    data:
+                      type: object
+                      properties:
+                        thread_id:
+                          type: string
+                        channels_id:
+                          type: string
+                        event_name:
+                          type: string
+                        username:
+                          type: string
+                        action_type:
+                          type: string
+                        status:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        message_count:
+                          type: integer
+                        last_reply:
+                          type: string
+                          format: date-time
+                        avatar_url:
+                          type: string
+                        type:
+                          type: string
+                        message:
+                          type: string
+                        channel_name:
+                          type: string
+                        current_status:
+                          type: string
+                        full_name:
+                          type: string
+                        email:
+                          type: string
+                        user_id:
+                          type: string
+                        edited:
+                          type: boolean
+
+  /group-dms/messages/{channel_id}:
+    put:
+      tags:
+        - Group Direct Message
+      summary: Edit a reply message
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                thread_id:
+                  type: string
+                  format: uuid
+                message_id:
+                  type: string
+                  format: uuid
+      responses:
+        201:
+          description: Message updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      content:
+                        type: string
+                      channel_id:
+                        type: string
+                      userId:
+                        type: string
+                      threadId:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+    post:
+      tags:
+        - Group Direct Message
+      summary: Send a Message in a Group DM Thread
+      description: Adds a new message to an existing thread in a Group DM channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                thread_id:
+                  type: string
+              required:
+                - content
+                - thread_id
+      responses:
+        '201':
+          description: Group channel message added successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      message:
+                        type: string
+                      channels_id:
+                        type: string
+                      user_id:
+                        type: string
+                      username:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+                      thread_id:
+                        type: string
+                      avatar_url:
+                        type: string
+                      edited:
+                        type: boolean
+                      full_name:
+                        type: string
+                      email:
+                        type: string
+
+  /group-dms/thread/{thread_id}/channels/{channel_id}:
+    put:
+      tags:
+        - Group Direct Message
+      summary: Update a Thread
+      description: Updates the content of a specific thread in a group DM channel.
+      parameters:
+        - name: thread_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "hallelujah"
+      responses:
+        200:
+          description: Thread updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Thread updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      thread_id:
+                        type: string
+                      channels_id:
+                        type: string
+                      message:
+                        type: string
+                      edited:
+                        type: boolean
+                      messages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            message:
+                              type: string
+                            user_id:
+                              type: string
+                            username:
+                              type: string
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                            edited:
+                              type: boolean
+    delete:
+      tags:
+        - Group Direct Message
+      summary: Delete a Thread
+      description: Deletes a specific thread in a group DM channel.
+      parameters:
+        - name: thread_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Thread deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Thread deleted successfully"
+
+  /group-dms/thread/{threadId}/channels/{channelId}:
+    get:
+      tags:
+        - Group Direct Message
+      summary: Retrieve a specific thread reply message
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        thread_id:
+                          type: string
+                        channels_id:
+                          type: string
+                        event_name:
+                          type: string
+                        username:
+                          type: string
+                        action_type:
+                          type: string
+                        status:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              content:
+                                type: string
+                              channels_id:
+                                type: string
+                              user_id:
+                                type: string
+                              username:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                              updated_at:
+                                type: string
+                                format: date-time
+                              thread_id:
+                                type: string
+                              mentions:
+                                type: string
+                                nullable: true
+                              avatar_url:
+                                type: string
+
+  /group-dms/channels/{channelId}/threads:
+    get:
+      tags:
+        - Group Direct Message
+      summary: Get all thread messages
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        thread_id:
+                          type: string
+                        channels_id:
+                          type: string
+                        event_name:
+                          type: string
+                        username:
+                          type: string
+                        action_type:
+                          type: string
+                        status:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              content:
+                                type: string
+                              channels_id:
+                                type: string
+                              user_id:
+                                type: string
+                              username:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                              updated_at:
+                                type: string
+                                format: date-time
+                              thread_id:
+                                type: string
+                              mentions:
+                                type: string
+                                nullable: true
+                              avatar_url:
+                                type: string
+
 
   /files/file/{id}:
     get:
