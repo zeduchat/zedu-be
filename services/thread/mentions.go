@@ -48,7 +48,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
+		ID:            req.ThreadId,
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
@@ -129,7 +129,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	)
 
 	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
-
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
 		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
