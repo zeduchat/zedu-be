@@ -360,8 +360,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	return &models.MessageDocument{}, http.StatusOK, nil
 }
 
-func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
-	logger *utility.Logger) {
+func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database, logger *utility.Logger) {
 
 	var err error
 
