@@ -64,6 +64,8 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ChannelName:   channel.Name,
 		Status:        "success",
 		Edited:        false,
+		Mentions:      req.Mentions,
+		Media:         req.Media,
 	}
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
