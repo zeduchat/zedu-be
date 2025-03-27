@@ -40,10 +40,15 @@ func (base *Controller) DmFilter(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	err := dmfilter.FilterData(userId, orgId)
+	dms, statusCode, err := dmfilter.FilterData(base.Db, userId, orgId)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		rd := utility.BuildErrorResponse(statusCode, http.StatusText(statusCode), err.Error(), err, nil)
+		c.JSON(statusCode, rd)
 	}
+
+	fmt.Printf("%+v ------------->", dms)
+	resp := utility.BuildSuccessResponse(http.StatusOK, "success", "search result", dms)
+	c.JSON(statusCode, resp)
+
 }
