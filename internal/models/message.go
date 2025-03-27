@@ -19,18 +19,18 @@ import (
 var MessageIndexName = "messages"
 
 type Message struct {
-	ID         string                 `gorm:"type:uuid;primary_key" json:"id"`
-	Content    string                 `gorm:"column:content; type:text; not null" json:"content"`
-	ChannelsID string                 `gorm:"type:uuid;not null;index" json:"channels_id"`
-	UserID     string                 `gorm:"type:uuid;not null;index" json:"user_id"`
-	Username   string                 `gorm:"column:username; type:varchar(100)" json:"username"`
-	CreatedAt  time.Time              `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt  time.Time              `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
-	DeletedAt  gorm.DeletedAt         `gorm:"index" json:"-"`
-	ThreadID   uuid.UUID              `gorm:"type:uuid;null;index" json:"thread_id"`
-	Mentions   []Mentions             `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
-	AvatarURL  string                 `json:"avatar_url,omitempty"`
-	Edited     bool                   `gorm:"type:bool" json:"edited,omitempty"`
+	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
+	Content    string         `gorm:"column:content; type:text; not null" json:"content"`
+	ChannelsID string         `gorm:"type:uuid;not null;index" json:"channels_id"`
+	UserID     string         `gorm:"type:uuid;not null;index" json:"user_id"`
+	Username   string         `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
+	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
+	AvatarURL  string         `json:"avatar_url,omitempty"`
+	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
 type MessageDocument struct {
@@ -50,7 +50,7 @@ type MessageDocument struct {
 	FullName       string                 `json:"full_name"`
 	Email          string                 `json:"email"`
 	Media          []UploadedFileResponse `json:"media,omitempty"`
-	Mentions       []Mentions             `json:"mentions,omitempty"`
+	Mentions       []Mention              `json:"mentions,omitempty"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -97,7 +97,7 @@ type CreateMessageRequest struct {
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
 	Media      []UploadedFileResponse `json:"media"`
-	Mentions   []Mentions             `json:"mentions"`
+	Mentions   []Mention             `json:"mentions"`
 }
 
 type EditMessageRequest struct {

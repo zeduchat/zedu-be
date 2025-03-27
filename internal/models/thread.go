@@ -68,7 +68,7 @@ type ThreadDocument struct {
 	Messages      []MessageDocument      `json:"messages,omitempty"`
 	Count         int                    `json:"frequency,omitempty"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
-	Mentions      []Mentions             `json:"mentions,omitempty"`
+	Mentions      []Mention              `json:"mentions,omitempty"`
 }
 
 var MediaMapping = map[string]interface{}{
@@ -182,7 +182,7 @@ type Mention struct {
 type CreateThreadMsgReq struct {
 	Content    string                 `json:"content" validate:"required"`
 	Media      []UploadedFileResponse `json:"media"`
-	Mentions   []Mentions             `json:"mentions"`
+	Mentions   []Mention              `json:"mentions"`
 	ChannelsID string                 `json:"channels_id"`
 	Message    string                 `json:"message"`
 	UserId     string                 `json:"user_id"`
@@ -197,17 +197,18 @@ type BotReturnRequest struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID string `json:"channel_id"`
-	FullName  string `json:"full_name"`
-	UserName  string `json:"username"`
-	CreatedAt string `json:"created_at"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url,omitempty"`
-	Type      string `json:"type"`
-	Content   string `json:"message"`
-	ThreadId  string `json:"thread_id"`
-	OrgId     string `json:"org_id"`
-	UserId    string `json:"user_id"`
+	ChannelID string                 `json:"channel_id"`
+	FullName  string                 `json:"full_name"`
+	UserName  string                 `json:"username"`
+	CreatedAt string                 `json:"created_at"`
+	Email     string                 `json:"email"`
+	AvatarURL string                 `json:"avatar_url,omitempty"`
+	Type      string                 `json:"type"`
+	Content   string                 `json:"message"`
+	ThreadId  string                 `json:"thread_id"`
+	OrgId     string                 `json:"org_id"`
+	UserId    string                 `json:"user_id"`
+	Media     []UploadedFileResponse `json:"media"`
 }
 
 type Mentions struct {

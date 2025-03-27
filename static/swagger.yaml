@@ -13,6 +13,7 @@ info:
 servers:
   - url: https://api.staging.telex.im/api/v1
   - url: https://api.telex.im/api/v1
+  - url: http://localhost:8019/api/v1
 
 tags:
   - name: auth
