@@ -13,6 +13,7 @@ info:
 servers:
   - url: https://api.staging.telex.im/api/v1
   - url: https://api.telex.im/api/v1
+  - url: http://localhost:8019/api/v1
 
 tags:
   - name: auth
@@ -6745,6 +6746,39 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+
 
       responses:
         "200":
@@ -6975,6 +7009,38 @@ paths:
                   format: string
                   description: Message Content
                   example: some sample message from client
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
 
       responses:
         "200":
@@ -12722,6 +12788,38 @@ paths:
                     type: string
                   thread_id:
                     type: string
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
                 required:
                   - content
                   - thread_id
@@ -12853,9 +12951,42 @@ paths:
                   type: string
                 thread_id:
                   type: string
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
               required:
                 - content
                 - thread_id
+
       responses:
         '201':
           description: Group channel message added successfully.
@@ -15750,10 +15881,38 @@ components:
           type: string
           format: uuid
           description: thread id
-        message_id:
-          type: string
-          format: uuid
-          description: message id(optional)
+        media:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "550e8400-e29b-41d4-a716-446655440000"
+              file_name:
+                type: string
+                example: "slsslsl"
+              file_type:
+                type: string
+                example: "png"
+              file_link:
+                type: string
+                format: uri
+                example: "https://example.com/file.png"
+        mentions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [bot, user]
+                example: "bot"
+              id:
+                type: string
+                format: uuid
+                example: "550e8400-e29b-41d4-a716-446655440000"
 
     MessageCreateResponseSchema:
       type: object

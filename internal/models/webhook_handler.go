@@ -30,6 +30,7 @@ type FeedWebHookRequest struct {
 type FeedQueue struct {
 	ChannelsId string `json:"channel_id"`
 	ThreadId   string `json:"thread_id"`
+	AgentName  string `json:"agent_name"`
 	UserId     string `json:"user_id"`
 	ReturnUrl  string `json:"return_url"`
 	Content    string `json:"message"`

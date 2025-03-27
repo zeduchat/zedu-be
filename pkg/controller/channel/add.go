@@ -174,7 +174,13 @@ func (base *Controller) SaveIncomingQueueMsg(c *gin.Context) {
 		return
 	}
 
-	channel.SaveIncomingQueueMsg(req, base.Db, base.Logger)
+	err = channel.SaveIncomingQueueMsg(req, base.Db, base.Logger)
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to save message", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	base.Logger.Info("message added successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", nil)

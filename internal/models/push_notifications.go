@@ -7,4 +7,5 @@ type PushFCMRequest struct {
 	ChannelName string `json:"channel_name"`
 	TimeStamp   string `json:"time_stamp"`
 	AvatarUrl   string `json:"avatar_url"`
+	Username    string `json:"username"`
 }

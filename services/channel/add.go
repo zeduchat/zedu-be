@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,10 +30,15 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
-		profile  models.Profile
-		user     models.User
-		channels models.Channels
+		profile       models.Profile
+		user          models.User
+		channels      models.Channels
+		agent_message = false
 	)
+
+	if req.AgentName != "" && req.UserId == "" {
+		agent_message = true
+	}
 
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
@@ -47,29 +53,32 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
-	if err != nil {
+	if err != nil && !agent_message {
 		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
-	if err != nil {
+	if err != nil && !agent_message {
 		return nil, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
 	messageDoc := models.MessageDocument{
-		ID:         utility.GenerateUUID(),
-		Content:    req.Content,
-		ChannelsID: req.ChannelsId,
-		UserID:     req.UserId,
-		ThreadID:   threadId,
-		CreatedAt:  time.Now().UTC(),
-		UpdatedAt:  time.Now().UTC(),
-		AvatarURL:  profile.AvatarURL,
-		Edited:     false,
-		Username:   profile.UserName,
-		FullName:   profile.FullName,
-		Email:      user.Email,
+		ID:           utility.GenerateUUID(),
+		Content:      req.Content,
+		ChannelsID:   req.ChannelsId,
+		UserID:       req.UserId,
+		ThreadID:     threadId,
+		AgentMessage: agent_message,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+		AvatarURL:    profile.AvatarURL,
+		Edited:       false,
+		Username:     utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
+		Email:        user.Email,
+		Media:        req.Media,
+		Mentions:     req.Mentions,
 	}
 
 	err = messageDoc.CreateMessage(db, logger)
@@ -94,6 +103,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		FullName:  profile.FullName,
 		OrgId:     req.OrgId,
 		UserId:    req.UserId,
+		Media:     req.Media,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -117,12 +127,12 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		ChannelName: channels.Name,
 		UserId:      req.UserId,
 		Message:     req.Content,
-		TimeStamp:   messageDoc.CreatedAt.String(),
+		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 	}
 
 	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
 	if err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to send push notifcation to channel users")
+		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
 	}
 
 	return &messageDoc, http.StatusCreated, nil
@@ -360,7 +370,8 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	return &models.MessageDocument{}, http.StatusOK, nil
 }
 
-func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database, logger *utility.Logger) {
+func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
+	logger *utility.Logger) error {
 
 	var err error
 
@@ -370,6 +381,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database, logger *ut
 		ThreadId:   req.ThreadId,
 		UserId:     req.UserId,
 		OrgId:      req.OrgId,
+		AgentName:  req.AgentName,
 	}
 
 	if req.Type == "message" {
@@ -393,10 +405,11 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database, logger *ut
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error saving and publishing recieved message: %v", err.Error()))
-		return
+		return err
 	}
 
 	logger.Info("saving and publishing recieved message successfull !!!")
+	return err
 }
 
 func UpdateIncomingQueueMsg(req models.FeedQueue, db *storage.Database,

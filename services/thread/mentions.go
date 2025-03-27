@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -64,6 +65,8 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ChannelName:   channel.Name,
 		Status:        "success",
 		Edited:        false,
+		Mentions:      req.Mentions,
+		Media:         req.Media,
 	}
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
@@ -82,6 +85,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,
+		Media:     req.Media,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -107,11 +111,12 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ChannelName: channel.Name,
 		UserId:      req.UserId,
 		Message:     req.Content,
+		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 	}
 
 	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send push notifcation to channel users")
+		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
 	}
 
 	logger.Info("sent push notification to channel users")
@@ -172,9 +177,9 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 					"message":    feed.Content,
 					"thread_id":  feed.ThreadId,
 					// "is_channel_conversation": true,
-					"type":       feed.Type,
-					"user_id":    feed.UserId,
-					"org_id":     feed.OrgId,
+					"type":    feed.Type,
+					"user_id": feed.UserId,
+					"org_id":  feed.OrgId,
 				},
 				"channel_id": feed.ChannelsId,
 				"return_url": feed.ReturnUrl,
