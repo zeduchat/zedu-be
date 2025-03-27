@@ -7057,7 +7057,7 @@ paths:
   ## Reply Message Dms
 
   /dms/messages/{channel_id}:
-    
+
     post:
       tags:
         - Direct Message
@@ -12485,7 +12485,7 @@ paths:
                 - participants
             example:
               chat_type: "user"
-              participants: 
+              participants:
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
@@ -12589,8 +12589,8 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Organisation not found"
-  
-    /organisations/{organisation_id}/group-dms/{channel_id}:
+
+  /organisations/{organisation_id}/group-dms/{channel_id}:
       delete:
         tags:
           - Group Direct Message
@@ -12661,8 +12661,8 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Group DM channel not found"
-  
-    /organisations/{organisation_id}/group-dms/{user_id}:
+
+  /organisations/{organisation_id}/group-dms/{user_id}:
       get:
         tags:
           - Group Direct Message
@@ -12704,8 +12704,8 @@ paths:
                           type: string
                         username:
                           type: string
-  
-    /group-dms/channels/{channel_id}/threads:
+
+  /group-dms/channels/{channel_id}/threads:
       post:
         tags:
           - Group Direct Message
@@ -12780,7 +12780,6 @@ paths:
                           type: string
                         edited:
                           type: boolean
-
   /group-dms/messages/{channel_id}:
     put:
       tags:
@@ -12899,7 +12898,6 @@ paths:
                         type: string
                       email:
                         type: string
-
   /group-dms/thread/{thread_id}/channels/{channel_id}:
     put:
       tags:
@@ -13009,7 +13007,6 @@ paths:
                   message:
                     type: string
                     example: "Thread deleted successfully"
-
   /group-dms/thread/{threadId}/channels/{channelId}:
     get:
       tags:
@@ -13088,7 +13085,6 @@ paths:
                                 nullable: true
                               avatar_url:
                                 type: string
-
   /group-dms/channels/{channelId}/threads:
     get:
       tags:
@@ -13162,8 +13158,6 @@ paths:
                                 nullable: true
                               avatar_url:
                                 type: string
-
-
   /files/file/{id}:
     get:
       tags:
@@ -13258,7 +13252,6 @@ paths:
                     type: object
                     nullable: true
                     example: null
-
   /search/organisation/{orgId}/:
     get:
       tags:
@@ -13418,6 +13411,100 @@ paths:
                   message:
                     type: string
                     example: "An unexpected error occurred"
+  /dm/organisation/{orgId}/:
+      get:
+        tags:
+          - Search
+        summary: Get user direct messages in an organization
+        description: Retrieves direct messages for a user within a specified organization.
+        security:
+          - bearerAuth: []
+        parameters:
+          - name: orgId
+            in: path
+            required: true
+            description: The ID of the organization user belong to.
+            schema:
+              type: string
+        responses:
+          200:
+            description: Successfully retrieved direct messages.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    user_id:
+                      type: string
+                    user_name:
+                      type: string
+                    org_id:
+                      type: string
+                      nullable: true
+                    avatar_url:
+                      type: string
+                      nullable: true
+                    channel_id:
+                      type: string
+                    message:
+                      type: string
+                    timestamp:
+                      type: string
+                      format: date-time
+          400:
+            description: Bad Request - Invalid request parameters.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: Bad Request
+                    status_code:
+                      type: integer
+                      example: 400
+                    message:
+                      type: string
+                      example: Invalid request parameters
+                    error:
+                      type: object
+          404:
+            description: Organization not found.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: Not Found
+                    status_code:
+                      type: integer
+                      example: 404
+                    message:
+                      type: string
+                      example: "failed to build search query: Organisation does not exist"
+                    error:
+                      type: object
+          500:
+            description: Internal Server Error.
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: Internal Server Error
+                    status_code:
+                      type: integer
+                      example: 500
+                    message:
+                      type: string
+                      example: An unexpected error occurred
+                    error:
+                        type: objec
 
 components:
   schemas:
