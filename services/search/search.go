@@ -31,26 +31,24 @@ func Search(db *storage.Database, c *gin.Context, userId string,
 	} else if queryArr == nil && query != "" {
 		searchQuery.Message = query
 	} else {
-		fmt.Println(query, queryArr)
 		return nil, http.StatusBadRequest, errors.New("invalid search query, empty query provided")
 	}
 
-	//  sort key validation
 	if sortby != "" {
 		if !ValidateSortKey(sortby) {
 			return nil, http.StatusBadRequest, errors.New("invalid sort key provided")
 		}
 		searchQuery.SortBy = sortby
 	}
-
 	searchResult, err := models.SearchQuery(db, c, searchQuery, userId, orgId)
-
 	if err != nil {
-		if err.Error() == "no search results found" {
+		if err.Error() == "no search results found" || strings.Contains(err.Error(), "Organisation does not exist") {
 			return nil, http.StatusNotFound, err
+		} else if err.Error() == "error fetching channels" || strings.Contains(err.Error(), "User does not exist in the organisation") {
+			return nil, http.StatusBadRequest, err
 		}
+		fmt.Println(err)
 		return nil, http.StatusInternalServerError, err
 	}
-
 	return searchResult, http.StatusOK, nil
 }

@@ -48,7 +48,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
+		ID:            req.ThreadId,
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
@@ -116,7 +116,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("failed to send push notifcation to channel users")
 	}
 
-	logger.Info(fmt.Sprintf("sent push notification to channel users"))
+	logger.Info("sent push notification to channel users")
 
 	return &threadDoc, nil
 }
@@ -131,7 +131,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	)
 
 	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
-
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
 		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
@@ -174,6 +173,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 					"channel_id": feed.ChannelsId,
 					"message":    feed.Content,
 					"thread_id":  feed.ThreadId,
+					// "is_channel_conversation": true,
 					"type":       feed.Type,
 					"user_id":    feed.UserId,
 					"org_id":     feed.OrgId,

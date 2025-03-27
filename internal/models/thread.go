@@ -191,6 +191,11 @@ type CreateThreadMsgReq struct {
 	AgentName  string                 `json:"agent_name"`
 }
 
+type BotReturnRequest struct {
+	ChannelID string `json:"channel_id"`
+	Content   string `json:"content"`
+}
+
 type FeedMessageRequest struct {
 	ChannelID string `json:"channel_id"`
 	FullName  string `json:"full_name"`
