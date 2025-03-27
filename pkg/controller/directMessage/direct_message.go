@@ -68,7 +68,7 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := dm.CreateDmChannel(req, base.Db.Postgresql)
+	respData, code, err := dm.CreateDmChannel(req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -79,6 +79,7 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 	base.Logger.Info("Dm channel created successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "DM channel created successfully", respData)
 	c.JSON(http.StatusCreated, rd)
+
 }
 
 func (base *Controller) GetDmChannels(c *gin.Context) {
