@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -125,12 +126,12 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		ChannelName: channels.Name,
 		UserId:      req.UserId,
 		Message:     req.Content,
-		TimeStamp:   messageDoc.CreatedAt.String(),
+		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 	}
 
 	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
 	if err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to send push notifcation to channel users")
+		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
 	}
 
 	return &messageDoc, http.StatusCreated, nil
