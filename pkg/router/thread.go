@@ -32,5 +32,6 @@ func Threads(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 		threadUrl.GET("/organisations/:org_id/metrics", thread.GetChannelCountInfo)
 	}
+
 	return r
 }

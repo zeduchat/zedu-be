@@ -69,12 +69,6 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 		return
 	}
 
-	// if err != nil {
-	// 	base.Logger.Info("invalid webhook")
-	// 	rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "invalid webhook", err, nil)
-	// 	c.JSON(http.StatusUnprocessableEntity, rd)
-	// 	return
-	// }
 
 	respData, code, err := webhook.PostFeedWebhook(base.Db, base.Logger, req)
 

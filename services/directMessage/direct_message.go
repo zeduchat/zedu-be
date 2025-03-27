@@ -8,12 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.DmChannelsResponse, int, error) {
+func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.ExternalRequest) (*models.DmChannelsResponse, int, error) {
 
 	var dmchans models.DmChannels
 
@@ -25,15 +26,20 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.DmChann
 	dmchans.ID = utility.GenerateUUID()
 	dmchans.ParticipantId = &req.ParticipantId
 
-	resp, err := dmchans.CreateDmChannel(db)
+	var resp models.DmChannelsResponse
+	var err error
 
+	if req.ChatType == "bot" {
+		resp, err = dmchans.CreateAgentDMChannel(extReq, db)
+	} else {
+		resp, err = dmchans.CreateDmChannel(db)
+	}
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
 	return &resp, http.StatusCreated, nil
 }
-
 
 func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([]models.DmChannelsResponse, postgresql.PaginationResponse, int, error) {
 

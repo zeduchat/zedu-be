@@ -92,3 +92,33 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 	c.JSON(code, rd)
 
 }
+
+func (base *Controller) BotDMResponse(c *gin.Context) {
+	var req models.BotReturnRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	respData, code, err := dm.BotResponse(req, base.Db, base.Logger, base.ExtReq)
+	if err != nil {
+		base.Logger.Error("error creating dm channel", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to post message", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Bot response sent successfully")
+	rd := utility.BuildSuccessResponse(code, "Bot response sent successfully", respData)
+	c.JSON(code, rd)
+}
