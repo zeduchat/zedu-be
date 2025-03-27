@@ -98,5 +98,4 @@ func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
 	}
 
 	return http.StatusOK, nil
-
 }
