@@ -21,17 +21,16 @@ import (
 )
 
 type Channels struct {
-	ID             string `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name           string `gorm:"column:name; type:text; not null" json:"name"`
-	Description    string `gorm:"column:description; type:text; not null" json:"description"`
-	OrganisationID string `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
-	OwnerId        string `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	Users          []User `gorm:"many2many:user_channels;" json:"users"`
-	UserCount      int64  `gorm:"-" json:"user_count"`
-	MessageCount   int64  `gorm:"-" json:"message_count"`
-	Archived       bool   `gorm:"column:archived;null; default:false" json:"archived"`
-	// GroupID        sql.NullString `gorm:"column:group_id; type:uuid;index; null" json:"group_id"`
-	GroupID *string `gorm:"column:group_id; type:uuid;index;" json:"group_id"`
+	ID             string  `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name           string  `gorm:"column:name; type:text; not null" json:"name"`
+	Description    string  `gorm:"column:description; type:text; not null" json:"description"`
+	OrganisationID string  `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId        string  `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	Users          []User  `gorm:"many2many:user_channels;" json:"users"`
+	UserCount      int64   `gorm:"-" json:"user_count"`
+	MessageCount   int64   `gorm:"-" json:"message_count"`
+	Archived       bool    `gorm:"column:archived;null; default:false" json:"archived"`
+	GroupID        *string `gorm:"column:group_id; type:uuid;index;" json:"group_id"`
 
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
@@ -59,6 +58,8 @@ type GetChannelsRequest struct {
 
 type GetChannelResp struct {
 	Channels
+	OwnerName  string `json:"owner_name"`
+	OwnerEmail string `json:"owner_email"`
 	WebhookUrl string `json:"webhook_url"`
 	Access     bool   `json:"access"`
 }
@@ -232,17 +233,18 @@ func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, erro
 	return channels, nil
 }
 
-func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelResp, error) {
+func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelResp, error) {
 	var (
 		channel  Channels
 		chanResp GetChannelResp
 		ur       UserChannels
 		webhook  Webhook
+		owner     User
 	)
 
 	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &channel, "id = ?", chanReq.ChannelID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Users.Profile"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
 		return chanResp, errors.New("channel not found in organisation")
 	}
@@ -254,13 +256,20 @@ func (r *Channels) GetChannelsByID(db *gorm.DB, chanReq ChannelInfo) (GetChannel
 
 	channel.UserCount = count
 	webhook, err = webhook.GetChannelWebhook(db, chanReq)
-
 	if err != nil {
 		return chanResp, errors.New("could not get channel webhook")
 	}
 
+	// get owner name and email
+	err, _ = postgresql.SelectOneFromDb(db, &owner, "id = ?", channel.OwnerId)
+	if err != nil {
+		return chanResp, errors.New("could not get channel owner")
+	}
+
 	chanResp = GetChannelResp{
 		channel,
+		owner.Name,
+		owner.Email,
 		webhook.WebhookUrl,
 		access,
 	}
@@ -410,16 +419,16 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 		channelID    = req.ChannelID
 		userChanList []UserChannels
 	)
-	
+
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
 		return errors.New("channel does not exist")
 	}
-	
+
 	if len(users) > 10 {
 		return errors.New("maximum of 10 users can be added")
 	}
-	
+
 	for _, user := range users {
 		var userChannels UserChannels
 

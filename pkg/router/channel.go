@@ -21,6 +21,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	channelQueueUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion))
 
 	{
+		// POST routes
 		channelUrl.POST("", channel.CreateChannels)
 		channelQueueUrl.POST("/backend-queue", channel.SaveIncomingQueueMsg)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
@@ -30,23 +31,26 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
 		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
 
+		// PUT routes
 		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
-
-		channelUrl.DELETE("/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
 		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
 
+		// DELETE routes
+		channelUrl.DELETE("/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
+		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
+		channelUrl.DELETE("/:channelId/integration-channels", channel.DeleteChannelIntegration)
+
+		// GET routes
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
-		channelUrl.GET("/:channelId", channel.GetChannels)
+		channelUrl.GET("/:channelId", channel.GetChannel)
 		channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 		channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)
 		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
 		channelUrl.GET("/:channelId/integration-channels/:IntModId", channel.GetIntegrationChannels)
 
-		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
-		channelUrl.DELETE("/:channelId/integration-channels", channel.DeleteChannelIntegration)
-
+		// PATCH routes
 		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
 		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
 	}

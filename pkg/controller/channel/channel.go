@@ -74,7 +74,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) GetChannels(c *gin.Context) {
+func (base *Controller) GetChannel(c *gin.Context) {
 	channels_id := c.Param("channelId")
 
 	if _, err := uuid.Parse(channels_id); err != nil {
@@ -93,7 +93,7 @@ func (base *Controller) GetChannels(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id, userId)
+	respData, code, err := channel.GetChannel(base.Db.Postgresql, channels_id, userId)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
