@@ -45,7 +45,7 @@ func GetMimeTypeFromFileName(filename string) (string, error) {
 
 	mimeType := mime.TypeByExtension(strings.ToLower(ext))
 	if mimeType == "" {
-		return "application/octet-stream", nil // Fallback
+		return "application/octet-stream", nil
 	}
 
 	return mimeType, nil
@@ -116,7 +116,6 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 	}
 
 	extension := filepath.Ext(header.Filename)
-
 	hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
 	encodedFilePath := "public/file-uploads/" + hashedFileName
 
@@ -142,8 +141,16 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 			MimeType: existingFile.MimeType,
 			FileLink: existingFile.FileLink,
 		}
+		storageErr := response.CreateFileRecord(db)
+		if storageErr != nil {
+			errMsg := fmt.Errorf("error saving file details: %w", storageErr)
+			utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
+			return nil, errMsg
+		}
+
 		return &response, nil
 	} else {
+		hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
 		if err != nil {
 			errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
@@ -159,7 +166,7 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 
 		response := models.UploadedFileResponse{
 			ID:       id,
-			FileName: header.Filename,
+			FileName: hashedFileName,
 			FileType: filepath.Ext(header.Filename)[1:],
 			MimeType: mimeType,
 			FileLink: generatedUrl,
@@ -174,4 +181,19 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 
 		return &response, nil
 	}
+}
+
+func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+	encodedFilePath := "public/file-uploads/" + fileName
+
+	err := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
+	if err != nil {
+		errMsg := fmt.Errorf("failed to delete file: %w", err)
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to delete file: %v", err.Error()))
+		return errMsg
+	}
+
+	return nil
 }

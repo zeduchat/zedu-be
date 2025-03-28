@@ -20,6 +20,7 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	{
 		fileManagementUrl.POST("/upload-files", fileManagement.UploadController)
 		fileManagementUrl.GET("/file/:id", fileManagement.GetFileDetailsByID)
+		fileManagementUrl.DELETE("/file/:id", fileManagement.DeleteFileDetailsByID)
 	}
 
 	return r

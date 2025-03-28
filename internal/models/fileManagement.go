@@ -42,3 +42,14 @@ func (file *UploadedFileResponse) GetFileByID(db *gorm.DB, fileID string) (*Uplo
 
 	return file, nil
 }
+
+func (file *UploadedFileResponse) DeleteFileByID(db *gorm.DB, fileID string) error {
+	query := db.Where("id = ?", fileID)
+
+	err := query.Delete(&UploadedFileResponse{}).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

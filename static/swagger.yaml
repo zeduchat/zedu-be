@@ -6779,7 +6779,6 @@ paths:
                         format: uuid
                         example: "550e8400-e29b-41d4-a716-446655440000"
 
-
       responses:
         "200":
           description: Thread retrieved successfully
@@ -7123,7 +7122,6 @@ paths:
   ## Reply Message Dms
 
   /dms/messages/{channel_id}:
-    
     post:
       tags:
         - Direct Message
@@ -12479,7 +12477,7 @@ paths:
             type: string
           description: The unique identifier of the organisation.
       responses:
-        '200':
+        "200":
           description: Group DM channels retrieved successfully.
           content:
             application/json:
@@ -12553,12 +12551,12 @@ paths:
                 - participants
             example:
               chat_type: "user"
-              participants: 
+              participants:
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
       responses:
-        '201':
+        "201":
           description: Group DM channel created successfully.
           content:
             application/json:
@@ -12623,7 +12621,7 @@ paths:
                         username: "user6"
                         avatar_url: ""
                         email: "user6@gmail.com"
-        '400':
+        "400":
           description: Invalid request body.
           content:
             application/json:
@@ -12640,7 +12638,7 @@ paths:
                   status: "error"
                   status_code: 400
                   message: "Invalid request payload"
-        '404':
+        "404":
           description: Organisation not found.
           content:
             application/json:
@@ -12657,7 +12655,7 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Organisation not found"
-  
+
     /organisations/{organisation_id}/group-dms/{channel_id}:
       delete:
         tags:
@@ -12678,7 +12676,7 @@ paths:
               type: string
             description: The unique identifier of the Group DM channel to delete.
         responses:
-          '200':
+          "200":
             description: Group DM channel deleted successfully.
             content:
               application/json:
@@ -12695,7 +12693,7 @@ paths:
                   status: "success"
                   status_code: 200
                   message: "Group DM channel deleted successfully"
-          '400':
+          "400":
             description: Invalid request parameters.
             content:
               application/json:
@@ -12712,7 +12710,7 @@ paths:
                   status: "error"
                   status_code: 400
                   message: "Invalid group DM ID"
-          '404':
+          "404":
             description: Group DM channel not found.
             content:
               application/json:
@@ -12729,7 +12727,7 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Group DM channel not found"
-  
+
     /organisations/{organisation_id}/group-dms/{user_id}:
       get:
         tags:
@@ -12750,7 +12748,7 @@ paths:
               type: string
             description: The unique identifier of the Group DM channel.
         responses:
-          '200':
+          "200":
             description: User retrieved successfully.
             content:
               application/json:
@@ -12772,7 +12770,7 @@ paths:
                           type: string
                         username:
                           type: string
-  
+
     /group-dms/channels/{channel_id}/threads:
       post:
         tags:
@@ -12826,7 +12824,7 @@ paths:
                   - content
                   - thread_id
         responses:
-          '201':
+          "201":
             description: Thread message added successfully.
             content:
               application/json:
@@ -12990,7 +12988,7 @@ paths:
                 - thread_id
 
       responses:
-        '201':
+        "201":
           description: Group channel message added successfully.
           content:
             application/json:
@@ -13296,7 +13294,6 @@ paths:
                               avatar_url:
                                 type: string
 
-
   /files/file/{id}:
     get:
       tags:
@@ -13351,6 +13348,82 @@ paths:
                         type: string
                         format: uri
                         example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+    delete:
+      tags:
+        - File Management
+      summary: Delete file by ID
+      description: Deletes file metadata from the database and removes the actual file from MinIO using a unique file ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File deleted successfully"
         "404":
           description: File not found
           content:
