@@ -28,7 +28,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 
 	chanReq.ChannelID = feed.ChannelID
 
-	chanresp, err := channel.GetChannelsByID(db, chanReq)
+	chanresp, err := channel.GetChannelByID(db, chanReq)
 
 	if err != nil {
 		return errors.New("failed to fetch channel")

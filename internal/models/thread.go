@@ -20,55 +20,78 @@ import (
 var ThreadIndexName = "threads"
 
 type Threads struct {
-	ID            string     `gorm:"type:uuid;primary_key" json:"thread_id"`
-	ChannelsID    string     `gorm:"type:uuid;index" json:"channels_id"`
-	EventName     string     `gorm:"type:varchar(200);index" json:"event_name"`
-	Username      string     `gorm:"type:varchar(50);index" json:"username"`
-	ActionType    string     `gorm:"type:text;index" json:"action_type"`
-	Status        string     `gorm:"type:varchar(200);index" json:"status"`
-	CreatedAt     time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages      []Message  `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	MessageCount  int64      `gorm:"type:int;" json:"message_count"`
-	LastReply     time.Time  `json:"last_reply"`
-	AvatarURL     string     `json:"avatar_url"`
-	Type          string     `gorm:"default:thread" json:"type"`
-	Content       string     `gorm:"type:text;index" json:"message"`
-	ChannelName   string     `json:"channel_name"`
-	CurrentStatus string     `json:"current_status"`
-	FullName      string     `json:"full_name"`
-	Email         string     `json:"email"`
-	Edited        bool       `json:"edited"`
-	Reactions     []Reaction `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
-	Count         int        `json:"frequency,omitempty"`
-	UserId        string     `json:"user_id"`
+	ID            string                 `gorm:"type:uuid;primary_key" json:"thread_id"`
+	ChannelsID    string                 `gorm:"type:uuid;index" json:"channels_id"`
+	EventName     string                 `gorm:"type:varchar(200);index" json:"event_name"`
+	Username      string                 `gorm:"type:varchar(50);index" json:"username"`
+	ActionType    string                 `gorm:"type:text;index" json:"action_type"`
+	Status        string                 `gorm:"type:varchar(200);index" json:"status"`
+	CreatedAt     time.Time              `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Messages      []Message              `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	MessageCount  int64                  `gorm:"type:int;" json:"message_count"`
+	LastReply     time.Time              `json:"last_reply"`
+	AvatarURL     string                 `json:"avatar_url"`
+	Type          string                 `gorm:"default:thread" json:"type"`
+	Content       string                 `gorm:"type:text;index" json:"message"`
+	ChannelName   string                 `json:"channel_name"`
+	CurrentStatus string                 `json:"current_status"`
+	FullName      string                 `json:"full_name"`
+	Email         string                 `json:"email"`
+	Edited        bool                   `json:"edited"`
+	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+	Count         int                    `json:"frequency,omitempty"`
+	UserId        string                 `json:"user_id"`
+	Media         []UploadedFileResponse `json:"media,omitempty"`
+	Mentions      []Mentions             `json:"mentions,omitempty"`
 }
 
 type ThreadDocument struct {
-	ID            string            `json:"thread_id"`
-	ChannelsID    string            `json:"channels_id"`
-	OrgansationID string            `json:"org_id"`
-	EventName     string            `json:"event_name"`
-	Username      string            `json:"username"`
-	ActionType    string            `json:"action_type"`
-	Status        string            `json:"status"`
-	CreatedAt     time.Time         `json:"created_at"`
-	MessageCount  int64             `json:"message_count"`
-	LastReply     time.Time         `json:"last_reply"`
-	AvatarURL     string            `json:"avatar_url"`
-	Type          string            `json:"type"`
-	Content       string            `json:"message"`
-	ChannelName   string            `json:"channel_name"`
-	CurrentStatus string            `json:"current_status"`
-	FullName      string            `json:"full_name"`
-	Email         string            `json:"email"`
-	UserId        string            `json:"user_id"`
-	Edited        bool              `json:"edited"`
-	Messages      []MessageDocument `json:"messages,omitempty"`
-	Count         int               `json:"frequency,omitempty"`
+	ID            string                 `json:"thread_id"`
+	ChannelsID    string                 `json:"channels_id"`
+	OrgansationID string                 `json:"org_id"`
+	EventName     string                 `json:"event_name"`
+	Username      string                 `json:"username"`
+	ActionType    string                 `json:"action_type"`
+	Status        string                 `json:"status"`
+	CreatedAt     time.Time              `json:"created_at"`
+	MessageCount  int64                  `json:"message_count"`
+	LastReply     time.Time              `json:"last_reply"`
+	AvatarURL     string                 `json:"avatar_url"`
+	Type          string                 `json:"type"`
+	Content       string                 `json:"message"`
+	ChannelName   string                 `json:"channel_name"`
+	CurrentStatus string                 `json:"current_status"`
+	FullName      string                 `json:"full_name"`
+	Email         string                 `json:"email"`
+	UserId        string                 `json:"user_id"`
+	Edited        bool                   `json:"edited"`
+	Messages      []MessageDocument      `json:"messages,omitempty"`
+	Count         int                    `json:"frequency,omitempty"`
+	Media         []UploadedFileResponse `json:"media,omitempty"`
+	Mentions      []Mention              `json:"mentions,omitempty"`
+}
+
+var MediaMapping = map[string]interface{}{
+	"mappings": map[string]interface{}{
+		"properties": map[string]interface{}{
+			"id":        map[string]string{"type": "text"},
+			"file_name": map[string]string{"type": "keyword"},
+			"file_type": map[string]string{"type": "text"},
+			"file_link": map[string]string{"type": "text"},
+		},
+	},
+}
+
+var MentionMapping = map[string]interface{}{
+	"mappings": map[string]interface{}{
+		"properties": map[string]interface{}{
+			"id":   map[string]string{"type": "text"},
+			"type": map[string]string{"type": "text"},
+		},
+	},
 }
 
 var Thread_mapping = map[string]interface{}{
-
 	"mappings": map[string]interface{}{
 		"properties": map[string]interface{}{
 			"id":          map[string]string{"type": "keyword"},
@@ -97,6 +120,14 @@ var Thread_mapping = map[string]interface{}{
 			"current_status": map[string]string{"type": "text"},
 			"full_name":      map[string]string{"type": "text"},
 			"email":          map[string]string{"type": "text"},
+			"media": map[string]interface{}{
+				"type":       "nested",
+				"properties": MediaMapping,
+			},
+			"mentions": map[string]interface{}{
+				"type":       "nested",
+				"properties": MentionMapping,
+			},
 			"messages": map[string]interface{}{
 				"type":       "nested",
 				"properties": MessageMapping,
@@ -143,27 +174,41 @@ type ChannelMetrics struct {
 	OtherCount   int64  `json:"other_count"`
 }
 
+type Mention struct {
+	Type string `json:"type" validate:"required,oneof=user bot"`
+	ID   string `json:"id"`
+}
+
 type CreateThreadMsgReq struct {
-	Content    string `json:"content" validate:"required"`
-	ChannelsID string `json:"channels_id"`
-	Message    string `json:"message"`
-	UserId     string `json:"user_id"`
-	ThreadId   string `json:"thread_id"`
-	OrgId      string `json:"org_id"`
+	Content    string                 `json:"content" validate:"required"`
+	Media      []UploadedFileResponse `json:"media"`
+	Mentions   []Mention              `json:"mentions"`
+	ChannelsID string                 `json:"channels_id"`
+	Message    string                 `json:"message"`
+	UserId     string                 `json:"user_id"`
+	ThreadId   string                 `json:"thread_id"`
+	OrgId      string                 `json:"org_id"`
+	AgentName  string                 `json:"agent_name"`
+}
+
+type BotReturnRequest struct {
+	ChannelID string `json:"channel_id"`
+	Content   string `json:"content"`
 }
 
 type FeedMessageRequest struct {
-	ChannelID string `json:"channel_id"`
-	FullName  string `json:"full_name"`
-	UserName  string `json:"username"`
-	CreatedAt string `json:"created_at"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url,omitempty"`
-	Type      string `json:"type"`
-	Content   string `json:"message"`
-	ThreadId  string `json:"thread_id"`
-	OrgId     string `json:"org_id"`
-	UserId    string `json:"user_id"`
+	ChannelID string                 `json:"channel_id"`
+	FullName  string                 `json:"full_name"`
+	UserName  string                 `json:"username"`
+	CreatedAt string                 `json:"created_at"`
+	Email     string                 `json:"email"`
+	AvatarURL string                 `json:"avatar_url,omitempty"`
+	Type      string                 `json:"type"`
+	Content   string                 `json:"message"`
+	ThreadId  string                 `json:"thread_id"`
+	OrgId     string                 `json:"org_id"`
+	UserId    string                 `json:"user_id"`
+	Media     []UploadedFileResponse `json:"media"`
 }
 
 type Mentions struct {
@@ -454,14 +499,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
 
-	var chanOrg Channels
-	chanInfo := ChannelInfo{UserID: t.UserId, ChannelID: t.ChannelsID}
-	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
-	if err != nil {
-		return err
-	}
-	t.OrgansationID = chans.OrganisationID
-	err = elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
+	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
 	if err != nil {
 		return err
@@ -558,7 +596,6 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 	}
 
 	check, err := elastic.CheckExists(storage.DB.Elastic, ThreadIndexName, query)
-
 	if err != nil {
 		return false, http.StatusInternalServerError, err
 	}

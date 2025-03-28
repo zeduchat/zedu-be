@@ -62,7 +62,7 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	return newchannel, http.StatusOK, nil
 }
 
-func GetChannels(db *gorm.DB, channelID, userId string) (models.GetChannelResp, int, error) {
+func GetChannel(db *gorm.DB, channelID, userId string) (models.GetChannelResp, int, error) {
 	var (
 		channel models.Channels
 		chanReq models.ChannelInfo
@@ -71,7 +71,7 @@ func GetChannels(db *gorm.DB, channelID, userId string) (models.GetChannelResp, 
 	chanReq.ChannelID = channelID
 	chanReq.UserID = userId
 
-	chanresp, err := channel.GetChannelsByID(db, chanReq)
+	chanresp, err := channel.GetChannelByID(db, chanReq)
 	if err != nil {
 		return chanresp, http.StatusBadRequest, err
 	}
@@ -116,7 +116,7 @@ func JoinChannels(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels,
 func LeaveChannels(db *gorm.DB, channels_id, user_id string) (int, error) {
 	var channel models.Channels
 
-	_, _, err := GetChannels(db, channels_id, user_id)
+	_, _, err := GetChannel(db, channels_id, user_id)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
@@ -150,7 +150,7 @@ func DeleteChannels(db *gorm.DB, channelId, userId string, typesenseDb *typesens
 	chanReq.ChannelID = channelId
 	chanReq.UserID = userId
 
-	channel, err := r.GetChannelsByID(db, chanReq)
+	channel, err := r.GetChannelByID(db, chanReq)
 
 	if channel.OwnerId != userId {
 		return http.StatusUnauthorized, errors.New("user not authorized")
@@ -267,10 +267,6 @@ func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels,
 	if !exists {
 		return nil, http.StatusBadRequest, errors.New("organisation not found")
 	}
-
-	// if org.OwnerID != ids["user_id"] {
-	// 	return nil, http.StatusUnauthorized, errors.New("user not authorized")
-	// }
 
 	channels, err := channel.GetArchivedChannels(db, ids)
 	if err != nil {

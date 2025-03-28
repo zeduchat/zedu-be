@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -213,11 +214,13 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 
 func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (int, error) {
 	var (
-		thread       models.Threads
-		threadDoc    models.ThreadDocument
-		channel      models.Channels
-		dmChannel    models.DmChannels
-		broadcastDst string
+		thread     models.Threads
+		threadDoc  models.ThreadDocument
+		channel    models.Channels
+		dmChannel  models.DmChannels
+		publishDst string
+		chanParts  []models.ChannelParticipant
+		channelIDs []string
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -253,7 +256,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusBadRequest, err
 	}
 
-	notification := models.Notifcation[models.Deleted]
+	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  threadID,
@@ -261,16 +264,42 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 	}
 
 	if channel.OrganisationID != "" {
-		broadcastDst = channel.OrganisationID
-
+		publishDst = channel.OrganisationID
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		if dmChannel.ChannelType == "dm" {
+			publishDst = *dmChannel.ParticipantId
+		}
 	}
 
-	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != userID {
+				channelIDs = append(channelIDs, participant.UserId)
+			}
+		}
+
+		if len(channelIDs) == 0 {
+			return http.StatusOK, nil
+		}
+
+		err = centrifuge.BatchBroadcastToChannel(logger, channelIDs, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
+			return http.StatusBadRequest, errors.New("failed to broadcast data")
+		}
+
+		return http.StatusOK, nil
+	}
+
+	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to destination: %s error: %v", broadcastDst, err.Error()))
-		return http.StatusBadRequest, errors.New("failed to broadcast data to centrifugo")
+		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+		return http.StatusBadRequest, errors.New("failed to publish data")
 	}
 
 	return http.StatusOK, nil
@@ -278,11 +307,13 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Context, logger *utility.Logger) (models.ThreadDocument, int, error) {
 	var (
-		thread       models.Threads
-		threadResp   models.ThreadDocument
-		broadcastDst string
-		dmChannel    models.DmChannels
-		channel      models.Channels
+		thread     models.Threads
+		threadResp models.ThreadDocument
+		publishDst string
+		dmChannel  models.DmChannels
+		channel    models.Channels
+		chanParts  []models.ChannelParticipant
+		channelIDs []string
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -319,23 +350,55 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	}
 
 	if channel.OrganisationID != "" {
-		broadcastDst = channel.OrganisationID
-
+		publishDst = channel.OrganisationID
 	} else {
-		broadcastDst = dmChannel.ParticipantId
+		if dmChannel.ChannelType == "dm" {
+			publishDst = *dmChannel.ParticipantId
+		}
 	}
 
-	notification := models.Notifcation[models.Updated]
+	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ThreadSection
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelId,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, broadcastDst, notification)
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return threadResp, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		for _, participant := range chanParts {
+			if participant.UserId != userID {
+				channelIDs = append(channelIDs, participant.UserId)
+			}
+		}
+
+		if len(channelIDs) == 0 {
+			return threadResp, http.StatusOK, nil
+		}
+
+		err = centrifuge.BatchBroadcastToChannel(logger, channelIDs, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
+			return threadResp, http.StatusBadRequest, errors.New("failed to broadcast data")
+		}
+
+		err = threadResp.GetThreadById(db, thread.ID)
+
+		if err != nil {
+			return threadResp, http.StatusInternalServerError, err
+		}
+
+		return threadResp, http.StatusOK, nil
+	}
+
+	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to with destination id: %s error: %v", broadcastDst, err.Error()))
-		return threadResp, http.StatusBadRequest, errors.New("failed to broadcast data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+		return threadResp, http.StatusBadRequest, errors.New("failed to publish data")
 	}
 
 	err = threadResp.GetThreadById(db, thread.ID)
