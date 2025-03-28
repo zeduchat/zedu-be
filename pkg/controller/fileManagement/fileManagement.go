@@ -75,7 +75,7 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 	}
 
 	base.Logger.Info("Files located successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Files located successfully", file)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File located successfully", file)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -105,6 +105,6 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	}
 
 	base.Logger.Info("Files deleted successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Files deleted successfully", file)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
