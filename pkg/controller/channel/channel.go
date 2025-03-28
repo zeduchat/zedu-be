@@ -618,7 +618,6 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 		return
 	}
 
-
 	base.Logger.Info("users added to channel successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", nil)
 	c.JSON(http.StatusOK, rd)
@@ -683,7 +682,7 @@ func (base *Controller) GetArchivedChannels(c *gin.Context) {
 	ids := map[string]string{
 		"organisation_id": org_id,
 		"user_id":         userId,
-	}	
+	}
 
 	respData, code, err := channel.GetArchivedChannels(base.Db.Postgresql, ids)
 	if err != nil {
