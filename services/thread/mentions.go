@@ -114,7 +114,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("failed to send push notifcation to channel users")
 	}
 
-	logger.Info(fmt.Sprintf("sent push notification to channel users"))
+	logger.Info("sent push notification to channel users")
 
 	return &threadDoc, nil
 }
@@ -140,7 +140,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserID:    req.UserId,
 	}
 
-	channel_info, err := channel.GetChannelsByID(db.Postgresql, chanReq)
+	channel_info, err := channel.GetChannelByID(db.Postgresql, chanReq)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))

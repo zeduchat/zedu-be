@@ -456,7 +456,7 @@ func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logg
 
 	var chanOrg Channels
 	chanInfo := ChannelInfo{UserID: t.UserId, ChannelID: t.ChannelsID}
-	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
+	chans, err := chanOrg.GetChannelByID(db.Postgresql, chanInfo)
 	if err != nil {
 		return err
 	}

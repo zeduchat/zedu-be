@@ -112,7 +112,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 
 	// set OrganisationID in elasticDB
 	chanInfo := ChannelInfo{UserID: m.UserID, ChannelID: m.ChannelsID}
-	chans, err := chanOrg.GetChannelsByID(db.Postgresql, chanInfo)
+	chans, err := chanOrg.GetChannelByID(db.Postgresql, chanInfo)
 	if err != nil {
 		return err
 	}

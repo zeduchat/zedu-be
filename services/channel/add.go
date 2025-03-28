@@ -282,7 +282,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		UserID:    req.ThreadId,
 	}
 
-	channel_info, err := channel.GetChannelsByID(db.Postgresql, chanReq)
+	channel_info, err := channel.GetChannelByID(db.Postgresql, chanReq)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
