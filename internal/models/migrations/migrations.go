@@ -33,7 +33,6 @@ func AuthMigrationModels() []interface{} {
 		models.Permission{},
 		models.OrgRole{},
 		models.LoginActivity{},
-		models.Threads{},
 		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},

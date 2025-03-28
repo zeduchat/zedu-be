@@ -83,6 +83,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
+		Media:     req.Media,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
