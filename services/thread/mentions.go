@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,20 +25,25 @@ import (
 func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
-		profile models.Profile
-		user    models.User
-		channel models.Channels
+		profile       models.Profile
+		user          models.User
+		channel       models.Channels
+		agent_message = false
 	)
+
+	if req.AgentName != "" && req.UserId == "" {
+		agent_message = true
+	}
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
-	if err != nil {
+	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get profile: %v", err)
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
-	if err != nil {
+	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
@@ -48,14 +54,14 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
-		Username:      profile.UserName,
+		ID:            req.ThreadId,
+		Username:      utility.ThisOrThat(profile.UserName, req.AgentName),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
 		Type:          "message",
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
-		FullName:      profile.FullName,
+		FullName:      utility.ThisOrThat(profile.FullName, req.AgentName),
 		Email:         user.Email,
 		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
@@ -64,6 +70,8 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ChannelName:   channel.Name,
 		Status:        "success",
 		Edited:        false,
+		Mentions:      req.Mentions,
+		Media:         req.Media,
 	}
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
@@ -72,32 +80,33 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
+		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
-		FullName:  profile.FullName,
+		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,
+		Media:     req.Media,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ChannelsID, feed)
+	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", req.ChannelsID, err.Error()))
-		return nil, fmt.Errorf("failed to broadcast thread data")
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
-	notification := models.Notifcation[models.NewMessage]
+	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 
-	err = centrifuge.BroadcastChannel(logger, req.OrgId, notification)
+	err = centrifuge.PublishChannel(logger, req.OrgId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
-		return nil, fmt.Errorf("failed to broadcast thread data")
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
+		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
 	// Push notification to channel users
@@ -107,11 +116,12 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		ChannelName: channel.Name,
 		UserId:      req.UserId,
 		Message:     req.Content,
+		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 	}
 
 	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send push notifcation to channel users")
+		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
 	}
 
 	logger.Info("sent push notification to channel users")
@@ -129,7 +139,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	)
 
 	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
-
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
 		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
@@ -163,6 +172,8 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Type:       "message/thread",
 		UserId:     req.UserId,
 		OrgId:      req.OrgId,
+		Media:      req.Media,
+		Mentions:   req.Mentions,
 	}
 
 	payload := map[string]interface{}{
@@ -172,9 +183,12 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 					"channel_id": feed.ChannelsId,
 					"message":    feed.Content,
 					"thread_id":  feed.ThreadId,
-					"type":       feed.Type,
-					"user_id":    feed.UserId,
-					"org_id":     feed.OrgId,
+					// "is_channel_conversation": true,
+					"type":     feed.Type,
+					"user_id":  feed.UserId,
+					"org_id":   feed.OrgId,
+					"media":    feed.Media,
+					"mentions": feed.Mentions,
 				},
 				"channel_id": feed.ChannelsId,
 				"return_url": feed.ReturnUrl,

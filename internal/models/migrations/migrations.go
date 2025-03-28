@@ -7,6 +7,7 @@ func AuthMigrationModels() []interface{} {
 	return []interface{}{
 		models.CustomIntegrationsSetting{},
 		models.DmChannels{},
+		models.ChannelParticipant{},
 		models.GeneralInvitation{},
 		models.Group{},
 		models.ChannelIntegrationSettings{},
@@ -32,7 +33,6 @@ func AuthMigrationModels() []interface{} {
 		models.Permission{},
 		models.OrgRole{},
 		models.LoginActivity{},
-		models.Threads{},
 		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},

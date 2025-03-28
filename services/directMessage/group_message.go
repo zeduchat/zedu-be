@@ -1,54 +1,62 @@
 package dm
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-
-	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
+	"gorm.io/gorm"
 )
 
-func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.ExternalRequest) (*models.DmChannelsResponse, int, error) {
-
+func CreateGroupDMChannel(req models.GroupDMChannelsRequest, db *gorm.DB) (*models.GroupDMChannelsResponse, int, error) {
 	var dmchans models.DmChannels
 
 	dmchans.ChatType = req.ChatType
-	dmchans.ChannelType = "dm"
+	dmchans.ChannelType = "group_dm"
 	dmchans.OrgId = req.OrgId
 	dmchans.UserId = req.UserId
 	dmchans.ChannelId = utility.GenerateUUID()
 	dmchans.ID = utility.GenerateUUID()
-	dmchans.ParticipantId = &req.ParticipantId
 
-	var resp models.DmChannelsResponse
-	var err error
-
-	if req.ChatType == "bot" {
-		resp, err = dmchans.CreateAgentDMChannel(extReq, db)
-	} else {
-		resp, err = dmchans.CreateDmChannel(db)
+	if utility.HasDuplicates(req.Participants) {
+		return &models.GroupDMChannelsResponse{}, http.StatusBadRequest, errors.New("duplicate participants not allowed")
 	}
+
+	resp, statusCode, err := dmchans.CreateGroupDMChannel(db, req)
 	if err != nil {
-		return nil, http.StatusInternalServerError, err
+		return nil, statusCode, err
 	}
 
-	return &resp, http.StatusCreated, nil
+	return &resp, statusCode, nil
 }
 
-func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([]models.DmChannelsResponse, postgresql.PaginationResponse, int, error) {
+func DeleteGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
+	var dmchans models.DmChannels
+
+	dmchans.ChannelId = req.ChannelId
+	dmchans.UserId = req.UserId
+
+	statusCode, err := dmchans.DeleteGroupDMChannel(db)
+	if err != nil {
+		return statusCode, err
+	}
+
+	return statusCode, nil
+}
+
+func GetGroupDMChannels(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Context) ([]models.GroupDMChannelsResponse, postgresql.PaginationResponse, int, error) {
 
 	var dmchans models.DmChannels
 
 	dmchans.OrgId = req.OrgId
 	dmchans.UserId = req.UserId
 
-	resp, pagResp, err := dmchans.GetDmChannels(db, c)
+	resp, pagResp, err := dmchans.GetGroupDMChannels(db, c)
 
 	if err != nil {
 		return nil, pagResp, http.StatusInternalServerError, err
@@ -57,7 +65,7 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func GetUserGroupDMs(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 
 	var (
 		userProfile models.Profile
@@ -73,7 +81,6 @@ func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H
 	}
 
 	err = userProfile.GetProfileByUserId(db, req.UserId)
-
 	if err != nil {
 		return resp, http.StatusInternalServerError, err
 	}
@@ -89,20 +96,4 @@ func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H
 	}
 
 	return resp, http.StatusOK, err
-}
-
-func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
-	var dmchans models.DmChannels
-
-	dmchans.ID = req.ChannelId
-	dmchans.UserId = req.UserId
-
-	err := dmchans.DeleteDmChannel(db)
-
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	return http.StatusOK, nil
-
 }

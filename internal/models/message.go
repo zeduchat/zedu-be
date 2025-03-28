@@ -28,26 +28,29 @@ type Message struct {
 	UpdatedAt  time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
-	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
+	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
 	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
 type MessageDocument struct {
-	ID             string         `json:"id"`
-	Content        string         `json:"message"`
-	OrganisationID string         `json:"org_id"`
-	ChannelsID     string         `json:"channels_id"`
-	UserID         string         `json:"user_id"`
-	Username       string         `json:"username"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `json:"-"`
-	ThreadID       uuid.UUID      `json:"thread_id"`
-	AvatarURL      string         `json:"avatar_url"`
-	Edited         bool           `json:"edited"`
-	FullName       string         `json:"full_name"`
-	Email          string         `json:"email"`
+	ID             string                 `json:"id"`
+	Content        string                 `json:"message"`
+	OrganisationID string                 `json:"org_id"`
+	ChannelsID     string                 `json:"channels_id"`
+	UserID         string                 `json:"user_id"`
+	Username       string                 `json:"username"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt         `json:"-"`
+	AgentMessage   bool                   `json:"-"`
+	ThreadID       uuid.UUID              `json:"thread_id"`
+	AvatarURL      string                 `json:"avatar_url"`
+	Edited         bool                   `json:"edited"`
+	FullName       string                 `json:"full_name"`
+	Email          string                 `json:"email"`
+	Media          []UploadedFileResponse `json:"media,omitempty"`
+	Mentions       []Mention              `json:"mentions,omitempty"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -67,6 +70,14 @@ var MessageMapping = map[string]interface{}{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 		},
+		"media": map[string]interface{}{
+			"type":       "nested",
+			"properties": MediaMapping,
+		},
+		"mention": map[string]interface{}{
+			"type":       "nested",
+			"properties": MentionMapping,
+		},
 		"updated_at": map[string]string{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -79,11 +90,14 @@ var MessageMapping = map[string]interface{}{
 }
 
 type CreateMessageRequest struct {
-	Content    string `json:"content" validate:"required"`
-	UserId     string `json:"user_id"`
-	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id" validate:"required"`
-	OrgId      string `json:"org_id"`
+	Content    string                 `json:"content" validate:"required"`
+	UserId     string                 `json:"user_id"`
+	ChannelsId string                 `json:"channels_id"`
+	ThreadId   string                 `json:"thread_id" validate:"required"`
+	OrgId      string                 `json:"org_id"`
+	AgentName  string                 `json:"agent_name"`
+	Media      []UploadedFileResponse `json:"media"`
+	Mentions   []Mention             `json:"mentions"`
 }
 
 type EditMessageRequest struct {
@@ -100,24 +114,16 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		dmChannels   DmChannels
 		userChannels UserChannels
 		thread       ThreadDocument
-		chanOrg      Channels
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 
-	if !(dmChanExist || chanExist) {
+	if !(dmChanExist || chanExist) && !m.AgentMessage {
 		return errors.New("user not in channel")
 	}
 
-	// set OrganisationID in elasticDB
-	chanInfo := ChannelInfo{UserID: m.UserID, ChannelID: m.ChannelsID}
-	chans, err := chanOrg.GetChannelByID(db.Postgresql, chanInfo)
-	if err != nil {
-		return err
-	}
-	m.OrganisationID = chans.OrganisationID
-	err = elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
+	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
 		return err
 	}

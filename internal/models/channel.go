@@ -34,7 +34,7 @@ type Channels struct {
 
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
-	Threads   []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
+	// Threads   []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
 }
 
 type UserChannels struct {
@@ -246,7 +246,7 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users.Profile"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
-		return chanResp, errors.New("channel not found")
+		return chanResp, errors.New("channel not found in organisation")
 	}
 
 	count, err := ur.CountChannelsUsers(db, chanReq.ChannelID)

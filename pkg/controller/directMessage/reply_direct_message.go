@@ -14,7 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) AddChannelsMsg(c *gin.Context) {
+func (base *Controller) ReplyThreadDm(c *gin.Context) {
 	var (
 		req models.CreateMessageRequest
 	)
@@ -64,7 +64,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) EditChannelsMsg(c *gin.Context) {
+func (base *Controller) EditThreadDm(c *gin.Context) {
 	var (
 		req models.EditMessageRequest
 	)
