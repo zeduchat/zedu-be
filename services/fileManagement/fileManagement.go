@@ -24,15 +24,7 @@ func FormatFileName(filename string) string {
 	return strings.ReplaceAll(filename, " ", "_")
 }
 
-func GetFileCategory(mimeType string) (string, bool) {
-	if strings.Contains(mimeType, ";") {
-		mimeType = strings.Split(mimeType, ";")[0]
-	}
-	category, exists := models.AllowedFileTypes[mimeType]
-	return category, exists
-}
-
-const maxFileSize = 100 * 1024 * 1024
+const maxFileSize = 200 * 1024 * 1024
 
 func DetectMimeType(file multipart.File) (string, error) {
 	buffer := make([]byte, 512)
@@ -123,20 +115,10 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		return nil, fmt.Errorf("could not detect file type: %w", mimeTypeErr)
 	}
 
-	storagePath, valid := GetFileCategory(mimeType)
-	if !valid {
-		utility.LogAndPrint(logger, "invalid file type")
-		return nil, fmt.Errorf("invalid file type")
-	}
-	if storagePath == "" {
-		utility.LogAndPrint(logger, "Could not find storage path for file type")
-		return nil, fmt.Errorf("could not find storage path for file type")
-	}
-
 	extension := filepath.Ext(header.Filename)
 
 	hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
-	encodedFilePath := storagePath + hashedFileName
+	encodedFilePath := "public/file-uploads/" + hashedFileName
 
 	exists, existsErr := FileExists(logger, encodedFilePath)
 	if existsErr != nil && !exists {
