@@ -40,7 +40,7 @@ func (base *Controller) DmFilter(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	dms, statusCode, err := dmfilter.FilterData(base.Db, userId, orgId)
+	dms, pg, statusCode, err := dmfilter.FilterData(base.Db, userId, orgId, c)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(statusCode, http.StatusText(statusCode), err.Error(), err, nil)
@@ -48,7 +48,7 @@ func (base *Controller) DmFilter(c *gin.Context) {
 	}
 
 	fmt.Printf("%+v ------------->", dms)
-	resp := utility.BuildSuccessResponse(http.StatusOK, "success", "search result", dms)
+	resp := utility.BuildSuccessResponse(statusCode, "success", dms, pg)
 	c.JSON(statusCode, resp)
 
 }

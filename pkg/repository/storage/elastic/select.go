@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
@@ -234,7 +235,6 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 		return nil, fmt.Errorf("error encoding query: %w", err)
 	}
 
-	// Perform the search request
 	ctx := context.Background()
 	res, err := client.Search(
 		client.Search.WithContext(ctx),
@@ -248,7 +248,6 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 	}
 	defer res.Body.Close()
 
-	// Handle Elasticsearch errors
 	if res.IsError() {
 		var e map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
@@ -257,13 +256,11 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 		return nil, fmt.Errorf("Elasticsearch error: %v", e)
 	}
 
-	// Parse the response
 	var result map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("error parsing response: %w", err)
 	}
 
-	// Check if there are any hits
 	hits, ok := result["hits"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected response structure, 'hits' field missing")
@@ -275,4 +272,71 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 	}
 
 	return result, nil
+}
+
+type DmFilter struct {
+	UserId    string    `json:"user_id"`
+	UserName  string    `json:"user_name"`
+	OrgId     string    `json:"org_id,omitempty"`
+	AvatarUrl string    `json:"avatar_url,omitempty"`
+	ChannelId string    `json:"channel_id"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+}
+
+type RawValues struct {
+	Hits struct {
+		Total struct {
+			Value int `json:"value"`
+		} `json:"total"`
+		Hits []DmFilter `json:"hits"`
+	} `json:"hits"`
+}
+
+func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, query map[string]interface{}, rawResult *RawValues, c *gin.Context) (*PaginationResponse, error) {
+	pag := GetPagination(c)
+
+	query["from"] = (pag.Page - 1) * pag.Limit
+	query["size"] = pag.Limit
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		return nil, fmt.Errorf("error encoding query: %w", err)
+	}
+
+	ctx := context.Background()
+	res, err := client.Search(
+		client.Search.WithContext(ctx),
+		client.Search.WithIndex(ThreadIndex, MessageIndex),
+		client.Search.WithBody(&buf),
+		client.Search.WithTrackTotalHits(true),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("error performing search: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("error in search response: %s", res.String())
+	}
+
+	var raw map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("error parsing response: %w", err)
+	}
+
+	rawJSON, _ := json.Marshal(raw)
+
+	if err := json.Unmarshal(rawJSON, rawResult); err != nil {
+		return nil, fmt.Errorf("failed to decode search response: %v", err)
+	}
+
+	totalPages := int(math.Ceil(float64(rawResult.Hits.Total.Value) / float64(pag.Limit)))
+
+	return &PaginationResponse{
+		PageCount:       int(rawResult.Hits.Total.Value),
+		CurrentPage:     pag.Page,
+		TotalPagesCount: totalPages,
+	}, nil
 }

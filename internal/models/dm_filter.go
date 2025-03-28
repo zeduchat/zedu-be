@@ -4,72 +4,65 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
 
-type DmFilter struct {
-	UserId    string    `json:"user_id"`
-	UserName  string    `json:"user_name"`
-	OrgId     string    `json:"org_id,omitempty"`
-	AvatarUrl string    `json:"avatar_url,omitempty"`
-	ChannelId string    `json:"channel_id"`
-	Message   string    `json:"message"`
-	TimeStamp time.Time `json:"timestamp,omitempty"`
-}
+func mapToStruct(raw map[string]interface{}) (*elastic.RawValues, error) {
+	m := &elastic.RawValues{}
 
-type RawValues struct {
-	Hits struct {
-		Total struct {
-			Value int `json:"value"`
-		} `json:"total"`
-		Hits []DmFilter `json:"hits"`
-	} `json:"hits"`
-}
-
-func mapToStruct(raw map[string]interface{}) (*RawValues, error) {
-	m := &RawValues{}
-
-	b, err := json.Marshal(raw)
-
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
+	hitsArray, ok := raw["hits"].(map[string]interface{})["hits"].([]interface{})
+	if !ok {
+		return nil, errors.New("invalid response format: missing 'hits' array")
 	}
+	for _, hit := range hitsArray {
+		hitMap, ok := hit.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		source, ok := hitMap["_source"].(map[string]interface{})
+		if !ok {
+			continue
+		}
 
-	if err := json.Unmarshal(b, m); err != nil {
-		fmt.Println(err)
-		return nil, err
+		b, err := json.Marshal(source)
+		if err != nil {
+			return nil, err
+		}
+		var dm elastic.DmFilter
+		if err := json.Unmarshal(b, &dm); err != nil {
+			return nil, err
+		}
+		m.Hits.Hits = append(m.Hits.Hits, dm)
 	}
 	return m, nil
 }
 
-func FilterDms(db *storage.Database, userId, orgId string) (*RawValues, error) {
+func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]elastic.DmFilter, *elastic.PaginationResponse, error) {
 	chanIds, err := GetUserDmChannels(db.Postgresql, userId, orgId)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	query := queryElasticForDms(chanIds, userId, orgId)
 
-	raw, err := elastic.PerformSearchWithMultipleIndices(db.Elastic, query)
+	rs := &elastic.RawValues{}
+	raw, err := elastic.PerformSearchWithMultipleIndicesPagination(db.Elastic, query, rs, c)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	toStruct, err := mapToStruct(raw)
-	if err != nil {
-		return nil, err
-	}
+	hits := rs.Hits.Hits
 
-	fmt.Printf("%+v", toStruct)
-	return toStruct, nil
+	fmt.Printf("%+v", raw)
+	fmt.Printf("%+v", hits)
+	return hits, raw, nil
 }
 
 func queryElasticForDms(chanIds []string, userId, orgId string) map[string]interface{} {

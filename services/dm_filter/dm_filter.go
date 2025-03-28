@@ -3,22 +3,24 @@ package dmfilter
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 )
 
-func FilterData(db *storage.Database, userId, orgId string) (*models.RawValues, int, error) {
+func FilterData(db *storage.Database, userId, orgId string, c *gin.Context) ([]elastic.DmFilter, *elastic.PaginationResponse, int, error) {
 
-	dms, err := models.FilterDms(db, userId, orgId)
+	dms, pg, err := models.FilterDms(db, userId, orgId, c)
 
 	if err != nil {
 		if err.Error() == "Organisation does not exist" {
-			return nil, http.StatusNotFound, err
+			return nil, nil, http.StatusNotFound, err
 		} else if err.Error() == "User does not exist in the organisation" {
-			return nil, http.StatusBadRequest, err
+			return nil, nil, http.StatusBadRequest, err
 		}
 
-		return nil, http.StatusInternalServerError, err
+		return nil, nil, http.StatusInternalServerError, err
 	}
-	return dms, http.StatusOK, nil
+	return dms, pg, http.StatusOK, nil
 }
