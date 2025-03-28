@@ -335,6 +335,8 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		Type:       "message",
 		UserId:     req.UserId,
 		OrgId:      req.OrgId,
+		Media:      req.Media,
+		Mentions:   req.Mentions,
 	}
 
 	payload := map[string]interface{}{
@@ -347,6 +349,8 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 					"type":       feed.Type,
 					"user_id":    feed.UserId,
 					"org_id":     feed.OrgId,
+					"media":      feed.Media,
+					"mentions":   feed.Mentions,
 				},
 				"channel_id": feed.ChannelsId,
 				"return_url": feed.ReturnUrl,
