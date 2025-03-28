@@ -25,20 +25,25 @@ import (
 func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
-		profile models.Profile
-		user    models.User
-		channel models.Channels
+		profile       models.Profile
+		user          models.User
+		channel       models.Channels
+		agent_message = false
 	)
+
+	if req.AgentName != "" && req.UserId == "" {
+		agent_message = true
+	}
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
-	if err != nil {
+	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get profile: %v", err)
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
-	if err != nil {
+	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
@@ -50,13 +55,13 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	threadDoc := models.ThreadDocument{
 		ID:            req.ThreadId,
-		Username:      profile.UserName,
+		Username:      utility.ThisOrThat(profile.UserName, req.AgentName),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
 		Type:          "message",
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
-		FullName:      profile.FullName,
+		FullName:      utility.ThisOrThat(profile.FullName, req.AgentName),
 		Email:         user.Email,
 		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
@@ -75,14 +80,14 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
+		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
-		FullName:  profile.FullName,
+		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,
 		Media:     req.Media,
@@ -167,6 +172,8 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Type:       "message/thread",
 		UserId:     req.UserId,
 		OrgId:      req.OrgId,
+		Media:      req.Media,
+		Mentions:   req.Mentions,
 	}
 
 	payload := map[string]interface{}{
@@ -177,9 +184,11 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 					"message":    feed.Content,
 					"thread_id":  feed.ThreadId,
 					// "is_channel_conversation": true,
-					"type":    feed.Type,
-					"user_id": feed.UserId,
-					"org_id":  feed.OrgId,
+					"type":     feed.Type,
+					"user_id":  feed.UserId,
+					"org_id":   feed.OrgId,
+					"media":    feed.Media,
+					"mentions": feed.Mentions,
 				},
 				"channel_id": feed.ChannelsId,
 				"return_url": feed.ReturnUrl,
