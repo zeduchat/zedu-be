@@ -93,14 +93,14 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelsId,
-		UserName:  profile.UserName,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
 		ThreadId:  req.ThreadId,
 		Email:     user.Email,
-		FullName:  profile.FullName,
+		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
 		OrgId:     req.OrgId,
 		UserId:    req.UserId,
 		Media:     req.Media,
@@ -382,6 +382,8 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 		UserId:     req.UserId,
 		OrgId:      req.OrgId,
 		AgentName:  req.AgentName,
+		Media:      req.Media,
+		Mentions:   req.Mentions,
 	}
 
 	if req.Type == "message" {
@@ -397,6 +399,9 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 			ThreadId:   req.ThreadId,
 			UserId:     req.UserId,
 			OrgId:      req.OrgId,
+			Media:      req.Media,
+			Mentions:   req.Mentions,
+			AgentName:  req.AgentName,
 		}
 
 		logger.Info("saving and publishing recieved thread message")
