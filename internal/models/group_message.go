@@ -48,6 +48,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		gpdmchanresp GroupDMChannelsResponse
 		existDmchan  DmChannels
 		chParts      ChannelParticipant
+		chPartsResp []ChannelParticipant
 		partInfo     ParticipantInfo
 	)
 
@@ -59,7 +60,30 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 
 	exists := postgresql.CheckExists(db, &existDmchan, "participant_hash = ?", participantHash)
 	if exists {
-		return gpdmchanresp, http.StatusConflict, fmt.Errorf("group DM channel with the same participants already exists")
+		gpdmchanresp.ChannelId = existDmchan.ChannelId
+		gpdmchanresp.ChannelType = existDmchan.ChannelType
+		gpdmchanresp.Participants = []ParticipantInfo{}
+		err := postgresql.SelectAllFromDb(db, "", &chPartsResp, "channel_id = ?", existDmchan.ChannelId)
+		if err != nil {
+			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to get participants for group DM channel %s", existDmchan.ChannelId)
+		}
+		for _, part := range chPartsResp {
+			userDetails, err := user.GetUserByID(db, part.UserId)
+			if err != nil {
+				continue
+			}
+
+			if userDetails.Profile.UserName == "" {
+				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+			}
+			partInfo.UserId = part.UserId
+			partInfo.Name = userDetails.Profile.UserName
+			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+			partInfo.Email = userDetails.Email
+
+			gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+		}
+		return gpdmchanresp, http.StatusOK, nil
 	}
 
 	dm.ParticipantHash = participantHash
