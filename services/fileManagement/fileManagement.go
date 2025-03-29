@@ -131,7 +131,7 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
 		if err != nil {
 			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata: %v", err.Error()))
-			return nil, fmt.Errorf("File exists in Minio bucket. Failed to retrieve existing metadata: %v", err)
+			return nil, fmt.Errorf("file exists in Minio bucket. failed to retrieve existing metadata: %v", err)
 		}
 
 		response := models.UploadedFileResponse{
