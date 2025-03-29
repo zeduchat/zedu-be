@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/pkg/controller/search"
+	"github.com/hngprojects/telex_be/pkg/controller/dm_filter"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -14,10 +14,10 @@ import (
 
 func DmFilter(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
-	search := search.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	dmf := dm_filter.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	searchUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		searchUrl.GET("/dm/organisation/:orgId/", search.Search)
+		searchUrl.GET("/dm/organisation/:orgId/", dmf.DmFilter)
 	}
 	return r
 }

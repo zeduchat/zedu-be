@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -123,6 +124,8 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 
 	addSorting(query, opts)
 
+	b, _ := json.MarshalIndent(query, "\n", " ")
+	fmt.Println(string(b))
 	return query, nil
 }
 
@@ -130,21 +133,20 @@ func initializeQuery() map[string]interface{} {
 	return map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must":   []interface{}{}, // for text matching
-				"filter": []interface{}{}, // for term/range filters
+				"must":   []interface{}{},
+				"filter": []interface{}{},
 			},
 		},
 	}
 }
-
 func addOrgOrChannelFilter(boolQuery map[string]interface{}, orgID string, channelIDs []string) {
 	shouldClauses := []interface{}{
-		map[string]interface{}{"term": map[string]interface{}{"org_id": orgID}},
+		map[string]interface{}{"term": map[string]interface{}{"org_id.keyword": orgID}},
 	}
 
 	if len(channelIDs) > 0 {
 		shouldClauses = append(shouldClauses, map[string]interface{}{
-			"terms": map[string]interface{}{"channel_id": channelIDs},
+			"terms": map[string]interface{}{"channels_id.keyword": channelIDs},
 		})
 	}
 
@@ -155,10 +157,10 @@ func addOrgOrChannelFilter(boolQuery map[string]interface{}, orgID string, chann
 		},
 	}
 
-	if existingFilters, ok := boolQuery["filter"].([]interface{}); ok {
-		boolQuery["filter"] = append(existingFilters, orgOrChannelFilter)
+	if existingFilters, ok := boolQuery["must"].([]interface{}); ok {
+		boolQuery["must"] = append(existingFilters, orgOrChannelFilter)
 	} else {
-		boolQuery["filter"] = []interface{}{orgOrChannelFilter}
+		boolQuery["must"] = []interface{}{orgOrChannelFilter}
 	}
 }
 
@@ -166,7 +168,6 @@ func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFilter
 	mustClauses := boolQuery["must"].([]interface{})
 
 	if opts.Exact != "" {
-		// Ensure we only match exact messages from the logged-in user
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
@@ -179,7 +180,6 @@ func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFilter
 			},
 		})
 	} else if opts.Message != "" {
-		// General search across multiple fields (does not filter by user_id)
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query": opts.Message,
@@ -256,21 +256,18 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 	if opts.In != "" {
 		channelName := strings.Trim(opts.In, "\"")
 
-		// Ensure "must" exists
 		if _, exists := boolQuery["must"]; !exists {
 			boolQuery["must"] = []interface{}{}
 		}
 
 		mustClauses := boolQuery["must"].([]interface{})
 
-		// Use "match_phrase" for exact word matching
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"match_phrase": map[string]interface{}{
 				"channel_name": channelName,
 			},
 		})
 
-		// Assign back to boolQuery
 		boolQuery["must"] = mustClauses
 	}
 
@@ -279,7 +276,6 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
 	filterClauses := boolQuery["filter"].([]interface{})
 
-	// "On" filter: match documents on a specific day.
 	if !opts.On.IsZero() {
 		startOfDay := opts.On.Truncate(24 * time.Hour)
 		endOfDay := startOfDay.Add(24 * time.Hour).Add(-time.Nanosecond)
@@ -302,7 +298,6 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 		filterClauses = append(filterClauses, onFilter, onFilter2)
 	}
 
-	// "Before" filter: match documents before the given time.
 	if !opts.Before.IsZero() {
 		beforeFilter := map[string]interface{}{
 			"range": map[string]interface{}{
@@ -321,7 +316,6 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 		filterClauses = append(filterClauses, beforeFilter, beforeFilter2)
 	}
 
-	// "After" filter: match documents after the given time.
 	if !opts.After.IsZero() {
 		afterFilter := map[string]interface{}{
 			"range": map[string]interface{}{
@@ -404,5 +398,6 @@ func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, er
 		Scan(&channs).Error; err != nil {
 		return nil, errors.New("error fetching channels")
 	}
+	fmt.Println(channs)
 	return channs, nil
 }

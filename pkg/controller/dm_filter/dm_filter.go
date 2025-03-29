@@ -23,14 +23,12 @@ type Controller struct {
 }
 
 func (base *Controller) DmFilter(c *gin.Context) {
-
 	orgId := c.Param("orgId")
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "could not perform search", nil)
@@ -39,12 +37,13 @@ func (base *Controller) DmFilter(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
 	dms, pg, statusCode, err := dmfilter.FilterData(base.Db, userId, orgId, c)
 
 	if err != nil {
+
 		rd := utility.BuildErrorResponse(statusCode, http.StatusText(statusCode), err.Error(), err, nil)
 		c.JSON(statusCode, rd)
+		return
 	}
 
 	fmt.Printf("%+v ------------->", dms)

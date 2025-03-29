@@ -45,7 +45,6 @@ func mapToStruct(raw map[string]interface{}) (*elastic.RawValues, error) {
 func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]elastic.DmFilter, *elastic.PaginationResponse, error) {
 	chanIds, err := GetUserDmChannels(db.Postgresql, userId, orgId)
 	if err != nil {
-		fmt.Println(err)
 		return nil, nil, err
 	}
 
@@ -60,7 +59,7 @@ func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]el
 
 	hits := rs.Hits.Hits
 
-	fmt.Printf("%+v", raw)
+	fmt.Printf("%+v %s", raw, "------------------->")
 	fmt.Printf("%+v", hits)
 	return hits, raw, nil
 }
@@ -96,17 +95,18 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 					"field": "user_id.keyword",
 					"size":  100,
 					"order": map[string]interface{}{
-						"max_created_at": "desc",
+						"latest_message_date": "desc",
 					},
 				},
 				"aggs": map[string]interface{}{
-					"max_created_at": map[string]interface{}{
+					"latest_message_date": map[string]interface{}{
 						"max": map[string]interface{}{
 							"field": "created_at",
 						},
 					},
 					"latest_message": map[string]interface{}{
 						"top_hits": map[string]interface{}{
+							"size": 1,
 							"sort": []interface{}{
 								map[string]interface{}{
 									"created_at": map[string]interface{}{
@@ -114,7 +114,7 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 									},
 								},
 							},
-							"size": 1,
+							"_source": []string{"content", "user_id", "created_at"},
 						},
 					},
 				},
@@ -122,6 +122,9 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 		},
 		"size": 0,
 	}
+
+	b, _ := json.MarshalIndent(query, "\n", " ")
+	fmt.Println(string(b))
 	return query
 }
 
@@ -137,8 +140,10 @@ func GetUserDmChannels(db *gorm.DB, userId, orgId string) ([]string, error) {
 		Select("channel_id").
 		Where("user_id = ? AND org_id = ?", userId, orgId).
 		Scan(&channs).Error; err != nil {
-		return nil, fmt.Errorf("%s", "User does not exist in this organization")
+		return nil, errors.New("user does not belong in this channel")
 	}
-	fmt.Println(channs)
+	if channs == nil {
+		return nil, errors.New("user does not belong in this channel")
+	}
 	return channs, nil
 }

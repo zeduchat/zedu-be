@@ -5436,6 +5436,8 @@ paths:
         - Organisation-Invitation
       summary: Create and send invitations
       description: Sends invitations to the specified email addresses to join the organization.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -5455,10 +5457,10 @@ paths:
                   description: A list of email addresses to send invitations to.
                   example:
                     ["micahshallom@gmail.com", "micahshallom24@gmail.com"]
-                role:
+                role_id:
                   type: string
                   description: The role assigned to the invited users within the organization.
-                  example: "member"
+                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
       responses:
         "201":
           description: Invitations created and sent successfully
@@ -5746,6 +5748,8 @@ paths:
         - Channel-Invitation
       summary: Verify and create channel invitations
       description: This endpoint verifies the provided channel information and sends invitations to the specified emails.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -5770,7 +5774,7 @@ paths:
                   format: uuid
                   example: "01916090-e436-7c15-99c5-e75f32f0ebe7"
                   description: The unique identifier of the organization.
-                role:
+                role_id:
                   type: string
                   example: "member"
                   description: The role assigned to the invited users.
@@ -5837,12 +5841,14 @@ paths:
                           example: "2024-08-18T17:57:59.386170646+01:00"
                           description: The expiration timestamp for the invitation.
 
-  /invite/channels/verify:
+  /invite/channel/verify:
     post:
       tags:
         - Channel-Invitation
       summary: Verify channel invitation token
       description: This endpoint verifies a channel invitation token and provides the user with an access token upon successful verification.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -7606,6 +7612,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+
   /organisations/{org_id}/dms:
       get:
         tags:
@@ -7723,12 +7730,6 @@ paths:
                   participant_id:
                     type: string
                     description: The ID of the participant
-                  user_id:
-                    type: string
-                    description: The ID of the user
-                  org_id:
-                    type: string
-                    description: The ID of the organization
                   channel_id:
                     type: string
                     description: The ID of the channel

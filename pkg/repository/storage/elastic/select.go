@@ -332,6 +332,8 @@ func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, qu
 		return nil, fmt.Errorf("failed to decode search response: %v", err)
 	}
 
+	fmt.Println(rawJSON)
+
 	totalPages := int(math.Ceil(float64(rawResult.Hits.Total.Value) / float64(pag.Limit)))
 
 	return &PaginationResponse{
