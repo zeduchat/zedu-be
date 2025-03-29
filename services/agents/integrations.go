@@ -391,6 +391,21 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		}
 	}
 
+	// Add integration to all existing channels
+	ids := map[string]string{
+		"org_id":   org_id,
+		"agent_id": orgIntegration.IntegrationID,
+	}
+
+	reqq := models.ChangeAgentStatus{
+		Status: false,
+	}
+
+	err = ChangeAgentStatus(ids, reqq, db, extReq)
+	if err != nil {
+		return errors.New("failed to add agent to channels")
+	}
+
 	// serialize the settings json
 
 	settingJsonData, err := json.Marshal(settings_data)
