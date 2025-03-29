@@ -63,6 +63,12 @@ func AuthMigrationModels() []interface{} {
 
 func AlterColumnModels() []AlterColumn {
 	return []AlterColumn{
+		{
+			Model:     models.UploadedFileResponse{},
+			TableName: "uploaded_file_responses",
+			Column:    "hashed_file_name",
+			Type:      "VARCHAR(255)",
+		},
 		// {
 		// 	Model: models.OrgUserManagement{},
 		// 	TableName: "org_user_managements",

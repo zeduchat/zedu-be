@@ -130,24 +130,18 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		var existingFile models.UploadedFileResponse
 		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
 		if err != nil {
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to retrieve existing file metadata: %v", err.Error()))
-			return nil, fmt.Errorf("failed to retrieve existing file metadata: %v", err)
+			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata: %v", err.Error()))
+			return nil, fmt.Errorf("File exists in Minio bucket. Failed to retrieve existing metadata: %v", err)
 		}
 
 		response := models.UploadedFileResponse{
-			ID:       existingFile.ID,
-			FileName: existingFile.FileName,
-			FileType: existingFile.FileType,
-			MimeType: existingFile.MimeType,
-			FileLink: existingFile.FileLink,
+			ID:             existingFile.ID,
+			FileName:       existingFile.FileName,
+			HashedFileName: existingFile.HashedFileName,
+			FileType:       existingFile.FileType,
+			MimeType:       existingFile.MimeType,
+			FileLink:       existingFile.FileLink,
 		}
-		storageErr := response.CreateFileRecord(db)
-		if storageErr != nil {
-			errMsg := fmt.Errorf("error saving file details: %w", storageErr)
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
-			return nil, errMsg
-		}
-
 		return &response, nil
 	} else {
 		hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
@@ -165,11 +159,12 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		response := models.UploadedFileResponse{
-			ID:       id,
-			FileName: hashedFileName,
-			FileType: filepath.Ext(header.Filename)[1:],
-			MimeType: mimeType,
-			FileLink: generatedUrl,
+			ID:             id,
+			FileName:       header.Filename,
+			HashedFileName: hashedFileName,
+			FileType:       filepath.Ext(header.Filename)[1:],
+			MimeType:       mimeType,
+			FileLink:       generatedUrl,
 		}
 
 		storageErr := response.CreateFileRecord(db)
@@ -183,16 +178,28 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 	}
 }
 
-func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
-	minioClient := storage.DB.Minio
-	bucketName := config.Config.Minio.BucketName
-	encodedFilePath := "public/file-uploads/" + fileName
+func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.UploadedFileResponse, error) {
+	var fileModel models.UploadedFileResponse
 
-	err := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
+	file, err := fileModel.GetFileByID(db, fileId)
 	if err != nil {
-		errMsg := fmt.Errorf("failed to delete file: %w", err)
-		utility.LogAndPrint(logger, fmt.Sprintf("failed to delete file: %v", err.Error()))
-		return errMsg
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func DeleteFileDetailsByID(logger *utility.Logger, db *gorm.DB, file *models.UploadedFileResponse, fileId string) error {
+	var fileModel models.UploadedFileResponse
+
+	minioErr := models.DeleteUploadedFiles(logger, file.HashedFileName)
+	if minioErr != nil {
+		return minioErr
+	}
+
+	err := fileModel.DeleteFileByID(db, fileId)
+	if err != nil {
+		return err
 	}
 
 	return nil

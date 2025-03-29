@@ -2,7 +2,13 @@ package models
 
 import (
 	"mime/multipart"
-
+	"fmt"
+	"context"
+	
+	"github.com/hngprojects/telex_be/internal/config"
+	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/utility"
+	"github.com/minio/minio-go/v7"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
@@ -13,10 +19,11 @@ type UploadRequest struct {
 
 type UploadedFileResponse struct {
 	ID       string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	FileName string `gorm:"column:file_name; unique; not null" json:"file_name"`
+	FileName string `gorm:"column:file_name; not null" json:"file_name"`
 	FileType string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
 	MimeType string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
 	FileLink string `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
+	HashedFileName string `gorm:"column:hashed_file_name; type:varchar(255); unique" json:"hashed_file_name"`
 }
 
 type FileType struct {
@@ -49,6 +56,21 @@ func (file *UploadedFileResponse) DeleteFileByID(db *gorm.DB, fileID string) err
 	err := query.Delete(&UploadedFileResponse{}).Error
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+	encodedFilePath := "public/file-uploads/" + fileName
+
+	err := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
+	if err != nil {
+		errMsg := fmt.Errorf("failed to delete file: %w", err)
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to delete file: %v", err.Error()))
+		return errMsg
 	}
 
 	return nil
