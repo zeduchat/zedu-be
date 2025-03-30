@@ -93,7 +93,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 }
 
 func AdminInvitationVerify(db *gorm.DB, req models.VerifyInvitationLinkRequest, logger *utility.Logger) {
-	
+
 }
 
 func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
@@ -138,7 +138,6 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		logger.Error("error adding user to the invited organisation", err)
 		return responseData, http.StatusInternalServerError, err
 	}
-
 
 	userData, err := user.GetUserByEmail(db, invitation.Email)
 	if err != nil {
@@ -230,7 +229,7 @@ func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, u
 		UserID:     orgmgt.UserID,
 	}
 
-	if _, err := chans.AddUserToChannels(db, reqs); err != nil {
+	if _, err := chans.AddUserToChannel(db, reqs); err != nil {
 		return err
 	}
 	return nil

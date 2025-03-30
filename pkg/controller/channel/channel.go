@@ -25,7 +25,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) CreateChannels(c *gin.Context) {
+func (base *Controller) CreateChannel(c *gin.Context) {
 	var req models.CreateChannelsRequest
 
 	claims, exists := c.Get("userClaims")
@@ -61,7 +61,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannel(req, base.Db.Postgresql, userId)
 	if err != nil {
 		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
