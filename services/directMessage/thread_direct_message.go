@@ -230,7 +230,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	feed := models.FeedQueue{
 		ChannelsId: req.ChannelsID,
 		Content:    req.Content,
-		ThreadId:   req.ThreadId,
+		ThreadId:   threadDoc.ID,
 		ReturnUrl:  returnUrl,
 		Type:       "message/thread",
 		UserId:     req.UserId,

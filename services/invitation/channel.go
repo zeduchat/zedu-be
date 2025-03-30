@@ -179,7 +179,7 @@ func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB
 		Username:   userData.Name,
 	}
 
-	_, err = channel.AddUserToChannels(db, reqs)
+	_, err = channel.AddUserToChannel(db, reqs)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, err
 	}
