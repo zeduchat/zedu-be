@@ -13567,99 +13567,143 @@ paths:
                     type: string
                     example: "An unexpected error occurred"
   /dm/organisation/{orgId}/:
-      get:
-        tags:
-          - Search
-        summary: Get user direct messages in an organization
-        description: Retrieves direct messages for a user within a specified organization.
-        security:
-          - bearerAuth: []
-        parameters:
-          - name: orgId
-            in: path
-            required: true
-            description: The ID of the organization user belong to.
-            schema:
-              type: string
-        responses:
-          200:
-            description: Successfully retrieved direct messages.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    user_id:
-                      type: string
-                    user_name:
-                      type: string
-                    org_id:
-                      type: string
-                      nullable: true
-                    avatar_url:
-                      type: string
-                      nullable: true
-                    channel_id:
-                      type: string
-                    message:
-                      type: string
-                    timestamp:
-                      type: string
-                      format: date-time
-          400:
-            description: Bad Request - Invalid request parameters.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: Bad Request
-                    status_code:
-                      type: integer
-                      example: 400
-                    message:
-                      type: string
-                      example: Invalid request parameters
-                    error:
+    get:
+      tags:
+        - Search
+      summary: Get user direct messages in an organization
+      description: Retrieves direct messages for a user within a specified organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          description: The ID of the organization user belong to.
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: The current page number for pagination.
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: The number of items per page.
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Successfully retrieved direct messages.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
                       type: object
-          404:
-            description: Organization not found.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: Not Found
-                    status_code:
-                      type: integer
-                      example: 404
-                    message:
-                      type: string
-                      example: "failed to build search query: Organisation does not exist"
-                    error:
+                      properties:
+                        user_id:
+                          type: string
+                          example: "0195e715-0ba5-7896-b612-21074c430e41"
+                        username:
+                          type: string
+                          example: "kelanidarasimi4000"
+                        avatar_url:
+                          type: string
+                          nullable: true
+                          example: ""
+                        channels_id:
+                          type: string
+                          example: "0195e720-6d5f-7897-96a7-02c46ecdfe8d"
+                        message:
+                          type: string
+                          example: "How are you tho it's been a long time"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-03-30T13:00:41.295919227Z"
+                  pagination:
+                    type: array
+                    items:
                       type: object
-          500:
-            description: Internal Server Error.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: Internal Server Error
-                    status_code:
-                      type: integer
-                      example: 500
-                    message:
-                      type: string
-                      example: An unexpected error occurred
-                    error:
-                        type: objec
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_count:
+                          type: integer
+                          example: 4
+                        total_pages_count:
+                          type: integer
+                          example: 1
+        400:
+          description: Bad Request - Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Bad Request
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: Invalid request parameters
+                  error:
+                    type: object
+        404:
+          description: Organization not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Not Found
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "failed to build search query: Organisation does not exist"
+                  error:
+                    type: object
+        500:
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Internal Server Error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: An unexpected error occurred
+                  error:
+                    type: object
 
 components:
   schemas:

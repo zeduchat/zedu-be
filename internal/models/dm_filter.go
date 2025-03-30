@@ -12,8 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func mapToStruct(raw map[string]interface{}) (*elastic.RawValues, error) {
-	m := &elastic.RawValues{}
+func mapToStruct(raw map[string]interface{}) (*elastic.ESResponse, error) {
+	m := &elastic.ESResponse{}
 
 	hitsArray, ok := raw["hits"].(map[string]interface{})["hits"].([]interface{})
 	if !ok {
@@ -37,7 +37,7 @@ func mapToStruct(raw map[string]interface{}) (*elastic.RawValues, error) {
 		if err := json.Unmarshal(b, &dm); err != nil {
 			return nil, err
 		}
-		m.Hits.Hits = append(m.Hits.Hits, dm)
+		// m.Hits.Hits = append(m.Hits.Hits, dm)
 	}
 	return m, nil
 }
@@ -49,34 +49,29 @@ func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]el
 	}
 
 	query := queryElasticForDms(chanIds, userId, orgId)
-
-	rs := &elastic.RawValues{}
+	dmFilter := make([]elastic.DmFilter, 0)
+	rs := &elastic.ESResponse{}
 	raw, err := elastic.PerformSearchWithMultipleIndicesPagination(db.Elastic, query, rs, c)
 
 	if err != nil {
 		return nil, nil, err
 	}
-
 	hits := rs.Hits.Hits
+	for _, hit := range hits {
+		dmFilter = append(dmFilter, hit.Source)
+	}
 
-	fmt.Printf("%+v %s", raw, "------------------->")
-	fmt.Printf("%+v", hits)
-	return hits, raw, nil
+	return dmFilter, raw, nil
 }
-
 func queryElasticForDms(chanIds []string, userId, orgId string) map[string]interface{} {
 	query := map[string]interface{}{
+		"size": 100,
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
 						"terms": map[string]interface{}{
 							"channels_id.keyword": chanIds,
-						},
-					},
-					map[string]interface{}{
-						"term": map[string]interface{}{
-							"org_id.keyword": orgId,
 						},
 					},
 				},
@@ -89,21 +84,23 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 				},
 			},
 		},
+		"sort": []interface{}{
+			map[string]interface{}{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		},
+		"collapse": map[string]interface{}{
+			"field": "user_id.keyword",
+		},
 		"aggs": map[string]interface{}{
-			"unique_senders": map[string]interface{}{
+			"unique_users": map[string]interface{}{
 				"terms": map[string]interface{}{
 					"field": "user_id.keyword",
 					"size":  100,
-					"order": map[string]interface{}{
-						"latest_message_date": "desc",
-					},
 				},
 				"aggs": map[string]interface{}{
-					"latest_message_date": map[string]interface{}{
-						"max": map[string]interface{}{
-							"field": "created_at",
-						},
-					},
 					"latest_message": map[string]interface{}{
 						"top_hits": map[string]interface{}{
 							"size": 1,
@@ -114,13 +111,11 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 									},
 								},
 							},
-							"_source": []string{"content", "user_id", "created_at"},
 						},
 					},
 				},
 			},
 		},
-		"size": 0,
 	}
 
 	b, _ := json.MarshalIndent(query, "\n", " ")
@@ -131,14 +126,13 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 func GetUserDmChannels(db *gorm.DB, userId, orgId string) ([]string, error) {
 	org := Organisation{}
 	dm := DmChannels{}
-
 	var channs []string
 	if exists := postgresql.CheckExists(db, &org, "id = ?", orgId); exists == false {
 		return nil, errors.New("Organisation does not exist")
 	}
 	if err := db.Model(&dm).
 		Select("channel_id").
-		Where("user_id = ? AND org_id = ?", userId, orgId).
+		Where("(user_id = ? AND org_id = ?) OR (participant_id = ? AND org_id = ?)", userId, orgId, userId, orgId).
 		Scan(&channs).Error; err != nil {
 		return nil, errors.New("user does not belong in this channel")
 	}

@@ -1,7 +1,6 @@
 package dm_filter
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -46,7 +45,6 @@ func (base *Controller) DmFilter(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("%+v ------------->", dms)
 	resp := utility.BuildSuccessResponse(statusCode, "success", dms, pg)
 	c.JSON(statusCode, resp)
 

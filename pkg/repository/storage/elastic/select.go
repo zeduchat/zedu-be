@@ -275,29 +275,64 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 }
 
 type DmFilter struct {
-	UserId    string    `json:"user_id"`
-	UserName  string    `json:"user_name"`
-	OrgId     string    `json:"org_id,omitempty"`
-	AvatarUrl string    `json:"avatar_url,omitempty"`
-	ChannelId string    `json:"channel_id"`
-	Message   string    `json:"message"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	UserId     string    `json:"user_id"`
+	UserName   string    `json:"user_name,omitempty"`
+	UsersName  string    `json:"username,omitempty"`
+	OrgId      string    `json:"org_id,omitempty"`
+	AvatarUrl  string    `json:"avatar_url"`
+	ChannelsId string    `json:"channels_id,omitempty"`
+	ChannelId  string    `json:"channel_id,omitempty"`
+	Message    string    `json:"message"`
+	Content    string    `json:"content,omitempty"`
+	CreatedAt  time.Time `json:"created_at,omitempty"`
 }
 
-type RawValues struct {
-	Hits struct {
-		Total struct {
-			Value int `json:"value"`
-		} `json:"total"`
-		Hits []DmFilter `json:"hits"`
-	} `json:"hits"`
+type Hit struct {
+	Index  string        `json:"_index,omitempty"`
+	Id     string        `json:"_id,omitempty"`
+	Score  float64       `json:"_score,omitempty"`
+	Source DmFilter      `json:"_source"`
+	Sort   []interface{} `json:"sort,omitempty"`
 }
 
-func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, query map[string]interface{}, rawResult *RawValues, c *gin.Context) (*PaginationResponse, error) {
+type Hits struct {
+	Total struct {
+		Value    int    `json:"value"`
+		Relation string `json:"relation"`
+	} `json:"total"`
+	MaxScore *float64 `json:"max_score,omitempty"`
+	Hits     []Hit    `json:"hits"`
+}
+
+type Bucket struct {
+	Key           string `json:"key"`
+	DocCount      int    `json:"doc_count"`
+	LatestMessage struct {
+		Hits Hits `json:"hits"`
+	} `json:"latest_message"`
+}
+
+type Aggregations struct {
+	UniqueUsers struct {
+		Buckets []Bucket `json:"buckets"`
+	} `json:"unique_users"`
+}
+
+type ESResponse struct {
+	Took         int          `json:"took"`
+	TimedOut     bool         `json:"timed_out"`
+	Shards       interface{}  `json:"_shards"`
+	Hits         Hits         `json:"hits"`
+	Aggregations Aggregations `json:"aggregations"`
+}
+
+func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, query map[string]interface{}, rawResult *ESResponse, c *gin.Context) (*PaginationResponse, error) {
 	pag := GetPagination(c)
 
 	query["from"] = (pag.Page - 1) * pag.Limit
 	query["size"] = pag.Limit
+
+	fmt.Println(query)
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
@@ -331,8 +366,6 @@ func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, qu
 	if err := json.Unmarshal(rawJSON, rawResult); err != nil {
 		return nil, fmt.Errorf("failed to decode search response: %v", err)
 	}
-
-	fmt.Println(rawJSON)
 
 	totalPages := int(math.Ceil(float64(rawResult.Hits.Total.Value) / float64(pag.Limit)))
 
