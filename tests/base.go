@@ -141,7 +141,7 @@ func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db 
 
 	channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 	{
-		channelUrl.POST("/", channel.CreateChannels)
+		channelUrl.POST("/", channel.CreateChannel)
 	}
 
 	var b bytes.Buffer

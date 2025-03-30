@@ -16,8 +16,12 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string) (models.Channels, int, error) {
-	var joinChannelsReq models.JoinChannelsRequest
+func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string) (models.Channels, int, error) {
+	var (
+		joinChannelsReq models.JoinChannelsRequest
+		orgAgent        []models.OrganisationIntegrations
+		orgChanAgent    models.OrganisationChannelsIntegrations
+	)
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
@@ -31,12 +35,12 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = req.Username
 
-	err := channel.CreateChannels(db)
+	err := channel.CreateChannel(db)
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
 
-	newchannel, err := channel.AddUserToChannels(db, joinChannelsReq)
+	newchannel, err := channel.AddUserToChannel(db, joinChannelsReq)
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
@@ -55,9 +59,29 @@ func CreateChannels(req models.CreateChannelsRequest, db *gorm.DB, userId string
 	webhook.WebhookUrl = webhookUrl
 
 	err = webhook.CreateWebhook(db)
-
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
+	}
+
+	err = postgresql.SelectAllFromDb(db, "", &orgAgent, "org_id = ? AND is_active = ?", channel.OrganisationID, true)
+	if err != nil {
+		return newchannel, http.StatusBadRequest, err
+	}
+
+	for _, agent := range orgAgent {
+		orgChanAgent = models.OrganisationChannelsIntegrations{
+			ID:            utility.GenerateUUID(),
+			ChannelID:     channel.ID,
+			IntegrationID: agent.IntegrationID,
+			OrgID:         channel.OrganisationID,
+			IsActive:      true,
+		}
+
+		err = orgChanAgent.CreateOrganisationChannelIntegration(db)
+		if err != nil {
+			return newchannel, http.StatusBadRequest, err
+		}
+
 	}
 	return newchannel, http.StatusOK, nil
 }
@@ -104,7 +128,7 @@ func GetChannelsMsg(channelId, userID string, db *gorm.DB) (models.MessagesResp,
 func JoinChannels(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels, int, error) {
 	var r models.Channels
 
-	channel, err := r.AddUserToChannels(db, req)
+	channel, err := r.AddUserToChannel(db, req)
 
 	if err != nil {
 		return channel, http.StatusBadRequest, err
@@ -231,7 +255,7 @@ func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Cont
 func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels, error) {
 	var ch models.Channels
 
-	channels, err := ch.AddUserToChannels(db, req)
+	channels, err := ch.AddUserToChannel(db, req)
 	if err != nil {
 		return channels, err
 	}

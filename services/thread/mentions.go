@@ -54,7 +54,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            req.ThreadId,
+		ID:            utility.GenerateUUID(),
 		Username:      utility.ThisOrThat(profile.UserName, req.AgentName),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
@@ -157,7 +157,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	req.OrgId = channel_info.OrganisationID
-
+	req.ThreadId =  utility.GenerateUUID()
 	if !res {
 		return SaveThreadMessage(req, db, logger)
 	}
