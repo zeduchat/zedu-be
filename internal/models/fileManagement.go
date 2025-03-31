@@ -1,15 +1,15 @@
 package models
 
 import (
-	"mime/multipart"
-	"fmt"
 	"context"
-	
+	"fmt"
+	"mime/multipart"
+
 	"github.com/hngprojects/telex_be/internal/config"
 	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/minio/minio-go/v7"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
 
@@ -18,12 +18,12 @@ type UploadRequest struct {
 }
 
 type UploadedFileResponse struct {
-	ID       string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	FileName string `gorm:"column:file_name; not null" json:"file_name"`
-	FileType string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
-	MimeType string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
-	FileLink string `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
-	HashedFileName string `gorm:"column:hashed_file_name; type:varchar(255); unique" json:"hashed_file_name"`
+	ID             string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
+	FileName       string `gorm:"column:file_name; not null" json:"file_name"`
+	FileType       string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
+	MimeType       string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
+	FileLink       string `gorm:"column:file_link; type:varchar(200); not null; unique" json:"file_link"`
+	HashedFileName string `gorm:"column:hashed_file_name; type:varchar(255);" json:"hashed_file_name"`
 }
 
 type FileType struct {

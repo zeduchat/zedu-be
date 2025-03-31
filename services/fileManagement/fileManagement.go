@@ -93,14 +93,12 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		return nil, fmt.Errorf("file exceeds max size")
 	}
 
-	// Compute SHA256 hash of the file
 	fileHash, hashErr := HashFile(file)
 	if hashErr != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("failed to hash file: %v", hashErr))
 		return nil, fmt.Errorf("failed to hash file: %v", hashErr)
 	}
 
-	// Reset file pointer to the beginning after reading the file to the end
 	if seeker, ok := file.(io.Seeker); ok {
 		_, err := seeker.Seek(0, io.SeekStart)
 		if err != nil {
@@ -121,28 +119,40 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 
 	exists, existsErr := FileExists(logger, encodedFilePath)
 	if existsErr != nil && !exists {
-		utility.LogAndPrint(logger, fmt.Sprintf("error: %v. using existing file reference", existsErr.Error()))
+		utility.LogAndPrint(logger, fmt.Sprintf("error: %v.", existsErr.Error()))
 		return nil, existsErr
 	} else if exists {
-		utility.LogAndPrint(logger, "using existing file reference")
+		utility.LogAndPrint(logger, "checking for file existence")
 		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		var existingFile models.UploadedFileResponse
 		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
 		if err != nil {
-			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata: %v", err.Error()))
-			return nil, fmt.Errorf("file exists in Minio bucket. failed to retrieve existing metadata: %v", err)
+			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata in database: %v", err.Error()))
+			return nil, fmt.Errorf("file exists in Minio bucket. failed to retrieve existing metadata in database: %v", err)
+		} else {
+			if existingFile.FileName == header.Filename {
+				utility.LogAndPrint(logger, "Using existing file reference with the same name")
+				return &existingFile, nil
+			} else {
+				utility.LogAndPrint(logger, "File exists but with a different name, creating a new DB entry")
+				newFileEntry := models.UploadedFileResponse{
+					ID:             utility.GenerateUUID(),
+					FileName:       header.Filename,
+					HashedFileName: existingFile.HashedFileName,
+					FileType:       filepath.Ext(header.Filename)[1:],
+					MimeType:       mimeType,
+					FileLink:       existingFile.FileLink,
+				}
+				storageErr := newFileEntry.CreateFileRecord(db)
+				if storageErr != nil {
+					errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
+					utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
+					return nil, errMsg
+				}
+				return &newFileEntry, nil
+			}
 		}
-
-		response := models.UploadedFileResponse{
-			ID:             existingFile.ID,
-			FileName:       existingFile.FileName,
-			HashedFileName: existingFile.HashedFileName,
-			FileType:       existingFile.FileType,
-			MimeType:       existingFile.MimeType,
-			FileLink:       existingFile.FileLink,
-		}
-		return &response, nil
 	} else {
 		hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
@@ -152,14 +162,12 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 			return nil, errMsg
 		}
 
-		id := utility.GenerateUUID()
-
 		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
 
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		response := models.UploadedFileResponse{
-			ID:             id,
+			ID:             utility.GenerateUUID(),
 			FileName:       header.Filename,
 			HashedFileName: hashedFileName,
 			FileType:       filepath.Ext(header.Filename)[1:],

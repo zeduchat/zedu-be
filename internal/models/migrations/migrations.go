@@ -1,6 +1,9 @@
 package migrations
 
-import "github.com/hngprojects/telex_be/internal/models"
+import (
+	"github.com/hngprojects/telex_be/internal/models"
+	"gorm.io/gorm"
+)
 
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
@@ -61,7 +64,9 @@ func AuthMigrationModels() []interface{} {
 	} // an array of db models, example: User{}
 }
 
-func AlterColumnModels() []AlterColumn {
+func AlterColumnModels(db *gorm.DB) []AlterColumn {
+	db.Migrator().DropConstraint(&models.UploadedFileResponse{}, "uni_uploaded_file_responses_hashed_file_name")
+
 	return []AlterColumn{
 		{
 			Model:     models.UploadedFileResponse{},
@@ -79,7 +84,6 @@ func AlterColumnModels() []AlterColumn {
 		// 	TableName: "org_user_managements",
 		// 	Column: "role_id",
 		// 	Type:  "uuid",
-
 		// },
 	}
 }
