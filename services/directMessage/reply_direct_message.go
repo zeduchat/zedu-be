@@ -61,6 +61,8 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 		FullName:       profile.FullName,
 		Email:          user.Email,
 		OrganisationID: channel.OrgId,
+		Mentions:       req.Mentions,
+		Media:          req.Media,
 	}
 
 	err = messageDoc.CreateMessage(db, logger)
