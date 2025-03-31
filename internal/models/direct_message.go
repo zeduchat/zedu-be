@@ -46,8 +46,16 @@ type DmChannelsRequest struct {
 
 func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL string) (map[string]interface{}, error) {
 	data := map[string]string{"url": agentJSONURL}
+	var response interface{}
+	var err error
 
-	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+	for i := 0; i < 2; i++ {
+		response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Duration(2<<i) * time.Second)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch agent json: %v", err)
 	}
@@ -79,7 +87,7 @@ func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse
 func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *gorm.DB) (DmChannelsResponse, error) {
 	var orgAgent OrganisationIntegrations
 	if !postgresql.CheckExists(db, &orgAgent, "org_id = ? AND integration_id = ?", dm.OrgId, dm.ParticipantId) {
-		return DmChannelsResponse{}, fmt.Errorf("agent with ID %v does not exist in organisation %v", dm.ParticipantId, dm.OrgId)
+		return DmChannelsResponse{}, fmt.Errorf("agent participant does not exist in organisation %v", dm.OrgId)
 	}
 
 	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl)
@@ -101,7 +109,7 @@ func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *g
 		return buildDmResponse(dm, appName, appLogo), nil
 	}
 
-	if err := postgresql.CreateOneRecord(db, dm); err != nil {
+	if err := postgresql.CreateOneRecord(db, &dm); err != nil {
 		return DmChannelsResponse{}, fmt.Errorf("failed to create DM channel: %w", err)
 	}
 

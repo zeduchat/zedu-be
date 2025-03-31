@@ -17,14 +17,24 @@ import (
 
 func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.ExternalRequest) (*models.DmChannelsResponse, int, error) {
 
-	var dmchans models.DmChannels
+	var (
+		dmchans models.DmChannels
+		dmfetch models.DmChannels
+	)
 
+	exists := postgresql.CheckExists(db, &dmfetch, "user_id = ? AND participant_id = ?", req.UserId, req.ParticipantId)
+
+	if !exists {
+		dmchans.ChannelId = utility.GenerateUUID()
+		dmchans.ID = utility.GenerateUUID()
+	} else {
+		dmchans.ChannelId = dmfetch.ChannelId
+		dmchans.ID = dmfetch.ID
+	}
 	dmchans.ChatType = req.ChatType
 	dmchans.ChannelType = "dm"
 	dmchans.OrgId = req.OrgId
 	dmchans.UserId = req.UserId
-	dmchans.ChannelId = utility.GenerateUUID()
-	dmchans.ID = utility.GenerateUUID()
 	dmchans.ParticipantId = &req.ParticipantId
 
 	var resp models.DmChannelsResponse
