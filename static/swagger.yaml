@@ -13566,7 +13566,7 @@ paths:
                   message:
                     type: string
                     example: "An unexpected error occurred"
-  /recent-dm/{orgId}/:
+  /organisations/{org_id}/recent-dm:
     get:
       tags:
         - organisation
@@ -13575,7 +13575,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: orgId
+        - name: org_id
           in: path
           required: true
           description: The ID of the organization user belong to.
