@@ -101,7 +101,7 @@ func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *g
 		return buildDmResponse(dm, appName, appLogo), nil
 	}
 
-	if err := postgresql.CreateOneRecord(db, dm); err != nil {
+	if err := postgresql.CreateOneRecord(db, &dm); err != nil {
 		return DmChannelsResponse{}, fmt.Errorf("failed to create DM channel: %w", err)
 	}
 

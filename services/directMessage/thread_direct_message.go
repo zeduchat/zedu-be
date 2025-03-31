@@ -264,6 +264,18 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 	}
 
+	notification := models.Notification[models.NewMessage]
+	notification.SectionType = models.ThreadSection
+	notification.Content = feed
+
+	err = centrifuge.PublishChannel(logger, feed.ChannelsId, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", feed.ChannelsId, err))
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
+	}
+
+	logger.Info(fmt.Sprintf("Publishing to channel id: %s", feed.ChannelsId))
+
 	return &threadDoc, http.StatusCreated, nil
 }
 
@@ -419,6 +431,20 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelID, err))
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
+	}
+	logger.Info(fmt.Sprintf("Publishing to channel id: %s", req.ChannelID))
+
+	pushReq := models.PushFCMRequest{
+		ChannelName: feed.UserName,
+		UserId:      *channel.ParticipantId,
+		Message:     req.Content,
+		TimeStamp:   threadDoc.CreatedAt.String(),
+		AvatarUrl:   feed.AvatarURL,
+	}
+
+	err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
 	}
 
 	return &threadDoc, http.StatusCreated, nil
