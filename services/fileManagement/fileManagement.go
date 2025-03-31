@@ -63,6 +63,12 @@ func HashFile(file multipart.File) (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
+func ExtractHashedFileName(generatedUrl string) string {
+	urlParts := strings.Split(generatedUrl, "/")
+	hashedFileName := urlParts[len(urlParts)-1]
+	return hashedFileName
+}
+
 func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	minioClient := storage.DB.Minio
 
@@ -139,7 +145,6 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 				newFileEntry := models.UploadedFileResponse{
 					ID:             utility.GenerateUUID(),
 					FileName:       header.Filename,
-					HashedFileName: existingFile.HashedFileName,
 					FileType:       filepath.Ext(header.Filename)[1:],
 					MimeType:       mimeType,
 					FileLink:       existingFile.FileLink,
@@ -154,7 +159,6 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 			}
 		}
 	} else {
-		hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
 		if err != nil {
 			errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
@@ -169,7 +173,6 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		response := models.UploadedFileResponse{
 			ID:             utility.GenerateUUID(),
 			FileName:       header.Filename,
-			HashedFileName: hashedFileName,
 			FileType:       filepath.Ext(header.Filename)[1:],
 			MimeType:       mimeType,
 			FileLink:       generatedUrl,
@@ -199,8 +202,9 @@ func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.UploadedFileRespons
 
 func DeleteFileDetailsByID(logger *utility.Logger, db *gorm.DB, file *models.UploadedFileResponse, fileId string) error {
 	var fileModel models.UploadedFileResponse
+	hashedFileName := ExtractHashedFileName(file.FileLink)
 
-	minioErr := models.DeleteUploadedFiles(logger, file.HashedFileName)
+	minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
 	if minioErr != nil {
 		return minioErr
 	}

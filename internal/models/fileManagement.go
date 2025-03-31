@@ -23,7 +23,6 @@ type UploadedFileResponse struct {
 	FileType       string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
 	MimeType       string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
 	FileLink       string `gorm:"column:file_link; type:varchar(200); not null; unique" json:"file_link"`
-	HashedFileName string `gorm:"column:hashed_file_name; type:varchar(255);" json:"hashed_file_name"`
 }
 
 type FileType struct {

@@ -65,15 +65,7 @@ func AuthMigrationModels() []interface{} {
 }
 
 func AlterColumnModels(db *gorm.DB) []AlterColumn {
-	db.Migrator().DropConstraint(&models.UploadedFileResponse{}, "uni_uploaded_file_responses_hashed_file_name")
-
 	return []AlterColumn{
-		{
-			Model:     models.UploadedFileResponse{},
-			TableName: "uploaded_file_responses",
-			Column:    "hashed_file_name",
-			Type:      "VARCHAR(255)",
-		},
 		// {
 		// 	Model: models.OrgUserManagement{},
 		// 	TableName: "org_user_managements",
