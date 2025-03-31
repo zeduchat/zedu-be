@@ -13,9 +13,7 @@ import (
 )
 
 func ConnectFirebase(logger *utility.Logger, config config.Firebae) {
-
 	opt := option.WithCredentialsFile(config.ServiceFilePath)
-
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("error initializing Firebase app: %v", err))
@@ -32,7 +30,6 @@ func ConnectFirebase(logger *utility.Logger, config config.Firebae) {
 	// Assign the app and client to the global Client variable
 	Client.App = app
 	Client.Client = client
-
 	utility.LogAndPrint(logger, "Successfully initialized Firebase client")
 }
 

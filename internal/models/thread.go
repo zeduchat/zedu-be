@@ -500,7 +500,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 }
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
-
 	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
 	if err != nil {
