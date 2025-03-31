@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"github.com/hngprojects/telex_be/internal/models"
-	"gorm.io/gorm"
 )
 
 // _ = db.AutoMigrate(MigrationModels()...)
@@ -64,7 +63,7 @@ func AuthMigrationModels() []interface{} {
 	} // an array of db models, example: User{}
 }
 
-func AlterColumnModels(db *gorm.DB) []AlterColumn {
+func AlterColumnModels() []AlterColumn {
 	return []AlterColumn{
 		// {
 		// 	Model: models.OrgUserManagement{},

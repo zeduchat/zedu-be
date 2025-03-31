@@ -8,7 +8,7 @@ import (
 func RunAllMigrations(db *storage.Database) {
 
 	// verification migration
-	MigrateModels(db.Postgresql, AuthMigrationModels(), AlterColumnModels(db.Postgresql))
+	MigrateModels(db.Postgresql, AuthMigrationModels(), AlterColumnModels())
 
 }
 
