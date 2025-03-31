@@ -1,6 +1,7 @@
 package dm_filter
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,8 @@ type Controller struct {
 }
 
 func (base *Controller) DmFilter(c *gin.Context) {
-	orgId := c.Param("orgId")
+	orgId := c.Param("org_id")
+	fmt.Println(orgId, "------------>")
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
 		c.JSON(http.StatusBadRequest, rd)
