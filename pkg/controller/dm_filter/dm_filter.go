@@ -44,7 +44,6 @@ func (base *Controller) DmFilter(c *gin.Context) {
 		c.JSON(statusCode, rd)
 		return
 	}
-
 	resp := utility.BuildSuccessResponse(statusCode, "success", dms, pg)
 	c.JSON(statusCode, resp)
 

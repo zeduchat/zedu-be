@@ -17,7 +17,7 @@ func DmFilter(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	dmf := dm_filter.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	searchUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		searchUrl.GET("/dm/organisation/:orgId/", dmf.DmFilter)
+		searchUrl.GET("/recent-dm/:orgId/", dmf.DmFilter)
 	}
 	return r
 }

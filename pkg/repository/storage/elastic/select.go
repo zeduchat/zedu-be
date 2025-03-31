@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
@@ -221,7 +220,6 @@ func CheckExists(Client *elasticsearch.Client, indexName string, query map[strin
 		return false, fmt.Errorf("unexpected response format: total.value is missing")
 	}
 
-	// In case total is returned as a number (older versions)
 	if total, ok := hitsObj["total"].(float64); ok {
 		return total > 0, nil
 	}
@@ -274,65 +272,30 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 	return result, nil
 }
 
-type DmFilter struct {
-	UserId     string    `json:"user_id"`
-	UserName   string    `json:"user_name,omitempty"`
-	UsersName  string    `json:"username,omitempty"`
-	OrgId      string    `json:"org_id,omitempty"`
-	AvatarUrl  string    `json:"avatar_url"`
-	ChannelsId string    `json:"channels_id,omitempty"`
-	ChannelId  string    `json:"channel_id,omitempty"`
-	Message    string    `json:"message"`
-	Content    string    `json:"content,omitempty"`
-	CreatedAt  time.Time `json:"created_at,omitempty"`
-}
-
-type Hit struct {
-	Index  string        `json:"_index,omitempty"`
-	Id     string        `json:"_id,omitempty"`
-	Score  float64       `json:"_score,omitempty"`
-	Source DmFilter      `json:"_source"`
-	Sort   []interface{} `json:"sort,omitempty"`
-}
-
-type Hits struct {
-	Total struct {
-		Value    int    `json:"value"`
-		Relation string `json:"relation"`
-	} `json:"total"`
-	MaxScore *float64 `json:"max_score,omitempty"`
-	Hits     []Hit    `json:"hits"`
-}
-
-type Bucket struct {
-	Key           string `json:"key"`
-	DocCount      int    `json:"doc_count"`
-	LatestMessage struct {
-		Hits Hits `json:"hits"`
-	} `json:"latest_message"`
-}
-
-type Aggregations struct {
-	UniqueUsers struct {
-		Buckets []Bucket `json:"buckets"`
-	} `json:"unique_users"`
-}
-
-type ESResponse struct {
-	Took         int          `json:"took"`
-	TimedOut     bool         `json:"timed_out"`
-	Shards       interface{}  `json:"_shards"`
-	Hits         Hits         `json:"hits"`
-	Aggregations Aggregations `json:"aggregations"`
-}
-
-func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, query map[string]interface{}, rawResult *ESResponse, c *gin.Context) (*PaginationResponse, error) {
+func PerformSearchWithMultipleIndicesPagination[T any](client *elasticsearch.Client, query map[string]interface{}, inter T, result *[]T, c *gin.Context) (*PaginationResponse, error) {
+	var ESResponse struct {
+		Took     int         `json:"took"`
+		TimedOut bool        `json:"timed_out"`
+		Shards   interface{} `json:"_shards"`
+		Hits     struct {
+			Total struct {
+				Value    int    `json:"value"`
+				Relation string `json:"relation"`
+			} `json:"total"`
+			MaxScore *float64 `json:"max_score,omitempty"`
+			Hits     []struct {
+				Index  string          `json:"_index,omitempty"`
+				Id     string          `json:"_id,omitempty"`
+				Score  float64         `json:"_score,omitempty"`
+				Source json.RawMessage `json:"_source"`
+				Sort   []interface{}   `json:"sort,omitempty"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
 	pag := GetPagination(c)
 
 	query["from"] = (pag.Page - 1) * pag.Limit
 	query["size"] = pag.Limit
-
-	fmt.Println(query)
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
@@ -351,26 +314,35 @@ func PerformSearchWithMultipleIndicesPagination(client *elasticsearch.Client, qu
 		return nil, fmt.Errorf("error performing search: %w", err)
 	}
 	defer res.Body.Close()
-
 	if res.IsError() {
 		return nil, fmt.Errorf("error in search response: %s", res.String())
 	}
 
 	var raw map[string]interface{}
-	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&ESResponse); err != nil {
 		return nil, fmt.Errorf("error parsing response: %w", err)
 	}
-
 	rawJSON, _ := json.Marshal(raw)
-
-	if err := json.Unmarshal(rawJSON, rawResult); err != nil {
+	if err := json.Unmarshal(rawJSON, &ESResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode search response: %v", err)
 	}
 
-	totalPages := int(math.Ceil(float64(rawResult.Hits.Total.Value) / float64(pag.Limit)))
+	hits := ESResponse.Hits.Hits
+	for _, r := range hits {
+		b, err := r.Source.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(b, &inter)
+		if err != nil {
+			return nil, err
+		}
+		*result = append(*result, inter)
+	}
+	totalPages := int(math.Ceil(float64(ESResponse.Hits.Total.Value) / float64(pag.Limit)))
 
 	return &PaginationResponse{
-		PageCount:       int(rawResult.Hits.Total.Value),
+		PageCount:       int(ESResponse.Hits.Total.Value),
 		CurrentPage:     pag.Page,
 		TotalPagesCount: totalPages,
 	}, nil

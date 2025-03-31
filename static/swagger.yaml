@@ -13566,10 +13566,10 @@ paths:
                   message:
                     type: string
                     example: "An unexpected error occurred"
-  /dm/organisation/{orgId}/:
+  /recent-dm/{orgId}/:
     get:
       tags:
-        - Search
+        - organisation
       summary: Get user direct messages in an organization
       description: Retrieves direct messages for a user within a specified organization.
       security:
@@ -13594,6 +13594,7 @@ paths:
           description: The number of items per page.
           schema:
             type: integer
+            default: 20
       responses:
         200:
           description: Successfully retrieved direct messages.

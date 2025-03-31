@@ -1,9 +1,10 @@
 package models
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -12,56 +13,42 @@ import (
 	"gorm.io/gorm"
 )
 
-func mapToStruct(raw map[string]interface{}) (*elastic.ESResponse, error) {
-	m := &elastic.ESResponse{}
-
-	hitsArray, ok := raw["hits"].(map[string]interface{})["hits"].([]interface{})
-	if !ok {
-		return nil, errors.New("invalid response format: missing 'hits' array")
-	}
-	for _, hit := range hitsArray {
-		hitMap, ok := hit.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		source, ok := hitMap["_source"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		b, err := json.Marshal(source)
-		if err != nil {
-			return nil, err
-		}
-		var dm elastic.DmFilter
-		if err := json.Unmarshal(b, &dm); err != nil {
-			return nil, err
-		}
-		// m.Hits.Hits = append(m.Hits.Hits, dm)
-	}
-	return m, nil
+type DmFilter struct {
+	UserId     string    `json:"user_id"`
+	UserName   string    `json:"user_name,omitempty"`
+	UsersName  string    `json:"username,omitempty"`
+	OrgId      string    `json:"org_id,omitempty"`
+	AvatarUrl  string    `json:"avatar_url"`
+	ChannelsId string    `json:"channels_id,omitempty"`
+	ChannelId  string    `json:"channel_id,omitempty"`
+	Message    string    `json:"message"`
+	Content    string    `json:"content,omitempty"`
+	CreatedAt  time.Time `json:"created_at,omitempty"`
 }
 
-func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]elastic.DmFilter, *elastic.PaginationResponse, error) {
+func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]DmFilter, *elastic.PaginationResponse, int, error) {
+	dmFilter := make([]DmFilter, 0)
+	var infer DmFilter
 	chanIds, err := GetUserDmChannels(db.Postgresql, userId, orgId)
 	if err != nil {
-		return nil, nil, err
+		if err.Error() == "Organisation does not exist" {
+			return nil, nil, http.StatusNotFound, err
+		} else if strings.Contains(err.Error(), "user does not belong in this channel") {
+			return nil, nil, http.StatusBadRequest, err
+		}
+		return nil, nil, http.StatusInternalServerError, err
+	} else if len(chanIds) == 0 {
+		return dmFilter, nil, http.StatusOK, nil // user haven't chatted yet...
 	}
 
 	query := queryElasticForDms(chanIds, userId, orgId)
-	dmFilter := make([]elastic.DmFilter, 0)
-	rs := &elastic.ESResponse{}
-	raw, err := elastic.PerformSearchWithMultipleIndicesPagination(db.Elastic, query, rs, c)
+	raw, err := elastic.PerformSearchWithMultipleIndicesPagination(db.Elastic, query, infer, &dmFilter, c)
 
 	if err != nil {
-		return nil, nil, err
-	}
-	hits := rs.Hits.Hits
-	for _, hit := range hits {
-		dmFilter = append(dmFilter, hit.Source)
+		return nil, nil, http.StatusInternalServerError, err
 	}
 
-	return dmFilter, raw, nil
+	return dmFilter, raw, http.StatusOK, nil
 }
 func queryElasticForDms(chanIds []string, userId, orgId string) map[string]interface{} {
 	query := map[string]interface{}{
@@ -118,8 +105,6 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]inter
 		},
 	}
 
-	b, _ := json.MarshalIndent(query, "\n", " ")
-	fmt.Println(string(b))
 	return query
 }
 
@@ -134,9 +119,6 @@ func GetUserDmChannels(db *gorm.DB, userId, orgId string) ([]string, error) {
 		Select("channel_id").
 		Where("(user_id = ? AND org_id = ?) OR (participant_id = ? AND org_id = ?)", userId, orgId, userId, orgId).
 		Scan(&channs).Error; err != nil {
-		return nil, errors.New("user does not belong in this channel")
-	}
-	if channs == nil {
 		return nil, errors.New("user does not belong in this channel")
 	}
 	return channs, nil

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -124,8 +123,6 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 
 	addSorting(query, opts)
 
-	b, _ := json.MarshalIndent(query, "\n", " ")
-	fmt.Println(string(b))
 	return query, nil
 }
 
@@ -398,6 +395,5 @@ func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, er
 		Scan(&channs).Error; err != nil {
 		return nil, errors.New("error fetching channels")
 	}
-	fmt.Println(channs)
 	return channs, nil
 }
