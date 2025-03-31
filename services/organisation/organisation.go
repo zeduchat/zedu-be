@@ -103,12 +103,12 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = user.Profile.UserName
 
-	err = channel.CreateChannels(db)
+	err = channel.CreateChannel(db)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = channel.AddUserToChannels(db, joinChannelsReq)
+	_, err = channel.AddUserToChannel(db, joinChannelsReq)
 	if err != nil {
 		return nil, err
 	}
@@ -247,8 +247,8 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 	var (
 		org models.Organisation
-		ch models.Channels
-		oi models.OrganisationIntegrations
+		ch  models.Channels
+		oi  models.OrganisationIntegrations
 	)
 
 	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId) //already checks if org exists
@@ -267,7 +267,7 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 
 	//remove all organisation-integrations mapping
 	err = postgresql.DeleteSpecificRecord(db, &oi, "org_id = ?", orgId)
-	if err != nil{
+	if err != nil {
 		return errors.New("unable to remove organisation integrations")
 	}
 
@@ -346,23 +346,23 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users AS u").
-        Select(`u.id, u.email, p.phone AS phone_number, 
+		Select(`u.id, u.email, p.phone AS phone_number, 
                 COALESCE(NULLIF(p.user_name, ''), 
                          NULLIF(p.full_name, ''), 
                          SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name, 
                 p.avatar_url AS avatar_url, u.created_at, o.status, 
                 org.name AS role`).
-        Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
-        Joins("JOIN profiles AS p ON p.userid = u.id").
-        Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
-        Joins("JOIN org_roles AS org ON org.id = o.role_id::uuid").
-        Where("uo.organisation_id = ?", orgId).
-        Offset(offset).
-        Limit(pagination.Limit).
-        Find(&users).Error; err != nil {
-        return nil, postgresql.PaginationResponse{}, err
+		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
+		Joins("JOIN profiles AS p ON p.userid = u.id").
+		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
+		Joins("JOIN org_roles AS org ON org.id = o.role_id::uuid").
+		Where("uo.organisation_id = ?", orgId).
+		Offset(offset).
+		Limit(pagination.Limit).
+		Find(&users).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err
 
-    }
+	}
 
 	var totalUsers int64
 	if err := db.Table("users AS u").

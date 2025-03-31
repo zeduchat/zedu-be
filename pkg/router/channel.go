@@ -22,7 +22,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 	{
 		// POST routes
-		channelUrl.POST("", channel.CreateChannels)
+		channelUrl.POST("", channel.CreateChannel)
 		channelQueueUrl.POST("/backend-queue", channel.SaveIncomingQueueMsg)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
 		channelUrl.POST("/:channelId/join", channel.JoinChannels)

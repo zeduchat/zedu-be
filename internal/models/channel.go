@@ -129,7 +129,7 @@ type ArchiveChannelRequest struct {
 	UserId   string `json:"user_id" `
 }
 
-func (r *Channels) CreateChannels(db *gorm.DB) error {
+func (r *Channels) CreateChannel(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &r)
 	if err != nil {
@@ -334,7 +334,7 @@ func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (M
 	return messagesResp, nil
 }
 
-func (r *Channels) AddUserToChannels(db *gorm.DB, req JoinChannelsRequest) (Channels, error) {
+func (r *Channels) AddUserToChannel(db *gorm.DB, req JoinChannelsRequest) (Channels, error) {
 
 	var (
 		user      User

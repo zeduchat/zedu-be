@@ -209,7 +209,7 @@ func TestChannelsEndpoints(t *testing.T) {
 
 		channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
-			channelUrl.POST("/", channel.CreateChannels)
+			channelUrl.POST("/", channel.CreateChannel)
 			channelUrl.GET("/:channelId", channel.GetChannel)
 			channelUrl.POST("/:channelId/join", channel.JoinChannels)
 			channelUrl.POST("/:channelId/leave", channel.LeaveChannels)

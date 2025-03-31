@@ -192,8 +192,10 @@ type CreateThreadMsgReq struct {
 }
 
 type BotReturnRequest struct {
-	ChannelID string `json:"channel_id"`
-	Content   string `json:"content"`
+	ChannelID string                 `json:"channel_id"`
+	Content   string                 `json:"content"`
+	Media     []UploadedFileResponse `json:"media"`
+	Mentions  []Mention              `json:"mentions"`
 }
 
 type FeedMessageRequest struct {
@@ -498,7 +500,6 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 }
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
-
 	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
 
 	if err != nil {

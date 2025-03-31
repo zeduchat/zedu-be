@@ -130,6 +130,7 @@ func (base *Controller) GetDmUser(c *gin.Context) {
 	var req models.DmChannelsRequest
 
 	req.UserId = c.Param("user_id")
+	req.OrgId = c.Param("org_id")
 
 	if _, err := uuid.Parse(req.UserId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
@@ -137,7 +138,7 @@ func (base *Controller) GetDmUser(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := dm.GetDmUser(req, base.Db.Postgresql, c)
+	resp, code, err := dm.GetDmUser(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
