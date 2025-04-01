@@ -364,7 +364,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.OrgID = org_id
 	orgIntegration.JSONUrl = req.JSONUrl
 	orgIntegration.IntegrationID = utility.GenerateUUID()
-	orgIntegration.IsActive = false
+	orgIntegration.IsActive = true
 	orgIntegration.IsSystem = false
 	orgIntegration.ID = utility.GenerateUUID()
 
