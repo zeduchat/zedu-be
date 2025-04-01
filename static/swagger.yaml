@@ -6785,7 +6785,6 @@ paths:
                         format: uuid
                         example: "550e8400-e29b-41d4-a716-446655440000"
 
-
       responses:
         "200":
           description: Thread retrieved successfully
@@ -7129,7 +7128,6 @@ paths:
   ## Reply Message Dms
 
   /dms/messages/{channel_id}:
-
     post:
       tags:
         - Direct Message
@@ -7612,145 +7610,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-
   /organisations/{org_id}/dms:
-      get:
-        tags:
-          - Direct Message
-        summary: Retrieve DM channels
-        security:
-          - bearerAuth: []
-        parameters:
-          - name: org_id
-            in: path
-            required: true
-            description: The ID of the organization
-            schema:
-              type: string
-              format: uuid
-          - name: page
-            in: query
-            required: false
-            description: The page number for pagination
-            schema:
-              type: integer
-              default: 1
-          - name: page_size
-            in: query
-            required: false
-            description: The number of items per page for pagination
-            schema:
-              type: integer
-              default: 20
-        responses:
-          "200":
-            description: Dm channels retrieved successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: success
-                    status_code:
-                      type: integer
-                      example: 200
-                    message:
-                      type: string
-                      example: Dm channels retrieved successfully
-                    data:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          channel_id:
-                            type: string
-                            format: uuid
-                          avatar_url:
-                            type: string
-                          username:
-                            type: string
-                    pagination:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          current_page:
-                            type: integer
-                          page_size:
-                            type: integer
-                          total_items:
-                            type: integer
-                          total_pages:
-                            type: integer
-          "400":
-            description: Bad request
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/BadRequestErrorSchema"
-          "401":
-            description: Unauthorized
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/UnauthorizedErrorSchema"
-          "403":
-            description: Forbidden
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/ForbiddenErrorSchema"
-      post:
-        tags:
-          - Direct Message
-        summary: Create a dm room
-        security:
-          - bearerAuth: []
-        parameters:
-          - name: org_id
-            in: path
-            required: true
-            description: The ID of the organization
-            schema:
-              type: string
-              format: uuid
-        requestBody:
+    get:
+      tags:
+        - Direct Message
+      summary: Retrieve DM channels
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
           required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: The page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          description: The number of items per page for pagination
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Dm channels retrieved successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  chat_type:
+                  status:
                     type: string
-                    enum: [user, bot]
-                    description: The type of chat
-                  participant_id:
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
                     type: string
-                    description: The ID of the participant
-                  channel_id:
-                    type: string
-                    description: The ID of the channel
-        responses:
-          "201":
-            description: Dm channels created successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: success
-                    status_code:
-                      type: integer
-                      example: 201
-                    message:
-                      type: string
-                      example: Dm channel created successfully
-                    data:
+                    example: Dm channels retrieved successfully
+                  data:
+                    type: array
+                    items:
                       type: object
                       properties:
                         channel_id:
@@ -7760,24 +7668,113 @@ paths:
                           type: string
                         username:
                           type: string
-          "400":
-            description: Bad request
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/BadRequestErrorSchema"
-          "401":
-            description: Unauthorized
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/UnauthorizedErrorSchema"
-          "403":
-            description: Forbidden
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/ForbiddenErrorSchema"
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                        page_size:
+                          type: integer
+                        total_items:
+                          type: integer
+                        total_pages:
+                          type: integer
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+    post:
+      tags:
+        - Direct Message
+      summary: Create a dm room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chat_type:
+                  type: string
+                  enum: [user, bot]
+                  description: The type of chat
+                participant_id:
+                  type: string
+                  description: The ID of the participant
+                channel_id:
+                  type: string
+                  description: The ID of the channel
+      responses:
+        "201":
+          description: Dm channels created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Dm channel created successfully
+                  data:
+                    type: object
+                    properties:
+                      channel_id:
+                        type: string
+                        format: uuid
+                      avatar_url:
+                        type: string
+                      username:
+                        type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}:
     Delete:
@@ -12407,6 +12404,8 @@ paths:
                   items:
                     type: string
                     format: binary
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Upload success
@@ -12487,6 +12486,199 @@ paths:
                     nullable: true
                     example: null
 
+  /files/file/{id}:
+    get:
+      tags:
+        - File Management
+      summary: Retrieve file details by ID
+      description: Fetches file metadata and a file link from the database using a unique file ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Files located successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Deployment and Rollback Procedure.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+    delete:
+      tags:
+        - File Management
+      summary: Deletes file details by ID
+      description: Deletes file metadata and a file link from the database using a unique file ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Files deleted successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Deployment and Rollback Procedure.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
   /organisations/{organisation_id}/group-dms/:
     get:
       tags:
@@ -12501,7 +12693,7 @@ paths:
             type: string
           description: The unique identifier of the organisation.
       responses:
-        '200':
+        "200":
           description: Group DM channels retrieved successfully.
           content:
             application/json:
@@ -12580,7 +12772,7 @@ paths:
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
                 - "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
       responses:
-        '201':
+        "201":
           description: Group DM channel created successfully.
           content:
             application/json:
@@ -12645,7 +12837,7 @@ paths:
                         username: "user6"
                         avatar_url: ""
                         email: "user6@gmail.com"
-        '400':
+        "400":
           description: Invalid request body.
           content:
             application/json:
@@ -12662,7 +12854,7 @@ paths:
                   status: "error"
                   status_code: 400
                   message: "Invalid request payload"
-        '404':
+        "404":
           description: Organisation not found.
           content:
             application/json:
@@ -12681,224 +12873,224 @@ paths:
                   message: "Organisation not found"
 
   /organisations/{organisation_id}/group-dms/{channel_id}:
-      delete:
-        tags:
-          - Group Direct Message
-        summary: Delete a Group DM Channel
-        description: Deletes a specified Group DM channel.
-        parameters:
-          - name: organisation_id
-            in: path
-            required: true
-            schema:
-              type: string
-            description: The unique identifier of the organisation.
-          - name: channel_id
-            in: path
-            required: true
-            schema:
-              type: string
-            description: The unique identifier of the Group DM channel to delete.
-        responses:
-          '200':
-            description: Group DM channel deleted successfully.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                    status_code:
-                      type: integer
-                    message:
-                      type: string
-                example:
-                  status: "success"
-                  status_code: 200
-                  message: "Group DM channel deleted successfully"
-          '400':
-            description: Invalid request parameters.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                    status_code:
-                      type: integer
-                    message:
-                      type: string
-                example:
-                  status: "error"
-                  status_code: 400
-                  message: "Invalid group DM ID"
-          '404':
-            description: Group DM channel not found.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                    status_code:
-                      type: integer
-                    message:
-                      type: string
-                example:
-                  status: "error"
-                  status_code: 404
-                  message: "Group DM channel not found"
-
-  /organisations/{organisation_id}/group-dms/{user_id}:
-      get:
-        tags:
-          - Group Direct Message
-        summary: Retrieve Group DM User Details
-        description: Retrieves details of a specific user in a Group DM.
-        parameters:
-          - name: organisation_id
-            in: path
-            required: true
-            schema:
-              type: string
-            description: The unique identifier of the organisation.
-          - name: user_id
-            in: path
-            required: true
-            schema:
-              type: string
-            description: The unique identifier of the Group DM channel.
-        responses:
-          '200':
-            description: User retrieved successfully.
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                    status_code:
-                      type: integer
-                    message:
-                      type: string
-                    data:
-                      type: object
-                      properties:
-                        avatar_url:
-                          type: string
-                        email:
-                          type: string
-                        username:
-                          type: string
-
-  /group-dms/channels/{channel_id}/threads:
-      post:
-        tags:
-          - Group Direct Message
-        summary: Create a Thread in a Group DM Channel
-        description: Adds a new thread message to a specified Group DM channel.
-        requestBody:
+    delete:
+      tags:
+        - Group Direct Message
+      summary: Delete a Group DM Channel
+      description: Deletes a specified Group DM channel.
+      parameters:
+        - name: organisation_id
+          in: path
           required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel to delete.
+      responses:
+        "200":
+          description: Group DM channel deleted successfully.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  content:
+                  status:
                     type: string
-                media:
-                  type: array
-                  items:
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "success"
+                status_code: 200
+                message: "Group DM channel deleted successfully"
+        "400":
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 400
+                message: "Invalid group DM ID"
+        "404":
+          description: Group DM channel not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 404
+                message: "Group DM channel not found"
+
+  /organisations/{organisation_id}/group-dms/{user_id}:
+    get:
+      tags:
+        - Group Direct Message
+      summary: Retrieve Group DM User Details
+      description: Retrieves details of a specific user in a Group DM.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel.
+      responses:
+        "200":
+          description: User retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
                     type: object
                     properties:
-                      id:
+                      avatar_url:
                         type: string
-                        format: uuid
-                        example: "550e8400-e29b-41d4-a716-446655440000"
-                      file_name:
+                      email:
                         type: string
-                        example: "slsslsl"
-                      file_type:
+                      username:
                         type: string
-                        example: "png"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://example.com/file.png"
-                mentions:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      type:
-                        type: string
-                        enum: [bot, user]
-                        example: "bot"
-                      id:
-                        type: string
-                        format: uuid
-                        example: "550e8400-e29b-41d4-a716-446655440000"
-                required:
-                  - content
-        responses:
-          '201':
-            description: Thread message added successfully.
-            content:
-              application/json:
-                schema:
+
+  /group-dms/channels/{channel_id}/threads:
+    post:
+      tags:
+        - Group Direct Message
+      summary: Create a Thread in a Group DM Channel
+      description: Adds a new thread message to a specified Group DM channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+              media:
+                type: array
+                items:
                   type: object
                   properties:
-                    status:
+                    id:
                       type: string
-                    status_code:
-                      type: integer
-                    message:
+                      format: uuid
+                      example: "550e8400-e29b-41d4-a716-446655440000"
+                    file_name:
                       type: string
-                    data:
-                      type: object
-                      properties:
-                        thread_id:
-                          type: string
-                        channels_id:
-                          type: string
-                        event_name:
-                          type: string
-                        username:
-                          type: string
-                        action_type:
-                          type: string
-                        status:
-                          type: string
-                        created_at:
-                          type: string
-                          format: date-time
-                        message_count:
-                          type: integer
-                        last_reply:
-                          type: string
-                          format: date-time
-                        avatar_url:
-                          type: string
-                        type:
-                          type: string
-                        message:
-                          type: string
-                        channel_name:
-                          type: string
-                        current_status:
-                          type: string
-                        full_name:
-                          type: string
-                        email:
-                          type: string
-                        user_id:
-                          type: string
-                        edited:
-                          type: boolean
+                      example: "slsslsl"
+                    file_type:
+                      type: string
+                      example: "png"
+                    file_link:
+                      type: string
+                      format: uri
+                      example: "https://example.com/file.png"
+              mentions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [bot, user]
+                      example: "bot"
+                    id:
+                      type: string
+                      format: uuid
+                      example: "550e8400-e29b-41d4-a716-446655440000"
+              required:
+                - content
+      responses:
+        "201":
+          description: Thread message added successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      thread_id:
+                        type: string
+                      channels_id:
+                        type: string
+                      event_name:
+                        type: string
+                      username:
+                        type: string
+                      action_type:
+                        type: string
+                      status:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      message_count:
+                        type: integer
+                      last_reply:
+                        type: string
+                        format: date-time
+                      avatar_url:
+                        type: string
+                      type:
+                        type: string
+                      message:
+                        type: string
+                      channel_name:
+                        type: string
+                      current_status:
+                        type: string
+                      full_name:
+                        type: string
+                      email:
+                        type: string
+                      user_id:
+                        type: string
+                      edited:
+                        type: boolean
   /group-dms/messages/{channel_id}:
     put:
       tags:
@@ -13008,7 +13200,7 @@ paths:
                 - thread_id
 
       responses:
-        '201':
+        "201":
           description: Group channel message added successfully.
           content:
             application/json:
@@ -13310,100 +13502,7 @@ paths:
                                 nullable: true
                               avatar_url:
                                 type: string
-  /files/file/{id}:
-    get:
-      tags:
-        - File Management
-      summary: Retrieve file details by ID
-      description: Fetches file metadata and a file link from the database using a unique file ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: The unique ID of the file
-          schema:
-            type: string
-            format: uuid
-            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-      responses:
-        "200":
-          description: File found successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: "Files located successfully"
-                  data:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
-                        type: string
-                        example: "Deployment and Rollback Procedure.pdf"
-                      file_type:
-                        type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
-        "404":
-          description: File not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 404
-                  message:
-                    type: string
-                    example: "File not found"
-                  error:
-                    type: string
-                    example: "record not found"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 500
-                  message:
-                    type: string
-                    example: "Internal server error"
-                  error:
-                    type: string
-                    example: "Unexpected database failure"
-                  data:
-                    type: object
-                    nullable: true
-                    example: null
+
   /search/organisation/{orgId}/:
     get:
       tags:
