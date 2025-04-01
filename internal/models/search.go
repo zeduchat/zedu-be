@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
@@ -55,24 +56,20 @@ func (s *SearchQueryFiltersKeywords) ProcessQueryString(queryArr [][]string) {
 	}
 }
 
-// query postgres and find channels by organisations
 func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryFiltersKeywords, userId string, orgId string) ([]utility.SearchQueryResult, error) {
 
 	var qResults []utility.SearchQueryResult
 
-	// Build the search query
 	query, err := buildSearchQuery(db.Postgresql, searchQuery, userId, orgId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build search query: %w", err)
 	}
 
-	// Perform search on ElasticSearch
 	res, err := elastic.PerformSearchWithMultipleIndices(db.Elastic, query)
 	if err != nil {
 		return nil, errors.New(err.Error())
 	}
 
-	// Extract hits data
 	hitsData, ok := res["hits"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected type for hits: %T", res["hits"])
@@ -83,7 +80,6 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		return nil, fmt.Errorf("unexpected type for hits.hits: %T", hitsData["hits"])
 	}
 
-	// Process each hit
 	for _, hitItem := range hitsArray {
 		hit, ok := hitItem.(map[string]interface{})
 		if !ok {
@@ -134,29 +130,34 @@ func initializeQuery() map[string]interface{} {
 	return map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must":   []interface{}{}, // for text matching
-				"filter": []interface{}{}, // for term/range filters
+				"must":   []interface{}{},
+				"filter": []interface{}{},
 			},
 		},
 	}
 }
-
 func addOrgOrChannelFilter(boolQuery map[string]interface{}, orgID string, channelIDs []string) {
+	shouldClauses := []interface{}{
+		map[string]interface{}{"term": map[string]interface{}{"org_id.keyword": orgID}},
+	}
+
+	if len(channelIDs) > 0 {
+		shouldClauses = append(shouldClauses, map[string]interface{}{
+			"terms": map[string]interface{}{"channels_id.keyword": channelIDs},
+		})
+	}
+
 	orgOrChannelFilter := map[string]interface{}{
 		"bool": map[string]interface{}{
-			"should": []interface{}{
-				map[string]interface{}{"term": map[string]interface{}{"org_id": orgID}},
-				map[string]interface{}{"terms": map[string]interface{}{"channel_id": channelIDs}},
-			},
+			"should":               shouldClauses,
 			"minimum_should_match": 1,
 		},
 	}
 
-	// Ensure "filter" exists and is a slice
-	if existingFilters, ok := boolQuery["filter"].([]interface{}); ok {
-		boolQuery["filter"] = append(existingFilters, orgOrChannelFilter)
+	if existingFilters, ok := boolQuery["must"].([]interface{}); ok {
+		boolQuery["must"] = append(existingFilters, orgOrChannelFilter)
 	} else {
-		boolQuery["filter"] = []interface{}{orgOrChannelFilter}
+		boolQuery["must"] = []interface{}{orgOrChannelFilter}
 	}
 }
 
@@ -164,7 +165,6 @@ func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFilter
 	mustClauses := boolQuery["must"].([]interface{})
 
 	if opts.Exact != "" {
-		// Ensure we only match exact messages from the logged-in user
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
@@ -177,7 +177,6 @@ func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFilter
 			},
 		})
 	} else if opts.Message != "" {
-		// General search across multiple fields (does not filter by user_id)
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query": opts.Message,
@@ -254,21 +253,18 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 	if opts.In != "" {
 		channelName := strings.Trim(opts.In, "\"")
 
-		// Ensure "must" exists
 		if _, exists := boolQuery["must"]; !exists {
 			boolQuery["must"] = []interface{}{}
 		}
 
 		mustClauses := boolQuery["must"].([]interface{})
 
-		// Use "match_phrase" for exact word matching
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"match_phrase": map[string]interface{}{
 				"channel_name": channelName,
 			},
 		})
 
-		// Assign back to boolQuery
 		boolQuery["must"] = mustClauses
 	}
 
@@ -277,7 +273,6 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
 	filterClauses := boolQuery["filter"].([]interface{})
 
-	// "On" filter: match documents on a specific day.
 	if !opts.On.IsZero() {
 		startOfDay := opts.On.Truncate(24 * time.Hour)
 		endOfDay := startOfDay.Add(24 * time.Hour).Add(-time.Nanosecond)
@@ -300,7 +295,6 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 		filterClauses = append(filterClauses, onFilter, onFilter2)
 	}
 
-	// "Before" filter: match documents before the given time.
 	if !opts.Before.IsZero() {
 		beforeFilter := map[string]interface{}{
 			"range": map[string]interface{}{
@@ -319,7 +313,6 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 		filterClauses = append(filterClauses, beforeFilter, beforeFilter2)
 	}
 
-	// "After" filter: match documents after the given time.
 	if !opts.After.IsZero() {
 		afterFilter := map[string]interface{}{
 			"range": map[string]interface{}{
@@ -384,6 +377,11 @@ func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, er
 	var channs []string
 
 	org := Organisation{}
+
+	if exists := postgresql.CheckExists(db, &org, "id = ?", orgId); exists == false {
+		return nil, errors.New("Organisation does not exist")
+	}
+
 	orgs, err := org.GetUserOrganisations(db, userId)
 	if err != nil && orgs == nil {
 		return nil, err

@@ -11,10 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string,c *gin.Context, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, int, error) {
+func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c *gin.Context, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, int, error) {
 	var (
-		orgInt models.OrganisationIntegrations
-		botResp models.AgentsResp
+		orgInt  models.OrganisationIntegrations
+		botResp models.AgentsResp = make(models.AgentsResp, 0)
+		seenBot                   = make(map[string]bool)
 	)
 
 	resp, paginatedResponse, err, code := orgInt.GetCustomAgentApp(db, org_id, c)
@@ -24,40 +25,79 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string,c 
 
 	for _, org_agents := range resp {
 		json_url := org_agents.JSONUrl
-		data := map[string]string{"url": json_url}
 
-		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+		if seenBot[json_url] {
+			continue
+		}
+		seenBot[json_url] = true
+
+		data_r, err := models.FetchDetailsFromAgentJSON(extReq, json_url)
 		if err != nil {
+			logger.Error("failed to fetch agent json", err)
+
+			failedAgent := models.Integrations{
+				ID:             org_agents.IntegrationID,
+				Name:           "Failed Bot",
+				JSONUrl:        org_agents.JSONUrl,
+				AppUrl:         "Failed to fetch app url",
+				AppLogo:        "Failed to fetch app logo",
+				AppDescription: "Failed to fetch app description",
+				Category:       "Failed to fetch category",
+				Status:         "failed",
+				IsActive:       org_agents.IsActive,
+				CreatedAt:      org_agents.CreatedAt,
+				UpdatedAt:      org_agents.UpdatedAt,
+			}
+			botResp = append(botResp, struct {
+				models.Integrations
+				Linked bool "json:\"linked\""
+			}{
+				Integrations: failedAgent,
+				Linked:       false,
+			})
 			continue
 		}
 
-		response_data := response.(map[string]interface{})
-		data_r := response_data["data"].(map[string]interface{})
-		description := data_r["descriptions"].(map[string]interface{})
+		description, ok := data_r["descriptions"].(map[string]interface{})
+		if !ok {
+			logger.Error("failed to fetch agent json description", err)
+			continue
+		}
+
+		appName, ok := description["app_name"].(string)
+		if !ok || appName == "" {
+			appName = "Undefined"
+		}
+
 		category, ok := data_r["integration_category"].(string)
 		if !ok || category == "" {
 			category = "Undefined"
 		}
+
 		is_bot, ok := data_r["bot"].(bool)
 		if !ok {
 			is_bot = false
 		}
 
-		if is_bot{
+		if is_bot {
+			appUrl, _ := description["app_url"].(string)
+			appLogo, _ := description["app_logo"].(string)
+			appDescription, _ := description["app_description"].(string)
+
 			agent := models.Integrations{
 				ID:             org_agents.IntegrationID,
-				Name:           description["app_name"].(string),
+				Name:           appName,
 				JSONUrl:        org_agents.JSONUrl,
-				AppUrl:         description["app_url"].(string),
-				AppLogo:        description["app_logo"].(string),
-				AppDescription: description["app_description"].(string),
+				AppUrl:         appUrl,
+				AppLogo:        appLogo,
+				AppDescription: appDescription,
 				Category:       category,
 				Status:         "success",
 				IsActive:       org_agents.IsActive,
 				CreatedAt:      org_agents.CreatedAt,
 				UpdatedAt:      org_agents.UpdatedAt,
 			}
-	
+
 			botResp = append(botResp, struct {
 				models.Integrations
 				Linked bool "json:\"linked\""

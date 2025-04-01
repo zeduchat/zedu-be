@@ -33,12 +33,11 @@ func AuthMigrationModels() []interface{} {
 		models.Permission{},
 		models.OrgRole{},
 		models.LoginActivity{},
-		models.Threads{},
 		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},
 		models.HistoryWebhook{},
-		models.HistoryWebhook{},
+		// models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
 		models.HelpCenterCategory{},
@@ -54,11 +53,11 @@ func AuthMigrationModels() []interface{} {
 		models.OrganisationIntegrations{},
 		models.OrganisationChannelsIntegrations{},
 		models.SlashCommand{},
-		models.IntegrationChannel{},
 		models.IntegrationOutput{},
-		models.CustomIntegrationsSetting{},
-		models.DmChannels{},
+		models.IntegrationChannel{},
 		models.FcmTokens{},
+		// models.CustomIntegrationsSetting{},
+		// models.DmChannels{},
 	} // an array of db models, example: User{}
 }
 

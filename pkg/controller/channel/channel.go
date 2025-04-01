@@ -25,7 +25,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) CreateChannels(c *gin.Context) {
+func (base *Controller) CreateChannel(c *gin.Context) {
 	var req models.CreateChannelsRequest
 
 	claims, exists := c.Get("userClaims")
@@ -61,7 +61,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannel(req, base.Db.Postgresql, userId)
 	if err != nil {
 		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -74,7 +74,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) GetChannels(c *gin.Context) {
+func (base *Controller) GetChannel(c *gin.Context) {
 	channels_id := c.Param("channelId")
 
 	if _, err := uuid.Parse(channels_id); err != nil {
@@ -93,7 +93,7 @@ func (base *Controller) GetChannels(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id, userId)
+	respData, code, err := channel.GetChannel(base.Db.Postgresql, channels_id, userId)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -618,7 +618,6 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 		return
 	}
 
-
 	base.Logger.Info("users added to channel successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", nil)
 	c.JSON(http.StatusOK, rd)
@@ -683,7 +682,7 @@ func (base *Controller) GetArchivedChannels(c *gin.Context) {
 	ids := map[string]string{
 		"organisation_id": org_id,
 		"user_id":         userId,
-	}	
+	}
 
 	respData, code, err := channel.GetArchivedChannels(base.Db.Postgresql, ids)
 	if err != nil {

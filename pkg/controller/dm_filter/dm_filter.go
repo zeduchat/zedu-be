@@ -1,4 +1,4 @@
-package search
+package dm_filter
 
 import (
 	"net/http"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/search"
+	dmfilter "github.com/hngprojects/telex_be/services/dm_filter"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -21,15 +21,13 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) Search(c *gin.Context) {
-
-	orgId := c.Param("orgId")
+func (base *Controller) DmFilter(c *gin.Context) {
+	orgId := c.Param("org_id")
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "could not perform search", nil)
@@ -38,21 +36,15 @@ func (base *Controller) Search(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	dms, pg, statusCode, err := dmfilter.FilterData(base.Db, userId, orgId, c)
 
-	query := c.Query("query")
+	if err != nil {
 
-	sortby := c.Query("sortby")
-	searchResult, code, err := search.Search(base.Db, c, userId, orgId, query, sortby)
-
-	if err != nil && code == http.StatusNotFound {
-		resp := utility.BuildErrorResponse(code, http.StatusText(code), err.Error(), err, nil)
-		c.JSON(code, resp)
-		return
-	} else if err != nil {
-		resp := utility.BuildErrorResponse(code, http.StatusText(code), err.Error(), err, nil)
-		c.JSON(code, resp)
+		rd := utility.BuildErrorResponse(statusCode, http.StatusText(statusCode), err.Error(), err, nil)
+		c.JSON(statusCode, rd)
 		return
 	}
-	resp := utility.BuildSuccessResponse(http.StatusOK, "success", "search result", searchResult)
-	c.JSON(code, resp)
+	resp := utility.BuildSuccessResponse(statusCode, "success", dms, pg)
+	c.JSON(statusCode, resp)
+
 }

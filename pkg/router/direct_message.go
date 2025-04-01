@@ -33,5 +33,11 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		threadUrl.PUT("/messages/:channelId", dmCtrl.EditThreadDm)
 		threadUrl.DELETE("/channels/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
 	}
+
+	responseUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion))
+	{
+		responseUrl.POST("/bot-dm-response", dmCtrl.BotDMResponse)
+	}
+
 	return r
 }

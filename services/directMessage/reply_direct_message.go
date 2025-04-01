@@ -61,6 +61,8 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 		FullName:       profile.FullName,
 		Email:          user.Email,
 		OrganisationID: channel.OrgId,
+		Mentions:       req.Mentions,
+		Media:          req.Media,
 	}
 
 	err = messageDoc.CreateMessage(db, logger)
@@ -84,6 +86,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 		FullName:  profile.FullName,
 		OrgId:     req.OrgId,
 		UserId:    req.UserId,
+		Media:     req.Media,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)

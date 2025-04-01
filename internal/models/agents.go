@@ -230,7 +230,6 @@ func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context
 }
 
 // Get custom integrations
-
 func (i *OrganisationIntegrations) GetCustomAgentApp(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
 
 	var (
@@ -246,7 +245,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApp(db *gorm.DB, org_id string,
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ? AND json_url != ''", org_id)
+		Where("org_id = ? AND json_url != '' ", org_id)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,

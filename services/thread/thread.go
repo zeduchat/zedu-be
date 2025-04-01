@@ -220,6 +220,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		dmChannel  models.DmChannels
 		publishDst string
 		chanParts  []models.ChannelParticipant
+		channelIDs []string
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -278,11 +279,18 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 		for _, participant := range chanParts {
 			if participant.UserId != userID {
-				err = centrifuge.PublishChannel(logger, participant.UserId, notification)
-				if err != nil {
-					logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-				}
+				channelIDs = append(channelIDs, participant.UserId)
 			}
+		}
+
+		if len(channelIDs) == 0 {
+			return http.StatusOK, nil
+		}
+
+		err = centrifuge.BatchBroadcastToChannel(logger, channelIDs, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
+			return http.StatusBadRequest, errors.New("failed to broadcast data")
 		}
 
 		return http.StatusOK, nil
@@ -305,6 +313,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		dmChannel  models.DmChannels
 		channel    models.Channels
 		chanParts  []models.ChannelParticipant
+		channelIDs []string
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -363,12 +372,20 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 
 		for _, participant := range chanParts {
 			if participant.UserId != userID {
-				err = centrifuge.PublishChannel(logger, participant.UserId, notification)
-				if err != nil {
-					logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-				}
+				channelIDs = append(channelIDs, participant.UserId)
 			}
 		}
+
+		if len(channelIDs) == 0 {
+			return threadResp, http.StatusOK, nil
+		}
+
+		err = centrifuge.BatchBroadcastToChannel(logger, channelIDs, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
+			return threadResp, http.StatusBadRequest, errors.New("failed to broadcast data")
+		}
+
 		err = threadResp.GetThreadById(db, thread.ID)
 
 		if err != nil {

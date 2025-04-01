@@ -2,13 +2,16 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type DmChannels struct {
@@ -39,6 +42,78 @@ type DmChannelsRequest struct {
 	UserId        string `json:"user_id"`
 	OrgId         string `json:"org_id"`
 	ChannelId     string `json:"channel_id"`
+}
+
+func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL string) (map[string]interface{}, error) {
+	data := map[string]string{"url": agentJSONURL}
+	var response interface{}
+	var err error
+
+	for i := 0; i < 2; i++ {
+		response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Duration(2<<i) * time.Second)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch agent json: %v", err)
+	}
+
+	response_data := response.(map[string]interface{})
+	data_r, ok := response_data["data"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("could not fetch data from agent json")
+	}
+
+	err = ValidateAgentData(data_r)
+	if err != nil {
+		return nil, fmt.Errorf("invalid agent json data: %v", err)
+	}
+
+	return data_r, nil
+}
+
+func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse {
+	return DmChannelsResponse{
+		ID:               dm.ChannelId,
+		ParticipantId:    *dm.ParticipantId,
+		ParticipantEmail: appName,
+		AvatarUrl:        appLogo,
+		Name:             appName,
+	}
+}
+
+func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *gorm.DB) (DmChannelsResponse, error) {
+	var orgAgent OrganisationIntegrations
+	if !postgresql.CheckExists(db, &orgAgent, "org_id = ? AND integration_id = ?", dm.OrgId, dm.ParticipantId) {
+		return DmChannelsResponse{}, fmt.Errorf("agent participant does not exist in organisation %v", dm.OrgId)
+	}
+
+	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl)
+	if err != nil {
+		return DmChannelsResponse{}, fmt.Errorf("failed to fetch agent details: %w", err)
+	}
+
+	agentDescription, ok := agentDetails["descriptions"].(map[string]interface{})
+	if !ok {
+		return DmChannelsResponse{}, errors.New("invalid agent details format")
+	}
+
+	appName, appLogo := utility.GetString(agentDescription, "app_name"), utility.GetString(agentDescription, "app_logo")
+	if appName == "" || appLogo == "" {
+		return DmChannelsResponse{}, errors.New("missing required agent details (app_name, app_logo)")
+	}
+
+	if postgresql.CheckExists(db, &DmChannels{}, "user_id = ? AND participant_id = ?", dm.UserId, dm.ParticipantId) {
+		return buildDmResponse(dm, appName, appLogo), nil
+	}
+
+	if err := postgresql.CreateOneRecord(db, &dm); err != nil {
+		return DmChannelsResponse{}, fmt.Errorf("failed to create DM channel: %w", err)
+	}
+
+	return buildDmResponse(dm, appName, appLogo), nil
 }
 
 func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
