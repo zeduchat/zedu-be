@@ -197,9 +197,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		"org_id = ? AND user_id = ? AND chat_type = ?",
 		dm.OrgId,
 		dm.UserId,
-		"user", //remove this later to get both user and bot
+		"user", 
 	)
-
 	if err != nil {
 		return nil, paginationResp, err
 	}

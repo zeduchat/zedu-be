@@ -13002,8 +13002,6 @@ paths:
               properties:
                 content:
                   type: string
-                thread_id:
-                  type: string
               media:
                 type: array
                 items:
@@ -13038,7 +13036,6 @@ paths:
                       example: "550e8400-e29b-41d4-a716-446655440000"
               required:
                 - content
-                - thread_id
       responses:
         "201":
           description: Thread message added successfully.
@@ -13153,8 +13150,8 @@ paths:
     post:
       tags:
         - Group Direct Message
-      summary: Send a Message in a Group DM Thread
-      description: Adds a new message to an existing thread in a Group DM channel.
+      summary: Reply a Message in a Group DM Thread
+      description: Replies an existing thread in a Group DM channel.
       requestBody:
         required: true
         content:
