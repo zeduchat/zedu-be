@@ -69,20 +69,25 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client) (gin.H, int, error) {
-
+func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client) ([]gin.H, int, error) {
 	var (
-		userProfile models.Profile
-		user        models.User
-		is_agent    bool = false
-		resp        gin.H
-		orgAgent    models.OrganisationIntegrations
+		user      models.User
+		is_agent  bool = false
+		orgAgent  models.OrganisationIntegrations
+		dmchannel models.DmChannels
 	)
 
-	user, err := user.GetUserByID(db, req.UserId)
+	resp := []gin.H{}
+
+	_, err := dmchannel.FetchChannelParticipant(db, req)
+
 	if err != nil {
+		return []gin.H{}, http.StatusBadRequest, err
+	}
+
+	if dmchannel.ChannelType == "bot" {
 		//check if user is a bot
-		is_agent = postgresql.CheckExists(db, &orgAgent, "integration_id = ? AND org_id = ?", req.UserId, req.OrgId)
+		is_agent = postgresql.CheckExists(db, &orgAgent, "integration_id = ? AND org_id = ?", dmchannel.ParticipantId, req.OrgId)
 		if !is_agent {
 			return resp, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
 		}
@@ -99,29 +104,50 @@ func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq
 		if appName == "" || appLogo == "" {
 			return resp, http.StatusInternalServerError, errors.New("missing required agent details (app_name, app_logo)")
 		}
-		resp = gin.H{
+		resp = append(resp, gin.H{
 			"avatar_url": appLogo,
 			"username":   appName,
 			"email":      appName,
 			"name":       appName,
-		}
+		})
 		return resp, http.StatusOK, nil
 	}
 
-	err = userProfile.GetProfileByUserId(db, req.UserId)
+	if dmchannel.ChannelType == "group_dm" {
 
-	if err != nil {
-		return resp, http.StatusInternalServerError, err
-	}
+		var (
+			chanPart []models.ChannelParticipant
+		)
 
-	resp = gin.H{
-		"avatar_url": userProfile.AvatarURL,
-		"username":   userProfile.UserName,
-		"email":      user.Email,
-	}
+		_ = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchannel.ChannelId)
 
-	if resp["username"] == "" {
-		resp["username"] = strings.Split(user.Email, "@")[0]
+		for _, part := range chanPart {
+			userDetails, _ := user.GetUserByID(db, part.UserId)
+
+			if userDetails.Profile.UserName == "" {
+				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+			}
+
+			resp = append(resp, gin.H{
+				"avatar_url": userDetails.Profile.AvatarURL,
+				"username":   userDetails.Profile.UserName,
+				"email":      userDetails.Email,
+			})
+		}
+	} else if dmchannel.ChannelType == "dm" {
+
+		userDetails, _ := user.GetUserByID(db, *dmchannel.ParticipantId)
+
+		if userDetails.Profile.UserName == "" {
+			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		}
+
+		resp = append(resp, gin.H{
+			"avatar_url": userDetails.Profile.AvatarURL,
+			"username":   userDetails.Profile.UserName,
+			"email":      userDetails.Email,
+		})
+
 	}
 
 	return resp, http.StatusOK, err

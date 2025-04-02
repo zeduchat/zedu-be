@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +39,7 @@ type DmChannelsResponse struct {
 	ParticipantId    string `json:"participant_id"`
 	AvatarUrl        string `json:"avatar_url"`
 	ParticipantEmail string `json:"participant_email"`
+	ChannelType      string `json:"channel_type"`
 }
 
 type DmChannelsRequest struct {
@@ -211,7 +214,10 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 }
 
 func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {
-	var user User
+	var (
+		user     User
+		chanPart []ChannelParticipant
+	)
 
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
@@ -250,8 +256,55 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				AvatarUrl:        userDetails.Profile.AvatarURL,
 				ParticipantId:    *dmchan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
+				ChannelType:      "dm",
 			})
+		} else if dmchan.ChannelType == "group_dm" {
+
+			err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
+			if err != nil {
+				return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
+			}
+
+			usernames := []string{}
+			profilePic := ""
+			email := ""
+
+			for _, part := range chanPart {
+				userDetails, err := user.GetUserByID(db, part.UserId)
+				if err != nil {
+					return nil, paginationResp, err
+				}
+
+				if userDetails.Profile.UserName == "" {
+					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+				}
+
+				usernames = append(usernames, userDetails.Profile.UserName)
+
+				if profilePic == "" {
+					profilePic = userDetails.Profile.AvatarURL
+				}
+
+				if email == "" {
+					email = userDetails.Email
+				}
+			}
+
+			sort.Strings(usernames)
+
+			dmChansResp = append(dmChansResp, DmChannelsResponse{
+				ID:               dmchan.ChannelId,
+				Name:             strings.Join(usernames, ", "),
+				AvatarUrl:        profilePic,
+				ParticipantEmail: email,
+				ChannelType:      "group_dm",
+			})
+
 		}
+
+		slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
+			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+		})
 
 	}
 
@@ -261,6 +314,17 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ?", channelID)
+
+	if !exists {
+		return exists, errors.New("channel does not exist")
+	}
+
+	return exists, nil
+}
+
+func (r *DmChannels) FetchChannelParticipant(db *gorm.DB, req DmChannelsRequest) (bool, error) {
+
+	exists := postgresql.CheckExists(db, &r, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId)
 
 	if !exists {
 		return exists, errors.New("channel does not exist")
