@@ -112,7 +112,7 @@ func GetUserDmChannels(db *gorm.DB, userId, orgId string) ([]string, error) {
 	org := Organisation{}
 	dm := DmChannels{}
 	var channs []string
-	if exists := postgresql.CheckExists(db, &org, "id = ?", orgId); exists == false {
+	if exists := postgresql.CheckExists(db, &org, "id = ?", orgId); !exists {
 		return nil, errors.New("Organisation does not exist")
 	}
 	if err := db.Model(&dm).
