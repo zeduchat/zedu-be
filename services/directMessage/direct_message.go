@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -15,7 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.ExternalRequest) (*models.DmChannelsResponse, int, error) {
+func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.ExternalRequest, rds *redis.Client) (*models.DmChannelsResponse, int, error) {
 
 	var (
 		dmchans models.DmChannels
@@ -41,7 +42,7 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.E
 	var err error
 
 	if req.ChatType == "bot" {
-		resp, err = dmchans.CreateAgentDMChannel(extReq, db)
+		resp, err = dmchans.CreateAgentDMChannel(extReq, db, rds)
 	} else {
 		resp, err = dmchans.CreateDmChannel(db)
 	}
@@ -68,7 +69,7 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
+func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client) (gin.H, int, error) {
 
 	var (
 		userProfile models.Profile
@@ -86,7 +87,7 @@ func GetDmUser(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq
 			return resp, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
 		}
 
-		agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl)
+		agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl, rds)
 		if err != nil {
 			return resp, http.StatusInternalServerError, fmt.Errorf("failed to fetch agent details: %w", err)
 		}
