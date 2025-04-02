@@ -64,10 +64,9 @@ func (base *Controller) UploadController(c *gin.Context) {
 }
 
 func (base *Controller) GetFileDetailsByID(c *gin.Context) {
-	var fileModel models.UploadedFileResponse
 	fileId := c.Param("id")
 
-	file, err := fileModel.GetFileByID(base.Db.Postgresql, fileId)
+	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
@@ -75,6 +74,28 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 	}
 
 	base.Logger.Info("Files located successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Files located successfully", file)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File located successfully", file)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
+	fileId := c.Param("id")
+
+	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db.Postgresql, file, fileId)
+	if deleteErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "File not deleted", deleteErr.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Files deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

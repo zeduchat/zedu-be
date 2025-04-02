@@ -24,15 +24,7 @@ func FormatFileName(filename string) string {
 	return strings.ReplaceAll(filename, " ", "_")
 }
 
-func GetFileCategory(mimeType string) (string, bool) {
-	if strings.Contains(mimeType, ";") {
-		mimeType = strings.Split(mimeType, ";")[0]
-	}
-	category, exists := models.AllowedFileTypes[mimeType]
-	return category, exists
-}
-
-const maxFileSize = 100 * 1024 * 1024
+const maxFileSize = 200 * 1024 * 1024
 
 func DetectMimeType(file multipart.File) (string, error) {
 	buffer := make([]byte, 512)
@@ -53,7 +45,7 @@ func GetMimeTypeFromFileName(filename string) (string, error) {
 
 	mimeType := mime.TypeByExtension(strings.ToLower(ext))
 	if mimeType == "" {
-		return "application/octet-stream", nil // Fallback
+		return "application/octet-stream", nil
 	}
 
 	return mimeType, nil
@@ -69,6 +61,12 @@ func HashFile(file multipart.File) (string, error) {
 
 	// Convert hash to a hexadecimal string
 	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+func ExtractHashedFileName(generatedUrl string) string {
+	urlParts := strings.Split(generatedUrl, "/")
+	hashedFileName := urlParts[len(urlParts)-1]
+	return hashedFileName
 }
 
 func FileExists(logger *utility.Logger, fileName string) (bool, error) {
@@ -101,14 +99,12 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		return nil, fmt.Errorf("file exceeds max size")
 	}
 
-	// Compute SHA256 hash of the file
 	fileHash, hashErr := HashFile(file)
 	if hashErr != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("failed to hash file: %v", hashErr))
 		return nil, fmt.Errorf("failed to hash file: %v", hashErr)
 	}
 
-	// Reset file pointer to the beginning after reading the file to the end
 	if seeker, ok := file.(io.Seeker); ok {
 		_, err := seeker.Seek(0, io.SeekStart)
 		if err != nil {
@@ -123,44 +119,46 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 		return nil, fmt.Errorf("could not detect file type: %w", mimeTypeErr)
 	}
 
-	storagePath, valid := GetFileCategory(mimeType)
-	if !valid {
-		utility.LogAndPrint(logger, "invalid file type")
-		return nil, fmt.Errorf("invalid file type")
-	}
-	if storagePath == "" {
-		utility.LogAndPrint(logger, "Could not find storage path for file type")
-		return nil, fmt.Errorf("could not find storage path for file type")
-	}
-
 	extension := filepath.Ext(header.Filename)
-
 	hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
-	encodedFilePath := storagePath + hashedFileName
+	encodedFilePath := "public/file-uploads/" + hashedFileName
 
 	exists, existsErr := FileExists(logger, encodedFilePath)
 	if existsErr != nil && !exists {
-		utility.LogAndPrint(logger, fmt.Sprintf("error: %v. using existing file reference", existsErr.Error()))
+		utility.LogAndPrint(logger, fmt.Sprintf("error: %v.", existsErr.Error()))
 		return nil, existsErr
 	} else if exists {
-		utility.LogAndPrint(logger, "using existing file reference")
+		utility.LogAndPrint(logger, "checking for file existence")
 		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		var existingFile models.UploadedFileResponse
 		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
 		if err != nil {
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to retrieve existing file metadata: %v", err.Error()))
-			return nil, fmt.Errorf("failed to retrieve existing file metadata: %v", err)
+			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata in database: %v", err.Error()))
+			return nil, fmt.Errorf("file exists in Minio bucket. failed to retrieve existing metadata in database: %v", err)
 		}
 
-		response := models.UploadedFileResponse{
-			ID:       existingFile.ID,
-			FileName: existingFile.FileName,
-			FileType: existingFile.FileType,
-			MimeType: existingFile.MimeType,
-			FileLink: existingFile.FileLink,
+		if existingFile.FileName == header.Filename {
+			utility.LogAndPrint(logger, "Using existing file reference with the same name")
+			return &existingFile, nil
+		} else {
+			utility.LogAndPrint(logger, "File exists but with a different name, creating a new DB entry")
+			newFileEntry := models.UploadedFileResponse{
+				ID:       utility.GenerateUUID(),
+				FileName: header.Filename,
+				FileType: filepath.Ext(header.Filename)[1:],
+				MimeType: mimeType,
+				FileLink: existingFile.FileLink,
+			}
+			storageErr := newFileEntry.CreateFileRecord(db)
+			if storageErr != nil {
+				errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
+				utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
+				return nil, errMsg
+			}
+			return &newFileEntry, nil
 		}
-		return &response, nil
+
 	} else {
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
 		if err != nil {
@@ -169,14 +167,11 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 			return nil, errMsg
 		}
 
-		id := utility.GenerateUUID()
-
 		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
-
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		response := models.UploadedFileResponse{
-			ID:       id,
+			ID:       utility.GenerateUUID(),
 			FileName: header.Filename,
 			FileType: filepath.Ext(header.Filename)[1:],
 			MimeType: mimeType,
@@ -192,4 +187,32 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 
 		return &response, nil
 	}
+}
+
+func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.UploadedFileResponse, error) {
+	var fileModel models.UploadedFileResponse
+
+	file, err := fileModel.GetFileByID(db, fileId)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func DeleteFileDetailsByID(logger *utility.Logger, db *gorm.DB, file *models.UploadedFileResponse, fileId string) error {
+	var fileModel models.UploadedFileResponse
+	hashedFileName := ExtractHashedFileName(file.FileLink)
+
+	minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
+	if minioErr != nil {
+		return minioErr
+	}
+
+	err := fileModel.DeleteFileByID(db, fileId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

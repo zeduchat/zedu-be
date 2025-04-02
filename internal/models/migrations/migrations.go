@@ -1,6 +1,8 @@
 package migrations
 
-import "github.com/hngprojects/telex_be/internal/models"
+import (
+	"github.com/hngprojects/telex_be/internal/models"
+)
 
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
@@ -73,7 +75,6 @@ func AlterColumnModels() []AlterColumn {
 		// 	TableName: "org_user_managements",
 		// 	Column: "role_id",
 		// 	Type:  "uuid",
-
 		// },
 	}
 }
