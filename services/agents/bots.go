@@ -5,14 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
-func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client) (models.AgentsResp, postgresql.PaginationResponse, int, error) {
+func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c *gin.Context, extReq request.ExternalRequest, redisClient *redis.Client) (models.AgentsResp, postgresql.PaginationResponse, int, error) {
 	var (
 		orgInt  models.OrganisationIntegrations
 		botResp models.AgentsResp = make(models.AgentsResp, 0)
@@ -32,7 +33,7 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c
 		}
 		seenBot[json_url] = true
 
-		data_r, err := models.FetchDetailsFromAgentJSON(extReq, json_url, rds)
+		data_r, err := models.FetchDetailsFromAgentJSON(extReq, json_url, redisClient)
 		if err != nil {
 			logger.Error("failed to fetch agent json", err)
 

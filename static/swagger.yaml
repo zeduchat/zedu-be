@@ -7849,7 +7849,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: user_id
+        - name: channel_id
           in: path
           required: true
           description: The ID of the dm channel
