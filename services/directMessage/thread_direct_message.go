@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -385,7 +386,7 @@ func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mo
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest) (*models.ThreadDocument, int, error) {
+func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest, rds *redis.Client) (*models.ThreadDocument, int, error) {
 	var (
 		channel    models.DmChannels
 		orgAgent   models.OrganisationIntegrations
@@ -403,7 +404,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	}
 
 	agentJSONURL := orgAgent.JSONUrl
-	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, agentJSONURL)
+	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, agentJSONURL, rds)
 	if err != nil {
 		return &threadResp, http.StatusInternalServerError, err
 	}

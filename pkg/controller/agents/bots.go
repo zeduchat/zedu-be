@@ -19,7 +19,7 @@ func (base *Controller) FetchOrganisationBots(c *gin.Context) {
 		return
 	}
 
-	response,paginationResponse, code, err := agents.FetchOrganisationBots(base.Db.Postgresql, base.Logger, org_id, c, base.ExtReq)
+	response,paginationResponse, code, err := agents.FetchOrganisationBots(base.Db.Postgresql, base.Logger, org_id, c, base.ExtReq, base.Db.Redis)
 	if err != nil {
 		base.Logger.Error("failed to fetch bots in organisation", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to fetch bots in organisation", err.Error(), nil)
