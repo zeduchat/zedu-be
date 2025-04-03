@@ -1,8 +1,11 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,6 +14,8 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/go-redis/redis/v8"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -34,6 +39,7 @@ type DmChannelsResponse struct {
 	ParticipantId    string `json:"participant_id"`
 	AvatarUrl        string `json:"avatar_url"`
 	ParticipantEmail string `json:"participant_email"`
+	ChannelType      string `json:"channel_type"`
 }
 
 type DmChannelsRequest struct {
@@ -44,17 +50,40 @@ type DmChannelsRequest struct {
 	ChannelId     string `json:"channel_id"`
 }
 
-func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL string) (map[string]interface{}, error) {
-	data := map[string]string{"url": agentJSONURL}
+func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL string, redisClient *redis.Client) (map[string]interface{}, error) {
 	var response interface{}
 	var err error
 
-	for i := 0; i < 2; i++ {
+	redisKey := fmt.Sprintf("agent_json_%s", agentJSONURL)
+
+	cachedData, err := rd.RedisGet(redisClient, redisKey)
+	if err == nil && len(cachedData) > 0 {
+		var cachedResult interface{}
+
+		if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
+			fmt.Printf("Failed to unmarshal cached data: %v\n", err)
+			rd.RedisDelete(redisClient, redisKey)
+			return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
+		}
+
+		data_r, ok := cachedResult.(map[string]interface{})
+		if !ok {
+			fmt.Println("Cached data is not in the expected format")
+			rd.RedisDelete(redisClient, redisKey)
+			return nil, errors.New("cached data is not in the expected format")
+		}
+
+		return data_r, nil
+	}
+
+	data := map[string]string{"url": agentJSONURL}
+
+	for i := 0; i < 3; i++ {
 		response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
 		if err == nil {
 			break
 		}
-		time.Sleep(time.Duration(2<<i) * time.Second)
+		time.Sleep(time.Duration(2<<i) * time.Second) // exponential backoff
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch agent json: %v", err)
@@ -71,6 +100,10 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		return nil, fmt.Errorf("invalid agent json data: %v", err)
 	}
 
+	if err == nil {
+		rd.RedisSet(redisClient, redisKey, data_r)
+	}
+
 	return data_r, nil
 }
 
@@ -84,13 +117,13 @@ func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse
 	}
 }
 
-func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *gorm.DB) (DmChannelsResponse, error) {
+func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *gorm.DB, rds *redis.Client) (DmChannelsResponse, error) {
 	var orgAgent OrganisationIntegrations
 	if !postgresql.CheckExists(db, &orgAgent, "org_id = ? AND integration_id = ?", dm.OrgId, dm.ParticipantId) {
 		return DmChannelsResponse{}, fmt.Errorf("agent participant does not exist in organisation %v", dm.OrgId)
 	}
 
-	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl)
+	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl, rds)
 	if err != nil {
 		return DmChannelsResponse{}, fmt.Errorf("failed to fetch agent details: %w", err)
 	}
@@ -181,7 +214,10 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 }
 
 func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {
-	var user User
+	var (
+		user     User
+		chanPart []ChannelParticipant
+	)
 
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
@@ -197,7 +233,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		"org_id = ? AND user_id = ? AND chat_type = ?",
 		dm.OrgId,
 		dm.UserId,
-		"user", 
+		"user",
 	)
 	if err != nil {
 		return nil, paginationResp, err
@@ -220,8 +256,55 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				AvatarUrl:        userDetails.Profile.AvatarURL,
 				ParticipantId:    *dmchan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
+				ChannelType:      "dm",
 			})
+		} else if dmchan.ChannelType == "group_dm" {
+
+			err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
+			if err != nil {
+				return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
+			}
+
+			usernames := []string{}
+			profilePic := ""
+			email := ""
+
+			for _, part := range chanPart {
+				userDetails, err := user.GetUserByID(db, part.UserId)
+				if err != nil {
+					return nil, paginationResp, err
+				}
+
+				if userDetails.Profile.UserName == "" {
+					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+				}
+
+				usernames = append(usernames, userDetails.Profile.UserName)
+
+				if profilePic == "" {
+					profilePic = userDetails.Profile.AvatarURL
+				}
+
+				if email == "" {
+					email = userDetails.Email
+				}
+			}
+
+			sort.Strings(usernames)
+
+			dmChansResp = append(dmChansResp, DmChannelsResponse{
+				ID:               dmchan.ChannelId,
+				Name:             strings.Join(usernames, ", "),
+				AvatarUrl:        profilePic,
+				ParticipantEmail: email,
+				ChannelType:      "group_dm",
+			})
+
 		}
+
+		slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
+			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+		})
 
 	}
 
@@ -231,6 +314,17 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ?", channelID)
+
+	if !exists {
+		return exists, errors.New("channel does not exist")
+	}
+
+	return exists, nil
+}
+
+func (r *DmChannels) FetchChannelParticipant(db *gorm.DB, req DmChannelsRequest) (bool, error) {
+
+	exists := postgresql.CheckExists(db, &r, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId)
 
 	if !exists {
 		return exists, errors.New("channel does not exist")

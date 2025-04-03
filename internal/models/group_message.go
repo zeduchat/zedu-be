@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 type ChannelParticipant struct {
@@ -48,7 +49,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		gpdmchanresp GroupDMChannelsResponse
 		existDmchan  DmChannels
 		chParts      ChannelParticipant
-		chPartsResp []ChannelParticipant
+		chPartsResp  []ChannelParticipant
 		partInfo     ParticipantInfo
 	)
 

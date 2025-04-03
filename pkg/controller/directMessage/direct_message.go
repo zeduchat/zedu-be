@@ -68,7 +68,7 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := dm.CreateDmChannel(req, base.Db.Postgresql, base.ExtReq)
+	respData, code, err := dm.CreateDmChannel(req, base.Db.Postgresql, base.ExtReq, base.Db.Redis)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -125,28 +125,39 @@ func (base *Controller) GetDmChannels(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) GetDmUser(c *gin.Context) {
+func (base *Controller) GetDmParticipants(c *gin.Context) {
 
 	var req models.DmChannelsRequest
 
-	req.UserId = c.Param("user_id")
+	req.ChannelId = c.Param("channel_id")
 	req.OrgId = c.Param("org_id")
 
-	if _, err := uuid.Parse(req.UserId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse user id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	resp, code, err := dm.GetDmUser(req, base.Db.Postgresql, c, base.ExtReq)
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+
+	resp, code, err := dm.GetDmParticipants(req, base.Db.Postgresql, c, base.ExtReq,  base.Db.Redis)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("User retrived successfully")
-	rd := utility.BuildSuccessResponse(code, "User retrived successfully", resp)
+	base.Logger.Info("Participatint retrived successfully")
+	rd := utility.BuildSuccessResponse(code, "Participants retrived successfully", resp)
 	c.JSON(code, rd)
 }
 
