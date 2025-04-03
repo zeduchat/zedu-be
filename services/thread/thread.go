@@ -256,6 +256,10 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusBadRequest, err
 	}
 
+	if _, err := thread.DeleteThreadMediaFiles(logger, db, thread.Media); err != nil {
+		return http.StatusBadRequest, err
+	}
+
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection
 	notification.ModifcationDetails = models.ModifcationDetails{

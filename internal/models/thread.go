@@ -544,6 +544,24 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	return c, nil
 }
 
+func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
+	for _, mediaFile := range mediaFiles {
+		hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+		err := DeleteUploadedFiles(logger, hashedFileName)
+		if err != nil {
+			return nil, err
+		}
+
+		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
+		if deleteErr != nil {
+			return nil, deleteErr
+		}
+	}
+
+	return c, nil
+}
+
 func (m *Mentions) CreateMention(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, m)
