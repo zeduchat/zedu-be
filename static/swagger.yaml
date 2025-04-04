@@ -112,9 +112,12 @@ paths:
                   type: string
                 last_name:
                   type: string
+                phone_number:
+                  type: string
               required:
                 - email
                 - password
+                - username
 
       responses:
         "201":
