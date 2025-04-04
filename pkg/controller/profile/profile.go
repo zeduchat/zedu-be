@@ -58,6 +58,10 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	req.UserName = c.Request.FormValue("user_name")
 	req.FullName = c.Request.FormValue("full_name")
 	req.Phone = c.Request.FormValue("phone")
+	req.DisplayName = c.Request.FormValue("display_name")
+	req.Timezone = c.Request.FormValue("timezone")
+	req.Title = c.Request.FormValue("title")
+	req.NamePronunciation = c.Request.FormValue("name_pronounciation")
 
 	err = base.Validator.Struct(&req)
 	if err != nil {

@@ -5340,15 +5340,9 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: "#/components/schemas/UpdateProfileRequest"
-            example:
-              email: "newemail@example.com"
-              full_name: "New Full Name"
-              username: "new_username"
-              phone: "1234567890"
-              avatar_url: "https://example.com/avatar.jpg"
       responses:
         "200":
           description: Profile updated successfully
@@ -14207,10 +14201,22 @@ components:
           type: string
           format: uri
           description: URL to the avatar image
+        display_name:
+          type: string
+          format: string
+        timezone:
+          type: string
+          format: timezone
+        title:
+          type: string
+          format: string
+        name_pronounciation:
+          type: string
+          format: string
       example:
         email: "newemail@example.com"
         full_name: "New Full Name"
-        username: "new_username"
+        user_name: "new_username"
         phone: "1234567890"
         avatar_url: "https://example.com/avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
