@@ -78,13 +78,17 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		return nil, http.StatusInternalServerError, err
 	}
 
-	name := strings.Split(email, "@")[0]
+	name := req.UserName
+
+	if name == "" {
+		name = strings.Split(email, "@")[0]
+	}
 
 	user := models.User{
-		ID:       utility.GenerateUUID(),
-		Name:     name,
-		Email:    email,
-		Password: password,
+		ID:             utility.GenerateUUID(),
+		Name:           name,
+		Email:          email,
+		Password:       password,
 		ProfileUpdated: true,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),

@@ -109,6 +109,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 			"username":   appName,
 			"email":      appName,
 			"name":       appName,
+			"user_type":  "bot",
 		})
 		return resp, http.StatusOK, nil
 	}
@@ -132,6 +133,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 				"avatar_url": userDetails.Profile.AvatarURL,
 				"username":   userDetails.Profile.UserName,
 				"email":      userDetails.Email,
+				"user_type":  "user",
 			})
 		}
 	} else if dmchannel.ChannelType == "dm" {
@@ -146,6 +148,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 			"avatar_url": userDetails.Profile.AvatarURL,
 			"username":   userDetails.Profile.UserName,
 			"email":      userDetails.Email,
+			"user_type":  "user",
 		})
 
 	}
