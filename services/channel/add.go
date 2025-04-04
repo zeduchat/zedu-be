@@ -36,8 +36,11 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		agent_message = false
 	)
 
+	userType := "user"
+
 	if req.AgentName != "" && req.UserId == "" {
 		agent_message = true
+		userType = "bot"
 	}
 
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -74,6 +77,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		UpdatedAt:    time.Now().UTC(),
 		AvatarURL:    profile.AvatarURL,
 		Edited:       false,
+		UserType:     userType,
 		Username:     utility.ThisOrThat(profile.UserName, req.AgentName),
 		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
 		Email:        user.Email,

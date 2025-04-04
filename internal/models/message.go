@@ -44,6 +44,7 @@ type MessageDocument struct {
 	UpdatedAt      time.Time              `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt         `json:"-"`
 	AgentMessage   bool                   `json:"-"`
+	UserType       string                 `json:"user_type"`
 	ThreadID       uuid.UUID              `json:"thread_id"`
 	AvatarURL      string                 `json:"avatar_url"`
 	Edited         bool                   `json:"edited"`
@@ -60,6 +61,7 @@ var MessageMapping = map[string]interface{}{
 		"user_id":     map[string]string{"type": "keyword"},
 		"org_id":      map[string]string{"type": "keyword"},
 		"username":    map[string]string{"type": "keyword"},
+		"user_type":   map[string]string{"type": "keyword"},
 		"thread_id":   map[string]string{"type": "keyword"},
 		"avatar_url":  map[string]string{"type": "text"},
 		"edited":      map[string]string{"type": "boolean"},
