@@ -374,21 +374,17 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return err
 	}
 
-	is_auth, ok := data_r["is_oauth"].(bool)
+	enc_key := config.Config.Server.EncKey
 
-	if ok && is_auth {
-		enc_key := config.Config.Server.EncKey
+	api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
 
-		api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
+	auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
 
-		auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
+	auth_credentials["telex_api_key"] = api_key
+	settings_data["auth_credentials"] = auth_credentials
 
-		auth_credentials["telex_api_key"] = api_key
-		settings_data["auth_credentials"] = auth_credentials
-
-		if err != nil {
-			return errors.New("Failed to create external API key")
-		}
+	if err != nil {
+		return errors.New("Failed to create external API key")
 	}
 
 	// Add integration to all existing channels
