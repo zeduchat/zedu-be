@@ -57,7 +57,7 @@ type UpdateUserProfileRequest struct {
 	AvatarURL         string `json:"avatar_url"`
 	DisplayName       string `json:"display_name"`
 	Title             string `json:"title"`
-	NamePronunciation string `json:"name_pronunciation"`
+	NamePronunciation string `json:"name_pronounciation"`
 	Timezone          string `json:"timezone"`
 }
 
