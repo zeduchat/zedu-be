@@ -255,6 +255,24 @@ func (c *Message) DeleteMessage() (*Message, error) {
 	return c, nil
 }
 
+func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Message, error) {
+	for _, mediaFile := range mediaFiles {
+		hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+		err := DeleteUploadedFiles(logger, hashedFileName)
+		if err != nil {
+			return nil, err
+		}
+
+		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
+		if deleteErr != nil {
+			return nil, deleteErr
+		}
+	}
+
+	return c, nil
+}
+
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument

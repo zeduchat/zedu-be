@@ -251,6 +251,10 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		return nil, http.StatusInternalServerError, err
 	}
 
+	if _, err := message.DeleteMessageMediaFiles(logger, db, newMsg.Media); err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
 	notification.ModifcationDetails = models.ModifcationDetails{
