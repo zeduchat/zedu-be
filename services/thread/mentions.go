@@ -91,6 +91,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
+		UserType:  userType,
 		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,
