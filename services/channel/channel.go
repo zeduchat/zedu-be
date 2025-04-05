@@ -74,7 +74,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 			ChannelID:     channel.ID,
 			IntegrationID: agent.IntegrationID,
 			OrgID:         channel.OrganisationID,
-			IsActive:      true,
+			IsActive:      false,
 		}
 
 		err = orgChanAgent.CreateOrganisationChannelIntegration(db)
