@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/profile"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -16,11 +17,12 @@ func Profile(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	userProfile := profile.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	profileUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
+	profileUrl := r.Group(fmt.Sprintf("%v/profile", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		profileUrl.GET("/profile", userProfile.GetUserProfile)
-		profileUrl.PATCH("/profile", middleware.CheckIsDeactivated(db.Postgresql), userProfile.UpdateProfile)
-		profileUrl.DELETE("/profile/image", userProfile.DeleteUserProfileImage)
+		profileUrl.POST("/change-status", userProfile.ChangeProfileStatus)
+		profileUrl.GET("", userProfile.GetUserProfile)
+		profileUrl.PATCH("", middleware.CheckIsDeactivated(db.Postgresql), userProfile.UpdateProfile)
+		profileUrl.DELETE("/image", userProfile.DeleteUserProfileImage)
 	}
 
 	return r

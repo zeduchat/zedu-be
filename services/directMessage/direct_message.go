@@ -85,7 +85,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 		return []gin.H{}, http.StatusBadRequest, err
 	}
 
-	if dmchannel.ChannelType == "bot" {
+	if dmchannel.ChatType == "bot" {
 		//check if user is a bot
 		is_agent = postgresql.CheckExists(db, &orgAgent, "integration_id = ? AND org_id = ?", dmchannel.ParticipantId, req.OrgId)
 		if !is_agent {

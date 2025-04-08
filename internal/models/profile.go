@@ -22,6 +22,7 @@ type Profile struct {
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 	DisplayName       string         `gorm:"type:varchar(255)" json:"display_name"`
+	Status            string         `gorm:"type:varchar(255)" json:"status"`
 	Title             string         `gorm:"type:varchar(255)" json:"title"`
 	NamePronunciation string         `gorm:"type:varchar(255)" json:"name_pronunciation"`
 	Timezone          string         `gorm:"type:varchar(255)" json:"timezone"`
@@ -47,6 +48,7 @@ type ProfileSummary struct {
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`
 	Timezone          string `json:"timezone"`
+	Status            string `json:"status"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -59,6 +61,11 @@ type UpdateUserProfileRequest struct {
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`
 	Timezone          string `json:"timezone"`
+}
+
+type UpdateProfileStatus struct {
+	Status string `json:"status"`
+	UserId string
 }
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
@@ -83,6 +90,32 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	}
 
 	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to update user profile")
+	}
+
+	return nil
+}
+
+func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {
+	var userProfile Profile
+
+	profileUpdates := Profile{
+		Status: req.Status,
+	}
+
+	query := "userid = ?"
+
+	exist := postgresql.CheckExists(db, &userProfile, query, req.UserId)
+	if !exist {
+		return errors.New("Profile does not exists")
+	}
+
+	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, req.UserId)
 	if err != nil {
 		return err
 	}
