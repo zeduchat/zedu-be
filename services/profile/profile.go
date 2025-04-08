@@ -160,10 +160,21 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		IsOnboarded:       userProfile.IsOnboarded,
 		DisplayName:       userProfile.Profile.DisplayName,
 		Title:             userProfile.Profile.Title,
+		Status:            userProfile.Profile.Status,
 		NamePronunciation: userProfile.Profile.NamePronunciation,
 		Timezone:          userProfile.Profile.Timezone,
 		CreatedAt:         userProfile.Profile.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         userProfile.Profile.UpdatedAt.Format(time.RFC3339),
 		DeletedAt:         userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
 	}
+}
+
+func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (int, error) {
+	var userProfile models.Profile
+
+	if err := userProfile.UpdateProfileStatus(db, req); err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	return http.StatusCreated, nil
 }
