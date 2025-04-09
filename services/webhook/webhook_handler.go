@@ -55,6 +55,7 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		ChannelName:   channel.Name,
 		Messages:      []models.MessageDocument{},
 		MessageCount:  0,
+		OrgansationID: channel.OrganisationID,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -120,6 +121,7 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 		ChannelName:   channel.Name,
 		Messages:      []models.MessageDocument{},
 		MessageCount:  0,
+		OrgansationID: channel.OrganisationID,
 	}
 
 	err = threadDoc.CreateThread(db, logger)

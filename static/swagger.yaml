@@ -5435,17 +5435,25 @@ paths:
       description: Allows authenticated users to update their profile status.
       security:
         - bearerAuth: []
-
       requestBody:
         content:
           application/json:
             schema:
-             type: object
-             properties:
-              status:
-               type: string
-               example: ✅
-      
+              type: object
+              properties:
+                icon:
+                  type: string
+                  example: ✅
+                text:
+                  type: string
+                  example: Checked Out
+                pause_notification:
+                  type: string
+                  example: 30 minutes
+                status_timeout:
+                  type: string
+                  example: 20 minutes
+
       responses:
         "200":
           description: Profile status updated successfully
