@@ -112,9 +112,12 @@ paths:
                   type: string
                 last_name:
                   type: string
+                phone_number:
+                  type: string
               required:
                 - email
                 - password
+                - username
 
       responses:
         "201":
@@ -5340,15 +5343,9 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: "#/components/schemas/UpdateProfileRequest"
-            example:
-              email: "newemail@example.com"
-              full_name: "New Full Name"
-              username: "new_username"
-              phone: "1234567890"
-              avatar_url: "https://example.com/avatar.jpg"
       responses:
         "200":
           description: Profile updated successfully
@@ -5408,6 +5405,61 @@ paths:
                   message:
                     type: string
                     example: "Profile image deleted successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /profile/change-status:
+    post:
+      tags:
+        - Profile
+      summary: Update user profile status
+      description: Allows authenticated users to update their profile status.
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+             type: object
+             properties:
+              status:
+               type: string
+               example: ✅
+      
+      responses:
+        "200":
+          description: Profile status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profile status updated successfully"
                   status_code:
                     type: integer
                     example: 200
@@ -7834,11 +7886,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-  /organisations/{org_id}/dms/user/{user_id}:
+  /organisations/{org_id}/dms/participants/{channel_id}:
     get:
       tags:
         - Direct Message
-      summary: Retrieve user info
+      summary: Retrieve dm participants info
       security:
         - bearerAuth: []
       parameters:
@@ -7849,17 +7901,17 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: user_id
+        - name: channel_id
           in: path
           required: true
-          description: The ID of the user
+          description: The ID of the dm channel
           schema:
             type: string
             format: uuid
 
       responses:
         "200":
-          description: Dm channels retrieved successfully
+          description: Dm participants retrieved successfully
           content:
             application/json:
               schema:
@@ -7873,16 +7925,18 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: Dm channels retrieved successfully
+                    example: Dm participants retrieved successfully
                   data:
-                    type: object
-                    properties:
-                      email:
-                        type: string
-                      avatar_url:
-                        type: string
-                      username:
-                        type: string
+                    type: array
+                    items:
+                      type: object
+                      propertis:
+                        email:
+                          type: string
+                        avatar_url:
+                          type: string
+                        username:
+                          type: string
 
         "400":
           description: Bad request
@@ -14205,10 +14259,22 @@ components:
           type: string
           format: uri
           description: URL to the avatar image
+        display_name:
+          type: string
+          format: string
+        timezone:
+          type: string
+          format: timezone
+        title:
+          type: string
+          format: string
+        name_pronounciation:
+          type: string
+          format: string
       example:
         email: "newemail@example.com"
         full_name: "New Full Name"
-        username: "new_username"
+        user_name: "new_username"
         phone: "1234567890"
         avatar_url: "https://example.com/avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.

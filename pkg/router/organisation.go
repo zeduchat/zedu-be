@@ -102,7 +102,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.POST("/:org_id/dms", dmCtrl.CreateDmChannel)
 		organisationUrl.DELETE("/:org_id/dms/:channel_id", dmCtrl.DeleteDmChannel)
 		organisationUrl.GET("/:org_id/dms", dmCtrl.GetDmChannels)
-		organisationUrl.GET("/:org_id/dms/user/:user_id", dmCtrl.GetDmUser)
+		organisationUrl.GET("/:org_id/dms/participants/:channel_id", dmCtrl.GetDmParticipants)
 		organisationUrl.GET("/:org_id/recent-dm", dmFilter.DmFilter)
 
 		// Group DM endpoints

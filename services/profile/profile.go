@@ -146,20 +146,35 @@ func DeleteUserProfileImageFromMinIO(logger *utility.Logger, avatarURL string) e
 
 func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 	return &models.ProfileSummary{
-		ID:             userProfile.Profile.ID,
-		Email:          userProfile.Email,
-		Phone:          userProfile.Profile.Phone,
-		FirstName:      userProfile.Profile.FirstName,
-		LastName:       userProfile.Profile.LastName,
-		FullName:       userProfile.Profile.FullName,
-		UserName:       userProfile.Profile.UserName,
-		AvatarURL:      userProfile.Profile.AvatarURL,
-		UserId:         userProfile.Profile.Userid,
-		Deactivated:    userProfile.Deactivated,
-		ProfileUpdated: userProfile.ProfileUpdated,
-		IsOnboarded:    userProfile.IsOnboarded,
-		CreatedAt:      userProfile.Profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      userProfile.Profile.UpdatedAt.Format(time.RFC3339),
-		DeletedAt:      userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
+		ID:                userProfile.Profile.ID,
+		Email:             userProfile.Email,
+		Phone:             userProfile.Profile.Phone,
+		FirstName:         userProfile.Profile.FirstName,
+		LastName:          userProfile.Profile.LastName,
+		FullName:          userProfile.Profile.FullName,
+		UserName:          userProfile.Profile.UserName,
+		AvatarURL:         userProfile.Profile.AvatarURL,
+		UserId:            userProfile.Profile.Userid,
+		Deactivated:       userProfile.Deactivated,
+		ProfileUpdated:    userProfile.ProfileUpdated,
+		IsOnboarded:       userProfile.IsOnboarded,
+		DisplayName:       userProfile.Profile.DisplayName,
+		Title:             userProfile.Profile.Title,
+		Status:            userProfile.Profile.Status,
+		NamePronunciation: userProfile.Profile.NamePronunciation,
+		Timezone:          userProfile.Profile.Timezone,
+		CreatedAt:         userProfile.Profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         userProfile.Profile.UpdatedAt.Format(time.RFC3339),
+		DeletedAt:         userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
 	}
+}
+
+func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (int, error) {
+	var userProfile models.Profile
+
+	if err := userProfile.UpdateProfileStatus(db, req); err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	return http.StatusCreated, nil
 }

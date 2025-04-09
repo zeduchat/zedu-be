@@ -38,6 +38,7 @@ type Threads struct {
 	FullName      string                 `json:"full_name"`
 	Email         string                 `json:"email"`
 	Edited        bool                   `json:"edited"`
+	UserType      string                 `json:"user_type"`
 	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
 	UserId        string                 `json:"user_id"`
@@ -57,6 +58,7 @@ type ThreadDocument struct {
 	MessageCount  int64                  `json:"message_count"`
 	LastReply     time.Time              `json:"last_reply"`
 	AvatarURL     string                 `json:"avatar_url"`
+	UserType      string                 `json:"user_type"`
 	Type          string                 `json:"type"`
 	Content       string                 `json:"message"`
 	ChannelName   string                 `json:"channel_name"`
@@ -101,6 +103,7 @@ var Thread_mapping = map[string]interface{}{
 			"edited":      map[string]string{"type": "boolean"},
 			"event_name":  map[string]string{"type": "text"},
 			"username":    map[string]string{"type": "keyword"},
+			"user_type":   map[string]string{"type": "keyword"},
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
 			"created_at": map[string]string{
@@ -211,6 +214,7 @@ type FeedMessageRequest struct {
 	OrgId     string                 `json:"org_id"`
 	UserId    string                 `json:"user_id"`
 	Media     []UploadedFileResponse `json:"media"`
+	UserType  string                 `json:"user_type"`
 }
 
 type Mentions struct {

@@ -34,7 +34,7 @@ type Message struct {
 }
 
 type MessageDocument struct {
-	ID             string                 `json:"id"`
+	ID             string                 `json:"id",omitempty`
 	Content        string                 `json:"message"`
 	OrganisationID string                 `json:"org_id"`
 	ChannelsID     string                 `json:"channels_id"`
@@ -44,6 +44,7 @@ type MessageDocument struct {
 	UpdatedAt      time.Time              `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt         `json:"-"`
 	AgentMessage   bool                   `json:"-"`
+	UserType       string                 `json:"user_type"`
 	ThreadID       uuid.UUID              `json:"thread_id"`
 	AvatarURL      string                 `json:"avatar_url"`
 	Edited         bool                   `json:"edited"`
@@ -60,6 +61,7 @@ var MessageMapping = map[string]interface{}{
 		"user_id":     map[string]string{"type": "keyword"},
 		"org_id":      map[string]string{"type": "keyword"},
 		"username":    map[string]string{"type": "keyword"},
+		"user_type":   map[string]string{"type": "keyword"},
 		"thread_id":   map[string]string{"type": "keyword"},
 		"avatar_url":  map[string]string{"type": "text"},
 		"edited":      map[string]string{"type": "boolean"},
@@ -97,7 +99,7 @@ type CreateMessageRequest struct {
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
 	Media      []UploadedFileResponse `json:"media"`
-	Mentions   []Mention             `json:"mentions"`
+	Mentions   []Mention              `json:"mentions"`
 }
 
 type EditMessageRequest struct {
@@ -256,6 +258,7 @@ func (c *Message) DeleteMessage() (*Message, error) {
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument
+		thread   ThreadDocument
 	)
 
 	pag := elastic.GetPagination(c)
@@ -289,12 +292,19 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch message records, error: %v", err))
 	}
 
+	err = thread.GetThreadById(db, ThreadID)
+	if err != nil {
+		return nil, pagR, err
+	}
+
 	messages, err = UnMarsahlMessageResponse(messageData)
 	if err != nil {
 		return nil, pagR, err
 	}
 
-	return messages, pagR, nil
+	mergedResponse := append([]MessageDocument{ConvertThreadToMessage(thread)}, messages...)
+
+	return mergedResponse, pagR, nil
 }
 
 func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocument, err error) {
@@ -321,4 +331,22 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocume
 	}
 
 	return
+}
+
+func ConvertThreadToMessage(thread ThreadDocument) MessageDocument {
+	return MessageDocument{
+		Content:        thread.Content,
+		OrganisationID: thread.OrgansationID,
+		ChannelsID:     thread.ChannelsID,
+		UserID:         thread.UserId,
+		Username:       thread.Username,
+		CreatedAt:      thread.CreatedAt,
+		UpdatedAt:      thread.LastReply,
+		AvatarURL:      thread.AvatarURL,
+		Edited:         thread.Edited,
+		FullName:       thread.FullName,
+		Email:          thread.Email,
+		Media:          thread.Media,
+		Mentions:       thread.Mentions,
+	}
 }

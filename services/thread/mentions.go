@@ -31,8 +31,11 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		agent_message = false
 	)
 
+	userType := "user"
+
 	if req.AgentName != "" && req.UserId == "" {
 		agent_message = true
+		userType = "bot"
 	}
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -65,6 +68,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Email:         user.Email,
 		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
+		UserType:      userType,
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   channel.Name,
@@ -87,6 +91,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
+		UserType:  userType,
 		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,
@@ -157,7 +162,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	req.OrgId = channel_info.OrganisationID
-	req.ThreadId =  utility.GenerateUUID()
+	req.ThreadId = utility.GenerateUUID()
 	if !res {
 		return SaveThreadMessage(req, db, logger)
 	}

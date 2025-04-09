@@ -44,6 +44,46 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) ChangeProfileStatus(c *gin.Context) {
+
+	var req models.UpdateProfileStatus
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserId = userId
+
+	code, err := profile.UpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User profile status updated successfully", nil)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) UpdateProfile(c *gin.Context) {
 	var req models.UpdateUserProfileRequest
 
@@ -55,9 +95,13 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	req.Email = c.Request.FormValue("email")
-	req.UserName = c.Request.FormValue("user_name")
+	req.UserName = c.Request.FormValue("username")
 	req.FullName = c.Request.FormValue("full_name")
 	req.Phone = c.Request.FormValue("phone")
+	req.DisplayName = c.Request.FormValue("display_name")
+	req.Timezone = c.Request.FormValue("timezone")
+	req.Title = c.Request.FormValue("title")
+	req.NamePronunciation = c.Request.FormValue("name_pronounciation")
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
@@ -82,7 +126,6 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -113,7 +156,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 }
 
 func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
-	
+
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
