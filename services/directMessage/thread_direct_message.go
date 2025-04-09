@@ -65,6 +65,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Messages:      []models.MessageDocument{},
 		Status:        "success",
 		Edited:        false,
+		UserType:      "user",
 		Mentions:      req.Mentions,
 		Media:         req.Media,
 		OrgansationID: req.OrgId,
@@ -86,6 +87,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
+		UserType:  "user",
 		Media:     req.Media,
 	}
 
@@ -216,9 +218,10 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		Messages:      []models.MessageDocument{},
 		Status:        "success",
 		Edited:        false,
+		UserType:      "user",
 		Mentions:      req.Mentions,
 		Media:         req.Media,
-		OrgansationID: req.OrgId,
+		OrgansationID: channel.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -237,6 +240,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserId:    req.UserId,
+		UserType:  "user",
 		Media:     req.Media,
 	}
 
@@ -426,10 +430,11 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		UserId:        *channel.ParticipantId,
 		Messages:      []models.MessageDocument{},
 		Status:        "success",
+		UserType:      "bot",
 		Edited:        false,
 		Mentions:      req.Mentions,
 		Media:         req.Media,
-		// OrgansationID: req.OrgId,
+		OrgansationID: channel.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -449,6 +454,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		FullName:  agentDescription["app_name"].(string),
 		UserId:    *channel.ParticipantId,
 		Media:     req.Media,
+		UserType:  "bot",
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelID, feed)

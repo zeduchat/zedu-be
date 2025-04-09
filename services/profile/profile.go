@@ -160,12 +160,15 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		IsOnboarded:       userProfile.IsOnboarded,
 		DisplayName:       userProfile.Profile.DisplayName,
 		Title:             userProfile.Profile.Title,
-		Status:            userProfile.Profile.Status,
 		NamePronunciation: userProfile.Profile.NamePronunciation,
 		Timezone:          userProfile.Profile.Timezone,
 		CreatedAt:         userProfile.Profile.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         userProfile.Profile.UpdatedAt.Format(time.RFC3339),
 		DeletedAt:         userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
+		Icon:              userProfile.Profile.Icon,
+		Text:              userProfile.Profile.Text,
+		StatusTimeout:     userProfile.Profile.StatusTimeout,
+		PauseNotification: userProfile.Profile.PauseNotification,
 	}
 }
 
