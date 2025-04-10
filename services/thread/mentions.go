@@ -76,6 +76,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Edited:        false,
 		Mentions:      req.Mentions,
 		Media:         req.Media,
+		OrgansationID: channel.OrganisationID,
 	}
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
@@ -91,6 +92,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     user.Email,
+		UserType:  userType,
 		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,

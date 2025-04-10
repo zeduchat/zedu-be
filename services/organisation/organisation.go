@@ -91,7 +91,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
-		Name:           "General",
+		Name:           "general",
 		Description:    fmt.Sprintf("%s's general channel", org.Name),
 		OwnerId:        user.ID,
 		OrganisationID: org.ID,

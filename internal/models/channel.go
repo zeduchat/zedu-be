@@ -10,14 +10,12 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
-	"github.com/typesense/typesense-go/v2/typesense"
 	"google.golang.org/appengine/log"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 )
 
 type Channels struct {
@@ -239,7 +237,7 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 		chanResp GetChannelResp
 		ur       UserChannels
 		webhook  Webhook
-		owner     User
+		owner    User
 	)
 
 	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
@@ -503,7 +501,6 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 	if err != nil {
 		return err
 	}
-
 	if result.RowsAffected == 0 {
 		return errors.New("failed to update username")
 	}
@@ -511,17 +508,12 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 	return nil
 }
 
-func (c *Channels) Delete(db *gorm.DB, typesenseDb *typesense.Client) error {
+func (c *Channels) Delete(db *gorm.DB) error {
+	var userChannels UserChannels
 
-	err := db.Model(UserChannels{}).Where("channels_id = ?", c.ID).Delete(UserChannels{}).Error
-
+	err := db.Model(&userChannels).Where("channels_id = ?", c.ID).Delete(&userChannels).Error
 	if err != nil {
 		return errors.New("error removing users in channel")
-	}
-
-	err = tydb.DeleteCollection(typesenseDb, c.ID)
-	if err != nil {
-		return errors.New("could not delete channel collection in Typesense")
 	}
 
 	err = postgresql.DeleteRecordFromDb(db, &c)
@@ -544,29 +536,39 @@ func (c *UserChannels) UserInChannels(db *gorm.DB, channelID, userID string) err
 	return nil
 }
 
-func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, channelID string, userId string) (Channels, int, error) {
+func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId string) (Channels, int, error) {
 	var channel Channels
 
-	exists := postgresql.CheckExists(db, &channel, "id = ?", channelID)
-	if !exists {
-		return Channels{}, http.StatusNotFound, errors.New("channel does not exist")
+	err := db.Where("id = ?", r.ID).First(&channel).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return channel, http.StatusNotFound, errors.New("channel does not exist")
+		}
+		return channel, http.StatusInternalServerError, err
 	}
 
 	if channel.OwnerId != userId {
 		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
 	}
 
-	result, err := postgresql.UpdateFields(db, &channel, req, "id = ?", channelID)
-	if err != nil {
-		return Channels{}, http.StatusInternalServerError, nil
-	}
+    updates := map[string]interface{}{}
+    if req.Name != "" {
+        updates["name"] = req.Name
+    }
+    if req.Description != "" {
+        updates["description"] = req.Description
+    }
+	if len(updates) == 0 {
+        return Channels{}, http.StatusBadRequest, errors.New("no fields to update")
+    }
 
-	if result.RowsAffected == 0 {
-		return Channels{}, http.StatusInternalServerError, errors.New("failed to update channel")
-	}
+    result := db.Model(&channel).Where("id = ?", r.ID).Updates(updates)
+    if result.RowsAffected == 0 {
+        return Channels{}, http.StatusInternalServerError, errors.New("failed to update channel")
+    }
 
 	updatedChannels := Channels{}
-	err = db.First(&updatedChannels, "id = ?", channelID).Error
+	err = db.First(&updatedChannels, "id = ?", r.ID).Error
 	if err != nil {
 		return Channels{}, http.StatusInternalServerError, err
 	}

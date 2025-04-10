@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -21,6 +20,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 		joinChannelsReq models.JoinChannelsRequest
 		orgAgent        []models.OrganisationIntegrations
 		orgChanAgent    models.OrganisationChannelsIntegrations
+		chans           models.Channels
 	)
 
 	channel := models.Channels{
@@ -34,6 +34,11 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 	joinChannelsReq.ChannelsID = channel.ID
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = req.Username
+
+	exists := postgresql.CheckExists(db, &chans, "name = ?", channel.Name)
+	if exists {
+		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group")
+	}
 
 	err := channel.CreateChannel(db)
 	if err != nil {
@@ -74,7 +79,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 			ChannelID:     channel.ID,
 			IntegrationID: agent.IntegrationID,
 			OrgID:         channel.OrganisationID,
-			IsActive:      true,
+			IsActive:      false,
 		}
 
 		err = orgChanAgent.CreateOrganisationChannelIntegration(db)
@@ -165,10 +170,10 @@ func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId
 	return http.StatusOK, nil
 }
 
-func DeleteChannels(db *gorm.DB, channelId, userId string, typesenseDb *typesense.Client) (int, error) {
+func DeleteChannel(db *gorm.DB, channelId, userId string) (int, error) {
 	var (
-		r       models.Channels
-		chanReq models.ChannelInfo
+		r         models.Channels
+		chanReq   models.ChannelInfo
 	)
 
 	chanReq.ChannelID = channelId
@@ -176,15 +181,18 @@ func DeleteChannels(db *gorm.DB, channelId, userId string, typesenseDb *typesens
 
 	channel, err := r.GetChannelByID(db, chanReq)
 
+	if channel.Name == "general" {
+		return http.StatusBadRequest, errors.New("cannot delete general channel")
+	}
+
 	if channel.OwnerId != userId {
 		return http.StatusUnauthorized, errors.New("user not authorized")
 	}
-
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
 
-	err = channel.Delete(db, typesenseDb)
+	err = channel.Delete(db)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -204,7 +212,9 @@ func CountChannelsUsers(db *gorm.DB, channelId string) (int64, int, error) {
 
 func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, channelId string, userId string) (models.Channels, error) {
 	var r models.Channels
-	updatedChannels, _, err := r.UpdateChannels(db, req, channelId, userId)
+	r.ID = channelId
+
+	updatedChannels, _, err := r.UpdateChannels(db, req, userId)
 	if err != nil {
 		return updatedChannels, err
 	}

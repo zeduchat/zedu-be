@@ -44,6 +44,46 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) ChangeProfileStatus(c *gin.Context) {
+
+	var req models.UpdateProfileStatus
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserId = userId
+
+	code, err := profile.UpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User profile status updated successfully", nil)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) UpdateProfile(c *gin.Context) {
 	var req models.UpdateUserProfileRequest
 
@@ -87,7 +127,6 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", err, nil)
@@ -117,7 +156,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 }
 
 func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
-	
+
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
