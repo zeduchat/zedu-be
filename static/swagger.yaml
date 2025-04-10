@@ -5446,8 +5446,8 @@ paths:
                   type: string
                   example: Checked Out
                 pause_notification:
-                  type: boolean
-                  example: true
+                  type: string
+                  example: "30 minutes"
                 status_timeout:
                   type: string
                   example: 20 minutes
