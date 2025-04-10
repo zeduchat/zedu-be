@@ -14256,9 +14256,9 @@ components:
           type: string
           description: Phone number
         avatar_url:
-          type: string
-          format: uri
-          description: URL to the avatar image
+          type: file
+          format: binary
+          description: Upload avatar file(image)
         display_name:
           type: string
           format: string
@@ -14276,7 +14276,7 @@ components:
         full_name: "New Full Name"
         user_name: "new_username"
         phone: "1234567890"
-        avatar_url: "https://example.com/avatar.jpg"
+        avatar_url: "avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
 
     ProfileResponseSchema:

@@ -26,6 +26,8 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		rd := utility.BuildErrorResponse(400, "error", "Failed to Fetch user profile", "No user found", nil)
+		c.JSON(400, rd)
 		return
 	}
 
@@ -117,10 +119,27 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	base64Image := c.Request.FormValue("avatar_url")
+	// base64Image := c.Request.FormValue("avatar_url")
+	_, imgFileHeader, err := c.Request.FormFile("avatar_url")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	if imgFileHeader == nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "no file header received", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	file, ext, err := utility.ValidatePicture(base64Image)
-
+	fileBase64Img, err := utility.ConvertToBase64(imgFileHeader)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	
+	file, ext, err := utility.ValidatePicture(fileBase64Img)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
