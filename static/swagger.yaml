@@ -5447,7 +5447,7 @@ paths:
                   example: Checked Out
                 pause_notification:
                   type: string
-                  example: "30 minutes"
+                  example: 30 minutes
                 status_timeout:
                   type: string
                   example: 20 minutes
