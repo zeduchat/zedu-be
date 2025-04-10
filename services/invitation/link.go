@@ -103,8 +103,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		responseData gin.H
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
-		// chans        = models.Channels{}
-		userID string
+		userID       string
 	)
 
 	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token, logger)
@@ -139,6 +138,19 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
+	defaultChannel, err := getDefaultChannel(db, orgmgt.OrganisationID)
+	if err != nil {
+		logger.Error("error getting default channel", err)
+	}
+
+	if defaultChannel.ID != "" {
+		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
+		if err != nil {
+			logger.Error("error adding user to the default channel", err)
+			return responseData, http.StatusInternalServerError, err
+		}
+	}
+
 	userData, err := user.GetUserByEmail(db, invitation.Email)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
@@ -157,6 +169,20 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	responseData = buildUserResponse(userData, tokenData)
 
 	return responseData, http.StatusOK, nil
+}
+
+func getDefaultChannel(db *gorm.DB, orgID string) (models.Channels, error) {
+	var channels models.Channels
+
+	err := db.Where("organisation_id = ? AND name = ?", orgID, "general").First(&channels).Error
+	if err != nil {
+		return channels, errors.New("default channel not found")
+	}
+	if channels.ID == "" {
+		return channels, errors.New("default channel not found")
+	}
+
+	return channels, nil
 }
 
 func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {

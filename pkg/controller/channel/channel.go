@@ -233,14 +233,15 @@ func (base *Controller) LeaveChannels(c *gin.Context) {
 func (base *Controller) UpdateUsername(c *gin.Context) {
 	var req models.UpdateChannelsUserNameReq
 
+	
 	channelId := c.Param("channelId")
-
+	
 	if _, err := uuid.Parse(channelId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		base.Logger.Info("error getting claims")
@@ -250,7 +251,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
+	
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		base.Logger.Info("error parsing request body")
@@ -258,12 +259,19 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+	
+	if req.Username == "general" {
+		base.Logger.Info("error updating username")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "cannot update username to general", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -280,7 +288,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) DeleteChannels(c *gin.Context) {
+func (base *Controller) DeleteChannel(c *gin.Context) {
 
 	ChannelsId := c.Param("channelId")
 
@@ -300,7 +308,7 @@ func (base *Controller) DeleteChannels(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId, base.Db.TypeSense)
+	code, err := channel.DeleteChannel(base.Db.Postgresql, ChannelsId, UserId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -380,6 +388,12 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	if err := base.Validator.Struct(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if req.Name == "general" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Cannot update channel name to general", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
