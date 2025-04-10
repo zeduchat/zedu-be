@@ -66,8 +66,6 @@ tags:
     description: API for newsletter related operations
   - name: squeeze
     description: API for squeeze optin related operations
-  - name: AgentSettings
-    description: API for Agents settings
   - name: IntegrationSlashCommands
     description: API for Agent Slash Commands
   - name: Channel Agent Settings
@@ -5448,8 +5446,8 @@ paths:
                   type: string
                   example: Checked Out
                 pause_notification:
-                  type: string
-                  example: 30 minutes
+                  type: boolean
+                  example: true
                 status_timeout:
                   type: string
                   example: 20 minutes
@@ -14264,9 +14262,13 @@ components:
           type: string
           description: Phone number
         avatar_url:
+          type: string
+          format: uri
+          description: URL or base64-encoded image string
+        avatar_file:
           type: file
           format: binary
-          description: Upload avatar file(image)
+          description: Binary image file (e.g., PNG, JPG)
         display_name:
           type: string
           format: string
@@ -14284,7 +14286,7 @@ components:
         full_name: "New Full Name"
         user_name: "new_username"
         phone: "1234567890"
-        avatar_url: "avatar.jpg"
+        avatar_url(or avatar_file): "avatar.jpg"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
 
     ProfileResponseSchema:

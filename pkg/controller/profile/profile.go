@@ -88,6 +88,7 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 
 func (base *Controller) UpdateProfile(c *gin.Context) {
 	var req models.UpdateUserProfileRequest
+	var fileBase64Img string
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -119,26 +120,28 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// base64Image := c.Request.FormValue("avatar_url")
-	_, imgFileHeader, err := c.Request.FormFile("avatar_url")
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	if imgFileHeader == nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "no file header received", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+	base64Image := c.Request.FormValue("avatar_url")
+	if base64Image == "" {
+		_, imgFileHeader, err := c.Request.FormFile("avatar_file")
+		if err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+
+		if imgFileHeader != nil {
+			base64Image, err := utility.ConvertToBase64(imgFileHeader)
+			if err != nil {
+				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+				c.JSON(http.StatusBadRequest, rd)
+				return
+			}
+			fileBase64Img = base64Image
+		}
+	} else {
+		fileBase64Img = base64Image
 	}
 
-	fileBase64Img, err := utility.ConvertToBase64(imgFileHeader)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	
 	file, ext, err := utility.ValidatePicture(fileBase64Img)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -157,7 +160,6 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
-
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Profile not found", err, nil)
