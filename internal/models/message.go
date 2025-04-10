@@ -302,9 +302,8 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 		return nil, pagR, err
 	}
 
-	mergedResponse := append([]MessageDocument{ConvertThreadToMessage(thread)}, messages...)
 
-	return mergedResponse, pagR, nil
+	return messages, pagR, nil
 }
 
 func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocument, err error) {
@@ -331,22 +330,4 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocume
 	}
 
 	return
-}
-
-func ConvertThreadToMessage(thread ThreadDocument) MessageDocument {
-	return MessageDocument{
-		Content:        thread.Content,
-		OrganisationID: thread.OrgansationID,
-		ChannelsID:     thread.ChannelsID,
-		UserID:         thread.UserId,
-		Username:       thread.Username,
-		CreatedAt:      thread.CreatedAt,
-		UpdatedAt:      thread.LastReply,
-		AvatarURL:      thread.AvatarURL,
-		Edited:         thread.Edited,
-		FullName:       thread.FullName,
-		Email:          thread.Email,
-		Media:          thread.Media,
-		Mentions:       thread.Mentions,
-	}
 }

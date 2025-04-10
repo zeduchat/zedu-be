@@ -60,6 +60,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 		Username:       profile.UserName,
 		FullName:       profile.FullName,
 		Email:          user.Email,
+		UserType:       "user",
 		OrganisationID: channel.OrgId,
 		Mentions:       req.Mentions,
 		Media:          req.Media,
@@ -85,6 +86,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		OrgId:     req.OrgId,
+		UserType:  "user",
 		UserId:    req.UserId,
 		Media:     req.Media,
 	}

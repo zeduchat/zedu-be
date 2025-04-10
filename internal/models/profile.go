@@ -22,10 +22,13 @@ type Profile struct {
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 	DisplayName       string         `gorm:"type:varchar(255)" json:"display_name"`
-	Status            string         `gorm:"type:varchar(255)" json:"status"`
 	Title             string         `gorm:"type:varchar(255)" json:"title"`
 	NamePronunciation string         `gorm:"type:varchar(255)" json:"name_pronunciation"`
 	Timezone          string         `gorm:"type:varchar(255)" json:"timezone"`
+	Icon              string         `gorm:"type:varchar(255)" json:"icon"`
+	Text              string         `gorm:"type:varchar(255)" json:"text"`
+	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
+	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
 }
 
 type ProfileSummary struct {
@@ -48,7 +51,10 @@ type ProfileSummary struct {
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`
 	Timezone          string `json:"timezone"`
-	Status            string `json:"status"`
+	Icon              string `json:"icon"`
+	Text              string `json:"text"`
+	PauseNotification bool   `json:"pause_notification"`
+	StatusTimeout     string `json:"status_timeout"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -64,8 +70,11 @@ type UpdateUserProfileRequest struct {
 }
 
 type UpdateProfileStatus struct {
-	Status string `json:"status"`
-	UserId string
+	Icon              string `json:"icon"`
+	Text              string `json:"text"`
+	PauseNotification bool   `json:"pause_notification"`
+	StatusTimeout     string `json:"status_timeout"`
+	UserId            string
 }
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
@@ -105,7 +114,10 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 	var userProfile Profile
 
 	profileUpdates := Profile{
-		Status: req.Status,
+		Icon:              req.Icon,
+		Text:              req.Text,
+		PauseNotification: req.PauseNotification,
+		StatusTimeout:     req.StatusTimeout,
 	}
 
 	query := "userid = ?"
