@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"slices"
-
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
@@ -114,13 +112,6 @@ func (base *Controller) CreateGroupDMChannel(c *gin.Context) {
 		base.Logger.Info("validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
-	if slices.Contains(req.Participants, req.UserId) {
-		base.Logger.Info("error user can not chat with self")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "User can not chat with self", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 

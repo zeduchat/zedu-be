@@ -37,7 +37,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 		// DELETE routes
 		channelUrl.DELETE("/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
-		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
+		channelUrl.DELETE("/:channelId", channel.DeleteChannel)
 		channelUrl.DELETE("/:channelId/integration-channels", channel.DeleteChannelIntegration)
 
 		// GET routes
