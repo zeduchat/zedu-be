@@ -43,10 +43,9 @@ func DeleteProfilePic(logger *utility.Logger, objectName string) error {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to delete file %s: %v", path, err))
 		return fmt.Errorf("failed to delete file %s: %v", path, err)
 	}
-	
+
 	return nil
 }
-
 
 func ImageExists(logger *utility.Logger, objectName string) (bool, error) {
 	path := "public/profile_pics/" + objectName
