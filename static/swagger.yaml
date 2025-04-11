@@ -14285,9 +14285,36 @@ components:
         email: "newemail@example.com"
         full_name: "New Full Name"
         user_name: "new_username"
-        phone: "1234567890"
-        avatar_url(or avatar_file): "avatar.jpg"
+        phone: "09040008000"
+        avatar_file: "avatar.jpg"
+        avatar_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+        display_name: "username"
+        timezone: "GMT + 1"
+        title: "Mr"
+        name_pronounciation: "u-ser-name"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
+
+    requestBodies:
+    UpdateProfileRequestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            $ref: "#/components/schemas/UpdateProfileRequest"
+          encoding:
+            avatar_file:
+              contentType: image/png, image/jpeg
+          example:
+            email: "newemail@example.com"
+            full_name: "New Full Name"
+            username: "new_username"
+            phone: "09040008000"
+            avatar_file: "@avatar.jpg"
+            avatar_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+            display_name: "username"
+            timezone: "GMT + 1"
+            title: "Mr"
+            name_pronounciation: "u-ser-name"
 
     ProfileResponseSchema:
       type: object
