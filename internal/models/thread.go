@@ -526,16 +526,29 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 
 func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 
+	messageQuery := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match": map[string]interface{}{
+				"thread_id": c.ID,
+			},
+		},
+	}
+
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, messageQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+	}
+
 	mediaQuery := map[string]interface{}{
 		"query": map[string]interface{}{
 			"nested": map[string]interface{}{
-				"path": "messages.media", // Access the media field within messages
+				"path": "messages.media",
 				"query": map[string]interface{}{
 					"bool": map[string]interface{}{
 						"must": []interface{}{
 							map[string]interface{}{
 								"match": map[string]interface{}{
-									"messages.thread_id": c.ID, // Match messages that belong to this thread
+									"messages.thread_id": c.ID,
 								},
 							},
 						},
@@ -544,44 +557,18 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 			},
 		},
 	}
-
-	err := elastic.DeleteByQuery(storage.DB.Elastic, ThreadIndexName, mediaQuery)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+	mediaErr := elastic.DeleteByQuery(storage.DB.Elastic, ThreadIndexName, mediaQuery)
+	if mediaErr != nil {
+		return nil, fmt.Errorf("failed to delete media files, err: %v", mediaErr)
 	}
 
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid thread uuid supplied")
+		return nil, fmt.Errorf("invalid thread uuid supplied")
 	}
 
 	return c, nil
 }
-
-// func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
-
-// 	query := map[string]interface{}{
-// 		"query": map[string]interface{}{
-// 			"match": map[string]interface{}{
-// 				"thread_id": c.ID,
-// 			},
-// 		},
-// 	}
-
-// 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
-
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
-// 	}
-
-// 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Invalid thread uuid supplied")
-// 	}
-
-// 	return c, nil
-// }
 
 func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
 	for _, mediaFile := range mediaFiles {
