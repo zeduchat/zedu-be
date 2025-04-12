@@ -545,7 +545,10 @@ func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, me
 func (c *Threads) DeleteThread(logger *utility.Logger, db *gorm.DB, threadDoc ThreadDocument) (*Threads, error) {
 
 	for _, message := range threadDoc.Messages {
-		c.DeleteThreadMediaFiles(logger, db, message.Media)
+		_, err := c.DeleteThreadMediaFiles(logger, db, message.Media)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete media files in thread document, err: %v", err)
+		}
 	}
 
 	messageQuery := map[string]interface{}{
