@@ -66,8 +66,6 @@ tags:
     description: API for newsletter related operations
   - name: squeeze
     description: API for squeeze optin related operations
-  - name: AgentSettings
-    description: API for Agents settings
   - name: IntegrationSlashCommands
     description: API for Agent Slash Commands
   - name: Channel Agent Settings
@@ -14266,7 +14264,11 @@ components:
         avatar_url:
           type: string
           format: uri
-          description: URL to the avatar image
+          description: URL or base64-encoded image string
+        avatar_file:
+          type: file
+          format: binary
+          description: Binary image file (e.g., PNG, JPG)
         display_name:
           type: string
           format: string
@@ -14283,9 +14285,15 @@ components:
         email: "newemail@example.com"
         full_name: "New Full Name"
         user_name: "new_username"
-        phone: "1234567890"
-        avatar_url: "https://example.com/avatar.jpg"
+        phone: "09040008000"
+        avatar_file: "avatar.jpg"
+        avatar_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+        display_name: "username"
+        timezone: "GMT + 1"
+        title: "Mr"
+        name_pronounciation: "u-ser-name"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
+
 
     ProfileResponseSchema:
       type: object

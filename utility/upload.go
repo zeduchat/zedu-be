@@ -3,6 +3,8 @@ package utility
 import (
 	"encoding/base64"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"strings"
 )
 
@@ -60,4 +62,23 @@ func unsupportedURLPrefix(url string) bool {
 		}
 	}
 	return false
+}
+
+func ConvertToBase64(header *multipart.FileHeader) (string, error) {
+	openedFile, err := header.Open()
+	if err != nil {
+		return "", fmt.Errorf("Could not open uploaded image: %v", err)
+	}
+	defer openedFile.Close()
+
+	imageBytes, err := io.ReadAll(openedFile)
+	if err != nil {
+		return "", fmt.Errorf("could not read image data: %v", err)
+	}
+
+	base64Str := base64.StdEncoding.EncodeToString(imageBytes)
+	mimeType := header.Header.Get("Content-Type")
+
+	base64Image := "data:" + mimeType + ";base64," + base64Str
+	return base64Image, nil
 }
