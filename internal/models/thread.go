@@ -524,7 +524,29 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 	return c, nil
 }
 
-func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
+	for _, mediaFile := range mediaFiles {
+		hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+		err := DeleteUploadedFiles(logger, hashedFileName)
+		if err != nil {
+			return nil, err
+		}
+
+		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
+		if deleteErr != nil {
+			return nil, deleteErr
+		}
+	}
+
+	return c, nil
+}
+
+func (c *Threads) DeleteThread(logger *utility.Logger, db *gorm.DB, threadDoc ThreadDocument) (*Threads, error) {
+
+	for _, message := range threadDoc.Messages {
+		c.DeleteThreadMediaFiles(logger, db, message.Media)
+	}
 
 	messageQuery := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -539,50 +561,9 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
 	}
 
-	mediaQuery := map[string]interface{}{
-		"query": map[string]interface{}{
-			"nested": map[string]interface{}{
-				"path": "messages.media",
-				"query": map[string]interface{}{
-					"bool": map[string]interface{}{
-						"must": []interface{}{
-							map[string]interface{}{
-								"match": map[string]interface{}{
-									"messages.thread_id": c.ID,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	mediaErr := elastic.DeleteByQuery(storage.DB.Elastic, ThreadIndexName, mediaQuery)
-	if mediaErr != nil {
-		return nil, fmt.Errorf("failed to delete media files, err: %v", mediaErr)
-	}
-
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid thread uuid supplied")
-	}
-
-	return c, nil
-}
-
-func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
-	for _, mediaFile := range mediaFiles {
-		hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
-
-		err := DeleteUploadedFiles(logger, hashedFileName)
-		if err != nil {
-			return nil, err
-		}
-
-		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
-		if deleteErr != nil {
-			return nil, deleteErr
-		}
 	}
 
 	return c, nil
