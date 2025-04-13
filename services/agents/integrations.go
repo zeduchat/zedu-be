@@ -285,6 +285,24 @@ func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
 	return nil, code
 }
 
+func ChangeStatus(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
+
+	if req.Status {
+		return SendAgentApiKey(ids, req, db, extReq)
+	}
+
+	var (
+		orgIntegration models.OrganisationIntegrations
+	)
+
+	err := orgIntegration.ChangeStatus(db, req, ids, extReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
 	var (
 		orgIntegration       models.OrganisationIntegrations
