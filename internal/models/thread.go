@@ -542,7 +542,19 @@ func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, me
 	return c, nil
 }
 
-func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+func (c *Threads) DeleteThread(db *gorm.DB, thread Threads) (*Threads, error) {
+	var messages Message
+	var ctx *gin.Context
+	var logger *utility.Logger
+
+	msgDocCollection, _, msgDocErr := messages.GetAllMessagesByThreadID(ctx, db, thread.UserId, thread.ID)
+	if msgDocErr == nil && len(msgDocCollection) > 0 {
+		for _, msgDoc := range msgDocCollection {
+			if _, err := c.DeleteThreadMediaFiles(logger, db, msgDoc.Media); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	messageQuery := map[string]interface{}{
 		"query": map[string]interface{}{

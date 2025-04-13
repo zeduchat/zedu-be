@@ -173,7 +173,7 @@ func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
 
 		thread.ID = dm.ChannelId
 
-		if _, err := thread.DeleteThread(db); err != nil {
+		if _, err := thread.DeleteThread(db, thread); err != nil {
 			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel threads: %v", err)
 		}
 
@@ -209,7 +209,7 @@ func (dm *DmChannels) DeleteGroupDMChannel(db *gorm.DB) (int, error) {
 
 		thread.ID = dm.ChannelId
 
-		if _, err := thread.DeleteThread(db); err != nil {
+		if _, err := thread.DeleteThread(db, thread); err != nil {
 			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel threads: %v", err)
 		}
 
