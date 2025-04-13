@@ -27,7 +27,7 @@ type Profile struct {
 	Timezone          string         `gorm:"type:varchar(255)" json:"timezone"`
 	Icon              string         `gorm:"type:varchar(255)" json:"icon"`
 	Text              string         `gorm:"type:varchar(255)" json:"text"`
-	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
+	PauseNotification string         `gorm:"type:boolean;default:false" json:"pause_notification"`
 	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
 }
 
@@ -53,7 +53,7 @@ type ProfileSummary struct {
 	Timezone          string `json:"timezone"`
 	Icon              string `json:"icon"`
 	Text              string `json:"text"`
-	PauseNotification bool   `json:"pause_notification"`
+	PauseNotification string `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
 }
 
@@ -73,7 +73,7 @@ type UpdateUserProfileRequest struct {
 type UpdateProfileStatus struct {
 	Icon              string `json:"icon"`
 	Text              string `json:"text"`
-	PauseNotification bool   `json:"pause_notification"`
+	PauseNotification string `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
 	UserId            string
 }

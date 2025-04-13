@@ -25,6 +25,7 @@ var (
 	SlackGetManifest    string = "slack_get_manifest"
 	SlackGetAccessToken string = "slack_get_access_token"
 	AgentJsonContent    string = "fetch_agent_json_content"
+	SendAgentAPIKey     string = "send_agent_api_key"
 )
 
 func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
@@ -109,6 +110,19 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				Timeout:      true,
 			}
 			return obj.RetriveJsonData()
+		case SendAgentAPIKey:
+
+			data_content := data.(map[string]interface{})
+			obj := integrations.RequestObj{
+				Name:         name,
+				Path:         data_content["url"].(string),
+				Method:       "POST",
+				SuccessCode:  200,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data_content["payload"].(map[string]string),
+				Logger:       er.Logger,
+			}
+			return obj.SendAgentApiKey()
 		default:
 			return nil, fmt.Errorf("request not found")
 		}
