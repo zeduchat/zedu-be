@@ -285,13 +285,60 @@ func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
 	return nil, code
 }
 
-func ChangeAgentStatus(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
-	var agent models.OrganisationIntegrations
+func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
+	var (
+		orgIntegration       models.OrganisationIntegrations
+		ucis                 models.CustomIntegrationsSetting
+		deserialize_settings map[string]interface{}
+		api_key              string
+	)
 
-	err := agent.ChangeStatus(db, req, ids, extReq)
-	if err != nil {
-		return err
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id =  ?", ids["org_id"], ids["agent_id"])
+	if !exists {
+		return errors.New("integration not connected yet")
 	}
+
+	exists = postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id =  ?", ids["org_id"], ids["agent_id"])
+	if !exists {
+		return errors.New("integration not connnected yet")
+	}
+
+	db_settings := ucis.SettingEntry
+
+	// unserialize the settings text
+
+	err := json.Unmarshal([]byte(db_settings), &deserialize_settings)
+
+	if err != nil {
+		return fmt.Errorf("error deserializing JSON")
+	}
+
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+
+	if ok {
+		api_key, ok := auth_credentials["telex_api_key"].(string)
+		if ok && api_key != ids["telex_api_key"] {
+			return errors.New("an error occured: api_key Mismatch")
+		}
+	}
+
+	// send api key to agent
+
+	dataPayload := map[string]interface{}{
+		"url": orgIntegration.JSONUrl,
+		"payload": map[string]string{
+			"org_id":  ids["org_id"],
+			"api_key": api_key,
+		}}
+
+	response, err := extReq.SendExternalRequest(request.SendAgentAPIKey, dataPayload)
+
+	if err != nil {
+		extReq.Logger.Error("An error occured: %v", response)
+		return errors.New("failed to activate agent, an error occured")
+	}
+
+	extReq.Logger.Info("Request sent to agent: %v", response)
 
 	return nil
 }
@@ -385,21 +432,6 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 
 	if err != nil {
 		return errors.New("Failed to create external API key")
-	}
-
-	// Add integration to all existing channels
-	ids := map[string]string{
-		"org_id":   org_id,
-		"agent_id": orgIntegration.IntegrationID,
-	}
-
-	reqq := models.ChangeAgentStatus{
-		Status: false,
-	}
-
-	err = ChangeAgentStatus(ids, reqq, db, extReq)
-	if err != nil {
-		return errors.New("failed to add agent to channels")
 	}
 
 	// serialize the settings json
@@ -818,6 +850,32 @@ func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomI
 	}
 
 	err = orgIntegration.ChangeStatus(db, reqStatus, ids, extReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AgentCallback(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) error {
+
+	var (
+		orgIntegration models.OrganisationIntegrations
+	)
+
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids["porg_id"], "%"+ids["pagent_id"])
+	if !exists {
+		return errors.New("integration not connected yet")
+	}
+
+	ids["org_id"] = orgIntegration.OrgID
+	ids["agent_id"] = orgIntegration.IntegrationID
+
+	reqStatus := models.ChangeAgentStatus{
+		Status: true,
+	}
+
+	err := orgIntegration.ChangeStatus(db, reqStatus, ids, extReq)
 	if err != nil {
 		return err
 	}
