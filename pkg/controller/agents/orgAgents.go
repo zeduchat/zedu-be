@@ -240,7 +240,7 @@ func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 		"agent_id": req.AgentID,
 	}
 
-	err := agents.SendAgentApiKey(ids, req, base.Db.Postgresql, base.ExtReq)
+	err := agents.ChangeStatus(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to set agent app status", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set agent app status", err.Error(), nil)
