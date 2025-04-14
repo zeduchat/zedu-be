@@ -334,10 +334,7 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
 
 	if ok {
-		api_key, ok := auth_credentials["telex_api_key"].(string)
-		if ok && api_key != ids["telex_api_key"] {
-			return errors.New("an error occured: api_key Mismatch")
-		}
+		api_key, _ = auth_credentials["telex_api_key"].(string)
 	}
 
 	// send api key to agent
