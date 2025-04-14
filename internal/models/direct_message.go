@@ -76,7 +76,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 
 	data := map[string]string{"url": agentJSONURL}
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
 		if err == nil {
 			break
@@ -98,9 +98,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		return nil, fmt.Errorf("invalid agent json data: %v", err)
 	}
 
-	if err == nil {
-		rd.RedisSet(redisClient, redisKey, data_r)
-	}
+	rd.RedisSet(redisClient, redisKey, data_r, 12 * time.Hour)
 
 	return data_r, nil
 }

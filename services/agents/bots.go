@@ -35,7 +35,7 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c
 
 		data_r, err := models.FetchDetailsFromAgentJSON(extReq, json_url, redisClient)
 		if err != nil {
-			// logger.Error("failed to fetch agent json", err)
+			logger.Error("failed to fetch agent json", err)
 
 			// failedAgent := models.Integrations{
 			// 	ID:             org_agents.IntegrationID,
