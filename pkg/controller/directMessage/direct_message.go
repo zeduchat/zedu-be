@@ -61,12 +61,6 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		return
 	}
 
-	if req.ParticipantId == req.UserId {
-		base.Logger.Info("error user can not chat with self")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "User can not chat with self", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	respData, code, err := dm.CreateDmChannel(req, base.Db.Postgresql, base.ExtReq, base.Db.Redis)
 	if err != nil {

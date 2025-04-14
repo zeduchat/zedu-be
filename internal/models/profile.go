@@ -63,6 +63,7 @@ type UpdateUserProfileRequest struct {
 	FullName          string `json:"full_name"`
 	UserName          string `json:"username"`
 	AvatarURL         string `json:"avatar_url"`
+	AvatarFile         string `json:"avatar_file"`
 	DisplayName       string `json:"display_name"`
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`

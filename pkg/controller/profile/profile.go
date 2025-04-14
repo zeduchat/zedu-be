@@ -26,6 +26,8 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		rd := utility.BuildErrorResponse(400, "error", "Failed to Fetch user profile", "No user found", nil)
+		c.JSON(400, rd)
 		return
 	}
 
@@ -86,6 +88,7 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 
 func (base *Controller) UpdateProfile(c *gin.Context) {
 	var req models.UpdateUserProfileRequest
+	var fileBase64Img string
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -118,9 +121,28 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	base64Image := c.Request.FormValue("avatar_url")
+	if base64Image == "" {
+		_, imgFileHeader, err := c.Request.FormFile("avatar_file")
+		if err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
 
-	file, ext, err := utility.ValidatePicture(base64Image)
+		if imgFileHeader != nil {
+			base64Image, err := utility.ConvertToBase64(imgFileHeader)
+			if err != nil {
+				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+				c.JSON(http.StatusBadRequest, rd)
+				return
+			}
+			fileBase64Img = base64Image
+		}
+	} else {
+		fileBase64Img = base64Image
+	}
 
+	file, ext, err := utility.ValidatePicture(fileBase64Img)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -138,7 +160,6 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
-
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Profile not found", err, nil)
