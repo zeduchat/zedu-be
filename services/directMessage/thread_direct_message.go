@@ -280,6 +280,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 					"mentions":                feed.Mentions,
 				},
 				"channel_id": feed.ChannelsId,
+				"org_id":     feed.OrgId,
 				"return_url": feed.ReturnUrl,
 				"agent_id":   channel.ParticipantId,
 			},

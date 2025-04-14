@@ -196,7 +196,7 @@ type CreateThreadMsgReq struct {
 
 type BotReturnRequest struct {
 	ChannelID string                 `json:"channel_id"`
-	Content   string                 `json:"content"`
+	Content   string                 `json:"message"`
 	Media     []UploadedFileResponse `json:"media"`
 	Mentions  []Mention              `json:"mentions"`
 }

@@ -217,7 +217,7 @@ func TestChannelsEndpoints(t *testing.T) {
 			channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 			channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
 			channelUrl.PATCH("/:channelId", channel.UpdateChannels)
-			channelUrl.DELETE("/:channelId", channel.DeleteChannels)
+			channelUrl.DELETE("/:channelId", channel.DeleteChannel)
 			channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 			channelUrl.GET(("/search/:channelName"), channel.SearchChannelsByNames)
 		}
