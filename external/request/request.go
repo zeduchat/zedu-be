@@ -111,7 +111,6 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			}
 			return obj.RetriveJsonData()
 		case SendAgentAPIKey:
-
 			data_content := data.(map[string]interface{})
 			obj := integrations.RequestObj{
 				Name:         name,

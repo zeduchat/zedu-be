@@ -27,7 +27,7 @@ func (r *RequestObj) SendAgentApiKey() (map[string]interface{}, error) {
 		"Content-Type": "application/json",
 	}
 
-	err := r.getNewSendRequestObject(nil, headers, "/auth_callback").SendRequest(&outBoundResponse)
+	err := r.getNewSendRequestObject(r.RequestData, headers, "/auth_callback").SendRequest(&outBoundResponse)
 	if err != nil {
 		logger.Error("failed to send api key to agent", outBoundResponse, err.Error())
 		return outBoundResponse, err

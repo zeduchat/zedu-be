@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -334,16 +335,16 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
 
 	if ok {
-		api_key, ok := auth_credentials["telex_api_key"].(string)
-		if ok && api_key != ids["telex_api_key"] {
-			return errors.New("an error occured: api_key Mismatch")
-		}
+		api_key, _ = auth_credentials["telex_api_key"].(string)
 	}
 
 	// send api key to agent
 
+	parsedURL, _ := url.Parse(orgIntegration.JSONUrl)
+	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+
 	dataPayload := map[string]interface{}{
-		"url": orgIntegration.JSONUrl,
+		"url": baseURL,
 		"payload": map[string]string{
 			"org_id":  ids["org_id"],
 			"api_key": api_key,
