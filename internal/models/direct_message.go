@@ -61,14 +61,12 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		var cachedResult interface{}
 
 		if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
-			fmt.Printf("Failed to unmarshal cached data: %v\n", err)
 			rd.RedisDelete(redisClient, redisKey)
 			return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
 		}
 
 		data_r, ok := cachedResult.(map[string]interface{})
 		if !ok {
-			fmt.Println("Cached data is not in the expected format")
 			rd.RedisDelete(redisClient, redisKey)
 			return nil, errors.New("cached data is not in the expected format")
 		}

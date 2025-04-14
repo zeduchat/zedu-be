@@ -35,28 +35,28 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c
 
 		data_r, err := models.FetchDetailsFromAgentJSON(extReq, json_url, redisClient)
 		if err != nil {
-			logger.Error("failed to fetch agent json", err)
+			// logger.Error("failed to fetch agent json", err)
 
-			failedAgent := models.Integrations{
-				ID:             org_agents.IntegrationID,
-				Name:           "Failed Bot",
-				JSONUrl:        org_agents.JSONUrl,
-				AppUrl:         "Failed to fetch app url",
-				AppLogo:        "Failed to fetch app logo",
-				AppDescription: "Failed to fetch app description",
-				Category:       "Failed to fetch category",
-				Status:         "failed",
-				IsActive:       org_agents.IsActive,
-				CreatedAt:      org_agents.CreatedAt,
-				UpdatedAt:      org_agents.UpdatedAt,
-			}
-			botResp = append(botResp, struct {
-				models.Integrations
-				Linked bool "json:\"linked\""
-			}{
-				Integrations: failedAgent,
-				Linked:       false,
-			})
+			// failedAgent := models.Integrations{
+			// 	ID:             org_agents.IntegrationID,
+			// 	Name:           "Failed Bot",
+			// 	JSONUrl:        org_agents.JSONUrl,
+			// 	AppUrl:         "Failed to fetch app url",
+			// 	AppLogo:        "Failed to fetch app logo",
+			// 	AppDescription: "Failed to fetch app description",
+			// 	Category:       "Failed to fetch category",
+			// 	Status:         "failed",
+			// 	IsActive:       org_agents.IsActive,
+			// 	CreatedAt:      org_agents.CreatedAt,
+			// 	UpdatedAt:      org_agents.UpdatedAt,
+			// }
+			// botResp = append(botResp, struct {
+			// 	models.Integrations
+			// 	Linked bool "json:\"linked\""
+			// }{
+			// 	Integrations: failedAgent,
+			// 	Linked:       false,
+			// })
 			continue
 		}
 
