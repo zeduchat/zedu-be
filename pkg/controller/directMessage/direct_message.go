@@ -61,7 +61,6 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		return
 	}
 
-
 	respData, code, err := dm.CreateDmChannel(req, base.Db.Postgresql, base.ExtReq, base.Db.Redis)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
@@ -143,7 +142,7 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	resp, code, err := dm.GetDmParticipants(req, base.Db.Postgresql, c, base.ExtReq,  base.Db.Redis)
+	resp, code, err := dm.GetDmParticipants(req, base.Db.Postgresql, c, base.ExtReq, base.Db.Redis)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

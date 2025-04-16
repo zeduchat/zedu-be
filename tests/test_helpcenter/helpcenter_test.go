@@ -41,7 +41,7 @@ func TestHelpCenterFlow(t *testing.T) {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
 	tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
-	
+
 	var apiResponse ApiResponse
 
 	err = json.Unmarshal(body, &apiResponse)
@@ -58,8 +58,8 @@ func TestHelpCenterFlow(t *testing.T) {
 	}
 
 	articlePayload := models.CreateHelpCenterArticle{
-		Title:      fmt.Sprintf("Article %s", currUUID),
-		Content:    "This is a test article",
+		Title:   fmt.Sprintf("Article %s", currUUID),
+		Content: "This is a test article",
 	}
 
 	articlePayloadBytes, _ := json.Marshal(articlePayload)
@@ -84,16 +84,14 @@ func TestHelpCenterFlow(t *testing.T) {
 }
 
 type ApiResponse struct {
-	Status      string `json:"status"`
-	StatusCode  int    `json:"status_code"`
-	Message     string `json:"message"`
-	Data        struct {
+	Status     string `json:"status"`
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
+	Data       struct {
 		CategoryID string `json:"category_id"`
 	} `json:"data"`
 }
-	
-	
-	
+
 func setup() (*gin.Engine, *auth.Controller) {
 	router, hlpCntController := SetupHelpCenterTestRouter()
 	authController := auth.Controller{

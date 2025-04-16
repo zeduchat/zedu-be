@@ -27,7 +27,7 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 
 	var (
 		user      = models.User{}
-		magicLink = models.MagicLink{} 
+		magicLink = models.MagicLink{}
 		config    = config.GetConfig()
 	)
 
@@ -146,7 +146,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 		},
 		"access_token": tokenData.AccessToken,
 	}
-	
+
 	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
 	return responseData, http.StatusOK, nil

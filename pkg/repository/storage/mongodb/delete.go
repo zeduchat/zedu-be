@@ -14,14 +14,20 @@ import (
 func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) {
 
 	databaseName := config.Config.MongoDB.DB_Name
+
 	dbCollection := db.Database(databaseName).Collection(collection)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+
 	ObjectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println(collection)
+
 	del, err := dbCollection.DeleteOne(ctx, bson.M{"_id": ObjectID})
+	fmt.Println(del)
 	deletedCount := del.DeletedCount
 	if err != nil {
 		return 0, err
@@ -29,5 +35,19 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 	if deletedCount == 0 {
 		return 0, fmt.Errorf("no document found with ID: %s", id)
 	}
+
 	return deletedCount, err
+}
+
+func DeleteCollection(db *mongo.Client, collection string) error {
+	databaseName := config.Config.MongoDB.DB_Name
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	err := db.Database(databaseName).Collection(collection).Drop(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

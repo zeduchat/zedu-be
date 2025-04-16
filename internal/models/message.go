@@ -302,7 +302,6 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 		return nil, pagR, err
 	}
 
-
 	return messages, pagR, nil
 }
 

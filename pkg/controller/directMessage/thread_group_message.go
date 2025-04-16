@@ -68,5 +68,3 @@ func (base *Controller) AddAGroupThreadDM(c *gin.Context) {
 	c.JSON(code, rd)
 
 }
-
-

@@ -23,7 +23,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 		slackentry models.SlackTelex
 		org        models.Organisation
 		slackReq   models.SendSlackRequest
-		chanReq   models.ChannelInfo
+		chanReq    models.ChannelInfo
 	)
 
 	chanReq.ChannelID = feed.ChannelID

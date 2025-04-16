@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
+
 	"gorm.io/gorm"
 )
 

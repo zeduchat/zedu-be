@@ -57,9 +57,8 @@ func (base *Controller) ChangeGeneralInviteStatus(c *gin.Context) {
 	base.Logger.Info("Invitation updated successfully")
 	rd := utility.BuildSuccessResponse(code, "invitation updated successfully", response)
 	c.JSON(code, rd)
-	
-}
 
+}
 
 func (base *Controller) CancelInvitation(c *gin.Context) {
 	inviteID := c.Param("invite_id")
@@ -84,10 +83,10 @@ func (base *Controller) CancelInvitation(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
-	
+
 	userId := userID.(string)
 
-	err = invitation.CancelInvitation(base.Db.Postgresql ,inviteID, userId)
+	err = invitation.CancelInvitation(base.Db.Postgresql, inviteID, userId)
 
 	if err != nil {
 		base.Logger.Error("failed to cancel invitation", err)

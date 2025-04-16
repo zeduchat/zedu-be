@@ -42,7 +42,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/typesense/typesense-go/v2 v2.0.0
 	go.mongodb.org/mongo-driver v1.17.3
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.33.0
 	google.golang.org/api v0.215.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.5.9
@@ -71,7 +71,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.13.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.1.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
+	github.com/golang/snappy v1.0.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
@@ -84,6 +84,7 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.2.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.29.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.29.0 // indirect
@@ -164,9 +165,9 @@ require (
 	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.8.0
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	google.golang.org/appengine v1.6.8

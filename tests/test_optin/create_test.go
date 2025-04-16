@@ -13,7 +13,6 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-
 func TestE2EOptInSubscription(t *testing.T) {
 	router, _ := SetupOptInTestRouter()
 
@@ -72,7 +71,7 @@ func TestPostOptIn_CheckDuplicateEmail(t *testing.T) {
 	db := optInController.Db.Postgresql
 
 	db.Create(&models.OptIn{
-		ID: utility.GenerateUUID(),
+		ID:        utility.GenerateUUID(),
 		FirstName: "John",
 		LastName:  "Doe",
 		Email:     fmt.Sprintf("testuser%v@qa.team", currUUID),
