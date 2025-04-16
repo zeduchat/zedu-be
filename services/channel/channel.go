@@ -172,8 +172,8 @@ func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId
 
 func DeleteChannel(db *gorm.DB, channelId, userId string) (int, error) {
 	var (
-		r         models.Channels
-		chanReq   models.ChannelInfo
+		r       models.Channels
+		chanReq models.ChannelInfo
 	)
 
 	chanReq.ChannelID = channelId

@@ -77,7 +77,7 @@ func (base *Controller) GetSlackAccessToken(c *gin.Context) {
 
 	userId := userID.(string)
 
-	organisationID:= c.Param("orgId")
+	organisationID := c.Param("orgId")
 
 	if _, err := uuid.Parse(organisationID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)

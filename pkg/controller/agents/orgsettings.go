@@ -95,6 +95,7 @@ func (base *Controller) GetAgentSettings(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation Agent setting retrieved successfully", setting)
 	c.JSON(http.StatusOK, rd)
 }
+
 func (base *Controller) GetAgentApiKey(c *gin.Context) {
 	var (
 		org_id   = c.Param("org_id")
@@ -136,6 +137,7 @@ func (base *Controller) GetAgentApiKey(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent api_key retrieved successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
+
 func (base *Controller) UpdateChannelAgentSetting(c *gin.Context) {
 	var (
 		req        models.UpdateIntegrationSettingsRequest

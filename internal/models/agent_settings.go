@@ -69,27 +69,24 @@ func (is *CustomIntegrationsSetting) GetIntegrationApiKey(db *gorm.DB, ids map[s
 
 	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
-		return "", http.StatusNotFound, errors.New("Integration not connnected yet")
+		return "", http.StatusNotFound, errors.New("integration not connnected yet")
 	}
 
 	db_settings := ucis.SettingEntry
 
 	// unserialize the settings text
-
 	err := json.Unmarshal([]byte(db_settings), &deserialize_settings)
-
 	if err != nil {
-		return "", http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON")
+		return "", http.StatusInternalServerError, fmt.Errorf("error deserializing JSON")
 	}
 
 	api_key, ok := deserialize_settings["api_key"].(string)
-
 	if !ok {
-		return "", http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON")
+		return "", http.StatusInternalServerError, fmt.Errorf("error deserializing JSON")
 	}
 
 	if api_key == "" {
-		return "", http.StatusNotFound, errors.New("Integration not of auth type")
+		return "", http.StatusNotFound, errors.New("integration not of auth type")
 	}
 
 	return api_key, http.StatusOK, nil

@@ -18,11 +18,11 @@ type UploadRequest struct {
 }
 
 type UploadedFileResponse struct {
-	ID             string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	FileName       string `gorm:"column:file_name; not null" json:"file_name"`
-	FileType       string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
-	MimeType       string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
-	FileLink       string `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
+	ID       string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
+	FileName string `gorm:"column:file_name; not null" json:"file_name"`
+	FileType string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
+	MimeType string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
+	FileLink string `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
 }
 
 type FileType struct {

@@ -26,8 +26,8 @@ func ConnectToElastic(logger *utility.Logger, EConfig config.ElasticDb) *elastic
 		return nil
 	}
 
-	utility.LogAndPrint(logger, "connected to Elastic DB  ✅ ")
-	fmt.Println("connected to Elastic DB  ✅ ")
+	utility.LogAndPrint(logger, "connected to Elastic DB  ✅✅✅✅✅ ")
+	fmt.Println("connected to Elastic DB  ✅✅✅✅✅ ")
 
 	info, err := client.Info()
 

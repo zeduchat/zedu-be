@@ -10,17 +10,17 @@ import (
 type NotificationName string
 
 const (
-	SendWelcomeMail           NotificationName = "send_welcome_mail"
-	SendOTP                   NotificationName = "send_otp"
-	SendResetPasswordMail     NotificationName = "send_reset_password_mail"
-	SendEmailVerificationMail NotificationName = "send_email_verification_mail"
-	SendMagicLink             NotificationName = "send_magic_link"
-	SendSqueeze               NotificationName = "send_squeeze"
-	SendContactUsMail         NotificationName = "send_contact_us"
-	SendInvitationLink        NotificationName = "send_invitation"
-	SendNewsletterMail        NotificationName = "send_newsletter"
-	SendPasswordChangeConfirmationMail    NotificationName = "send_password_change_confirmation_mail"
-    SendLoginAlertMail        NotificationName = "send_login_Alert_mail"  
+	SendWelcomeMail                    NotificationName = "send_welcome_mail"
+	SendOTP                            NotificationName = "send_otp"
+	SendResetPasswordMail              NotificationName = "send_reset_password_mail"
+	SendEmailVerificationMail          NotificationName = "send_email_verification_mail"
+	SendMagicLink                      NotificationName = "send_magic_link"
+	SendSqueeze                        NotificationName = "send_squeeze"
+	SendContactUsMail                  NotificationName = "send_contact_us"
+	SendInvitationLink                 NotificationName = "send_invitation"
+	SendNewsletterMail                 NotificationName = "send_newsletter"
+	SendPasswordChangeConfirmationMail NotificationName = "send_password_change_confirmation_mail"
+	SendLoginAlertMail                 NotificationName = "send_login_Alert_mail"
 )
 
 func Check() {

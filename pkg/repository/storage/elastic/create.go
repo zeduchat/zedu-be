@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/elastic/go-elasticsearch/v8"
-
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -56,7 +55,7 @@ func AddDocument(client *elasticsearch.Client, indexName, docID string, doc inte
 	}
 	defer res.Body.Close()
 	if res.IsError() {
-		logger.Error("error response from Elasticsearch: err: "+ res.String())
+		logger.Error("error response from Elasticsearch: err: " + res.String())
 		return fmt.Errorf("error response from Elasticsearch: %s", res.String())
 	}
 

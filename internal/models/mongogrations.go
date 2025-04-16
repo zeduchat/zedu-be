@@ -7,24 +7,23 @@ import (
 )
 
 type CreateMongoRequest struct {
-	Collection string                 `json:"collection" validate:"required"`
-	Document   map[string]interface{} `json:"document" validate:"required"`
+	Document map[string]interface{} `json:"document" validate:"required"`
+}
+
+type CreateMongoCollectionRequest struct {
+	Collection string `json:"collection" validate:"required"`
 }
 
 type ReadMongoRequest struct {
-	Collection string                 `json:"collection" validate:"required"`
-	Filter     map[string]interface{} `json:"filter" validate:"required"`
+	Filter     map[string]interface{} `json:"filter"`
 }
 
 type UpdateMongoRequest struct {
-	Collection string                 `json:"collection" validate:"required"`
-	ID         string                 `json:"id" validate:"required"`
 	Document   map[string]interface{} `json:"document" validate:"required"`
 }
 
 type DeleteMongoRequest struct {
 	Collection string `json:"collection" validate:"required"`
-	ID         string `json:"id" validate:"required"`
 }
 
 func ReadEntries(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
@@ -47,6 +46,39 @@ func CreateEntry(db *mongo.Client, collection string, document map[string]interf
 	}
 
 	return nil
+}
+
+func DeleteCollection(db *mongo.Client, collection string) error {
+
+	// Call the storage layer
+	err := mongodb.DeleteCollection(db, collection)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateCollection(db *mongo.Client, collection string) error {
+
+	// Call the storage layer
+	err := mongodb.CreateCollection(db, collection)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ListCollections(db *mongo.Client, collectionNamePrefix string) ([]string, error) {
+
+	// Call the storage layer
+	collections, err := mongodb.ListCollections(db, collectionNamePrefix)
+	if err != nil {
+		return nil, err
+	}
+
+	return collections, nil
 }
 
 func UpdateEntry(db *mongo.Client, collection string, id string, update map[string]interface{}) error {

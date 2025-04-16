@@ -28,7 +28,7 @@ func (n *NewsLetter) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 func (n *NewsLetter) CreateNewsLetter(db *gorm.DB, email string) error {
-	
+
 	if postgresql.CheckExists(db, &n, "email = ?", email) {
 		return errors.New("email already subscribed")
 	}

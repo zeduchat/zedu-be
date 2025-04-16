@@ -17,7 +17,6 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	defer cancel()
 
 	// Convert the filter map to bson.M
-
 	bsonFilter := bson.M(filter)
 	var results []bson.M
 	cursor, err := dbCollection.Find(ctx, bsonFilter)
@@ -29,5 +28,7 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	if err = cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}
+
+	
 	return results, nil
 }

@@ -5441,7 +5441,7 @@ paths:
               properties:
                 icon:
                   type: string
-                  example: ✅
+                  example: ✅✅✅✅✅
                 text:
                   type: string
                   example: Checked Out

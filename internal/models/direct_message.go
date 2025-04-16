@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/go-redis/redis/v8"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -98,7 +98,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		return nil, fmt.Errorf("invalid agent json data: %v", err)
 	}
 
-	rd.RedisSet(redisClient, redisKey, data_r, 12 * time.Hour)
+	rd.RedisSet(redisClient, redisKey, data_r, 12*time.Hour)
 
 	return data_r, nil
 }
