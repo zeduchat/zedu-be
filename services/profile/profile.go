@@ -35,12 +35,14 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		return http.StatusInternalServerError, err
 	}
 
-	avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
+	if len(file) > 0 && ext != "" {
+		avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
 
-	req.AvatarURL = avatarURL
+		req.AvatarURL = avatarURL
+	}
 
 	if err := userProfile.UpdateProfileFields(db, req, userId); err != nil {
 		return http.StatusBadRequest, err
