@@ -39,5 +39,3 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 
 	return r
 }
-
-

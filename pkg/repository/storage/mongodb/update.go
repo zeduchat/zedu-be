@@ -16,6 +16,7 @@ func UpdateEntry(db *mongo.Client, collection string, id string, update map[stri
 	dbCollection := db.Database(databaseName).Collection(collection)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	
 	ObjectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err

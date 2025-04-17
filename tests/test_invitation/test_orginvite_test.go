@@ -114,7 +114,7 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		}, 
+		},
 		{
 			Name: "Organization Accept Invite Action",
 			RequestBody: models.VerifyInvitationLinkRequest{
@@ -132,7 +132,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
-				Email:         test_email,
+				Email:          test_email,
 				OrganisationID: orgId,
 			},
 			RequestURI:   url.URL{Path: "/api/v1/invite/resend"},

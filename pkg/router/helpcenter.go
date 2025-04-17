@@ -20,12 +20,12 @@ func HelpCenter(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 	helpcenterUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
 
 	{
-		helpcenterAdminUrl.POST("/help-center/categories", helpcenter.CreateHelpCenterCategory )
-		helpcenterAdminUrl.POST("/help-center/articles/:category-id", helpcenter.CreateHelpCenterArticle )
+		helpcenterAdminUrl.POST("/help-center/categories", helpcenter.CreateHelpCenterCategory)
+		helpcenterAdminUrl.POST("/help-center/articles/:category-id", helpcenter.CreateHelpCenterArticle)
 	}
 
 	{
-		helpcenterUrl.GET("/help-center/categories", helpcenter.GetAllCategories )
+		helpcenterUrl.GET("/help-center/categories", helpcenter.GetAllCategories)
 		helpcenterUrl.GET("/help-center/articles/categories/:category-id", helpcenter.GetArticlesByCategoryID)
 		helpcenterUrl.GET("/help-center/articles/search", helpcenter.SearchHelpCenterArticles)
 		helpcenterUrl.GET("/help-center/articles/:id", helpcenter.GetArticleByID)

@@ -14,19 +14,44 @@ import (
 )
 
 func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB) *mongo.Client {
+    clientOptions := options.Client().ApplyURI(MongoConfig.Mongo_URI)
+    clientOptions.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
 
-	clientOptions := options.Client().ApplyURI(MongoConfig.Mongo_URI) // Replace with your MongoDB URI
-	clientOptions.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Failed to initialize MongoDB client: %v", err))
-		fmt.Println("failed to connect to mongo DB")
-		return nil
-	}
-	utility.LogAndPrint(logger, "Successfully connected to MongoDB")
-	fmt.Println("connected to mongo DB  ✅ ")
-	storage.DB.Mongo = client
-	return client
+    var client *mongo.Client
+    var err error
+
+    maxRetries := 5
+    retryDelay := 5 * time.Second
+
+    for i := 0; i < maxRetries; i++ {
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+
+        logger.Info("Attempting to connect to MongoDB (attempt %d)...", i+1)
+        client, err = mongo.Connect(ctx, clientOptions)
+        if err != nil {
+            logger.Error("Failed to initialize MongoDB client: %v", err)
+            fmt.Println("failed to connect to mongo DB ❌❌❌❌❌")
+        } else {
+            // Verify connection with Ping
+            err = client.Ping(ctx, nil)
+            if err != nil {
+                logger.Error("Failed to ping MongoDB: %v", err)
+                fmt.Println("failed to ping mongo DB ❌❌❌❌❌")
+                client.Disconnect(ctx)
+            } else {
+                utility.LogAndPrint(logger, "Successfully connected and pinged MongoDB")
+                fmt.Println("connected to mongo DB ✅✅✅✅✅✅✅✅")
+                storage.DB.Mongo = client
+                return client
+            }
+        }
+
+        // Wait before retrying
+        time.Sleep(retryDelay)
+        retryDelay *= 2 // Exponential backoff
+    }
+
+    logger.Error("Exceeded maximum retries to connect to MongoDB")
+    return nil
 }

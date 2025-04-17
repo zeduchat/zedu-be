@@ -8,12 +8,12 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func RedisSet(rdb *redis.Client, key string, value interface{}) error {
+func RedisSet(rdb *redis.Client, key string, value interface{}, ttl time.Duration) error {
 	serialized, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	return rdb.Set(Ctx, key, serialized, 24*time.Hour).Err()
+	return rdb.Set(Ctx, key, serialized, ttl).Err()
 }
 
 func RedisSetPerm(rdb *redis.Client, key string, value interface{}) error {

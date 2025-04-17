@@ -84,6 +84,8 @@ tags:
     description: API for uploading and retrieving files
   - name: Search
     description: API endpoints for searching user query
+  - name: Agent Database
+    description: API endpoints for agent databases
 
 paths:
   # Auth paths
@@ -5441,7 +5443,7 @@ paths:
               properties:
                 icon:
                   type: string
-                  example: ✅
+                  example: ✅✅✅✅✅
                 text:
                   type: string
                   example: Checked Out
@@ -12275,122 +12277,146 @@ paths:
                   message: "Organisation not found"
 
   #mongogrations
-  /mongo-integrations:
-    get:
-      tags:
-        - Mongogrations
-      summary: Read entries from a MongoDB collection
-      description: Retrieves documents from the specified collection based on the provided filter.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name and filter.
-          required: true
-          schema:
-            $ref: "#/definitions/ReadMongoRequest"
-      responses:
-        200:
-          description: A list of documents matching the filter.
-          schema:
-            type: array
-            items:
-              type: object
-        400:
-          description: Bad request. Invalid input.
-        500:
-          description: Internal server error.
+  /mongo-integrations/collections:
     post:
       tags:
-        - Mongogrations
-      summary: Create a new entry in a MongoDB collection
-      description: Creates a new document in the specified collection.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name and document to create.
-          required: true
-          schema:
-            $ref: "#/definitions/CreateMongoRequest"
-      responses:
-        201:
-          description: Document created successfully.
-          schema:
-            type: object
-            properties:
-              insertedID:
-                type: string
-        400:
-          description: Bad request. Invalid input.
-        500:
-          description: Internal server error.
-    put:
-      tags:
-        - Mongogrations
-      summary: Update an entry in a MongoDB collection
-      description: Updates an existing document in the specified collection based on ID.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name, ID, and document to update.
-          required: true
-          schema:
-            $ref: "#/definitions/UpdateMongoRequest"
+        - Agent Database
+      summary: Create a new MongoDB collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                collection:
+                  type: string
+                  example: test_collection_2
       responses:
         200:
-          description: Document updated successfully.
-          schema:
-            type: object
-            properties:
-              modifiedCount:
-                type: integer
-        400:
-          description: Bad request. Invalid input.
-        404:
-          description: Document not found.
-        500:
-          description: Internal server error.
+          description: Collection created successfully
+  
+    get:
+      tags:
+        - Agent Database
+      summary: List all MongoDB collections
+      responses:
+        200:
+        description: Collections retrieved successfully
+
+  /mongo-integrations/collections/{collection_name}:
     delete:
       tags:
-        - Mongogrations
-      summary: Delete an entry from a MongoDB collection
-      description: Deletes a document from the specified collection based on ID.
-      consumes:
-        - application/json
-      produces:
-        - application/json
+        - Agent Database
+      summary: Delete a MongoDB collection
       parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name and ID to delete.
+        - in: path
+          name: collection_name
           required: true
           schema:
-            $ref: "#/definitions/DeleteMongoRequest"
+            type: string
       responses:
         200:
-          description: Document deleted successfully.
+          description: Collection deleted successfully
+  
+  /mongo-integrations/collections/{collection_name}/documents:
+    post:
+      tags:
+        - Agent Database
+      summary: Add a document to a MongoDB collection
+      parameters:
+        - in: path
+          name: collection_name
+          required: true
           schema:
-            type: object
-            properties:
-              deletedCount:
-                type: integer
-        400:
-          description: Bad request. Invalid input.
-        404:
-          description: Document not found.
-        500:
-          description: Internal server error.
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: object
+      responses:
+        200:
+          description: Document created successfully
+  
+    get:
+      tags:
+        - Agent Database
+      summary: Retrieve documents from a MongoDB collection
+      parameters:
+        - in: path
+          name: collection_name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  example:
+                    age: 30
+      responses:
+        200:
+          description: Documents retrieved successfully
+  
+  /mongo-integrations/collections/{collection_name}/documents/{entry_id}:
+    put:
+      tags:
+        - Agent Database
+      summary: Update a document in a MongoDB collection
+      parameters:
+        - in: path
+          name: collection_name
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: object
+                  example:
+                    age: 44444444444444444
+      responses:
+        200:
+          description: Document updated successfully
+  
+    delete:
+      tags:
+        - Agent Database
+      summary: Delete a document in a MongoDB collection
+      parameters:
+        - in: path
+          name: collection_name
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Document deleted successfully
 
   # firebase fcmtokenpath
   /fcmtoken:

@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/go-redis/redis/v8"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -61,14 +61,12 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		var cachedResult interface{}
 
 		if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
-			fmt.Printf("Failed to unmarshal cached data: %v\n", err)
 			rd.RedisDelete(redisClient, redisKey)
 			return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
 		}
 
 		data_r, ok := cachedResult.(map[string]interface{})
 		if !ok {
-			fmt.Println("Cached data is not in the expected format")
 			rd.RedisDelete(redisClient, redisKey)
 			return nil, errors.New("cached data is not in the expected format")
 		}
@@ -78,7 +76,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 
 	data := map[string]string{"url": agentJSONURL}
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
 		if err == nil {
 			break
@@ -100,9 +98,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		return nil, fmt.Errorf("invalid agent json data: %v", err)
 	}
 
-	if err == nil {
-		rd.RedisSet(redisClient, redisKey, data_r)
-	}
+	rd.RedisSet(redisClient, redisKey, data_r, 12*time.Hour)
 
 	return data_r, nil
 }

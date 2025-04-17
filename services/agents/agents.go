@@ -396,22 +396,25 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		agentSettings  models.CustomIntegrationsSetting
 	)
 
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND json_url = ?", org_id, req.JSONUrl)
+	if exists {
+		return errors.New("organisation already has that agent")
+	}
+
 	data := map[string]string{"url": req.JSONUrl}
 
 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
 	if err != nil {
-		return errors.New("Failed to create custom agent, invalid JSON supplied")
+		return errors.New("failed to create custom agent, invalid JSON supplied")
 	}
 
 	response_data := response.(map[string]interface{})
 	data_r, ok := response_data["data"].(map[string]interface{})
 
 	if !ok {
-		return errors.New("Failed to Create Custom Integration, data field does not exist")
+		return errors.New("failed to Create Custom Integration, data field does not exist")
 	}
-
-	// validate description entry
 
 	err = models.ValidateAgentData(data_r)
 
@@ -421,7 +424,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 
 	settings, ok := data_r["settings"]
 	if !ok {
-		return errors.New("Failed to create custom agent, settings field does not exist")
+		return errors.New("failed to create custom agent, settings field does not exist")
 	}
 
 	settings_data := map[string]interface{}{"settings": settings}

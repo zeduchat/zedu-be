@@ -19,7 +19,6 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-
 func (base *Controller) AddToContactUs(c *gin.Context) {
 	var (
 		req = models.ContactUs{}
