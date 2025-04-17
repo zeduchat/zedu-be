@@ -5453,6 +5453,10 @@ paths:
                 status_timeout:
                   type: string
                   example: 20 minutes
+                clear_status:
+                  type: bool
+                  description: set to true to clear current status feilds
+                  example: true
 
       responses:
         "200":
