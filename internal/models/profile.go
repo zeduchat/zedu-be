@@ -63,7 +63,7 @@ type UpdateUserProfileRequest struct {
 	FullName          string `json:"full_name"`
 	UserName          string `json:"username"`
 	AvatarURL         string `json:"avatar_url"`
-	AvatarFile         string `json:"avatar_file"`
+	AvatarFile        string `json:"avatar_file"`
 	DisplayName       string `json:"display_name"`
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`
@@ -75,6 +75,7 @@ type UpdateProfileStatus struct {
 	Text              string `json:"text"`
 	PauseNotification string `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
+	ClearStatus       bool   `json:"clear_status" validate:"required,oneof=false true"`
 	UserId            string
 }
 
@@ -112,13 +113,24 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 }
 
 func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {
-	var userProfile Profile
+	var (
+		profileUpdates, userProfile Profile
+	)
 
-	profileUpdates := Profile{
-		Icon:              req.Icon,
-		Text:              req.Text,
-		PauseNotification: req.PauseNotification,
-		StatusTimeout:     req.StatusTimeout,
+	if req.ClearStatus {
+		profileUpdates = Profile{
+			Icon:              "",
+			Text:              "",
+			PauseNotification: "",
+			StatusTimeout:     "",
+		}
+	} else {
+		profileUpdates = Profile{
+			Icon:              req.Icon,
+			Text:              req.Text,
+			PauseNotification: req.PauseNotification,
+			StatusTimeout:     req.StatusTimeout,
+		}
 	}
 
 	query := "userid = ?"
