@@ -21,7 +21,6 @@ import (
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
-	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -151,6 +150,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		channel    models.Channels
 		dmChannel  models.DmChannels
 		publishDst string
+		user       models.User
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -163,9 +163,10 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		return &newMsg, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	_, code, err := user.GetUser(userID, db)
+	user, err = user.GetUserByID(db, userID)
+
 	if err != nil {
-		return &newMsg, code, err
+		return nil, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
@@ -197,8 +198,31 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		publishDst = *dmChannel.ParticipantId
 	}
 
+	err = newMsg.GetMessageById(db, message.ID)
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	feed := models.FeedMessageRequest{
+		ChannelID: req.ChannelsId,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		AvatarURL: user.Profile.AvatarURL,
+		Type:      "message",
+		Content:   req.Content,
+		ThreadId:  req.ThreadId,
+		Email:     user.Email,
+		UserType:  newMsg.UserType,
+		UserName:  user.Profile.UserName,
+		FullName:  user.Profile.FullName,
+		OrgId:     req.OrgId,
+		UserId:    req.UserId,
+		Media:     newMsg.Media,
+	}
+
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ReplySection
+	notification.Content = feed
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
@@ -209,12 +233,6 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
-	}
-
-	err = newMsg.GetMessageById(db, message.ID)
-
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
 	}
 
 	return &newMsg, http.StatusOK, nil
