@@ -310,6 +310,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		thread     models.Threads
 		threadResp models.ThreadDocument
 		publishDst string
+		user       models.User
 		dmChannel  models.DmChannels
 		channel    models.Channels
 		chanParts  []models.ChannelParticipant
@@ -333,9 +334,10 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		return threadResp, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-	_, code, err := user.GetUser(userID, db)
+	user, err = user.GetUserByID(db, userID)
+
 	if err != nil {
-		return threadResp, code, err
+		return threadResp, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
 	thread.ID = req.ThreadId
@@ -357,8 +359,31 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		}
 	}
 
+	err = threadResp.GetThreadById(db, thread.ID)
+
+	if err != nil {
+		return threadResp, http.StatusInternalServerError, err
+	}
+
+	feed := models.FeedMessageRequest{
+		ChannelID: threadResp.ChannelsID,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		AvatarURL: threadResp.AvatarURL,
+		Type:      threadResp.Type,
+		Content:   threadResp.Content,
+		ThreadId:  req.ThreadId,
+		Email:     threadResp.Email,
+		UserType:  threadResp.UserType,
+		UserName:  user.Profile.UserName,
+		FullName:  user.Profile.FullName,
+		OrgId:     threadResp.OrgansationID,
+		UserId:    threadResp.UserId,
+		Media:     threadResp.Media,
+	}
+
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ThreadSection
+	notification.Content = feed
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelId,
@@ -399,12 +424,6 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
 		return threadResp, http.StatusBadRequest, errors.New("failed to publish data")
-	}
-
-	err = threadResp.GetThreadById(db, thread.ID)
-
-	if err != nil {
-		return threadResp, http.StatusInternalServerError, err
 	}
 
 	return threadResp, http.StatusOK, nil
