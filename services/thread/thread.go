@@ -369,7 +369,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		ChannelID: threadResp.ChannelsID,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 		AvatarURL: threadResp.AvatarURL,
-		Type:      threadResp.Type,
+		Type:      "message/thread",
 		Content:   threadResp.Content,
 		ThreadId:  req.ThreadId,
 		Email:     threadResp.Email,
