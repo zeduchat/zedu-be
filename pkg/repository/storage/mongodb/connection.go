@@ -20,7 +20,7 @@ func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB) *mongo.C
     var client *mongo.Client
     var err error
 
-    maxRetries := 5
+    maxRetries := 10
     retryDelay := 5 * time.Second
 
     for i := 0; i < maxRetries; i++ {
@@ -33,6 +33,7 @@ func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB) *mongo.C
             logger.Error("Failed to initialize MongoDB client: %v", err)
             fmt.Println("failed to connect to mongo DB ❌❌❌❌❌")
         } else {
+
             // Verify connection with Ping
             err = client.Ping(ctx, nil)
             if err != nil {
@@ -45,6 +46,7 @@ func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB) *mongo.C
                 storage.DB.Mongo = client
                 return client
             }
+
         }
 
         // Wait before retrying
