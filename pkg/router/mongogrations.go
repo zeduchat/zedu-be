@@ -9,15 +9,17 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/mongogrations"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	mongogrations := mongogrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	store := mongodb.MongoStore{}
 
 	baseUrl := fmt.Sprintf("%v/mongo-integrations/collections", ApiVersion)
-	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger))
+	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger, &store))
 	// mongogrationsUrl := r.Group(baseUrl)
 
 	{
