@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -31,7 +30,6 @@ func CreateCollection(db *mongo.Client, collection string) error {
 	defer cancel()
 
 	err := db.Database(databaseName).CreateCollection(ctx, collection)
-	fmt.Println(err)
 	if err != nil {
 		return err
 	}

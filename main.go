@@ -42,7 +42,9 @@ func main() {
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
 	firebase.ConnectFirebase(logger, configuration.Firebae)
-	mongodb.ConnectMongoDB(logger, configuration.MongoDB)
+	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
+
+
 
 	validatorRef := validator.New()
 	db := storage.Connection()
