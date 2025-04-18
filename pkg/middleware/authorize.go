@@ -11,6 +11,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -112,8 +113,18 @@ func GetIdFromToken(c *gin.Context) (string, interface{}) {
 	return id, ""
 }
 
-func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger) gin.HandlerFunc {
+func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, store *mongodb.MongoStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		if !store.IsClientAvailable(){
+			logger.Error("MongoDB Client is still connecting. Please try again...")
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "MongoDB Client is still connecting. Please try again...", "Bad Request",nil)
+			c.JSON(http.StatusBadRequest, rd)
+			c.Abort()
+			return
+		}
+
+
 		apiKey := c.GetHeader("X-TELEX-API-KEY")
 		if apiKey == "" {
 			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "API key not found", "Unauthorized", nil)

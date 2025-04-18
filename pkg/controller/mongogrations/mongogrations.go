@@ -24,11 +24,13 @@ type Controller struct {
 
 func (base *Controller) CreateCollection(c *gin.Context) {
 	var req models.CreateMongoCollectionRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
 	err := base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
