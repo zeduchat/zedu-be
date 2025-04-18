@@ -24,10 +24,8 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println(collection)
 
 	del, err := dbCollection.DeleteOne(ctx, bson.M{"_id": ObjectID})
-	fmt.Println(del)
 	deletedCount := del.DeletedCount
 	if err != nil {
 		return 0, err
