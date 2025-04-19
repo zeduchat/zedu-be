@@ -96,7 +96,6 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 
 	for _, participantID := range allParticipants {
 		userDetails, err := user.GetUserByID(db, participantID)
-		fmt.Println("=====================", userDetails, allParticipants)
 		if err != nil {
 			continue
 		}

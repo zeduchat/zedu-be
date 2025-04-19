@@ -240,7 +240,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		dm.UserId,
 		dm.UserId,
 	)
-	
+
 	if err != nil {
 		return nil, paginationResp, err
 	}
@@ -291,7 +291,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					profilePic = userDetails.Profile.AvatarURL
 				}
 
-				if email != "" {
+				if email == "" {
 					email = userDetails.Email
 				}
 			}
