@@ -174,19 +174,6 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 	return &messageDoc, http.StatusCreated, nil
 }
 
-func DeleteChannelsDmMsg(req models.EditMessageRequest) (*models.Message, int, error) {
-
-	var message models.Message
-
-	message.ID = req.MessageId
-
-	if _, err := message.DeleteMessage(db, logger); err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-
-	return nil, http.StatusOK, nil
-}
-
 // Reply message fn
 func AddChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
