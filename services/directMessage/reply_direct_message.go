@@ -180,7 +180,7 @@ func DeleteChannelsDmMsg(req models.EditMessageRequest) (*models.Message, int, e
 
 	message.ID = req.MessageId
 
-	if _, err := message.DeleteMessage(); err != nil {
+	if _, err := message.DeleteMessage(db, logger); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
 

@@ -208,6 +208,7 @@ type FeedMessageRequest struct {
 	CreatedAt string                 `json:"created_at"`
 	Email     string                 `json:"email"`
 	AvatarURL string                 `json:"avatar_url,omitempty"`
+	MessageId string                 `json:"message_id,omitempty"`
 	Type      string                 `json:"type"`
 	Content   string                 `json:"message"`
 	ThreadId  string                 `json:"thread_id"`

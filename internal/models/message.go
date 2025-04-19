@@ -244,15 +244,71 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 	return nil
 }
 
-func (c *Message) DeleteMessage() (*Message, error) {
+func (m *Message) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*Message, error) {
 
-	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, c.ID)
+	var (
+		thread ThreadDocument
+	)
+
+	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, m.ID)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete message, err: %v", err)
 	}
 
-	return c, nil
+	err = thread.GetThreadById(db, m.ThreadID.String())
+
+	if err != nil {
+		return m, err
+	}
+
+	if len(thread.Messages) <= 5 && len(thread.Messages) > 0 {
+		script := `if (ctx._source.messages == null) {
+			ctx._source.messages = [];
+		}
+		boolean found = false;
+		for (int i = 0; i < ctx._source.messages.size(); i++) {
+			if (ctx._source.messages[i] != null && ctx._source.messages[i].id == params.message_id) {
+				ctx._source.messages.remove(i);
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			ctx._source.message_count--;
+		}`
+
+		req := map[string]interface{}{
+			"script": map[string]interface{}{
+				"source": script,
+				"params": map[string]interface{}{
+					"message_id": m.ID,
+				},
+			},
+		}
+
+		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+			return m, err
+		}
+
+	} else {
+
+		script := `ctx._source.message_count--;`
+		req := map[string]interface{}{
+			"script": map[string]interface{}{
+				"source": script,
+			},
+		}
+
+		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+			return m, err
+		}
+	}
+	return m, nil
 }
 
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
