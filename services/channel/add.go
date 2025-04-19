@@ -242,15 +242,12 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
-		message    models.Message
 		newMsg     models.MessageDocument
 		channel    models.Channels
 		dmChannel  models.DmChannels
 		publishDst string
 		chanParts  []models.ChannelParticipant
 	)
-
-	message.ID = req.MessageId
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
 	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
@@ -259,7 +256,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-	err := newMsg.GetMessageById(db, message.ID)
+	err := newMsg.GetMessageById(db, req.MessageId)
 
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("message not found")
@@ -267,7 +264,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	req.ThreadId = newMsg.ThreadID.String()
 
-	if _, err := message.DeleteMessage(db, logger); err != nil {
+	if _, err := newMsg.DeleteMessage(db, logger); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 

@@ -244,7 +244,7 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 	return nil
 }
 
-func (m *Message) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*Message, error) {
+func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*MessageDocument, error) {
 
 	var (
 		thread ThreadDocument
