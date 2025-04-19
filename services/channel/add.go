@@ -218,6 +218,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		OrgId:     req.OrgId,
 		UserId:    req.UserId,
 		Media:     newMsg.Media,
+		MessageId: req.MessageId,
 	}
 
 	notification := models.Notification[models.Updated]
@@ -266,7 +267,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	req.ThreadId = newMsg.ThreadID.String()
 
-	if _, err := message.DeleteMessage(); err != nil {
+	if _, err := message.DeleteMessage(db, logger); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
