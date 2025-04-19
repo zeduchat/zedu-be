@@ -17,6 +17,7 @@ type ChannelParticipant struct {
 	ID        string         `gorm:"type:uuid" json:"id"`
 	ChannelId string         `gorm:"type:uuid" json:"channel_id"`
 	UserId    string         `gorm:"type:uuid" json:"user_id"`
+	OrgId     string         `gorm:"type:uuid" json:"org_id"`
 	CreatedAt time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
@@ -57,9 +58,9 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("group DM channel must have at least 2 valid additional participants")
 	}
 
-	allParticipants, participantHash := utility.GenerateParticipantHash(dm.UserId, req.Participants)
+	allParticipants, participantHash := utility.GenerateParticipantHash(req.Participants)
 
-	exists := postgresql.CheckExists(db, &existDmchan, "participant_hash = ?", participantHash)
+	exists := postgresql.CheckExists(db, &existDmchan, "participant_hash = ? AND org_id = ?", participantHash, req.OrgId)
 	if exists {
 		gpdmchanresp.ChannelId = existDmchan.ChannelId
 		gpdmchanresp.ChannelType = existDmchan.ChannelType
@@ -95,6 +96,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 
 	for _, participantID := range allParticipants {
 		userDetails, err := user.GetUserByID(db, participantID)
+		fmt.Println("=====================", userDetails, allParticipants)
 		if err != nil {
 			continue
 		}
@@ -114,6 +116,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		chParts.ID = utility.GenerateUUID()
 		chParts.ChannelId = dm.ChannelId
 		chParts.UserId = participantID
+		chParts.OrgId = req.OrgId
 		err = postgresql.CreateOneRecord(db, &chParts)
 		if err != nil {
 			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to add participant %s to the channel", userDetails.Name)

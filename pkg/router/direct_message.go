@@ -9,6 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	dm "github.com/hngprojects/telex_be/pkg/controller/directMessage"
+	"github.com/hngprojects/telex_be/pkg/controller/dm_filter"
 	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -20,6 +21,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 	dmCtrl := dm.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	thread := thread.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	dmFilter := dm_filter.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	threadUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
@@ -37,6 +39,16 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 	responseUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion))
 	{
 		responseUrl.POST("/bot-dm-response", dmCtrl.BotDMResponse)
+	}
+
+	organisationUrls := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		// DM endpoints
+		organisationUrls.POST("/:org_id/dms", dmCtrl.CreateDmChannel)
+		organisationUrls.DELETE("/:org_id/dms/:channel_id", dmCtrl.DeleteDmChannel)
+		organisationUrls.GET("/:org_id/dms", dmCtrl.GetDmChannels)
+		organisationUrls.GET("/:org_id/dms/participants/:channel_id", dmCtrl.GetDmParticipants)
+		organisationUrls.GET("/:org_id/recent-dm", dmFilter.DmFilter)
 	}
 
 	return r

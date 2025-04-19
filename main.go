@@ -44,8 +44,6 @@ func main() {
 	firebase.ConnectFirebase(logger, configuration.Firebae)
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 
-
-
 	validatorRef := validator.New()
 	db := storage.Connection()
 

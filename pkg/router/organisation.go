@@ -9,8 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/agents"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
-	dm "github.com/hngprojects/telex_be/pkg/controller/directMessage"
-	"github.com/hngprojects/telex_be/pkg/controller/dm_filter"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -22,8 +20,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	organisationCtrl := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channelCtrl := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	integrationsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	dmCtrl := dm.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	dmFilter := dm_filter.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		// Organisation routes
@@ -97,19 +93,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/slash-commands", integrationsCtrl.GetAllOrgSlashCommands)
 		organisationUrl.PATCH("/:org_id/integrations/:agent_id/slash-commands/:command_id", integrationsCtrl.UpdateAgentSlashCommand)
 		organisationUrl.DELETE("/:org_id/integrations/:agent_id/slash-commands/:command_id", integrationsCtrl.DeleteAgentSlashCommand)
-
-		// DM endpoints
-		organisationUrl.POST("/:org_id/dms", dmCtrl.CreateDmChannel)
-		organisationUrl.DELETE("/:org_id/dms/:channel_id", dmCtrl.DeleteDmChannel)
-		organisationUrl.GET("/:org_id/dms", dmCtrl.GetDmChannels)
-		organisationUrl.GET("/:org_id/dms/participants/:channel_id", dmCtrl.GetDmParticipants)
-		organisationUrl.GET("/:org_id/recent-dm", dmFilter.DmFilter)
-
-		// Group DM endpoints
-		organisationUrl.POST("/:org_id/group-dms", dmCtrl.CreateGroupDMChannel)
-		organisationUrl.DELETE("/:org_id/group-dms/:channel_id", dmCtrl.DeleteGroupDMChannel)
-		organisationUrl.GET("/:org_id/group-dms", dmCtrl.GetGroupDMChannels)
-		organisationUrl.GET("/:org_id/group-dms/:user_id", dmCtrl.GetUserGroupDMs)
 
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)
