@@ -220,17 +220,27 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	pagination := postgresql.GetPagination(c)
 
+	// Define the query string with LEFT JOIN and WHERE conditions
+	queryString := `
+        dm_channels.org_id = ? AND dm_channels.chat_type = ? 
+        AND (dm_channels.user_id = ? OR channel_participants.user_id = ?)
+    `
+
+	// Use SelectAllFromDbOrderByPaginated with the modified query
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db,
+		db.Joins("LEFT JOIN channel_participants ON dm_channels.channel_id = channel_participants.channel_id").
+			Group("dm_channels.id"), // Ensure distinct records
 		"created_at",
 		"desc",
 		pagination,
 		&dmchans,
-		"org_id = ? AND user_id = ? AND chat_type = ?",
+		queryString,
 		dm.OrgId,
-		dm.UserId,
 		"user",
+		dm.UserId,
+		dm.UserId,
 	)
+
 	if err != nil {
 		return nil, paginationResp, err
 	}

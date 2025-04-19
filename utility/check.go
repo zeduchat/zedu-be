@@ -28,14 +28,16 @@ func RemoveString(slice []string, s string) []string {
 	return slice
 }
 
-func HasDuplicates(ids []string) bool {
-	seen := map[string]int{}
+func ReturnUniqueIDs(ids []string) []string {
+	seen := map[string]struct{}{}
+	arr := []string{}
 
 	for _, id := range ids {
-		if _, exist := seen[id]; exist {
-			return true
+		if _, exist := seen[id]; !exist {
+			seen[id] = struct{}{}
+			arr = append(arr, id)
 		}
-		seen[id] = 0
 	}
-	return false
+
+	return arr
 }
