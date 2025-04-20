@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -114,10 +115,11 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {
+func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) ([]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
-		accessData models.Threads
-		accessResp []models.Threads
+		accessData  models.Threads
+		accessResp  []models.Threads
+		userChannel models.UserChannels
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -141,6 +143,17 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.
 			return accessResp, nil, http.StatusNoContent, nil
 		}
 		return accessResp, nil, http.StatusInternalServerError, err
+
+	}
+
+	if len(accessResp) > 0 {
+
+		updateLastRead := models.UpdateLastRead{
+			LastReadAt:   accessResp[0].CreatedAt,
+			LastThreadId: accessResp[0].ID,
+		}
+
+		go userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
 
 	}
 

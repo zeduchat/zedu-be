@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -16,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Channels struct {
@@ -36,13 +38,23 @@ type Channels struct {
 }
 
 type UserChannels struct {
-	ChannelsID string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
-	UserID     string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	Username   string    `gorm:"column:username; type:varchar(100)" json:"username"`
-	CreatedAt  time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
-	DeletedAt  time.Time `gorm:"index" json:"deleted_at"`
+	ChannelsID   string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
+	UserID       string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
+	Username     string    `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt    time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	ThreadCount  int64     `gorm:"column:thread_count;" json:"thread_count"`
+	LastThreadId string    `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
+	LastReadAt   time.Time `gorm:"column:last_read_at;not null;autoCreateTime" json:"last_read_at"`
+	MentionCount int64     `gorm:"column:mention_count;" json:"mention_count"`
+	DeletedAt    time.Time `gorm:"index" json:"deleted_at"`
 }
 
+type UpdateLastRead struct {
+	LastThreadId string    `json:"last_thread_id,omitempty"`
+	LastReadAt   time.Time `json:"last_read_at,omitempty"`
+	MentionCount int64     `json:"mention_count"`
+	ThreadCount  int64     `json:"thread_count"`
+}
 type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
@@ -551,21 +563,21 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
 	}
 
-    updates := map[string]interface{}{}
-    if req.Name != "" {
-        updates["name"] = req.Name
-    }
-    if req.Description != "" {
-        updates["description"] = req.Description
-    }
+	updates := map[string]interface{}{}
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	if req.Description != "" {
+		updates["description"] = req.Description
+	}
 	if len(updates) == 0 {
-        return Channels{}, http.StatusBadRequest, errors.New("no fields to update")
-    }
+		return Channels{}, http.StatusBadRequest, errors.New("no fields to update")
+	}
 
-    result := db.Model(&channel).Where("id = ?", r.ID).Updates(updates)
-    if result.RowsAffected == 0 {
-        return Channels{}, http.StatusInternalServerError, errors.New("failed to update channel")
-    }
+	result := db.Model(&channel).Where("id = ?", r.ID).Updates(updates)
+	if result.RowsAffected == 0 {
+		return Channels{}, http.StatusInternalServerError, errors.New("failed to update channel")
+	}
 
 	updatedChannels := Channels{}
 	err = db.First(&updatedChannels, "id = ?", r.ID).Error
@@ -747,4 +759,54 @@ func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChan
 	}
 
 	return users, nil
+}
+
+func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mutex, logger *utility.Logger) {
+
+	mu.Lock()
+
+	query := "channels_id = ? AND user_id = ?"
+
+	req.MentionCount = 0
+	req.ThreadCount = 0
+
+	_, err := postgresql.UpdateFields(db, &c, req, query, c.ChannelsID, c.UserID)
+	if err != nil {
+		logger.Error("an error occurend while updating user last read: %v", err)
+		mu.Unlock()
+		return
+	}
+
+	logger.Info("user last read updated successfully")
+	mu.Unlock()
+}
+
+func (c *UserChannels) UpdateUnReadCount(db *gorm.DB, req UpdateLastRead, mu *sync.Mutex, logger *utility.Logger) {
+
+	mu.Lock()
+
+	query := "channels_id = ? AND user_id = ?"
+
+	updateFields := map[string]interface{}{}
+
+	// Conditionally increment counts based on request
+	if req.ThreadCount > 0 {
+		updateFields["thread_count"] = gorm.Expr("thread_count + 1")
+	}
+	if req.MentionCount > 0 {
+		updateFields["mention_count"] = gorm.Expr(fmt.Sprintf("mention_count + %d", req.MentionCount))
+	}
+
+	result := db.Model(&UserChannels{}).
+		Where(query, c.ChannelsID, c.UserID).
+		Updates(updateFields)
+
+	if result.Error != nil {
+		logger.Error("an error occurred while updating user channel counts: %v", result.Error)
+		mu.Unlock()
+		return
+	}
+
+	logger.Info("user channel counts updated successfully")
+	mu.Unlock()
 }

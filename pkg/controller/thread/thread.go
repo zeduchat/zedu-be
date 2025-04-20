@@ -88,7 +88,7 @@ func (base *Controller) GetChannelThreads(c *gin.Context) {
 		return
 	}
 
-	usersData, paginationResponse, code, err := service.GetChannelThreads(channelID, base.Db.Postgresql, c)
+	usersData, paginationResponse, code, err := service.GetChannelThreads(channelID, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
