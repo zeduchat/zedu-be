@@ -18,7 +18,7 @@ import (
 )
 
 // Reply message fn (in dm / group_dm)
-func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, logger *utility.Logger) (*models.MessageDocument, int, error) {
+func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database, logger *utility.Logger) (*models.MessageDocument, int, error) {
 	var (
 		profile    models.Profile
 		user       models.User
@@ -181,6 +181,6 @@ func AddChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	// Provision for bot dms
 
-	return SaveChannelsDmMsg(req, db, logger)
+	return ReplyChannelDMMessage(req, db, logger)
 
 }
