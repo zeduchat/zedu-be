@@ -1,7 +1,6 @@
 package dm
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -23,9 +22,11 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, db *gorm.DB) (*mode
 	dmchans.ChannelId = utility.GenerateUUID()
 	dmchans.ID = utility.GenerateUUID()
 
-	if utility.HasDuplicates(req.Participants) {
-		return &models.GroupDMChannelsResponse{}, http.StatusBadRequest, errors.New("duplicate participants not allowed")
-	}
+	req.Participants = append(req.Participants, req.UserId)
+
+	participants := utility.ReturnUniqueIDs(req.Participants)
+
+	req.Participants = participants
 
 	resp, statusCode, err := dmchans.CreateGroupDMChannel(db, req)
 	if err != nil {
@@ -35,13 +36,13 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, db *gorm.DB) (*mode
 	return &resp, statusCode, nil
 }
 
-func DeleteGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
+func LeaveGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
 	var dmchans models.DmChannels
 
 	dmchans.ChannelId = req.ChannelId
 	dmchans.UserId = req.UserId
 
-	statusCode, err := dmchans.DeleteGroupDMChannel(db)
+	statusCode, err := dmchans.LeaveGroupDMChannel(db)
 	if err != nil {
 		return statusCode, err
 	}

@@ -20,6 +20,7 @@ func GroupDMs(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	gpdmCtrl := dm.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	thread := thread.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	dmCtrl := dm.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	threadUrl := r.Group(fmt.Sprintf("%v/group-dms", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
@@ -32,6 +33,15 @@ func GroupDMs(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		threadUrl.POST("/messages/:channelId", gpdmCtrl.ReplyGroupChannelsMsg)
 		threadUrl.PUT("/messages/:channelId", gpdmCtrl.EditGroupChannelsMsg)
 		threadUrl.DELETE("/channels/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
+	}
+
+	organisationUrls := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		// Group DM endpoints
+		organisationUrls.POST("/:org_id/group-dms", dmCtrl.CreateGroupDMChannel)
+		organisationUrls.DELETE("/:org_id/group-dms/:channel_id", dmCtrl.LeaveGroupDMChannel)
+		organisationUrls.GET("/:org_id/group-dms", dmCtrl.GetGroupDMChannels)
+		organisationUrls.GET("/:org_id/group-dms/:user_id", dmCtrl.GetUserGroupDMs)
 	}
 	return r
 }

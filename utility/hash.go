@@ -7,14 +7,12 @@ import (
 	"strings"
 )
 
-func GenerateParticipantHash(creatorID string, participants []string) ([]string, string) {
+func GenerateParticipantHash(participants []string) ([]string, string) {
 
-	allParticipants := append([]string{creatorID}, participants...)
+	sort.Strings(participants)
 
-	sort.Strings(allParticipants)
-
-	particpantString := strings.Join(allParticipants, ":")
+	particpantString := strings.Join(participants, ":")
 	hasher := sha256.New()
 	hasher.Write([]byte(particpantString))
-	return allParticipants, hex.EncodeToString(hasher.Sum(nil))
+	return participants, hex.EncodeToString(hasher.Sum(nil))
 }
