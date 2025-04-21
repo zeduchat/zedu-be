@@ -32,7 +32,7 @@ func UpdateEntry(db *mongo.Client, collection string, id string, update map[stri
 	}
 
 	if result.MatchedCount == 0 {
-		return fmt.Errorf("no document found with ID: %s", id)
+		return fmt.Errorf("no document found with ID: %s in collection %s", id, collection)
 	}
 
 	return nil
