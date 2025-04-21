@@ -66,25 +66,26 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	messageDoc := models.MessageDocument{
-		ID:           utility.GenerateUUID(),
-		Content:      req.Content,
-		ChannelsID:   req.ChannelsId,
-		UserID:       req.UserId,
-		ThreadID:     threadId,
-		AgentMessage: agent_message,
-		CreatedAt:    time.Now().UTC(),
-		UpdatedAt:    time.Now().UTC(),
-		AvatarURL:    profile.AvatarURL,
-		Edited:       false,
-		UserType:     userType,
-		Username:     utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
-		Email:        user.Email,
-		Media:        req.Media,
-		Mentions:     req.Mentions,
+		ID:             utility.GenerateUUID(),
+		Content:        req.Content,
+		ChannelsID:     req.ChannelsId,
+		UserID:         req.UserId,
+		ThreadID:       threadId,
+		AgentMessage:   agent_message,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+		AvatarURL:      profile.AvatarURL,
+		Edited:         false,
+		UserType:       userType,
+		Username:       utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:       utility.ThisOrThat(profile.FullName, req.AgentName),
+		Email:          user.Email,
+		Media:          req.Media,
+		Mentions:       req.Mentions,
+		OrganisationID: channels.OrganisationID,
 	}
 
-	err = messageDoc.CreateMessage(db, logger)
+	updateResp, err := messageDoc.CreateMessage(db, logger)
 
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
@@ -119,6 +120,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
+	notification.UpdateChange = updateResp
 
 	err = centrifuge.PublishChannel(logger, req.OrgId, notification)
 	if err != nil {
@@ -264,12 +266,15 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	req.ThreadId = newMsg.ThreadID.String()
 
-	if _, err := newMsg.DeleteMessage(db, logger); err != nil {
+	updateResp, err := newMsg.DeleteMessage(db, logger)
+
+	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
+	notification.UpdateChange = updateResp
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,

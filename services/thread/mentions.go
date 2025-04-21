@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		profile       models.Profile
 		user          models.User
 		channel       models.Channels
+		userChan      models.UserChannels
 		agent_message = false
 	)
 
@@ -131,6 +133,17 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	logger.Info("sent push notification to channel users")
+
+	// increase unread count for channel users
+	userChan.ChannelsID = req.ChannelsID
+	userChan.UserID = req.UserId
+	go userChan.UpdateUnReadCount(db.Postgresql, &sync.Mutex{}, logger)
+
+
+	// process mentions
+	if len(req.Mentions) > 0 {
+		go userChan.ProcessMentions(db.Postgresql, req.Mentions, &sync.Mutex{}, logger)
+	}
 
 	return &threadDoc, nil
 }

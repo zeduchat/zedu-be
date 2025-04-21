@@ -2810,12 +2810,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-  /organisations/:org_id/user-channels:
+  /organisations/{org_id}/user-channels:
     get:
       summary: Fetch User Channels
+      security:
+        - bearerAuth: []
       description: Retrieve the list of channels associated with the authenticated user.
       tags:
         - organisation
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization to retrieve channels from.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -5448,8 +5458,8 @@ paths:
                   type: string
                   example: Checked Out
                 pause_notification:
-                  type: string
-                  example: 30 minutes
+                  type: bool
+                  example: false
                 status_timeout:
                   type: string
                   example: 20 minutes
