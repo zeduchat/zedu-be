@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -47,7 +48,7 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	collection_name := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, req.Collection)
 
 	err = mongogrations.CreateCollection(base.Db.Mongo, collection_name)
@@ -208,9 +209,55 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 		return
 	}
 
+	if len(results) == 0 {
+		base.Logger.Error("No documents found matching the filter")
+		c.JSON(http.StatusNotFound, utility.BuildErrorResponse(http.StatusNotFound, "error", "No documents found matching the filter", nil, nil))
+		return
+	}
+
 	base.Logger.Info("Read entries successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Document(s) retrieved successfully", results)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetDocument(c *gin.Context) {
+	collectionName := c.Param("collection_name")
+	document_id := c.Param("document_id")
+
+	if document_id == "" {
+		base.Logger.Error("document_id is required")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "document_id is required", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	if collectionName == "" {
+		base.Logger.Error("collectionName is required")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "collectionName is required", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	if err != nil {
+		base.Logger.Error("Failed to fetch agent IDs", err.Error())
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	fullCollectionName := fmt.Sprintf("org_%s_agent_%s_%s", ids.OrganisationID, ids.AgentID, collectionName) // Adjust based on your naming convention
+	document, err := mongogrations.GetDocumentByID(base.Db.Mongo, fullCollectionName, document_id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, utility.BuildErrorResponse(http.StatusNotFound, "error", "Document not found", err, nil))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to retrieve document", err, nil))
+		return
+	}
+
+	base.Logger.Info("Document retrieved successfully")
+	c.JSON(http.StatusOK, utility.BuildSuccessResponse(http.StatusOK, "Document retrieved successfully", document, nil))
 }
 
 func (base *Controller) UpdateEntry(c *gin.Context) {
@@ -268,7 +315,6 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 }
 
 func (base *Controller) DeleteEntry(c *gin.Context) {
-
 
 	entry_id := c.Param("entry_id")
 	if entry_id == "" {

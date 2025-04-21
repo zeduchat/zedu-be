@@ -101,6 +101,16 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	return results, nil
 }
 
+func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, error) {
+
+	document, err := models.GetDocumentByID(db, collection, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return document, nil
+}
+
 func UpdateEntry(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
 	if collection == "" {
 		return fmt.Errorf("collection name is required")

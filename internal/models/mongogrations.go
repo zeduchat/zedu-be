@@ -1,8 +1,13 @@
 package models
 
 import (
+	"context"
+	"time"
+
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -15,11 +20,11 @@ type CreateMongoCollectionRequest struct {
 }
 
 type ReadMongoRequest struct {
-	Filter     map[string]interface{} `json:"filter"`
+	Filter map[string]interface{} `json:"filter"`
 }
 
 type UpdateMongoRequest struct {
-	Document   map[string]interface{} `json:"document" validate:"required"`
+	Document map[string]interface{} `json:"document" validate:"required"`
 }
 
 type DeleteMongoRequest struct {
@@ -35,6 +40,25 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	}
 
 	return results, nil
+}
+
+func GetDocumentByID(db *mongo.Client, collectionName string, document_id string) (bson.M, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var result bson.M
+	objectID, err := primitive.ObjectIDFromHex(document_id)
+	if err != nil {
+		return nil, err
+	}
+	databaseName := config.Config.MongoDB.DB_Name
+
+	err = db.Database(databaseName).Collection(collectionName).FindOne(ctx, bson.M{"_id": objectID}).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func CreateEntry(db *mongo.Client, collection string, document map[string]interface{}) error {
