@@ -12383,6 +12383,48 @@ paths:
           description: Documents retrieved successfully
   
   /mongo-integrations/collections/{collection_name}/documents/{entry_id}:
+    get:
+      tags:
+        - Agent Database
+      summary: Retrieve a single document by ID
+      parameters:
+        - name: collection_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Document retrieved
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Document retrieved successfully
+                data:
+                  _id: 6806c9a0c1ea95a3dedf9804
+                  name: shallom micah bawa
+                  names: ddddddd
+                  email: johndoe@example.com
+                  age: 31
+                  created_at: "2025-04-16T12:00:00Z"
+                  is_active: true
+                  tags:
+                    - test
+                    - dummy
+                    - example
+                  address:
+                    street: 123 Main St
+                    city: New York
+                    state: NY
+                    zip: "10001"
+
     put:
       tags:
         - Agent Database
