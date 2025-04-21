@@ -12,10 +12,11 @@ var (
 )
 
 type Content struct {
-	NotificationType   NotificationType   `json:"notification_type"`
-	SectionType        SectionType        `json:"section"`
-	ModifcationDetails ModifcationDetails `json:"modification_ids,omitempty"`
-	Content            interface{}        `json:"data,omitempty"`
+	NotificationType   NotificationType       `json:"notification_type"`
+	SectionType        SectionType            `json:"section"`
+	ModifcationDetails ModifcationDetails     `json:"modification_ids,omitempty"`
+	Content            interface{}            `json:"data,omitempty"`
+	UpdateChange       map[string]interface{} `json:"update_change,omitempty"`
 }
 
 type ModifcationDetails struct {
