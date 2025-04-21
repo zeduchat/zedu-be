@@ -134,12 +134,16 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	logger.Info("sent push notification to channel users")
 
-	// increase unread count
-	updateUnreadCount := models.UpdateLastRead{
-		ThreadCount:  1,
-		MentionCount: 0,
+	// increase unread count for channel users
+	userChan.ChannelsID = req.ChannelsID
+	userChan.UserID = req.UserId
+	go userChan.UpdateUnReadCount(db.Postgresql, &sync.Mutex{}, logger)
+
+
+	// process mentions
+	if len(req.Mentions) > 0 {
+		go userChan.ProcessMentions(db.Postgresql, req.Mentions, &sync.Mutex{}, logger)
 	}
-	go userChan.UpdateLastRead(db.Postgresql, updateUnreadCount, &sync.Mutex{}, logger)
 
 	return &threadDoc, nil
 }

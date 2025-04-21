@@ -77,11 +77,12 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.
 	return &accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {
+func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) ([]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
 		accessData         models.Threads
 		accessResp         []models.Threads
 		paginationResponse *elastic.PaginationResponse
+		userChannel        models.UserChannels
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -112,14 +113,23 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 		return accessResp, nil, http.StatusInternalServerError, err
 	}
 
+	if len(accessResp) > 0 {
+		updateLastRead := models.UpdateLastRead{
+			LastReadAt:   accessResp[0].CreatedAt,
+			LastThreadId: accessResp[0].ID,
+		}
+		userChannel.ChannelsID = channelID
+		userChannel.UserID = userID
+		go userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
+	}
+
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
 func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) ([]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
-		accessData  models.Threads
-		accessResp  []models.Threads
-		userChannel models.UserChannels
+		accessData models.Threads
+		accessResp []models.Threads
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -143,17 +153,6 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 			return accessResp, nil, http.StatusNoContent, nil
 		}
 		return accessResp, nil, http.StatusInternalServerError, err
-
-	}
-
-	if len(accessResp) > 0 {
-
-		updateLastRead := models.UpdateLastRead{
-			LastReadAt:   accessResp[0].CreatedAt,
-			LastThreadId: accessResp[0].ID,
-		}
-
-		go userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
 
 	}
 

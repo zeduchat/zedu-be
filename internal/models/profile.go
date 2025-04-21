@@ -27,7 +27,7 @@ type Profile struct {
 	Timezone          string         `gorm:"type:varchar(255)" json:"timezone"`
 	Icon              string         `gorm:"type:varchar(255)" json:"icon"`
 	Text              string         `gorm:"type:varchar(255)" json:"text"`
-	PauseNotification string         `gorm:"type:boolean;default:false" json:"pause_notification"`
+	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
 	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
 }
 
@@ -53,7 +53,7 @@ type ProfileSummary struct {
 	Timezone          string `json:"timezone"`
 	Icon              string `json:"icon"`
 	Text              string `json:"text"`
-	PauseNotification string `json:"pause_notification"`
+	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
 }
 
@@ -73,9 +73,9 @@ type UpdateUserProfileRequest struct {
 type UpdateProfileStatus struct {
 	Icon              string `json:"icon"`
 	Text              string `json:"text"`
-	PauseNotification string `json:"pause_notification"`
+	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
-	ClearStatus       bool   `json:"clear_status" validate:"required,oneof=false true"`
+	ClearStatus       bool   `json:"clear_status"`
 	UserId            string
 }
 
@@ -119,10 +119,9 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 
 	if req.ClearStatus {
 		profileUpdates = Profile{
-			Icon:              "",
-			Text:              "",
-			PauseNotification: "",
-			StatusTimeout:     "",
+			Icon:          "",
+			Text:          "",
+			StatusTimeout: "",
 		}
 	} else {
 		profileUpdates = Profile{
@@ -140,9 +139,12 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		return errors.New("Profile does not exists")
 	}
 
-	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, req.UserId)
-	if err != nil {
-		return err
+	result := db.Model(&Profile{}).
+		Where(query, req.UserId).
+		Updates(profileUpdates)
+
+	if result.Error != nil {
+		return result.Error
 	}
 
 	if result.RowsAffected == 0 {

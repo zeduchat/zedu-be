@@ -66,7 +66,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 		Media:          req.Media,
 	}
 
-	err = messageDoc.CreateMessage(db, logger)
+	updateResp, err := messageDoc.CreateMessage(db, logger)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
 	}
@@ -100,6 +100,7 @@ func SaveChannelsDmMsg(req models.CreateMessageRequest, db *storage.Database, lo
 	notification := models.Notification[models.NewMessage]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
+	notification.UpdateChange = updateResp
 
 	username := ""
 	if profile.UserName != "" {

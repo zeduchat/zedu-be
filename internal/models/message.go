@@ -111,29 +111,32 @@ type EditMessageRequest struct {
 	OrgId      string `json:"org_id"`
 }
 
-func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) error {
+func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]interface{}, error) {
 	var (
 		dmChannels   DmChannels
 		userChannels UserChannels
 		thread       ThreadDocument
 	)
 
+	updateResp := map[string]interface{}{}
+	previewSect := false
+
 	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 
 	if !(dmChanExist || chanExist) && !m.AgentMessage {
-		return errors.New("user not in channel")
+		return updateResp, errors.New("user not in channel")
 	}
 
 	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
-		return err
+		return updateResp, err
 	}
 
 	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
 
 	if err != nil {
-		return err
+		return updateResp, err
 	}
 
 	if len(thread.Messages) < 5 {
@@ -167,7 +170,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		err = elastic.UpdateDocWithScript(db.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return err
+			return updateResp, err
 		}
 
 	} else {
@@ -187,12 +190,27 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		err = elastic.UpdateDocWithScript(db.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return err
+			return updateResp, err
 		}
 
 	}
 
-	return nil
+	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+
+	if err != nil {
+		return updateResp, err
+	}
+
+	for _, con := range thread.Messages {
+		if con.ID == m.ID {
+			previewSect = true
+		}
+	}
+
+	updateResp["thread_count"] = thread.MessageCount
+	updateResp["preview_section"] = previewSect
+
+	return updateResp, nil
 }
 
 func (m *Message) UpdateMessage(db *gorm.DB, req map[string]interface{}) (*Message, error) {
@@ -244,25 +262,34 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 	return nil
 }
 
-func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*MessageDocument, error) {
+func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]interface{}, error) {
 
 	var (
 		thread ThreadDocument
 	)
 
+	updateResp := map[string]interface{}{}
+	previewSect := false
+
 	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, m.ID)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete message, err: %v", err)
+		return updateResp, fmt.Errorf("failed to delete message, err: %v", err)
 	}
 
 	err = thread.GetThreadById(db, m.ThreadID.String())
 
 	if err != nil {
-		return m, err
+		return updateResp, err
 	}
 
-	if len(thread.Messages) <= 5 && len(thread.Messages) > 0 {
+	for _, con := range thread.Messages {
+		if con.ID == m.ID {
+			previewSect = true
+		}
+	}
+
+	if previewSect {
 		script := `if (ctx._source.messages == null) {
 			ctx._source.messages = [];
 		}
@@ -274,6 +301,7 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*M
 				break;
 			}
 		}
+
 		if (found) {
 			ctx._source.message_count--;
 		}`
@@ -290,12 +318,14 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*M
 		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return m, err
+			return updateResp, err
 		}
 
 	} else {
 
-		script := `ctx._source.message_count--;`
+		script := `if (ctx._source.message_count > 0) {
+			ctx._source.message_count--;
+		}`
 		req := map[string]interface{}{
 			"script": map[string]interface{}{
 				"source": script,
@@ -305,10 +335,20 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (*M
 		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return m, err
+			return updateResp, err
 		}
 	}
-	return m, nil
+
+	err = thread.GetThreadById(db, m.ThreadID.String())
+
+	if err != nil {
+		return updateResp, err
+	}
+
+	updateResp["thread_count"] = thread.MessageCount
+	updateResp["preview_section"] = previewSect
+
+	return updateResp, nil
 }
 
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
