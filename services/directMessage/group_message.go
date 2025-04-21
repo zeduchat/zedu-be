@@ -36,13 +36,13 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, db *gorm.DB) (*mode
 	return &resp, statusCode, nil
 }
 
-func DeleteGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
+func LeaveGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
 	var dmchans models.DmChannels
 
 	dmchans.ChannelId = req.ChannelId
 	dmchans.UserId = req.UserId
 
-	statusCode, err := dmchans.DeleteGroupDMChannel(db)
+	statusCode, err := dmchans.LeaveGroupDMChannel(db)
 	if err != nil {
 		return statusCode, err
 	}

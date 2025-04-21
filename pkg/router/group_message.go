@@ -39,7 +39,7 @@ func GroupDMs(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	{
 		// Group DM endpoints
 		organisationUrls.POST("/:org_id/group-dms", dmCtrl.CreateGroupDMChannel)
-		organisationUrls.DELETE("/:org_id/group-dms/:channel_id", dmCtrl.DeleteGroupDMChannel)
+		organisationUrls.DELETE("/:org_id/group-dms/:channel_id", dmCtrl.LeaveGroupDMChannel)
 		organisationUrls.GET("/:org_id/group-dms", dmCtrl.GetGroupDMChannels)
 		organisationUrls.GET("/:org_id/group-dms/:user_id", dmCtrl.GetUserGroupDMs)
 	}

@@ -11,5 +11,5 @@ func ReplyGroupChannelsMsg(req models.CreateMessageRequest, db *storage.Database
 
 	// Provision for bot group dms
 
-	return SaveChannelsDmMsg(req, db, logger)
+	return ReplyChannelDMMessage(req, db, logger)
 }

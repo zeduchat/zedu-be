@@ -220,26 +220,57 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	pagination := postgresql.GetPagination(c)
 
-	// Define the query string with LEFT JOIN and WHERE conditions
-	queryString := `
-        dm_channels.org_id = ? AND dm_channels.chat_type = ? 
-        AND (dm_channels.user_id = ? OR channel_participants.user_id = ?)
+	// // Define the query string with LEFT JOIN and WHERE conditions
+	// queryString := `
+    //     dm_channels.org_id = ? AND dm_channels.chat_type = ? 
+    //     AND (dm_channels.user_id = ? OR channel_participants.user_id = ?)
+    // `
+
+	// // Use SelectAllFromDbOrderByPaginated with the modified query
+	// paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+	// 	db.Joins("LEFT JOIN channel_participants ON dm_channels.channel_id = channel_participants.channel_id").
+	// 		Group("dm_channels.id"), // Ensure distinct records
+	// 	"created_at",
+	// 	"desc",
+	// 	pagination,
+	// 	&dmchans,
+	// 	queryString,
+	// 	dm.OrgId,
+	// 	"user",
+	// 	dm.UserId,
+	// 	dm.UserId,
+	// )
+
+	// Define the query string to fetch DmChannels where the user is an active participant
+    queryString := `
+        dm_channels.org_id = ? AND dm_channels.chat_type = ? AND dm_channels.deleted_at IS NULL
+        AND (
+            -- For DMs: user_id matches the logged-in user
+            (dm_channels.channel_type = 'dm' AND dm_channels.user_id = ?)
+            OR
+            -- For Group DMs: user is in channel_participants
+            (dm_channels.channel_type = 'group_dm' AND EXISTS (
+                SELECT 1 FROM channel_participants 
+                WHERE channel_participants.channel_id = dm_channels.channel_id 
+                AND channel_participants.user_id = ? 
+                AND channel_participants.deleted_at IS NULL
+            ))
+        )
     `
 
-	// Use SelectAllFromDbOrderByPaginated with the modified query
-	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db.Joins("LEFT JOIN channel_participants ON dm_channels.channel_id = channel_participants.channel_id").
-			Group("dm_channels.id"), // Ensure distinct records
-		"created_at",
-		"desc",
-		pagination,
-		&dmchans,
-		queryString,
-		dm.OrgId,
-		"user",
-		dm.UserId,
-		dm.UserId,
-	)
+    // Use SelectAllFromDbOrderByPaginated with the modified query
+    paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+        db, // No JOIN needed since we're using a subquery
+        "created_at",
+        "desc",
+        pagination,
+        &dmchans,
+        queryString,
+        dm.OrgId,
+        "user",
+        dm.UserId,
+        dm.UserId,
+    )
 
 	if err != nil {
 		return nil, paginationResp, err

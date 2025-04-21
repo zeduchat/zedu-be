@@ -119,7 +119,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
-	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ?", m.ChannelsID)
 
 	if !(dmChanExist || chanExist) && !m.AgentMessage {
 		return errors.New("user not in channel")

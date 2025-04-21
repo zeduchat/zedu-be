@@ -548,6 +548,30 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	return c, nil
 }
 
+func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match": map[string]interface{}{
+				"channels_id": c.ID,
+			},
+		},
+	}
+
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+	}
+
+	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid thread uuid supplied")
+	}
+
+	return c, nil
+}
+
 func (m *Mentions) CreateMention(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, m)

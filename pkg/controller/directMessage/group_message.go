@@ -128,7 +128,7 @@ func (base *Controller) CreateGroupDMChannel(c *gin.Context) {
 	c.JSON(statusCode, rd)
 }
 
-func (base *Controller) DeleteGroupDMChannel(c *gin.Context) {
+func (base *Controller) LeaveGroupDMChannel(c *gin.Context) {
 	var (
 		req models.DmChannelsRequest
 	)
@@ -158,14 +158,14 @@ func (base *Controller) DeleteGroupDMChannel(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	statusCode, err := dm.DeleteGroupDMChannel(req, base.Db.Postgresql)
+	statusCode, err := dm.LeaveGroupDMChannel(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Group DM channel deleted successfully")
-	rd := utility.BuildSuccessResponse(statusCode, "Group DM channel deleted successfully", nil)
+	base.Logger.Info("User left Group DM channel successfully successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "User left Group DM channel successfully", nil)
 	c.JSON(statusCode, rd)
 }
