@@ -40,7 +40,7 @@ func initialise(currUUID string, t *testing.T, r *gin.Engine, db *storage.Databa
 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
 		Description: "Some random description about vibranium",
 		Type:        "type1",
-		Location:   "wakanda",
+		Location:    "wakanda",
 		Country:     "wakanda",
 	}
 

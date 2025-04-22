@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func AddChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.AddIntegrationSettingsRequest) error {
+func AddChannelAgentSettings(db *gorm.DB, ids map[string]string, req models.AddIntegrationSettingsRequest) error {
 
 	is := models.ChannelIntegrationSettings{
 		ID:             utility.GenerateUUID(),
@@ -31,9 +31,9 @@ func AddChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.AddI
 func GetChannelAgentSettings(db *gorm.DB, ids map[string]string) ([]models.ChannelIntegrationSettings, error) {
 	var (
 		organisation models.Organisation
-		agent models.Integrations
-		channel models.Channels
-		setting models.ChannelIntegrationSettings
+		agent        models.Integrations
+		channel      models.Channels
+		setting      models.ChannelIntegrationSettings
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -55,11 +55,11 @@ func GetChannelAgentSettings(db *gorm.DB, ids map[string]string) ([]models.Chann
 	return settings, nil
 }
 
-func UpdateChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.UpdateIntegrationSettingsRequest) error {
+func UpdateChannelAgentSettings(db *gorm.DB, ids map[string]string, req models.UpdateIntegrationSettingsRequest) error {
 	var (
-		setting models.ChannelIntegrationSettings
+		setting      models.ChannelIntegrationSettings
 		organisation models.Organisation
-		agent models.Integrations
+		agent        models.Integrations
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -72,7 +72,7 @@ func UpdateChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.U
 		return fmt.Errorf("agent does not exist")
 	}
 
-	err := setting.UpdateChannelIntegrationSetting(db, ids ,req)
+	err := setting.UpdateChannelIntegrationSetting(db, ids, req)
 	if err != nil {
 		return err
 	}
@@ -82,9 +82,9 @@ func UpdateChannelAgentSettings(db *gorm.DB, ids map[string]string ,req models.U
 
 func DeleteChannelAgentSettings(db *gorm.DB, ids map[string]string) error {
 	var (
-		setting models.ChannelIntegrationSettings
+		setting      models.ChannelIntegrationSettings
 		organisation models.Organisation
-		agent models.Integrations
+		agent        models.Integrations
 	)
 
 	exists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])

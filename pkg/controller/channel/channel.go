@@ -233,15 +233,14 @@ func (base *Controller) LeaveChannels(c *gin.Context) {
 func (base *Controller) UpdateUsername(c *gin.Context) {
 	var req models.UpdateChannelsUserNameReq
 
-	
 	channelId := c.Param("channelId")
-	
+
 	if _, err := uuid.Parse(channelId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		base.Logger.Info("error getting claims")
@@ -251,7 +250,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-	
+
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		base.Logger.Info("error parsing request body")
@@ -259,7 +258,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
@@ -267,7 +266,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-	
+
 	if req.Username == "general" {
 		base.Logger.Info("error updating username")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "cannot update username to general", nil, nil)

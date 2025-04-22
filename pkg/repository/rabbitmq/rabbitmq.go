@@ -24,7 +24,7 @@ func NewQueueManager(config config.RabbitMQ) *QueueManager {
 }
 
 func (qm *QueueManager) Start(logger *utility.Logger) {
-	go qm.HandleReconnect( qm.config.Connection, logger)
+	go qm.HandleReconnect(qm.config.Connection, logger)
 }
 
 func (qm *QueueManager) HandleReconnect(addr string, logger *utility.Logger) {
@@ -72,7 +72,6 @@ func (qm *QueueManager) Connect(addr string, logger *utility.Logger) (*amqp091.C
 	qm.infoLog.Println("Connected to RabbitMQ.")
 	return conn, nil
 }
-
 
 func (qm *QueueManager) HandleReInit(conn *amqp091.Connection, logger *utility.Logger) bool {
 	for {

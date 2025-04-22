@@ -7,20 +7,33 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/mongogrations"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	mongogrations := mongogrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	store := mongodb.MongoStore{}
 
-	mongogrationsUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
+	baseUrl := fmt.Sprintf("%v/mongo-integrations/collections", ApiVersion)
+	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger, &store))
+	// mongogrationsUrl := r.Group(baseUrl)
+
 	{
-		mongogrationsUrl.GET("/mongo-integrations", mongogrations.ReadEntries)
-		mongogrationsUrl.POST("/mongo-integrations", mongogrations.CreateEntry)
-		mongogrationsUrl.PUT("/mongo-integrations", mongogrations.UpdateEntry)
-		mongogrationsUrl.DELETE("/mongo-integrations", mongogrations.DeleteEntry)
+		mongogrationsUrl.POST("", mongogrations.CreateCollection)
+		mongogrationsUrl.GET("", mongogrations.ListCollections)
+		mongogrationsUrl.DELETE("/:collection_name", mongogrations.DeleteCollection)
+
+		mongogrationsUrl.POST("/:collection_name/documents", mongogrations.CreateEntry)
+		mongogrationsUrl.GET("/:collection_name/documents", mongogrations.ReadEntries)
+		mongogrationsUrl.GET("/:collection_name/documents/:document_id", mongogrations.GetDocument)
+		mongogrationsUrl.PUT("/:collection_name/documents/:entry_id", mongogrations.UpdateEntry)
+		mongogrationsUrl.DELETE("/:collection_name/documents/:entry_id", mongogrations.DeleteEntry)
+
 	}
+
 	return r
 }

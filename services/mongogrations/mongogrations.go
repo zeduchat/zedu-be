@@ -1,12 +1,49 @@
 package mongogrations
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+func FetchMongoAgentIDs(c *gin.Context) (models.IDS, error) {
+	var idmodel models.IDS
+
+	agentID, ok := c.Get("agent_id")
+	if !ok {
+		return idmodel, errors.New("agent_id is required")
+	}
+
+	organisationID, ok := c.Get("org_id")
+	if !ok {
+		return idmodel, errors.New("organisation_id is required")
+	}
+
+	ids := models.IDS{
+		AgentID:        agentID.(string),
+		OrganisationID: organisationID.(string),
+	}
+
+	return ids, nil
+}
+
+func CreateCollection(db *mongo.Client, collection string) error {
+	if collection == "" {
+		return fmt.Errorf("collection name cannot be empty")
+	}
+
+	// Call the storage layer
+	err := models.CreateCollection(db, collection)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func CreateEntry(db *mongo.Client, collection string, document map[string]interface{}) error {
 	if collection == "" {
@@ -26,6 +63,30 @@ func CreateEntry(db *mongo.Client, collection string, document map[string]interf
 	return nil
 }
 
+func ListCollections(db *mongo.Client, prefix string) ([]string, error) {
+	if prefix == "" {
+		return nil, fmt.Errorf("collection name prefix cannot be empty")
+	}
+
+	// Call the storage layer
+	collections, err := models.ListCollections(db, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	return collections, nil
+}
+
+func DeleteCollection(db *mongo.Client, collection string) error {
+	// Call the storage layer
+	err := models.DeleteCollection(db, collection)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ReadEntries(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
 	if collection == "" {
 		return nil, fmt.Errorf("collection cannot be empty")
@@ -38,6 +99,16 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	}
 
 	return results, nil
+}
+
+func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, error) {
+
+	document, err := models.GetDocumentByID(db, collection, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return document, nil
 }
 
 func UpdateEntry(db *mongo.Client, collection string, id string, update map[string]interface{}) error {

@@ -23,7 +23,6 @@ func CompareHash(str string, hashed string) bool {
 func CreateExternalApiKey(org_id, integration_id, enc_key string) (string, error) {
 
 	api_key, err := Encrypt(org_id, integration_id, []byte(enc_key))
-
 	if err != nil {
 		return "", err
 	}

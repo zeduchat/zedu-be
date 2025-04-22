@@ -242,7 +242,7 @@ func (base *Controller) GetUserRoleInOrganisation(c *gin.Context) {
 		return
 	}
 
-	response, code ,err := service.GetUserRoleInOrganisation(user_id, org_id, base.Db.Postgresql)
+	response, code, err := service.GetUserRoleInOrganisation(user_id, org_id, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("failed to fetch user role", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to fetch user role", err.Error(), nil)

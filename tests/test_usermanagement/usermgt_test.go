@@ -107,7 +107,7 @@ func TestUserManagementEndpoints(t *testing.T) {
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
 			},
-		},{
+		}, {
 			Name:         "Remove Member From Organisation Action",
 			ExpectedCode: http.StatusOK,
 			Message:      "success",

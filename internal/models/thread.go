@@ -208,6 +208,7 @@ type FeedMessageRequest struct {
 	CreatedAt string                 `json:"created_at"`
 	Email     string                 `json:"email"`
 	AvatarURL string                 `json:"avatar_url,omitempty"`
+	MessageId string                 `json:"message_id,omitempty"`
 	Type      string                 `json:"type"`
 	Content   string                 `json:"message"`
 	ThreadId  string                 `json:"thread_id"`
@@ -530,6 +531,30 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 		"query": map[string]interface{}{
 			"match": map[string]interface{}{
 				"thread_id": c.ID,
+			},
+		},
+	}
+
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+	}
+
+	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid thread uuid supplied")
+	}
+
+	return c, nil
+}
+
+func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match": map[string]interface{}{
+				"channels_id": c.ID,
 			},
 		},
 	}

@@ -59,7 +59,6 @@ func (base *Controller) GeneralInvitationCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-
 func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	var (
 		inviteReq models.InvitationCreateReq

@@ -124,3 +124,10 @@ func getTime(source map[string]interface{}, key string) time.Time {
 	}
 	return time.Time{}
 }
+
+func ExtractCollectionName(fullName string) string {
+    if len(fullName) > 84 {
+        return fullName[84:]
+    }
+    return fullName 
+}

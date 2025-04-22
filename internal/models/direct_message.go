@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/go-redis/redis/v8"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -98,7 +98,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL stri
 		return nil, fmt.Errorf("invalid agent json data: %v", err)
 	}
 
-	rd.RedisSet(redisClient, redisKey, data_r, 12 * time.Hour)
+	rd.RedisSet(redisClient, redisKey, data_r, 12*time.Hour)
 
 	return data_r, nil
 }
@@ -220,17 +220,58 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	pagination := postgresql.GetPagination(c)
 
-	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db,
-		"created_at",
-		"desc",
-		pagination,
-		&dmchans,
-		"org_id = ? AND user_id = ? AND chat_type = ?",
-		dm.OrgId,
-		dm.UserId,
-		"user",
-	)
+	// // Define the query string with LEFT JOIN and WHERE conditions
+	// queryString := `
+    //     dm_channels.org_id = ? AND dm_channels.chat_type = ? 
+    //     AND (dm_channels.user_id = ? OR channel_participants.user_id = ?)
+    // `
+
+	// // Use SelectAllFromDbOrderByPaginated with the modified query
+	// paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+	// 	db.Joins("LEFT JOIN channel_participants ON dm_channels.channel_id = channel_participants.channel_id").
+	// 		Group("dm_channels.id"), // Ensure distinct records
+	// 	"created_at",
+	// 	"desc",
+	// 	pagination,
+	// 	&dmchans,
+	// 	queryString,
+	// 	dm.OrgId,
+	// 	"user",
+	// 	dm.UserId,
+	// 	dm.UserId,
+	// )
+
+	// Define the query string to fetch DmChannels where the user is an active participant
+    queryString := `
+        dm_channels.org_id = ? AND dm_channels.chat_type = ? AND dm_channels.deleted_at IS NULL
+        AND (
+            -- For DMs: user_id matches the logged-in user
+            (dm_channels.channel_type = 'dm' AND dm_channels.user_id = ?)
+            OR
+            -- For Group DMs: user is in channel_participants
+            (dm_channels.channel_type = 'group_dm' AND EXISTS (
+                SELECT 1 FROM channel_participants 
+                WHERE channel_participants.channel_id = dm_channels.channel_id 
+                AND channel_participants.user_id = ? 
+                AND channel_participants.deleted_at IS NULL
+            ))
+        )
+    `
+
+    // Use SelectAllFromDbOrderByPaginated with the modified query
+    paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+        db, // No JOIN needed since we're using a subquery
+        "created_at",
+        "desc",
+        pagination,
+        &dmchans,
+        queryString,
+        dm.OrgId,
+        "user",
+        dm.UserId,
+        dm.UserId,
+    )
+
 	if err != nil {
 		return nil, paginationResp, err
 	}

@@ -69,7 +69,6 @@ func (base *Controller) PostFeedWebhook(c *gin.Context) {
 		return
 	}
 
-
 	respData, code, err := webhook.PostFeedWebhook(base.Db, base.Logger, req)
 
 	if err != nil {

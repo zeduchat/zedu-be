@@ -14,11 +14,11 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (string, int, error){
+func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (string, int, error) {
 	var (
 		invite models.GeneralInvitation
 	)
-	
+
 	exists := postgresql.CheckExists(db, &invite, "id = ?", req.InvitationID)
 	if !exists {
 		return "", http.StatusNotFound, errors.New("invitation does not exists")
@@ -124,7 +124,7 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 	}
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		
+
 		if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
 			return resp, http.StatusBadRequest, fmt.Errorf("failed to create invitation: %w", err)
 		}
