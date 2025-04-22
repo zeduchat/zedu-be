@@ -30,7 +30,7 @@ func (base *Controller) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := service.UpdateUserPassword(c, req, base.Db.Postgresql)
+	respData, code, err := service.UpdateUserPassword(c, req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
@@ -72,10 +72,8 @@ func (base *Controller) ResetPassword(c *gin.Context) {
 	}
 
 	base.Logger.Info("password reset email sent")
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Password reset email sent", respData)
 	c.JSON(http.StatusOK, rd)
-
 }
 
 func (base *Controller) VerifyResetToken(c *gin.Context) {
@@ -109,5 +107,4 @@ func (base *Controller) VerifyResetToken(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Password has been reset successfully", respData)
 	c.JSON(http.StatusOK, rd)
-
 }

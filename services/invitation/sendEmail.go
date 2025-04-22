@@ -15,10 +15,9 @@ type InvitationDetail struct {
 	Link  string
 }
 
-// use for loops with a sleep perid of 0.5 seconds to send emails concurrently.. do not use goroutine
 func SendInvitationsEmail(logger *utility.Logger, invitationResponseMap []models.InvitationResponse) error {
 	for _, invite := range invitationResponseMap {
-		err := sendEmail(invite.Email, invite.InvitationLink)
+		err := SendEmail(invite.Email, invite.InvitationLink)
 		if err != nil {
 			logger.Error("Failed to send invitation email", err)
 			continue
@@ -27,16 +26,13 @@ func SendInvitationsEmail(logger *utility.Logger, invitationResponseMap []models
 	return nil
 }
 
-
-func sendEmail(email, link string) error {
+func SendEmail(email, link string) error {
 	reqData := models.SendInvitationLink{
 		Email:          email,
 		InvitationLink: link,
 	}
 
-	send := fmt.Sprintf("Sending invitation email to %s with link %s ", email, link)
-	fmt.Println(send)
-
+	fmt.Println("added to queue", email, link)
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
 	if err != nil {
 		return err

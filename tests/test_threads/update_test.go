@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/tests"
@@ -77,7 +78,7 @@ func TestUpdateThread(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
 		reqBody := models.UpdateThreadStatus{
-			Status: "closed",
+			Status: "completed",
 		}
 		reqBodyJSON, _ := json.Marshal(reqBody)
 

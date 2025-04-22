@@ -18,11 +18,17 @@ type Configuration struct {
 	Slack        Slack
 	Stripe       Stripe
 	TypeSense    TypeSense
+	Channels     Channels
+	RabbitMQ     RabbitMQ
+	Elastic      ElasticDb
+	Firebae      Firebae
+	MongoDB      MongoDB
 }
 
 type BaseConfig struct {
 	SERVER_PORT                      string  `mapstructure:"SERVER_PORT"`
 	SERVER_SECRET                    string  `mapstructure:"SERVER_SECRET"`
+	SERVER_ENCKEY                    string  `mapstructure:"SERVER_ENCKEY"`
 	SERVER_ACCESSTOKENEXPIREDURATION int     `mapstructure:"SERVER_ACCESSTOKENEXPIREDURATION"`
 	REQUEST_PER_SECOND               float64 `mapstructure:"REQUEST_PER_SECOND"`
 	TRUSTED_PROXIES                  string  `mapstructure:"TRUSTED_PROXIES"`
@@ -81,14 +87,30 @@ type BaseConfig struct {
 	SLACK_CLIENT_SECRET string `mapstructure:"SLACK_CLIENT_SECRET"`
 	SLACK_REDIRECT_URI  string `mapstructure:"SLACK_REDIRECT_URI"`
 	SLACK_BASE_URL      string `mapstructure:"SLACK_BASE_URL"`
+	SLACK_MANIFEST_URL  string `mapstructure:"SLACK_MANIFEST_URL"`
+	SLACK_APP_ID        string `mapstructure:"SLACK_APP_ID"`
+	SLACK_REFRESH_TOKEN string `mapstructure:"SLACK_REFRESH_TOKEN"`
 
 	TYPESENSE_API_URL string `mapstructure:"TYPESENSE_API_URL"`
 	TYPESENSE_API_KEY string `mapstructure:"TYPESENSE_API_KEY"`
 
-	STRIPE_KEY         string `mapstructure:"STRIPE_KEY"`
-	STRIPE_BASIC_ID    string `mapstructure:"STRIPE_BASIC_ID"`
-	STRIPE_PREMIUM_ID  string `mapstructure:"STRIPE_PREMIUM_ID"`
-	STRIPE_ADVANCED_ID string `mapstructure:"STRIPE_ADVANCED_ID"`
+	STRIPE_KEY            string `mapstructure:"STRIPE_KEY"`
+	STRIPE_WEBHOOK_SECRET string `mapstructure:"STRIPE_WEBHOOK_SECRET"`
+	STRIPE_BASIC_ID       string `mapstructure:"STRIPE_BASIC_ID"`
+	STRIPE_PREMIUM_ID     string `mapstructure:"STRIPE_PREMIUM_ID"`
+	STRIPE_ADVANCED_ID    string `mapstructure:"STRIPE_ADVANCED_ID"`
+
+	TELEX_LOGIN_CHANNEL  string `mapstructure:"TELEX_LOGIN_CHANNEL"`
+	TELEX_SIGNUP_CHANNEL string `mapstructure:"TELEX_SIGNUP_CHANNEL"`
+
+	RABBITMQ_CONNECTION string `mapstructure:"RABBITMQ_CONNECTION"`
+	RABBITMQ_EXCHANGE   string `mapstructure:"RABBITMQ_EXCHANGE"`
+
+	ELASTIC_URL                string `mapstructure:"ELASTIC_URL"`
+	ELASTIC_API_KEY            string `mapstructure:"ELASTIC_API_KEY"`
+	FIREBASE_SERVICE_FILE_PATH string `mapstructure:"FIREBASE_SERVICE_FILE_PATH"`
+	MONGO_URI                  string `mapstructure:"MONGO_URI"`
+	MONGO_DB_NAME              string `mapstructure:"MONGO_DB_NAME"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -103,6 +125,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Server: ServerConfiguration{
 			Port:                      config.SERVER_PORT,
 			Secret:                    config.SERVER_SECRET,
+			EncKey:                    config.SERVER_ENCKEY,
 			AccessTokenExpireDuration: config.SERVER_ACCESSTOKENEXPIREDURATION,
 			RequestPerSecond:          config.REQUEST_PER_SECOND,
 			TrustedProxies:            trustedProxies,
@@ -176,18 +199,42 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ClientSecret: config.SLACK_CLIENT_SECRET,
 			RedirectURI:  config.SLACK_REDIRECT_URI,
 			BaseUrl:      config.SLACK_BASE_URL,
+			ManifestUrl:  config.SLACK_MANIFEST_URL,
+			AppId:        config.SLACK_APP_ID,
+			RefreshToken: config.SLACK_REFRESH_TOKEN,
 		},
 
 		Stripe: Stripe{
-			STRIPE_KEY:         config.STRIPE_KEY,
-			STRIPE_BASIC_ID:    config.STRIPE_BASIC_ID,
-			STRIPE_PREMIUM_ID:  config.STRIPE_PREMIUM_ID,
-			STRIPE_ADVANCED_ID: config.STRIPE_ADVANCED_ID,
+			STRIPE_KEY:            config.STRIPE_KEY,
+			STRIPE_WEBHOOK_SECRET: config.STRIPE_WEBHOOK_SECRET,
+			STRIPE_BASIC_ID:       config.STRIPE_BASIC_ID,
+			STRIPE_PREMIUM_ID:     config.STRIPE_PREMIUM_ID,
+			STRIPE_ADVANCED_ID:    config.STRIPE_ADVANCED_ID,
 		},
 
 		TypeSense: TypeSense{
 			TypeSense_API_URL: config.TYPESENSE_API_URL,
 			TypeSense_API_KEY: config.TYPESENSE_API_KEY,
+		},
+
+		Channels: Channels{
+			Login:  config.TELEX_LOGIN_CHANNEL,
+			Signup: config.TELEX_SIGNUP_CHANNEL,
+		},
+		RabbitMQ: RabbitMQ{
+			Connection: config.RABBITMQ_CONNECTION,
+			Exchange:   config.RABBITMQ_EXCHANGE,
+		},
+		Elastic: ElasticDb{
+			ElasticEndpoint: config.ELASTIC_URL,
+			ElasticApiKey:   config.ELASTIC_API_KEY,
+		},
+		Firebae: Firebae{
+			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
+		},
+		MongoDB: MongoDB{
+			Mongo_URI: config.MONGO_URI,
+			DB_Name:   config.MONGO_DB_NAME,
 		},
 	}
 }

@@ -236,7 +236,7 @@ func (base *Controller) CreateWebhook(c *gin.Context) {
 		return
 	}
 	base.Logger.Info("webhook created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "webhook created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Webhook created successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
 
@@ -308,7 +308,18 @@ func (base *Controller) GetChannelWebhook(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := webhook.GetChannelWebhook(base.Db.Postgresql, c, channelId)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	respData, code, err := webhook.GetChannelWebhook(base.Db.Postgresql, c, channelId, userId)
 	if err != nil {
 		base.Logger.Info("error fetching webhooks")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)

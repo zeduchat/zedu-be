@@ -6,44 +6,200 @@ import (
 	"net/http"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
-func UpdateRoleName(req models.InvitationCreateReq, db *gorm.DB) (models.InvitationCreateReq, error) {
-	var getOrgRole models.OrgRole
-	getOrgRole, err := getOrgRole.GetAOrgRoleByName(db, "Guest")
-	if err != nil {
-		return req, err
+func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (string, int, error) {
+	var (
+		invite models.GeneralInvitation
+	)
+
+	exists := postgresql.CheckExists(db, &invite, "id = ?", req.InvitationID)
+	if !exists {
+		return "", http.StatusNotFound, errors.New("invitation does not exists")
 	}
 
-	req.Role = getOrgRole.ID
+	if userID != invite.InvitedBy {
+		return "", http.StatusBadRequest, errors.New("only invitees can change invitation status")
+	}
 
-	return req, nil
+	err := invite.ChangeGeneralInviteStatus(db, req)
+	if err != nil {
+		return "", http.StatusBadRequest, fmt.Errorf("unable to change general invite status: %s", err)
+	}
+
+	return "", http.StatusOK, nil
+}
+
+func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
+	var (
+		user   models.User
+		invite models.GeneralInvitation
+		org    models.Organisation
+		orgmgt models.OrgUserManagement
+	)
+
+	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
+	if !exists {
+		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
+	}
+
+	err := db.Where("invite_slug = ? and active_status = ? AND expires_at > ?",
+		req.Token,
+		true,
+		time.Now().UTC(),
+	).First(&invite).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("invitation not found or expired", err)
+			return "", http.StatusNotFound, fmt.Errorf("invalid or expired invitation")
+		}
+
+		logger.Error("database error", err)
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
+	}
+
+	_, err = org.CheckOrgExists(invite.OrganisationID, db)
+	if err != nil {
+		return "", http.StatusNotFound, fmt.Errorf("organisation not found or has been deleted")
+	}
+
+	exists = postgresql.CheckExists(db, &orgmgt,
+		"user_id = ? AND organisation_id = ?",
+		userID, invite.OrganisationID)
+	if exists {
+		return "", http.StatusConflict, fmt.Errorf("user is already a member of this organisation")
+	}
+
+	addToOrg := models.OrgUserManagement{
+		UserID:         userID,
+		OrganisationID: invite.OrganisationID,
+		RoleID:         invite.Role,
+		Status:         "active",
+	}
+
+	err = addToOrg.AddUserToOrganisation(db)
+	if err != nil {
+		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
+	}
+
+	return "User verified successfully", http.StatusOK, nil
+}
+
+func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse, int, error) {
+	var (
+		resp   models.ShareableInviteResponse
+		invite models.GeneralInvitation
+		og     models.Organisation
+	)
+
+	org, err := og.CheckOrgExists(req.OrganisationID, db)
+	if err != nil {
+		return resp, http.StatusNotFound, err
+	}
+
+	if org.OwnerID != user_id {
+		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
+	}
+
+	err, _ = postgresql.SelectOneFromDb(db, &invite,
+		"organisation_id = ? AND active_status = ? AND expires_at > ?",
+		req.OrganisationID,
+		true,
+		time.Now().UTC())
+
+	if err == nil {
+		resp = models.ShareableInviteResponse{
+			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.ID[len(invite.ID)-12:]),
+			Expires_At:     invite.ExpiresAt,
+			Created_At:     invite.CreatedAt,
+		}
+		return resp, http.StatusOK, nil
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+
+		if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
+			return resp, http.StatusBadRequest, fmt.Errorf("failed to create invitation: %w", err)
+		}
+
+		resp = models.ShareableInviteResponse{
+			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.ID[len(invite.ID)-12:]),
+			Expires_At:     invite.ExpiresAt,
+			Created_At:     invite.CreatedAt,
+		}
+		return resp, http.StatusCreated, nil
+	}
+	return resp, http.StatusInternalServerError, fmt.Errorf("database error: %w", err)
+}
+
+func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition, baseURL string) (int, error) {
+	var invites []models.Invitation
+
+	//parse the date
+	parsed_date, err := time.Parse("2006-01-02", req.TimeFrom)
+	if err != nil {
+		return 400, fmt.Errorf("error parsing the time into the right format")
+	}
+
+	err = db.Where("email LIKE ? AND status = 'invited'  AND created_at BETWEEN ? AND ?",
+		"%"+req.Extension,
+		parsed_date,
+		time.Now().UTC(),
+	).Find(&invites).Error
+
+	if err != nil {
+		return 500, fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	successful_reinvites := []string{}
+
+	for _, invite := range invites {
+		invitation_link := utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token)
+
+		err := SendEmail(invite.Email, invitation_link)
+		if err != nil {
+			continue
+		}
+
+		successful_reinvites = append(successful_reinvites, invite.Email)
+	}
+
+	if len(successful_reinvites) > 0 {
+		err := db.Model(&models.Invitation{}).
+			Where("email IN ?", successful_reinvites).
+			Updates(map[string]any{
+				"expires_at": time.Now().Add(48 * time.Hour),
+			})
+
+		if err != nil {
+			logger.Error("error encountered updating reinvited emails expiration time")
+		}
+	}
+
+	return http.StatusOK, nil
 }
 
 func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
 	var o models.Organisation
 
-	org, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
+	_, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
 
-	isAdmin := CheckUserIsAdmin(base.Postgresql, userId, org)
-	if !isAdmin {
-		return http.StatusUnauthorized, "User is not an admin of the organisation", errors.New("User is not an admin of the organisation")
-	}
-
 	if len(Emails) == 0 {
-		return http.StatusBadRequest, "No emails provided", errors.New("No emails provided")
+		return http.StatusBadRequest, "No emails provided", errors.New("no emails provided")
 	}
 
 	if CheckDuplicateEmails(Emails) {
-		return http.StatusBadRequest, "Duplicate emails detected", errors.New("Duplicate emails detected")
+		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
 	}
 
 	return http.StatusOK, "User validated", nil
@@ -64,13 +220,6 @@ func CheckDuplicateEmails(emails []string) bool {
 	return false
 }
 
-func GenerateInvitationLink(baseurl, orgID, token string) string {
-	return baseurl + fmt.Sprintf("/accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
-}
-func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
-	return baseurl + fmt.Sprintf("/accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
-}
-
 func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
 	var (
 		i models.Invitation
@@ -85,9 +234,8 @@ func SaveInvitations(db *gorm.DB, invitationsMap []models.Invitation) error {
 
 func GetInvitationDetails(token string, db *gorm.DB) (models.Invitation, error) {
 	var invitation models.Invitation
-	// Check if the invitation token exists in the database
+
 	exists := postgresql.CheckExists(db, &invitation, "token = ?", token)
-	// If it does, return the invitation details
 	if !exists {
 		return invitation, errors.New("Invitation link does not exist")
 	}
@@ -101,20 +249,15 @@ func AcceptInvitationLink(user_id string, token string, db *gorm.DB) (models.Inv
 		return invitation, "Error getting invitation details", err
 	}
 	if invitation.ExpiresAt.Before(time.Now()) {
-		return invitation, "Invitation link expired", errors.New("Invitation link expired")
+		return invitation, "Invitation link expired", errors.New("invitation link expired")
 	}
 
 	if invitation.Status == "accepted" {
-		return invitation, "Invitation link already accepted", errors.New("Invitation link already accepted")
+		return invitation, "Invitation link already accepted", errors.New("invitation link already accepted")
 	}
 
 	if invitation.OrganisationID == "" {
-		return invitation, "Invalid organisation ID", errors.New("Invalid organisation ID")
-	}
-
-	_, err = invitation.ProcessInvitationAcceptance(db, user_id)
-	if err != nil {
-		return invitation, "Failed to process invitation acceptance", err
+		return invitation, "Invalid organisation ID", errors.New("invalid organisation ID")
 	}
 
 	return invitation, "Invitation link accepted successfully", nil
@@ -141,33 +284,35 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	return nil
 }
 
-func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest, userId string) ([]models.Invitation, error) {
+func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest) (models.Invitation, error) {
 
 	var (
-		emails      = req.Emails
-		i           models.Invitation
-		invitations []models.Invitation
+		email = req.Email
+		i     models.Invitation
 	)
 
-	for _, email := range emails {
-		invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email)
+	invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email, req.OrganisationID)
 
-		if !pending {
-			logger.Info("No pending invitations for email", email)
-			continue
-		}
-
-		//update the expiry time of the invitation
-		invite.ExpiresAt = time.Now().Add(24 * time.Hour)
-		invitations = append(invitations, invite)
-
-		err := i.UpdateResendInvitation(base.Postgresql, email, invite.ExpiresAt)
-		if err != nil {
-			logger.Error("Failed to update invitation", err)
-			continue
-		}
-
+	if !pending {
+		return invite, fmt.Errorf("user with email %s has already accepted invitation", email)
 	}
 
-	return invitations, nil
+	invite.Token, _ = utility.GenerateInvitationToken()
+	invite.ExpiresAt = time.Now().Add(48 * time.Hour)
+	invite.CreatedAt = time.Now()
+
+	err := invite.UpdateResendInvitation(base.Postgresql, email)
+	if err != nil {
+		return models.Invitation{}, fmt.Errorf("failed to update invitation for %s", email)
+	}
+
+	return invite, nil
+}
+
+func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
+	var (
+		i models.Invitation
+	)
+
+	return i.DeleteInvitation(db, inviteID)
 }

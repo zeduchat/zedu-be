@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
@@ -64,25 +65,16 @@ func TestOrganisationInvitation(t *testing.T) {
 	}
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
-	role := models.OrgRole{
-		ID:          utility.GenerateUUID(),
-		Name:        "Admin",
-		Description: "Admin",
-		OrganisationID: &orgId,
-	}
-
-	db.Postgresql.Create(&role)
-
 	createInviteData := models.InvitationCreateReq{
 		Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
 		OrganisationID: orgId,
-		Role:           role.ID,
+		RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
 	}
+
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
-	invite_token := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
-
-
+	invite_token, invite_id := tst.CreateInvitation(t, r, db, invitation, createInviteData, token)
+	test_email := fmt.Sprintf("test%s@example.com", utility.GenerateUUID())
 
 	tests := []struct {
 		Name         string
@@ -96,9 +88,9 @@ func TestOrganisationInvitation(t *testing.T) {
 		{
 			Name: "Organisation Invite Creation Action",
 			RequestBody: models.InvitationCreateReq{
-				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				Emails:         []string{test_email},
 				OrganisationID: orgId,
-				Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
+				RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "Invitations created successfully",
@@ -108,7 +100,8 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			RequestURI: url.URL{Path: "/api/v1/invite"},
-		}, {
+		},
+		{
 			Name: "Organization Accept Invite Action",
 			RequestBody: models.VerifyInvitationLinkRequest{
 				Token: invite_token,
@@ -121,10 +114,25 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 				"Content-Type":  "application/json",
 			},
-		}, {
+		},
+		{
+			Name: "Organization Accept Invite Action",
+			RequestBody: models.VerifyInvitationLinkRequest{
+				Token: invite_token,
+			},
+			RequestURI:   url.URL{Path: "/api/v1/invite/verify"},
+			ExpectedCode: http.StatusBadRequest,
+			Message:      "invitation already accepted",
+			Method:       http.MethodPost,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
+		},
+		{
 			Name: "Organization Resend Invite Action",
 			RequestBody: models.ResendInvitationRequest{
-				Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
+				Email:          test_email,
 				OrganisationID: orgId,
 			},
 			RequestURI:   url.URL{Path: "/api/v1/invite/resend"},
@@ -136,6 +144,17 @@ func TestOrganisationInvitation(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 		},
+		{
+			Name:         "Organisation Invite Cancellation Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "invitation cancelled successfully",
+			Method:       http.MethodDelete,
+			Headers: map[string]string{
+				"Authorization": "Bearer " + token,
+				"Content-Type":  "application/json",
+			},
+			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/invite/%s", invite_id)},
+		},
 	}
 
 	for _, test := range tests {
@@ -146,6 +165,7 @@ func TestOrganisationInvitation(t *testing.T) {
 			invitationURL.POST("", middleware.Authorize(db.Postgresql), invitation.OrganisationCreateInvite)
 			invitationURL.POST("/verify", invitation.OrganisationVerifyInvite)
 			invitationURL.POST("/resend", middleware.Authorize(db.Postgresql), invitation.ResendInvitation)
+			invitationURL.DELETE("/:invite_id", middleware.Authorize(db.Postgresql), invitation.CancelInvitation)
 
 		}
 

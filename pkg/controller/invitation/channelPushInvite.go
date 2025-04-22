@@ -70,7 +70,6 @@ func (base *Controller) ChannelCreateInvite(c *gin.Context) {
 
 	mapData := invitation.ChannelInviteLinkMapper(url, inviteMap)
 
-	// integrating send invitation functionality
 	err = invitation.SendChannelsInvitationsEmail(mapData)
 	if err != nil {
 		base.Logger.Info("Failed to send invitation email", err)

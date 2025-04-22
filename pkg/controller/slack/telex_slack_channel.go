@@ -48,5 +48,3 @@ func (base *Controller) CreateTelexSlackChannelMapping(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 
 }
-
-

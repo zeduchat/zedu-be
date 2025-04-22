@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
@@ -50,14 +51,14 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.AddChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+	response, code, err := channel.AddChannelsMsg(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("message added successfully")
+	base.Logger.Info("channel message added successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", response)
 	c.JSON(code, rd)
 }
@@ -100,7 +101,7 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, base.Db.TypeSense, base.Logger)
+	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -110,4 +111,78 @@ func (base *Controller) EditChannelsMsg(c *gin.Context) {
 	base.Logger.Info("message edited successfully")
 	rd := utility.BuildSuccessResponse(code, "message edited successfully", response)
 	c.JSON(code, rd)
+}
+
+func (base *Controller) DeleteChannelsMsg(c *gin.Context) {
+	var (
+		req models.EditMessageRequest
+	)
+
+	req.ChannelsId = c.Param("channelId")
+	req.MessageId = c.Param("messageId")
+
+	if _, err := uuid.Parse(req.ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	if _, err := uuid.Parse(req.MessageId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", errors.New("failed to parse message id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+
+	response, code, err := channel.DeleteChannelsMsg(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("message deleted successfully")
+	rd := utility.BuildSuccessResponse(code, "message deleted successfully", response)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) SaveIncomingQueueMsg(c *gin.Context) {
+	var (
+		req models.FeedQueue
+	)
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	err = channel.SaveIncomingQueueMsg(req, base.Db, base.Logger)
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to save message", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("message added successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "message added successfully", nil)
+	c.JSON(http.StatusOK, rd)
 }

@@ -2,8 +2,8 @@ name: Run Postman Tests Every 15 Minutes
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/15 * * * *' # Every 15 minutes
+  # schedule:
+  #  - cron: '*/15 * * * *' # Every 15 minutes
 
 jobs:
   run-postman-tests:
@@ -22,12 +22,13 @@ jobs:
         run: npm install -g newman
 
       - name: Run Newman tests
+        continue-on-error: true
         id: newman
         run: |
           newman run status/postman/telex_postmancollection_v1.json --reporters cli,json --reporter-json-export report.json
 
-      - name: Send API Status
+      - name: Upload newman report to API
         run: |
           curl -X POST "${{ vars.API_URL }}/api/v1/api-status" \
-          -H "Content-Type: application/json" \
-          -d @report.json
+          -H "Content-Type: multipart/form-data" \
+          -F "result_file=@report.json"

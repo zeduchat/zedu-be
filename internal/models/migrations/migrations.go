@@ -1,13 +1,24 @@
 package migrations
 
-import "github.com/hngprojects/telex_be/internal/models"
+import (
+	"github.com/hngprojects/telex_be/internal/models"
+)
 
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.CustomIntegrationsSetting{},
+		models.DmChannels{},
+		models.ChannelParticipant{},
+		models.GeneralInvitation{},
+		models.Group{},
+		models.ChannelIntegrationSettings{},
+		models.Testimonial{},
+		models.APIStatus{},
 		models.NewsLetter{},
 		models.TelexSlackChannelMapping{},
 		models.SlackTelex{},
+		models.SlackToken{},
 		models.ContactUs{},
 		models.BlogFeedback{},
 		models.BlogCategory{},
@@ -24,20 +35,31 @@ func AuthMigrationModels() []interface{} {
 		models.Permission{},
 		models.OrgRole{},
 		models.LoginActivity{},
-		models.Threads{},
 		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},
 		models.HistoryWebhook{},
-		models.SubscriptionPlan{},
-		models.HistoryWebhook{},
+		// models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
 		models.HelpCenterCategory{},
 		models.HelpCenterArticle{},
 		models.Integrations{},
-		models.IntegrationsSettings{},
+		models.IntegrationSettings{},
 		models.NotificationPreferences{},
+		models.Plan{},
+		models.OrganisationPlan{},
+		models.UploadedFileResponse{},
+		models.ProcessedStripeWebhook{},
+		models.OptIn{},
+		models.OrganisationIntegrations{},
+		models.OrganisationChannelsIntegrations{},
+		models.SlashCommand{},
+		models.IntegrationOutput{},
+		models.IntegrationChannel{},
+		models.FcmTokens{},
+		// models.CustomIntegrationsSetting{},
+		// models.DmChannels{},
 	} // an array of db models, example: User{}
 }
 
@@ -53,7 +75,6 @@ func AlterColumnModels() []AlterColumn {
 		// 	TableName: "org_user_managements",
 		// 	Column: "role_id",
 		// 	Type:  "uuid",
-
 		// },
 	}
 }

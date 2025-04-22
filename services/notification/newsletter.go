@@ -24,13 +24,17 @@ func (n NotificationObject) SendNewsletterMail() error {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	blogUrl := fmt.Sprintf("%v/blogs", configData.App.Url)
-	contactUrl := fmt.Sprintf("%v/contact", configData.App.Url)
+	loginUrl := fmt.Sprintf("%v/auth/login", configData.App.FRONTEND_URL)
+	blogUrl := fmt.Sprintf("%v/blogs", configData.App.FRONTEND_URL)
+	contactUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
+	unsubscribeUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
 
 	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
 		"firstname":   thisOrThatStr(notificationData.Email, "there!"),
+		"login_url":   loginUrl,
 		"blog_url":    blogUrl,
-		"contact_url": contactUrl,
+		"contact_us_url": contactUrl,
+		"unsubscribe_url": unsubscribeUrl,
 	})
 
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/auth"
+	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -39,6 +40,11 @@ func (base *Controller) GoogleLogin(c *gin.Context) {
 	}
 
 	base.Logger.Info("user sign in successfully")
+
+	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
+	if err != nil {
+		base.Logger.Error("error publishing login audit: ", err.Error())
+	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user sign in successfully", respData)
 	c.JSON(http.StatusOK, rd)

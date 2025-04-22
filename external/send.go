@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/elliotchance/phpserialize"
 	"github.com/hngprojects/telex_be/utility"
@@ -22,9 +24,10 @@ type SendRequestObject struct {
 	Data         interface{}
 	DecodeMethod string
 	UrlPrefix    string
+	Timeout      bool
 }
 
-func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPrefix, decodeMethod string, headers map[string]string, successCode int, data interface{}) *SendRequestObject {
+func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPrefix, decodeMethod string, headers map[string]string, successCode int, data interface{}, timeout bool) *SendRequestObject {
 	return &SendRequestObject{
 		Logger:       logger,
 		Name:         name,
@@ -35,6 +38,7 @@ func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPref
 		Headers:      headers,
 		SuccessCode:  successCode,
 		Data:         data,
+		Timeout:      timeout,
 	}
 }
 
@@ -70,6 +74,22 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 
 	var req *http.Request
 	client := &http.Client{}
+
+	if r.Timeout {
+
+		client = &http.Client{
+
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout: 10 * time.Second, // Connection timeout
+				}).DialContext,
+				ResponseHeaderTimeout: 10 * time.Second, // Timeout for receiving headers
+			},
+
+			Timeout: 20 * time.Second, // Total timeout for request + response
+		}
+	}
+
 	if r.Method == http.MethodGet {
 		req, err = http.NewRequest(r.Method, r.Path, nil)
 	} else {
@@ -112,7 +132,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		}
 	}
 
-	logger.Info("response body", name, r.Path, string(body))
+	// logger.Info("response body", name, r.Path, string(body))
 
 	if r.DecodeMethod == PhpSerializerMethod {
 		err := phpserialize.Unmarshal(body, response)

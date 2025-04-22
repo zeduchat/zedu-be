@@ -2,13 +2,17 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Webhook struct {
@@ -252,29 +256,53 @@ func (r *Webhook) CheckExistBySlug(db *gorm.DB, webhookSlug string) (Webhook, er
 
 	var webhook Webhook
 
-	_, err := postgresql.SelectOneFromDb(db, &webhook, "webhook_slug = ?", webhookSlug)
-	if err != nil {
-		return webhook, errors.New("error getting webhook by id: " + err.Error())
-	}
-
 	exist := postgresql.CheckExists(db, &webhook, "webhook_slug = ?", webhookSlug)
 
+	if len(webhookSlug) > 13 {
+		if _, err := uuid.Parse(webhookSlug); err != nil {
+			return webhook, errors.New("webhook not found")
+		}
+		exist1 := postgresql.CheckExists(db, &webhook, "channel_id = ?", webhookSlug)
+
+		if !exist1 {
+			return webhook, errors.New("error getting webhook by id")
+		}
+
+		return webhook, nil
+	}
+
 	if !exist {
-		return webhook, errors.New("webhook not found")
+		return webhook, errors.New("webhook deos not exist")
 	}
 
 	return webhook, nil
 }
 
-func (r *Webhook) GetChannelWebhook(db *gorm.DB, channelId string) (Webhook, error) {
+func (r *Webhook) GetChannelWebhook(db *gorm.DB, req ChannelInfo) (Webhook, error) {
 	var (
 		webhook Webhook
 	)
 
-	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", channelId)
+	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", req.ChannelID)
 
-	if !exist {
-		return webhook, errors.New("webhook not found")
+	if !exist && req.UserID != "" {
+		webhook = Webhook{
+			ID:        utility.GenerateUUID(),
+			ChannelId: req.ChannelID,
+			OwnerId:   req.UserID,
+			Status:    "active",
+		}
+
+		slug := req.ChannelID
+		webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
+		webhook.WebhookSlug = slug
+		webhook.WebhookUrl = webhookUrl
+
+		err := webhook.CreateWebhook(db)
+
+		if err != nil {
+			return webhook, errors.New("failed to create webhook")
+		}
 	}
 
 	return webhook, nil

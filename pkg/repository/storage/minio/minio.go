@@ -43,6 +43,25 @@ func DeleteProfilePic(logger *utility.Logger, objectName string) error {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to delete file %s: %v", path, err))
 		return fmt.Errorf("failed to delete file %s: %v", path, err)
 	}
-	
+
 	return nil
+}
+
+func ImageExists(logger *utility.Logger, objectName string) (bool, error) {
+	path := "public/profile_pics/" + objectName
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+
+	_, err := minioClient.StatObject(context.Background(), bucketName, path, minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			utility.LogAndPrint(logger, fmt.Sprintf("Image %s does not exist in bucket %s", path, bucketName))
+			return false, nil
+		}
+		utility.LogAndPrint(logger, fmt.Sprintf("Error checking if image %s exists: %v", path, err))
+		return false, fmt.Errorf("error checking if image %s exists: %v", path, err)
+	}
+
+	utility.LogAndPrint(logger, fmt.Sprintf("Image %s exists in bucket %s", path, bucketName))
+	return true, nil
 }

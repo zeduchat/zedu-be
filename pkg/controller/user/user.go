@@ -219,3 +219,38 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 
 }
+
+func (base *Controller) GetUserRoleInOrganisation(c *gin.Context) {
+	var (
+		user_id = c.Param("user_id")
+		org_id  = c.Param("org_id")
+	)
+
+	valid := utility.IsValidUUID(user_id)
+	if !valid {
+		base.Logger.Error("invalid user id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "failed to decode user id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	valid = utility.IsValidUUID(org_id)
+	if !valid {
+		base.Logger.Error("invalid organisation id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	response, code, err := service.GetUserRoleInOrganisation(user_id, org_id, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to fetch user role", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to fetch user role", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("user role fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User role fetched successfully", response)
+	c.JSON(http.StatusOK, rd)
+}

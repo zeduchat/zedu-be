@@ -14,6 +14,10 @@ func CreateCollection(client *typesense.Client, collectionName string, fields []
 		Fields: fields,
 	}
 
+	if client == nil {
+		return nil
+	}
+
 	_, err := client.Collections().Create(context.Background(), &collectionSchema)
 	if err != nil {
 		return err
@@ -23,6 +27,9 @@ func CreateCollection(client *typesense.Client, collectionName string, fields []
 }
 
 func InsertDocument(client *typesense.Client, collectionName string, document interface{}) error {
+	if client == nil {
+		return nil
+	}
 	_, err := client.Collection(collectionName).Documents().Create(context.Background(), document)
 	if err != nil {
 		return err

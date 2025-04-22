@@ -17,7 +17,7 @@ type BlogFeedback struct {
 
 type BlogFeedbackReq struct {
 	BlogID   string `json:"blog_id" validate:"required"`
-	Feedback bool   `json:"feedback" validate:"required"`
+	Feedback bool   `json:"feedback"`
 }
 
 func (b *BlogFeedback) Create(db *gorm.DB) error {
@@ -28,4 +28,18 @@ func (b *BlogFeedback) Create(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func (b *BlogFeedback) CountFeedback(id string, db *gorm.DB) (int64, int64, error) {
+	positiveCount, err := postgresql.CountSpecificRecords(db, &b, "blog_id = ? AND feedback = ?", id, true)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	negativeCount, err := postgresql.CountSpecificRecords(db, &b, "blog_id = ? AND feedback = ?", id, false)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return positiveCount, negativeCount, nil
 }

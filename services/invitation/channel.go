@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
-	"gorm.io/gorm"
 )
 
 func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, owner_id string, logger *utility.Logger) (int, string, error) {
@@ -27,11 +28,6 @@ func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInv
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
-
-	// exists := c.CheckChannelExistsInOrg(base.Postgresql, inviteReq.ChannelID, inviteReq.OrganisationID)
-	// if !exists {
-	// 	return http.StatusNotFound, "Channel does not exist in the organisation", errors.New("Channel does not exist in the organisation")
-	// }
 
 	isAdmin := CheckUserIsAdmin(base.Postgresql, owner_id, org)
 	if !isAdmin {
@@ -50,7 +46,6 @@ func ChannelCheckerValidator(base *storage.Database, inviteReq models.ChannelInv
 }
 
 func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.ChannelInvitationCreateReq, userId, url string) ([]models.ChannelInvitation, error) {
-	//batch create invitations
 
 	var (
 		emails             = inviteReq.Emails
@@ -59,12 +54,10 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 	)
 
 	for _, email := range emails {
-		token, _ := GenerateInvitationToken()
+		token, _ := utility.GenerateInvitationToken()
 
-		//remember: lets check if the email of the user already exists in the organisation so as not to override their roles and status
 		err := c.ChannelInvitationValidator(base.Postgresql, email, inviteReq)
 		if err != nil {
-			fmt.Println("Error processing some invitations", err)
 			continue
 		}
 
@@ -73,7 +66,6 @@ func ChannelInvitationLinkGenerator(base *storage.Database, inviteReq models.Cha
 	}
 	return channelInvitations, nil
 }
-
 
 func CreateChannelInvitation(email, token, status string, inviteReq models.ChannelInvitationCreateReq) models.ChannelInvitation {
 	return models.ChannelInvitation{
@@ -113,7 +105,7 @@ func ChannelInviteLinkMapper(baseURL string, invitations []models.ChannelInvitat
 			Status:         "invited",
 			ChannelID:      invite.ChannelID,
 			InviteToken:    invite.Token,
-			InvitationLink: GenerateChannelInvitationLink(baseURL, invite.ChannelID, invite.Token),
+			InvitationLink: utility.GenerateChannelInvitationLink(baseURL, invite.ChannelID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
 		})
@@ -126,24 +118,21 @@ func SendChannelsInvitationsEmail(invitationResponseMap []models.ChannelInvitati
 	var wg sync.WaitGroup
 	errorChannel := make(chan error, len(invitationResponseMap))
 
-	// Iterate through the map and send invitations concurrently
 	for _, invite := range invitationResponseMap {
 		wg.Add(1)
 		go func(invite models.ChannelInvitationResponse) {
 			defer wg.Done()
 
-			err := sendEmail(invite.Email, invite.InvitationLink)
+			err := SendEmail(invite.Email, invite.InvitationLink)
 			if err != nil {
 				errorChannel <- fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
 			}
 		}(invite)
 	}
 
-	// Wait for all Goroutines to finish
 	wg.Wait()
 	close(errorChannel)
 
-	// Check for errors
 	if len(errorChannel) > 0 {
 		var errMsg string
 		for err := range errorChannel {
@@ -184,14 +173,13 @@ func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB
 		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
-	// add the user to the channel
 	reqs := models.JoinChannelsRequest{
 		UserID:     userData.ID,
 		ChannelsID: exist.ChannelID,
 		Username:   userData.Name,
 	}
 
-	_, err = channel.AddUserToChannels(db, reqs)
+	_, err = channel.AddUserToChannel(db, reqs)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, err
 	}
@@ -201,7 +189,6 @@ func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB
 	fmt.Printf("Saving access token for user: %s\n", userData.Email)
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		fmt.Println("Error saving access token:", err)
 		return responseData, http.StatusInternalServerError, errors.New("error saving token")
 	}
 

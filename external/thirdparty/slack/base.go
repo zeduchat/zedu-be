@@ -13,6 +13,7 @@ type RequestObj struct {
 	RequestData  interface{}
 	DecodeMethod string
 	Logger       *utility.Logger
+	Timeout      bool
 }
 
 var (
@@ -20,5 +21,5 @@ var (
 )
 
 func (r *RequestObj) getNewSendRequestObject(data interface{}, headers map[string]string, urlprefix string) *external.SendRequestObject {
-	return external.GetNewSendRequestObject(r.Logger, r.Name, r.Path, r.Method, urlprefix, r.DecodeMethod, headers, r.SuccessCode, data)
+	return external.GetNewSendRequestObject(r.Logger, r.Name, r.Path, r.Method, urlprefix, r.DecodeMethod, headers, r.SuccessCode, data, r.Timeout)
 }

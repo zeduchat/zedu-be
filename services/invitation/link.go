@@ -1,8 +1,6 @@
 package invitation
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,13 +9,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/auth"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID string) models.Invitation {
@@ -29,49 +30,47 @@ func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID
 		Role:           role,
 		IsTelexUser:    isTelexUser,
 		OrganisationID: orgID,
-		ExpiresAt:      time.Now().Add(24 * time.Hour),
+		ExpiresAt:      time.Now().UTC().Add(48 * time.Hour),
 	}
 }
 
-func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, error) {
-	//batch create invitations
+func InvitationLinkGenerator(base *storage.Database, inviteReq models.InvitationCreateReq, userId, url string) ([]models.Invitation, []string, error) {
 	var (
 		emails      = inviteReq.Emails
-		i           models.Invitation
 		invitations []models.Invitation
+		errs        []string
+		user        models.User
 	)
 
 	for _, email := range emails {
-		token, _ := GenerateInvitationToken()
+		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", email)
 
-		creds, err := i.CheckForTelexPresence(base.Postgresql, email, inviteReq.OrganisationID)
-		if err != nil {
-			fmt.Println("Error checking for telex presence", err)
-		}
-
-		//check if the user is a telex user
-		exists := postgresql.CheckExists(base.Postgresql, &models.User{}, "email = ?", email)
-		isTelexUser := exists
-
-		if creds["RoleID"] != "" || creds["Status"] != "" {
-			invitation := CreateInvitation(email, token, creds["RoleID"], creds["Status"], isTelexUser, inviteReq.OrganisationID)
-			invitations = append(invitations, invitation)
+		// Check if the user's email has a pending invitation for that organisation with a pending status
+		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", email, inviteReq.OrganisationID, time.Now().UTC())
+		if invitationExists {
+			errs = append(errs, fmt.Sprintf("%s already has a pending invitation.", email))
 			continue
 		}
 
-		invitation := CreateInvitation(email, token, inviteReq.Role, "invited", isTelexUser, inviteReq.OrganisationID)
+		if isTelexUser {
+			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", user.ID, inviteReq.OrganisationID)
+			if alreadyMember {
+				errs = append(errs, fmt.Errorf("%s is already a member of the organisation", email).Error())
+				continue
+			}
+		}
+
+		token, err := utility.GenerateInvitationToken()
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("could not generate token for %s: %v", email, err))
+			continue
+		}
+
+		invitation := CreateInvitation(email, token, inviteReq.RoleID, "invited", isTelexUser, inviteReq.OrganisationID)
 		invitations = append(invitations, invitation)
 	}
-	return invitations, nil
-}
 
-func GenerateInvitationToken() (string, error) {
-	bytes := make([]byte, 16)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
+	return invitations, errs, nil
 }
 
 func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.InvitationResponse {
@@ -79,12 +78,13 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 
 	for _, invite := range invitations {
 		response = append(response, models.InvitationResponse{
+			ID:             invite.ID,
 			Email:          invite.Email,
 			OrgID:          invite.OrganisationID,
 			Status:         "invited",
 			InviteToken:    invite.Token,
 			IsTelexUser:    invite.IsTelexUser,
-			InvitationLink: GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
+			InvitationLink: utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
 		})
@@ -92,84 +92,61 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 	return response
 }
 
-func ExtractTokenFromInvitationLink(invitationLink string) string {
-	splitLink := strings.Split(invitationLink, "/")
-	return splitLink[len(splitLink)-1]
+func AdminInvitationVerify(db *gorm.DB, req models.VerifyInvitationLinkRequest, logger *utility.Logger) {
+
 }
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
 		responseData gin.H
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
+		userID       string
 	)
 
-	invitation, err := i.GetInvitationLinkByToken(db, req.Token)
+	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token, logger)
 	if err != nil {
-		return responseData, http.StatusUnauthorized, errors.New("invalid or expired token or token has been used. Proceed to signup!!!!")
+		logger.Error("Error getting invitation link by token", err)
+		return responseData, code, err
 	}
 
-	if invitation.IsTelexUser {
-		exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
-		if !exists {
-			return responseData, http.StatusBadRequest, errors.New("invalid credentials")
-		}
-		err = i.UpdateInvitation(db, invitation.Email, "accepted")
-		if err != nil {
-			return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
-		}
-
-		orgmgt.RoleID = invitation.Role
-		orgmgt.Status = "active"
-		orgmgt.UserID = user.ID
-		orgmgt.OrganisationID = invitation.OrganisationID
-
-		err = orgmgt.AddUserToOrganisation(db, invitation.OrganisationID, user.ID)
-		if err != nil {
-			return responseData, http.StatusInternalServerError, err
-		}
+	user, err = getOrCreateUser(invitation, db)
+	if err != nil {
+		logger.Error("error in getting or creating user", err)
+		return responseData, http.StatusInternalServerError, err
 	}
 
-	otp, _ := utility.GenerateOTP(6)
-	entry := "telex-" + strconv.Itoa(int(otp))
+	userID = user.ID
+	invitation.Status = "accepted"
 
-    if !invitation.IsTelexUser {
-        var user models.User
+	err = invitation.UpdateInvitation(db)
+	if err != nil {
+		logger.Error("error in updating invitation on acceptance", err)
+		return responseData, http.StatusBadRequest, err
+	}
 
-		//use the email to get the first name
-		arr := strings.Split(invitation.Email, "@")
-		email := utility.SplitEmailString(arr[0])
+	orgmgt.RoleID = invitation.Role
+	orgmgt.Status = "active"
+	orgmgt.UserID = userID
+	orgmgt.OrganisationID = invitation.OrganisationID
 
-        req := models.CreateUserRequestModel{
-            Email:     invitation.Email,
-            Password:  entry,
-            FirstName:  strings.TrimSpace(strings.ToLower(email)),
-        }
+	err = addUserToOrganisation(orgmgt, db)
+	if err != nil {
+		logger.Error("error adding user to the invited organisation", err)
+		return responseData, http.StatusInternalServerError, err
+	}
 
-		_, _, err := auth.CreateUser(req, db)
+	defaultChannel, err := getDefaultChannel(db, orgmgt.OrganisationID)
+	if err != nil {
+		logger.Error("error getting default channel", err)
+	}
+
+	if defaultChannel.ID != "" {
+		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
 		if err != nil {
-			return responseData, http.StatusInternalServerError, errors.New("error creating user")
-		}
-
-		err = i.UpdateInvitation(db, invitation.Email, "accepted")
-		if err != nil {
-			return responseData, http.StatusInternalServerError, errors.New("error updating invitation")
-		}
-
-		userData, err := user.GetUserByEmail(db, invitation.Email)
-		if err != nil {
-			return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
-		}
-
-		orgmgt.RoleID = invitation.Role
-		orgmgt.Status = "active"
-		orgmgt.UserID = userData.ID
-		orgmgt.OrganisationID = invitation.OrganisationID
-
-		err = orgmgt.AddUserToOrganisation(db, invitation.OrganisationID, userData.ID)
-		if err != nil {
+			logger.Error("error adding user to the default channel", err)
 			return responseData, http.StatusInternalServerError, err
 		}
 	}
@@ -181,44 +158,142 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 
 	tokenData, err := middleware.CreateToken(userData, c)
 	if err != nil {
-		fmt.Println("Error creating token:", err)
 		return responseData, http.StatusInternalServerError, errors.New("error creating token")
 	}
 
+	err = saveAccessToken(tokenData, userID, db)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("error saving access token")
+	}
+
+	responseData = buildUserResponse(userData, tokenData)
+
+	return responseData, http.StatusOK, nil
+}
+
+func getDefaultChannel(db *gorm.DB, orgID string) (models.Channels, error) {
+	var channels models.Channels
+
+	err := db.Where("organisation_id = ? AND name = ?", orgID, "general").First(&channels).Error
+	if err != nil {
+		return channels, errors.New("default channel not found")
+	}
+	if channels.ID == "" {
+		return channels, errors.New("default channel not found")
+	}
+
+	return channels, nil
+}
+
+func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {
+	var user models.User
+
+	if invitation.IsTelexUser {
+		exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
+		if !exists {
+			return user, errors.New("invalid credentials. User does not exist")
+		}
+
+	} else {
+
+		arr := strings.Split(invitation.Email, "@")
+		email := utility.SplitEmailString(arr[0])
+		name := strings.TrimSpace(strings.ToLower(email))
+		orgId, _ := uuid.FromString(invitation.OrganisationID)
+
+		user = models.User{
+			ID:          utility.GenerateUUID(),
+			Name:        name,
+			Email:       invitation.Email,
+			IsOnboarded: true,
+			IsActive:    true,
+			CurrentOrg:  orgId,
+			Profile: models.Profile{
+				ID:       utility.GenerateUUID(),
+				UserName: name,
+			},
+		}
+
+		err := user.CreateUser(db)
+		if err != nil {
+			return user, err
+		}
+
+		resetReq := models.SendWelcomeMail{
+			Email: user.Email,
+		}
+
+		err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
+		if err != nil {
+			return user, err
+		}
+
+		user, err = user.GetUserByEmail(db, invitation.Email)
+		if err != nil {
+			return user, errors.New("unable to fetch user")
+		}
+
+	}
+
+	return user, nil
+}
+
+func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
+
+	if err := orgmgt.AddUserToOrganisation(db); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, username string, db *gorm.DB) error {
+
+	reqs := models.JoinChannelsRequest{
+		Username:   username,
+		ChannelsID: chans.ID,
+		UserID:     orgmgt.UserID,
+	}
+
+	if _, err := chans.AddUserToChannel(db, reqs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func saveAccessToken(tokenData *middleware.TokenDetailDTO, userID string, db *gorm.DB) error {
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userID}
 	tokens := map[string]string{
 		"access_token": tokenData.AccessToken,
 		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
-	fmt.Printf("Token data: %v\n", tokenData)
-	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: userData.ID}
-
-	fmt.Println("Saving access token for user:", userData.Email)
-	err = access_token.CreateAccessToken(db, tokens)
-	if err != nil {
-		fmt.Println("Error saving access token:", err)
-		return responseData, http.StatusInternalServerError, errors.New("error saving token")
+	if err := access_token.CreateAccessToken(db, tokens); err != nil {
+		return err
 	}
+	return nil
+}
 
-	responseData = gin.H{
+func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) gin.H {
+	return gin.H{
 		"user": map[string]interface{}{
-			"id":           userData.ID,
-			"email":        userData.Email,
-			"username":     userData.Name,
-			"is_onboarded": userData.IsOnboarded,
-			"is_verified":  userData.IsVerified,
-			"first_name":   userData.Profile.FirstName,
-			"last_name":    userData.Profile.LastName,
-			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":        userData.Profile.Phone,
-			"avatar_url":   userData.Profile.AvatarURL,
-			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
-			"password":     entry,
+			"id":              user.ID,
+			"email":           user.Email,
+			"username":        user.Name,
+			"is_onboarded":    user.IsOnboarded,
+			"is_verified":     user.IsVerified,
+			"profile_updated": user.ProfileUpdated,
+			"first_name":      user.Profile.FirstName,
+			"last_name":       user.Profile.LastName,
+			"fullname":        user.Profile.FirstName + " " + user.Profile.LastName,
+			"phone":           user.Profile.Phone,
+			"avatar_url":      user.Profile.AvatarURL,
+			"current_org":     user.CurrentOrg,
+			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":      strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":      strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}
-
-	return responseData, http.StatusOK, nil
 }

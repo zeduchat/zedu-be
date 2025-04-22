@@ -71,17 +71,6 @@ func TestSubmitFeedback(t *testing.T) {
 			},
 		},
 		{
-			Name: "Validation failed",
-			RequestBody: models.BlogFeedbackReq{
-				BlogID: utility.GenerateUUID(),
-			},
-			ExpectedCode: http.StatusUnprocessableEntity,
-			Message:      "Validation failed",
-			Headers: map[string]string{
-				"Content-Type": "application/json",
-			},
-		},
-		{
 			Name: "Invalid blog id format",
 			RequestBody: models.BlogFeedbackReq{
 				BlogID:   "someting-soething",

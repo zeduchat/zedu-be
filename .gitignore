@@ -2,6 +2,7 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
+main
 *.exe
 *.exe~
 *.dll
@@ -11,7 +12,7 @@
 *.rdb
 # Test binary, built with `go test -c`
 *.test
-
+config/
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
@@ -22,6 +23,7 @@
 go.work
 go.work.sum
 
+docs/
 logs/
 cronlogs/
 config.yaml
@@ -29,9 +31,14 @@ _ignore/
 app.env
 tmp/
 .idea/
+playground/
+build-errors.log
+*.toml
 
 temp
 telex_be
+telexbe_staging
+telexbe_main
 cypress_tests/node_modules
 cypress_tests/cypress.env.json
 cypress_tests/cypress/screenshots

@@ -66,10 +66,11 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 
 	} else {
 		user = models.User{
-			ID:         utility.GenerateUUID(),
-			Name:       username,
-			Email:      email,
-			IsVerified: true,
+			ID:             utility.GenerateUUID(),
+			Name:           username,
+			Email:          email,
+			IsVerified:     true,
+			ProfileUpdated: true,
 			Profile: models.Profile{
 				FullName:  username,
 				UserName:  username,
@@ -104,16 +105,18 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 
 	responseData = gin.H{
 		"user": map[string]interface{}{
-			"id":           user.ID,
-			"email":        user.Email,
-			"username":     user.Name,
-			"fullname":     user.Name,
-			"is_verified":  user.IsVerified,
-			"is_onboarded": user.IsOnboarded,
-			"avatar_url":   user.Profile.AvatarURL,
-			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":   strconv.Itoa(int(user.CreatedAt.Unix())),
-			"updated_at":   strconv.Itoa(int(user.UpdatedAt.Unix())),
+			"id":              user.ID,
+			"email":           user.Email,
+			"username":        user.Name,
+			"fullname":        user.Name,
+			"current_org":     user.CurrentOrg,
+			"is_verified":     user.IsVerified,
+			"profile_updated": user.ProfileUpdated,
+			"is_onboarded":    user.IsOnboarded,
+			"avatar_url":      user.Profile.AvatarURL,
+			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":      strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":      strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}

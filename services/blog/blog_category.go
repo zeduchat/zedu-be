@@ -58,3 +58,19 @@ func GetBlogCategoryById(id string, db *gorm.DB) (models.BlogCategory, error) {
 	return blogCategory, nil
 
 }
+
+func DeleteBlogCategory(categoryId string, db *gorm.DB) error {
+	var blogCategory models.BlogCategory
+	blogCategory.ID = categoryId
+
+	err := blogCategory.GetBlogCategoryById(db)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("blog category not found")
+		}
+		return err
+	}
+
+	return blogCategory.Delete(db)
+}

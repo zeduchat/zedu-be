@@ -94,7 +94,7 @@ func TestChannelsEndpoints(t *testing.T) {
 				OrganisationID: orgId,
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "channel created successfully",
+			Message:      "Channel Created Successfully",
 			Method:       http.MethodPost,
 			RequestURI:   url.URL{Path: "/api/v1/channels/"},
 			Headers: map[string]string{
@@ -209,15 +209,15 @@ func TestChannelsEndpoints(t *testing.T) {
 
 		channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
-			channelUrl.POST("/", channel.CreateChannels)
-			channelUrl.GET("/:channelId", channel.GetChannels)
+			channelUrl.POST("/", channel.CreateChannel)
+			channelUrl.GET("/:channelId", channel.GetChannel)
 			channelUrl.POST("/:channelId/join", channel.JoinChannels)
 			channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
 			channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
 			channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 			channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
 			channelUrl.PATCH("/:channelId", channel.UpdateChannels)
-			channelUrl.DELETE("/:channelId", channel.DeleteChannels)
+			channelUrl.DELETE("/:channelId", channel.DeleteChannel)
 			channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 			channelUrl.GET(("/search/:channelName"), channel.SearchChannelsByNames)
 		}

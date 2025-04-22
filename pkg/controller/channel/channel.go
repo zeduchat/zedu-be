@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
@@ -24,7 +25,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) CreateChannels(c *gin.Context) {
+func (base *Controller) CreateChannel(c *gin.Context) {
 	var req models.CreateChannelsRequest
 
 	claims, exists := c.Get("userClaims")
@@ -45,6 +46,13 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(req.OrganisationID); err != nil {
+		base.Logger.Info("error parsing organisation id")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Info("validation failed")
@@ -53,20 +61,20 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId, base.Db.TypeSense)
+	respData, code, err := channel.CreateChannel(req, base.Db.Postgresql, userId)
 	if err != nil {
-		base.Logger.Info("error creating channel")
+		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("channel created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "channel created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Channel Created Successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) GetChannels(c *gin.Context) {
+func (base *Controller) GetChannel(c *gin.Context) {
 	channels_id := c.Param("channelId")
 
 	if _, err := uuid.Parse(channels_id); err != nil {
@@ -75,7 +83,17 @@ func (base *Controller) GetChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	respData, code, err := channel.GetChannel(base.Db.Postgresql, channels_id, userId)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -249,6 +267,13 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 		return
 	}
 
+	if req.Username == "general" {
+		base.Logger.Info("error updating username")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "cannot update username to general", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	code, err := channel.UpdateUsername(req, base.Db.Postgresql, channelId, userId)
 	if err != nil {
 		base.Logger.Info("error creating channel")
@@ -262,7 +287,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) DeleteChannels(c *gin.Context) {
+func (base *Controller) DeleteChannel(c *gin.Context) {
 
 	ChannelsId := c.Param("channelId")
 
@@ -282,7 +307,7 @@ func (base *Controller) DeleteChannels(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId, base.Db.TypeSense)
+	code, err := channel.DeleteChannel(base.Db.Postgresql, ChannelsId, UserId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -362,6 +387,12 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	if err := base.Validator.Struct(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if req.Name == "general" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Cannot update channel name to general", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -509,6 +540,172 @@ func (base *Controller) AddMembersToChannel(c *gin.Context) {
 	}
 
 	base.Logger.Info("members added to channel successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "members added to channel successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Members added to channel successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetUserChannels(c *gin.Context) {
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to fetch user claims", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	userchannels, err := channel.GetUserChannels(base.Db, userId, org_id)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch user channels", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("user channels fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user channels fetched successfully", userchannels)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetUserNotInChannels(c *gin.Context) {
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to fetch user claims", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	userchannels, err := channel.GetUserNotInChannels(base.Db.Postgresql, userId, org_id)
+	if err != nil {
+		base.Logger.Info("failed to fetch channels user do not belong")
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch channels user do not belong", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("channels user does not belong fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channels user does not belong fetched successfully", userchannels)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
+	var req models.AddMultipleMembersRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = channel.AddMultipleMembersToChannel(base.Db.Postgresql, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to add users to channel", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("users added to channel successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) ArchiveChannel(c *gin.Context) {
+	channelId := c.Param("channelId")
+	var req models.ArchiveChannelRequest
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = utility.ArchiveValidator(req.Archived)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", err.Error(), err, nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	status, statusCode, err := channel.ArchiveChannel(base.Db.Postgresql, channelId, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	res := "archived"
+	if !status {
+		res = "unarchived"
+	}
+
+	base.Logger.Info("channel archived successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel "+res+" successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetArchivedChannels(c *gin.Context) {
+	var org_id string = c.Param("org_id")
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	ids := map[string]string{
+		"organisation_id": org_id,
+		"user_id":         userId,
+	}
+
+	respData, code, err := channel.GetArchivedChannels(base.Db.Postgresql, ids)
+	if err != nil {
+		base.Logger.Info("error getting archived channels")
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("archived channels retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "archived channels retrieved successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }

@@ -17,25 +17,42 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql))
+	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
+	channelQueueUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion))
+
 	{
-		channelUrl.POST("/", channel.CreateChannels)
+		// POST routes
+		channelUrl.POST("", channel.CreateChannel)
+		channelQueueUrl.POST("/backend-queue", channel.SaveIncomingQueueMsg)
 		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg)
-		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
-		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
-		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.POST("/:channelId/join", channel.JoinChannels)
 		channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
-		channelUrl.DELETE("/:channelId", channel.DeleteChannels)
-		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
-		channelUrl.GET("/:channelId", channel.GetChannels)
+		channelUrl.POST("/add", channel.AddMembersToChannel)
+		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
+		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
+
+		// PUT routes
+		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)
+		channelUrl.PUT("/:channelId/archive", channel.ArchiveChannel)
+
+		// DELETE routes
+		channelUrl.DELETE("/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
+		channelUrl.DELETE("/:channelId", channel.DeleteChannel)
+		channelUrl.DELETE("/:channelId/integration-channels", channel.DeleteChannelIntegration)
+
+		// GET routes
+		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
+		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
+		channelUrl.GET("/:channelId", channel.GetChannel)
 		channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 		channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
-		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
-
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)
 		channelUrl.GET("/:channelId/users", channel.GetUsersInChannel)
-		channelUrl.POST("/add", channel.AddMembersToChannel)
+		channelUrl.GET("/:channelId/integration-channels/:IntModId", channel.GetIntegrationChannels)
+
+		// PATCH routes
+		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
+		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
 	}
 
 	return r

@@ -126,21 +126,23 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 	}
 
 	responseData = gin.H{
-
 		"user": map[string]interface{}{
-			"id":           userData.ID,
-			"email":        userData.Email,
-			"username":     userData.Name,
-			"is_onboarded": userData.IsOnboarded,
-			"is_verified":  userData.IsVerified,
-			"first_name":   userData.Profile.FirstName,
-			"last_name":    userData.Profile.LastName,
-			"fullname":     userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":        userData.Profile.Phone,
-			"avatar_url":   userData.Profile.AvatarURL,
-			"expires_in":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":   strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":   strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":              userData.ID,
+			"email":           userData.Email,
+			"username":        userData.Name,
+			"is_verified":     userData.IsVerified,
+			"is_onboarded":    userData.IsOnboarded,
+			"profile_updated": userData.ProfileUpdated,
+			"is_active":       userData.IsActive,
+			"current_org":     userData.CurrentOrg,
+			"first_name":      userData.Profile.FirstName,
+			"last_name":       userData.Profile.LastName,
+			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":           userData.Profile.Phone,
+			"avatar_url":      userData.Profile.AvatarURL,
+			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}

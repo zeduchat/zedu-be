@@ -22,6 +22,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
@@ -36,6 +37,7 @@ func Setup() *utility.Logger {
 	redis.ConnectToRedis(logger, config.Redis)
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
 	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
+	elastic.ConnectToElastic(logger, config.Elastic)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)
@@ -139,7 +141,7 @@ func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db 
 
 	channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 	{
-		channelUrl.POST("/", channel.CreateChannels)
+		channelUrl.POST("/", channel.CreateChannel)
 	}
 
 	var b bytes.Buffer
@@ -198,36 +200,42 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	return orgID, orgName, ownerID
 }
 
-func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) string {
+func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite invitation.Controller, invitereq models.InvitationCreateReq, token string) (string, string) {
 	var (
 		invitePath = "/api/v1/invite"
 		inviteURI  = url.URL{Path: invitePath}
+		invitation models.Invitation
 	)
 	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
-		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql) ,invite.OrganisationCreateInvite)
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
 	}
 
-	inviteData := models.InvitationCreateReq{
-		OrganisationID: invitereq.OrganisationID,
-		Emails:         invitereq.Emails,
-		Role:           "01915c5c-6417-7620-a80f-b8dde5509881",
-	}
-	
 	var b bytes.Buffer
-	json.NewEncoder(&b).Encode(inviteData)
+	json.NewEncoder(&b).Encode(invitereq)
 	req, err := http.NewRequest(http.MethodPost, inviteURI.String(), &b)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
-	
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
-	dataM := data["data"]
-	invite_token := dataM.([]interface{})[0].(map[string]interface{})["invite_token"].(string)
-	return invite_token
+	dataM := data["data"].(map[string]interface{})
+	if dataM["errors"] != nil {
+		t.Fatal(dataM["errors"])
+	}
+
+	err = invitation.GetInvitationByEmail(db.Postgresql, invitereq.Emails[0], invitereq.OrganisationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	invite_token := invitation.Token
+	invite_id := invitation.ID
+
+	return invite_token, invite_id
 }

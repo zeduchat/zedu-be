@@ -9,15 +9,15 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/controller/agents"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
-	"github.com/hngprojects/telex_be/pkg/controller/integrations"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func initialise(currUUID string, t *testing.T, r *gin.Engine, user auth.Controller, status bool) (string) {
+func initialise(currUUID string, t *testing.T, r *gin.Engine, user auth.Controller, status bool) string {
 	userSignUpData := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
@@ -38,14 +38,14 @@ func initialise(currUUID string, t *testing.T, r *gin.Engine, user auth.Controll
 	return token
 }
 
-func SetupIntegrationTestRouter() (*gin.Engine, *integrations.Controller) {
+func SetupIntegrationTestRouter() (*gin.Engine, *agents.Controller) {
 	gin.SetMode(gin.TestMode)
 
 	logger := tst.Setup()
 	db := storage.Connection()
 	validator := validator.New()
 
-	integrationController := &integrations.Controller{
+	integrationController := &agents.Controller{
 		Db:        db,
 		Validator: validator,
 		Logger:    logger,
@@ -60,9 +60,8 @@ func SetupIntegrationTestRouter() (*gin.Engine, *integrations.Controller) {
 	return r, integrationController
 }
 
-func SetupIntegrationRoutes(r *gin.Engine, integrationController *integrations.Controller) {
+func SetupIntegrationRoutes(r *gin.Engine, integrationController *agents.Controller) {
 	integrationUrl := r.Group("/api/v1",
 		middleware.Authorize(integrationController.Db.Postgresql))
-	integrationUrl.POST("/integrations", integrationController.CreateIntegrationApp)
-	integrationUrl.GET("/integrations", integrationController.GetAllIntegrationApp)
+	integrationUrl.GET("/agents", integrationController.GetAllAgentApp)
 }

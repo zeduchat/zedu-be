@@ -39,10 +39,12 @@ func SetupBlogRoutes(r *gin.Engine, blogController *blog.Controller) {
 	blogAdminUrl.POST("/blogs", blogController.CreateBlog)
 	blogAdminUrl.DELETE("/blogs/:id", blogController.DeleteBlog)
 	blogAdminUrl.POST("/blog_categories", blogController.CreateBlogCategory)
+	blogAdminUrl.DELETE("/blog_categories/:id", blogController.DeleteBlogCategory)
 
 	blogUrl.GET("/blogs", blogController.GetBlogs)
 	blogUrl.GET("/blog_categories", blogController.GetBlogCategories)
 	blogUrl.GET("/blog_categories/:id", blogController.GetBlogCategoryById)
 	blogUrl.GET("/blogs/:id", blogController.GetBlogById)
 	blogUrl.POST("/blogs/feedback", blogController.SubmitFeedback)
+	blogUrl.GET("/blogs/:id/feedback/count", blogController.GetFeedbackCount)
 }

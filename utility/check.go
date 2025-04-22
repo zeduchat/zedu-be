@@ -27,3 +27,17 @@ func RemoveString(slice []string, s string) []string {
 	}
 	return slice
 }
+
+func ReturnUniqueIDs(ids []string) []string {
+	seen := map[string]struct{}{}
+	arr := []string{}
+
+	for _, id := range ids {
+		if _, exist := seen[id]; !exist {
+			seen[id] = struct{}{}
+			arr = append(arr, id)
+		}
+	}
+
+	return arr
+}

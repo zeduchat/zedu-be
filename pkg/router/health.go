@@ -16,7 +16,7 @@ func Health(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	health := health.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	healthUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.CheckIsDeactivated(db.Postgresql))
+	healthUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql), middleware.PlanMiddleware(db.Postgresql, db.Redis))
 	{
 		healthUrl.POST("/health", health.Post)
 		healthUrl.GET("/health", health.Get)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -21,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/webhook"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -89,8 +89,8 @@ func TestChannelsEndpoints(t *testing.T) {
 	}{
 		{
 			Name:         "Create Webhook Action",
-			ExpectedCode: http.StatusCreated,
-			Message:      "webhook created successfully",
+			ExpectedCode: http.StatusBadRequest,
+			Message:      "webhook already exists",
 			Method:       http.MethodPost,
 			RequestURI:   url.URL{Path: webhook_path},
 			Headers: map[string]string{

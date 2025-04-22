@@ -26,7 +26,6 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
@@ -51,7 +50,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId)
+	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId, base.Logger)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -60,7 +59,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "organisation created successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Organisation Created Successfully", respData)
 
 	c.JSON(http.StatusCreated, rd)
 }
@@ -161,23 +160,18 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 		return
 	}
 
-	updatedOrg, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql)
+	err := base.Validator.Struct(&updateReq)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	updatedOrg, code, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 
 	if err != nil {
-		switch err.Error() {
-		case "organisation not found":
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to update organisation", nil)
-			c.JSON(http.StatusNotFound, rd)
-		case "user not authorised to update this organisation":
-			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to update organisation", nil)
-			c.JSON(http.StatusForbidden, rd)
-		case "organisation already exists with the given email":
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update organisation", nil)
-			c.JSON(http.StatusForbidden, rd)
-		default:
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to update organisation", err.Error(), nil)
-			c.JSON(http.StatusInternalServerError, rd)
-		}
+		rd := utility.BuildErrorResponse(code, "error", "failed to update organisation", err.Error(), nil)
+		c.JSON(code, rd)
 		return
 	}
 

@@ -34,10 +34,13 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 
 	// routers
 	ApiVersion := "api/v1"
+	Testimonial(r, ApiVersion, validator, db, logger)
+	ApiStatus(r, ApiVersion, validator, db, logger)
 	Newsletter(r, ApiVersion, validator, db, logger)
 	Slack(r, ApiVersion, validator, db, logger)
 	Contact(r, ApiVersion, validator, db, logger)
 	Blog(r, ApiVersion, validator, db, logger)
+	FileManagement(r, ApiVersion, validator, db, logger)
 	Health(r, ApiVersion, validator, db, logger)
 	Auth(r, ApiVersion, validator, db, logger)
 	Channels(r, ApiVersion, validator, db, logger)
@@ -51,7 +54,16 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Subscriptions(r, ApiVersion, validator, db, logger)
 	WebhookHandler(r, ApiVersion, validator, db, logger)
 	HelpCenter(r, ApiVersion, validator, db, logger)
-	Integrations(r, ApiVersion, validator, db, logger)
+	OptIn(r, ApiVersion, validator, db, logger)
+	Dms(r, ApiVersion, validator, db, logger)
+	GroupDMs(r, ApiVersion, validator, db, logger)
+	Group(r, ApiVersion, validator, db, logger)
+
+	Search(r, ApiVersion, validator, db, logger)
+
+	Agents(r, ApiVersion, validator, db, logger)
+	Mongogrations(r, ApiVersion, validator, db, logger)
+	FcmToken(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

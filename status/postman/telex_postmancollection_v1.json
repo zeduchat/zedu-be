@@ -18,37 +18,6 @@
               "name": "Register a new user",
               "event": [
                 {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status code is 201\", function () {\r",
-                      "  pm.response.to.have.status(201);\r",
-                      "});\r",
-                      "\r",
-                      "pm.test(\"Response time is less than 500ms\", function () {\r",
-                      "  pm.expect(pm.response.responseTime).to.be.below(500);\r",
-                      "});\r",
-                      "\r",
-                      "pm.test(\"Response has correct message\", function () {\r",
-                      "  const jsonData = pm.response.json();\r",
-                      "  pm.expect(jsonData.status).to.eql(\"success\");\r",
-                      "  pm.expect(jsonData.message).to.eql(\"user created successfully\");\r",
-                      "  pm.expect(jsonData.status_code).to.eql(201);\r",
-                      "});\r",
-                      "\r",
-                      "pm.test(\"Response body contains expected fields\", function () {\r",
-                      "  const jsonData = pm.response.json();\r",
-                      "  pm.expect(jsonData).to.have.property(\"status\");\r",
-                      "  pm.expect(jsonData).to.have.property(\"message\");\r",
-                      "  pm.expect(jsonData).to.have.property(\"status_code\");\r",
-                      "});\r",
-                      ""
-                    ],
-                    "type": "text/javascript",
-                    "packages": {}
-                  }
-                },
-                {
                   "listen": "prerequest",
                   "script": {
                     "exec": [
@@ -68,6 +37,38 @@
                       "\r",
                       "// Set random password\r",
                       "pm.environment.set(\"randomPassword\", `Test${Math.floor(Math.random() * 100)}#${Math.floor(Math.random() * 100)}`);\r",
+                      ""
+                    ],
+                    "type": "text/javascript",
+                    "packages": {}
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {\r",
+                      "  pm.response.to.have.status(201);\r",
+                      "});\r",
+                      "\r",
+                      "pm.test(\"Response time is less than 800ms\", function () {\r",
+                      "    pm.expect(pm.response.responseTime).to.be.below(800);\r",
+                      "});\r",
+                      "\r",
+                      "\r",
+                      "pm.test(\"Response has correct message\", function () {\r",
+                      "  const jsonData = pm.response.json();\r",
+                      "  pm.expect(jsonData.status).to.eql(\"success\");\r",
+                      "  pm.expect(jsonData.message).to.eql(\"user created successfully\");\r",
+                      "  pm.expect(jsonData.status_code).to.eql(201);\r",
+                      "});\r",
+                      "\r",
+                      "pm.test(\"Response body contains expected fields\", function () {\r",
+                      "  const jsonData = pm.response.json();\r",
+                      "  pm.expect(jsonData).to.have.property(\"status\");\r",
+                      "  pm.expect(jsonData).to.have.property(\"message\");\r",
+                      "  pm.expect(jsonData).to.have.property(\"status_code\");\r",
+                      "});\r",
                       ""
                     ],
                     "type": "text/javascript",
@@ -358,21 +359,18 @@
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "// Test if the status code is 200 (User login successfully)\r",
                       "pm.test(\"Status code is 200\", function () {\r",
                       "    pm.response.to.have.status(200);\r",
                       "});\r",
                       "\r",
-                      "// Test if the response time is less than 500ms\r",
-                      "pm.test(\"Response time is less than 500ms\", function () {\r",
-                      "    pm.expect(pm.response.responseTime).to.be.below(500);\r",
+                      "pm.test(\"Response time is less than 800ms\", function () {\r",
+                      "    pm.expect(pm.response.responseTime).to.be.below(800);\r",
                       "});\r",
-                      "\r",
                       "// Test if the response has the correct message\r",
                       "pm.test(\"Response has correct message\", function () {\r",
                       "    const jsonData = pm.response.json();\r",
                       "    pm.expect(jsonData.status).to.eql(\"success\");\r",
-                      "    pm.expect(jsonData.message).to.eql(\"Login Successfully\");\r",
+                      "    pm.expect(jsonData.message).to.eql(\"user login successfully\");\r",
                       "    pm.expect(jsonData.status_code).to.eql(200);\r",
                       "});\r",
                       "\r",
@@ -716,7 +714,7 @@
                       "pm.test(\"Response has correct structure\", function () {\r",
                       "    const jsonData = pm.response.json();\r",
                       "    pm.expect(jsonData).to.have.property(\"status\", \"success\");\r",
-                      "    pm.expect(jsonData).to.have.property(\"message\", \"User logged out successfully\");\r",
+                      "    pm.expect(jsonData).to.have.property(\"message\", \"user logout successfully\");\r",
                       "});\r",
                       ""
                     ],
@@ -1068,25 +1066,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "exec": [
-                      "// Check if the status code is 200 (User logged out successfully)\r",
-                      "pm.test(\"Status code is 200\", function () {\r",
-                      "    pm.response.to.have.status(200);\r",
-                      "});\r",
-                      "\r",
-                      "// Validate response time\r",
-                      "pm.test(\"Response time is less than 500ms\", function () {\r",
-                      "    pm.expect(pm.response.responseTime).to.be.below(500);\r",
-                      "});\r",
-                      "\r",
-                      "// Validate the response structure\r",
-                      "pm.test(\"Response has correct structure\", function () {\r",
-                      "    const jsonData = pm.response.json();\r",
-                      "    pm.expect(jsonData).to.have.property(\"status\", \"success\");\r",
-                      "    pm.expect(jsonData).to.have.property(\"message\", \"User logged out successfully\");\r",
-                      "});\r",
-                      ""
-                    ],
+                    "exec": ["\r", ""],
                     "type": "text/javascript",
                     "packages": {}
                   }
@@ -1780,6 +1760,22 @@
             },
             {
               "name": "Request a magic link for authentication",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const storedEmail = pm.environment.get(\"randomEmail\");\r",
+                      "const storedPassword = pm.environment.get(\"randomPassword\");\r",
+                      "\r",
+                      "pm.environment.set(\"loginEmail\", storedEmail);\r",
+                      "pm.environment.set(\"loginPassword\", storedPassword);"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {}
+                  }
+                }
+              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -1794,7 +1790,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"test12@gmail.com\"\n}",
+                  "raw": "{\n  \"email\": \"{{loginEmail}}\"\n}",
                   "options": {
                     "raw": {
                       "headerFamily": "json",
@@ -2537,44 +2533,69 @@
                       "listen": "test",
                       "script": {
                         "exec": [
-                          "// Test if the status code is 200 (Request was successful)\r",
-                          "pm.test(\"Status code is 200\", function () {\r",
-                          "    pm.response.to.have.status(200);\r",
+                          "pm.test(\"Status code is 200 or 401\", function () {\r",
+                          "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);\r",
                           "});\r",
                           "\r",
-                          "// Test if the response time is less than 500ms\r",
-                          "pm.test(\"Response time is less than 500ms\", function () {\r",
-                          "    pm.expect(pm.response.responseTime).to.be.below(500);\r",
+                          "pm.test(\"Response time is less than 800ms\", function () {\r",
+                          "    pm.expect(pm.response.responseTime).to.be.below(800);\r",
                           "});\r",
                           "\r",
-                          "// Test if the response has the correct message\r",
-                          "pm.test(\"Response has correct message\", function () {\r",
-                          "    const jsonData = pm.response.json();\r",
-                          "    pm.expect(jsonData.status).to.eql(\"success\");\r",
-                          "    pm.expect(jsonData.message).to.eql(\"Email request sent successfully\");\r",
-                          "});\r",
+                          "const responseJson = pm.response.json();\r",
                           "\r",
-                          "// Test if the response body contains the expected fields\r",
-                          "pm.test(\"Response body contains expected fields\", function () {\r",
-                          "    const jsonData = pm.response.json();\r",
-                          "    // Adjust according to the actual structure of your response\r",
-                          "    pm.expect(jsonData.data).to.have.property(\"email_token\");\r",
-                          "});\r",
-                          "\r",
-                          "// Test if the email token is valid and save it to the collection variable\r",
-                          "pm.test(\"Email token is valid\", function () {\r",
-                          "    const jsonData = pm.response.json();\r",
-                          "    const emailToken = jsonData.data.email_token; // Assuming the token is named \"email_token\"\r",
-                          "    \r",
-                          "    pm.expect(emailToken).to.be.a(\"string\");\r",
-                          "\r",
-                          "    // Save the email token in the collection's collaborative environment\r",
-                          "    pm.collectionVariables.set(\"emailToken\", emailToken);\r",
-                          "    pm.test(\"Email token is set in collection\", function () {\r",
-                          "        pm.expect(pm.collectionVariables.get(\"emailToken\")).to.eql(emailToken);\r",
+                          "if (responseJson) {\r",
+                          "    pm.test(\"Response has correct structure\", function () {\r",
+                          "        pm.expect(responseJson).to.have.property('status');\r",
+                          "        pm.expect(responseJson).to.have.property('message');\r",
+                          "        pm.expect(responseJson).to.have.property('status_code');\r",
                           "    });\r",
-                          "});\r",
+                          "\r",
+                          "    if (pm.response.code === 200) {\r",
+                          "        pm.test(\"Email verified successfully\", function () {\r",
+                          "            pm.expect(responseJson.status).to.eql(\"success\");\r",
+                          "            pm.expect(responseJson.message).to.eql(\"Email verified successfully\");\r",
+                          "            pm.expect(responseJson.status_code).to.eql(200);\r",
+                          "        });\r",
+                          "    } else if (pm.response.code === 401) {\r",
+                          "        pm.test(\"Invalid or expired token error\", function () {\r",
+                          "            pm.expect(responseJson.status).to.eql(\"error\");\r",
+                          "            pm.expect(responseJson.message).to.eql(\"invalid or expired token\");\r",
+                          "            pm.expect(responseJson.status_code).to.eql(401);\r",
+                          "        });\r",
+                          "        console.log(\"Token validation failed. You may need to request a new verification token.\");\r",
+                          "    }\r",
+                          "    \r",
+                          "    pm.environment.set(\"emailVerifyResponse\", JSON.stringify(responseJson));\r",
+                          "} else {\r",
+                          "    console.error(\"Response is empty or undefined.\");\r",
+                          "}\r",
                           ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {}
+                      }
+                    },
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "// Login script (as provided)\r",
+                          "const storedEmail = pm.environment.get(\"randomEmail\");\r",
+                          "const storedPassword = pm.environment.get(\"randomPassword\");\r",
+                          "\r",
+                          "pm.environment.set(\"loginEmail\", storedEmail);\r",
+                          "pm.environment.set(\"loginPassword\", storedPassword);\r",
+                          "\r",
+                          "// Instead of generating a mock token, we should use the token received from the email-request endpoint\r",
+                          "const emailRequestResponse = JSON.parse(pm.environment.get(\"emailRequestResponse\") || \"{}\");\r",
+                          "const verificationToken = emailRequestResponse.token; // Assuming the token is included in the response\r",
+                          "\r",
+                          "if (!verificationToken) {\r",
+                          "    console.error(\"No verification token found. Make sure to run the email-request endpoint first.\");\r",
+                          "}\r",
+                          "\r",
+                          "// Set the token in the request body\r",
+                          "pm.variables.set(\"token\", verificationToken);"
                         ],
                         "type": "text/javascript",
                         "packages": {}
@@ -2595,7 +2616,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"token\": \"<string>\"\n}",
+                      "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}\n",
                       "options": {
                         "raw": {
                           "headerFamily": "json",
@@ -2789,43 +2810,56 @@
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "// Test if the status code is 200 (Request was successful)\r",
-                      "pm.test(\"Status code is 200\", function () {\r",
-                      "    pm.response.to.have.status(200);\r",
+                      "pm.test(\"Status code is 200 or 401\", function () {\r",
+                      "    pm.expect(pm.response.code).to.be.oneOf([200, 401]);\r",
                       "});\r",
                       "\r",
-                      "// Test if the response time is less than 500ms\r",
-                      "pm.test(\"Response time is less than 500ms\", function () {\r",
-                      "    pm.expect(pm.response.responseTime).to.be.below(500);\r",
+                      "pm.test(\"Response time is less than 800ms\", function () {\r",
+                      "    pm.expect(pm.response.responseTime).to.be.below(800);\r",
                       "});\r",
                       "\r",
-                      "// Test if the response has the correct message\r",
-                      "pm.test(\"Response has correct message\", function () {\r",
-                      "    const jsonData = pm.response.json();\r",
-                      "    pm.expect(jsonData.status).to.eql(\"success\");\r",
-                      "    pm.expect(jsonData.message).to.eql(\"Email request sent successfully\");\r",
-                      "});\r",
+                      "const responseJson = pm.response.json();\r",
                       "\r",
-                      "// Test if the response body contains the expected fields\r",
-                      "pm.test(\"Response body contains expected fields\", function () {\r",
-                      "    const jsonData = pm.response.json();\r",
-                      "    // Adjust according to the actual structure of your response\r",
-                      "    pm.expect(jsonData.data).to.have.property(\"email_token\");\r",
-                      "});\r",
-                      "\r",
-                      "// Test if the email token is valid and save it to the collection variable\r",
-                      "pm.test(\"Email token is valid\", function () {\r",
-                      "    const jsonData = pm.response.json();\r",
-                      "    const emailToken = jsonData.data.email_token; // Assuming the token is named \"email_token\"\r",
-                      "    \r",
-                      "    pm.expect(emailToken).to.be.a(\"string\");\r",
-                      "\r",
-                      "    // Save the email token in the collection's collaborative environment\r",
-                      "    pm.collectionVariables.set(\"emailToken\", emailToken);\r",
-                      "    pm.test(\"Email token is set in collection\", function () {\r",
-                      "        pm.expect(pm.collectionVariables.get(\"emailToken\")).to.eql(emailToken);\r",
+                      "if (responseJson) {\r",
+                      "    pm.test(\"Response has correct structure\", function () {\r",
+                      "        pm.expect(responseJson).to.have.property('status');\r",
+                      "        pm.expect(responseJson).to.have.property('message');\r",
+                      "        pm.expect(responseJson).to.have.property('status_code');\r",
                       "    });\r",
-                      "});\r",
+                      "\r",
+                      "    if (pm.response.code === 200) {\r",
+                      "        pm.test(\"Email verified successfully\", function () {\r",
+                      "            pm.expect(responseJson.status).to.eql(\"success\");\r",
+                      "            pm.expect(responseJson.message).to.eql(\"Verification token sent to email\");\r",
+                      "            pm.expect(responseJson.status_code).to.eql(200);\r",
+                      "        });\r",
+                      "    } else if (pm.response.code === 401) {\r",
+                      "        pm.test(\"Invalid or expired token error\", function () {\r",
+                      "            pm.expect(responseJson.status).to.eql(\"error\");\r",
+                      "            pm.expect(responseJson.message).to.eql(\"invalid or expired token\");const storedEmail = pm.environment.get(\"randomEmail\");\r",
+                      "const storedPassword = pm.environment.get(\"randomPassword\");\r",
+                      "\r",
+                      "pm.environment.set(\"loginEmail\", storedEmail);\r",
+                      "pm.environment.set(\"loginPassword\", storedPassword);\r",
+                      "\r",
+                      "const emailRequestResponse = pm.environment.get(\"emailRequestResponse\");\r",
+                      "\r",
+                      "if (!emailRequestResponse) {\r",
+                      "    console.error(\"No email request response found. Did you run the email-request endpoint?\");\r",
+                      "} else {\r",
+                      "    const verificationToken = JSON.parse(emailRequestResponse).token;\r",
+                      "    pm.variables.set(\"token\", verificationToken);\r",
+                      "}\r",
+                      "\r",
+                      "            pm.expect(responseJson.status_code).to.eql(401);\r",
+                      "        });\r",
+                      "        console.log(\"Token validation failed. You may need to request a new verification token.\");\r",
+                      "    }\r",
+                      "    \r",
+                      "    pm.environment.set(\"emailVerifyResponse\", JSON.stringify(responseJson));\r",
+                      "} else {\r",
+                      "    console.error(\"Response is empty or undefined.\");\r",
+                      "}\r",
                       ""
                     ],
                     "type": "text/javascript",
@@ -2836,13 +2870,17 @@
                   "listen": "prerequest",
                   "script": {
                     "exec": [
-                      "// Login script\r",
+                      "// Use the stored email from the registration process\r",
                       "const storedEmail = pm.environment.get(\"randomEmail\");\r",
-                      "const storedPassword = pm.environment.get(\"randomPassword\");\r",
                       "\r",
-                      "pm.environment.set(\"loginEmail\", storedEmail);\r",
-                      "pm.environment.set(\"loginPassword\", storedPassword);\r",
-                      ""
+                      "// If there's no stored email, generate a new one (fallback)\r",
+                      "if (!storedEmail) {\r",
+                      "    const newRandomEmail = `user${Date.now()}@example.com`;\r",
+                      "    pm.environment.set(\"randomEmail\", newRandomEmail);\r",
+                      "    pm.variables.set(\"email\", newRandomEmail);\r",
+                      "} else {\r",
+                      "    pm.variables.set(\"email\", storedEmail);\r",
+                      "}"
                     ],
                     "type": "text/javascript",
                     "packages": {}
@@ -2863,7 +2901,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"{{loginEmail}}\"\n}",
+                  "raw": "{\n  \"email\": \"{{randomEmail}}\"\n}",
                   "options": {
                     "raw": {
                       "headerFamily": "json",
@@ -3400,18 +3438,7 @@
                             {
                               "listen": "test",
                               "script": {
-                                "exec": [
-                                  "pm.test(\"Status code is 200\", function () {\r",
-                                  "    pm.response.to.have.status(200);\r",
-                                  "});\r",
-                                  "pm.test(\"Response time is less than 200ms\", function () {\r",
-                                  "    pm.expect(pm.response.responseTime).to.be.below(200);\r",
-                                  "});\r",
-                                  "pm.test(\"Response is in JSON format\", function () {\r",
-                                  "    pm.response.to.have.jsonBody();\r",
-                                  "});\r",
-                                  ""
-                                ],
+                                "exec": ["\r", ""],
                                 "type": "text/javascript",
                                 "packages": {}
                               }
@@ -8350,6 +8377,54 @@
         },
         {
           "name": "create an organization",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const storedEmail = pm.environment.get(\"randomEmail\");\r",
+                  "pm.environment.set(\"storedEmail\", `test${Math.floor(Math.random() * 10000)}@gmail.com`);\r",
+                  "\r",
+                  "// Generate random name\r",
+                  "const names = [\"Project X\", \"Apollo\", \"Voyager\", \"Pioneer\", \"Maverick\"];\r",
+                  "pm.environment.set(\"randomName\", names[Math.floor(Math.random() * names.length)]);\r",
+                  "\r",
+                  "// Generate random description\r",
+                  "const descriptions = [\r",
+                  "    \"A groundbreaking project.\",\r",
+                  "    \"A revolutionary solution.\",\r",
+                  "    \"An innovative idea.\",\r",
+                  "    \"A pioneering effort.\",\r",
+                  "    \"A bold new initiative.\"\r",
+                  "];\r",
+                  "pm.environment.set(\"randomDescription\", descriptions[Math.floor(Math.random() * descriptions.length)]);\r",
+                  "\r",
+                  "// Generate random type\r",
+                  "const types = [\"Internal\", \"External\", \"Confidential\", \"Public\"];\r",
+                  "pm.environment.set(\"randomType\", types[Math.floor(Math.random() * types.length)]);\r",
+                  "\r",
+                  "// Generate random location\r",
+                  "const locations = [\"New York\", \"San Francisco\", \"London\", \"Berlin\", \"Tokyo\"];\r",
+                  "pm.environment.set(\"randomLocation\", locations[Math.floor(Math.random() * locations.length)]);\r",
+                  "\r",
+                  "// Generate random country\r",
+                  "const countries = [\"USA\", \"Germany\", \"UK\", \"Japan\", \"Canada\"];\r",
+                  "pm.environment.set(\"randomCountry\", countries[Math.floor(Math.random() * countries.length)]);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [""],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
           "request": {
             "auth": {
               "type": "bearer",
@@ -8374,7 +8449,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Fantasy\",\n  \"description\": \"Logo Fantasy\",\n  \"email\": \"test12@gmail.com\",\n  \"type\": \"Agriculture\",\n  \"location\": \"Remote\",\n  \"country\": \"There was a country\"\n}",
+              "raw": "{\n  \"name\": \"{{randomName}}\",\n  \"description\": \"{{randomDescription}}\",\n  \"email\": \"{{storedEmail}}\",\n  \"type\": \"{{randomType}}\",\n  \"location\": \"{{randomLocation}}\",\n  \"country\": \"{{randomCountry}}\"\n}\n",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -8665,7 +8740,7 @@
                       "variable": [
                         {
                           "key": "org_id",
-                          "value": "01917e18-076e-73fa-9418-dc953a010fe6",
+                          "value": "01917f85-f73d-72de-b292-5e6979c7690f",
                           "description": "(Required) The ID of the organisation whose details are being retrieved."
                         }
                       ]

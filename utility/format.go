@@ -177,3 +177,11 @@ func GetConstants(pkgImportPath string) (map[string]string, error) {
 
 	return constants, nil
 }
+
+func ThisOrThat(param1, param2 string) string {
+	if param1 != "" {
+		return param1
+	}
+
+	return param2
+}

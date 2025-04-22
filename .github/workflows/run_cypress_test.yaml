@@ -1,0 +1,52 @@
+name: Run Cypress Tests Every 15 Minutes
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #  - cron: '*/15 * * * *' # Every 15 minutes
+
+jobs:
+  run-e2e-tests:
+    runs-on: self-hosted
+    env:
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: Create Cypress env
+        run: |
+          cd cypress_tests
+          echo '{"baseUrl":"${{ vars.CYPRESS_BASE_API_URL }}","baseURL":"${{ vars.CYPRESS_BASE_API_URL }}"}' > cypress.env.json
+
+      - name: Install project dependencies
+        run: |
+          cd cypress_tests
+          npm install
+
+      - name: Run Cypress tests
+        continue-on-error: true
+        run: |
+          cd cypress_tests
+          xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' npx cypress run --e2e --reporter cypress-mochawesome-reporter
+
+      - name: Move report html to root directory
+        run: |
+          cp cypress_tests/cypress/reports/html/index.html index.html
+
+      - name: Copy artifacts
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          key: ${{ env.SSH_KEY }}
+          source: "index.html"
+          target: "/var/www/html/cypress-report/"

@@ -3,7 +3,6 @@ package webhook
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -23,7 +22,7 @@ func CreateWebhook(req models.CreateWebhookRequest, db *gorm.DB) (models.Webhook
 		Status:    "active",
 	}
 
-	slug := strings.Split(webhook.ID, "-")[4]
+	slug := req.ChannelID
 	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
@@ -124,14 +123,17 @@ func GetWebhookHistory(req models.GetWebhookHistoryRequest, c *gin.Context, db *
 
 }
 
-func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId string) (models.Webhook, int, error) {
+func GetChannelWebhook(db *gorm.DB, c *gin.Context, channelId, userId string) (models.Webhook, int, error) {
 
 	var (
 		resp     models.Webhook
 		webhooks models.Webhook
+		chanReq  models.ChannelInfo
 	)
+	chanReq.ChannelID = channelId
+	chanReq.UserID = userId
 
-	resp, err := webhooks.GetChannelWebhook(db, channelId)
+	resp, err := webhooks.GetChannelWebhook(db, chanReq)
 
 	if err != nil {
 		return resp, http.StatusBadRequest, err

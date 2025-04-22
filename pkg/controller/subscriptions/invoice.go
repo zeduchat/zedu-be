@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/services/subscription"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -12,15 +13,18 @@ func (base *Controller) DownloadInvoice(ctx *gin.Context) {
 
 	var (
 		sessionID = ctx.Param("session_id")
-		userID    = ctx.Param("user_id")
+		orgID     = ctx.Param("org_id")
 	)
 
-	err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, userID)
+	resp, err := subscription.DownloadInvoice(sessionID, ctx, base.Db.Postgresql, base.Db.Redis, orgID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)
-		base.Logger.Error(err)
-		ctx.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		base.Logger.Error("An error occured while fetching invoice: %v", err)
+		ctx.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
+	base.Logger.Info("invoiced retrived")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Invoiced retrived successfully", resp)
+	ctx.JSON(http.StatusOK, rd)
 }
