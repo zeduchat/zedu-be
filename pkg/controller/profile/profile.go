@@ -34,12 +34,18 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	memberID := c.Param("user_id")
-	if memberID == "" {
-		memberID = userId
+	if memberID != "" {
+		code, err := profile.IsSameOrganization(base.Db.Postgresql, userId, memberID)
+		if err != nil {
+			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+			c.JSON(code, rd)
+			return
+		}
 	}
 
-	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, memberID)
+	memberID = userId
 
+	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, memberID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to Fetch user profile", err, nil)
 		c.JSON(code, rd)
