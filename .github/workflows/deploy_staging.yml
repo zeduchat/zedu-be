@@ -14,7 +14,7 @@ jobs:
       SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
       SSH_PASSWORD: ${{ secrets.TELEX_SERVER_SSH_PASSWORD }}
       BRANCH: staging
-      APP_DIR: /var/www/telex_staging
+      APP_DIR: /var/www/telex_be_staging
       APP_BINARY: telexbe_staging
       SUPERVISOR_PROCESS: telexbe_staging
     steps:
