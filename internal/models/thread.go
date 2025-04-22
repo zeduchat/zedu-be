@@ -216,6 +216,7 @@ type FeedMessageRequest struct {
 	UserId    string                 `json:"user_id"`
 	Media     []UploadedFileResponse `json:"media"`
 	UserType  string                 `json:"user_type"`
+	Id        string                 `json:"id"`
 }
 
 type Mentions struct {

@@ -109,6 +109,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		OrgId:     req.OrgId,
 		UserId:    req.UserId,
 		Media:     req.Media,
+		Id:        messageDoc.ID,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -220,7 +221,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		OrgId:     req.OrgId,
 		UserId:    req.UserId,
 		Media:     newMsg.Media,
-		MessageId: req.MessageId,
+		Id:        req.MessageId,
 	}
 
 	notification := models.Notification[models.Updated]
