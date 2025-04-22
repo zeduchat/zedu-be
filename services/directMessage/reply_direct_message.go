@@ -79,6 +79,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		ChannelID: req.ChannelsId,
 		UserName:  profile.UserName,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt: messageDoc.UpdatedAt.String(),
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
@@ -89,6 +90,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		UserType:  "user",
 		UserId:    req.UserId,
 		Media:     req.Media,
+		Id:        messageDoc.ID,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
