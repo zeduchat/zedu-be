@@ -206,6 +206,7 @@ type FeedMessageRequest struct {
 	FullName  string                 `json:"full_name"`
 	UserName  string                 `json:"username"`
 	CreatedAt string                 `json:"created_at"`
+	UpdatedAt string                 `json:"updated_at"`
 	Email     string                 `json:"email"`
 	AvatarURL string                 `json:"avatar_url,omitempty"`
 	MessageId string                 `json:"message_id,omitempty"`

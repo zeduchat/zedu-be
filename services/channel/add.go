@@ -98,6 +98,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelsId,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt: messageDoc.UpdatedAt.String(),
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
@@ -209,7 +210,8 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelsId,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		CreatedAt: newMsg.CreatedAt.String(),
+		UpdatedAt: newMsg.UpdatedAt.String(),
 		AvatarURL: user.Profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
