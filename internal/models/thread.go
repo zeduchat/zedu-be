@@ -545,7 +545,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid thread uuid supplied")
+		return nil, fmt.Errorf("invalid thread uuid supplied: %v", err)
 	}
 
 	return c, nil
@@ -564,12 +564,12 @@ func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+		return nil, fmt.Errorf("failed to delete channel messages, err: %v", err)
 	}
 
-	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
+	err = elastic.DeleteByQuery(storage.DB.Elastic, ThreadIndexName, query)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid thread uuid supplied")
+		return nil, fmt.Errorf("invalid channel uuid supplied: %v", err)
 	}
 
 	return c, nil
