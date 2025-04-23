@@ -18,8 +18,6 @@ import (
 func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string) (models.Channels, int, error) {
 	var (
 		joinChannelsReq models.JoinChannelsRequest
-		orgAgent        []models.OrganisationIntegrations
-		orgChanAgent    models.OrganisationChannelsIntegrations
 		chans           models.Channels
 	)
 
@@ -68,26 +66,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 		return newchannel, http.StatusBadRequest, err
 	}
 
-	err = postgresql.SelectAllFromDb(db, "", &orgAgent, "org_id = ? AND is_active = ?", channel.OrganisationID, true)
-	if err != nil {
-		return newchannel, http.StatusBadRequest, err
-	}
-
-	for _, agent := range orgAgent {
-		orgChanAgent = models.OrganisationChannelsIntegrations{
-			ID:            utility.GenerateUUID(),
-			ChannelID:     channel.ID,
-			IntegrationID: agent.IntegrationID,
-			OrgID:         channel.OrganisationID,
-			IsActive:      false,
-		}
-
-		err = orgChanAgent.CreateOrganisationChannelIntegration(db)
-		if err != nil {
-			return newchannel, http.StatusBadRequest, err
-		}
-
-	}
 	return newchannel, http.StatusOK, nil
 }
 

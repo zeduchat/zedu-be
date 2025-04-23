@@ -459,12 +459,7 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 			userChanList = append(userChanList, newUserChannels)
 		}
 	}
-	fmt.Println(userChanList)
-
-	if len(userChanList) == 0 {
-		return errors.New("no user added to channel. All users already in channel")
-	}
-
+	
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
 		return fmt.Errorf("could not add users to channel: %v", err)
