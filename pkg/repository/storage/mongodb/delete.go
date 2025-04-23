@@ -36,16 +36,3 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 
 	return deletedCount, err
 }
-
-func DeleteCollection(db *mongo.Client, collection string) error {
-	databaseName := config.Config.MongoDB.DB_Name
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	err := db.Database(databaseName).Collection(collection).Drop(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}

@@ -31,13 +31,13 @@ func FetchMongoAgentIDs(c *gin.Context) (models.IDS, error) {
 	return ids, nil
 }
 
-func CreateCollection(db *mongo.Client, collection string) error {
-	if collection == "" {
+func CreateCollection(db *mongo.Client, collection_name string) error {
+	if collection_name == "" {
 		return fmt.Errorf("collection name cannot be empty")
 	}
 
 	// Call the storage layer
-	err := models.CreateCollection(db, collection)
+	err := models.CreateCollection(db, collection_name)
 	if err != nil {
 		return err
 	}
@@ -77,9 +77,9 @@ func ListCollections(db *mongo.Client, prefix string) ([]string, error) {
 	return collections, nil
 }
 
-func DeleteCollection(db *mongo.Client, collection string) error {
+func DeleteCollection(db *mongo.Client,ids models.IDS, full_collection_name string) error {
 	// Call the storage layer
-	err := models.DeleteCollection(db, collection)
+	err := models.DeleteCollection(db, ids, full_collection_name)
 	if err != nil {
 		return err
 	}
@@ -146,3 +146,4 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 
 	return deletedCount, nil
 }
+

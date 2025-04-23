@@ -7,13 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"go.mongodb.org/mongo-driver/mongo"
-
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/mongogrations"
 	"github.com/hngprojects/telex_be/utility"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Controller struct {
@@ -24,9 +23,11 @@ type Controller struct {
 }
 
 func (base *Controller) CreateCollection(c *gin.Context) {
+
 	var req models.CreateMongoCollectionRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Failed to bind JSON", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -34,7 +35,7 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
-		base.Logger.Info("validation failed")
+		base.Logger.Info("Validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
 			"Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -49,7 +50,7 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 		return
 	}
 
-	collection_name := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, req.Collection)
+	collection_name := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, req.CollectionName)
 
 	err = mongogrations.CreateCollection(base.Db.Mongo, collection_name)
 	if err != nil {
@@ -58,7 +59,7 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Collection %s created successfully", req.Collection), nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Collection %s created successfully", req.CollectionName), nil)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -101,6 +102,13 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 	}
 
 	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
+
+	err = utility.ValidateDocument(req.Document)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error encountered while validating document fields", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	// Call the service layer
 	err = mongogrations.CreateEntry(base.Db.Mongo, fullCollectionName, req.Document)
@@ -154,7 +162,7 @@ func (base *Controller) DeleteCollection(c *gin.Context) {
 
 	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
 
-	err = mongogrations.DeleteCollection(base.Db.Mongo, fullCollectionName)
+	err = mongogrations.DeleteCollection(base.Db.Mongo, ids, fullCollectionName)
 	if err != nil {
 		base.Logger.Error("Failed to delete collection", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to delete collection", err.Error(), nil)
@@ -253,7 +261,7 @@ func (base *Controller) GetDocument(c *gin.Context) {
 			c.JSON(http.StatusNotFound, utility.BuildErrorResponse(http.StatusNotFound, "error", "Document not found", err.Error(), nil))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to retrieve document", err.Error(), nil))
+		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to retrieve document", err.Error(), nil))
 		return
 	}
 
@@ -303,16 +311,11 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 
 	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
 
-	if len(req.Document) == 0 {
-		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "Update document cannot be empty", nil, nil))
+	err = utility.ValidateDocument(req.Document)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error encountered while validating document fields", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
-	}
-
-	for key, value := range req.Document {
-		if str, ok := value.(string); ok && str == "" {
-			c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", fmt.Sprintf("Field '%s' cannot be an empty string", key), nil, nil))
-			return
-		}
 	}
 
 	// Call the service layer

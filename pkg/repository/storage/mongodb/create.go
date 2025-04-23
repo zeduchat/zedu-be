@@ -24,17 +24,6 @@ func CreateEntry(db *mongo.Client, collection string, document interface{}) erro
 	return nil
 }
 
-func CreateCollection(db *mongo.Client, collection string) error {
-	databaseName := config.Config.MongoDB.DB_Name
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	err := db.Database(databaseName).CreateCollection(ctx, collection)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func ListCollections(db *mongo.Client, prefix string) ([]string, error) {
 	databaseName := config.Config.MongoDB.DB_Name

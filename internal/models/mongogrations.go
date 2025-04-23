@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -11,14 +12,21 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+type SchemaField struct {
+    Type       string                    `bson:"type" validate:"required,oneof=string number boolean array object"`
+    Required   bool                      `bson:"required"`
+    AllowEmpty bool                      `bson:"allow_empty"` // For strings
+    Fields     map[string]SchemaField    `bson:"fields,omitempty"` // For nested objects
+}
+
+
+type CreateMongoCollectionRequest struct {
+	CollectionName string                    `json:"collection" validate:"required"`
+	Schema     map[string]SchemaField    `json:"schema"`
+}
 type CreateMongoRequest struct {
 	Document map[string]interface{} `json:"document" validate:"required"`
 }
-
-type CreateMongoCollectionRequest struct {
-	Collection string `json:"collection" validate:"required"`
-}
-
 type ReadMongoRequest struct {
 	Filter map[string]interface{} `json:"filter"`
 }
@@ -49,7 +57,7 @@ func GetDocumentByID(db *mongo.Client, collectionName string, document_id string
 	var result bson.M
 	objectID, err := primitive.ObjectIDFromHex(document_id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid ObjectID: %v", err)
 	}
 	databaseName := config.Config.MongoDB.DB_Name
 
@@ -72,10 +80,12 @@ func CreateEntry(db *mongo.Client, collection string, document map[string]interf
 	return nil
 }
 
-func DeleteCollection(db *mongo.Client, collection string) error {
+func DeleteCollection(db *mongo.Client, ids IDS, full_collection_name string) error {
+	databaseName := config.Config.MongoDB.DB_Name
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 
-	// Call the storage layer
-	err := mongodb.DeleteCollection(db, collection)
+	err := db.Database(databaseName).Collection(full_collection_name).Drop(ctx)
 	if err != nil {
 		return err
 	}
@@ -85,12 +95,14 @@ func DeleteCollection(db *mongo.Client, collection string) error {
 
 func CreateCollection(db *mongo.Client, collection string) error {
 
-	// Call the storage layer
-	err := mongodb.CreateCollection(db, collection)
+	databaseName := config.Config.MongoDB.DB_Name
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	err := db.Database(databaseName).CreateCollection(ctx, collection)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
