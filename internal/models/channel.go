@@ -46,6 +46,14 @@ type UserChannels struct {
 	DeletedAt    time.Time `gorm:"index" json:"deleted_at"`
 }
 
+type UserChannelNotificationPref struct {
+	ChannelsID string `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
+	UserID     string `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
+	Muted      bool   `gorm:"type:boolean"`
+	AtMentions bool   `gorm:"type:boolean"`
+	AtChannel  bool   `gorm:"type:boolean"`
+}
+
 type UpdateLastRead struct {
 	LastThreadId string    `json:"last_thread_id,omitempty"`
 	LastReadAt   time.Time `json:"last_read_at,omitempty"`
