@@ -20,11 +20,11 @@ import (
 // Reply message fn (in dm / group_dm)
 func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database, logger *utility.Logger) (*models.MessageDocument, int, error) {
 	var (
-		profile    models.Profile
-		user       models.User
-		channel    models.DmChannels
-		channelIDs []string
-		chanParts  []models.ChannelParticipant
+		profile   models.Profile
+		user      models.User
+		channel   models.DmChannels
+		userIDs   []string
+		chanParts []models.ChannelParticipant
 	)
 
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -79,6 +79,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		ChannelID: req.ChannelsId,
 		UserName:  profile.UserName,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt: messageDoc.UpdatedAt.String(),
 		AvatarURL: profile.AvatarURL,
 		Type:      "message",
 		Content:   req.Content,
@@ -89,6 +90,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		UserType:  "user",
 		UserId:    req.UserId,
 		Media:     req.Media,
+		Id:        messageDoc.ID,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -102,13 +104,30 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 	notification.Content = feed
 	notification.UpdateChange = updateResp
 
-	username := ""
-	if profile.UserName != "" {
-		username = profile.UserName
-	} else if profile.FullName != "" {
-		username = profile.FullName
-	} else {
-		username = user.Email
+	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
+	// Handle DM-specific case
+	if channel.ChannelType == "dm" {
+		err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
+		if err != nil {
+			logger.Error("Error Publishing to participant id: %s, error: %v", channel.ParticipantId, err.Error())
+			return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
+		}
+
+		pushReq := models.PushFCMRequest{
+			ChannelName: username,
+			UserId:      *channel.ParticipantId,
+			Message:     req.Content,
+			TimeStamp:   messageDoc.CreatedAt.String(),
+			AvatarUrl:   profile.AvatarURL,
+		}
+
+		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
+		}
+
+		return &messageDoc, http.StatusCreated, nil
 	}
 
 	err = postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id = ?", channel.ChannelId)
@@ -118,54 +137,30 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 
 	for _, participant := range chanParts {
 		if participant.UserId != req.UserId {
-			channelIDs = append(channelIDs, participant.UserId)
+			userIDs = append(userIDs, participant.UserId)
 		}
-	}
-
-	// Handle DM-specific case
-	if channel.ChannelType == "dm" && len(channelIDs) == 1 {
-		err = centrifuge.PublishChannel(logger, channelIDs[0], notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", channelIDs[0], err.Error()))
-			return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
-		}
-
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserId:      channelIDs[0],
-			Message:     req.Content,
-			TimeStamp:   messageDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", channelIDs[0], err))
-		}
-
-		return &messageDoc, http.StatusCreated, nil
 	}
 
 	// Handle group DM case
-	if len(channelIDs) > 0 {
+	if len(userIDs) > 0 {
 		// Broadcast to all participants
-		err = centrifuge.BatchBroadcastToChannel(logger, channelIDs, notification)
+		err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
 		if err != nil {
-			logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", channelIDs, err.Error()))
+			logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", userIDs, err.Error()))
 			return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
 		}
 
 		// Send push notifications to all participants using the sender's username
-		for _, userID := range channelIDs {
+		for _, userID := range userIDs {
 			pushReq := models.PushFCMRequest{
 				ChannelName: username,
-				UserId:      userID,
+				UserIds:      userIDs,
 				Message:     req.Content,
 				TimeStamp:   messageDoc.CreatedAt.String(),
 				AvatarUrl:   profile.AvatarURL,
 			}
 
-			err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
+			err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
 			if err != nil {
 				logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", userID, err))
 			}

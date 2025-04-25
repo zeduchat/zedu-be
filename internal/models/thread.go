@@ -206,6 +206,7 @@ type FeedMessageRequest struct {
 	FullName  string                 `json:"full_name"`
 	UserName  string                 `json:"username"`
 	CreatedAt string                 `json:"created_at"`
+	UpdatedAt string                 `json:"updated_at"`
 	Email     string                 `json:"email"`
 	AvatarURL string                 `json:"avatar_url,omitempty"`
 	MessageId string                 `json:"message_id,omitempty"`
@@ -216,6 +217,7 @@ type FeedMessageRequest struct {
 	UserId    string                 `json:"user_id"`
 	Media     []UploadedFileResponse `json:"media"`
 	UserType  string                 `json:"user_type"`
+	Id        string                 `json:"id"`
 }
 
 type Mentions struct {
@@ -543,7 +545,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid thread uuid supplied")
+		return nil, fmt.Errorf("invalid thread uuid supplied: %v", err)
 	}
 
 	return c, nil
@@ -562,12 +564,12 @@ func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
+		return nil, fmt.Errorf("failed to delete channel messages, err: %v", err)
 	}
 
-	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
+	err = elastic.DeleteByQuery(storage.DB.Elastic, ThreadIndexName, query)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid thread uuid supplied")
+		return nil, fmt.Errorf("invalid channel uuid supplied: %v", err)
 	}
 
 	return c, nil

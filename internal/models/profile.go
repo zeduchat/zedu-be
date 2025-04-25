@@ -113,41 +113,30 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 }
 
 func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {
-	var (
-		profileUpdates, userProfile Profile
-	)
-
-	if req.ClearStatus {
-		profileUpdates = Profile{
-			Icon:          "",
-			Text:          "",
-			StatusTimeout: "",
-		}
-	} else {
-		profileUpdates = Profile{
-			Icon:              req.Icon,
-			Text:              req.Text,
-			PauseNotification: req.PauseNotification,
-			StatusTimeout:     req.StatusTimeout,
-		}
-	}
 
 	query := "userid = ?"
 
-	exist := postgresql.CheckExists(db, &userProfile, query, req.UserId)
+	exist := postgresql.CheckExists(db, &j, query, req.UserId)
 	if !exist {
 		return errors.New("Profile does not exists")
 	}
 
-	result := db.Model(&Profile{}).
-		Where(query, req.UserId).
-		Updates(profileUpdates)
-
-	if result.Error != nil {
-		return result.Error
+	updates := map[string]interface{}{
+		"pause_notification": req.PauseNotification,
+		"status_timeout":     req.StatusTimeout,
+		"text":               req.Text,
+		"icon":               req.Icon,
 	}
 
-	if result.RowsAffected == 0 {
+	if req.ClearStatus {
+		updates["text"] = ""
+		updates["icon"] = ""
+		updates["status_timeout"] = ""
+	}
+
+	if err := db.Model(&Profile{}).
+		Where(query, req.UserId).
+		Updates(updates).Error; err != nil {
 		return errors.New("failed to update user profile")
 	}
 

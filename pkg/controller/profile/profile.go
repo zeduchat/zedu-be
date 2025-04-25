@@ -23,7 +23,6 @@ type Controller struct {
 }
 
 func (base *Controller) GetUserProfile(c *gin.Context) {
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(400, "error", "Failed to Fetch user profile", "No user found", nil)
@@ -34,8 +33,19 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, userId)
+	memberID := c.Param("user_id")
+	if memberID != "" {
+		code, err := profile.IsSameOrganization(base.Db.Postgresql, userId, memberID)
+		if err != nil {
+			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+			c.JSON(code, rd)
+			return
+		}
+	}
 
+	memberID = userId
+
+	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, memberID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to Fetch user profile", err, nil)
 		c.JSON(code, rd)

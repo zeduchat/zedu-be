@@ -5306,7 +5306,7 @@ paths:
     get:
       tags:
         - Profile
-      summary: get user profile
+      summary: Get user profile
       security:
         - bearerAuth: []
       responses:
@@ -5393,6 +5393,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+  /profile/{user_id}:
+    get:
+      tags:
+        - Profile
+      summary: Get user profile by user ID
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (e.g, 019142c8-5408-7a48-8173-f31e6c8e00cd)
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User profile retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      schema:
+                        $ref: "#/components/schemas/ProfileResponseSchema"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    
   /profile/image:
     delete:
       tags:
