@@ -537,12 +537,14 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 		},
 	}
 
+	//deletes messages(replies to a thread)
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
 	}
 
+	//deletes thread
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid thread uuid supplied: %v", err)
