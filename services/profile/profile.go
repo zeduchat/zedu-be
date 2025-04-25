@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,6 +26,28 @@ func GetUserProfile(db *gorm.DB, userID string) (*models.ProfileSummary, int, er
 	profileSummary := constructProfileSummary(userProfile)
 
 	return profileSummary, http.StatusOK, nil
+}
+
+func IsSameOrganization(db *gorm.DB, reqUserID string, targetUserID string) (int, error) {
+	var user models.User
+	var org models.Organisation
+
+	userProfile, err := user.GetUserByID(db, reqUserID)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	
+	currentOrgID := (userProfile.CurrentOrg).String()
+
+	isMember, err := org.CheckUserIsMemberOfOrg(targetUserID, currentOrgID, db)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+	if !isMember {
+		return http.StatusBadRequest, errors.New("user not authorised to retrieve this organisation")
+	}
+
+	return http.StatusOK, nil
 }
 
 func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, error) {

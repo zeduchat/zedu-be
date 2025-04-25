@@ -21,6 +21,7 @@ func Profile(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	{
 		profileUrl.POST("/change-status", userProfile.ChangeProfileStatus)
 		profileUrl.GET("", userProfile.GetUserProfile)
+		profileUrl.GET("/:user_id", userProfile.GetUserProfile)
 		profileUrl.PATCH("", middleware.CheckIsDeactivated(db.Postgresql), userProfile.UpdateProfile)
 		profileUrl.DELETE("/image", userProfile.DeleteUserProfileImage)
 	}
