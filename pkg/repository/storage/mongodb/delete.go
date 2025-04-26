@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) {
+func DeleteDocument(db *mongo.Client, collection string, id string) (int64, error) {
 
 	databaseName := config.Config.MongoDB.DB_Name
 

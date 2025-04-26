@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func UpdateEntry(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
+func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
 
 	databaseName := config.Config.MongoDB.DB_Name
 	dbCollection := db.Database(databaseName).Collection(collection)

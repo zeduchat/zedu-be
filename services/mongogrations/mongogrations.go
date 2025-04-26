@@ -31,13 +31,15 @@ func FetchMongoAgentIDs(c *gin.Context) (models.IDS, error) {
 	return ids, nil
 }
 
-func CreateCollection(db *mongo.Client, collection_name string) error {
+func CreateCollection(db *mongo.Client, collection_name string, ids models.IDS) error {
 	if collection_name == "" {
 		return fmt.Errorf("collection name cannot be empty")
 	}
 
+	mongo_collection_name := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
+
 	// Call the storage layer
-	err := models.CreateCollection(db, collection_name)
+	err := models.CreateCollection(db, mongo_collection_name, ids)
 	if err != nil {
 		return err
 	}
@@ -45,17 +47,16 @@ func CreateCollection(db *mongo.Client, collection_name string) error {
 	return nil
 }
 
-func CreateEntry(db *mongo.Client, collection string, document map[string]interface{}) error {
-	if collection == "" {
-		return fmt.Errorf("collection cannot be empty")
-	}
-
+func CreateDocument(db *mongo.Client, collection string, document map[string]interface{}, ids models.IDS) error {
 	if len(document) == 0 {
 		return fmt.Errorf("document cannot be empty")
 	}
 
+	document["agent_id"] = ids.AgentID
+	document["organisation_id"] = ids.OrganisationID
+
 	// Call the storage layer
-	err := models.CreateEntry(db, collection, document)
+	err := models.CreateDocument(db, collection, document)
 	if err != nil {
 		return err
 	}
@@ -63,37 +64,16 @@ func CreateEntry(db *mongo.Client, collection string, document map[string]interf
 	return nil
 }
 
-func ListCollections(db *mongo.Client, prefix string) ([]string, error) {
-	if prefix == "" {
-		return nil, fmt.Errorf("collection name prefix cannot be empty")
-	}
-
-	// Call the storage layer
-	collections, err := models.ListCollections(db, prefix)
-	if err != nil {
-		return nil, err
-	}
-
-	return collections, nil
-}
-
-func DeleteCollection(db *mongo.Client,ids models.IDS, full_collection_name string) error {
-	// Call the storage layer
-	err := models.DeleteCollection(db, ids, full_collection_name)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func ReadEntries(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
+func GetAllDocuments(db *mongo.Client, collection string, filter map[string]interface{}, ids models.IDS) ([]bson.M, error) {
 	if collection == "" {
 		return nil, fmt.Errorf("collection cannot be empty")
 	}
 
+	filter["agent_id"] = ids.AgentID
+	filter["organisation_id"] = ids.OrganisationID
+
 	// Call the storage layer
-	results, err := models.ReadEntries(db, collection, filter)
+	results, err := models.GetAllDocuments(db, collection, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +91,7 @@ func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, er
 	return document, nil
 }
 
-func UpdateEntry(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
+func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
 	if collection == "" {
 		return fmt.Errorf("collection name is required")
 	}
@@ -121,7 +101,7 @@ func UpdateEntry(db *mongo.Client, collection string, id string, update map[stri
 	}
 
 	// Call the storage layer
-	err := models.UpdateEntry(db, collection, id, update)
+	err := models.UpdateDocument(db, collection, id, update)
 	if err != nil {
 		return err
 	}
@@ -129,7 +109,7 @@ func UpdateEntry(db *mongo.Client, collection string, id string, update map[stri
 	return nil
 }
 
-func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) {
+func DeleteDocument(db *mongo.Client, collection string, id string) (int64, error) {
 	if collection == "" {
 		return 0, fmt.Errorf("collection name is required")
 	}
@@ -139,11 +119,10 @@ func DeleteEntry(db *mongo.Client, collection string, id string) (int64, error) 
 	}
 
 	// Call the storage layer
-	deletedCount, err := models.DeleteEntry(db, collection, id)
+	deletedCount, err := models.DeleteDocument(db, collection, id)
 	if err != nil {
 		return 0, err
 	}
 
 	return deletedCount, nil
 }
-
