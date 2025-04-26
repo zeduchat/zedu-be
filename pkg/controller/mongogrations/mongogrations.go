@@ -57,6 +57,8 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	base.Logger.Info("Collection %s created successfully", req.CollectionName)
 	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Collection %s created successfully", req.CollectionName), nil)
 	c.JSON(http.StatusOK, rd)
 }

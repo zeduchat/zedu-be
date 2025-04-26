@@ -20,7 +20,6 @@ func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Valida
 
 	baseUrl := fmt.Sprintf("%v/agent_db/collections", ApiVersion)
 	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger, &store))
-	// mongogrationsUrl := r.Group(baseUrl)
 
 	{
 		mongogrationsUrl.POST("", mongogrations.CreateCollection)
