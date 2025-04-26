@@ -13983,6 +13983,7 @@ paths:
                   example: true
                 device_type:
                   type: string
+                  format: string
                   enum: [web, mobile, desktop]
                   example: web
       responses:

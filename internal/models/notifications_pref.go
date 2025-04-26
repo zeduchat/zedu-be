@@ -87,13 +87,13 @@ type DeviceNotification struct {
 	AtChannel  bool `json:"at_channel"`
 }
 
-type NotificationPreference map[string]DeviceNotification
-
-type UserChannelNotificationPref struct {
-	ChannelsID  string                 `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
-	UserID      string                 `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	Preferences NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
+type ChannelNotificationInfo struct {
+	ChannelsID  string `json:"channels_id"`
+	ChannelName string `json:"channel_name"`
+	Muted       bool   `json:"muted"`
 }
+
+type NotificationPreference map[string]DeviceNotification
 
 func (n *NotificationPreference) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
@@ -108,15 +108,29 @@ func (n NotificationPreference) Value() (driver.Value, error) {
 }
 
 func (n *DeviceNotificationSettings) UpdateDeviceNotification(db *gorm.DB) (DeviceNotification, int, error) {
-	var pref UserChannelNotificationPref
-	err := db.First(&pref, "channels_id = ? AND user_id = ?", n.ChannelsID, n.UserID).Error
-	if err != nil {
+	var pref UserChannels
+	exist := postgresql.CheckExists(db, &pref, "channels_id = ? AND user_id = ?", n.ChannelsID, n.UserID)
+
+	if !exist {
 		return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("entry does not exist")
 	}
 
-	// Initialize if nil
 	if pref.Preferences == nil {
 		pref.Preferences = make(NotificationPreference)
+
+		deviceSettings := pref.Preferences[n.DeviceType]
+		deviceSettings.AtChannel = n.AtChannel
+		deviceSettings.AtMentions = n.AtMentions
+		deviceSettings.Muted = n.Muted
+
+		pref.Preferences[n.DeviceType] = deviceSettings
+
+		// Save the updated preference
+		if err := db.Save(&pref).Error; err != nil {
+			return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("failed to save entry")
+		}
+
+		return deviceSettings, http.StatusOK, db.Save(&pref).Error
 	}
 
 	deviceSettings := pref.Preferences[n.DeviceType]
@@ -131,24 +145,18 @@ func (n *DeviceNotificationSettings) UpdateDeviceNotification(db *gorm.DB) (Devi
 }
 
 func (n *DeviceNotificationSettings) GetOrCreateDeviceNotification(db *gorm.DB) (DeviceNotification, error) {
-	var pref UserChannelNotificationPref
+	var pref UserChannels
 
-	exist := postgresql.CheckExists(db, pref, "channels_id = ? AND user_id = ?", n.ChannelsID, n.UserID)
+	exist := postgresql.CheckExists(db, &pref, "channels_id = ? AND user_id = ?", n.ChannelsID, n.UserID)
 
 	if !exist {
-		// If not found, create a new preference record
-		pref = UserChannelNotificationPref{
-			ChannelsID:  n.ChannelsID,
-			UserID:      n.UserID,
-			Preferences: NotificationPreference{},
-		}
+		return DeviceNotification{}, fmt.Errorf("entry does not exist")
 	}
 
 	// Initialize if nil
 	if pref.Preferences == nil {
 		pref.Preferences = make(NotificationPreference)
 	}
-
 	// Check if settings for deviceType exist
 	deviceSettings, ok := pref.Preferences[n.DeviceType]
 	if !ok {
@@ -182,21 +190,19 @@ func (c *UserChannels) FetchChannelUsersNotificationPref(db *gorm.DB, logger *ut
 	return userChannel, nil
 }
 
-type ChannelNotificationInfo struct {
-	ChannelsID  string `json:"channels_id"`
-	ChannelName string `json:"channel_name"`
-	Muted       bool   `json:"muted"`
-}
-
 func (n *DeviceNotificationSettings) GetUserChannelsNotificationPrefs(db *gorm.DB, ids map[string]string) ([]ChannelNotificationInfo, error) {
 
-	var result []ChannelNotificationInfo
+	result := []ChannelNotificationInfo{}
 
 	err := db.
-		Table("user_channel_notification_prefs AS ucnp").
-		Select("ucnp.channels_id, c.name AS channel_name, COALESCE((ucnp.preferences->?->>'muted')::boolean, false) AS muted", ids["device_type"]). // You can change "web" dynamically if needed
-		Joins("JOIN channels c ON c.id = ucnp.channels_id").
-		Where("c.organisation_id = ? AND ucnp.user_id = ?", ids["org_id"], ids["user_id"]).
+		Table("user_channels AS uc").
+		Select(`
+			uc.channels_id,
+			c.name AS channel_name,
+			COALESCE((uc.preferences->?->>'muted')::boolean, false) AS muted
+		`, ids["device_type"]).
+		Joins("JOIN channels c ON c.id = uc.channels_id").
+		Where("c.organisation_id = ? AND uc.user_id = ?", ids["org_id"], ids["user_id"]).
 		Scan(&result).Error
 
 	if err != nil {

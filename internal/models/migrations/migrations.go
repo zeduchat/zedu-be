@@ -57,7 +57,6 @@ func AuthMigrationModels() []interface{} {
 		models.IntegrationOutput{},
 		models.IntegrationChannel{},
 		models.FcmTokens{},
-		models.UserChannelNotificationPref{},
 	} // an array of db models, example: User{}
 }
 

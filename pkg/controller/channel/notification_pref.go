@@ -81,10 +81,10 @@ func (base *Controller) GetChannelNotificationPref(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	UserId := userClaims["user_id"].(string)
 
-	DeviceType := c.Param("device_type")
+	DeviceType := c.Query("device_type")
 
 	if valid, msg := ValidateDeviceType(DeviceType); !valid {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid device type", errors.New(msg), nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", msg, errors.New(msg), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -127,10 +127,10 @@ func (base *Controller) GetUserChannelsNotificationPrefs(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	UserId := userClaims["user_id"].(string)
 
-	DeviceType := c.Param("device_type")
+	DeviceType := c.Query("device_type")
 
 	if valid, msg := ValidateDeviceType(DeviceType); !valid {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid device type", errors.New(msg), nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", msg, errors.New(msg), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -165,9 +165,9 @@ func ValidateDeviceType(device string) (bool, string) {
 		return false, "empty device type passed"
 	}
 
-	_, ok := devices[device]
+	exist := devices[device]
 
-	if !ok {
+	if !exist {
 		return false, "invalid device passed, device supported: web, desktop, mobile"
 	}
 
