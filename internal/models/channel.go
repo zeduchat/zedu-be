@@ -35,23 +35,16 @@ type Channels struct {
 }
 
 type UserChannels struct {
-	ChannelsID   string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
-	UserID       string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	Username     string    `gorm:"column:username; type:varchar(100)" json:"username"`
-	CreatedAt    time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
-	ThreadCount  int64     `gorm:"column:thread_count;default:0" json:"thread_count"`
-	LastThreadId string    `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
-	LastReadAt   time.Time `gorm:"column:last_read_at" json:"last_read_at"`
-	MentionCount int64     `gorm:"column:mention_count;default:0" json:"mention_count"`
-	DeletedAt    time.Time `gorm:"index" json:"deleted_at"`
-}
-
-type UserChannelNotificationPref struct {
-	ChannelsID string `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
-	UserID     string `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	Muted      bool   `gorm:"type:boolean"`
-	AtMentions bool   `gorm:"type:boolean"`
-	AtChannel  bool   `gorm:"type:boolean"`
+	ChannelsID       string                      `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
+	UserID           string                      `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
+	Username         string                      `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt        time.Time                   `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	ThreadCount      int64                       `gorm:"column:thread_count;default:0" json:"thread_count"`
+	LastThreadId     string                      `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
+	LastReadAt       time.Time                   `gorm:"column:last_read_at" json:"last_read_at"`
+	MentionCount     int64                       `gorm:"column:mention_count;default:0" json:"mention_count"`
+	DeletedAt        time.Time                   `gorm:"index" json:"deleted_at"`
+	NotificationPref UserChannelNotificationPref `gorm:"foreignKey:ChannelsID,UserID;references:ChannelsID,UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"notification_pref"`
 }
 
 type UpdateLastRead struct {
@@ -798,3 +791,4 @@ func (c *UserChannels) ProcessMentions(db *gorm.DB, req []Mention, mu *sync.Mute
 
 	logger.Info("user last read updated successfully")
 }
+
