@@ -24,7 +24,6 @@ func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Valida
 
 	{
 		mongogrationsUrl.POST("", mongogrations.CreateCollection)
-
 		mongogrationsUrl.POST("/:collection_name/documents", mongogrations.CreateDocument)
 		mongogrationsUrl.GET("/:collection_name/documents", mongogrations.GetAllDocuments)
 		mongogrationsUrl.GET("/:collection_name/documents/:document_id", mongogrations.GetDocument)
