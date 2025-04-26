@@ -9,8 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-
-func ReadEntries(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
+func GetAllDocuments(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
 
 	databaseName := config.Config.MongoDB.DB_Name
 	dbCollection := db.Database(databaseName).Collection(collection)
@@ -20,7 +19,7 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 	// Convert the filter map to bson.M
 	bsonFilter := bson.M(filter)
 	results := []bson.M{}
-	
+
 	cursor, err := dbCollection.Find(ctx, bsonFilter)
 	if err != nil {
 		return results, err
@@ -31,6 +30,5 @@ func ReadEntries(db *mongo.Client, collection string, filter map[string]interfac
 		return results, err
 	}
 
-	
 	return results, nil
 }

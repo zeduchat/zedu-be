@@ -9,6 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -72,6 +73,7 @@ func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB, store *M
 				fmt.Println("✅✅✅ Successfully connected and pinged MongoDB ✅✅✅")
 				store.SetClient(client)
 				storage.DB.Mongo = client // Maintain backward compatibility
+				EnsureAgentCollectionsIndex(logger, client)
 				return
 			}
 		}
@@ -117,4 +119,25 @@ func StartMongoDBConnection(logger *utility.Logger, MongoConfig config.MongoDB) 
 	go MonitorMongoConnection(logger, MongoConfig, store)
 	go ConnectMongoDB(logger, MongoConfig, store)
 	return store
+}
+
+//ensures db level integrity for the creation of unique collections based on agent_id
+func EnsureAgentCollectionsIndex(logger *utility.Logger, db *mongo.Client) error {
+	databaseName := config.Config.MongoDB.DB_Name
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	database := db.Database(databaseName)
+
+	agentCollections := database.Collection("agent_collections")
+	_, err := agentCollections.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.M{"agent_id": 1},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create unique index on agent_id: %v", err)
+	}
+
+	fmt.Println("✅✅✅ Unique index on agent_id created successfully ✅✅✅")
+
+	return nil
 }

@@ -12340,7 +12340,7 @@ paths:
                   message: "Organisation not found"
 
   #mongogrations
-  /mongo-integrations/collections:
+  /agent_db/collections:
     post:
       tags:
         - Agent Database
@@ -12358,31 +12358,8 @@ paths:
       responses:
         200:
           description: Collection created successfully
-  
-    get:
-      tags:
-        - Agent Database
-      summary: List all MongoDB collections
-      responses:
-        200:
-        description: Collections retrieved successfully
 
-  /mongo-integrations/collections/{collection_name}:
-    delete:
-      tags:
-        - Agent Database
-      summary: Delete a MongoDB collection
-      parameters:
-        - in: path
-          name: collection_name
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Collection deleted successfully
-  
-  /mongo-integrations/collections/{collection_name}/documents:
+  /agent_db/collections/{collection_name}/documents:
     post:
       tags:
         - Agent Database
@@ -12431,7 +12408,7 @@ paths:
         200:
           description: Documents retrieved successfully
   
-  /mongo-integrations/collections/{collection_name}/documents/{entry_id}:
+  /agent_db/collections/{collection_name}/documents/{entry_id}:
     get:
       tags:
         - Agent Database
