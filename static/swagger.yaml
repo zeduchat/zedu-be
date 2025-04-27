@@ -12408,7 +12408,7 @@ paths:
         200:
           description: Documents retrieved successfully
   
-  /agent_db/collections/{collection_name}/documents/{entry_id}:
+  /agent_db/collections/{collection_name}/documents/{document_id}:
     get:
       tags:
         - Agent Database
@@ -12462,7 +12462,7 @@ paths:
           schema:
             type: string
         - in: path
-          name: entry_id
+          name: document_id
           required: true
           schema:
             type: string
@@ -12492,7 +12492,7 @@ paths:
           schema:
             type: string
         - in: path
-          name: entry_id
+          name: document_id
           required: true
           schema:
             type: string
