@@ -230,9 +230,9 @@ func (base *Controller) UpdateDocument(c *gin.Context) {
 		return
 	}
 
-	entry_id := c.Param("entry_id")
-	if entry_id == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "entry_id is required", nil, nil)
+	document_id := c.Param("document_id")
+	if document_id == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "document_id is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -262,7 +262,7 @@ func (base *Controller) UpdateDocument(c *gin.Context) {
 	}
 
 	// Call the service layer
-	err = mongogrations.UpdateDocument(base.Db.Mongo, fullCollectionName, entry_id, req.Document)
+	err = mongogrations.UpdateDocument(base.Db.Mongo, fullCollectionName, document_id, req.Document)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -276,9 +276,9 @@ func (base *Controller) UpdateDocument(c *gin.Context) {
 
 func (base *Controller) DeleteDocument(c *gin.Context) {
 
-	entry_id := c.Param("entry_id")
-	if entry_id == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "entry_id is required", nil, nil)
+	document_id := c.Param("document_id")
+	if document_id == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "document_id is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -298,10 +298,10 @@ func (base *Controller) DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	fullCollectionName := fmt.Sprintf("agent_%v_%v",ids.AgentID, collection_name)
+	fullCollectionName := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
 
 	// Call the service layer
-	deletedCount, err := mongogrations.DeleteDocument(base.Db.Mongo, fullCollectionName, entry_id)
+	deletedCount, err := mongogrations.DeleteDocument(base.Db.Mongo, fullCollectionName, document_id)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

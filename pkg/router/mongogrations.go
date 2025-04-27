@@ -26,8 +26,8 @@ func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		mongogrationsUrl.POST("/:collection_name/documents", mongogrations.CreateDocument)
 		mongogrationsUrl.GET("/:collection_name/documents", mongogrations.GetAllDocuments)
 		mongogrationsUrl.GET("/:collection_name/documents/:document_id", mongogrations.GetDocument)
-		mongogrationsUrl.PUT("/:collection_name/documents/:entry_id", mongogrations.UpdateDocument)
-		mongogrationsUrl.DELETE("/:collection_name/documents/:entry_id", mongogrations.DeleteDocument)
+		mongogrationsUrl.PUT("/:collection_name/documents/:document_id", mongogrations.UpdateDocument)
+		mongogrationsUrl.DELETE("/:collection_name/documents/:document_id", mongogrations.DeleteDocument)
 
 	}
 
