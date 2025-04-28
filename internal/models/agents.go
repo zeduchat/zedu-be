@@ -174,18 +174,6 @@ func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 func (oi *OrganisationIntegrations) CreateOrganisationIntegration(db *gorm.DB) error {
 
-	var organisation Organisation
-
-	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", oi.OrgID)
-	if !organisationExists {
-		return errors.New("organisation does not exist")
-	}
-
-	exists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", oi.OrgID, oi.IntegrationID)
-	if exists {
-		return errors.New("organisation integration already exists")
-	}
-
 	err := postgresql.CreateOneRecord(db, &oi)
 	if err != nil {
 		return err

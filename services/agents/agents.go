@@ -390,34 +390,42 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 }
 
 func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
-
 	var (
 		orgIntegration models.OrganisationIntegrations
 		agentSettings  models.CustomIntegrationsSetting
+		organisation   models.Organisation
 	)
 
-	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND json_url = ?", org_id, req.JSONUrl)
+	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", org_id)
+	if !organisationExists {
+		return errors.New("organisation does not exist")
+	}
+
+	agentID, err := utility.GenerateUUIDFromString(req.JSONUrl)
+	if err != nil {
+		return fmt.Errorf("error generating agent ID from JSON URL: %v", err)
+	}
+
+	// Check if the agent already exists in the organization
+	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", org_id, agentID)
 	if exists {
 		return errors.New("organisation already has that agent")
 	}
 
+	// Make the external request to the JSON URL
 	data := map[string]string{"url": req.JSONUrl}
-
 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
-
 	if err != nil {
 		return errors.New("failed to create custom agent, invalid JSON supplied")
 	}
 
 	response_data := response.(map[string]interface{})
 	data_r, ok := response_data["data"].(map[string]interface{})
-
 	if !ok {
-		return errors.New("failed to Create Custom Integration, data field does not exist")
+		return errors.New("failed to create custom integration, data field does not exist")
 	}
 
 	err = models.ValidateAgentData(data_r)
-
 	if err != nil {
 		return err
 	}
@@ -426,15 +434,8 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	if !ok {
 		return errors.New("failed to create custom agent, settings field does not exist")
 	}
-
 	settings_data := map[string]interface{}{"settings": settings}
 
-	agentID, err := utility.GenerateUUIDFromString(req.JSONUrl)
-	if err != nil {
-		return fmt.Errorf("error generating agent ID from JSON URL: %v", err)
-	}
-
-	// create agent in db
 	orgIntegration.OrgID = org_id
 	orgIntegration.JSONUrl = req.JSONUrl
 	orgIntegration.IntegrationID = agentID
@@ -443,30 +444,24 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.ID = utility.GenerateUUID()
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
-
 	if err != nil {
 		return err
 	}
 
 	enc_key := config.Config.Server.EncKey
-
 	api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
-
-	auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
-
-	auth_credentials["telex_api_key"] = api_key
-	settings_data["auth_credentials"] = auth_credentials
-
 	if err != nil {
 		return errors.New("failed to create external API key")
 	}
 
-	// serialize the settings json
+	auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
+	auth_credentials["telex_api_key"] = api_key
+	settings_data["auth_credentials"] = auth_credentials
+
 	settingJsonData, err := json.Marshal(settings_data)
 	if err != nil {
 		return fmt.Errorf("error serializing to JSON: %v", err)
 	}
-
 	serialized_settings := string(settingJsonData)
 
 	agentSettings.ID = utility.GenerateUUID()
@@ -476,7 +471,6 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	agentSettings.IntegrationID = orgIntegration.IntegrationID
 
 	err = agentSettings.CreateIntegrationSettings(db)
-
 	if err != nil {
 		return errors.New("failed to create agent settings")
 	}
