@@ -86,6 +86,8 @@ tags:
     description: API endpoints for searching user query
   - name: Agent Database
     description: API endpoints for agent databases
+  - name: Notification Preferences
+    description: API endpoints for managing notification preferences
 
 paths:
   # Auth paths
@@ -13969,6 +13971,224 @@ paths:
                     example: An unexpected error occurred
                   error:
                     type: object
+
+## Notification Preference routes
+
+
+  /channels/{channel_id}/notification-preference:
+    post:
+      tags:
+      -  Notification Preferences
+      summary: Add or update channel notification preference
+      security:
+        - bearerAuth: []
+      description:  Add or update channel notification preference
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                muted:
+                  type: boolean
+                  example: true
+                at_mentions:
+                  type: boolean
+                  example: true
+                at_channel:
+                  type: boolean
+                  example: true
+                device_type:
+                  type: string
+                  format: string
+                  enum: [web, mobile, desktop]
+                  example: web
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  at_mentions:
+                    type: boolean
+                    example: true
+                  at_channel:
+                    type: boolean
+                    example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+    get:
+      tags:
+      -  Notification Preferences
+      summary: Fetch notification preferences
+      security:
+        - bearerAuth: []
+      description: Fetch notification preferencesa for a channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+        - name: device_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            enum: [web, mobile, desktop]
+            example: web
+          description: device type.
+
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  at_mentions:
+                    type: boolean
+                    example: true
+                  at_channel:
+                    type: boolean
+                    example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+
+  /organisations/{orgId}/channels/notification-preference:
+    get:
+      tags:
+      -  Notification Preferences
+      summary: Fetch notification preferences for channels
+      security:
+        - bearerAuth: []
+      description: Fetch notification preferences for a user organisation channels.
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to fetch channel notification peferences from.
+        - name: device_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            enum: [web, mobile, desktop]
+            example: web
+          description: device type.
+
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  channels_id:
+                    type: string
+                    format: uuid
+                  channel_name:
+                    type: string
+                    example: User Channel
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
 components:
   schemas:

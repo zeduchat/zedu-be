@@ -97,6 +97,9 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)
 
+		//Channels notification prefence
+		organisationUrl.GET("/:org_id/channels/notification-preference", channelCtrl.GetUserChannelsNotificationPrefs)
+
 	}
 
 	// Test routes

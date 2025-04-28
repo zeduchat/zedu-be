@@ -39,7 +39,6 @@ func AuthMigrationModels() []interface{} {
 		models.Invitation{},
 		models.Webhook{},
 		models.HistoryWebhook{},
-		// models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
 		models.HelpCenterCategory{},
@@ -58,8 +57,6 @@ func AuthMigrationModels() []interface{} {
 		models.IntegrationOutput{},
 		models.IntegrationChannel{},
 		models.FcmTokens{},
-		// models.CustomIntegrationsSetting{},
-		// models.DmChannels{},
 	} // an array of db models, example: User{}
 }
 
