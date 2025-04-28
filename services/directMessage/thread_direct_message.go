@@ -297,6 +297,8 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 	dmchannel := models.DmChannels{}
 
 	exists := postgresql.CheckExists(db.Postgresql, &dmchannel, "channel_id = ? AND chat_type = ?", req.ChannelsID, "bot")
+	req.OrgId = dmchannel.OrgId
+	
 	if exists {
 		return sendDMMessageToBot(req, db, logger)
 	}
