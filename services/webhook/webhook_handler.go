@@ -55,6 +55,7 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		ChannelName:   channel.Name,
 		Messages:      []models.MessageDocument{},
 		MessageCount:  0,
+		OrgansationID: channel.OrganisationID,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -76,16 +77,16 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		Content:    req.Message,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, webhook.ChannelId, feed)
+	err = centrifuge.PublishChannel(logger, webhook.ChannelId, feed)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Publishing to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, channel.OrganisationID, feed)
+	err = centrifuge.PublishChannel(logger, channel.OrganisationID, feed)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Publishing to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
 	return resp, http.StatusOK, nil
@@ -120,6 +121,7 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 		ChannelName:   channel.Name,
 		Messages:      []models.MessageDocument{},
 		MessageCount:  0,
+		OrgansationID: channel.OrganisationID,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -141,19 +143,19 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 		Content:    req.Message,
 	}
 
-	err = centrifuge.BroadcastChannel(logger, req.ChannelID, feed)
+	err = centrifuge.PublishChannel(logger, req.ChannelID, feed)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, <: error: %v", req.ChannelID, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Publishing to channelid: %s, <: error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	err = centrifuge.BroadcastChannel(logger, channel.OrganisationID, feed)
+	err = centrifuge.PublishChannel(logger, channel.OrganisationID, feed)
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error Broadcasting to channelid: %s, with orgid: %s <: error: %v", req.ChannelID, channel.OrganisationID, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to broadcast webhook data: " + err.Error())
+		utility.LogAndPrint(logger, fmt.Sprintf("Error Publishing to channelid: %s, with orgid: %s <: error: %v", req.ChannelID, channel.OrganisationID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	(*utility.Logger).Info(logger, fmt.Sprintf("Broadcasting to channelid: %s", req.ChannelID))
+	(*utility.Logger).Info(logger, fmt.Sprintf("Publishing to channelid: %s", req.ChannelID))
 
 	return resp, http.StatusOK, nil
 }

@@ -1,12 +1,15 @@
 package migrations
 
-import "github.com/hngprojects/telex_be/internal/models"
+import (
+	"github.com/hngprojects/telex_be/internal/models"
+)
 
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
 		models.CustomIntegrationsSetting{},
 		models.DmChannels{},
+		models.ChannelParticipant{},
 		models.GeneralInvitation{},
 		models.Group{},
 		models.ChannelIntegrationSettings{},
@@ -32,11 +35,9 @@ func AuthMigrationModels() []interface{} {
 		models.Permission{},
 		models.OrgRole{},
 		models.LoginActivity{},
-		models.Threads{},
 		models.ChannelInvitation{},
 		models.Invitation{},
 		models.Webhook{},
-		models.HistoryWebhook{},
 		models.HistoryWebhook{},
 		models.OrgUserManagement{},
 		models.Mentions{},
@@ -47,15 +48,14 @@ func AuthMigrationModels() []interface{} {
 		models.NotificationPreferences{},
 		models.Plan{},
 		models.OrganisationPlan{},
+		models.UploadedFileResponse{},
 		models.ProcessedStripeWebhook{},
 		models.OptIn{},
 		models.OrganisationIntegrations{},
 		models.OrganisationChannelsIntegrations{},
 		models.SlashCommand{},
-		models.IntegrationChannel{},
 		models.IntegrationOutput{},
-		models.CustomIntegrationsSetting{},
-		models.DmChannels{},
+		models.IntegrationChannel{},
 		models.FcmTokens{},
 	} // an array of db models, example: User{}
 }
@@ -72,7 +72,6 @@ func AlterColumnModels() []AlterColumn {
 		// 	TableName: "org_user_managements",
 		// 	Column: "role_id",
 		// 	Type:  "uuid",
-
 		// },
 	}
 }

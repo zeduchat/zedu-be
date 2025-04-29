@@ -12,7 +12,7 @@ main
 *.rdb
 # Test binary, built with `go test -c`
 *.test
-
+config/
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
@@ -23,6 +23,7 @@ main
 go.work
 go.work.sum
 
+docs/
 logs/
 cronlogs/
 config.yaml
@@ -31,6 +32,8 @@ app.env
 tmp/
 .idea/
 playground/
+build-errors.log
+*.toml
 
 temp
 telex_be

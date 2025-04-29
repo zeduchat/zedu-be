@@ -1,6 +1,7 @@
 package minio
 
 import (
+	// "context"
 	"context"
 	"fmt"
 
@@ -18,6 +19,7 @@ func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Cl
 		Creds:  credentials.NewStaticV4(vsn.AccessKey, vsn.Secret, ""),
 		Secure: true,
 	})
+
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to initialize MinIO client: %v", err))
 		return nil

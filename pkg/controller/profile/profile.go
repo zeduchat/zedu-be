@@ -23,17 +23,29 @@ type Controller struct {
 }
 
 func (base *Controller) GetUserProfile(c *gin.Context) {
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		rd := utility.BuildErrorResponse(400, "error", "Failed to Fetch user profile", "No user found", nil)
+		c.JSON(400, rd)
 		return
 	}
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, userId)
+	memberID := c.Param("user_id")
+	if memberID != "" {
+		code, err := profile.IsSameOrganization(base.Db.Postgresql, userId, memberID)
+		if err != nil {
+			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+			c.JSON(code, rd)
+			return
+		}
+	}
 
+	memberID = userId
+
+	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, memberID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to Fetch user profile", err, nil)
 		c.JSON(code, rd)
@@ -44,8 +56,50 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) ChangeProfileStatus(c *gin.Context) {
+
+	var req models.UpdateProfileStatus
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserId = userId
+
+	code, err := profile.UpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User profile status updated successfully", nil)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) UpdateProfile(c *gin.Context) {
 	var req models.UpdateUserProfileRequest
+	var fileBase64Img string
+	var file []byte
+	var ext string
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -55,9 +109,13 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	req.Email = c.Request.FormValue("email")
-	req.UserName = c.Request.FormValue("user_name")
+	req.UserName = c.Request.FormValue("username")
 	req.FullName = c.Request.FormValue("full_name")
 	req.Phone = c.Request.FormValue("phone")
+	req.DisplayName = c.Request.FormValue("display_name")
+	req.Timezone = c.Request.FormValue("timezone")
+	req.Title = c.Request.FormValue("title")
+	req.NamePronunciation = c.Request.FormValue("name_pronounciation")
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
@@ -74,15 +132,37 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	base64Image := c.Request.FormValue("avatar_url")
+	if base64Image != "" {
+		fileBase64Img = base64Image
+	}
 
-	file, ext, err := utility.ValidatePicture(base64Image)
-
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+	_, imgFileHeader, err := c.Request.FormFile("avatar_file")
+	if err != nil && err != http.ErrMissingFile {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to parse avatar file", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
+	if imgFileHeader != nil && imgFileHeader.Filename != "" {
+		base64Image, err := utility.ConvertToBase64(imgFileHeader)
+		if err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		fileBase64Img = base64Image
+	}
+
+	if fileBase64Img != "" {
+		validFile, validExt, err := utility.ValidatePicture(fileBase64Img)
+		if err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		file = validFile
+		ext = validExt
+	}
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -95,7 +175,6 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
-
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Profile not found", err, nil)
@@ -113,7 +192,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 }
 
 func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
-	
+
 	claims, exists := c.Get("userClaims")
 
 	if !exists {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -36,7 +37,7 @@ func PermissionMiddleware(db *gorm.DB, rdb *redis.Client, requiredPermission str
 				return
 			}
 
-			rd.RedisSet(rdb, cacheKey, permissions.Permissions.PermissionList)
+			rd.RedisSet(rdb, cacheKey, permissions.Permissions.PermissionList, 24*time.Hour)
 		} else {
 			var permissionList models.PermissionList
 			err = json.Unmarshal(cachedPermissions, &permissionList)

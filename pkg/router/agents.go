@@ -74,6 +74,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	intPage := r.Group(fmt.Sprintf("%v/agents", ApiVersion))
 	{
 		intPage.GET("", agent.GetSystemAgentApps)
+		intPage.GET("/callback", agent.AgentCallback)
 		intPage.GET("/:agent_id", agent.GetSystemAgentApp)
 	}
 

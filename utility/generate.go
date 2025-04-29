@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net/url"
 	"regexp"
 	"strconv"
 	"time"
@@ -67,6 +68,22 @@ func GenerateInvitationToken() (string, error) {
 func GenerateInvitationLink(baseurl, orgID, token string) string {
 	return baseurl + fmt.Sprintf("accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
+
 func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
 	return baseurl + fmt.Sprintf("accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
+}
+
+func GenerateUUIDFromString(strSeed string) (string, error) {
+
+	u, err := url.Parse(strSeed)
+	if err != nil {
+		return "", err
+	}
+
+	url_path := u.Hostname()+u.Path
+
+	namespace := uuid.NamespaceURL
+	id := uuid.NewV5(namespace, url_path)
+
+	return id.String(), nil
 }

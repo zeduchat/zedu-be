@@ -43,7 +43,7 @@ func (base *Controller) GoogleLogin(c *gin.Context) {
 
 	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
 	if err != nil {
-		base.Logger.Error("error broadcasting login audit: ", err.Error())
+		base.Logger.Error("error publishing login audit: ", err.Error())
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user sign in successfully", respData)

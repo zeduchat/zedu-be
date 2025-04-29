@@ -240,7 +240,7 @@ func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 		"agent_id": req.AgentID,
 	}
 
-	err := agents.ChangeAgentStatus(ids, req, base.Db.Postgresql, base.ExtReq)
+	err := agents.ChangeStatus(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to set agent app status", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to set agent app status", err.Error(), nil)
@@ -536,7 +536,7 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
+		"org_id":   org_id,
 		"agent_id": agent_id,
 	}
 
@@ -574,7 +574,7 @@ func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
+		"org_id":   org_id,
 		"agent_id": agent_id,
 	}
 
@@ -615,7 +615,7 @@ func (base *Controller) GetCustomAgentSettingsExteranl(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"porg_id":         porg_id,
+		"porg_id":   porg_id,
 		"pagent_id": pint_id,
 	}
 
@@ -688,9 +688,9 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"porg_id":         porg_id,
-		"pagent_id": pint_id,
-		"telex_api_key":   api_key,
+		"porg_id":       porg_id,
+		"pagent_id":     pint_id,
+		"telex_api_key": api_key,
 	}
 
 	err = agents.UpdateCustomAgentSettingsExternal(ids, req, base.Db.Postgresql, base.ExtReq)
@@ -703,5 +703,46 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 
 	base.Logger.Info("JSON schema updated successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent settings updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) AgentCallback(c *gin.Context) {
+
+	api_key := c.GetHeader("X-TELEX-API-KEY")
+
+	if api_key == "" {
+		base.Logger.Error("X-TELEX-API-KEY is missing in request header")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "X-TELEX-API-KEY is missing in request header", "invalid api key supplied", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	key := config.Config.Server.EncKey
+
+	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+
+	if err != nil {
+		base.Logger.Error("An error occured: %s", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to parse api key", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"porg_id":       porg_id,
+		"pagent_id":     pint_id,
+		"telex_api_key": api_key,
+	}
+
+	err = agents.AgentCallback(ids, base.Db.Postgresql, base.ExtReq)
+	if err != nil {
+		base.Logger.Error("Failed to process agent callback", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to process agent callback", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("JSON schema updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent callback received successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

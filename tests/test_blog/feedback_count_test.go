@@ -39,14 +39,14 @@ func TestFeedbackCount(t *testing.T) {
 	}
 
 	feedback1 := models.BlogFeedback{
-		ID: utility.GenerateUUID(),
-		BlogID: blog.ID,
+		ID:       utility.GenerateUUID(),
+		BlogID:   blog.ID,
 		Feedback: true,
 	}
 
 	feedback2 := models.BlogFeedback{
-		ID: utility.GenerateUUID(),
-		BlogID: blog.ID,
+		ID:       utility.GenerateUUID(),
+		BlogID:   blog.ID,
 		Feedback: false,
 	}
 

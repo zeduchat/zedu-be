@@ -33,7 +33,7 @@ func (base *Controller) CreateHelpCenterArticle(c *gin.Context) {
 	}
 
 	req.Title = utility.CleanStringInput(req.Title)
-    req.Content = utility.CleanStringInput(req.Content)
+	req.Content = utility.CleanStringInput(req.Content)
 	req.CategoryID = category_id
 
 	if err := base.Validator.Struct(&req); err != nil {

@@ -28,25 +28,30 @@ type Message struct {
 	UpdatedAt  time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
-	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions"`
+	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
 	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
 type MessageDocument struct {
-	ID         string         `json:"id"`
-	Content    string         `json:"message"`
-	ChannelsID string         `json:"channels_id"`
-	UserID     string         `json:"user_id"`
-	Username   string         `json:"username"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `json:"-"`
-	ThreadID   uuid.UUID      `json:"thread_id"`
-	AvatarURL  string         `json:"avatar_url"`
-	Edited     bool           `json:"edited"`
-	FullName   string         `json:"full_name"`
-	Email      string         `json:"email"`
+	ID             string                 `json:"id",omitempty`
+	Content        string                 `json:"message"`
+	OrganisationID string                 `json:"org_id"`
+	ChannelsID     string                 `json:"channels_id"`
+	UserID         string                 `json:"user_id"`
+	Username       string                 `json:"username"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt         `json:"-"`
+	AgentMessage   bool                   `json:"-"`
+	UserType       string                 `json:"user_type"`
+	ThreadID       uuid.UUID              `json:"thread_id"`
+	AvatarURL      string                 `json:"avatar_url"`
+	Edited         bool                   `json:"edited"`
+	FullName       string                 `json:"full_name"`
+	Email          string                 `json:"email"`
+	Media          []UploadedFileResponse `json:"media,omitempty"`
+	Mentions       []Mention              `json:"mentions,omitempty"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -54,7 +59,9 @@ var MessageMapping = map[string]interface{}{
 		"id":          map[string]string{"type": "keyword"},
 		"channels_id": map[string]string{"type": "keyword"},
 		"user_id":     map[string]string{"type": "keyword"},
+		"org_id":      map[string]string{"type": "keyword"},
 		"username":    map[string]string{"type": "keyword"},
+		"user_type":   map[string]string{"type": "keyword"},
 		"thread_id":   map[string]string{"type": "keyword"},
 		"avatar_url":  map[string]string{"type": "text"},
 		"edited":      map[string]string{"type": "boolean"},
@@ -64,6 +71,14 @@ var MessageMapping = map[string]interface{}{
 		"created_at": map[string]string{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+		},
+		"media": map[string]interface{}{
+			"type":       "nested",
+			"properties": MediaMapping,
+		},
+		"mention": map[string]interface{}{
+			"type":       "nested",
+			"properties": MentionMapping,
 		},
 		"updated_at": map[string]string{
 			"type":   "date",
@@ -77,11 +92,14 @@ var MessageMapping = map[string]interface{}{
 }
 
 type CreateMessageRequest struct {
-	Content    string `json:"content" validate:"required"`
-	UserId     string `json:"user_id"`
-	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id" validate:"required"`
-	OrgId      string `json:"org_id"`
+	Content    string                 `json:"content" validate:"required"`
+	UserId     string                 `json:"user_id"`
+	ChannelsId string                 `json:"channels_id"`
+	ThreadId   string                 `json:"thread_id" validate:"required"`
+	OrgId      string                 `json:"org_id"`
+	AgentName  string                 `json:"agent_name"`
+	Media      []UploadedFileResponse `json:"media"`
+	Mentions   []Mention              `json:"mentions"`
 }
 
 type EditMessageRequest struct {
@@ -93,30 +111,32 @@ type EditMessageRequest struct {
 	OrgId      string `json:"org_id"`
 }
 
-func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) error {
+func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]interface{}, error) {
 	var (
 		dmChannels   DmChannels
 		userChannels UserChannels
-		profile      Profile
 		thread       ThreadDocument
 	)
 
-	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
-	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	updateResp := map[string]interface{}{}
+	previewSect := false
 
-	if !(dmChanExist || chanExist) {
-		return errors.New("user not in channel")
+	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ?", m.ChannelsID)
+
+	if !(dmChanExist || chanExist) && !m.AgentMessage {
+		return updateResp, errors.New("user not in channel")
 	}
 
 	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
 	if err != nil {
-		return err
+		return updateResp, err
 	}
 
 	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
 
 	if err != nil {
-		return err
+		return updateResp, err
 	}
 
 	if len(thread.Messages) < 5 {
@@ -150,7 +170,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		err = elastic.UpdateDocWithScript(db.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return err
+			return updateResp, err
 		}
 
 	} else {
@@ -170,17 +190,27 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		err = elastic.UpdateDocWithScript(db.Elastic, ThreadIndexName, m.ThreadID.String(), req)
 		if err != nil {
 			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return err
+			return updateResp, err
 		}
 
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, m.UserID)
+	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+
 	if err != nil {
-		return err
+		return updateResp, err
 	}
 
-	return nil
+	for _, con := range thread.Messages {
+		if con.ID == m.ID {
+			previewSect = true
+		}
+	}
+
+	updateResp["thread_count"] = thread.MessageCount
+	updateResp["preview_section"] = previewSect
+
+	return updateResp, nil
 }
 
 func (m *Message) UpdateMessage(db *gorm.DB, req map[string]interface{}) (*Message, error) {
@@ -232,20 +262,99 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 	return nil
 }
 
-func (c *Message) DeleteMessage() (*Message, error) {
+func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]interface{}, error) {
 
-	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, c.ID)
+	var (
+		thread ThreadDocument
+	)
+
+	updateResp := map[string]interface{}{}
+	previewSect := false
+
+	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, m.ID)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete message, err: %v", err)
+		return updateResp, fmt.Errorf("failed to delete message, err: %v", err)
 	}
 
-	return c, nil
+	err = thread.GetThreadById(db, m.ThreadID.String())
+
+	if err != nil {
+		return updateResp, err
+	}
+
+	for _, con := range thread.Messages {
+		if con.ID == m.ID {
+			previewSect = true
+		}
+	}
+
+	if previewSect {
+		script := `if (ctx._source.messages == null) {
+			ctx._source.messages = [];
+		}
+		boolean found = false;
+		for (int i = 0; i < ctx._source.messages.size(); i++) {
+			if (ctx._source.messages[i] != null && ctx._source.messages[i].id == params.message_id) {
+				ctx._source.messages.remove(i);
+				found = true;
+				break;
+			}
+		}
+
+		if (found) {
+			ctx._source.message_count--;
+		}`
+
+		req := map[string]interface{}{
+			"script": map[string]interface{}{
+				"source": script,
+				"params": map[string]interface{}{
+					"message_id": m.ID,
+				},
+			},
+		}
+
+		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+			return updateResp, err
+		}
+
+	} else {
+
+		script := `if (ctx._source.message_count > 0) {
+			ctx._source.message_count--;
+		}`
+		req := map[string]interface{}{
+			"script": map[string]interface{}{
+				"source": script,
+			},
+		}
+
+		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
+		if err != nil {
+			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+			return updateResp, err
+		}
+	}
+
+	err = thread.GetThreadById(db, m.ThreadID.String())
+
+	if err != nil {
+		return updateResp, err
+	}
+
+	updateResp["thread_count"] = thread.MessageCount
+	updateResp["preview_section"] = previewSect
+
+	return updateResp, nil
 }
 
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument
+		thread   ThreadDocument
 	)
 
 	pag := elastic.GetPagination(c)
@@ -277,6 +386,11 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 
 	if err != nil {
 		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch message records, error: %v", err))
+	}
+
+	err = thread.GetThreadById(db, ThreadID)
+	if err != nil {
+		return nil, pagR, err
 	}
 
 	messages, err = UnMarsahlMessageResponse(messageData)

@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -27,6 +28,28 @@ func GetUserProfile(db *gorm.DB, userID string) (*models.ProfileSummary, int, er
 	return profileSummary, http.StatusOK, nil
 }
 
+func IsSameOrganization(db *gorm.DB, reqUserID string, targetUserID string) (int, error) {
+	var user models.User
+	var org models.Organisation
+
+	userProfile, err := user.GetUserByID(db, reqUserID)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	
+	currentOrgID := (userProfile.CurrentOrg).String()
+
+	isMember, err := org.CheckUserIsMemberOfOrg(targetUserID, currentOrgID, db)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+	if !isMember {
+		return http.StatusBadRequest, errors.New("user not authorised to retrieve this organisation")
+	}
+
+	return http.StatusOK, nil
+}
+
 func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, error) {
 	var user models.User
 	var userProfile models.Profile
@@ -35,11 +58,14 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		return http.StatusInternalServerError, err
 	}
 
-	avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
-	if err != nil {
-		return http.StatusInternalServerError, err
+	if len(file) > 0 && ext != "" {
+		avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
+
+		req.AvatarURL = avatarURL
 	}
-	req.AvatarURL = avatarURL
 
 	if err := userProfile.UpdateProfileFields(db, req, userId); err != nil {
 		return http.StatusBadRequest, err
@@ -146,20 +172,38 @@ func DeleteUserProfileImageFromMinIO(logger *utility.Logger, avatarURL string) e
 
 func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 	return &models.ProfileSummary{
-		ID:             userProfile.Profile.ID,
-		Email:          userProfile.Email,
-		Phone:          userProfile.Profile.Phone,
-		FirstName:      userProfile.Profile.FirstName,
-		LastName:       userProfile.Profile.LastName,
-		FullName:       userProfile.Profile.FullName,
-		UserName:       userProfile.Profile.UserName,
-		AvatarURL:      userProfile.Profile.AvatarURL,
-		UserId:         userProfile.Profile.Userid,
-		Deactivated:    userProfile.Deactivated,
-		ProfileUpdated: userProfile.ProfileUpdated,
-		IsOnboarded:    userProfile.IsOnboarded,
-		CreatedAt:      userProfile.Profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      userProfile.Profile.UpdatedAt.Format(time.RFC3339),
-		DeletedAt:      userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
+		ID:                userProfile.Profile.ID,
+		Email:             userProfile.Email,
+		Phone:             userProfile.Profile.Phone,
+		FirstName:         userProfile.Profile.FirstName,
+		LastName:          userProfile.Profile.LastName,
+		FullName:          userProfile.Profile.FullName,
+		UserName:          userProfile.Profile.UserName,
+		AvatarURL:         userProfile.Profile.AvatarURL,
+		UserId:            userProfile.Profile.Userid,
+		Deactivated:       userProfile.Deactivated,
+		ProfileUpdated:    userProfile.ProfileUpdated,
+		IsOnboarded:       userProfile.IsOnboarded,
+		DisplayName:       userProfile.Profile.DisplayName,
+		Title:             userProfile.Profile.Title,
+		NamePronunciation: userProfile.Profile.NamePronunciation,
+		Timezone:          userProfile.Profile.Timezone,
+		CreatedAt:         userProfile.Profile.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         userProfile.Profile.UpdatedAt.Format(time.RFC3339),
+		DeletedAt:         userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
+		Icon:              userProfile.Profile.Icon,
+		Text:              userProfile.Profile.Text,
+		StatusTimeout:     userProfile.Profile.StatusTimeout,
+		PauseNotification: userProfile.Profile.PauseNotification,
 	}
+}
+
+func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (int, error) {
+	var userProfile models.Profile
+
+	if err := userProfile.UpdateProfileStatus(db, req); err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	return http.StatusCreated, nil
 }

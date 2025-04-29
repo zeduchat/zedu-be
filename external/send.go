@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/elliotchance/phpserialize"
-
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -133,7 +132,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		}
 	}
 
-	logger.Info("response body", name, r.Path, string(body))
+	// logger.Info("response body", name, r.Path, string(body))
 
 	if r.DecodeMethod == PhpSerializerMethod {
 		err := phpserialize.Unmarshal(body, response)

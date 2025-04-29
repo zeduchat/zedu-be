@@ -25,7 +25,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) CreateChannels(c *gin.Context) {
+func (base *Controller) CreateChannel(c *gin.Context) {
 	var req models.CreateChannelsRequest
 
 	claims, exists := c.Get("userClaims")
@@ -61,7 +61,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := channel.CreateChannels(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannel(req, base.Db.Postgresql, userId)
 	if err != nil {
 		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -74,7 +74,7 @@ func (base *Controller) CreateChannels(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) GetChannels(c *gin.Context) {
+func (base *Controller) GetChannel(c *gin.Context) {
 	channels_id := c.Param("channelId")
 
 	if _, err := uuid.Parse(channels_id); err != nil {
@@ -93,7 +93,7 @@ func (base *Controller) GetChannels(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := channel.GetChannels(base.Db.Postgresql, channels_id, userId)
+	respData, code, err := channel.GetChannel(base.Db.Postgresql, channels_id, userId)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -267,6 +267,13 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 		return
 	}
 
+	if req.Username == "general" {
+		base.Logger.Info("error updating username")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "cannot update username to general", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	code, err := channel.UpdateUsername(req, base.Db.Postgresql, channelId, userId)
 	if err != nil {
 		base.Logger.Info("error creating channel")
@@ -280,7 +287,7 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) DeleteChannels(c *gin.Context) {
+func (base *Controller) DeleteChannel(c *gin.Context) {
 
 	ChannelsId := c.Param("channelId")
 
@@ -300,7 +307,7 @@ func (base *Controller) DeleteChannels(c *gin.Context) {
 
 	UserId := userClaims["user_id"].(string)
 
-	code, err := channel.DeleteChannels(base.Db.Postgresql, ChannelsId, UserId, base.Db.TypeSense)
+	code, err := channel.DeleteChannel(base.Db.Postgresql, ChannelsId, UserId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -380,6 +387,12 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	if err := base.Validator.Struct(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if req.Name == "general" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Cannot update channel name to general", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -611,20 +624,15 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 		return
 	}
 
-	addError, err := channel.AddMultipleMembersToChannel(base.Db.Postgresql, req)
+	err = channel.AddMultipleMembersToChannel(base.Db.Postgresql, req)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add users to channel", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to add users to channel", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	response := gin.H{
-		"errors":  addError,
-		"message": "success",
-	}
-
 	base.Logger.Info("users added to channel successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "users added to channel successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -687,7 +695,7 @@ func (base *Controller) GetArchivedChannels(c *gin.Context) {
 	ids := map[string]string{
 		"organisation_id": org_id,
 		"user_id":         userId,
-	}	
+	}
 
 	respData, code, err := channel.GetArchivedChannels(base.Db.Postgresql, ids)
 	if err != nil {

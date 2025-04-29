@@ -13,7 +13,7 @@ type RequestObj struct {
 	RequestData  interface{}
 	DecodeMethod string
 	Logger       *utility.Logger
-	Timeout       bool
+	Timeout      bool
 }
 
 var (
