@@ -7,13 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"go.mongodb.org/mongo-driver/mongo"
-
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/mongogrations"
 	"github.com/hngprojects/telex_be/utility"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Controller struct {
@@ -24,9 +23,11 @@ type Controller struct {
 }
 
 func (base *Controller) CreateCollection(c *gin.Context) {
+
 	var req models.CreateMongoCollectionRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Failed to bind JSON", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -34,7 +35,7 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
-		base.Logger.Info("validation failed")
+		base.Logger.Info("Validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error",
 			"Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -49,20 +50,20 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 		return
 	}
 
-	collection_name := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, req.Collection)
-
-	err = mongogrations.CreateCollection(base.Db.Mongo, collection_name)
+	err = mongogrations.CreateCollection(base.Db.Mongo, req.CollectionName, ids)
 	if err != nil {
 		base.Logger.Error("Failed to create collection", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to create collection", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Collection %s created successfully", req.Collection), nil)
+
+	base.Logger.Info("Collection %s created successfully", req.CollectionName)
+	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Collection %s created successfully", req.CollectionName), nil)
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) CreateEntry(c *gin.Context) {
+func (base *Controller) CreateDocument(c *gin.Context) {
 
 	var req models.CreateMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -81,12 +82,7 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 
 	collection_name := c.Param("collection_name")
 	if collection_name == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "collection_name is required", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if collection_name == "" {
+		base.Logger.Error("collection_name is required")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "collection_name is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -100,10 +96,17 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 		return
 	}
 
-	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
+	fullCollectionName := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
+
+	err = utility.ValidateDocument(req.Document)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error encountered while validating document fields", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	// Call the service layer
-	err = mongogrations.CreateEntry(base.Db.Mongo, fullCollectionName, req.Document)
+	err = mongogrations.CreateDocument(base.Db.Mongo, fullCollectionName, req.Document, ids)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -113,59 +116,7 @@ func (base *Controller) CreateEntry(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) ListCollections(c *gin.Context) {
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
-	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_", ids.OrganisationID, ids.AgentID)
-
-	// Call the service layer
-	results, err := mongogrations.ListCollections(base.Db.Mongo, fullCollectionName)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Collections retrieved successfully", results)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) DeleteCollection(c *gin.Context) {
-
-	collection_name := c.Param("collection_name")
-	if collection_name == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "collection_name is required", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
-	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
-
-	err = mongogrations.DeleteCollection(base.Db.Mongo, fullCollectionName)
-	if err != nil {
-		base.Logger.Error("Failed to delete collection", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to delete collection", err.Error(), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, fmt.Sprintf("Collection %s deleted successfully", collection_name), nil)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) ReadEntries(c *gin.Context) {
+func (base *Controller) GetAllDocuments(c *gin.Context) {
 
 	var req models.ReadMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -198,11 +149,11 @@ func (base *Controller) ReadEntries(c *gin.Context) {
 		return
 	}
 
-	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
+	fullCollectionName := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
 
 	// Call the service layer
 
-	results, err := mongogrations.ReadEntries(base.Db.Mongo, fullCollectionName, req.Filter)
+	results, err := mongogrations.GetAllDocuments(base.Db.Mongo, fullCollectionName, req.Filter, ids)
 	if err != nil {
 		base.Logger.Error("Failed to read entries", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to read entries", err.Error(), nil)
@@ -246,14 +197,14 @@ func (base *Controller) GetDocument(c *gin.Context) {
 		return
 	}
 
-	fullCollectionName := fmt.Sprintf("org_%s_agent_%s_%s", ids.OrganisationID, ids.AgentID, collectionName) // Adjust based on your naming convention
+	fullCollectionName := fmt.Sprintf("agent_%s_%s", ids.AgentID, collectionName)
 	document, err := mongogrations.GetDocumentByID(base.Db.Mongo, fullCollectionName, document_id)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, utility.BuildErrorResponse(http.StatusNotFound, "error", "Document not found", err.Error(), nil))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to retrieve document", err.Error(), nil))
+		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to retrieve document", err.Error(), nil))
 		return
 	}
 
@@ -261,7 +212,7 @@ func (base *Controller) GetDocument(c *gin.Context) {
 	c.JSON(http.StatusOK, utility.BuildSuccessResponse(http.StatusOK, "Document retrieved successfully", document))
 }
 
-func (base *Controller) UpdateEntry(c *gin.Context) {
+func (base *Controller) UpdateDocument(c *gin.Context) {
 
 	var req models.UpdateMongoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -279,9 +230,9 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 		return
 	}
 
-	entry_id := c.Param("entry_id")
-	if entry_id == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "entry_id is required", nil, nil)
+	document_id := c.Param("document_id")
+	if document_id == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "document_id is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -301,22 +252,17 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 		return
 	}
 
-	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
+	fullCollectionName := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
 
-	if len(req.Document) == 0 {
-		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "Update document cannot be empty", nil, nil))
+	err = utility.ValidateDocument(req.Document)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error encountered while validating document fields", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	for key, value := range req.Document {
-		if str, ok := value.(string); ok && str == "" {
-			c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", fmt.Sprintf("Field '%s' cannot be an empty string", key), nil, nil))
-			return
-		}
-	}
-
 	// Call the service layer
-	err = mongogrations.UpdateEntry(base.Db.Mongo, fullCollectionName, entry_id, req.Document)
+	err = mongogrations.UpdateDocument(base.Db.Mongo, fullCollectionName, document_id, req.Document)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -328,11 +274,11 @@ func (base *Controller) UpdateEntry(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) DeleteEntry(c *gin.Context) {
+func (base *Controller) DeleteDocument(c *gin.Context) {
 
-	entry_id := c.Param("entry_id")
-	if entry_id == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "entry_id is required", nil, nil)
+	document_id := c.Param("document_id")
+	if document_id == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "document_id is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -352,10 +298,10 @@ func (base *Controller) DeleteEntry(c *gin.Context) {
 		return
 	}
 
-	fullCollectionName := fmt.Sprintf("org_%v_agent_%v_%v", ids.OrganisationID, ids.AgentID, collection_name)
+	fullCollectionName := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
 
 	// Call the service layer
-	deletedCount, err := mongogrations.DeleteEntry(base.Db.Mongo, fullCollectionName, entry_id)
+	deletedCount, err := mongogrations.DeleteDocument(base.Db.Mongo, fullCollectionName, document_id)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

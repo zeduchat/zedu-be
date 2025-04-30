@@ -190,6 +190,7 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 	}
 
 	if len(allParticipants) == 0 {
+		
 		err = postgresql.HardDeleteSpecificRecord(
 			db,
 			&DmChannels{},
@@ -218,27 +219,6 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 	gpDMChansResp := []GroupDMChannelsResponse{}
 
 	pagination := postgresql.GetPagination(c)
-
-	// // Define the query string with LEFT JOIN and WHERE conditions
-	// queryString := `
-	//     dm_channels.org_id = ? AND dm_channels.chat_type = ?
-	//     AND (dm_channels.user_id = ? OR channel_participants.user_id = ?)
-	// `
-
-	// // Use SelectAllFromDbOrderByPaginated with the modified query
-	// paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-	// 	db.Joins("LEFT JOIN channel_participants ON dm_channels.channel_id = channel_participants.channel_id").
-	// 		Group("dm_channels.id"), // Ensure distinct records
-	// 	"created_at",
-	// 	"desc",
-	// 	pagination,
-	// 	&dmchans,
-	// 	queryString,
-	// 	dm.OrgId,
-	// 	"user",
-	// 	dm.UserId,
-	// 	dm.UserId,
-	// )
 
 	// Define the query string to fetch DmChannels where the user is an active participant
 	queryString := `

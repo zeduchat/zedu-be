@@ -18,20 +18,16 @@ func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	mongogrations := mongogrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	store := mongodb.MongoStore{}
 
-	baseUrl := fmt.Sprintf("%v/mongo-integrations/collections", ApiVersion)
+	baseUrl := fmt.Sprintf("%v/agent_db/collections", ApiVersion)
 	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger, &store))
-	// mongogrationsUrl := r.Group(baseUrl)
 
 	{
 		mongogrationsUrl.POST("", mongogrations.CreateCollection)
-		mongogrationsUrl.GET("", mongogrations.ListCollections)
-		mongogrationsUrl.DELETE("/:collection_name", mongogrations.DeleteCollection)
-
-		mongogrationsUrl.POST("/:collection_name/documents", mongogrations.CreateEntry)
-		mongogrationsUrl.GET("/:collection_name/documents", mongogrations.ReadEntries)
+		mongogrationsUrl.POST("/:collection_name/documents", mongogrations.CreateDocument)
+		mongogrationsUrl.GET("/:collection_name/documents", mongogrations.GetAllDocuments)
 		mongogrationsUrl.GET("/:collection_name/documents/:document_id", mongogrations.GetDocument)
-		mongogrationsUrl.PUT("/:collection_name/documents/:entry_id", mongogrations.UpdateEntry)
-		mongogrationsUrl.DELETE("/:collection_name/documents/:entry_id", mongogrations.DeleteEntry)
+		mongogrationsUrl.PUT("/:collection_name/documents/:document_id", mongogrations.UpdateDocument)
+		mongogrationsUrl.DELETE("/:collection_name/documents/:document_id", mongogrations.DeleteDocument)
 
 	}
 

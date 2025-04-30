@@ -452,11 +452,6 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 			userChanList = append(userChanList, newUserChannels)
 		}
 	}
-	fmt.Println(userChanList)
-
-	if len(userChanList) == 0 {
-		return errors.New("no user added to channel. All users already in channel")
-	}
 
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
@@ -520,7 +515,11 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 }
 
 func (c *Channels) Delete(db *gorm.DB) error {
-	var userChannels UserChannels
+	var (
+		userChannels UserChannels
+		orgChanInt   OrganisationChannelsIntegrations
+		thread       Threads
+	)
 
 	err := db.Model(&userChannels).Where("channels_id = ?", c.ID).Delete(&userChannels).Error
 	if err != nil {
@@ -530,6 +529,17 @@ func (c *Channels) Delete(db *gorm.DB) error {
 	err = postgresql.DeleteRecordFromDb(db, &c)
 	if err != nil {
 		return err
+	}
+
+	err = postgresql.DeleteSpecificRecord(db, &orgChanInt, "channel_id = ?", c.ID)
+	if err != nil {
+		return errors.New("error removing channel from organisation channels integration")
+	}
+
+	thread.ID = c.ID
+
+	if _, err := thread.DeleteThread(db); err != nil {
+		return fmt.Errorf("failed to delete group DM channel threads: %v", err)
 	}
 
 	return nil
@@ -566,9 +576,11 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 	if req.Name != "" {
 		updates["name"] = req.Name
 	}
+
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
+
 	if len(updates) == 0 {
 		return Channels{}, http.StatusBadRequest, errors.New("no fields to update")
 	}
@@ -583,6 +595,7 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 	if err != nil {
 		return Channels{}, http.StatusInternalServerError, err
 	}
+
 	return updatedChannels, http.StatusOK, nil
 }
 

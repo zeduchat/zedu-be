@@ -308,6 +308,15 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusOK, nil
 	}
 
+	if dmChannel.ChannelType == "dm" {
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, userID}, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+			return http.StatusBadRequest, errors.New("failed to publish data")
+		}
+		return http.StatusOK, nil
+	}
+
 	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
@@ -423,12 +432,16 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 			return threadResp, http.StatusBadRequest, errors.New("failed to broadcast data")
 		}
 
-		err = threadResp.GetThreadById(db, thread.ID)
+		return threadResp, http.StatusOK, nil
+	}
 
+	if dmChannel.ChannelType == "dm" {
+
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, userID}, notification)
 		if err != nil {
-			return threadResp, http.StatusInternalServerError, err
+			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+			return threadResp, http.StatusBadRequest, errors.New("failed to publish data")
 		}
-
 		return threadResp, http.StatusOK, nil
 	}
 

@@ -154,6 +154,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		channel    models.Channels
 		dmChannel  models.DmChannels
 		publishDst string
+		chanParts  []models.ChannelParticipant
 		user       models.User
 	)
 
@@ -235,6 +236,42 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		MessageId: req.MessageId,
 	}
 
+	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
+		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
+		if err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
+		}
+
+		userIDs := []string{}
+
+		for _, participant := range chanParts {
+			if participant.UserId != req.UserId {
+				userIDs = append(userIDs, participant.UserId)
+			}
+		}
+
+		if len(userIDs) == 0 {
+			return nil, http.StatusOK, nil
+		}
+
+		err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
+			return nil, http.StatusBadRequest, errors.New("failed to broadcast data")
+		}
+
+		return nil, http.StatusOK, nil
+	}
+
+	if dmChannel.ChannelType == "dm" {
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, req.UserId}, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+			return nil, http.StatusBadRequest, errors.New("failed to publish data")
+		}
+		return nil, http.StatusOK, nil
+	}
+
 	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
@@ -298,15 +335,33 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
 		}
 
+		userIDs := []string{}
+
 		for _, participant := range chanParts {
 			if participant.UserId != req.UserId {
-				err = centrifuge.PublishChannel(logger, participant.UserId, notification)
-				if err != nil {
-					logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-				}
+				userIDs = append(userIDs, participant.UserId)
 			}
 		}
 
+		if len(userIDs) == 0 {
+			return nil, http.StatusOK, nil
+		}
+
+		err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
+			return nil, http.StatusBadRequest, errors.New("failed to broadcast data")
+		}
+
+		return nil, http.StatusOK, nil
+	}
+
+	if dmChannel.ChannelType == "dm" {
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, req.UserId}, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+			return nil, http.StatusBadRequest, errors.New("failed to publish data")
+		}
 		return nil, http.StatusOK, nil
 	}
 

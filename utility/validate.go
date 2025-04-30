@@ -2,6 +2,7 @@ package utility
 
 import (
 	"errors"
+	"fmt"
 	"net/mail"
 	"os"
 	"regexp"
@@ -73,8 +74,38 @@ func SplitEmailString(email string) string {
 }
 
 func ArchiveValidator(archived bool) error {
-	if archived != true && archived != false {
+	if !archived && archived {
 		return errors.New("archived field must be provided")
+	}
+	return nil
+}
+
+func ValidateDocument(doc map[string]interface{}) error {
+	if len(doc) == 0 {
+		return errors.New("document cannot be empty")
+	}
+
+	for key, value := range doc {
+		switch v := value.(type) {
+		case string:
+			if v == "" {
+				return fmt.Errorf("field '%s' cannot be an empty string", key)
+			}
+		case map[string]interface{}:
+			if err := ValidateDocument(v); err != nil {
+				return fmt.Errorf("field '%s': %v", key, err)
+			}
+		case []interface{}:
+			for i, item := range v {
+				if nestedMap, ok := item.(map[string]interface{}); ok {
+					if err := ValidateDocument(nestedMap); err != nil {
+						return fmt.Errorf("field '%s[%d]': %v", key, i, err)
+					}
+				} else if str, ok := item.(string); ok && str == "" {
+					return fmt.Errorf("field '%s[%d]' cannot be an empty string", key, i)
+				}
+			}
+		}
 	}
 	return nil
 }

@@ -7,37 +7,33 @@ on:
       - staging
 
 jobs:
-  update_env_and_binary:
+  update_and_restart_app:
     runs-on: ubuntu-latest
-    if: github.event.repository.fork == false
     env:
-      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_USERNAME: ${{ secrets.TELEX_SERVER_SSH_USER }}
+      SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
+      SSH_PASSWORD: ${{ secrets.TELEX_SERVER_SSH_PASSWORD }}
+      BRANCH: staging
+      APP_DIR: /var/www/telex_be_staging
+      APP_BINARY: telexbe_staging
+      SUPERVISOR_PROCESS: telexbe_staging
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: staging
-
-      - name: Build binary
+      - name: Install sshpass
         run: |
-          go build -o telexbe_staging
+          sudo apt update
+          sudo apt install -y sshpass
 
-      - name: Upload binary to server
+      - name: Build and stop on failure
         run: |
-          echo "$SSH_KEY" > ssh_key.pem
-          chmod 600 ssh_key.pem
-          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ssh_key.pem" telexbe_staging $SSH_USERNAME@$SSH_HOST:~/deployments/telexbe/staging/telexbe_staging
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+            cd '"$APP_DIR"'
+            git reset --hard
+            git pull origin '"$BRANCH"'
+            go build -o '"$APP_BINARY"'
+          '
 
       - name: Restart app
         run: |
-           echo "$SSH_KEY" > ssh_key.pem
-           ssh -o StrictHostKeyChecking=no -i ssh_key.pem $SSH_USERNAME@$SSH_HOST '
-            cd ~/deployments/telexbe/staging/
-            git reset --hard
-            git pull origin ${{ inputs.environment }}
-            supervisorctl restart telexbe-staging
-            '
-            rm ssh_key.pem
-          
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+            supervisorctl restart '"$SUPERVISOR_PROCESS"'
+          '
