@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -17,7 +18,7 @@ type Metrics struct {
 }
 
 type Job struct {
-	Notification interface{}
+	Notification models.PushNotificationRecord
 }
 
 type Worker struct {

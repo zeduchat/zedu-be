@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -155,10 +155,11 @@ func (d *Dispatcher) ScaleWorkers(queueLength int) {
 func FeedDispatcher(d *Dispatcher) {
 	for {
 		queueLen := d.JobQueueCount
+		notificationRecord := models.PushNotificationRecord{}
 		atomic.StoreInt64(&d.Metrics.QueuedJobs, int64(queueLen))
 		d.ScaleWorkers(int(queueLen))
 
-		rec, err := redis.PopFromNotificationQueue(d.DB.Redis)
+		rec, err := notificationRecord.PopFromQueue(d.DB.Redis)
 		if err != nil {
 			if strings.Contains(err.Error(), "empty queue") {
 				time.Sleep(500 * time.Millisecond)

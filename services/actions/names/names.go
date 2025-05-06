@@ -21,6 +21,8 @@ const (
 	SendNewsletterMail                 NotificationName = "send_newsletter"
 	SendPasswordChangeConfirmationMail NotificationName = "send_password_change_confirmation_mail"
 	SendLoginAlertMail                 NotificationName = "send_login_Alert_mail"
+	SendPushNotification               NotificationName = "send_push_notification"
+	SendMassPushNotification           NotificationName = "send_mass_push_notification"
 )
 
 func Check() {
