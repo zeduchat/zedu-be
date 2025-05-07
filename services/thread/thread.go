@@ -121,6 +121,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 		userChannel.ChannelsID = channelID
 		userChannel.UserID = userID
 		go userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
+		go userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 	}
 
 	return accessResp, paginationResponse, http.StatusOK, nil
