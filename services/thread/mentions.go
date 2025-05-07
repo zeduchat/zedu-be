@@ -139,11 +139,13 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	userChan.UserID = req.UserId
 	go userChan.UpdateUnReadCount(db.Postgresql, &sync.Mutex{}, logger)
 
-
 	// process mentions
 	if len(req.Mentions) > 0 {
 		go userChan.ProcessMentions(db.Postgresql, req.Mentions, &sync.Mutex{}, logger)
 	}
+
+	// send unread count update
+	go userChan.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.NewThread)
 
 	return &threadDoc, nil
 }

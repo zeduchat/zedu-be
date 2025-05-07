@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -80,6 +81,15 @@ type GetUserChannelResp []struct {
 	LastThreadId string `json:"last_thread_id"`
 }
 
+type GetUserChannelsUnReadResp []struct {
+	Channels
+	UserId       string `json:"-"`
+	ThreadCount  int64  `json:"thread_count"`
+	Access       bool   `json:"access"`
+	MentionCount int64  `json:"mention_count"`
+	LastThreadId string `json:"last_thread_id"`
+}
+
 type GetUserNotChannelResp []struct {
 	Channels
 	WebhookUrl  string `json:"webhook_url"`
@@ -137,6 +147,11 @@ type ArchiveChannelRequest struct {
 	Archived bool   `json:"archived"`
 	UserId   string `json:"user_id" `
 }
+
+type UnReadUpdate string
+
+var Read UnReadUpdate = "read"
+var NewThread UnReadUpdate = "new_thread"
 
 func (r *Channels) CreateChannel(db *gorm.DB) error {
 
@@ -800,6 +815,104 @@ func (c *UserChannels) ProcessMentions(db *gorm.DB, req []Mention, mu *sync.Mute
 	if err := db.Exec(query, c.ChannelsID).Error; err != nil {
 		logger.Error("Bulk update failed: %v", err)
 		return
+	}
+
+	logger.Info("user last read updated successfully")
+}
+
+func (uc *UserChannels) GetUserChannel(base *storage.Database, userId, channel_id string) (GetUserChannelResp, error) {
+
+	var (
+		chanResp GetUserChannelResp
+		db       = base.Postgresql
+	)
+
+	if err := db.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
+		Where("channels.id = ? AND uc.user_id = ?", channel_id, userId).
+		Order("channels.created_at").
+		Scan(&chanResp).Error; err != nil {
+		return nil, errors.New("error fetching channels")
+	}
+
+	return chanResp, nil
+}
+
+func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, userId, channel_id string) (GetUserChannelsUnReadResp, error) {
+
+	var (
+		chanResp GetUserChannelsUnReadResp
+		db       = base.Postgresql
+	)
+
+	if err := db.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
+		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
+		Where("channels.id = ? AND uc.user_id != ?", channel_id, userId).
+		Order("channels.created_at").
+		Scan(&chanResp).Error; err != nil {
+		return nil, errors.New("error fetching channels")
+	}
+
+	return chanResp, nil
+}
+
+func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Logger, updateType UnReadUpdate) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if updateType == Read {
+
+		res, err := c.GetUserChannel(storage.DB, c.UserID, c.ChannelsID)
+
+		if err != nil {
+			logger.Error("Bulk update failed: %v", err)
+			return
+		}
+
+		if len(res) < 1 {
+			logger.Error("Empty channel response")
+			return
+		}
+
+		notification := Notification[UnReadThreadChange]
+		notification.SectionType = ChannelsSection
+		notification.Content = res[0]
+
+		err = centrifuge.PublishChannel(logger, c.UserID, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, c.UserID, err.Error()))
+			return
+		}
+	}
+
+	if updateType == NewThread {
+
+		res, err := c.GetUserChannelsUnreadThread(storage.DB, c.UserID, c.ChannelsID)
+
+		if err != nil {
+			logger.Error("Bulk update failed: %v", err)
+			return
+		}
+
+		if len(res) < 1 {
+			logger.Error("Empty channel response")
+			return
+		}
+
+		for _, update := range res {
+			notification := Notification[UnReadThreadChange]
+			notification.SectionType = ChannelsSection
+			notification.Content = update
+
+			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
+				return
+			}
+		}
 	}
 
 	logger.Info("user last read updated successfully")
