@@ -25,3 +25,8 @@ func FcmToken(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 	return r
 }
+
+
+// channel uri: https://learn.microsoft.com/en-us/previous-versions/windows/apps/hh465412(v=win.10)
+// access token and sending push notfication: https://learn.microsoft.com/en-us/previous-versions/windows/apps/hh868252(v=win.10)
+// https://github.com/oniestel/go-wns/blob/master/client.go
