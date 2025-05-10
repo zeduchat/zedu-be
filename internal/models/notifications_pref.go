@@ -24,7 +24,7 @@ var (
 	UnReadThreadChange NotificationType = "unread_thread_change"
 	ThreadSection      SectionType      = "thread_message"
 	ReplySection       SectionType      = "reply_message"
-	ChannelsSection     SectionType      = "channels_section"
+	ChannelsSection    SectionType      = "channels_section"
 )
 
 type Content struct {
@@ -57,6 +57,9 @@ var Notification = map[NotificationType]Content{
 
 	NewMessage: Content{
 		NotificationType: NewMessage,
+	},
+	UnReadThreadChange: Content{
+		NotificationType: UnReadThreadChange,
 	},
 }
 
