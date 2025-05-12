@@ -2,7 +2,6 @@ package search
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -20,12 +19,11 @@ func ValidateSortKey(sortby string) bool {
 	return slices.Contains(SortkeyWords, sortby)
 }
 
-func Search(db *storage.Database, c *gin.Context, userId string,
-	orgId string, query string, sortby string) ([]utility.SearchQueryResult, int, error) {
+func Search(db *storage.Database, c *gin.Context, userId, orgId, query, sortby string) ([]utility.SearchQueryResult, int, error) {
 
 	searchQuery := models.NewSearchQueryFilterKeywords()
 	queryArr := utility.CheckQueryStringContainKeyword(query)
-	if queryArr != nil && len(queryArr) >= 1 {
+	if len(queryArr) >= 1 {
 		searchQuery.ProcessQueryString(queryArr)
 		searchQuery.Message = utility.ExtractWordsBeforeKeywords(query)
 	} else if queryArr == nil && query != "" {
@@ -47,7 +45,6 @@ func Search(db *storage.Database, c *gin.Context, userId string,
 		} else if err.Error() == "error fetching channels" || strings.Contains(err.Error(), "User does not exist in the organisation") {
 			return nil, http.StatusBadRequest, err
 		}
-		fmt.Println(err)
 		return nil, http.StatusInternalServerError, err
 	}
 	return searchResult, http.StatusOK, nil
