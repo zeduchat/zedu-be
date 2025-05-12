@@ -28,6 +28,27 @@ func CreateFcmToken(req models.CreateFcmTokenRequest, db *gorm.DB) (int, error) 
 
 }
 
+func CreateWnsConfig(req models.CreateWnsTokenRequest, db *gorm.DB) (int, error) {
+
+	var ft models.FcmTokens
+
+	ft.WnsToken = req.WnsToken
+	ft.ChannelUri = req.ChannelUri
+	ft.UserId = req.UserId
+	ft.IsLive = true
+	ft.Type = "wns"
+	ft.ID = utility.GenerateUUID()
+
+	err := ft.CreateWnsConfig(db)
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusCreated, nil
+
+}
+
 func GetFcmTokenByUserId(userId string, db *gorm.DB) (string, bool, error) {
 
 	var ft models.FcmTokens

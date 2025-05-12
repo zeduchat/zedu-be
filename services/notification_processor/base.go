@@ -49,8 +49,8 @@ func ProcessNotification(db *gorm.DB, rec models.PushNotificationRecord, logger 
 
 func ChannelNotification(db *gorm.DB, logger *utility.Logger, rec models.PushNotificationRecord) error {
 
-	channel_query := ""
-	mention_query := ""
+	// channel_query := ""
+	// mention_query := ""
 
 	return nil
 }

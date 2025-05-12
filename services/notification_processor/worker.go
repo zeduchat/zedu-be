@@ -2,7 +2,6 @@ package notification_processor
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 
@@ -64,7 +63,7 @@ func (w Worker) Start() {
 				atomic.AddInt32(&w.JobCount, 1)
 				atomic.StoreInt32(&w.Busy, 1)
 
-				err := "func here"
+				err := error.Error
 				if err != nil {
 					w.Logger.Info("Worker %d: error sending notification: %v\n", w.ID, err)
 					atomic.AddInt64(&w.Metrics.FailedJobs, 1)

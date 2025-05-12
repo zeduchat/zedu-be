@@ -12555,6 +12555,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
+  /wnstoken:
+    post:
+      tags:
+        - WNS Config Token
+      security:
+        - bearerAuth: []
+      summary: Save users WNS channel URI and token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                wns_token:
+                  type: string
+                channel_uri:
+                  type: string
+              required:
+                - wns_token
+                - channel_uri
+
+      responses:
+        "201":
+          description: WNS config saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: success response
+                    example: success
+                  message:
+                    type: string
+                    example: "WNS config saved successfully"
+                  status_code:
+                    type: integer
+                    example: 201
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
   # file management
   /files/upload-files:
     post:
