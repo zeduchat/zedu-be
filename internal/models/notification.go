@@ -68,6 +68,12 @@ type SendLoginAlertMail struct {
 	Email string `json:"email"  validate:"required"`
 }
 
+type PushNotificationRecord struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+	Data string `json:"data"`
+	Sent bool   `json:"sent"`
+}
 
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {
 	err := dbRedis.PushToQueue(rdb, &n)
@@ -82,6 +88,37 @@ func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {
 func (n *NotificationRecord) PopFromQueue(rdb *redis.Client) (NotificationRecord, error) {
 	var rec NotificationRecord
 	res, err := dbRedis.PopFromQueue(rdb)
+
+	if err != nil {
+		return rec, err
+	}
+
+	resJSON, err := json.Marshal(res)
+	if err != nil {
+		return rec, fmt.Errorf("error marshaling map: %v", err)
+	}
+
+	err = json.Unmarshal(resJSON, &rec)
+	if err != nil {
+		return rec, fmt.Errorf("error unmarshaling JSON: %v", err)
+	}
+
+	return rec, nil
+}
+
+func (n *PushNotificationRecord) PushToQueue(rdb *redis.Client) error {
+	err := dbRedis.PushToNotificationQueue(rdb, &n)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *PushNotificationRecord) PopFromQueue(rdb *redis.Client) (PushNotificationRecord, error) {
+	var rec PushNotificationRecord
+	res, err := dbRedis.PopFromNotificationQueue(rdb)
 
 	if err != nil {
 		return rec, err
