@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -41,23 +42,23 @@ func GetAllDocuments(db *mongo.Client, collection string, filter map[string]inte
 	return results, nil
 }
 
-func GetDocumentByID(db *mongo.Client, collectionName string, document_id string) (bson.M, error) {
+func GetDocumentByID(db *mongo.Client, collectionName string, document_id string) (bson.M, int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var result bson.M
 	objectID, err := primitive.ObjectIDFromHex(document_id)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ObjectID: %v", err)
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid ObjectID: %v", err)
 	}
 	databaseName := config.Config.MongoDB.DB_Name
 
 	err = db.Database(databaseName).Collection(collectionName).FindOne(ctx, bson.M{"_id": objectID}).Decode(&result)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
 
-	return result, nil
+	return result, http.StatusOK, nil
 }
 
 func CreateDocument(db *mongo.Client, collection_name string, document map[string]interface{}) error {

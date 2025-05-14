@@ -198,13 +198,13 @@ func (base *Controller) GetDocument(c *gin.Context) {
 	}
 
 	fullCollectionName := fmt.Sprintf("agent_%s_%s", ids.AgentID, collectionName)
-	document, err := mongogrations.GetDocumentByID(base.Db.Mongo, fullCollectionName, document_id)
+	document, statusCode ,err := mongogrations.GetDocumentByID(base.Db.Mongo, fullCollectionName, document_id)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, utility.BuildErrorResponse(http.StatusNotFound, "error", "Document not found", err.Error(), nil))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to retrieve document", err.Error(), nil))
+		c.JSON(statusCode, utility.BuildErrorResponse(statusCode, "error", "Failed to retrieve document", err.Error(), nil))
 		return
 	}
 

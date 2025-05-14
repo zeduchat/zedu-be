@@ -81,14 +81,14 @@ func GetAllDocuments(db *mongo.Client, collection string, filter map[string]inte
 	return results, nil
 }
 
-func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, error) {
+func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, int, error) {
 
-	document, err := models.GetDocumentByID(db, collection, id)
+	document, statusCode ,err := models.GetDocumentByID(db, collection, id)
 	if err != nil {
-		return nil, err
+		return nil, statusCode ,err
 	}
 
-	return document, nil
+	return document, statusCode ,nil
 }
 
 func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
