@@ -332,7 +332,7 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 		return nil, postgresql.PaginationResponse{}, errors.New("user does not have access to the organisation")
 	}
 
-	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, db, c)
+	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId,userId, db, c)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
@@ -340,7 +340,7 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 	return users, paginationResponse, nil
 }
 
-func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
+func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var users []models.UserInOrgResponse
 	pagination := postgresql.GetPagination(c)
 	offset := (pagination.Page - 1) * pagination.Limit
@@ -356,7 +356,7 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 		Joins("JOIN profiles AS p ON p.userid = u.id").
 		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
 		Joins("JOIN org_roles AS org ON org.id = o.role_id::uuid").
-		Where("uo.organisation_id = ?", orgId).
+		Where("uo.organisation_id = ? AND u.id != ?", orgId, userId).
 		Offset(offset).
 		Limit(pagination.Limit).
 		Find(&users).Error; err != nil {
@@ -367,7 +367,7 @@ func fetchUsersWithOrgManagement(orgId string, db *gorm.DB, c *gin.Context) ([]m
 	var totalUsers int64
 	if err := db.Table("users AS u").
 		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
-		Where("uo.organisation_id = ?", orgId).
+		Where("uo.organisation_id = ? AND u.id != ?", orgId, userId).
 		Count(&totalUsers).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
