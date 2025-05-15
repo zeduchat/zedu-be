@@ -8937,7 +8937,7 @@ paths:
                           type: string
                           example: "https://system-integrations.telex.im/slack/channels"
 
-  /organisations/{organisationId}/agents/system{agentId}:
+  /organisations/{organisationId}/agents/system/{agentId}:
     patch:
       tags:
         - Agents
