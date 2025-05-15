@@ -8,12 +8,12 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func RedisSet(rdb *redis.Client, key string, value interface{}) error {
+func RedisSet(rdb *redis.Client, key string, value interface{}, ttl time.Duration) error {
 	serialized, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	return rdb.Set(Ctx, key, serialized, 24*time.Hour).Err()
+	return rdb.Set(Ctx, key, serialized, ttl).Err()
 }
 
 func RedisSetPerm(rdb *redis.Client, key string, value interface{}) error {
@@ -31,6 +31,20 @@ func PushToQueue(rdb *redis.Client, value interface{}) error {
 	}
 
 	err = rdb.LPush(Ctx, KeyName, jsonValue).Err()
+	if err != nil {
+		fmt.Println("could not push to Redis queue: ", err)
+	}
+
+	return nil
+}
+
+func PushToNotificationQueue(rdb *redis.Client, value interface{}) error {
+	jsonValue, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("could not marshal struct: %v", err)
+	}
+
+	err = rdb.LPush(Ctx, "notification-queue", jsonValue).Err()
 	if err != nil {
 		fmt.Println("could not push to Redis queue: ", err)
 	}

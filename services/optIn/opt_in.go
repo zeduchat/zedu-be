@@ -16,13 +16,13 @@ func CreateOptInRecord(req models.CreateOptIn, db *gorm.DB) (int, error) {
 	req.Email = strings.ToLower(req.Email)
 
 	OptIn := models.OptIn{
-		ID:         utility.GenerateUUID(),
-		Email:      req.Email,
-		LastName:   req.LastName,
-		FirstName:  req.FirstName,
+		ID:        utility.GenerateUUID(),
+		Email:     req.Email,
+		LastName:  req.LastName,
+		FirstName: req.FirstName,
 	}
 
-	code, err := OptIn.CreateOptInRecord(db, req.Email);
+	code, err := OptIn.CreateOptInRecord(db, req.Email)
 	if err != nil {
 		return code, err
 	}

@@ -21,7 +21,7 @@ func (base *Controller) CreateHelpCenterCategory(c *gin.Context) {
 	}
 
 	req.Name = utility.CleanStringInput(req.Name)
-    req.Description = utility.CleanStringInput(req.Description)
+	req.Description = utility.CleanStringInput(req.Description)
 
 	if err := base.Validator.Struct(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
@@ -66,4 +66,3 @@ func (base *Controller) GetAllCategories(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Categories retrieved successfully.", topics, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
-

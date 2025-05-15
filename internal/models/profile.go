@@ -63,7 +63,7 @@ type UpdateUserProfileRequest struct {
 	FullName          string `json:"full_name"`
 	UserName          string `json:"username"`
 	AvatarURL         string `json:"avatar_url"`
-	AvatarFile         string `json:"avatar_file"`
+	AvatarFile        string `json:"avatar_file"`
 	DisplayName       string `json:"display_name"`
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`
@@ -75,6 +75,7 @@ type UpdateProfileStatus struct {
 	Text              string `json:"text"`
 	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
+	ClearStatus       bool   `json:"clear_status"`
 	UserId            string
 }
 
@@ -112,28 +113,30 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 }
 
 func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {
-	var userProfile Profile
-
-	profileUpdates := Profile{
-		Icon:              req.Icon,
-		Text:              req.Text,
-		PauseNotification: req.PauseNotification,
-		StatusTimeout:     req.StatusTimeout,
-	}
 
 	query := "userid = ?"
 
-	exist := postgresql.CheckExists(db, &userProfile, query, req.UserId)
+	exist := postgresql.CheckExists(db, &j, query, req.UserId)
 	if !exist {
 		return errors.New("Profile does not exists")
 	}
 
-	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, req.UserId)
-	if err != nil {
-		return err
+	updates := map[string]interface{}{
+		"pause_notification": req.PauseNotification,
+		"status_timeout":     req.StatusTimeout,
+		"text":               req.Text,
+		"icon":               req.Icon,
 	}
 
-	if result.RowsAffected == 0 {
+	if req.ClearStatus {
+		updates["text"] = ""
+		updates["icon"] = ""
+		updates["status_timeout"] = ""
+	}
+
+	if err := db.Model(&Profile{}).
+		Where(query, req.UserId).
+		Updates(updates).Error; err != nil {
 		return errors.New("failed to update user profile")
 	}
 

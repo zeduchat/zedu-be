@@ -40,7 +40,7 @@ func (base *Controller) AddAgentSlashCommand(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
+		"org_id":   org_id,
 		"agent_id": agent_id,
 	}
 
@@ -59,7 +59,7 @@ func (base *Controller) AddAgentSlashCommand(c *gin.Context) {
 
 func (base *Controller) GetAgentSlashCommands(c *gin.Context) {
 	var (
-		org_id         = c.Param("org_id")
+		org_id   = c.Param("org_id")
 		agent_id = c.Param("agent_id")
 	)
 
@@ -78,7 +78,7 @@ func (base *Controller) GetAgentSlashCommands(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
+		"org_id":   org_id,
 		"agent_id": agent_id,
 	}
 
@@ -97,10 +97,10 @@ func (base *Controller) GetAgentSlashCommands(c *gin.Context) {
 
 func (base *Controller) UpdateAgentSlashCommand(c *gin.Context) {
 	var (
-		req            models.UpdateSlashCommandRequest
-		org_id         = c.Param("org_id")
-		agent_id = c.Param("agent_id")
-		command_id     = c.Param("command_id")
+		req        models.UpdateSlashCommandRequest
+		org_id     = c.Param("org_id")
+		agent_id   = c.Param("agent_id")
+		command_id = c.Param("command_id")
 	)
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -132,9 +132,9 @@ func (base *Controller) UpdateAgentSlashCommand(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"agent_id": agent_id,
-		"command_id":     command_id,
+		"org_id":     org_id,
+		"agent_id":   agent_id,
+		"command_id": command_id,
 	}
 
 	response, err := agents.UpdateAgentSlashCommand(base.Db.Postgresql, ids, req)
@@ -152,9 +152,9 @@ func (base *Controller) UpdateAgentSlashCommand(c *gin.Context) {
 
 func (base *Controller) DeleteAgentSlashCommand(c *gin.Context) {
 	var (
-		org_id         = c.Param("org_id")
-		agent_id = c.Param("agent_id")
-		command_id     = c.Param("command_id")
+		org_id     = c.Param("org_id")
+		agent_id   = c.Param("agent_id")
+		command_id = c.Param("command_id")
 	)
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -179,9 +179,9 @@ func (base *Controller) DeleteAgentSlashCommand(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id":         org_id,
-		"agent_id": agent_id,
-		"command_id":     command_id,
+		"org_id":     org_id,
+		"agent_id":   agent_id,
+		"command_id": command_id,
 	}
 
 	err := agents.DeleteAgentSlashCommand(base.Db.Postgresql, ids)

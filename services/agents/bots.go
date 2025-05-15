@@ -33,40 +33,34 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c
 		}
 		seenBot[json_url] = true
 
-		data_r, err := models.FetchDetailsFromAgentJSON(extReq, json_url, redisClient)
+		data_r, err := models.FetchDetailsFromAgentJSON(extReq, org_agents, redisClient)
 		if err != nil {
 			logger.Error("failed to fetch agent json", err)
 
-			failedAgent := models.Integrations{
-				ID:             org_agents.IntegrationID,
-				Name:           "Failed Bot",
-				JSONUrl:        org_agents.JSONUrl,
-				AppUrl:         "Failed to fetch app url",
-				AppLogo:        "Failed to fetch app logo",
-				AppDescription: "Failed to fetch app description",
-				Category:       "Failed to fetch category",
-				Status:         "failed",
-				IsActive:       org_agents.IsActive,
-				CreatedAt:      org_agents.CreatedAt,
-				UpdatedAt:      org_agents.UpdatedAt,
-			}
-			botResp = append(botResp, struct {
-				models.Integrations
-				Linked bool "json:\"linked\""
-			}{
-				Integrations: failedAgent,
-				Linked:       false,
-			})
+			// failedAgent := models.Integrations{
+			// 	ID:             org_agents.IntegrationID,
+			// 	Name:           "Failed Bot",
+			// 	JSONUrl:        org_agents.JSONUrl,
+			// 	AppUrl:         "Failed to fetch app url",
+			// 	AppLogo:        "Failed to fetch app logo",
+			// 	AppDescription: "Failed to fetch app description",
+			// 	Category:       "Failed to fetch category",
+			// 	Status:         "failed",
+			// 	IsActive:       org_agents.IsActive,
+			// 	CreatedAt:      org_agents.CreatedAt,
+			// 	UpdatedAt:      org_agents.UpdatedAt,
+			// }
+			// botResp = append(botResp, struct {
+			// 	models.Integrations
+			// 	Linked bool "json:\"linked\""
+			// }{
+			// 	Integrations: failedAgent,
+			// 	Linked:       false,
+			// })
 			continue
 		}
 
-		description, ok := data_r["descriptions"].(map[string]interface{})
-		if !ok {
-			logger.Error("failed to fetch agent json description", err)
-			continue
-		}
-
-		appName, ok := description["app_name"].(string)
+		appName, ok := data_r["app_name"].(string)
 		if !ok || appName == "" {
 			appName = "Undefined"
 		}
@@ -77,14 +71,15 @@ func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c
 		}
 
 		is_bot, ok := data_r["bot"].(bool)
+		is_agent, ok := data_r["agent"].(bool)
 		if !ok {
 			is_bot = false
 		}
 
-		if is_bot {
-			appUrl, _ := description["app_url"].(string)
-			appLogo, _ := description["app_logo"].(string)
-			appDescription, _ := description["app_description"].(string)
+		if is_bot || is_agent {
+			appUrl, _ := data_r["app_url"].(string)
+			appLogo, _ := data_r["app_logo"].(string)
+			appDescription, _ := data_r["app_description"].(string)
 
 			agent := models.Integrations{
 				ID:             org_agents.IntegrationID,

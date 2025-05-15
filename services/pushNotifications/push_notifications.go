@@ -28,6 +28,10 @@ func PushFCMToUser(req models.PushFCMRequest, logger *utility.Logger, db *gorm.D
 		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
 	}
 
+	if fcmtoken == "" {
+		return nil
+	}
+
 	err = firebase.SendNotificationByFCMToken(logger, fcmtoken, title, body, req.AvatarUrl)
 
 	if err != nil {
@@ -41,23 +45,30 @@ func PushFCMToUser(req models.PushFCMRequest, logger *utility.Logger, db *gorm.D
 
 func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.DB) error {
 
-	var channel models.Channels
+	var (
+		channel models.Channels
+	)
 
 	userArr := make([]string, 0)
 
-	users, err := channel.FetchChannelUsers(db, req.ChannelId)
+	if len(req.UserIds) == 0 {
+		users, err := channel.FetchChannelUsers(db, req.ChannelId)
 
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
-		return err
-	}
-
-	for _, user := range users {
-		if user.UserID == req.UserId {
-			continue
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+			return err
 		}
 
-		userArr = append(userArr, user.UserID)
+		for _, user := range users {
+			if user.UserID == req.UserId {
+				continue
+			}
+
+			userArr = append(userArr, user.UserID)
+		}
+
+	} else {
+		userArr = req.UserIds
 	}
 
 	fcmTokens, err := fcmtokens.GetFcmTokenByUserIds(userArr, db)
@@ -67,6 +78,10 @@ func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.
 		return err
 	}
 
+	if len(fcmTokens) == 0 {
+		return nil
+	}
+
 	title := fmt.Sprintf("#%s ", req.ChannelName)
 	body := fmt.Sprintf("(@%s): %s", req.Username, req.Message)
 
@@ -74,7 +89,7 @@ func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
-		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return fmt.Errorf("Failed to send mass push notification, %s", err.Error())
 	}
 
 	return nil

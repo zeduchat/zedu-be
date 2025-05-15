@@ -196,7 +196,7 @@ type CreateThreadMsgReq struct {
 
 type BotReturnRequest struct {
 	ChannelID string                 `json:"channel_id"`
-	Content   string                 `json:"content"`
+	Content   string                 `json:"message"`
 	Media     []UploadedFileResponse `json:"media"`
 	Mentions  []Mention              `json:"mentions"`
 }
@@ -206,8 +206,10 @@ type FeedMessageRequest struct {
 	FullName  string                 `json:"full_name"`
 	UserName  string                 `json:"username"`
 	CreatedAt string                 `json:"created_at"`
+	UpdatedAt string                 `json:"updated_at"`
 	Email     string                 `json:"email"`
 	AvatarURL string                 `json:"avatar_url,omitempty"`
+	MessageId string                 `json:"message_id,omitempty"`
 	Type      string                 `json:"type"`
 	Content   string                 `json:"message"`
 	ThreadId  string                 `json:"thread_id"`
@@ -215,6 +217,7 @@ type FeedMessageRequest struct {
 	UserId    string                 `json:"user_id"`
 	Media     []UploadedFileResponse `json:"media"`
 	UserType  string                 `json:"user_type"`
+	Id        string                 `json:"id"`
 }
 
 type Mentions struct {
@@ -542,19 +545,19 @@ func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, me
 	return c, nil
 }
 
-func (c *Threads) DeleteThread(db *gorm.DB, thread Threads) (*Threads, error) {
-	var messages Message
-	var ctx *gin.Context
-	var logger *utility.Logger
+func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+	// var messages Message
+	// var ctx *gin.Context
+	// var logger *utility.Logger
 
-	msgDocCollection, _, msgDocErr := messages.GetAllMessagesByThreadID(ctx, db, thread.UserId, thread.ID)
-	if msgDocErr == nil && len(msgDocCollection) > 0 {
-		for _, msgDoc := range msgDocCollection {
-			if _, err := c.DeleteThreadMediaFiles(logger, db, msgDoc.Media); err != nil {
-				return nil, err
-			}
-		}
-	}
+	// msgDocCollection, _, msgDocErr := messages.GetAllMessagesByThreadID(ctx, db, thread.UserId, thread.ID)
+	// if msgDocErr == nil && len(msgDocCollection) > 0 {
+	// 	for _, msgDoc := range msgDocCollection {
+	// 		if _, err := c.DeleteThreadMediaFiles(logger, db, msgDoc.Media); err != nil {
+	// 			return nil, err
+	// 		}
+	// 	}
+	// }
 
 	messageQuery := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -564,14 +567,41 @@ func (c *Threads) DeleteThread(db *gorm.DB, thread Threads) (*Threads, error) {
 		},
 	}
 
+	//deletes messages(replies to a thread)
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, messageQuery)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
 	}
 
+	//deletes thread
 	err = elastic.DeleteDocument(storage.DB.Elastic, ThreadIndexName, c.ID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid thread uuid supplied")
+		return nil, fmt.Errorf("invalid thread uuid supplied: %v", err)
+	}
+
+	return c, nil
+}
+
+func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
+
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"match": map[string]interface{}{
+				"channels_id": c.ID,
+			},
+		},
+	}
+
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete channel messages, err: %v", err)
+	}
+
+	err = elastic.DeleteByQuery(storage.DB.Elastic, ThreadIndexName, query)
+	if err != nil {
+		return nil, fmt.Errorf("invalid channel uuid supplied: %v", err)
 	}
 
 	return c, nil

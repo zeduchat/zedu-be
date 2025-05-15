@@ -8,17 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateHelpCenterArticle(req models.CreateHelpCenterArticle, db *gorm.DB) (models.HelpCenterArticle , error) {
+func CreateHelpCenterArticle(req models.CreateHelpCenterArticle, db *gorm.DB) (models.HelpCenterArticle, error) {
 	helpCnt := models.HelpCenterArticle{
-		ID:          		utility.GenerateUUID(),
-		Title:       		req.Title,	
-		Content:       		req.Content,	
-		CategoryID:       	req.CategoryID,	
+		ID:         utility.GenerateUUID(),
+		Title:      req.Title,
+		Content:    req.Content,
+		CategoryID: req.CategoryID,
 	}
 
-	if err := helpCnt.CreateHelpCenterArticle(db, req.Title) ;
-
-	err != nil {
+	if err := helpCnt.CreateHelpCenterArticle(db, req.Title); err != nil {
 		return models.HelpCenterArticle{}, err
 	}
 
@@ -52,9 +50,9 @@ func SearchHelpCenterArticles(c *gin.Context, db *gorm.DB, query string) ([]mode
 	var topicSummaries []models.HelpCenterArticle
 	for _, topic := range topics {
 		summary := models.HelpCenterArticle{
-			ID:      	topic.ID,
-			Title:   	topic.Title,
-			Content: 	topic.Content,
+			ID:         topic.ID,
+			Title:      topic.Title,
+			Content:    topic.Content,
 			CategoryID: topic.CategoryID,
 		}
 		topicSummaries = append(topicSummaries, summary)

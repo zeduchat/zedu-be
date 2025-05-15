@@ -22,7 +22,6 @@ type Controller struct {
 }
 
 func (base *Controller) Search(c *gin.Context) {
-
 	orgId := c.Param("orgId")
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
@@ -53,6 +52,6 @@ func (base *Controller) Search(c *gin.Context) {
 		c.JSON(code, resp)
 		return
 	}
-	resp := utility.BuildSuccessResponse(http.StatusOK, "success", "search result", searchResult)
+	resp := utility.BuildSuccessResponse(http.StatusOK, "success", searchResult)
 	c.JSON(code, resp)
 }

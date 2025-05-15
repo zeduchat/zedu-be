@@ -27,11 +27,11 @@ import (
 
 func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 	var (
-		profile    models.Profile
-		user       models.User
-		channel    models.DmChannels
-		chanParts  []models.ChannelParticipant
-		channelIDs []string
+		profile   models.Profile
+		user      models.User
+		channel   models.DmChannels
+		chanParts []models.ChannelParticipant
+		userIDs   []string
 	)
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -101,13 +101,30 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 
-	username := ""
-	if profile.UserName != "" {
-		username = profile.UserName
-	} else if profile.FullName != "" {
-		username = profile.FullName
-	} else {
-		username = user.Email
+	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
+	// Handle DM-specific case
+	if channel.ChannelType == "dm" {
+		err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", *channel.ParticipantId, err))
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish to participant")
+		}
+
+		pushReq := models.PushFCMRequest{
+			ChannelName: username,
+			UserId:      *channel.ParticipantId,
+			Message:     req.Content,
+			TimeStamp:   threadDoc.CreatedAt.String(),
+			AvatarUrl:   profile.AvatarURL,
+		}
+
+		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
+		}
+
+		return &threadDoc, http.StatusCreated, nil
 	}
 
 	err = postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id = ?", channel.ChannelId)
@@ -117,63 +134,32 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	for _, cp := range chanParts {
 		if cp.UserId != req.UserId {
-			channelIDs = append(channelIDs, cp.UserId)
+			userIDs = append(userIDs, cp.UserId)
 		}
 	}
 
-	if len(channelIDs) == 0 {
-		return &threadDoc, http.StatusCreated, nil
-	}
-
-	// Handle DM-specific case
-	if channel.ChannelType == "dm" && len(channelIDs) == 1 {
-		err = centrifuge.PublishChannel(logger, channelIDs[0], notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", channelIDs[0], err))
-			return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
-		}
-
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserId:      channelIDs[0],
-			Message:     req.Content,
-			TimeStamp:   threadDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", channelIDs[0], err))
-		}
-
+	if len(userIDs) == 0 {
 		return &threadDoc, http.StatusCreated, nil
 	}
 
 	// Handle non-DM (group) case
-	err = centrifuge.BatchBroadcastToChannel(logger, channelIDs, notification)
+	err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", channelIDs, err))
+		logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", userIDs, err))
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to broadcast webhook data: %v", err)
 	}
 
-	pushFailures := 0
-	for _, userID := range channelIDs {
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserId:      userID,
-			Message:     req.Content,
-			TimeStamp:   threadDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", userID, err))
-			pushFailures++
-		}
+	pushReq := models.PushFCMRequest{
+		ChannelName: username,
+		UserIds:     userIDs,
+		Message:     req.Content,
+		TimeStamp:   threadDoc.CreatedAt.String(),
+		AvatarUrl:   profile.AvatarURL,
 	}
-	if pushFailures > 0 {
-		logger.Error(fmt.Sprintf("Failed to send push notifications to %d/%d users", pushFailures, len(channelIDs)))
+
+	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send push notification to users %s: %v", userIDs, err))
 	}
 
 	return &threadDoc, http.StatusCreated, nil
@@ -280,6 +266,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 					"mentions":                feed.Mentions,
 				},
 				"channel_id": feed.ChannelsId,
+				"org_id":     feed.OrgId,
 				"return_url": feed.ReturnUrl,
 				"agent_id":   channel.ParticipantId,
 			},
@@ -310,6 +297,8 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 	dmchannel := models.DmChannels{}
 
 	exists := postgresql.CheckExists(db.Postgresql, &dmchannel, "channel_id = ? AND chat_type = ?", req.ChannelsID, "bot")
+	req.OrgId = dmchannel.OrgId
+
 	if exists {
 		return sendDMMessageToBot(req, db, logger)
 	}
@@ -407,23 +396,20 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
 	}
 
-	agentJSONURL := orgAgent.JSONUrl
-	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, agentJSONURL, rds)
+	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 	if err != nil {
 		return &threadResp, http.StatusInternalServerError, err
 	}
 
-	agentDescription := agentDetails["descriptions"].(map[string]interface{})
-
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
-		Username:      agentDescription["app_name"].(string),
+		Username:      agentDetails["app_name"].(string),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelID,
 		Type:          "message",
 		MessageCount:  0,
-		AvatarURL:     agentDescription["app_logo"].(string),
-		FullName:      agentDescription["app_name"].(string),
+		AvatarURL:     agentDetails["app_logo"].(string),
+		FullName:      agentDetails["app_name"].(string),
 		Email:         "agent",
 		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
@@ -444,14 +430,14 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelID,
-		UserName:  agentDescription["app_name"].(string),
+		UserName:  agentDetails["app_name"].(string),
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: agentDescription["app_logo"].(string),
+		AvatarURL: agentDetails["app_logo"].(string),
 		Type:      "message",
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     "agent",
-		FullName:  agentDescription["app_name"].(string),
+		FullName:  agentDetails["app_name"].(string),
 		UserId:    *channel.ParticipantId,
 		Media:     req.Media,
 		UserType:  "bot",

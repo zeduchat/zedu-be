@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -76,11 +77,12 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.
 	return &accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {
+func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) ([]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
 		accessData         models.Threads
 		accessResp         []models.Threads
 		paginationResponse *elastic.PaginationResponse
+		userChannel        models.UserChannels
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -111,10 +113,32 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mode
 		return accessResp, nil, http.StatusInternalServerError, err
 	}
 
+	if len(accessResp) > 0 {
+		updateLastRead := models.UpdateLastRead{
+			LastReadAt:   accessResp[0].CreatedAt,
+			LastThreadId: accessResp[0].ID,
+		}
+		userChannel.ChannelsID = channelID
+		userChannel.UserID = userID
+		var wg sync.WaitGroup
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
+		}()
+
+		go func() {
+			wg.Wait()
+			userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
+		}()
+	}
+
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {
+func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) ([]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
@@ -252,7 +276,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusNotFound, errors.New("thread not found")
 	}
 
-	if _, err := thread.DeleteThread(db, thread); err != nil {
+	if _, err := thread.DeleteThread(db); err != nil {
 		return http.StatusBadRequest, err
 	}
 
@@ -300,6 +324,15 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusOK, nil
 	}
 
+	if dmChannel.ChannelType == "dm" {
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, userID}, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+			return http.StatusBadRequest, errors.New("failed to publish data")
+		}
+		return http.StatusOK, nil
+	}
+
 	err = centrifuge.PublishChannel(logger, publishDst, notification)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
@@ -314,6 +347,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		thread     models.Threads
 		threadResp models.ThreadDocument
 		publishDst string
+		user       models.User
 		dmChannel  models.DmChannels
 		channel    models.Channels
 		chanParts  []models.ChannelParticipant
@@ -337,9 +371,10 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		return threadResp, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-	_, code, err := user.GetUser(userID, db)
+	user, err = user.GetUserByID(db, userID)
+
 	if err != nil {
-		return threadResp, code, err
+		return threadResp, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
 	thread.ID = req.ThreadId
@@ -361,8 +396,31 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		}
 	}
 
+	err = threadResp.GetThreadById(db, thread.ID)
+
+	if err != nil {
+		return threadResp, http.StatusInternalServerError, err
+	}
+
+	feed := models.FeedMessageRequest{
+		ChannelID: threadResp.ChannelsID,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		AvatarURL: threadResp.AvatarURL,
+		Type:      threadResp.Type,
+		Content:   threadResp.Content,
+		ThreadId:  req.ThreadId,
+		Email:     threadResp.Email,
+		UserType:  threadResp.UserType,
+		UserName:  user.Profile.UserName,
+		FullName:  user.Profile.FullName,
+		OrgId:     threadResp.OrgansationID,
+		UserId:    threadResp.UserId,
+		Media:     threadResp.Media,
+	}
+
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ThreadSection
+	notification.Content = feed
 	notification.ModifcationDetails = models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelId,
@@ -390,12 +448,16 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 			return threadResp, http.StatusBadRequest, errors.New("failed to broadcast data")
 		}
 
-		err = threadResp.GetThreadById(db, thread.ID)
+		return threadResp, http.StatusOK, nil
+	}
 
+	if dmChannel.ChannelType == "dm" {
+
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, userID}, notification)
 		if err != nil {
-			return threadResp, http.StatusInternalServerError, err
+			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+			return threadResp, http.StatusBadRequest, errors.New("failed to publish data")
 		}
-
 		return threadResp, http.StatusOK, nil
 	}
 
@@ -403,12 +465,6 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
 		return threadResp, http.StatusBadRequest, errors.New("failed to publish data")
-	}
-
-	err = threadResp.GetThreadById(db, thread.ID)
-
-	if err != nil {
-		return threadResp, http.StatusInternalServerError, err
 	}
 
 	return threadResp, http.StatusOK, nil

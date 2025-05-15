@@ -1,21 +1,21 @@
 package models
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/appengine/log"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Channels struct {
@@ -36,13 +36,23 @@ type Channels struct {
 }
 
 type UserChannels struct {
-	ChannelsID string    `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
-	UserID     string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	Username   string    `gorm:"column:username; type:varchar(100)" json:"username"`
-	CreatedAt  time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
-	DeletedAt  time.Time `gorm:"index" json:"deleted_at"`
+	ChannelsID   string                 `gorm:"type:uuid;primaryKey;not null" json:"channels_id"`
+	UserID       string                 `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
+	Username     string                 `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt    time.Time              `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	ThreadCount  int64                  `gorm:"column:thread_count;default:0" json:"thread_count"`
+	LastThreadId string                 `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
+	LastReadAt   time.Time              `gorm:"column:last_read_at" json:"last_read_at"`
+	MentionCount int64                  `gorm:"column:mention_count;default:0" json:"mention_count"`
+	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`
+	Preferences  NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
 }
 
+type UpdateLastRead struct {
+	LastThreadId string    `json:"last_thread_id,omitempty"`
+	LastReadAt   time.Time `json:"last_read_at,omitempty"`
+	ThreadCount  int64     `json:"thread_count"`
+}
 type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
@@ -64,9 +74,20 @@ type GetChannelResp struct {
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl  string `json:"webhook_url"`
-	ThreadCount int64  `json:"thread_count"`
-	Access      bool   `json:"access"`
+	WebhookUrl   string `json:"webhook_url"`
+	ThreadCount  int64  `json:"thread_count"`
+	Access       bool   `json:"access"`
+	MentionCount int64  `json:"mention_count"`
+	LastThreadId string `json:"last_thread_id"`
+}
+
+type GetUserChannelsUnReadResp []struct {
+	Channels
+	UserId       string `json:"-"`
+	ThreadCount  int64  `json:"thread_count"`
+	Access       bool   `json:"access"`
+	MentionCount int64  `json:"mention_count"`
+	LastThreadId string `json:"last_thread_id"`
 }
 
 type GetUserNotChannelResp []struct {
@@ -126,6 +147,11 @@ type ArchiveChannelRequest struct {
 	Archived bool   `json:"archived"`
 	UserId   string `json:"user_id" `
 }
+
+type UnReadUpdate string
+
+var Read UnReadUpdate = "read"
+var NewThread UnReadUpdate = "new_thread"
 
 func (r *Channels) CreateChannel(db *gorm.DB) error {
 
@@ -441,11 +467,6 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 			userChanList = append(userChanList, newUserChannels)
 		}
 	}
-	fmt.Println(userChanList)
-
-	if len(userChanList) == 0 {
-		return errors.New("no user added to channel. All users already in channel")
-	}
 
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
@@ -509,7 +530,11 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 }
 
 func (c *Channels) Delete(db *gorm.DB) error {
-	var userChannels UserChannels
+	var (
+		userChannels UserChannels
+		orgChanInt   OrganisationChannelsIntegrations
+		thread       Threads
+	)
 
 	err := db.Model(&userChannels).Where("channels_id = ?", c.ID).Delete(&userChannels).Error
 	if err != nil {
@@ -519,6 +544,17 @@ func (c *Channels) Delete(db *gorm.DB) error {
 	err = postgresql.DeleteRecordFromDb(db, &c)
 	if err != nil {
 		return err
+	}
+
+	err = postgresql.DeleteSpecificRecord(db, &orgChanInt, "channel_id = ?", c.ID)
+	if err != nil {
+		return errors.New("error removing channel from organisation channels integration")
+	}
+
+	thread.ID = c.ID
+
+	if _, err := thread.DeleteThread(db); err != nil {
+		return fmt.Errorf("failed to delete group DM channel threads: %v", err)
 	}
 
 	return nil
@@ -551,27 +587,30 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
 	}
 
-    updates := map[string]interface{}{}
-    if req.Name != "" {
-        updates["name"] = req.Name
-    }
-    if req.Description != "" {
-        updates["description"] = req.Description
-    }
-	if len(updates) == 0 {
-        return Channels{}, http.StatusBadRequest, errors.New("no fields to update")
-    }
+	updates := map[string]interface{}{}
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
 
-    result := db.Model(&channel).Where("id = ?", r.ID).Updates(updates)
-    if result.RowsAffected == 0 {
-        return Channels{}, http.StatusInternalServerError, errors.New("failed to update channel")
-    }
+	if req.Description != "" {
+		updates["description"] = req.Description
+	}
+
+	if len(updates) == 0 {
+		return Channels{}, http.StatusBadRequest, errors.New("no fields to update")
+	}
+
+	result := db.Model(&channel).Where("id = ?", r.ID).Updates(updates)
+	if result.RowsAffected == 0 {
+		return Channels{}, http.StatusInternalServerError, errors.New("failed to update channel")
+	}
 
 	updatedChannels := Channels{}
 	err = db.First(&updatedChannels, "id = ?", r.ID).Error
 	if err != nil {
 		return Channels{}, http.StatusInternalServerError, err
 	}
+
 	return updatedChannels, http.StatusOK, nil
 }
 
@@ -630,11 +669,8 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID string) (GetUserChannelResp, error) {
 
 	var (
-		channels []Channels
 		org      Organisation
 		chanResp GetUserChannelResp
-		c        context.Context
-		es       = base.Elastic
 		db       = base.Postgresql
 	)
 
@@ -643,70 +679,13 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID st
 		return chanResp, errors.New("organisation does not exist")
 	}
 
-	if err := db.Model(&[]Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at").
-		Joins("join user_channels on channels.id = user_channels.channels_id").
-		Where("channels.organisation_id = ?", orgID).
-		Where("user_channels.user_id = ?", userId).
+	if err := db.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
+		Where("channels.organisation_id = ? AND uc.user_id = ?", orgID, userId).
 		Order("channels.created_at").
-		Scan(&channels).Error; err != nil {
+		Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
-	}
-
-	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
-		query := map[string]interface{}{
-			"query": map[string]interface{}{
-				"bool": map[string]interface{}{
-					"must": []map[string]interface{}{
-						{
-							"term": map[string]interface{}{
-								"channels_id.keyword": channelID,
-							},
-						},
-						{
-							"term": map[string]interface{}{
-								"type.keyword": "thread",
-							},
-						},
-					},
-				},
-			},
-			"size": 0,
-			"aggs": map[string]interface{}{
-				"thread_count": map[string]interface{}{
-					"value_count": map[string]interface{}{
-						"field": "thread_id.keyword",
-					},
-				},
-			},
-		}
-
-		var countInfo any
-		err := elastic.SelectAll(es, "threads", query, &countInfo)
-		if err != nil {
-			log.Errorf(c, "error fetching thread count from elastic: %v", err)
-			return 0
-		}
-
-		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
-
-		return int(count)
-
-	}
-
-	for _, channel := range channels {
-		count := getThreadCountFromElastic(es, channel.ID)
-		chanResp = append(chanResp, struct {
-			Channels
-			WebhookUrl  string `json:"webhook_url"`
-			ThreadCount int64  `json:"thread_count"`
-			Access      bool   `json:"access"`
-		}{
-			Channels:    channel,
-			WebhookUrl:  "",
-			ThreadCount: int64(count),
-			Access:      true,
-		})
 	}
 
 	return chanResp, nil
@@ -747,4 +726,194 @@ func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChan
 	}
 
 	return users, nil
+}
+
+func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mutex, logger *utility.Logger) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	query := "channels_id = ? AND user_id = ?"
+
+	updateFields := map[string]interface{}{
+		"last_thread_id": req.LastThreadId,
+		"last_read_at":   req.LastReadAt,
+		"mention_count":  0,
+		"thread_count":   0,
+	}
+
+	result := db.Model(&UserChannels{}).
+		Where(query, c.ChannelsID, c.UserID).
+		Updates(updateFields)
+
+	if result.Error != nil {
+		logger.Error("an error occurend while updating user last read: %v", result.Error)
+		return
+	}
+
+	logger.Info("user last read updated successfully")
+
+}
+
+func (c *UserChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *utility.Logger) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	query := "channels_id = ? AND user_id != ?"
+
+	updateFields := map[string]interface{}{
+		"thread_count": gorm.Expr("thread_count + 1"),
+	}
+
+	result := db.Model(&UserChannels{}).
+		Where(query, c.ChannelsID, c.UserID).
+		Updates(updateFields)
+
+	if result.Error != nil {
+		logger.Error("an error occurred while updating user channel counts: %v", result.Error)
+		return
+	}
+
+	logger.Info("user channels counts updated successfully")
+}
+
+func (c *UserChannels) ProcessMentions(db *gorm.DB, req []Mention, mu *sync.Mutex, logger *utility.Logger) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	IdCount := map[string]int{}
+
+	for _, mention := range req {
+
+		if mention.Type == "user" {
+			IdCount[mention.ID]++
+		}
+	}
+
+	if len(IdCount) == 0 {
+		logger.Info("No mentions to update")
+		return
+	}
+
+	var userIDs []string
+	caseStmt := "CASE user_id"
+	for userID, count := range IdCount {
+		userIDs = append(userIDs, fmt.Sprintf("'%s'", userID))
+		caseStmt += fmt.Sprintf(" WHEN '%s' THEN mention_count + %d", userID, count)
+	}
+	caseStmt += " END"
+
+	// Build the query
+	query := fmt.Sprintf(`
+		UPDATE user_channels
+		SET mention_count = %s
+		WHERE channels_id = ? AND user_id IN (%s)
+	`, caseStmt, strings.Join(userIDs, ","))
+
+	if err := db.Exec(query, c.ChannelsID).Error; err != nil {
+		logger.Error("Bulk update failed: %v", err)
+		return
+	}
+
+	logger.Info("user last read updated successfully")
+}
+
+func (uc *UserChannels) GetUserChannel(base *storage.Database, userId, channel_id string) (GetUserChannelResp, error) {
+
+	var (
+		chanResp GetUserChannelResp
+		db       = base.Postgresql
+	)
+
+	if err := db.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
+		Where("channels.id = ? AND uc.user_id = ?", channel_id, userId).
+		Order("channels.created_at").
+		Scan(&chanResp).Error; err != nil {
+		return nil, errors.New("error fetching channels")
+	}
+
+	return chanResp, nil
+}
+
+func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, userId, channel_id string) (GetUserChannelsUnReadResp, error) {
+
+	var (
+		chanResp GetUserChannelsUnReadResp
+		db       = base.Postgresql
+	)
+
+	if err := db.Model(&Channels{}).
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
+		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
+		Where("channels.id = ? AND uc.user_id != ?", channel_id, userId).
+		Order("channels.created_at").
+		Scan(&chanResp).Error; err != nil {
+		return nil, errors.New("error fetching channels")
+	}
+
+	return chanResp, nil
+}
+
+func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Logger, updateType UnReadUpdate) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if updateType == Read {
+
+		res, err := c.GetUserChannel(storage.DB, c.UserID, c.ChannelsID)
+
+		if err != nil {
+			logger.Error("Bulk update failed: %v", err)
+			return
+		}
+
+		if len(res) < 1 {
+			logger.Error("Empty channel response")
+			return
+		}
+
+		notification := Notification[UnReadThreadChange]
+		notification.SectionType = ChannelsSection
+		notification.Content = res[0]
+
+		err = centrifuge.PublishChannel(logger, c.UserID, notification)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, c.UserID, err.Error()))
+			return
+		}
+	}
+
+	if updateType == NewThread {
+
+		res, err := c.GetUserChannelsUnreadThread(storage.DB, c.UserID, c.ChannelsID)
+
+		if err != nil {
+			logger.Error("Bulk update failed: %v", err)
+			return
+		}
+
+		if len(res) < 1 {
+			logger.Error("Empty channel response")
+			return
+		}
+
+		for _, update := range res {
+			notification := Notification[UnReadThreadChange]
+			notification.SectionType = ChannelsSection
+			notification.Content = update
+
+			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
+				return
+			}
+		}
+	}
+
+	logger.Info("user last read updated successfully")
 }

@@ -56,8 +56,6 @@ tags:
     description: API for feeding centrifugo server
   - name: Agents
     description: API for user agents operations
-  - name: Custom Agents
-    description: API for user agents operations
   - name: System Agents
     description: API for system agents operations
   - name: Overview
@@ -84,6 +82,10 @@ tags:
     description: API for uploading and retrieving files
   - name: Search
     description: API endpoints for searching user query
+  - name: Agent Database
+    description: API endpoints for agent databases
+  - name: Notification Preferences
+    description: API endpoints for managing notification preferences
 
 paths:
   # Auth paths
@@ -2808,12 +2810,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-  /organisations/:org_id/user-channels:
+  /organisations/{org_id}/user-channels:
     get:
       summary: Fetch User Channels
+      security:
+        - bearerAuth: []
       description: Retrieve the list of channels associated with the authenticated user.
       tags:
         - organisation
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization to retrieve channels from.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -5294,7 +5306,7 @@ paths:
     get:
       tags:
         - Profile
-      summary: get user profile
+      summary: Get user profile
       security:
         - bearerAuth: []
       responses:
@@ -5381,6 +5393,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+  /profile/{user_id}:
+    get:
+      tags:
+        - Profile
+      summary: Get user profile by user ID
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (e.g, 019142c8-5408-7a48-8173-f31e6c8e00cd)
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User profile retrieved successfully"
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      schema:
+                        $ref: "#/components/schemas/ProfileResponseSchema"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    
   /profile/image:
     delete:
       tags:
@@ -5441,16 +5502,20 @@ paths:
               properties:
                 icon:
                   type: string
-                  example: ✅
+                  example: ✅✅✅✅✅
                 text:
                   type: string
                   example: Checked Out
                 pause_notification:
-                  type: string
-                  example: 30 minutes
+                  type: bool
+                  example: false
                 status_timeout:
                   type: string
                   example: 20 minutes
+                clear_status:
+                  type: bool
+                  description: set to true to clear current status feilds
+                  example: true
 
       responses:
         "200":
@@ -8646,7 +8711,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-  /organisations/{organisationId}/agents:
+  /organisations/{organisationId}/agents/system:
     post:
       tags:
         - Agents
@@ -8872,7 +8937,7 @@ paths:
                           type: string
                           example: "https://system-integrations.telex.im/slack/channels"
 
-  /organisations/{organisationId}/agents/{agentId}:
+  /organisations/{organisationId}/agents/system/{agentId}:
     patch:
       tags:
         - Agents
@@ -9106,73 +9171,6 @@ paths:
                               type: boolean
                               example: true
                       is_allchannels:
-                        type: boolean
-                        example: true
-        "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "Bad Request"
-                  status_code:
-                    type: integer
-                    example: 400
-                  message:
-                    type: string
-                    example: "Invalid input"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "404":
-          description: Agent not found
-
-  /organisations/{organisationId}/agents/{agentId}/status:
-    get:
-      tags:
-        - Agents
-      summary: Get organization's agent channels
-      parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
-        - name: agentId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
-
-      responses:
-        "200":
-          description: Fetched Agent status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Agent status fetched successfully
-                  data:
-                    type: object
-                    properties:
-                      status:
                         type: boolean
                         example: true
         "400":
@@ -9949,62 +9947,7 @@ paths:
                     type: string
                     example: "An unexpected error occurred."
 
-  /organisations/{organisation_id}/agents/{agent_id}/settings:
-    post:
-      summary: Add a new agent setting
-      description: Adds a new form field value and label to the agent settings for a specific organization.
-      tags:
-        - IntegrationSettings
-      parameters:
-        - name: organisation_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: The UUID of the organization.
-        - name: integration_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: The UUID of the integration.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                form_field_value:
-                  type: string
-                  example: "shallom"
-                  description: Value for the form field.
-                form_field_label:
-                  type: string
-                  example: "micah bawa"
-                  description: Label for the form field.
-      responses:
-        200:
-          description: Successfully added the agent setting.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Agent setting added successfully
-        400:
-          description: Invalid request.
-
+  /organisations/{organisation_id}/settings/agents/{agent_id}:
     get:
       summary: Retrieve agent settings
       description: Retrieves all form field settings for a specific agent and organization.
@@ -10075,6 +10018,63 @@ paths:
                           example: "2024-09-29T04:28:21.076005+01:00"
         404:
           description: Organisation or agent not found.
+  
+  /organisations/{organisation_id}/agents/{agent_id}/settings:
+    post:
+      summary: Add a new agent setting
+      description: Adds a new form field value and label to the agent settings for a specific organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_value:
+                  type: string
+                  example: "shallom"
+                  description: Value for the form field.
+                form_field_label:
+                  type: string
+                  example: "micah bawa"
+                  description: Label for the form field.
+      responses:
+        200:
+          description: Successfully added the agent setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent setting added successfully
+        400:
+          description: Invalid request.
+ 
     patch:
       summary: Update an existing agent setting
       description: Updates a form field's label in the agent settings for a specific organization.
@@ -10728,11 +10728,13 @@ paths:
 
   ### Custom Agent Section
 
-  /organisations/{organisationId}/agents/custom:
+  /organisations/{organisationId}/agents:
     post:
       tags:
-        - Custom Agents
+        - Agents
       summary: "Create a new agent for the organization"
+      security:
+        - bearerAuth: []
       description: "Creates a new agent within the specified organization."
       parameters:
         - name: organisationId
@@ -10779,6 +10781,8 @@ paths:
       description: Retrieve a list of integrations for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -10856,10 +10860,12 @@ paths:
         404:
           description: Organisation not found.
 
-  /organisations/{organisationId}/agents/custom/{agentId}:
+  /organisations/{organisationId}/agents/{agentId}:
     put:
       tags:
-        - Custom Agents
+        - Agents
+      security:
+        - bearerAuth: []
       summary: Update an organization's integration
       parameters:
         - name: organisationId
@@ -10930,6 +10936,8 @@ paths:
       tags:
         - Custom Agents
       summary: Delete an organization's integration
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -10987,11 +10995,13 @@ paths:
         "404":
           description: Agent not found
 
-  /organisations/{organisationId}/agents/custom/{agentId}/settings:
+  /organisations/{organisationId}/agents/{agentId}/settings:
     put:
       tags:
-        - Custom Agents
+        - Agents
       summary: Update an organization's custom agent settings
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11066,6 +11076,8 @@ paths:
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11112,12 +11124,14 @@ paths:
         404:
           description: Organisation not found.
 
-  /organisations/{organisationId}/agents/custom/{agentId}/status:
+  /organisations/{organisationId}/agents/{agentId}/status:
     get:
       summary: Get integrations settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11202,6 +11216,8 @@ paths:
     get:
       summary: Get a single agent
       description: Retrieve a system agent from telex.
+      security:
+        - bearerAuth: []
       tags:
         - System Agents
       parameters:
@@ -11245,6 +11261,8 @@ paths:
       tags:
         - Overview
       summary: Get Organization Thread Metrics
+      security:
+        - bearerAuth: []
       description: Retrieves metrics for threads associated with a specific organization over a given number of days.
       parameters:
         - name: organisationId
@@ -11768,6 +11786,73 @@ paths:
                   message:
                     type: string
 
+  /organisations/{organisationId}/channels/agents/{agentId}/status:
+    get:
+      tags:
+        - Agents
+      summary: Get organization's agent channels
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+
+      responses:
+        "200":
+          description: Fetched Agent status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent status fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: boolean
+                        example: true
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Agent not found
+
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
     post:
       tags:
@@ -12275,122 +12360,165 @@ paths:
                   message: "Organisation not found"
 
   #mongogrations
-  /mongo-integrations:
-    get:
-      tags:
-        - Mongogrations
-      summary: Read entries from a MongoDB collection
-      description: Retrieves documents from the specified collection based on the provided filter.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name and filter.
-          required: true
-          schema:
-            $ref: "#/definitions/ReadMongoRequest"
-      responses:
-        200:
-          description: A list of documents matching the filter.
-          schema:
-            type: array
-            items:
-              type: object
-        400:
-          description: Bad request. Invalid input.
-        500:
-          description: Internal server error.
+  /agent_db/collections:
     post:
       tags:
-        - Mongogrations
-      summary: Create a new entry in a MongoDB collection
-      description: Creates a new document in the specified collection.
-      consumes:
-        - application/json
-      produces:
-        - application/json
+        - Agent Database
+      summary: Create a new MongoDB collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                collection:
+                  type: string
+                  example: test_collection_2
+      responses:
+        200:
+          description: Collection created successfully
+
+  /agent_db/collections/{collection_name}/documents:
+    post:
+      tags:
+        - Agent Database
+      summary: Add a document to a MongoDB collection
       parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name and document to create.
+        - in: path
+          name: collection_name
           required: true
           schema:
-            $ref: "#/definitions/CreateMongoRequest"
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: object
       responses:
-        201:
-          description: Document created successfully.
+        200:
+          description: Document created successfully
+  
+    get:
+      tags:
+        - Agent Database
+      summary: Retrieve documents from a MongoDB collection
+      parameters:
+        - in: path
+          name: collection_name
+          required: true
           schema:
-            type: object
-            properties:
-              insertedID:
-                type: string
-        400:
-          description: Bad request. Invalid input.
-        500:
-          description: Internal server error.
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  example:
+                    age: 30
+      responses:
+        200:
+          description: Documents retrieved successfully
+  
+  /agent_db/collections/{collection_name}/documents/{document_id}:
+    get:
+      tags:
+        - Agent Database
+      summary: Retrieve a single document by ID
+      parameters:
+        - name: collection_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Document retrieved
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Document retrieved successfully
+                data:
+                  _id: 6806c9a0c1ea95a3dedf9804
+                  name: shallom micah bawa
+                  names: ddddddd
+                  email: johndoe@example.com
+                  age: 31
+                  created_at: "2025-04-16T12:00:00Z"
+                  is_active: true
+                  tags:
+                    - test
+                    - dummy
+                    - example
+                  address:
+                    street: 123 Main St
+                    city: New York
+                    state: NY
+                    zip: "10001"
+
     put:
       tags:
-        - Mongogrations
-      summary: Update an entry in a MongoDB collection
-      description: Updates an existing document in the specified collection based on ID.
-      consumes:
-        - application/json
-      produces:
-        - application/json
+        - Agent Database
+      summary: Update a document in a MongoDB collection
       parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name, ID, and document to update.
+        - in: path
+          name: collection_name
           required: true
           schema:
-            $ref: "#/definitions/UpdateMongoRequest"
+            type: string
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: object
+                  example:
+                    age: 44444444444444444
       responses:
         200:
-          description: Document updated successfully.
-          schema:
-            type: object
-            properties:
-              modifiedCount:
-                type: integer
-        400:
-          description: Bad request. Invalid input.
-        404:
-          description: Document not found.
-        500:
-          description: Internal server error.
+          description: Document updated successfully
+  
     delete:
       tags:
-        - Mongogrations
-      summary: Delete an entry from a MongoDB collection
-      description: Deletes a document from the specified collection based on ID.
-      consumes:
-        - application/json
-      produces:
-        - application/json
+        - Agent Database
+      summary: Delete a document in a MongoDB collection
       parameters:
-        - in: body
-          name: body
-          description: Request body containing collection name and ID to delete.
+        - in: path
+          name: collection_name
           required: true
           schema:
-            $ref: "#/definitions/DeleteMongoRequest"
+            type: string
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: string
       responses:
         200:
-          description: Document deleted successfully.
-          schema:
-            type: object
-            properties:
-              deletedCount:
-                type: integer
-        400:
-          description: Bad request. Invalid input.
-        404:
-          description: Document not found.
-        500:
-          description: Internal server error.
+          description: Document deleted successfully
 
   # firebase fcmtokenpath
   /fcmtoken:
@@ -12427,6 +12555,61 @@ paths:
                   message:
                     type: string
                     example: "Fcm token saved successfully"
+                  status_code:
+                    type: integer
+                    example: 201
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /wnstoken:
+    post:
+      tags:
+        - WNS Config Token
+      security:
+        - bearerAuth: []
+      summary: Save users WNS channel URI and token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                wns_token:
+                  type: string
+                channel_uri:
+                  type: string
+              required:
+                - wns_token
+                - channel_uri
+
+      responses:
+        "201":
+          description: WNS config saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: success response
+                    example: success
+                  message:
+                    type: string
+                    example: "WNS config saved successfully"
                   status_code:
                     type: integer
                     example: 201
@@ -13861,6 +14044,224 @@ paths:
                     example: An unexpected error occurred
                   error:
                     type: object
+
+## Notification Preference routes
+
+
+  /channels/{channel_id}/notification-preference:
+    post:
+      tags:
+      -  Notification Preferences
+      summary: Add or update channel notification preference
+      security:
+        - bearerAuth: []
+      description:  Add or update channel notification preference
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                muted:
+                  type: boolean
+                  example: true
+                at_mentions:
+                  type: boolean
+                  example: true
+                at_channel:
+                  type: boolean
+                  example: true
+                device_type:
+                  type: string
+                  format: string
+                  enum: [web, mobile, desktop]
+                  example: web
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  at_mentions:
+                    type: boolean
+                    example: true
+                  at_channel:
+                    type: boolean
+                    example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+    get:
+      tags:
+      -  Notification Preferences
+      summary: Fetch notification preferences
+      security:
+        - bearerAuth: []
+      description: Fetch notification preferencesa for a channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+        - name: device_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            enum: [web, mobile, desktop]
+            example: web
+          description: device type.
+
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  at_mentions:
+                    type: boolean
+                    example: true
+                  at_channel:
+                    type: boolean
+                    example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+
+  /organisations/{orgId}/channels/notification-preference:
+    get:
+      tags:
+      -  Notification Preferences
+      summary: Fetch notification preferences for channels
+      security:
+        - bearerAuth: []
+      description: Fetch notification preferences for a user organisation channels.
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to fetch channel notification peferences from.
+        - name: device_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            enum: [web, mobile, desktop]
+            example: web
+          description: device type.
+
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  channels_id:
+                    type: string
+                    format: uuid
+                  channel_name:
+                    type: string
+                    example: User Channel
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
 components:
   schemas:

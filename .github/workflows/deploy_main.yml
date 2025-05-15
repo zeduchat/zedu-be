@@ -13,17 +13,27 @@ jobs:
       SSH_USERNAME: ${{ secrets.TELEX_SERVER_SSH_USER }}
       SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
       SSH_PASSWORD: ${{ secrets.TELEX_SERVER_SSH_PASSWORD }}
+      BRANCH: main
+      APP_DIR: /var/www/telex_be
+      APP_BINARY: telexbe_main
+      SUPERVISOR_PROCESS: telexbe
     steps:
       - name: Install sshpass
         run: |
-          sudo apt-get update
-          sudo apt-get install -y sshpass
+          sudo apt update
+          sudo apt install -y sshpass
+
+      - name: Build and stop on failure
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+            cd '"$APP_DIR"'
+            git reset --hard
+            git pull origin '"$BRANCH"'
+            go build -o '"$APP_BINARY"'
+          '
+
       - name: Restart app
         run: |
           sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
-            cd /var/www/telex_be
-            git reset --hard
-            git pull origin main
-            go build -o telexbe_main
-            supervisorctl restart telexbe
+            supervisorctl restart '"$SUPERVISOR_PROCESS"'
           '

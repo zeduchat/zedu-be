@@ -23,7 +23,6 @@ type Controller struct {
 }
 
 func (base *Controller) GetUserProfile(c *gin.Context) {
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(400, "error", "Failed to Fetch user profile", "No user found", nil)
@@ -34,8 +33,19 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, userId)
+	memberID := c.Param("user_id")
+	if memberID != "" {
+		code, err := profile.IsSameOrganization(base.Db.Postgresql, userId, memberID)
+		if err != nil {
+			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+			c.JSON(code, rd)
+			return
+		}
+	}
 
+	memberID = userId
+
+	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, memberID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to Fetch user profile", err, nil)
 		c.JSON(code, rd)
@@ -75,7 +85,6 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 	req.UserId = userId
 
 	code, err := profile.UpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
-
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
 		c.JSON(code, rd)
@@ -89,6 +98,8 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 func (base *Controller) UpdateProfile(c *gin.Context) {
 	var req models.UpdateUserProfileRequest
 	var fileBase64Img string
+	var file []byte
+	var ext string
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -121,32 +132,36 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	base64Image := c.Request.FormValue("avatar_url")
-	if base64Image == "" {
-		_, imgFileHeader, err := c.Request.FormFile("avatar_file")
+	if base64Image != "" {
+		fileBase64Img = base64Image
+	}
+
+	_, imgFileHeader, err := c.Request.FormFile("avatar_file")
+	if err != nil && err != http.ErrMissingFile {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to parse avatar file", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if imgFileHeader != nil && imgFileHeader.Filename != "" {
+		base64Image, err := utility.ConvertToBase64(imgFileHeader)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
-
-		if imgFileHeader != nil {
-			base64Image, err := utility.ConvertToBase64(imgFileHeader)
-			if err != nil {
-				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-				c.JSON(http.StatusBadRequest, rd)
-				return
-			}
-			fileBase64Img = base64Image
-		}
-	} else {
 		fileBase64Img = base64Image
 	}
 
-	file, ext, err := utility.ValidatePicture(fileBase64Img)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+	if fileBase64Img != "" {
+		validFile, validExt, err := utility.ValidatePicture(fileBase64Img)
+		if err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		file = validFile
+		ext = validExt
 	}
 
 	claims, exists := c.Get("userClaims")

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/elastic/go-elasticsearch/v8"
-
 	"github.com/hngprojects/telex_be/utility"
 )
 

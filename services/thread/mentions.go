@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		profile       models.Profile
 		user          models.User
 		channel       models.Channels
+		userChan      models.UserChannels
 		agent_message = false
 	)
 
@@ -131,6 +133,33 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	logger.Info("sent push notification to channel users")
+
+	// increase unread count for channel users
+	userChan.ChannelsID = req.ChannelsID
+	userChan.UserID = req.UserId
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	// Add to the wait group for each goroutine that must complete first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		userChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	if len(req.Mentions) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			userChan.ProcessMentions(db.Postgresql, req.Mentions, mutex, logger)
+		}()
+	}
+
+	// Run this after the others finish
+	go func() {
+		wg.Wait()
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
 
 	return &threadDoc, nil
 }

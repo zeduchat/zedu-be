@@ -8,12 +8,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateEntry(db *mongo.Client, collection string, document interface{}) error {
-	databaseName := config.Config.MongoDB.DB_Name
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Second)
+func CreateDocument(db *mongo.Client, collection_name string, document interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	dbCollection := db.Database(databaseName).Collection(collection)
+	databaseName := config.Config.MongoDB.DB_Name
+	dbCollection := db.Database(databaseName).Collection(collection_name)
 	_, err := dbCollection.InsertOne(ctx, document)
 	if err != nil {
 		return err
