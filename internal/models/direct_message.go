@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
@@ -50,52 +50,63 @@ type DmChannelsRequest struct {
 	ChannelId     string `json:"channel_id"`
 }
 
-func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agentJSONURL string, redisClient *redis.Client) (map[string]interface{}, error) {
+func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]interface{}, error) {
 	var response interface{}
-	var err error
-
+	var data_r map[string]interface{}
+	agentJSONURL := agent.JSONUrl
 	redisKey := fmt.Sprintf("agent_json_%s", agentJSONURL)
 
-	cachedData, err := rd.RedisGet(redisClient, redisKey)
-	if err == nil && len(cachedData) > 0 {
-		var cachedResult interface{}
+	if agent.AppName == "" {
 
-		if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
-			rd.RedisDelete(redisClient, redisKey)
-			return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
+		cachedData, err := rd.RedisGet(redisClient, redisKey)
+		if err == nil && len(cachedData) > 0 {
+			var cachedResult interface{}
+
+			if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
+				rd.RedisDelete(redisClient, redisKey)
+				return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
+			}
+
+			data_r, ok := cachedResult.(map[string]interface{})
+			if !ok {
+				rd.RedisDelete(redisClient, redisKey)
+				return nil, errors.New("cached data is not in the expected format")
+			}
+
+			return data_r, nil
 		}
 
-		data_r, ok := cachedResult.(map[string]interface{})
+		data := map[string]string{"url": agentJSONURL}
+
+		for i := 0; i < 2; i++ {
+			response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
+			if err == nil {
+				break
+			}
+			time.Sleep(time.Duration(2<<i) * time.Second) // exponential backoff
+		}
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch agent json: %v", err)
+		}
+
+		response_data := response.(map[string]interface{})
+		data_r, ok := response_data["data"].(map[string]interface{})
 		if !ok {
-			rd.RedisDelete(redisClient, redisKey)
-			return nil, errors.New("cached data is not in the expected format")
+			return nil, errors.New("could not fetch data from agent json")
 		}
 
-		return data_r, nil
-	}
-
-	data := map[string]string{"url": agentJSONURL}
-
-	for i := 0; i < 2; i++ {
-		response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
-		if err == nil {
-			break
+		err = ValidateAgentData(data_r)
+		if err != nil {
+			return nil, fmt.Errorf("invalid agent json data: %v", err)
 		}
-		time.Sleep(time.Duration(2<<i) * time.Second) // exponential backoff
-	}
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch agent json: %v", err)
-	}
+	} else {
 
-	response_data := response.(map[string]interface{})
-	data_r, ok := response_data["data"].(map[string]interface{})
-	if !ok {
-		return nil, errors.New("could not fetch data from agent json")
-	}
-
-	err = ValidateAgentData(data_r)
-	if err != nil {
-		return nil, fmt.Errorf("invalid agent json data: %v", err)
+		data_r = map[string]interface{}{
+			"app_name":        agent.AppName,
+			"app_logo":        agent.AppLogo,
+			"app_description": agent.AppDescription,
+			"agent":           true,
+		}
 	}
 
 	rd.RedisSet(redisClient, redisKey, data_r, 12*time.Hour)
@@ -119,18 +130,13 @@ func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *g
 		return DmChannelsResponse{}, fmt.Errorf("agent participant does not exist in organisation %v", dm.OrgId)
 	}
 
-	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl, rds)
+	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 	if err != nil {
 		return DmChannelsResponse{}, fmt.Errorf("failed to fetch agent details: %w", err)
 	}
 
-	agentDescription, ok := agentDetails["descriptions"].(map[string]interface{})
-	if !ok {
-		return DmChannelsResponse{}, errors.New("invalid agent details format")
-	}
-
-	appName, appLogo := utility.GetString(agentDescription, "app_name"), utility.GetString(agentDescription, "app_logo")
-	if appName == "" || appLogo == "" {
+	appName, appLogo := utility.GetString(agentDetails, "app_name"), utility.GetString(agentDetails, "app_logo")
+	if appName == "" {
 		return DmChannelsResponse{}, errors.New("missing required agent details (app_name, app_logo)")
 	}
 

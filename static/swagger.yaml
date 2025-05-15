@@ -10800,6 +10800,8 @@ paths:
       tags:
         - Custom Agents
       summary: "Create a new agent for the organization"
+      security:
+        - bearerAuth: []
       description: "Creates a new agent within the specified organization."
       parameters:
         - name: organisationId
@@ -10846,6 +10848,8 @@ paths:
       description: Retrieve a list of integrations for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -10927,6 +10931,8 @@ paths:
     put:
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       summary: Update an organization's integration
       parameters:
         - name: organisationId
@@ -10997,6 +11003,8 @@ paths:
       tags:
         - Custom Agents
       summary: Delete an organization's integration
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11059,6 +11067,8 @@ paths:
       tags:
         - Custom Agents
       summary: Update an organization's custom agent settings
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11133,6 +11143,8 @@ paths:
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11185,6 +11197,8 @@ paths:
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11269,6 +11283,8 @@ paths:
     get:
       summary: Get a single agent
       description: Retrieve a system agent from telex.
+      security:
+        - bearerAuth: []
       tags:
         - System Agents
       parameters:
@@ -11312,6 +11328,8 @@ paths:
       tags:
         - Overview
       summary: Get Organization Thread Metrics
+      security:
+        - bearerAuth: []
       description: Retrieves metrics for threads associated with a specific organization over a given number of days.
       parameters:
         - name: organisationId

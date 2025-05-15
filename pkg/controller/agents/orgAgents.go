@@ -452,13 +452,13 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create custom agent", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("Custom agent created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom agent created successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", nil)
 	c.JSON(http.StatusCreated, rd)
 }
 
