@@ -298,7 +298,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 
 	exists := postgresql.CheckExists(db.Postgresql, &dmchannel, "channel_id = ? AND chat_type = ?", req.ChannelsID, "bot")
 	req.OrgId = dmchannel.OrgId
-	
+
 	if exists {
 		return sendDMMessageToBot(req, db, logger)
 	}
@@ -396,23 +396,20 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
 	}
 
-	agentJSONURL := orgAgent.JSONUrl
-	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, agentJSONURL, rds)
+	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 	if err != nil {
 		return &threadResp, http.StatusInternalServerError, err
 	}
 
-	agentDescription := agentDetails["descriptions"].(map[string]interface{})
-
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
-		Username:      agentDescription["app_name"].(string),
+		Username:      agentDetails["app_name"].(string),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelID,
 		Type:          "message",
 		MessageCount:  0,
-		AvatarURL:     agentDescription["app_logo"].(string),
-		FullName:      agentDescription["app_name"].(string),
+		AvatarURL:     agentDetails["app_logo"].(string),
+		FullName:      agentDetails["app_name"].(string),
 		Email:         "agent",
 		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
@@ -433,14 +430,14 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelID,
-		UserName:  agentDescription["app_name"].(string),
+		UserName:  agentDetails["app_name"].(string),
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: agentDescription["app_logo"].(string),
+		AvatarURL: agentDetails["app_logo"].(string),
 		Type:      "message",
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     "agent",
-		FullName:  agentDescription["app_name"].(string),
+		FullName:  agentDetails["app_name"].(string),
 		UserId:    *channel.ParticipantId,
 		Media:     req.Media,
 		UserType:  "bot",
