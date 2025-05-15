@@ -26,8 +26,8 @@ type DmChannels struct {
 	OrgId           string         `gorm:"type:uuid" json:"-"`
 	ParticipantId   *string        `gorm:"type:uuid" json:"-"`
 	ParticipantHash string         `gorm:"type:string" json:"participant_hash"`
-	ChatType        string         `gorm:"type:string" json:"chat_type"`    // user or bot
-	ChannelType     string         `gorm:"type:string" json:"channel_type"` // dm or group_dm
+	ChatType        string         `gorm:"type:string;default:user" json:"chat_type"`  // user or bot
+	ChannelType     string         `gorm:"type:string;default:dm" json:"channel_type"` // dm or group_dm
 	CreatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
@@ -220,13 +220,12 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	pagination := postgresql.GetPagination(c)
 
-
 	// Define the query string to fetch DmChannels where the user is an active participant
-    queryString := `
+	queryString := `
         dm_channels.org_id = ? AND dm_channels.chat_type = ? AND dm_channels.deleted_at IS NULL
         AND (
             -- For DMs: user_id matches the logged-in user
-            (dm_channels.channel_type = 'dm' AND dm_channels.user_id = ?)
+        	((dm_channels.channel_type IS NULL OR dm_channels.channel_type = 'dm') AND dm_channels.user_id = ?)
             OR
             -- For Group DMs: user is in channel_participants
             (dm_channels.channel_type = 'group_dm' AND EXISTS (
@@ -238,26 +237,26 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
         )
     `
 
-    // Use SelectAllFromDbOrderByPaginated with the modified query
-    paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-        db, // No JOIN needed since we're using a subquery
-        "created_at",
-        "desc",
-        pagination,
-        &dmchans,
-        queryString,
-        dm.OrgId,
-        "user",
-        dm.UserId,
-        dm.UserId,
-    )
+	// Use SelectAllFromDbOrderByPaginated with the modified query
+	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+		db, // No JOIN needed since we're using a subquery
+		"created_at",
+		"desc",
+		pagination,
+		&dmchans,
+		queryString,
+		dm.OrgId,
+		"user",
+		dm.UserId,
+		dm.UserId,
+	)
 
 	if err != nil {
 		return nil, paginationResp, err
 	}
 
 	for _, dmchan := range dmchans {
-		if dmchan.ChannelType == "dm" {
+		if dmchan.ChannelType == "dm" || dmchan.ChannelType == "" {
 			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
 			if err != nil {
 				return nil, paginationResp, err
