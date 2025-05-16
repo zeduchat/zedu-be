@@ -90,9 +90,14 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 		}
 
 		response_data := response.(map[string]interface{})
-		data_r, ok := response_data["data"].(map[string]interface{})
+		content, ok := response_data["data"].(map[string]interface{})
 		if !ok {
 			return nil, errors.New("could not fetch data from agent json")
+		}
+
+		data_r, ok := content["descriptions"].(map[string]interface{})
+		if !ok {
+			return nil, errors.New("invalid agent details format")
 		}
 
 		err = ValidateAgentData(data_r)
