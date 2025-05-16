@@ -19,32 +19,32 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		// Organisation agents routes
-		organisationUrl.GET("/:org_id/agents", agentsCtrl.GetAllAgentApp)
-		organisationUrl.PATCH("/:org_id/agents/:agent_id", agentsCtrl.UpdateAgentApp)
-		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteAgentApp)
+		organisationUrl.GET("/:org_id/agents/system", agentsCtrl.GetAllAgentApp)
+		organisationUrl.PATCH("/:org_id/agents/system/:agent_id", agentsCtrl.UpdateAgentApp)
+		organisationUrl.DELETE("/:org_id/agents/system/:agent_id", agentsCtrl.DeleteAgentApp)
 		organisationUrl.PATCH("/:org_id/agents/change_status", agentsCtrl.ChangeAgentStatus)
 		organisationUrl.PATCH("/:org_id/agents/:agent_id/updatejson", agentsCtrl.UpdateJSONSchema)
 		organisationUrl.GET("/:org_id/agents/output", agentsCtrl.FetchOutputAgents)
 
 		// Organization Custom Agents
-		organisationUrl.POST("/:org_id/agents/custom", agentsCtrl.CreateCustomAgent)
-		organisationUrl.DELETE("/:org_id/agents/custom/:agent_id", agentsCtrl.DeleteCustomAgentApp)
-		organisationUrl.GET("/:org_id/agents/custom", agentsCtrl.GetCustomAgentApp)
-		organisationUrl.PUT("/:org_id/agents/custom/:agent_id", agentsCtrl.UpdateCustomAgent)
-		organisationUrl.GET("/:org_id/agents/custom/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
-		organisationUrl.GET("/:org_id/agents/custom/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
-		organisationUrl.PUT("/:org_id/agents/custom/:agent_id/settings", agentsCtrl.UpdateCustomAgentSettings)
+		organisationUrl.GET("/:org_id/agents", agentsCtrl.GetCustomAgentApp)
+		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
+		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
+		organisationUrl.POST("/:org_id/agents", agentsCtrl.CreateCustomAgent)
+		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
+		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
+		organisationUrl.PUT("/:org_id/agents/:agent_id/settings", agentsCtrl.UpdateCustomAgentSettings)
 
 		// Channel agents routes
 		organisationUrl.GET("/:org_id/channels/:channel_id/agents", agentsCtrl.GetOrganisationChannelAgents)
 		organisationUrl.PATCH("/:org_id/channels/:channel_id/agents/change-sendback-status", agentsCtrl.ChangeOrgChannelIntSendBackStatus)
 		organisationUrl.POST("/:org_id/agents/:agent_id/channels/:channel_id", agentsCtrl.ActivateDeactivateChannelAgent)
 		organisationUrl.GET("/:org_id/agents/:agent_id/channels", agentsCtrl.AgentChannels)
-		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.CheckAgentIsActive)
+		organisationUrl.GET("/:org_id/channels/agents/:agent_id/status", agentsCtrl.CheckAgentIsActive)
 
 		// Organisation agent settings routes
 		organisationUrl.POST("/:org_id/agents/:agent_id/settings", agentsCtrl.AddAgentSetting)
-		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetAgentSettings)
+		organisationUrl.GET("/:org_id/settings/agents/:agent_id", agentsCtrl.GetAgentSettings)
 		organisationUrl.GET("/:org_id/agents/:agent_id/agent-api-key", agentsCtrl.GetAgentSettings)
 		organisationUrl.PATCH("/:org_id/agents/:agent_id/settings/:setting_id", agentsCtrl.UpdateAgentSetting)
 

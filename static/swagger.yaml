@@ -56,8 +56,6 @@ tags:
     description: API for feeding centrifugo server
   - name: Agents
     description: API for user agents operations
-  - name: Custom Agents
-    description: API for user agents operations
   - name: System Agents
     description: API for system agents operations
   - name: Overview
@@ -8713,7 +8711,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-  /organisations/{organisationId}/agents:
+  /organisations/{organisationId}/agents/system:
     post:
       tags:
         - Agents
@@ -8939,7 +8937,7 @@ paths:
                           type: string
                           example: "https://system-integrations.telex.im/slack/channels"
 
-  /organisations/{organisationId}/agents/{agentId}:
+  /organisations/{organisationId}/agents/system{agentId}:
     patch:
       tags:
         - Agents
@@ -9173,73 +9171,6 @@ paths:
                               type: boolean
                               example: true
                       is_allchannels:
-                        type: boolean
-                        example: true
-        "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "Bad Request"
-                  status_code:
-                    type: integer
-                    example: 400
-                  message:
-                    type: string
-                    example: "Invalid input"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "404":
-          description: Agent not found
-
-  /organisations/{organisationId}/agents/{agentId}/status:
-    get:
-      tags:
-        - Agents
-      summary: Get organization's agent channels
-      parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
-        - name: agentId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
-
-      responses:
-        "200":
-          description: Fetched Agent status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Agent status fetched successfully
-                  data:
-                    type: object
-                    properties:
-                      status:
                         type: boolean
                         example: true
         "400":
@@ -10016,62 +9947,7 @@ paths:
                     type: string
                     example: "An unexpected error occurred."
 
-  /organisations/{organisation_id}/agents/{agent_id}/settings:
-    post:
-      summary: Add a new agent setting
-      description: Adds a new form field value and label to the agent settings for a specific organization.
-      tags:
-        - IntegrationSettings
-      parameters:
-        - name: organisation_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: The UUID of the organization.
-        - name: integration_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: The UUID of the integration.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                form_field_value:
-                  type: string
-                  example: "shallom"
-                  description: Value for the form field.
-                form_field_label:
-                  type: string
-                  example: "micah bawa"
-                  description: Label for the form field.
-      responses:
-        200:
-          description: Successfully added the agent setting.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Agent setting added successfully
-        400:
-          description: Invalid request.
-
+  /organisations/{organisation_id}/settings/agents/{agent_id}:
     get:
       summary: Retrieve agent settings
       description: Retrieves all form field settings for a specific agent and organization.
@@ -10142,6 +10018,63 @@ paths:
                           example: "2024-09-29T04:28:21.076005+01:00"
         404:
           description: Organisation or agent not found.
+  
+  /organisations/{organisation_id}/agents/{agent_id}/settings:
+    post:
+      summary: Add a new agent setting
+      description: Adds a new form field value and label to the agent settings for a specific organization.
+      tags:
+        - IntegrationSettings
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the organization.
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                form_field_value:
+                  type: string
+                  example: "shallom"
+                  description: Value for the form field.
+                form_field_label:
+                  type: string
+                  example: "micah bawa"
+                  description: Label for the form field.
+      responses:
+        200:
+          description: Successfully added the agent setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent setting added successfully
+        400:
+          description: Invalid request.
+ 
     patch:
       summary: Update an existing agent setting
       description: Updates a form field's label in the agent settings for a specific organization.
@@ -10795,11 +10728,13 @@ paths:
 
   ### Custom Agent Section
 
-  /organisations/{organisationId}/agents/custom:
+  /organisations/{organisationId}/agents:
     post:
       tags:
-        - Custom Agents
+        - Agents
       summary: "Create a new agent for the organization"
+      security:
+        - bearerAuth: []
       description: "Creates a new agent within the specified organization."
       parameters:
         - name: organisationId
@@ -10846,6 +10781,8 @@ paths:
       description: Retrieve a list of integrations for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -10923,10 +10860,12 @@ paths:
         404:
           description: Organisation not found.
 
-  /organisations/{organisationId}/agents/custom/{agentId}:
+  /organisations/{organisationId}/agents/{agentId}:
     put:
       tags:
-        - Custom Agents
+        - Agents
+      security:
+        - bearerAuth: []
       summary: Update an organization's integration
       parameters:
         - name: organisationId
@@ -10997,6 +10936,8 @@ paths:
       tags:
         - Custom Agents
       summary: Delete an organization's integration
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11054,11 +10995,13 @@ paths:
         "404":
           description: Agent not found
 
-  /organisations/{organisationId}/agents/custom/{agentId}/settings:
+  /organisations/{organisationId}/agents/{agentId}/settings:
     put:
       tags:
-        - Custom Agents
+        - Agents
       summary: Update an organization's custom agent settings
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11133,6 +11076,8 @@ paths:
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11179,12 +11124,14 @@ paths:
         404:
           description: Organisation not found.
 
-  /organisations/{organisationId}/agents/custom/{agentId}/status:
+  /organisations/{organisationId}/agents/{agentId}/status:
     get:
       summary: Get integrations settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
       tags:
         - Custom Agents
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisationId
           in: path
@@ -11269,6 +11216,8 @@ paths:
     get:
       summary: Get a single agent
       description: Retrieve a system agent from telex.
+      security:
+        - bearerAuth: []
       tags:
         - System Agents
       parameters:
@@ -11312,6 +11261,8 @@ paths:
       tags:
         - Overview
       summary: Get Organization Thread Metrics
+      security:
+        - bearerAuth: []
       description: Retrieves metrics for threads associated with a specific organization over a given number of days.
       parameters:
         - name: organisationId
@@ -11834,6 +11785,73 @@ paths:
                     type: integer
                   message:
                     type: string
+
+  /organisations/{organisationId}/channels/agents/{agentId}/status:
+    get:
+      tags:
+        - Agents
+      summary: Get organization's agent channels
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+
+      responses:
+        "200":
+          description: Fetched Agent status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent status fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: boolean
+                        example: true
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Agent not found
 
   /organisations/{organisation_id}/groups/{group_id}/channels/{channel_id}:
     post:
@@ -12537,6 +12555,61 @@ paths:
                   message:
                     type: string
                     example: "Fcm token saved successfully"
+                  status_code:
+                    type: integer
+                    example: 201
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /wnstoken:
+    post:
+      tags:
+        - WNS Config Token
+      security:
+        - bearerAuth: []
+      summary: Save users WNS channel URI and token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                wns_token:
+                  type: string
+                channel_uri:
+                  type: string
+              required:
+                - wns_token
+                - channel_uri
+
+      responses:
+        "201":
+          description: WNS config saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: success response
+                    example: success
+                  message:
+                    type: string
+                    example: "WNS config saved successfully"
                   status_code:
                     type: integer
                     example: 201
