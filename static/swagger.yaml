@@ -8937,7 +8937,7 @@ paths:
                           type: string
                           example: "https://system-integrations.telex.im/slack/channels"
 
-  /organisations/{organisationId}/agents/system{agentId}:
+  /organisations/{organisationId}/agents/system/{agentId}:
     patch:
       tags:
         - Agents
@@ -10780,7 +10780,7 @@ paths:
       summary: Get integrations for an organization
       description: Retrieve a list of integrations for a specific organization.
       tags:
-        - Custom Agents
+        - Agents
       security:
         - bearerAuth: []
       parameters:
@@ -10934,7 +10934,7 @@ paths:
 
     delete:
       tags:
-        - Custom Agents
+        - Agents
       summary: Delete an organization's integration
       security:
         - bearerAuth: []
@@ -11075,7 +11075,7 @@ paths:
       summary: Get integrations settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
       tags:
-        - Custom Agents
+        - Agents
       security:
         - bearerAuth: []
       parameters:
@@ -11129,7 +11129,7 @@ paths:
       summary: Get integrations settings for an organization
       description: Retrieve a list of agent settings for a specific organization.
       tags:
-        - Custom Agents
+        - Agents
       security:
         - bearerAuth: []
       parameters:
