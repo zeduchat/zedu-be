@@ -123,7 +123,7 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 			Name:           org_agents.AppName,
 			JSONUrl:        org_agents.JSONUrl,
 			AppUrl:         org_agents.AppUrl,
-			AppLogo:        org_agents.AppLogoadd,
+			AppLogo:        org_agents.AppLogo,
 			AppDescription: org_agents.AppDescription,
 			Category:       "Agents",
 			Status:         "success",
