@@ -100,6 +100,8 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 			return nil, errors.New("invalid agent details format")
 		}
 
+		data_r["bot"] = content["bot"]
+
 		err = ValidateAgentData(data_r)
 		if err != nil {
 			return nil, fmt.Errorf("invalid agent json data: %v", err)
