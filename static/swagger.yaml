@@ -86,6 +86,8 @@ tags:
     description: API endpoints for agent databases
   - name: Notification Preferences
     description: API endpoints for managing notification preferences
+  - name: General-Invitation
+    description: API endpoints for organisation general invitation
 
 paths:
   # Auth paths
@@ -14262,6 +14264,136 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+  /invite/general:
+      post:
+        tags:
+          - General-Invitation
+        summary: Create a general invitation to an organisation
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - organisation_id
+                  - role_id
+                properties:
+                  organisation_id:
+                    type: string
+                    example: "01964d79-283b-710e-9690-c09aa53bb6f3"
+                  role_id:
+                    type: string
+                    example: "0191be6d-28ca-7b3c-b0e1-58dc5487ad88"
+        responses:
+          '201':
+            description: Invitation created successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: success
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Invitation created successfully
+                    data:
+                      type: object
+                      properties:
+                        invitation_link:
+                          type: string
+                          example: accept_org_invitation?org_id=01964d79-283b-710e-9690-c09aa53bb6f3&invitation_token=1b4db7eb-4057-5ddf-91e0-36dec72071f5
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: "2025-05-21T07:36:36.157618+01:00"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-05-19T07:36:36.157662+01:00"
+
+  /invite/general/verify:
+    post:
+      tags:
+        - General-Invitation
+      summary: Verify a general invitation using the invitation token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
+      responses:
+        '409':
+          description: User is already a member of the organisation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 409
+                  message:
+                    type: string
+                    example: user is already a member of this organisation
+                  error:
+                    type: object
+                    example: {}
+
+  /invite/general/change-status:
+    post:
+      tags:
+        - General-Invitation
+      summary: Change the status of a general invitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+                - invitation_id
+              properties:
+                status:
+                  type: boolean
+                  example: true
+                invitation_id:
+                  type: string
+                  example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
+      responses:
+        '200':
+          description: Invitation status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: invitation updated successfully
+
 
 components:
   schemas:
