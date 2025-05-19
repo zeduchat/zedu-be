@@ -12,7 +12,7 @@ import (
 
 type GeneralInvitation struct {
 	ID             string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	InviteSlug     string       `gorm:"column:invite_slug; type:text;null" json:"invite_slug"`
+	Token          string       `gorm:"column:token; type:text;null" json:"token"`
 	ActiveStatus   bool         `gorm:"type:bool;" json:"active_status"`
 	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
@@ -40,8 +40,10 @@ type ShareableInviteResponse struct {
 
 func (i *GeneralInvitation) CreateShareableInvite(db *gorm.DB, req ShareableInviteRequest, created_by string) error {
 
+	token, _ := utility.GenerateInvitationToken()
+
 	i.ID = utility.GenerateUUID()
-	i.InviteSlug = i.ID[len(i.ID)-12:]
+	i.Token = token
 	i.ActiveStatus = true
 	i.Role = req.RoleID
 	i.OrganisationID = req.OrganisationID
@@ -61,7 +63,7 @@ func (i *GeneralInvitation) ChangeGeneralInviteStatus(db *gorm.DB, req ChangeSta
 		"active_status": req.Status,
 	}
 
-	result, err := postgresql.UpdateFields(db, &i, updates, "id = ?", req.InvitationID)
+	result, err := postgresql.UpdateFields(db, &i, updates, "token = ?", req.InvitationID)
 	if err != nil {
 		return fmt.Errorf("failed to update general invitation status: %s", err)
 	}
