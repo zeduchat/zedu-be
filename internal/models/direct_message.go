@@ -147,7 +147,7 @@ func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *g
 		return DmChannelsResponse{}, errors.New("missing required agent details (app_name, app_logo)")
 	}
 
-	if postgresql.CheckExists(db, &DmChannels{}, "user_id = ? AND participant_id = ?", dm.UserId, dm.ParticipantId) {
+	if postgresql.CheckExists(db, &DmChannels{}, "user_id = ? AND participant_id = ? AND org_id = ?", dm.UserId, dm.ParticipantId, dm.OrgId) {
 		return buildDmResponse(dm, appName, appLogo), nil
 	}
 
