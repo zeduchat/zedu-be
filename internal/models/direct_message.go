@@ -174,7 +174,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 	}
 
-	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ?", dm.UserId, *dm.ParticipantId)
+	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ? AND org_id = ?", dm.UserId, *dm.ParticipantId, dm.OrgId)
 	if exists {
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 		dmchanresp.Name = userDetails.Profile.UserName
