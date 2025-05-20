@@ -12501,43 +12501,6 @@ paths:
       responses:
         200:
           description: Document deleted successfully
-          
-  /organisation/{org_id}/agents/{agent_id}/get-api-key:
-    get:
-      tags:
-        - Agent Database
-      summary: Get API key for an agent in an organisation
-      parameters:
-        - name: org_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: agent_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: API key fetched successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: API key fetched successfully
-                  data:
-                    type: string
-                    example: tlx-FqBcGKuUk/7HwI853bplJVBz2VNyYaSDBR4Yz3F3fGP6Zhw17287cNCw9oFXrrZ3T2EBsFMRHLEEaTaGVBCIGQ
 
 
   # firebase fcmtokenpath
