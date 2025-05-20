@@ -45,19 +45,17 @@ func (base *Controller) ChangeGeneralInviteStatus(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	response, code, err := invitation.ChangeGeneralInviteStatus(base.Db.Postgresql, req, base.Logger, userId)
+	code, err := invitation.ChangeGeneralInviteStatus(base.Db.Postgresql, req, base.Logger, userId)
 	if err != nil {
 		base.Logger.Error("Failed to change invitation status")
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Failed to change invitation status",
-			err, nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to change invitation status", err.Error(), nil)
+		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("Invitation updated successfully")
-	rd := utility.BuildSuccessResponse(code, "invitation updated successfully", response)
+	rd := utility.BuildSuccessResponse(code, "invitation updated successfully", nil)
 	c.JSON(code, rd)
-
 }
 
 func (base *Controller) CancelInvitation(c *gin.Context) {

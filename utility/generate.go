@@ -65,6 +65,13 @@ func GenerateInvitationToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+func GenerateToken(seed string) (string, error) {
+	// Generate a UUID based on the seed
+	namespace := uuid.NamespaceURL
+	id := uuid.NewV5(namespace, seed)
+	return id.String(), nil
+}
+
 func GenerateInvitationLink(baseurl, orgID, token string) string {
 	return baseurl + fmt.Sprintf("accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
@@ -80,7 +87,7 @@ func GenerateUUIDFromString(strSeed string) (string, error) {
 		return "", err
 	}
 
-	url_path := u.Hostname()+u.Path
+	url_path := u.Hostname() + u.Path
 
 	namespace := uuid.NamespaceURL
 	id := uuid.NewV5(namespace, url_path)
