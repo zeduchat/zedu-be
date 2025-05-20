@@ -1138,5 +1138,33 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 	}
 
 	return nil
+}
 
+func (cis *CustomIntegrationsSetting) FetchAPIKey(db *gorm.DB, ids IDS) (string, int, error) {
+
+	var (
+		agent OrganisationIntegrations
+		org   Organisation
+	)
+
+	exist := postgresql.CheckExists(db, &org, "id = ?", ids.OrganisationID)
+	if !exist {
+		return "", http.StatusNotFound, errors.New("organisation not found")
+	}
+
+	if org.OwnerID != ids.UserID {
+		return "", http.StatusForbidden, errors.New("user not allowed to fetch agent's settings")
+	}
+
+	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", ids.AgentID)
+	if !exists {
+		return "", http.StatusNotFound, errors.New("agent app does not exist")
+	}
+
+	err := db.Model(&cis).Where("org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID).Select("setting_entry").First(&cis).Error
+	if err != nil {
+		return "", http.StatusInternalServerError, errors.New("failed to fetch agent settings")
+	}
+
+	return cis.SettingEntry, http.StatusOK, nil
 }

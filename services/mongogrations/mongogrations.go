@@ -1,6 +1,7 @@
 package mongogrations
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 )
 
 func FetchMongoAgentIDs(c *gin.Context) (models.IDS, error) {
@@ -83,12 +85,12 @@ func GetAllDocuments(db *mongo.Client, collection string, filter map[string]inte
 
 func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, int, error) {
 
-	document, statusCode ,err := models.GetDocumentByID(db, collection, id)
+	document, statusCode, err := models.GetDocumentByID(db, collection, id)
 	if err != nil {
-		return nil, statusCode ,err
+		return nil, statusCode, err
 	}
 
-	return document, statusCode ,nil
+	return document, statusCode, nil
 }
 
 func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
@@ -125,4 +127,28 @@ func DeleteDocument(db *mongo.Client, collection string, id string) (int64, erro
 	}
 
 	return deletedCount, nil
+}
+
+func FetchAPIKey(db *gorm.DB, ids models.IDS) (string, int, error) {
+	var cis models.CustomIntegrationsSetting
+
+	response, code, err := cis.FetchAPIKey(db, ids)
+	if err != nil {
+		return "", code, err
+	}
+
+	var result struct {
+		AuthCredentials struct {
+			TelexAPIKey string `json:"telex_api_key"`
+		} `json:"auth_credentials"`
+	}
+
+	err = json.Unmarshal([]byte(response), &result)
+	if err != nil {
+		return "", 500, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	if result.AuthCredentials.TelexAPIKey == "" {
+		return "", 404, fmt.Errorf("API key not found")
+	}
+	return result.AuthCredentials.TelexAPIKey, 200, nil
 }
