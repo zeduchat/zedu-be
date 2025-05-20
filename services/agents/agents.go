@@ -42,20 +42,57 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 
 	for _, org_agents := range resp {
 
-		json_url := org_agents.JSONUrl
-		data := map[string]string{"url": json_url}
+		if org_agents.AppName == "" {
 
-		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+			json_url := org_agents.JSONUrl
+			data := map[string]string{"url": json_url}
 
-		if err != nil {
+			response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
+			if err != nil {
+				agent := models.Integrations{
+					ID:             org_agents.IntegrationID,
+					Name:           "Unavailable",
+					JSONUrl:        org_agents.JSONUrl,
+					AppDescription: "This agent is currently unavailable.",
+					Category:       "Unavailable",
+					IsActive:       false,
+					Status:         "failed",
+					CreatedAt:      org_agents.CreatedAt,
+					UpdatedAt:      org_agents.UpdatedAt,
+				}
+
+				int_resp = append(int_resp, struct {
+					models.Integrations
+					Linked bool "json:\"linked\""
+				}{
+					Integrations: agent,
+					Linked:       true,
+				})
+				continue
+			}
+
+			response_data := response.(map[string]interface{})
+
+			data_r := response_data["data"].(map[string]interface{})
+
+			description := data_r["descriptions"].(map[string]interface{})
+			category, ok := data_r["integration_category"].(string)
+
+			if !ok || category == "" {
+				category = "Undefined"
+			}
+
 			agent := models.Integrations{
 				ID:             org_agents.IntegrationID,
-				Name:           "Unavailable",
+				Name:           description["app_name"].(string),
 				JSONUrl:        org_agents.JSONUrl,
-				AppDescription: "This agent is currently unavailable.",
-				Category:       "Unavailable",
-				IsActive:       false,
-				Status:         "failed",
+				AppUrl:         description["app_url"].(string),
+				AppLogo:        description["app_logo"].(string),
+				AppDescription: description["app_description"].(string),
+				Category:       category,
+				Status:         "success",
+				IsActive:       org_agents.IsActive,
 				CreatedAt:      org_agents.CreatedAt,
 				UpdatedAt:      org_agents.UpdatedAt,
 			}
@@ -67,28 +104,28 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 				Integrations: agent,
 				Linked:       true,
 			})
+
+			err = org_agents.UpdateCustomIntegration(db, models.CustomIntegrationRequest{
+				AppName:        description["app_name"].(string),
+				JSONUrl:        org_agents.JSONUrl,
+				AppUrl:         description["app_url"].(string),
+				AppLogo:        description["app_logo"].(string),
+				AppDescription: description["app_description"].(string),
+			}, map[string]string{"agent_id": org_agents.IntegrationID})
+			if err != nil {
+				extReq.Logger.Error("an error occurred while saving agent details, %v", err)
+			}
 			continue
-		}
-
-		response_data := response.(map[string]interface{})
-
-		data_r := response_data["data"].(map[string]interface{})
-
-		description := data_r["descriptions"].(map[string]interface{})
-		category, ok := data_r["integration_category"].(string)
-
-		if !ok || category == "" {
-			category = "Undefined"
 		}
 
 		agent := models.Integrations{
 			ID:             org_agents.IntegrationID,
-			Name:           description["app_name"].(string),
+			Name:           org_agents.AppName,
 			JSONUrl:        org_agents.JSONUrl,
-			AppUrl:         description["app_url"].(string),
-			AppLogo:        description["app_logo"].(string),
-			AppDescription: description["app_description"].(string),
-			Category:       category,
+			AppUrl:         org_agents.AppUrl,
+			AppLogo:        org_agents.AppLogo,
+			AppDescription: org_agents.AppDescription,
+			Category:       "Agents",
 			Status:         "success",
 			IsActive:       org_agents.IsActive,
 			CreatedAt:      org_agents.CreatedAt,
@@ -102,6 +139,7 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 			Integrations: agent,
 			Linked:       true,
 		})
+
 	}
 
 	return int_resp, paginationResult, nil, code
@@ -288,9 +326,9 @@ func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
 
 func ChangeStatus(ids map[string]string, req models.ChangeAgentStatus, db *gorm.DB, extReq request.ExternalRequest) error {
 
-	if req.Status {
-		return SendAgentApiKey(ids, req, db, extReq)
-	}
+	// if req.Status {
+	// 	return SendAgentApiKey(ids, req, db, extReq)
+	// }
 
 	var (
 		orgIntegration models.OrganisationIntegrations
@@ -416,13 +454,13 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	data := map[string]string{"url": req.JSONUrl}
 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 	if err != nil {
-		return errors.New("failed to create custom agent, invalid JSON supplied")
+		return errors.New("failed to create agent, invalid JSON supplied")
 	}
 
-	response_data := response.(map[string]interface{})
-	data_r, ok := response_data["data"].(map[string]interface{})
+	data_r, ok := response.(map[string]interface{})
+	// data_r, ok := response_data["data"].(map[string]interface{})
 	if !ok {
-		return errors.New("failed to create custom integration, data field does not exist")
+		return errors.New("failed to create agent, data field does not exist")
 	}
 
 	err = models.ValidateAgentData(data_r)
@@ -430,10 +468,10 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return err
 	}
 
-	settings, ok := data_r["settings"]
-	if !ok {
-		return errors.New("failed to create custom agent, settings field does not exist")
-	}
+	settings := ""
+	// if !ok {
+	// 	return errors.New("failed to create agent, settings field does not exist")
+	// }
 	settings_data := map[string]interface{}{"settings": settings}
 
 	orgIntegration.OrgID = org_id
@@ -442,6 +480,9 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.IsActive = true
 	orgIntegration.IsSystem = false
 	orgIntegration.ID = utility.GenerateUUID()
+	orgIntegration.AppName = data_r["name"].(string)
+	orgIntegration.AppDescription = data_r["description"].(string)
+	orgIntegration.AppUrl = data_r["description"].(string)
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
@@ -520,21 +561,57 @@ func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin
 
 	for _, org_agents := range agents {
 
-		json_url := org_agents.JSONUrl
-		data := map[string]string{"url": json_url}
+		if org_agents.AppName == "" {
 
-		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+			json_url := org_agents.JSONUrl
+			data := map[string]string{"url": json_url}
 
-		if err != nil {
+			response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
+			if err != nil {
+				agent := models.Integrations{
+					ID:             org_agents.IntegrationID,
+					Name:           "Unavailable",
+					JSONUrl:        org_agents.JSONUrl,
+					AppDescription: "This agent is currently unavailable.",
+					Category:       "Unavailable",
+					IsActive:       false,
+					Status:         "failed",
+					CreatedAt:      org_agents.CreatedAt,
+					UpdatedAt:      org_agents.UpdatedAt,
+				}
+
+				int_resp = append(int_resp, struct {
+					models.Integrations
+					Linked bool "json:\"linked\""
+				}{
+					Integrations: agent,
+					Linked:       true,
+				})
+				continue
+			}
+
+			response_data := response.(map[string]interface{})
+
+			data_r := response_data["data"].(map[string]interface{})
+
+			description := data_r["descriptions"].(map[string]interface{})
+			category, ok := data_r["integration_category"].(string)
+
+			if !ok || category == "" {
+				category = "Undefined"
+			}
 
 			agent := models.Integrations{
 				ID:             org_agents.IntegrationID,
-				Name:           "Unavailable",
+				Name:           description["app_name"].(string),
 				JSONUrl:        org_agents.JSONUrl,
-				AppDescription: "This agent is currently unavailable.",
-				Category:       "Unavailable",
-				IsActive:       false,
-				Status:         "failed",
+				AppUrl:         description["app_url"].(string),
+				AppLogo:        description["app_logo"].(string),
+				AppDescription: description["app_description"].(string),
+				Category:       category,
+				Status:         "success",
+				IsActive:       org_agents.IsActive,
 				CreatedAt:      org_agents.CreatedAt,
 				UpdatedAt:      org_agents.UpdatedAt,
 			}
@@ -547,30 +624,27 @@ func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin
 				Linked:       true,
 			})
 
+			err = org_agents.UpdateCustomIntegration(db, models.CustomIntegrationRequest{
+				AppName:        description["app_name"].(string),
+				JSONUrl:        org_agents.JSONUrl,
+				AppUrl:         description["app_url"].(string),
+				AppLogo:        description["app_logo"].(string),
+				AppDescription: description["app_description"].(string),
+			}, map[string]string{"agent_id": org_agents.IntegrationID})
+			if err != nil {
+				extReq.Logger.Error("an error occurred while saving agent details, %v", err)
+			}
 			continue
-		}
-
-		response_data := response.(map[string]interface{})
-
-		data_r := response_data["data"].(map[string]interface{})
-
-		description := data_r["descriptions"].(map[string]interface{})
-
-		category, ok := data_r["integration_category"].(string)
-
-		if !ok || category == "" {
-
-			category = "Undefined"
 		}
 
 		agent := models.Integrations{
 			ID:             org_agents.IntegrationID,
-			Name:           description["app_name"].(string),
+			Name:           org_agents.AppName,
 			JSONUrl:        org_agents.JSONUrl,
-			AppUrl:         description["app_url"].(string),
-			AppLogo:        description["app_logo"].(string),
-			AppDescription: description["app_description"].(string),
-			Category:       category,
+			AppUrl:         org_agents.AppUrl,
+			AppLogo:        org_agents.AppLogo,
+			AppDescription: org_agents.AppDescription,
+			Category:       "Agents",
 			Status:         "success",
 			IsActive:       org_agents.IsActive,
 			CreatedAt:      org_agents.CreatedAt,
@@ -584,6 +658,7 @@ func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin
 			Integrations: agent,
 			Linked:       true,
 		})
+
 	}
 
 	return int_resp, paginationResponse, code, nil

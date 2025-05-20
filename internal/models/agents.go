@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -58,7 +56,11 @@ type UpdateJSONSchemaRequest struct {
 }
 
 type CustomIntegrationRequest struct {
-	JSONUrl string `json:"json_url" validate:"required"`
+	JSONUrl        string `json:"json_url" validate:"required"`
+	AppName        string
+	AppLogo        string
+	AppUrl         string
+	AppDescription string
 }
 
 type CustomIntegrationSettingRequest struct {
@@ -71,17 +73,21 @@ type ActivateChannelAgent struct {
 }
 
 type OrganisationIntegrations struct {
-	ID            string    `gorm:"type:uuid;primary_key" json:"id"`
-	OrgID         string    `gorm:"type:uuid;" json:"org_id"`
-	IntegrationID string    `gorm:"type:uuid;" json:"integration_id"`
-	IsActive      bool      `gorm:"type:boolean;default:false" json:"is_active"`
-	IsSystem      bool      `gorm:"type:boolean;default:false" json:"is_system"`
-	IsArchived    bool      `gorm:"type:boolean;default:false" json:"is_archived"`
-	ArchivedAt    time.Time `gorm:"index" json:"-"`
-	JSONSchema    JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
-	JSONUrl       string    `gorm:"type:text; column:json_url;" json:"json_url"`
-	CreatedAt     time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt     time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID             string    `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID          string    `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID  string    `gorm:"type:uuid;" json:"integration_id"`
+	IsActive       bool      `gorm:"type:boolean;default:false" json:"is_active"`
+	IsSystem       bool      `gorm:"type:boolean;default:false" json:"is_system"`
+	IsArchived     bool      `gorm:"type:boolean;default:false" json:"is_archived"`
+	ArchivedAt     time.Time `gorm:"index" json:"-"`
+	JSONSchema     JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
+	JSONUrl        string    `gorm:"type:text; column:json_url;" json:"json_url"`
+	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	AppDescription string    `gorm:"column:app_description;type:text;" json:"app_description"`
+	AppName        string    `gorm:"column:app_name;type:text;" json:"app_name"`
+	AppLogo        string    `gorm:"column:app_logo;type:text;" json:"app_logo"`
+	AppUrl         string    `gorm:"column:app_url; type:text;" json:"app_url"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -381,8 +387,12 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 
 	update := make(map[string]interface{})
 	update["json_url"] = req.JSONUrl
+	update["app_name"] = req.AppName
+	update["app_description"] = req.AppDescription
+	update["app_url"] = req.AppUrl
+	update["app_logo"] = req.AppLogo
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", ids["agent_id"])
 	if err != nil {
 		return err
 	}
@@ -396,13 +406,13 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 
 func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string, extReq request.ExternalRequest) error {
 	var (
-		agent               Integrations
-		intsettings         CustomIntegrationsSetting
-		organisation        Organisation
-		oci                 OrganisationChannelsIntegrations
-		channels            []Channels
-		orgchannels         []OrganisationChannelsIntegrations
-		integrationSettings CustomIntegrationsSetting
+		agent Integrations
+		// intsettings         CustomIntegrationsSetting
+		organisation Organisation
+		oci          OrganisationChannelsIntegrations
+		channels     []Channels
+		orgchannels  []OrganisationChannelsIntegrations
+		// integrationSettings CustomIntegrationsSetting
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -413,7 +423,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	agentExists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	ChannelagentExists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
-	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	// CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 
 	if !(agentExists || orgAgentExists) {
 		return errors.New("integration app does not exist")
@@ -427,6 +437,10 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.IntegrationID = ids["agent_id"]
 		oi.JSONSchema = req.JSONSchema
 		oi.JSONUrl = agent.JSONUrl
+		oi.AppDescription = agent.AppDescription
+		oi.AppName = agent.Name
+		oi.AppUrl = agent.AppUrl
+		oi.AppLogo = agent.AppLogo
 
 		if agentExists {
 			oi.IsSystem = true
@@ -475,76 +489,76 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 	// return nil
 
 	// add settings if not exist
-	if !CheckIntegrationSettings && agent.JSONUrl != "" {
-		data := map[string]string{"url": agent.JSONUrl}
+	// if !CheckIntegrationSettings && agent.JSONUrl != "" {
+	// 	data := map[string]string{"url": agent.JSONUrl}
 
-		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+	// 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
-		if err != nil {
-			return errors.New("failed to save agent default settings, invalid JSON supplied")
-		}
+	// 	if err != nil {
+	// 		return errors.New("failed to save agent default settings, invalid JSON supplied")
+	// 	}
 
-		response_data := response.(map[string]interface{})
-		data_r, ok := response_data["data"].(map[string]interface{})
+	// 	response_data := response.(map[string]interface{})
+	// 	data_r, ok := response_data["data"].(map[string]interface{})
 
-		if !ok {
-			return errors.New("Failed to save agent, data field does not exist")
-		}
+	// 	if !ok {
+	// 		return errors.New("Failed to save agent, data field does not exist")
+	// 	}
 
-		// validate all entries
-		err = ValidateAgentData(data_r)
+	// 	// validate all entries
+	// 	err = ValidateAgentData(data_r)
 
-		if err != nil {
-			return err
-		}
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		settings, ok := data_r["settings"]
-		if !ok {
-			return errors.New("Failed to save agent default settings, settings field does not exist")
-		}
+	// 	settings, ok := data_r["settings"]
+	// 	if !ok {
+	// 		return errors.New("Failed to save agent default settings, settings field does not exist")
+	// 	}
 
-		settings_data := map[string]interface{}{"settings": settings}
+	// 	settings_data := map[string]interface{}{"settings": settings}
 
-		is_auth, ok := data_r["is_oauth"].(bool)
+	// 	is_auth, ok := data_r["is_oauth"].(bool)
 
-		if ok && is_auth {
-			enc_key := config.Config.Server.EncKey
+	// 	if ok && is_auth {
+	// 		enc_key := config.Config.Server.EncKey
 
-			auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
+	// 		auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
 
-			api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
+	// 		api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
 
-			auth_credentials["telex_api_key"] = api_key
-			settings_data["auth_credentials"] = auth_credentials
-			if err != nil {
-				return errors.New("Failed to create external API key")
-			}
-		}
+	// 		auth_credentials["telex_api_key"] = api_key
+	// 		settings_data["auth_credentials"] = auth_credentials
+	// 		if err != nil {
+	// 			return errors.New("Failed to create external API key")
+	// 		}
+	// 	}
 
-		// serialize the settings json
+	// 	// serialize the settings json
 
-		settingJsonData, err := json.Marshal(settings_data)
-		if err != nil {
-			return fmt.Errorf("error serializing to JSON: %v", err)
-		}
-		serialized_settings := string(settingJsonData)
+	// 	settingJsonData, err := json.Marshal(settings_data)
+	// 	if err != nil {
+	// 		return fmt.Errorf("error serializing to JSON: %v", err)
+	// 	}
+	// 	serialized_settings := string(settingJsonData)
 
-		integrationSettings.ID = utility.GenerateUUID()
-		integrationSettings.SettingEntry = serialized_settings
-		integrationSettings.OrgID = ids["org_id"]
-		integrationSettings.IntegrationID = ids["agent_id"]
+	// 	integrationSettings.ID = utility.GenerateUUID()
+	// 	integrationSettings.SettingEntry = serialized_settings
+	// 	integrationSettings.OrgID = ids["org_id"]
+	// 	integrationSettings.IntegrationID = ids["agent_id"]
 
-		if agentExists {
-			integrationSettings.IsSystem = true
-		} else {
-			integrationSettings.IsSystem = false
-		}
+	// 	if agentExists {
+	// 		integrationSettings.IsSystem = true
+	// 	} else {
+	// 		integrationSettings.IsSystem = false
+	// 	}
 
-		err = integrationSettings.CreateIntegrationSettings(db)
-		if err != nil {
-			return errors.New("failed to create agent settings")
-		}
-	}
+	// 	err = integrationSettings.CreateIntegrationSettings(db)
+	// 	if err != nil {
+	// 		return errors.New("failed to create agent settings")
+	// 	}
+	// }
 
 	// Add the missing channels in a bulk insert without using a for loop @cyberguru
 	err := db.Exec(`
@@ -655,7 +669,7 @@ func (oci *OrganisationChannelsIntegrations) GetOrganisationChannelAgents(db *go
 		Joins("JOIN organisation_integrations AS i ON c.integration_id = i.integration_id AND c.org_id = i.org_id").
 		Where("c.org_id = ? AND c.channel_id = ? AND i.json_url != ''", orgID, channel_id).
 		Select("c.id, c.org_id, c.integration_id, c.is_active, c.is_system, c.archived_at, " +
-			"c.created_at, c.updated_at, i.json_url")
+			"c.created_at, c.updated_at, i.json_url, i.app_name, i.app_url, i.app_logo, i.app_description")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -1045,10 +1059,6 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 
 func ValidateAgentData(data_r map[string]interface{}) error {
 
-	var INTERVAL_TYPE = "interval"
-	var MODIFIER_TYPE = "modifier"
-	var OUTPUT_TYPE = "output"
-
 	var categories = map[string]bool{
 		"Monitoring & Logging":           true,
 		"Communication & Collaboration":  true,
@@ -1072,104 +1082,89 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		"DevOps & CI/CD":                 true,
 	}
 
-	descriptions, ok := data_r["descriptions"].(map[string]interface{})
-	if !ok {
-		return errors.New("Failed to save agent, descriptions field does not exist")
-	}
+	_ = categories
 
-	app_name, ok := descriptions["app_name"].(string)
+	app_name, ok := data_r["name"].(string)
 	if !ok || app_name == "" {
-		return errors.New("Failed to save agent, app_name field does not exist or is empty")
+		return errors.New("Failed to save agent, invalid agent card: name field does not exist.")
 	}
 
-	app_desc, ok := descriptions["app_description"].(string)
-	if !ok || app_desc == "" {
-		return errors.New("Failed to save agent, app_description field does not exist or is empty")
-	}
+	// app_logo, ok := descriptions["app_logo"].(string)
+	// if !ok || app_logo == "" {
+	// 	return errors.New("Failed to save agent, app_logo field does not exist or is empty")
+	// }
 
-	app_logo, ok := descriptions["app_logo"].(string)
-	if !ok || app_logo == "" {
-		return errors.New("Failed to save agent, app_logo field does not exist or is empty")
-	}
+	// if !strings.Contains(app_logo, "https:") && !strings.Contains(app_logo, "http:") {
+	// 	return errors.New("Failed to save agent, invalid app_logo url")
+	// }
 
-	if !strings.Contains(app_logo, "https:") && !strings.Contains(app_logo, "http:") {
-		return errors.New("Failed to save agent, invalid app_logo url")
-	}
-
-	app_url, ok := descriptions["app_url"].(string)
+	app_url, ok := data_r["url"].(string)
 	if !ok || app_url == "" {
-		return errors.New("Failed to save agent, app_url field does not exist or is empty")
+		return errors.New("Failed to save agent, invalid agent card: url field does not exist or is empty")
 	}
 
-	settings, ok := data_r["settings"]
+	skills, ok := data_r["skills"]
 	if !ok {
-		return errors.New("Failed to save agent, settings field does not exist")
+		return errors.New("Failed to save agent, skills field does not exist or is empty")
 	}
 
-	_, isArray := settings.([]interface{})
-	if !isArray {
-		return errors.New("Failed to save agent, settings field is not an array")
-	}
-
-	key_features, ok := data_r["key_features"]
+	_, ok = skills.([]interface{})
 	if !ok {
-		return errors.New("Failed to save agent, key_features field does not exist or is empty")
+		return errors.New("Failed to save agent, skills field is not an array")
 	}
 
-	_, ok = key_features.([]interface{})
+	defaultInputModes, ok := data_r["defaultInputModes"]
 	if !ok {
-		return errors.New("Failed to save agent, key_features field is not an array")
+		return errors.New("Failed to save agent, defaultInputModes field does not exist or is empty")
 	}
 
-	int_cat, ok := data_r["integration_category"]
-	if !ok || int_cat == "" {
-		return errors.New("Failed to save agent, agent_category/integration_categrory field does not exist or is empty")
-	}
-
-	if !categories[int_cat.(string)] {
-		return errors.New(fmt.Sprintf("Failed to save agent, agent_category/integration_categrory type not supported, supplied: %s, check docs for supported types.", int_cat))
-	}
-
-	int_type, ok := data_r["integration_type"]
+	_, ok = defaultInputModes.([]interface{})
 	if !ok {
-		return errors.New("Failed to save agent, agent_type/integration_type field does not exist")
+		return errors.New("Failed to save agent, defaultInputModes field is not an array")
 	}
 
-	if int_type != INTERVAL_TYPE && int_type != MODIFIER_TYPE && int_type != OUTPUT_TYPE {
-		return errors.New("Failed to save agent, invalid agent_type/integration_type agent should be of type interval or modifier")
+	defaultOutputModes, ok := data_r["defaultOutputModes"]
+	if !ok {
+		return errors.New("Failed to save agent, defaultOutputModes field does not exist or is empty")
+	}
+	_, ok = defaultOutputModes.([]interface{})
+	if !ok {
+		return errors.New("Failed to save agent, defaultOutputModes field is not an array")
 	}
 
-	if int_type == INTERVAL_TYPE {
-
-		_, ok = data_r["target_url"]
-		if !ok {
-			return errors.New("Failed to save agent, target_url field does not exist")
-		}
-
-		_, ok = data_r["tick_url"]
-		if !ok {
-			return errors.New("Failed to save agent, tick_url field does not exist")
-		}
-	}
-
-	if int_type == MODIFIER_TYPE {
-
-		_, ok = data_r["target_url"]
-		if !ok {
-			return errors.New("Failed to save agent, target_url field does not exist")
-		}
-	}
-
-	is_auth, ok := data_r["is_oauth"].(bool)
-	if ok && is_auth {
-
-		auth_init, ok := data_r["auth_initiate_url"]
-		if !ok || auth_init == "" {
-			return errors.New("Failed to save agent, auth_initiate_url field does not exist or is empty, consult the docs for more details")
-		}
-
+	_, ok = data_r["provider"].(map[string]interface{})
+	if !ok {
+		return errors.New("Failed to save agent, invalid agent card: provider does not exist or is empty")
 	}
 
 	return nil
+}
 
+func (cis *CustomIntegrationsSetting) FetchAPIKey(db *gorm.DB, ids IDS) (string, int, error) {
+
+	var (
+		agent OrganisationIntegrations
+		org   Organisation
+	)
+
+	exist := postgresql.CheckExists(db, &org, "id = ?", ids.OrganisationID)
+	if !exist {
+		return "", http.StatusNotFound, errors.New("organisation not found")
+	}
+
+	if org.OwnerID != ids.UserID {
+		return "", http.StatusForbidden, errors.New("user not allowed to fetch agent's settings")
+	}
+
+	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", ids.AgentID)
+	if !exists {
+		return "", http.StatusNotFound, errors.New("agent app does not exist")
+	}
+
+	err := db.Model(&cis).Where("org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID).Select("setting_entry").First(&cis).Error
+	if err != nil {
+		return "", http.StatusInternalServerError, errors.New("failed to fetch agent settings")
+	}
+
+	return cis.SettingEntry, http.StatusOK, nil
 }

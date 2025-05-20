@@ -14,26 +14,26 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (string, int, error) {
+func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (int, error) {
 	var (
 		invite models.GeneralInvitation
 	)
 
-	exists := postgresql.CheckExists(db, &invite, "id = ?", req.InvitationID)
+	exists := postgresql.CheckExists(db, &invite, "token = ?", req.InvitationID)
 	if !exists {
-		return "", http.StatusNotFound, errors.New("invitation does not exists")
+		return http.StatusNotFound, errors.New("invitation does not exists")
 	}
 
 	if userID != invite.InvitedBy {
-		return "", http.StatusBadRequest, errors.New("only invitees can change invitation status")
+		return http.StatusUnauthorized, errors.New("only invitees can change invitation status")
 	}
 
 	err := invite.ChangeGeneralInviteStatus(db, req)
 	if err != nil {
-		return "", http.StatusBadRequest, fmt.Errorf("unable to change general invite status: %s", err)
+		return http.StatusBadRequest, fmt.Errorf("unable to change general invite status: %s", err)
 	}
 
-	return "", http.StatusOK, nil
+	return http.StatusOK, nil
 }
 
 func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
@@ -49,7 +49,7 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
 
-	err := db.Where("invite_slug = ? and active_status = ? AND expires_at > ?",
+	err := db.Where("token = ? and active_status = ? AND expires_at > ?",
 		req.Token,
 		true,
 		time.Now().UTC(),
@@ -89,6 +89,19 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
+	defaultChannel, err := getDefaultChannel(db, orgmgt.OrganisationID)
+	if err != nil {
+		logger.Error("error getting default channel", err)
+	}
+
+	if defaultChannel.ID != "" {
+		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
+		if err != nil {
+			logger.Error("error adding user to the default channel", err)
+			return "", http.StatusInternalServerError, err
+		}
+	}
+
 	return "User verified successfully", http.StatusOK, nil
 }
 
@@ -112,28 +125,27 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 		"organisation_id = ? AND active_status = ? AND expires_at > ?",
 		req.OrganisationID,
 		true,
-		time.Now().UTC())
+		time.Now().UTC(),
+	)
 
-	if err == nil {
-		resp = models.ShareableInviteResponse{
-			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.ID[len(invite.ID)-12:]),
+	generateShareableInviteResponse := func(invite models.GeneralInvitation) models.ShareableInviteResponse {
+		return models.ShareableInviteResponse{
+			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.Token),
 			Expires_At:     invite.ExpiresAt,
 			Created_At:     invite.CreatedAt,
 		}
+	}
+
+	if err == nil {
+		resp = generateShareableInviteResponse(invite)
 		return resp, http.StatusOK, nil
 	}
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-
 		if err := invite.CreateShareableInvite(db, req, user_id); err != nil {
 			return resp, http.StatusBadRequest, fmt.Errorf("failed to create invitation: %w", err)
 		}
-
-		resp = models.ShareableInviteResponse{
-			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.ID[len(invite.ID)-12:]),
-			Expires_At:     invite.ExpiresAt,
-			Created_At:     invite.CreatedAt,
-		}
+		resp = generateShareableInviteResponse(invite)
 		return resp, http.StatusCreated, nil
 	}
 	return resp, http.StatusInternalServerError, fmt.Errorf("database error: %w", err)
@@ -281,6 +293,7 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

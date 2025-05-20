@@ -50,6 +50,12 @@ func PublishChannel(logger *utility.Logger, channelID string, publishPayload int
 
 	client := Client.C
 
+	if channelID == "" {
+
+		logger.Error("published to %s failed, empty channel_id supplied", channelID)
+		return fmt.Errorf("empty channel_id supplied")
+	}
+
 	err = client.Publish(context.Background(), channelID, payload)
 	if err != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channel %s: %v", channelID, err.Error()))

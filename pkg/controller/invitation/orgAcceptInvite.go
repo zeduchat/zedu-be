@@ -48,8 +48,8 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 
 	response, code, err := invitation.GeneralInvitationVerify(base.Db.Postgresql, req, base.Logger, userId)
 	if err != nil {
-		base.Logger.Info("Failed to verify invitation", err)
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		base.Logger.Info("Failed to verify invitation", err.Error())
+		rd := utility.BuildErrorResponse(code, "error", "Failed to verify invitation", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -57,7 +57,6 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	base.Logger.Info("user invited successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", response)
 	c.JSON(http.StatusOK, rd)
-
 }
 
 func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {

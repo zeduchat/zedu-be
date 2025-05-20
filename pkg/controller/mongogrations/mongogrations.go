@@ -9,6 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/mongogrations"
 	"github.com/hngprojects/telex_be/utility"
@@ -198,13 +199,13 @@ func (base *Controller) GetDocument(c *gin.Context) {
 	}
 
 	fullCollectionName := fmt.Sprintf("agent_%s_%s", ids.AgentID, collectionName)
-	document, err := mongogrations.GetDocumentByID(base.Db.Mongo, fullCollectionName, document_id)
+	document, statusCode, err := mongogrations.GetDocumentByID(base.Db.Mongo, fullCollectionName, document_id)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, utility.BuildErrorResponse(http.StatusNotFound, "error", "Document not found", err.Error(), nil))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to retrieve document", err.Error(), nil))
+		c.JSON(statusCode, utility.BuildErrorResponse(statusCode, "error", "Failed to retrieve document", err.Error(), nil))
 		return
 	}
 
@@ -314,4 +315,54 @@ func (base *Controller) DeleteDocument(c *gin.Context) {
 	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Document Deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) FetchAPIKey(c *gin.Context) {
+	organisation_id := c.Param("org_id")
+	agent_id := c.Param("agent_id")
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to get user claims", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	if organisation_id == "" {
+		base.Logger.Error("organisation_id is required")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "organisation_id is required", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if agent_id == "" {
+		base.Logger.Error("agent_id is required")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "agent_id is required", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := models.IDS{
+		AgentID:        agent_id,
+		OrganisationID: organisation_id,
+		UserID:         userId,
+	}
+
+	response, code, err := mongogrations.FetchAPIKey(base.Db.Postgresql, ids)
+	if err != nil {
+		base.Logger.Error("Failed to fetch API key", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch API key", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("API key fetched successfully")
+	rd := utility.BuildSuccessResponse(code, "API key fetched successfully", response)
+	c.JSON(code, rd)
 }

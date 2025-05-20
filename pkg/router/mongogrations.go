@@ -28,6 +28,12 @@ func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		mongogrationsUrl.GET("/:collection_name/documents/:document_id", mongogrations.GetDocument)
 		mongogrationsUrl.PUT("/:collection_name/documents/:document_id", mongogrations.UpdateDocument)
 		mongogrationsUrl.DELETE("/:collection_name/documents/:document_id", mongogrations.DeleteDocument)
+	}
+	
+	baseUrl1 := fmt.Sprintf("%v/organisation", ApiVersion)
+	mongogrationsUrl1 := r.Group(baseUrl1, middleware.Authorize(db.Postgresql))
+	{
+		mongogrationsUrl1.GET("/:org_id/agents/:agent_id/get-api-key", mongogrations.FetchAPIKey)
 
 	}
 

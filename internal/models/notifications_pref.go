@@ -17,11 +17,14 @@ type NotificationType string
 type SectionType string
 
 var (
-	Updated       NotificationType = "updated"
-	Deleted       NotificationType = "deleted"
-	NewMessage    NotificationType = "new_message"
-	ThreadSection SectionType      = "thread_message"
-	ReplySection  SectionType      = "reply_message"
+	Updated            NotificationType = "updated"
+	Deleted            NotificationType = "deleted"
+	NewMessage         NotificationType = "new_message"
+	StatusUpdate       NotificationType = "status_update"
+	UnReadThreadChange NotificationType = "unread_thread_change"
+	ThreadSection      SectionType      = "thread_message"
+	ReplySection       SectionType      = "reply_message"
+	ChannelsSection    SectionType      = "channels_section"
 )
 
 type Content struct {
@@ -54,6 +57,9 @@ var Notification = map[NotificationType]Content{
 
 	NewMessage: Content{
 		NotificationType: NewMessage,
+	},
+	UnReadThreadChange: Content{
+		NotificationType: UnReadThreadChange,
 	},
 }
 

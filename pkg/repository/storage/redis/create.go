@@ -37,3 +37,17 @@ func PushToQueue(rdb *redis.Client, value interface{}) error {
 
 	return nil
 }
+
+func PushToNotificationQueue(rdb *redis.Client, value interface{}) error {
+	jsonValue, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("could not marshal struct: %v", err)
+	}
+
+	err = rdb.LPush(Ctx, "notification-queue", jsonValue).Err()
+	if err != nil {
+		fmt.Println("could not push to Redis queue: ", err)
+	}
+
+	return nil
+}

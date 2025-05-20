@@ -27,3 +27,19 @@ func PopFromQueue(rdb *redis.Client) (interface{}, error) {
 
 	return response, nil
 }
+
+func PopFromNotificationQueue(rdb *redis.Client) (interface{}, error) {
+	var response interface{}
+
+	jsonValue, err := rdb.RPop(Ctx, "notification-queue").Result()
+	if err != nil {
+		return response, fmt.Errorf("could not pop from Redis queue: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(jsonValue), &response)
+	if err != nil {
+		return response, fmt.Errorf("could not unmarshal JSON: %v", err)
+	}
+
+	return response, nil
+}

@@ -137,13 +137,29 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsID
 	userChan.UserID = req.UserId
-	go userChan.UpdateUnReadCount(db.Postgresql, &sync.Mutex{}, logger)
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
 
+	// Add to the wait group for each goroutine that must complete first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		userChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
 
-	// process mentions
 	if len(req.Mentions) > 0 {
-		go userChan.ProcessMentions(db.Postgresql, req.Mentions, &sync.Mutex{}, logger)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			userChan.ProcessMentions(db.Postgresql, req.Mentions, mutex, logger)
+		}()
 	}
+
+	// Run this after the others finish
+	go func() {
+		wg.Wait()
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
 
 	return &threadDoc, nil
 }

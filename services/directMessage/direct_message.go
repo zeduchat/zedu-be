@@ -92,16 +92,13 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 			return resp, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
 		}
 
-		agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent.JSONUrl, rds)
+		agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 		if err != nil {
 			return resp, http.StatusInternalServerError, fmt.Errorf("failed to fetch agent details: %w", err)
 		}
-		agentDescription, ok := agentDetails["descriptions"].(map[string]interface{})
-		if !ok {
-			return resp, http.StatusInternalServerError, errors.New("invalid agent details format")
-		}
-		appName, appLogo := utility.GetString(agentDescription, "app_name"), utility.GetString(agentDescription, "app_logo")
-		if appName == "" || appLogo == "" {
+
+		appName, appLogo := utility.GetString(agentDetails, "app_name"), utility.GetString(agentDetails, "app_logo")
+		if appName == "" {
 			return resp, http.StatusInternalServerError, errors.New("missing required agent details (app_name, app_logo)")
 		}
 		resp = append(resp, gin.H{
