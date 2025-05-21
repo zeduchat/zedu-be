@@ -376,7 +376,7 @@ func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, m
 		}
 	}
 
-	return c, nil
+	return c, firstErr
 }
 
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
