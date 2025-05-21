@@ -528,21 +528,31 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 }
 
 func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
+	var firstErr error
+
 	for _, mediaFile := range mediaFiles {
 		hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
 
 		err := DeleteUploadedFiles(logger, hashedFileName)
 		if err != nil {
-			return nil, err
+			logger.Error("Failed to delete uploaded file:", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
 		}
 
 		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
 		if deleteErr != nil {
-			return nil, deleteErr
+			logger.Error("Failed to delete DB file entry:", deleteErr)
+			if firstErr == nil {
+				firstErr = deleteErr
+			}
+			continue
 		}
 	}
 
-	return c, nil
+	return c, firstErr
 }
 
 func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
