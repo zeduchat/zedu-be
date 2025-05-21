@@ -23,7 +23,7 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.E
 		dmfetch models.DmChannels
 	)
 
-	exists := postgresql.CheckExists(db, &dmfetch, "user_id = ? AND participant_id = ?", req.UserId, req.ParticipantId)
+	exists := postgresql.CheckExists(db, &dmfetch, "user_id = ? AND participant_id = ? AND org_id = ?", req.UserId, req.ParticipantId, req.OrgId)
 
 	if !exists {
 		dmchans.ChannelId = utility.GenerateUUID()
