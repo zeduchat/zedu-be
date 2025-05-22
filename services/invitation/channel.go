@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -111,37 +110,6 @@ func ChannelInviteLinkMapper(baseURL string, invitations []models.ChannelInvitat
 		})
 	}
 	return response
-}
-
-func SendChannelsInvitationsEmail(invitationResponseMap []models.ChannelInvitationResponse) error {
-
-	var wg sync.WaitGroup
-	errorChannel := make(chan error, len(invitationResponseMap))
-
-	for _, invite := range invitationResponseMap {
-		wg.Add(1)
-		go func(invite models.ChannelInvitationResponse) {
-			defer wg.Done()
-
-			err := SendEmail(invite.Email, invite.InvitationLink)
-			if err != nil {
-				errorChannel <- fmt.Errorf("failed to send invitation to %s: %v", invite.Email, err)
-			}
-		}(invite)
-	}
-
-	wg.Wait()
-	close(errorChannel)
-
-	if len(errorChannel) > 0 {
-		var errMsg string
-		for err := range errorChannel {
-			errMsg += fmt.Sprintf("%v\n", err)
-		}
-		return fmt.Errorf("some invitations failed to send: \n%s", errMsg)
-	}
-
-	return nil
 }
 
 func VerifyChannelInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
