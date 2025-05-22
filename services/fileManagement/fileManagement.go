@@ -196,11 +196,18 @@ func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.UploadedFileRespons
 
 func DeleteFileDetailsByID(logger *utility.Logger, db *gorm.DB, file *models.UploadedFileResponse, fileId string) error {
 	var fileModel models.UploadedFileResponse
-	hashedFileName := utility.ExtractHashedFileName(file.FileLink)
 
-	minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
-	if minioErr != nil {
-		return minioErr
+	count, countErr := fileModel.GetFileCountByLink(db, file.FileLink)	
+	if countErr != nil {
+		return countErr
+	}
+	if count == 1 {
+		hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+	
+		minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
+		if minioErr != nil {
+			return minioErr
+		}
 	}
 
 	err := fileModel.DeleteFileByID(db, fileId)

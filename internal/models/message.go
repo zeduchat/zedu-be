@@ -352,18 +352,32 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 }
 
 func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Message, error) {
-	var firstErr error
+	var (
+		fileModel UploadedFileResponse
+		firstErr  error
+	)
 
 	for _, mediaFile := range mediaFiles {
-		hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
-
-		err := DeleteUploadedFiles(logger, hashedFileName)
-		if err != nil {
-			logger.Error("Failed to delete uploaded file:", err)
+		count, countErr := fileModel.GetFileCountByLink(db, mediaFile.FileLink)
+		if countErr != nil {
+			logger.Error("Failed to get the number of files with the associated link:", countErr)
 			if firstErr == nil {
-				firstErr = err
+				firstErr = countErr
 			}
 			continue
+		}
+		
+		if count == 1 {
+			hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+			err := DeleteUploadedFiles(logger, hashedFileName)
+			if err != nil {
+				logger.Error("Failed to delete uploaded file:", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
 		}
 
 		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
