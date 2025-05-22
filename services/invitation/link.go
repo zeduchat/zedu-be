@@ -21,15 +21,16 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID string) models.Invitation {
+func CreateInvitation(email, token, status string, isTelexUser bool, ids models.IDS) models.Invitation {
 	return models.Invitation{
 		ID:             utility.GenerateUUID(),
 		Email:          email,
 		Token:          token,
 		Status:         status,
-		Role:           role,
+		Role:           ids.RoleID,
 		IsTelexUser:    isTelexUser,
-		OrganisationID: orgID,
+		InvitedBy:      ids.UserID,
+		OrganisationID: ids.OrganisationID,
 		ExpiresAt:      time.Now().UTC().Add(48 * time.Hour),
 	}
 }
@@ -66,7 +67,13 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 			continue
 		}
 
-		invitation := CreateInvitation(email, token, inviteReq.RoleID, "invited", isTelexUser, inviteReq.OrganisationID)
+		ids := models.IDS{
+			UserID:         userId,
+			OrganisationID: inviteReq.OrganisationID,
+			RoleID:         inviteReq.RoleID,
+		}
+
+		invitation := CreateInvitation(email, token , "invited", isTelexUser , ids)
 		invitations = append(invitations, invitation)
 	}
 
@@ -84,6 +91,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 			Status:         "invited",
 			InviteToken:    invite.Token,
 			IsTelexUser:    invite.IsTelexUser,
+			InvitedBy:      invite.InvitedBy,
 			InvitationLink: utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
