@@ -793,40 +793,61 @@ func (c *UserChannels) ProcessMentions(db *gorm.DB, req []Mention, mu *sync.Mute
 	defer mu.Unlock()
 
 	IdCount := map[string]int{}
+	channelMention := false
 
 	for _, mention := range req {
-
+		if mention.ID == "00000000-0000-0000-0000-000000000000" {
+			channelMention = true
+			break
+		}
 		if mention.Type == "user" {
 			IdCount[mention.ID]++
 		}
 	}
 
-	if len(IdCount) == 0 {
+	if len(IdCount) == 0 && !channelMention {
 		logger.Info("No mentions to update")
 		return
 	}
 
-	var userIDs []string
-	caseStmt := "CASE user_id"
-	for userID, count := range IdCount {
-		userIDs = append(userIDs, fmt.Sprintf("'%s'", userID))
-		caseStmt += fmt.Sprintf(" WHEN '%s' THEN mention_count + %d", userID, count)
-	}
-	caseStmt += " END"
+	query := ""
+	args := []interface{}{}
 
-	// Build the query
-	query := fmt.Sprintf(`
+	if !channelMention {
+
+		var userIDs []string
+		caseStmt := "CASE user_id"
+		for userID, count := range IdCount {
+			userIDs = append(userIDs, fmt.Sprintf("'%s'", userID))
+			caseStmt += fmt.Sprintf(" WHEN '%s' THEN mention_count + %d", userID, count)
+		}
+		caseStmt += " END"
+
+		// Build the query
+		query = fmt.Sprintf(`
 		UPDATE user_channels
 		SET mention_count = %s
 		WHERE channels_id = ? AND user_id IN (%s)
 	`, caseStmt, strings.Join(userIDs, ","))
 
-	if err := db.Exec(query, c.ChannelsID).Error; err != nil {
+		args = append(args, c.ChannelsID)
+
+	} else {
+		caseStmt := "mention_count + 1"
+		query = fmt.Sprintf(`
+		UPDATE user_channels
+		SET mention_count = %s
+		WHERE channels_id = ? AND user_id != ?
+	`, caseStmt)
+		args = append(args, c.ChannelsID, c.UserID)
+	}
+
+	if err := db.Exec(query, args...).Error; err != nil {
 		logger.Error("Bulk update failed: %v", err)
 		return
 	}
 
-	logger.Info("user last read updated successfully")
+	logger.Info("Mentions processed and mention_count updated successfully")
 }
 
 func (uc *UserChannels) GetUserChannel(base *storage.Database, userId, channel_id string) (GetUserChannelResp, error) {
