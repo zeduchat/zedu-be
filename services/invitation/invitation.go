@@ -89,13 +89,13 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
-	defaultChannel, err := getDefaultChannel(db, orgmgt.OrganisationID)
+	generalChannel, err := getGeneralChannel(db, orgmgt.OrganisationID)
 	if err != nil {
 		logger.Error("error getting default channel", err)
 	}
 
-	if defaultChannel.ID != "" {
-		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
+	if generalChannel.ID != "" {
+		err = addUserToChannel(&generalChannel, orgmgt, user.Name, db)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err

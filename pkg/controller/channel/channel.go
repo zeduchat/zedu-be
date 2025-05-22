@@ -566,7 +566,12 @@ func (base *Controller) GetUserChannels(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	userchannels, err := channel.GetUserChannels(base.Db, userId, org_id)
+	ids := models.IDS{
+		OrganisationID: org_id,
+		UserID:         userId,
+	}
+
+	userchannels, err := channel.GetUserChannels(base.Db, ids)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch user channels", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -600,7 +605,12 @@ func (base *Controller) GetUserNotInChannels(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	userchannels, err := channel.GetUserNotInChannels(base.Db.Postgresql, userId, org_id)
+	ids := models.IDS{
+		OrganisationID: org_id,
+		UserID:         userId,
+	}
+
+	userchannels, err := channel.GetUserNotInChannels(base.Db.Postgresql, ids)
 	if err != nil {
 		base.Logger.Info("failed to fetch channels user do not belong")
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch channels user do not belong", err, nil)
