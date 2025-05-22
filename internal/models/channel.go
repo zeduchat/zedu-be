@@ -24,11 +24,11 @@ type Channels struct {
 	Description    string  `gorm:"column:description; type:text; not null" json:"description"`
 	OrganisationID string  `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string  `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	Users          []User  `gorm:"many2many:user_channels;" json:"users"`
-	UserCount      int64   `gorm:"-" json:"user_count"`
-	MessageCount   int64   `gorm:"-" json:"message_count"`
+	Users          []User  `gorm:"many2many:user_channels;" json:"users,omitempty"`
+	UserCount      int64   `gorm:"-" json:"user_count,omitempty"`
+	MessageCount   int64   `gorm:"-" json:"-"`
 	Archived       bool    `gorm:"column:archived;null; default:false" json:"archived"`
-	GroupID        *string `gorm:"column:group_id; type:uuid;index;" json:"group_id"`
+	GroupID        *string `gorm:"column:group_id; type:uuid;index;" json:"-"`
 
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
@@ -74,7 +74,7 @@ type GetChannelResp struct {
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl   string `json:"webhook_url"`
+	WebhookUrl   string `json:"webhook_url,omitempty"`
 	ThreadCount  int64  `json:"thread_count"`
 	Access       bool   `json:"access"`
 	MentionCount int64  `json:"mention_count"`
@@ -728,12 +728,20 @@ func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChan
 	return users, nil
 }
 
-func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mutex, logger *utility.Logger) {
+func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mutex, logger *utility.Logger) bool {
 
 	mu.Lock()
 	defer mu.Unlock()
 
+	var uc UserChannels
+
 	query := "channels_id = ? AND user_id = ?"
+
+	exists := postgresql.CheckExists(db, &uc, query, c.ChannelsID, c.UserID)
+
+	if exists && uc.LastThreadId == req.LastThreadId {
+		return false
+	}
 
 	updateFields := map[string]interface{}{
 		"last_thread_id": req.LastThreadId,
@@ -748,10 +756,11 @@ func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.
 
 	if result.Error != nil {
 		logger.Error("an error occurend while updating user last read: %v", result.Error)
-		return
+		return false
 	}
 
 	logger.Info("user last read updated successfully")
+	return true
 
 }
 
