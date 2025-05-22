@@ -666,23 +666,17 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 	return exists, nil
 }
 
-func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID string) (GetUserChannelResp, error) {
+func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUserChannelResp, error) {
 
 	var (
-		org      Organisation
-		chanResp GetUserChannelResp
-		db       = base.Postgresql
+		db = base.Postgresql
 	)
-
-	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
-	if !exists {
-		return chanResp, errors.New("organisation does not exist")
-	}
+	chanResp := make(GetUserChannelResp, 0)
 
 	if err := db.Model(&Channels{}).
 		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.organisation_id = ? AND uc.user_id = ?", orgID, userId).
+		Where("channels.organisation_id = ? AND uc.user_id = ?", ids.OrganisationID, ids.UserID).
 		Order("channels.created_at").
 		Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
@@ -691,21 +685,21 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, userId, orgID st
 	return chanResp, nil
 }
 
-func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, userId, orgId string) (GetUserNotChannelResp, error) {
+func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, ids IDS) (GetUserNotChannelResp, error) {
 	var (
 		org      Organisation
 		chanResp GetUserNotChannelResp
 	)
 
-	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrganisationID)
 	if !exists {
 		return chanResp, errors.New("organisation does not exist")
 	}
 
 	err := db.Table("channels").
 		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
-		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", userId).
-		Where("channels.organisation_id = ?", orgId).
+		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", ids.UserID).
+		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Order("channels.created_at").
 		Scan(&chanResp).Error
 
