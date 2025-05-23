@@ -36,8 +36,10 @@ type SendResetPassword struct {
 }
 
 type SendInvitationLink struct {
-	Email          string `json:"email" validate:"required"`
-	InvitationLink string `json:"invitation_link" validate:"required"`
+	Email            string `json:"email" validate:"required"`
+	InvitationLink   string `json:"invitation_link" validate:"required"`
+	InviterName      string `json:"inviter_name" validate:"required"`
+	OrganisationName string `json:"organisation_name" validate:"required"`
 }
 
 type SendMagicLink struct {

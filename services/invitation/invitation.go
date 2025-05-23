@@ -89,13 +89,13 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
-	defaultChannel, err := getDefaultChannel(db, orgmgt.OrganisationID)
+	generalChannel, err := getGeneralChannel(db, orgmgt.OrganisationID)
 	if err != nil {
 		logger.Error("error getting default channel", err)
 	}
 
-	if defaultChannel.ID != "" {
-		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
+	if generalChannel.ID != "" {
+		err = addUserToChannel(&generalChannel, orgmgt, user.Name, db)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err
@@ -152,7 +152,11 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 }
 
 func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition, baseURL string) (int, error) {
-	var invites []models.Invitation
+	var (
+		invites []models.Invitation
+		user    models.User
+		org     models.Organisation
+	)
 
 	//parse the date
 	parsed_date, err := time.Parse("2006-01-02", req.TimeFrom)
@@ -172,10 +176,20 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 
 	successful_reinvites := []string{}
 
+	err, _ = postgresql.SelectOneFromDb(db, &user, "id = ?", invites[0].InvitedBy)
+	if err != nil {
+		logger.Error("Failed to get user details", err)
+	}
+
+	err, _ = postgresql.SelectOneFromDb(db, &org, "id = ?", invites[0].OrganisationID)
+	if err != nil {
+		logger.Error("Failed to get organisation details", err)
+	}
+
 	for _, invite := range invites {
 		invitation_link := utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token)
 
-		err := SendEmail(invite.Email, invitation_link)
+		err := SendEmail(invite.Email, invitation_link, org.Name, user.Name)
 		if err != nil {
 			continue
 		}

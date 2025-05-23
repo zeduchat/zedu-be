@@ -21,15 +21,16 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateInvitation(email, token, role, status string, isTelexUser bool, orgID string) models.Invitation {
+func CreateInvitation(email, token, status string, isTelexUser bool, ids models.IDS) models.Invitation {
 	return models.Invitation{
 		ID:             utility.GenerateUUID(),
 		Email:          email,
 		Token:          token,
 		Status:         status,
-		Role:           role,
+		Role:           ids.RoleID,
 		IsTelexUser:    isTelexUser,
-		OrganisationID: orgID,
+		InvitedBy:      ids.UserID,
+		OrganisationID: ids.OrganisationID,
 		ExpiresAt:      time.Now().UTC().Add(48 * time.Hour),
 	}
 }
@@ -66,7 +67,13 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 			continue
 		}
 
-		invitation := CreateInvitation(email, token, inviteReq.RoleID, "invited", isTelexUser, inviteReq.OrganisationID)
+		ids := models.IDS{
+			UserID:         userId,
+			OrganisationID: inviteReq.OrganisationID,
+			RoleID:         inviteReq.RoleID,
+		}
+
+		invitation := CreateInvitation(email, token , "invited", isTelexUser , ids)
 		invitations = append(invitations, invitation)
 	}
 
@@ -84,6 +91,7 @@ func InviteLinkMapper(baseURL string, invitations []models.Invitation) []models.
 			Status:         "invited",
 			InviteToken:    invite.Token,
 			IsTelexUser:    invite.IsTelexUser,
+			InvitedBy:      invite.InvitedBy,
 			InvitationLink: utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token),
 			Sent_At:        invite.CreatedAt,
 			Expires_At:     invite.ExpiresAt,
@@ -138,15 +146,15 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	defaultChannel, err := getDefaultChannel(db, orgmgt.OrganisationID)
+	defaultChannel, err := getGeneralChannel(db, orgmgt.OrganisationID)
 	if err != nil {
-		logger.Error("error getting default channel", err)
+		logger.Error("error getting general channel", err)
 	}
 
 	if defaultChannel.ID != "" {
 		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
 		if err != nil {
-			logger.Error("error adding user to the default channel", err)
+			logger.Error("error adding user to the general channel", err)
 			return responseData, http.StatusInternalServerError, err
 		}
 	}
@@ -171,18 +179,32 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	return responseData, http.StatusOK, nil
 }
 
-func getDefaultChannel(db *gorm.DB, orgID string) (models.Channels, error) {
+func getGeneralChannel(db *gorm.DB, orgID string) (models.Channels, error) {
 	var channels models.Channels
 
 	err := db.Where("organisation_id = ? AND name = ?", orgID, "general").First(&channels).Error
-	if err != nil {
-		return channels, errors.New("default channel not found")
-	}
-	if channels.ID == "" {
-		return channels, errors.New("default channel not found")
+	if err == nil {
+		return channels, fmt.Errorf("general channel not found: %v", err)
 	}
 
-	return channels, nil
+	//if general not found, get the first channel
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = db.Where("organisation_id = ?", orgID).
+			Order("created_at ASC").
+			First(&channels).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return channels, fmt.Errorf("no channel found in organisation: %v", err)
+			}
+			return channels, fmt.Errorf("error getting first channel: %v", err)
+		}
+	}
+
+	if channels.ID == "" {
+		return channels, errors.New("no channel found in organisation")
+	}
+
+	return channels, fmt.Errorf("database error: %w", err)
 }
 
 func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {
