@@ -288,7 +288,6 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	users, paginationResponse, err := service.GetUsersInOrganisation(orgId, userId, base.Db.Postgresql, c)
-
 	if err != nil {
 		switch err.Error() {
 		case "organisation not found":
@@ -313,7 +312,6 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 
 	base.Logger.Info("users retrieved successfully")
 	response := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationData)
-
 	c.JSON(http.StatusOK, response)
 }
 
