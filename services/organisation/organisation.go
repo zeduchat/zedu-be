@@ -332,7 +332,7 @@ func GetUsersInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) (
 		return nil, postgresql.PaginationResponse{}, errors.New("user does not have access to the organisation")
 	}
 
-	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId,userId, db, c)
+	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, userId, db, c)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
@@ -345,31 +345,33 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
 	pagination := postgresql.GetPagination(c)
 	offset := (pagination.Page - 1) * pagination.Limit
 
-	if err := db.Table("users AS u").
-		Select(`u.id, u.email, p.phone AS phone_number, 
-                COALESCE(NULLIF(p.user_name, ''), 
-                         NULLIF(p.full_name, ''), 
-                         SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name, 
-                p.avatar_url AS avatar_url, u.created_at, o.status, 
-                org.name AS role`).
-		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
-		Joins("JOIN profiles AS p ON p.userid = u.id").
-		Joins("JOIN org_user_managements AS o ON o.user_id = u.id AND o.organisation_id = ?", orgId).
-		Joins("JOIN org_roles AS org ON org.id = o.role_id::uuid").
-		Where("uo.organisation_id = ? AND u.id != ?", orgId, userId).
+	// Debug the raw SQL query
+	query := db.Table("org_user_managements AS o").
+		Select(`u.id, u.email, p.phone AS phone_number,
+            COALESCE(NULLIF(p.user_name, ''),
+                     NULLIF(p.full_name, ''),
+                     SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name,
+            p.avatar_url AS avatar_url, u.created_at, o.status,
+            org.name AS role`).
+		Joins("JOIN users AS u ON u.id = o.user_id").
+		Joins("LEFT JOIN profiles AS p ON p.userid = u.id").
+		Joins("LEFT JOIN org_roles AS org ON org.id = o.role_id::uuid"). 
+		Where("o.organisation_id = ?", orgId).
+		Order("u.created_at DESC").
 		Offset(offset).
-		Limit(pagination.Limit).
-		Find(&users).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
+		Limit(pagination.Limit)
 
+	// Execute the query
+	if err := query.Find(&users).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch users: %w", err)
 	}
 
+	// Get total count of users in organization
 	var totalUsers int64
-	if err := db.Table("users AS u").
-		Joins("JOIN user_organisations AS uo ON uo.user_id = u.id").
-		Where("uo.organisation_id = ? AND u.id != ?", orgId, userId).
+	if err := db.Table("org_user_managements").
+		Where("organisation_id = ?", orgId).
 		Count(&totalUsers).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err
+		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to count users: %w", err)
 	}
 
 	totalPages := int(math.Ceil(float64(totalUsers) / float64(pagination.Limit)))
@@ -378,6 +380,7 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
 	}
+
 	return users, paginationResponse, nil
 }
 

@@ -212,10 +212,12 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 	return http.StatusOK, nil
 }
 
-func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
-	var o models.Organisation
-
-	_, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
+func CheckerValidator(base *storage.Database, Emails []string, ids models.IDS, logger *utility.Logger) (int, string, error) {
+	var (
+		o models.Organisation
+		r models.OrgRole
+	)
+	_, err := o.CheckOrgExists(ids.OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
@@ -226,6 +228,11 @@ func CheckerValidator(base *storage.Database, Emails []string, OrganisationID st
 
 	if CheckDuplicateEmails(Emails) {
 		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
+	}
+
+	exists := postgresql.CheckExists(base.Postgresql, &r, "id = ?", ids.RoleID)
+	if !exists {
+		return http.StatusNotFound, "Role does not exist", errors.New("role does not exist")
 	}
 
 	return http.StatusOK, "User validated", nil
