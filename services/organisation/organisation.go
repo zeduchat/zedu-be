@@ -49,6 +49,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, errors.New("failed to upload organisation logo")
 	}
 
+	
 	org := models.Organisation{
 		ID:          orgId,
 		Name:        strings.ToLower(req.Name),
@@ -59,6 +60,12 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		OwnerID:     userId,
 		Country:     strings.ToLower(req.Country),
 		LogoURL:     picUrl,
+	}
+
+	// Check if the organisation name already exists
+	exists := postgresql.CheckExists(db, &models.Organisation{}, "name = ? AND owner_id = ?", org.Name, userId)
+	if exists {
+		return nil, errors.New("organisation already exists with the given name")
 	}
 
 	err = org.CreateOrganisation(db)
