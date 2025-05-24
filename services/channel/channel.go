@@ -33,9 +33,9 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = req.Username
 
-	exists := postgresql.CheckExists(db, &chans, "name = ?", channel.Name)
+	exists := postgresql.CheckExists(db, &chans, "name = ? AND organisation_id = ?", req.Name, req.OrganisationID)
 	if exists {
-		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group")
+		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group in this organisation")
 	}
 
 	err := channel.CreateChannel(db)
