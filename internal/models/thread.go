@@ -553,7 +553,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	return c, nil
 }
 
-func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
+func (c *Threads) ClearDMThreadsByChannelID(db *gorm.DB) (*Threads, error) {
 
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -564,7 +564,6 @@ func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
 	}
 
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete channel messages, err: %v", err)
 	}
