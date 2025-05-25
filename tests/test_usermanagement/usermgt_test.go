@@ -127,7 +127,7 @@ func TestUserManagementEndpoints(t *testing.T) {
 
 		organisationUrl := r.Group(fmt.Sprintf("%v", "/api/v1/organisations"), middleware.Authorize(db.Postgresql))
 		{
-			organisationUrl.GET("/:org_id/users", organisation.GetUsersInOrganisation)
+			organisationUrl.GET("/:org_id/users", organisation.GetUsersAndBotsInOrganisation)
 			organisationUrl.GET("/:org_id/metrics", organisation.GetOrganisationCountMetrics)
 			organisationUrl.PUT("/:org_id/users/:user_id", organisation.UpdateMember)
 			organisationUrl.DELETE("/:org_id/users/:user_id", organisation.RemoveMemberFromOrganisation)

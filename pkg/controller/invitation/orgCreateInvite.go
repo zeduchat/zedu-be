@@ -90,7 +90,13 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		return
 	}
 
-	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, inviteReq.OrganisationID, userId, base.Logger)
+	ids := models.IDS{
+		OrganisationID: inviteReq.OrganisationID,
+		UserID: userId,
+		RoleID: inviteReq.RoleID,
+	}
+
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, ids, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)
@@ -125,7 +131,7 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, inviteMap)
 
-	err = invitation.SendInvitationsEmail(base.Logger, mapData)
+	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData)
 	if err != nil {
 		base.Logger.Error("Failed to send invitation email", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)

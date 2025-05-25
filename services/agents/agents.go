@@ -313,10 +313,10 @@ func DeleteAgentApp(ids map[string]string, db *gorm.DB) error {
 }
 
 // Delete Org Custom Integration
-func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
+func DeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, ids models.IDS) (error, int) {
 	var org_agent models.OrganisationIntegrations
 
-	err, code := org_agent.DeleteCustomAgent(db, ids)
+	err, code := org_agent.DeleteCustomAgent(db, logger, ids)
 	if err != nil {
 		return err, code
 	}
@@ -439,6 +439,11 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return errors.New("organisation does not exist")
 	}
 
+	err := validateJSONURL(req.JSONUrl)
+	if err != nil {
+		return err
+	}
+
 	agentID, err := utility.GenerateUUIDFromString(req.JSONUrl)
 	if err != nil {
 		return fmt.Errorf("error generating agent ID from JSON URL: %v", err)
@@ -516,6 +521,14 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return errors.New("failed to create agent settings")
 	}
 
+	return nil
+}
+
+func validateJSONURL(jsonUrl string) error {
+	validator := utility.NewURLValidator()
+	if err := validator.Validate(jsonUrl); err != nil {
+		return fmt.Errorf("invalid JSON URL: %v", err)
+	}
 	return nil
 }
 

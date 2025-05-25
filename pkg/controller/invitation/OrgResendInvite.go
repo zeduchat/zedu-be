@@ -76,7 +76,12 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 
 	emails := []string{req.Email}
 
-	statusCode, msg, err := invitation.CheckerValidator(base.Db, emails, req.OrganisationID, userId, base.Logger)
+	ids := models.IDS{
+		OrganisationID: req.OrganisationID,
+		UserID:         userId,
+	}
+
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, emails, ids, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err.Error(), nil)
@@ -94,7 +99,7 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, []models.Invitation{response})
 
-	err = invitation.SendInvitationsEmail(base.Logger, mapData)
+	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData)
 	if err != nil {
 		base.Logger.Error("Failed to send invitation", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation", err.Error(), nil)

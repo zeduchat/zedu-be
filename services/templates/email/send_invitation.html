@@ -18,15 +18,16 @@
 
     <tr>
       <td style="padding: 0px 30px;">
-        <h2 style="color: #000000;font-size:20px;text-align:center">Welcome to Telex</h2>
+        <h2 style="color: #000000;font-size:20px;text-align:center">You've Been Invited to Telex</h2>
 
         <h4 style="color: #666666; font-size: 15px;">Hi {{ .firstname }},</h4>
-          You recently requested an invitation link for signing into a telex organization. Please click the link below to access your account. Note that this
-          link will expire in 48 hours. <strong>Note:</strong> This invitation can only be used once
+        <p style="color: #666666; font-size: 14px; line-height: 1.5;">
+          {{ .inviter_name }} from {{ .organisation_name }} has invited you to join their organization on Telex. 
+          This invitation gives you access to collaborate and stay connected with your organization.
         </p>
 
         <p style="color: #666666; font-size: 14px; line-height: 1.5;">
-          Click the button below to sign-up
+          <strong>Important:</strong> This invitation link is valid for 48 hours and can only be used once.
         </p>
       </td>
     </tr>
@@ -43,14 +44,14 @@
           font-size: 14px;
           margin:0 auto;
           margin-top: 10px;
-        ">Sign Up</a>
+        ">Accept Invite</a>
       </td>
     </tr>
 
     <tr>
       <td style="padding: 40px 30px; font-size: 12px;">
         Regards,<br /><br />
-        The Telex Team.
+        The Telex Team
       </td>
     </tr>
 
@@ -59,7 +60,7 @@
         Thank you for choosing Telex.com. Need help? <a href="{{ .contact_us_url }}" style="color: #7c50f8;">Contact our customer
           support</a>.
         <br /><br />
-        You are receiving this email because you signed up at Telex.com. Want to change how you receive these
+        You are receiving this email because you were invited to Telex by {{ .inviter_name }}. Want to change how you receive these
         emails?
         <br /><br />
         You can <a href="#" style="color: #7c50f8;">update your preferences</a> or <a href="#"

@@ -33,9 +33,9 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 	joinChannelsReq.UserID = userId
 	joinChannelsReq.Username = req.Username
 
-	exists := postgresql.CheckExists(db, &chans, "name = ?", channel.Name)
+	exists := postgresql.CheckExists(db, &chans, "name = ? AND organisation_id = ?", req.Name, req.OrganisationID)
 	if exists {
-		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group")
+		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group in this organisation")
 	}
 
 	err := channel.CreateChannel(db)
@@ -287,36 +287,38 @@ func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels,
 	return channels, http.StatusOK, nil
 }
 
-func GetUserChannels(db *storage.Database, userID, orgID string) (models.GetUserChannelResp, error) {
+func GetUserChannels(db *storage.Database, ids models.IDS) (models.GetUserChannelResp, error) {
 	var (
 		uc models.UserChannels
 		o  models.Organisation
 	)
 
-	_, err := o.CheckOrgExists(orgID, db.Postgresql)
+	_, err := o.CheckOrgExists(ids.OrganisationID, db.Postgresql)
 	if err != nil {
 		return nil, err
 	}
 
-	userchannels, err := uc.GetUserChannels(db, userID, orgID)
+
+	userchannels, err := uc.GetUserChannels(db, ids)
 	if err != nil {
 		return userchannels, err
 	}
 	return userchannels, nil
 }
 
-func GetUserNotInChannels(db *gorm.DB, userID, orgID string) (models.GetUserNotChannelResp, error) {
+func GetUserNotInChannels(db *gorm.DB, ids models.IDS) (models.GetUserNotChannelResp, error) {
 	var (
 		uc models.UserChannels
 		o  models.Organisation
 	)
 
-	_, err := o.CheckOrgExists(orgID, db)
+	_, err := o.CheckOrgExists(ids.OrganisationID, db)
 	if err != nil {
 		return nil, err
 	}
 
-	userchannels, err := uc.GetUserNotInChannels(db, userID, orgID)
+
+	userchannels, err := uc.GetUserNotInChannels(db, ids)
 	if err != nil {
 		return userchannels, err
 	}

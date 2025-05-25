@@ -19,6 +19,7 @@ type Invitation struct {
 	Status         string       `gorm:"type:varchar(100);" json:"status"`
 	Role           string       `gorm:"type:uuid;" json:"role"`
 	OrganisationID string       `gorm:"type:uuid;" json:"organisation_id"`
+	InvitedBy      string       `gorm:"type:uuid;" json:"invited_by"`
 	IsTelexUser    bool         `gorm:"type:boolean;default:false" json:"is_telex_user"`
 	Organisation   Organisation `gorm:"foreignKey:OrganisationID" json:"-"`
 	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
@@ -38,6 +39,7 @@ type InvitationResponse struct {
 	Status         string    `json:"status"`
 	InviteToken    string    `json:"invite_token"`
 	IsTelexUser    bool      `json:"is_telex_user"`
+	InvitedBy      string    `json:"invited_by"`
 	InvitationLink string    `json:"invitation_link"`
 	Sent_At        time.Time `json:"sent_at"`
 	Expires_At     time.Time `json:"expires_at"`
