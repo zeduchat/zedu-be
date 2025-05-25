@@ -66,6 +66,7 @@ type UserInOrgResponse struct {
 	Role        string    `json:"role"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
+	EntityType  string    `json:"entity_type"` // "user" or "bot"
 }
 
 type AddUserToOrgRequestModel struct {
@@ -299,7 +300,7 @@ func (u *Organisation) GetOrganisationsByUserIDs(db *gorm.DB, userID, requesterI
 	return organisations, nil
 }
 
-func (o *Organisation) GetUsersInOrganisation(c *gin.Context, db *gorm.DB, orgId string) ([]UserInOrgResponse, postgresql.PaginationResponse, error) {
+func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB, orgId string) ([]UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var users []UserInOrgResponse
 	pagination := postgresql.GetPagination(c)
 

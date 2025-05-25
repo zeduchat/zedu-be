@@ -604,7 +604,7 @@ func TestGetUsersInOrg(t *testing.T) {
 
 		orgUrl := r.Group(fmt.Sprintf("%v", "/api/v1"), middleware.Authorize(db.Postgresql))
 		{
-			orgUrl.GET("/organisations/:org_id/users", org.GetUsersInOrganisation)
+			orgUrl.GET("/organisations/:org_id/users", org.GetUsersAndBotsInOrganisation)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {
