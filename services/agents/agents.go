@@ -313,10 +313,10 @@ func DeleteAgentApp(ids map[string]string, db *gorm.DB) error {
 }
 
 // Delete Org Custom Integration
-func DeleteCustomAgentApp(ids map[string]string, db *gorm.DB) (error, int) {
+func DeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, ids models.IDS) (error, int) {
 	var org_agent models.OrganisationIntegrations
 
-	err, code := org_agent.DeleteCustomAgent(db, ids)
+	err, code := org_agent.DeleteCustomAgent(db, logger, ids)
 	if err != nil {
 		return err, code
 	}

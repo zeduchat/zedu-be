@@ -344,23 +344,76 @@ func (i *Integrations) DeleteAgent(db *gorm.DB, ids map[string]string) error {
 }
 
 // Delete Custom integration
-func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, ids map[string]string) (error, int) {
-	var org_integration OrganisationIntegrations
+func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility.Logger, ids IDS) (error, int) {
+	var (
+		org_integration OrganisationIntegrations
+		dmchannels      []DmChannels
+		channelIDs      []string
+		thread          Threads
+	)
 
-	exists := postgresql.CheckExists(db, &org_integration, "integration_id = ?", ids["agent_id"])
+	tx := db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error), http.StatusInternalServerError
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	exists := postgresql.CheckExists(tx, &org_integration, "integration_id = ?", ids.AgentID)
 	if !exists {
+		tx.Rollback()
 		return errors.New("agent app does not exist"), http.StatusBadRequest
 	}
 
 	//also delete entries for the agent in the organisation agents table
-	err := db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["agent_id"]).Error
+	err := tx.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids.AgentID).Error
 	if err != nil {
-		return err, http.StatusInternalServerError
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
 	}
 
-	err = db.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", ids["agent_id"]).Error
+	err = tx.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", ids.AgentID).Error
 	if err != nil {
-		return err, http.StatusInternalServerError
+		tx.Rollback()
+		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
+	}
+
+	err = postgresql.SelectAllFromDb(tx, "", &dmchannels, "org_id = ? AND chat_type = 'bot' AND participant_id = ?", ids.OrganisationID, ids.AgentID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch bot DM channels: %w", err), http.StatusInternalServerError
+	}
+
+	if len(dmchannels) == 0 {
+		tx.Rollback()
+		return errors.New("no bot DM channels found for the agent"), http.StatusNotFound
+	}
+
+	for _, channel := range dmchannels {
+		channelIDs = append(channelIDs, channel.ChannelId)
+	}
+
+	err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err), http.StatusInternalServerError
+	}
+
+	//clear all threads related to the dm channel
+	for _, channelID := range channelIDs {
+		thread.ID = channelID
+		_, err := thread.ClearDMThreadsByChannelID(db)
+		if err != nil {
+			logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+		}
 	}
 
 	return nil, http.StatusOK
@@ -407,12 +460,10 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string, extReq request.ExternalRequest) error {
 	var (
 		agent Integrations
-		// intsettings         CustomIntegrationsSetting
 		organisation Organisation
 		oci          OrganisationChannelsIntegrations
 		channels     []Channels
 		orgchannels  []OrganisationChannelsIntegrations
-		// integrationSettings CustomIntegrationsSetting
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])

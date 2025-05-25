@@ -192,12 +192,12 @@ func (base *Controller) DeleteCustomAgentApp(c *gin.Context) {
 		return
 	}
 
-	ids := map[string]string{
-		"org_id":   org_id,
-		"agent_id": agent_id,
+	ids := models.IDS{
+		OrganisationID: org_id,
+		AgentID:        agent_id,
 	}
 
-	err, code := agents.DeleteCustomAgentApp(ids, base.Db.Postgresql)
+	err, code := agents.DeleteCustomAgentApp(base.Db.Postgresql, *base.Logger, ids)
 	if err != nil {
 		base.Logger.Error("Failed to delete agent app", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to delete agent app", err.Error(), nil)

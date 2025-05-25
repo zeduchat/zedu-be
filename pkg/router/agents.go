@@ -57,7 +57,6 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		// Agent slash commands routes
 		organisationUrl.POST("/:org_id/agents/:agent_id/slash-commands", agentsCtrl.AddAgentSlashCommand)
 		organisationUrl.GET("/:org_id/agents/:agent_id/slash-commands", agentsCtrl.GetAgentSlashCommands)
-		// organisationUrl.GET("/:org_id/slash-commands", agentsCtrl.GetAllOrgSlashCommands)
 		organisationUrl.PATCH("/:org_id/agents/:agent_id/slash-commands/:command_id", agentsCtrl.UpdateAgentSlashCommand)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id/slash-commands/:command_id", agentsCtrl.DeleteAgentSlashCommand)
 	}
