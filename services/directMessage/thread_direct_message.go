@@ -421,6 +421,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		Mentions:      req.Mentions,
 		Media:         req.Media,
 		OrgansationID: channel.OrgId,
+		State:         req.State,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -441,6 +442,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		UserId:    *channel.ParticipantId,
 		Media:     req.Media,
 		UserType:  "bot",
+		State:     req.State,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelID, feed)

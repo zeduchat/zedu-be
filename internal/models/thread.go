@@ -71,6 +71,7 @@ type ThreadDocument struct {
 	Count         int                    `json:"frequency,omitempty"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
+	State         string                 `json:"state,omitempty"`
 }
 
 var MediaMapping = map[string]interface{}{
@@ -198,6 +199,7 @@ type BotReturnRequest struct {
 	ChannelID string                 `json:"channel_id"`
 	Content   string                 `json:"message"`
 	Media     []UploadedFileResponse `json:"media"`
+	State     string                 `json:"state"`
 	Mentions  []Mention              `json:"mentions"`
 }
 
@@ -217,7 +219,8 @@ type FeedMessageRequest struct {
 	UserId    string                 `json:"user_id"`
 	Media     []UploadedFileResponse `json:"media"`
 	UserType  string                 `json:"user_type"`
-	Id        string                 `json:"id",omitempty`
+	Id        string                 `json:"id,omitempty"`
+	State     string                 `json:"state"`
 }
 
 type Mentions struct {
