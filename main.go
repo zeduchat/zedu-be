@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"reflect"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stripe/stripe-go/v72"
@@ -45,6 +46,14 @@ func main() {
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 
 	validatorRef := validator.New()
+	validatorRef.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := fld.Tag.Get("json")
+		if name == "-" {
+			return ""
+		}
+		return name
+	})
+
 	db := storage.Connection()
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
