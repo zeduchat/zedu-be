@@ -107,6 +107,7 @@ var Thread_mapping = map[string]interface{}{
 			"user_type":   map[string]string{"type": "keyword"},
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
+			"state":       map[string]string{"type": "text"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
