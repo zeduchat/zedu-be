@@ -11,15 +11,8 @@ import (
 )
 
 func CheckUserOrgPlanThreshold(c *gin.Context, logger *utility.Logger, db *gorm.DB, organisationID string) bool {
-	planData, exists := c.Get("currentPlan")
-	if !exists {
-		logger.Error("unable to get organization plan data")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get organization plan data", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return false
-	}
-
-	plan := planData.(models.Plan)
+	var currentPlan models.Plan
+	orgPlan := &models.OrganisationPlan{}
 
 	// Count number of users in the organization
 	var userCount int64
@@ -34,11 +27,52 @@ func CheckUserOrgPlanThreshold(c *gin.Context, logger *utility.Logger, db *gorm.
 		return false
 	}
 
+	currentPlan, err = orgPlan.GetPlanByOrgID(db, organisationID)
+
+	if err != nil {
+		logger.Error("unable to get organization plan data")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get organization plan data", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return false
+	}
+
 	// Check if user count exceeds plan limit (plan maximum users)
-	if userCount >= int64(plan.MaxUsers) {
+	if userCount >= int64(currentPlan.MaxUsers) {
 		logger.Error("Maximum number of users for org plan reached!!")
-		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You have reached the maximum number of users for your organization plan", "Plan Limit Reached", nil)
-		c.JSON(http.StatusForbidden, rd)
+		return false
+	}
+
+	return true
+}
+
+func CheckChannelPlanThreshold(c *gin.Context, logger *utility.Logger, db *gorm.DB, organisationID string) bool {
+	var currentPlan models.Plan
+	orgPlan := &models.OrganisationPlan{}
+
+	// Count number of channels in the organization
+	var channelCount int64
+	err := db.Model(&models.Channels{}).
+		Where("organisation_id = ?", organisationID).
+		Count(&channelCount).Error
+
+	if err != nil {
+		logger.Error("Failed to count organization channels")
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to count organization channels", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return false
+	}
+
+	currentPlan, err = orgPlan.GetPlanByOrgID(db, organisationID)
+
+	if err != nil {
+		r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", err.Error(), nil)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, r)
+		return false
+	}
+
+	// Check if channels count exceeds plan limit (plan maximum channels)
+	if channelCount >= int64(currentPlan.MaxChannels) {
+		logger.Error("Maximum number of channels for org plan reached!!")
 		return false
 	}
 

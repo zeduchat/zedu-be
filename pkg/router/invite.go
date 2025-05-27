@@ -17,17 +17,9 @@ func Invite(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	invite := invitation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	basePath := fmt.Sprintf("%v/invite", ApiVersion)
-
-	r.POST(
-		basePath,
-		middleware.Authorize(db.Postgresql),
-		middleware.PlanMiddleware(db.Postgresql, db.Redis),
-		invite.OrganisationCreateInvite,
-	)
-
-	inviteUrl := r.Group(basePath)
+	inviteUrl := r.Group(fmt.Sprintf("%v/invite", ApiVersion))
 	{
+		inviteUrl.POST("", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
 		inviteUrl.POST("/verify", invite.OrganisationVerifyInvite)
 		inviteUrl.POST("/resend", middleware.Authorize(db.Postgresql), invite.ResendInvitation)
 
