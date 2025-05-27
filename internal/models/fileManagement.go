@@ -49,6 +49,17 @@ func (file *UploadedFileResponse) GetFileByID(db *gorm.DB, fileID string) (*Uplo
 	return file, nil
 }
 
+func (file *UploadedFileResponse) GetFileCountByLink(db *gorm.DB, fileLink string) (int64, error) {
+	var count int64
+
+	err := db.Model(&file).Where("file_link = ?", fileLink).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (file *UploadedFileResponse) DeleteFileByID(db *gorm.DB, fileID string) error {
 	query := db.Where("id = ?", fileID)
 
