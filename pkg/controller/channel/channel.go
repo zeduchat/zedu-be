@@ -64,7 +64,7 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 	respData, code, err := channel.CreateChannel(req, base.Db.Postgresql, userId)
 	if err != nil {
 		base.Logger.Error("error creating channel", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to create channel", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}

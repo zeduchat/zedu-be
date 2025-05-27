@@ -449,10 +449,6 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 		return errors.New("channel does not exist")
 	}
 
-	if len(users) > 10 {
-		return errors.New("maximum of 10 users can be added")
-	}
-
 	for _, user := range users {
 		var userChannels UserChannels
 

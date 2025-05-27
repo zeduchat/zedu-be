@@ -388,19 +388,16 @@ func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility
 		return fmt.Errorf("failed to fetch bot DM channels: %w", err), http.StatusInternalServerError
 	}
 
-	if len(dmchannels) == 0 {
-		tx.Rollback()
-		return errors.New("no bot DM channels found for the agent"), http.StatusNotFound
-	}
-
-	for _, channel := range dmchannels {
-		channelIDs = append(channelIDs, channel.ChannelId)
-	}
-
-	err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+	if len(dmchannels) > 0 {
+		for _, channel := range dmchannels {
+			channelIDs = append(channelIDs, channel.ChannelId)
+		}
+	
+		err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -408,11 +405,13 @@ func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility
 	}
 
 	//clear all threads related to the dm channel
-	for _, channelID := range channelIDs {
-		thread.ID = channelID
-		_, err := thread.ClearDMThreadsByChannelID(db)
-		if err != nil {
-			logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+	if len(channelIDs) > 0 {
+		for _, channelID := range channelIDs {
+			thread.ID = channelID
+			_, err := thread.ClearDMThreadsByChannelID(db)
+			if err != nil {
+				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+			}
 		}
 	}
 
