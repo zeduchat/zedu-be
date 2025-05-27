@@ -201,6 +201,7 @@ func addSenderFilter(query map[string]interface{}, opts *SearchQueryFiltersKeywo
 	var boolQuery map[string]interface{}
 
 	if rawQuery, exists := query["query"]; exists {
+		fmt.Println("==============================================", rawQuery)
 		querySection, ok := rawQuery.(map[string]interface{})
 		if !ok {
 			querySection = make(map[string]interface{})
@@ -247,8 +248,8 @@ func addSenderFilter(query map[string]interface{}, opts *SearchQueryFiltersKeywo
 		boolQuery["should"] = shouldClauses
 		boolQuery["minimum_should_match"] = 1
 	}
-
 }
+
 func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
 	if opts.In != "" {
 		channelName := strings.Trim(opts.In, "\"")
@@ -267,7 +268,6 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 
 		boolQuery["must"] = mustClauses
 	}
-
 }
 
 func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {

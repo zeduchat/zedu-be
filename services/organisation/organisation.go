@@ -378,7 +378,7 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
             
             (SELECT 
                 oi.integration_id AS id,
-                'agent' AS email,
+                oi.app_name AS email,
                 '' AS phone_number,
                 oi.app_name AS name,
                 oi.app_logo AS avatar_url,
