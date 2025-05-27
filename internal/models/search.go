@@ -201,7 +201,6 @@ func addSenderFilter(query map[string]interface{}, opts *SearchQueryFiltersKeywo
 	var boolQuery map[string]interface{}
 
 	if rawQuery, exists := query["query"]; exists {
-		fmt.Println("==============================================", rawQuery)
 		querySection, ok := rawQuery.(map[string]interface{})
 		if !ok {
 			querySection = make(map[string]interface{})
