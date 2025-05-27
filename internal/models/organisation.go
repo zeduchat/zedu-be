@@ -23,6 +23,7 @@ type Organisation struct {
 	Country            string           `gorm:"type:varchar(255)" json:"country"`
 	OwnerID            string           `gorm:"type:uuid;" json:"owner_id"`
 	LogoURL            string           `gorm:"type:varchar(255)" json:"logo_url"`
+	CreditBalance      float64          `gorm:"type:decimal(10,2);default:0" json:"credit_balance"`
 	ChannelssCount     int64            `gorm:"-" json:"channels_count"`
 	TotalMessagesCount int64            `gorm:"-" json:"total_messages_count"`
 	OrgRoles           []OrgRole        `gorm:"foreignKey:OrganisationID" json:"org_roles"`

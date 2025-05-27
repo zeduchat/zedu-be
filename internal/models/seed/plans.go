@@ -33,6 +33,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForIndividuals:        false,
 				IsForSmallBusiness:      false,
 				IsForLargeEnterprise:    true,
+				Credits:                 50,
 			},
 			{
 				ID:                      utility.GenerateUUID(),
@@ -47,6 +48,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForIndividuals:        true,
 				IsForSmallBusiness:      false,
 				IsForLargeEnterprise:    false,
+				Credits:                 1000,
 			},
 			{
 				ID:                      utility.GenerateUUID(),
@@ -61,6 +63,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForIndividuals:        false,
 				IsForSmallBusiness:      true,
 				IsForLargeEnterprise:    false,
+				Credits:                 5000,
 			},
 			{
 				ID:                      utility.GenerateUUID(),
@@ -75,8 +78,11 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForIndividuals:        false,
 				IsForSmallBusiness:      false,
 				IsForLargeEnterprise:    true,
+				Credits:                 10000,
 			},
 		}
+
+		db = db.Debug()
 
 		for _, plan := range plans {
 			if err := db.Create(&plan).Error; err != nil {
