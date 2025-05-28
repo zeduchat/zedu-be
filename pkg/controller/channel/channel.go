@@ -60,8 +60,9 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+	req.UserId = userId
 
-	respData, code, err := channel.CreateChannel(req, base.Db.Postgresql, userId)
+	respData, code, err := channel.CreateChannel(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Error("error creating channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err.Error(), nil)
@@ -184,7 +185,7 @@ func (base *Controller) JoinChannels(c *gin.Context) {
 		return
 	}
 
-	channel, code, err := channel.JoinChannels(base.Db.Postgresql, newReq)
+	channel, code, err := channel.JoinChannels(base.Db, newReq, base.Logger)
 	if err != nil {
 		base.Logger.Info("error joining channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -532,7 +533,7 @@ func (base *Controller) AddMembersToChannel(c *gin.Context) {
 		return
 	}
 
-	response, err := channel.AddMembersToChannel(base.Db.Postgresql, req)
+	response, err := channel.AddMembersToChannel(base.Db, req, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

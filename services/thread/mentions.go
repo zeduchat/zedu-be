@@ -58,12 +58,17 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("channel does not exist: %v", err)
 	}
 
+	messageType := "message"
+	if req.Type != "" {
+		messageType = req.Type
+	}
+
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		Username:      utility.ThisOrThat(profile.UserName, req.AgentName),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
-		Type:          "message",
+		Type:          messageType,
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
 		FullName:      utility.ThisOrThat(profile.FullName, req.AgentName),
