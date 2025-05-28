@@ -49,16 +49,31 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, errors.New("failed to upload organisation logo")
 	}
 
+	plan := models.Plan{}
+	planName := "Free"
+
+	if req.Plan != "" {
+		planName = req.Plan
+	}
+
+	err = db.Where("name = ?", planName).First(&plan).Error
+	if err != nil {
+		return nil, err
+	}
+
+	credits := plan.Credits
+
 	org := models.Organisation{
-		ID:          orgId,
-		Name:        strings.ToLower(req.Name),
-		Description: strings.ToLower(req.Description),
-		Location:    strings.ToLower(req.Location),
-		Email:       strings.ToLower(req.Email),
-		Type:        strings.ToLower(req.Type),
-		OwnerID:     userId,
-		Country:     strings.ToLower(req.Country),
-		LogoURL:     picUrl,
+		ID:            orgId,
+		Name:          strings.ToLower(req.Name),
+		Description:   strings.ToLower(req.Description),
+		Location:      strings.ToLower(req.Location),
+		Email:         strings.ToLower(req.Email),
+		Type:          strings.ToLower(req.Type),
+		OwnerID:       userId,
+		CreditBalance: float64(credits),
+		Country:       strings.ToLower(req.Country),
+		LogoURL:       picUrl,
 	}
 
 	// Check if the organisation name already exists
@@ -347,15 +362,15 @@ func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Con
 }
 
 func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
-    var (
-        users []models.UserInOrgResponse
-        pagination = postgresql.GetPagination(c)
-        offset = (pagination.Page - 1) * pagination.Limit
-    )
+	var (
+		users      []models.UserInOrgResponse
+		pagination = postgresql.GetPagination(c)
+		offset     = (pagination.Page - 1) * pagination.Limit
+	)
 
-    // Query for both users and agents
-    query := db.Table("(?) AS combined", 
-        db.Raw(`
+	// Query for both users and agents
+	query := db.Table("(?) AS combined",
+		db.Raw(`
             (SELECT 
                 u.id, 
                 u.email, 
@@ -392,37 +407,37 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
             FROM organisation_integrations oi
             WHERE oi.org_id = ? AND oi.is_archived = false)
         `, orgId, orgId)).
-        Order("created_at DESC").
-        Offset(offset).
-        Limit(pagination.Limit)
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(pagination.Limit)
 
-    // Execute the combined query
-    if err := query.Find(&users).Error; err != nil {
-        return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch users and bots: %w", err)
-    }
+	// Execute the combined query
+	if err := query.Find(&users).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch users and bots: %w", err)
+	}
 
-    // Get total count of users and bots
-    var totalCount int64
-    if err := db.Table("(?) as count_table", 
-        db.Raw(`
+	// Get total count of users and bots
+	var totalCount int64
+	if err := db.Table("(?) as count_table",
+		db.Raw(`
             (SELECT user_id FROM org_user_managements WHERE organisation_id = ?)
             UNION ALL
             (SELECT integration_id FROM organisation_integrations 
              WHERE org_id = ? AND is_archived = false)
         `, orgId, orgId)).
-        Count(&totalCount).Error; err != nil {
-        return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to count users and bots: %w", err)
-    }
+		Count(&totalCount).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to count users and bots: %w", err)
+	}
 
-    totalPages := int(math.Ceil(float64(totalCount) / float64(pagination.Limit)))
-    paginationResponse := postgresql.PaginationResponse{
-        CurrentPage:     pagination.Page,
-        PageCount:       pagination.Limit,
-        TotalPagesCount: totalPages,
-        // TotalItems:      int(totalCount),
-    }
+	totalPages := int(math.Ceil(float64(totalCount) / float64(pagination.Limit)))
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       pagination.Limit,
+		TotalPagesCount: totalPages,
+		// TotalItems:      int(totalCount),
+	}
 
-    return users, paginationResponse, nil
+	return users, paginationResponse, nil
 }
 
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {

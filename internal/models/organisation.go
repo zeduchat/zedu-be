@@ -46,6 +46,7 @@ type CreateOrgRequestModel struct {
 	Location    string `json:"location"`
 	Country     string `json:"country" validate:"required"`
 	LogoURL     string `json:"logo_url" `
+	Plan        string `json:"plan"`
 }
 
 type UpdateOrgRequestModel struct {
