@@ -59,6 +59,7 @@ func AuthMigrationModels() []interface{} {
 		models.FcmTokens{},
 		models.CreditUsage{},
 		models.CreditTransaction{},
+		models.CreditPackage{},
 	} // an array of db models, example: User{}
 }
 

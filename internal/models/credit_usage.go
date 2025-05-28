@@ -24,3 +24,13 @@ type CreditTransaction struct {
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
+
+type CreditPackage struct {
+	ID        string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	Name      string    `gorm:"not null;unique" json:"name"` // e.g., "Starter Pack", "Pro Bundle"
+	Credits   int       `gorm:"not null" json:"credits"`
+	Price     float64   `gorm:"not null" json:"price"`
+	Currency  string    `gorm:"not null;default:'USD'" json:"currency"` // e.g., USD, NGN
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+}
