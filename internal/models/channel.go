@@ -58,6 +58,7 @@ type CreateChannelsRequest struct {
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
 	Description    string `json:"description"`
+	UserId         string `json:"user_id"`
 }
 
 type GetChannelsRequest struct {

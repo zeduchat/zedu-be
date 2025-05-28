@@ -194,6 +194,7 @@ type CreateThreadMsgReq struct {
 	ThreadId   string                 `json:"thread_id"`
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
+	Type       string                 `json:"type"`
 }
 
 type BotReturnRequest struct {
