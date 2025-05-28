@@ -36,7 +36,7 @@ func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *uti
 	return http.StatusOK, nil
 }
 
-func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
+func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
 	var (
 		user   models.User
 		invite models.GeneralInvitation
@@ -44,12 +44,12 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		orgmgt models.OrgUserManagement
 	)
 
-	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
+	exists := postgresql.CheckExists(db.Postgresql, &user, "id = ?", userID)
 	if !exists {
 		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
 
-	err := db.Where("token = ? and active_status = ? AND expires_at > ?",
+	err := db.Postgresql.Where("token = ? and active_status = ? AND expires_at > ?",
 		req.Token,
 		true,
 		time.Now().UTC(),
@@ -65,12 +65,12 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
 	}
 
-	_, err = org.CheckOrgExists(invite.OrganisationID, db)
+	_, err = org.CheckOrgExists(invite.OrganisationID, db.Postgresql)
 	if err != nil {
 		return "", http.StatusNotFound, fmt.Errorf("organisation not found or has been deleted")
 	}
 
-	exists = postgresql.CheckExists(db, &orgmgt,
+	exists = postgresql.CheckExists(db.Postgresql, &orgmgt,
 		"user_id = ? AND organisation_id = ?",
 		userID, invite.OrganisationID)
 	if exists {
@@ -84,18 +84,18 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		Status:         "active",
 	}
 
-	err = addToOrg.AddUserToOrganisation(db)
+	err = addToOrg.AddUserToOrganisation(db.Postgresql)
 	if err != nil {
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
-	generalChannel, err := getGeneralChannel(db, orgmgt.OrganisationID)
+	generalChannel, err := getGeneralChannel(db.Postgresql, orgmgt.OrganisationID)
 	if err != nil {
 		logger.Error("error getting default channel", err)
 	}
 
 	if generalChannel.ID != "" {
-		err = addUserToChannel(&generalChannel, orgmgt, user.Name, db)
+		err = addUserToChannel(&generalChannel, orgmgt, logger, db)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err
@@ -212,10 +212,12 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 	return http.StatusOK, nil
 }
 
-func CheckerValidator(base *storage.Database, Emails []string, OrganisationID string, userId string, logger *utility.Logger) (int, string, error) {
-	var o models.Organisation
-
-	_, err := o.CheckOrgExists(OrganisationID, base.Postgresql)
+func CheckerValidator(base *storage.Database, Emails []string, ids models.IDS, logger *utility.Logger) (int, string, error) {
+	var (
+		o models.Organisation
+		r models.OrgRole
+	)
+	_, err := o.CheckOrgExists(ids.OrganisationID, base.Postgresql)
 	if err != nil {
 		return http.StatusNotFound, "Invalid Organisation ID", err
 	}
@@ -226,6 +228,11 @@ func CheckerValidator(base *storage.Database, Emails []string, OrganisationID st
 
 	if CheckDuplicateEmails(Emails) {
 		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
+	}
+
+	exists := postgresql.CheckExists(base.Postgresql, &r, "id = ?", ids.RoleID)
+	if !exists {
+		return http.StatusNotFound, "Role does not exist", errors.New("role does not exist")
 	}
 
 	return http.StatusOK, "User validated", nil

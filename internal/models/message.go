@@ -351,6 +351,48 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 	return updateResp, nil
 }
 
+func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Message, error) {
+	var (
+		fileModel UploadedFileResponse
+		firstErr  error
+	)
+
+	for _, mediaFile := range mediaFiles {
+		count, countErr := fileModel.GetFileCountByLink(db, mediaFile.FileLink)
+		if countErr != nil {
+			logger.Error("Failed to get the number of files with the associated link:", countErr)
+			if firstErr == nil {
+				firstErr = countErr
+			}
+			continue
+		}
+		
+		if count == 1 {
+			hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+			err := DeleteUploadedFiles(logger, hashedFileName)
+			if err != nil {
+				logger.Error("Failed to delete uploaded file:", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
+		}
+
+		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
+		if deleteErr != nil {
+			logger.Error("Failed to delete DB file entry:", deleteErr)
+			if firstErr == nil {
+				firstErr = deleteErr
+			}
+			continue
+		}
+	}
+
+	return c, firstErr
+}
+
 func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument

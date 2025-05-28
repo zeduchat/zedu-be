@@ -51,16 +51,15 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId, base.Logger)
-
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		base.Logger.Error("error creating organisation", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error creating organisation", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("organisation created successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Organisation Created Successfully", respData)
-
 	c.JSON(http.StatusCreated, rd)
 }
 
@@ -268,7 +267,7 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
+func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgId); err != nil {
@@ -287,8 +286,7 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	users, paginationResponse, err := service.GetUsersInOrganisation(orgId, userId, base.Db.Postgresql, c)
-
+	users, paginationResponse, err := service.GetUsersAndBotsInOrganisation(orgId, userId, base.Db.Postgresql, c)
 	if err != nil {
 		switch err.Error() {
 		case "organisation not found":
@@ -313,7 +311,6 @@ func (base *Controller) GetUsersInOrganisation(c *gin.Context) {
 
 	base.Logger.Info("users retrieved successfully")
 	response := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationData)
-
 	c.JSON(http.StatusOK, response)
 }
 
