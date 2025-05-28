@@ -94,7 +94,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	credit_transaction := models.CreditTransaction{
 		ID:             utility.GenerateUUID(),
 		OrganisationID: orgId,
-		Amount:         -1, // Initial Top up amout
+		Amount:         float64(credits), // Initial Top up amout
 		BalanceBefore:  0.00,
 		BalanceAfter:   float64(org.CreditBalance),
 		Type:           "Initial Top-up",

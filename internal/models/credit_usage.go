@@ -45,3 +45,11 @@ func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
 	}
 	return nil
 }
+
+func (c *CreditUsage) CreateCreditUsage(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, c)
+	if err != nil {
+		return err
+	}
+	return nil
+}

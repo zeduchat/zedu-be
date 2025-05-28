@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	org_credits "github.com/hngprojects/telex_be/services/credits"
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/user"
@@ -186,6 +187,32 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
+	}
+
+	// validate credit here
+	if !org_credits.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, logger) {
+		logger.Error("Organisation has insufficient credit balance!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
+	}
+
+	// save organisation credit usage
+	credit_usage := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: channel.OrgId,
+		Amount:         5,
+		AgentID:        *channel.ParticipantId,
+		UserID:         user.ID,
+	}
+
+	err = credit_usage.CreateCreditUsage(db.Postgresql)
+	if err != nil {
+		logger.Error("failed to create credit usage!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
+	}
+
+	if err = org_credits.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
+		logger.Error("Organisation credit Recalculation failed")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	threadDoc := models.ThreadDocument{
