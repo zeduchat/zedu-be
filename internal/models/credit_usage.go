@@ -2,6 +2,9 @@ package models
 
 import (
 	"time"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"gorm.io/gorm"
 )
 
 type CreditUsage struct {
@@ -33,4 +36,12 @@ type CreditPackage struct {
 	Currency  string    `gorm:"not null;default:'USD'" json:"currency"` // e.g., USD, NGN
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+}
+
+func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, c)
+	if err != nil {
+		return err
+	}
+	return nil
 }

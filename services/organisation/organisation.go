@@ -88,6 +88,21 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
+	// create credit transaction
+	credit_transaction := models.CreditTransaction{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgId,
+		Amount:         -1, // Initial Top up amout
+		BalanceBefore:  0.00,
+		BalanceAfter:   float64(org.CreditBalance),
+		Type:           "Initial Top-up",
+	}
+
+	err = credit_transaction.CreateCreditTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
 	var user models.User
 
 	user, err = user.GetUserByID(db, userId)
