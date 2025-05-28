@@ -122,6 +122,14 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
+	org.OrgPlanID = organisation_plan.ID
+
+	// Save the updated organisation plan ID
+	err = db.Model(&org).Update("org_plan_id", organisation_plan.ID).Error
+	if err != nil {
+		return nil, err
+	}
+
 	var user models.User
 
 	user, err = user.GetUserByID(db, userId)
