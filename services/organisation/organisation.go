@@ -12,6 +12,8 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"time"
+
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -99,6 +101,23 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	}
 
 	err = credit_transaction.CreateCreditTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// create organization plan
+	now := time.Now()
+	end := now.AddDate(0, 1, 0) // assuming this is monthly plan
+	organisation_plan := models.OrganisationPlan{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgId,
+		PlanID:         plan.ID,
+		StartedAt:      now,
+		EndedAt:        end,
+		Status:         "Active",
+	}
+
+	err = organisation_plan.Create(db)
 	if err != nil {
 		return nil, err
 	}
