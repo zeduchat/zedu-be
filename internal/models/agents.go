@@ -168,6 +168,11 @@ type AgentsResp []struct {
 	Linked bool `json:"linked"`
 }
 
+type AgentResp struct {
+	Integrations
+	Linked bool `json:"linked"`
+}
+
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
 
 	err := postgresql.CreateOneRecord(db, &i)
@@ -459,7 +464,7 @@ func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req Cus
 
 func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string, extReq request.ExternalRequest) error {
 	var (
-		agent Integrations
+		agent        Integrations
 		organisation Organisation
 		oci          OrganisationChannelsIntegrations
 		channels     []Channels
