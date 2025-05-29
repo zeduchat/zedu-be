@@ -439,10 +439,11 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return errors.New("organisation does not exist")
 	}
 
-	err := validateJSONURL(req.JSONUrl)
-	if err != nil {
-		return err
-	}
+	// Dont delete
+	// err := validateJSONURL(req.JSONUrl)
+	// if err != nil {
+	// 	return err
+	// }
 
 	agentID, err := utility.GenerateUUIDFromString(req.JSONUrl)
 	if err != nil {
