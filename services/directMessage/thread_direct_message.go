@@ -217,6 +217,8 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	if err = org_credits.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
 		logger.Error("Organisation credit Recalculation failed")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
+	}
+
 	messageType := "message"
 	if req.Type != "" {
 		messageType = req.Type
