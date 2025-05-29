@@ -82,7 +82,8 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 		accessData         models.Threads
 		accessResp         []models.Threads
 		paginationResponse *elastic.PaginationResponse
-		userChannel        models.UserChannels
+		uc                 models.UserChannels
+		dmChan             models.DmChannels
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -114,23 +115,63 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 	}
 
 	if len(accessResp) > 0 {
-		updateLastRead := models.UpdateLastRead{
-			LastReadAt:   accessResp[0].CreatedAt,
-			LastThreadId: accessResp[0].ID,
+		updateCall := map[string]func(chanType string){
+			"channels": func(chanType string) {
+				var userChannel models.UserChannels
+				updateLastRead := models.UpdateLastRead{
+					LastReadAt:   accessResp[0].CreatedAt,
+					LastThreadId: accessResp[0].ID,
+				}
+				userChannel.ChannelsID = channelID
+				userChannel.UserID = userID
+				var wg sync.WaitGroup
+
+				wg.Add(1)
+
+				go func() {
+					defer wg.Done()
+					updated := userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
+					if updated && accessResp[0].UserId != userID {
+						userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
+					}
+				}()
+			},
+			"dm": func(chanType string) {
+				var dmChan models.DmChannels
+				updateLastRead := models.UpdateLastRead{
+					LastReadAt:   accessResp[0].CreatedAt,
+					LastThreadId: accessResp[0].ID,
+				}
+				dmChan.ChannelId = channelID
+				dmChan.UserId = userID
+				dmChan.ChannelType = chanType
+				var wg sync.WaitGroup
+
+				wg.Add(1)
+
+				go func() {
+					defer wg.Done()
+					updated := dmChan.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
+					if updated && accessResp[0].UserId != userID{
+						dmChan.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
+					}
+				}()
+			},
 		}
-		userChannel.ChannelsID = channelID
-		userChannel.UserID = userID
-		var wg sync.WaitGroup
 
-		wg.Add(1)
+		exists := postgresql.CheckExists(db, &uc, "channels_id = ?", channelID)
+		if exists {
 
-		go func() {
-			defer wg.Done()
-			updated := userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-			if updated && accessResp[0].UserId != userID {
-				userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
-			}
-		}()
+			logger.Info("updating user channel count for channel %s", channelID)
+			updateCall["channels"]("")
+		} else if postgresql.CheckExists(db, &dmChan, "channel_id = ?", channelID) {
+
+			logger.Info("updating user dm channel count for channel %s", channelID)
+			updateCall["dm"](dmChan.ChannelType)
+		} else {
+			logger.Error("unable to update channel count for user, channel not found!, channelID: %s", channelID)
+		}
+
 	}
 
 	return accessResp, paginationResponse, http.StatusOK, nil

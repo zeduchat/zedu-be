@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -102,6 +103,28 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	notification.Content = feed
 
 	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
+	dmChan := models.DmChannels{}
+	dmChan.ChannelId = req.ChannelsID
+	dmChan.UserId = req.UserId
+	dmChan.ChannelType = channel.ChannelType
+
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	// Add to the wait group for each goroutine that must complete first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Updating unread thread count")
+		dmChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	// Run this after the other finish
+	go func() {
+		wg.Wait()
+		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
 
 	// Handle DM-specific case
 	if channel.ChannelType == "dm" {
@@ -326,7 +349,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 
 		req.OrgId = dmchannel.OrgId
 
-		if dmchannel.ChatType != "bot" {
+		if dmchannel.ChatType != "bot" && dmchannel.ChannelType == "dm" {
 
 			pairRoomChan := models.DmChannels{}
 
