@@ -63,12 +63,6 @@ func HashFile(file multipart.File) (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-func ExtractHashedFileName(generatedUrl string) string {
-	urlParts := strings.Split(generatedUrl, "/")
-	hashedFileName := urlParts[len(urlParts)-1]
-	return hashedFileName
-}
-
 func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	minioClient := storage.DB.Minio
 
@@ -202,11 +196,18 @@ func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.UploadedFileRespons
 
 func DeleteFileDetailsByID(logger *utility.Logger, db *gorm.DB, file *models.UploadedFileResponse, fileId string) error {
 	var fileModel models.UploadedFileResponse
-	hashedFileName := ExtractHashedFileName(file.FileLink)
 
-	minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
-	if minioErr != nil {
-		return minioErr
+	count, countErr := fileModel.GetFileCountByLink(db, file.FileLink)	
+	if countErr != nil {
+		return countErr
+	}
+	if count == 1 {
+		hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+	
+		minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
+		if minioErr != nil {
+			return minioErr
+		}
 	}
 
 	err := fileModel.DeleteFileByID(db, fileId)

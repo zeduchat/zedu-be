@@ -51,49 +51,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
 		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
 
-		// Organisation integrations routes
-		organisationUrl.GET("/:org_id/integrations", integrationsCtrl.GetAllAgentApp)
-		organisationUrl.PATCH("/:org_id/integrations/:agent_id", integrationsCtrl.UpdateAgentApp)
-		organisationUrl.DELETE("/:org_id/integrations/:agent_id", integrationsCtrl.DeleteAgentApp)
-		organisationUrl.PATCH("/:org_id/integrations/change_status", integrationsCtrl.ChangeAgentStatus)
-		organisationUrl.PATCH("/:org_id/integrations/:agent_id/updatejson", integrationsCtrl.UpdateJSONSchema)
-		organisationUrl.GET("/:org_id/integrations/output", integrationsCtrl.FetchOutputAgents)
-
-		// Organization Custom Agents
-		organisationUrl.POST("/:org_id/integrations/custom", integrationsCtrl.CreateCustomAgent)
-		organisationUrl.DELETE("/:org_id/integrations/custom/:agent_id", integrationsCtrl.DeleteCustomAgentApp)
-		organisationUrl.GET("/:org_id/integrations/custom", integrationsCtrl.GetCustomAgentApp)
-		organisationUrl.PUT("/:org_id/integrations/custom/:agent_id", integrationsCtrl.UpdateCustomAgent)
-		organisationUrl.GET("/:org_id/integrations/custom/:agent_id/settings", integrationsCtrl.GetCustomAgentSettings)
-		organisationUrl.GET("/:org_id/integrations/custom/:agent_id/status", integrationsCtrl.GetCustomAgentStatus)
-		organisationUrl.PUT("/:org_id/integrations/custom/:agent_id/settings", integrationsCtrl.UpdateCustomAgentSettings)
-
-		// Channel integrations routes
-		organisationUrl.GET("/:org_id/channels/:channel_id/integrations", integrationsCtrl.GetOrganisationChannelAgents)
-		organisationUrl.PATCH("/:org_id/channels/:channel_id/integrations/change-sendback-status", integrationsCtrl.ChangeOrgChannelIntSendBackStatus)
-		organisationUrl.POST("/:org_id/integrations/:agent_id/channels/:channel_id", integrationsCtrl.ActivateDeactivateChannelAgent)
-		organisationUrl.GET("/:org_id/integrations/:agent_id/channels", integrationsCtrl.AgentChannels)
-		organisationUrl.GET("/:org_id/integrations/:agent_id/status", integrationsCtrl.CheckAgentIsActive)
-
-		// Organisation integration settings routes
-		organisationUrl.POST("/:org_id/integrations/:agent_id/settings", integrationsCtrl.AddAgentSetting)
-		organisationUrl.GET("/:org_id/integrations/:agent_id/settings", integrationsCtrl.GetAgentSettings)
-		organisationUrl.GET("/:org_id/integrations/:agent_id/integration-api-key", integrationsCtrl.GetAgentSettings)
-		organisationUrl.PATCH("/:org_id/integrations/:agent_id/settings/:setting_id", integrationsCtrl.UpdateAgentSetting)
-
-		// Organisation channel integration settings routes
-		organisationUrl.POST("/:org_id/integrations/:agent_id/channels/:channel_id/settings", integrationsCtrl.AddChannelAgentSetting)
-		organisationUrl.GET("/:org_id/integrations/:agent_id/channels/:channel_id/settings", integrationsCtrl.GetChannelAgentSetting)
-		organisationUrl.PATCH("/:org_id/integrations/:agent_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.UpdateChannelAgentSetting)
-		organisationUrl.DELETE("/:org_id/integrations/:agent_id/channels/:channel_id/settings/:setting_id", integrationsCtrl.DeleteChannelAgentSetting)
-
-		// Agent slash commands routes
-		organisationUrl.POST("/:org_id/integrations/:agent_id/slash-commands", integrationsCtrl.AddAgentSlashCommand)
-		organisationUrl.GET("/:org_id/integrations/:agent_id/slash-commands", integrationsCtrl.GetAgentSlashCommands)
-		organisationUrl.GET("/:org_id/slash-commands", integrationsCtrl.GetAllOrgSlashCommands)
-		organisationUrl.PATCH("/:org_id/integrations/:agent_id/slash-commands/:command_id", integrationsCtrl.UpdateAgentSlashCommand)
-		organisationUrl.DELETE("/:org_id/integrations/:agent_id/slash-commands/:command_id", integrationsCtrl.DeleteAgentSlashCommand)
-
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)
 

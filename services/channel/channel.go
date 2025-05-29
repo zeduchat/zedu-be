@@ -12,46 +12,71 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string) (models.Channels, int, error) {
+func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logger *utility.Logger) (models.Channels, int, error) {
 	var (
 		joinChannelsReq models.JoinChannelsRequest
 		chans           models.Channels
+		profile         models.Profile
 	)
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
 		Name:           req.Name,
 		Description:    req.Description,
-		OwnerId:        userId,
+		OwnerId:        req.UserId,
 		OrganisationID: req.OrganisationID,
 	}
 
 	joinChannelsReq.ChannelsID = channel.ID
-	joinChannelsReq.UserID = userId
+	joinChannelsReq.UserID = req.UserId
 	joinChannelsReq.Username = req.Username
 
-	exists := postgresql.CheckExists(db, &chans, "name = ? AND organisation_id = ?", req.Name, req.OrganisationID)
+	exists := postgresql.CheckExists(db.Postgresql, &chans, "name = ? AND organisation_id = ?", req.Name, req.OrganisationID)
 	if exists {
 		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group in this organisation")
 	}
 
-	err := channel.CreateChannel(db)
+	err := channel.CreateChannel(db.Postgresql)
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
 
-	newchannel, err := channel.AddUserToChannel(db, joinChannelsReq)
+	newchannel, err := channel.AddUserToChannel(db.Postgresql, joinChannelsReq)
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
 
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
+
+	if err != nil {
+		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
+	}
+
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    fmt.Sprintf("%s created and joined the channel", profile.UserName),
+		Type:       "system",
+		UserId:     req.UserId,
+		ChannelsID: channel.ID,
+		OrgId:      channel.OrganisationID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
+
+	if err != nil {
+		logger.Error("failed to save system message for channel %s", channel.Name)
+	}
+
+	logger.Info("Added system message for channel creation")
+
 	webhook := models.Webhook{
 		ID:          utility.GenerateUUID(),
 		ChannelId:   channel.ID,
-		OwnerId:     userId,
+		OwnerId:     req.UserId,
 		Status:      "active",
 		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
 	}
@@ -61,7 +86,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *gorm.DB, userId string)
 	webhook.WebhookSlug = slug
 	webhook.WebhookUrl = webhookUrl
 
-	err = webhook.CreateWebhook(db)
+	err = webhook.CreateWebhook(db.Postgresql)
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
@@ -108,14 +133,40 @@ func GetChannelsMsg(channelId, userID string, db *gorm.DB) (models.MessagesResp,
 
 }
 
-func JoinChannels(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels, int, error) {
-	var r models.Channels
+func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *utility.Logger) (models.Channels, int, error) {
+	var (
+		r       models.Channels
+		profile models.Profile
+	)
 
-	channel, err := r.AddUserToChannel(db, req)
+	channel, err := r.AddUserToChannel(db.Postgresql, req)
 
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
+
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserID)
+
+	if err != nil {
+		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
+	}
+
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    fmt.Sprintf("%s joined the channel", profile.UserName),
+		Type:       "system",
+		UserId:     req.UserID,
+		ChannelsID: channel.ID,
+		OrgId:      channel.OrganisationID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
+
+	if err != nil {
+		logger.Error("failed to save system message for channel %s", channel.Name)
+	}
+
+	logger.Info("Added system message for user joining the channel")
 
 	return channel, http.StatusOK, nil
 }
@@ -240,15 +291,43 @@ func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Cont
 	return users, paginationResponse, nil
 }
 
-func AddMembersToChannel(db *gorm.DB, req models.JoinChannelsRequest) (models.Channels, error) {
-	var ch models.Channels
+func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, logger *utility.Logger) (models.Channels, error) {
+	var (
+		r       models.Channels
+		profile models.Profile
+	)
 
-	channels, err := ch.AddUserToChannel(db, req)
+	channel, err := r.AddUserToChannel(db.Postgresql, req)
+
 	if err != nil {
-		return channels, err
+		return channel, err
 	}
-	return channels, nil
+
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserID)
+
+	if err != nil {
+		return channel, fmt.Errorf("failed to get profile: %v", err)
+	}
+
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    fmt.Sprintf("%s joined the channel", profile.UserName),
+		Type:       "system",
+		UserId:     req.UserID,
+		ChannelsID: channel.ID,
+		OrgId:      channel.OrganisationID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
+
+	if err != nil {
+		logger.Error("failed to save system message for channel %s", channel.Name)
+	}
+
+	logger.Info("Added system message for user joining the channel")
+	return channel, nil
 }
+
 func AddMultipleMembersToChannel(db *gorm.DB, req models.AddMultipleMembersRequest) error {
 	var ch models.Channels
 
@@ -298,7 +377,6 @@ func GetUserChannels(db *storage.Database, ids models.IDS) (models.GetUserChanne
 		return nil, err
 	}
 
-
 	userchannels, err := uc.GetUserChannels(db, ids)
 	if err != nil {
 		return userchannels, err
@@ -316,7 +394,6 @@ func GetUserNotInChannels(db *gorm.DB, ids models.IDS) (models.GetUserNotChannel
 	if err != nil {
 		return nil, err
 	}
-
 
 	userchannels, err := uc.GetUserNotInChannels(db, ids)
 	if err != nil {
