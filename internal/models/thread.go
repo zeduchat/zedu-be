@@ -44,6 +44,7 @@ type Threads struct {
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mentions             `json:"mentions,omitempty"`
+	State         string                 `json:"state,omitempty"`
 }
 
 type ThreadDocument struct {
