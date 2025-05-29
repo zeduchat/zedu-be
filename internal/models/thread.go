@@ -44,11 +44,8 @@ type Threads struct {
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mentions             `json:"mentions,omitempty"`
-<<<<<<< HEAD
 	OrgansationID string                 `json:"org_id,omitemtpy"`
-=======
 	State         string                 `json:"state,omitempty"`
->>>>>>> c9ec7f432be2bb73676b2271ef555017d0fc5469
 }
 
 type ThreadDocument struct {
