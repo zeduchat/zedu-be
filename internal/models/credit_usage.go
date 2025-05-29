@@ -38,6 +38,11 @@ type CreditPackage struct {
 	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
+type CreditTopUpRequest struct {
+	OrgID     string  `json:"org_id" validate:"required"`
+	PackageID string  `json:"package_id" validate:"required"`
+}
+
 func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, c)
 	if err != nil {
