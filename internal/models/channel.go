@@ -58,6 +58,7 @@ type CreateChannelsRequest struct {
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
 	Description    string `json:"description"`
+	UserId         string `json:"user_id"`
 }
 
 type GetChannelsRequest struct {
@@ -447,10 +448,6 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
 		return errors.New("channel does not exist")
-	}
-
-	if len(users) > 10 {
-		return errors.New("maximum of 10 users can be added")
 	}
 
 	for _, user := range users {

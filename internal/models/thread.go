@@ -44,6 +44,7 @@ type Threads struct {
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mentions             `json:"mentions,omitempty"`
+	State         string                 `json:"state,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -107,6 +108,7 @@ var Thread_mapping = map[string]interface{}{
 			"user_type":   map[string]string{"type": "keyword"},
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
+			"state":       map[string]string{"type": "text"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -193,6 +195,7 @@ type CreateThreadMsgReq struct {
 	ThreadId   string                 `json:"thread_id"`
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
+	Type       string                 `json:"type"`
 }
 
 type BotReturnRequest struct {
@@ -530,9 +533,50 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 	return c, nil
 }
 
-func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
+	var (
+		fileModel UploadedFileResponse
+		firstErr  error
+	)
 
-	query := map[string]interface{}{
+	for _, mediaFile := range mediaFiles {
+		count, countErr := fileModel.GetFileCountByLink(db, mediaFile.FileLink)
+		if countErr != nil {
+			logger.Error("Failed to get the number of files with the associated link:", countErr)
+			if firstErr == nil {
+				firstErr = countErr
+			}
+			continue
+		}
+
+		if count == 1 {
+			hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+			err := DeleteUploadedFiles(logger, hashedFileName)
+			if err != nil {
+				logger.Error("Failed to delete uploaded file:", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
+		}
+
+		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
+		if deleteErr != nil {
+			logger.Error("Failed to delete DB file entry:", deleteErr)
+			if firstErr == nil {
+				firstErr = deleteErr
+			}
+			continue
+		}
+	}
+
+	return c, firstErr
+}
+
+func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+	messageQuery := map[string]interface{}{
 		"query": map[string]interface{}{
 			"match": map[string]interface{}{
 				"thread_id": c.ID,
@@ -541,7 +585,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	}
 
 	//deletes messages(replies to a thread)
-	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, messageQuery)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)

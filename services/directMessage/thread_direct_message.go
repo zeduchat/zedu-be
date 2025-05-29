@@ -49,13 +49,17 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
+	messageType := "message"
+	if req.Type != "" {
+		messageType = req.Type
+	}
 
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
-		Type:          "message",
+		Type:          messageType,
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
 		FullName:      profile.FullName,
@@ -213,6 +217,9 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	if err = org_credits.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
 		logger.Error("Organisation credit Recalculation failed")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
+	messageType := "message"
+	if req.Type != "" {
+		messageType = req.Type
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -220,7 +227,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
-		Type:          "message",
+		Type:          messageType,
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
 		FullName:      profile.FullName,

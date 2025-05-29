@@ -284,6 +284,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
+		message     models.Message
 		newMsg     models.MessageDocument
 		channel    models.Channels
 		dmChannel  models.DmChannels
@@ -309,6 +310,10 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	updateResp, err := newMsg.DeleteMessage(db, logger)
 
 	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if _, err := message.DeleteMessageMediaFiles(logger, db, newMsg.Media); err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
