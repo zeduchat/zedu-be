@@ -91,19 +91,20 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  threadDoc.ID,
-		Email:     user.Email,
-		UserType:  userType,
-		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
-		UserId:    req.UserId,
-		OrgId:     req.OrgId,
-		Media:     req.Media,
+		ChannelID:   req.ChannelsID,
+		UserName:    utility.ThisOrThat(profile.UserName, req.AgentName),
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:   profile.AvatarURL,
+		Type:        "message",
+		Content:     req.Content,
+		ThreadId:    threadDoc.ID,
+		Email:       user.Email,
+		UserType:    userType,
+		FullName:    utility.ThisOrThat(profile.FullName, req.AgentName),
+		UserId:      req.UserId,
+		OrgId:       req.OrgId,
+		Media:       req.Media,
+		ChannelName: channel.Name,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)

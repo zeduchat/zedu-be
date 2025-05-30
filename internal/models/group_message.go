@@ -15,13 +15,16 @@ import (
 )
 
 type ChannelParticipant struct {
-	ID        string         `gorm:"type:uuid" json:"id"`
-	ChannelId string         `gorm:"type:uuid" json:"channel_id"`
-	UserId    string         `gorm:"type:uuid" json:"user_id"`
-	OrgId     string         `gorm:"type:uuid" json:"org_id"`
-	CreatedAt time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID           string         `gorm:"type:uuid" json:"id"`
+	ChannelId    string         `gorm:"type:uuid" json:"channel_id"`
+	UserId       string         `gorm:"type:uuid" json:"user_id"`
+	OrgId        string         `gorm:"type:uuid" json:"org_id"`
+	CreatedAt    time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt    time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ThreadCount  int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
+	LastThreadId string         `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
+	LastReadAt   time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
 }
 
 type GroupDMChannelsRequest struct {
@@ -190,7 +193,7 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 	}
 
 	if len(allParticipants) == 0 {
-		
+
 		err = postgresql.HardDeleteSpecificRecord(
 			db,
 			&DmChannels{},
