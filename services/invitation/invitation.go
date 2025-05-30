@@ -54,7 +54,6 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		true,
 		time.Now().UTC(),
 	).First(&invite).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("invitation not found or expired", err)
@@ -84,24 +83,39 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		Status:         "active",
 	}
 
-	err = addToOrg.AddUserToOrganisation(db.Postgresql)
+	tx := db.Postgresql.Begin()
+	if tx.Error != nil {
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to start transaction: %s", tx.Error)
+	}
+
+	defer func(){
+		if r := recover(); r != nil {
+			tx.Rollback()
+			logger.Error("transaction failed", fmt.Errorf("%v", r))
+		}
+	}()
+
+	err = addToOrg.AddUserToOrganisation(tx)
 	if err != nil {
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
-	generalChannel, err := getGeneralChannel(db.Postgresql, orgmgt.OrganisationID)
+	generalChannel, err := getGeneralChannel(tx, invite.OrganisationID)
 	if err != nil {
 		logger.Error("error getting default channel", err)
 	}
 
-	fmt.Println("=================================================General Channel ID:", generalChannel.ID)
-
 	if generalChannel.ID != "" {
-		err = addUserToChannel(&generalChannel, orgmgt, logger, db)
+		err = addUserToChannel(&generalChannel, addToOrg, logger, db)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err
 		}
+	}
+
+	if err = tx.Commit().Error; err != nil {
+		logger.Error("transaction commit failed", err)
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %s", err)
 	}
 
 	return "User verified successfully", http.StatusOK, nil
