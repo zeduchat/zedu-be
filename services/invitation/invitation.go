@@ -137,13 +137,7 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
 	}
 
-	err, _ = postgresql.SelectOneFromDb(db, &invite,
-		"organisation_id = ? AND active_status = ? AND expires_at > ?",
-		req.OrganisationID,
-		true,
-		time.Now().UTC(),
-	)
-
+	
 	generateShareableInviteResponse := func(invite models.GeneralInvitation) models.ShareableInviteResponse {
 		return models.ShareableInviteResponse{
 			InvitationLink: utility.GenerateGeneralInvitationLink(base_url, invite.OrganisationID, invite.Token),
@@ -151,6 +145,13 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 			Created_At:     invite.CreatedAt,
 		}
 	}
+	
+	err, _ = postgresql.SelectOneFromDb(db, &invite,
+		"organisation_id = ? AND active_status = ? AND expires_at > ?",
+		req.OrganisationID,
+		true,
+		time.Now().UTC(),
+	)
 
 	if err == nil {
 		resp = generateShareableInviteResponse(invite)
