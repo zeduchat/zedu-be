@@ -339,14 +339,14 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 		user models.User
 	)
 
-	err := ch.AddMultipleUsersToChannel(db.Postgresql, req)
+	validUserIds, err := ch.AddMultipleUsersToChannel(db.Postgresql, req)
 	if err != nil {
 		return err
 	}
 
 	usernames := []string{}
 
-	for _, userId := range req.UserIDs {
+	for _, userId := range validUserIds {
 		userDetails, err := user.GetUserByID(db.Postgresql, userId)
 		if err != nil {
 			logger.Error("Failed to get user %s username", userId)

@@ -439,16 +439,17 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 	return req.Archived, nil
 }
 
-func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) error {
+func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
 	var (
 		users        = req.UserIDs
 		channelID    = req.ChannelID
 		userChanList []UserChannels
+		validUserIds = []string{}
 	)
 
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
-		return errors.New("channel does not exist")
+		return validUserIds, errors.New("channel does not exist")
 	}
 
 	for _, user := range users {
@@ -464,16 +465,17 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 				UserID:     user,
 				Username:   userChannels.Username,
 			}
+			validUserIds = append(validUserIds, user)
 			userChanList = append(userChanList, newUserChannels)
 		}
 	}
 
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
-		return fmt.Errorf("could not add users to channel: %v", err)
+		return validUserIds, fmt.Errorf("could not add users to channel: %v", err)
 	}
 
-	return nil
+	return validUserIds, nil
 }
 
 func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {
