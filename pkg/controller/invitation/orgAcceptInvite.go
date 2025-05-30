@@ -36,11 +36,11 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
 		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to create blog", nil)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to get user claims", nil)
 			c.JSON(http.StatusNotFound, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get user claims", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
