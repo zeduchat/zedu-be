@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -12,6 +13,49 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/nyaruka/phonenumbers"
 )
+
+type URLValidator struct {
+	blockedDomains []string
+}
+
+func NewURLValidator(additionalDomains ...string) *URLValidator {
+	blockedDomains := []string{
+		// Ngrok domains
+		"ngrok.io",
+		"ngrok.app",
+		"ngrok-free.app",
+
+		// Render Domains
+		"render.com",
+		"render.app",
+		"onrender.com",
+		"app.render.com",
+	}
+
+	blockedDomains = append(blockedDomains, additionalDomains...)
+	return &URLValidator{
+		blockedDomains: blockedDomains,
+	}
+}
+func (v *URLValidator) Validate (urlStr string) error {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return fmt.Errorf("invalid URL format: %w", err)
+	}
+
+	if parsedURL.Host == "" {
+		return errors.New("URL must contain a host")
+	}
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return errors.New("URL must start with http:// or https://")
+	}
+	for _, domain := range v.blockedDomains {
+		if strings.Contains(parsedURL.Host, domain) {
+			return fmt.Errorf("URL contains blocked domain: %s", domain)
+		}
+	}
+	return nil
+}
 
 func EmailValid(email string) (string, bool) {
 	// made some change to parse the formated email

@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -73,7 +74,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 			RoleID:         inviteReq.RoleID,
 		}
 
-		invitation := CreateInvitation(email, token , "invited", isTelexUser , ids)
+		invitation := CreateInvitation(email, token, "invited", isTelexUser, ids)
 		invitations = append(invitations, invitation)
 	}
 
@@ -104,7 +105,7 @@ func AdminInvitationVerify(db *gorm.DB, req models.VerifyInvitationLinkRequest, 
 
 }
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Database, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
@@ -114,13 +115,13 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		userID       string
 	)
 
-	invitation, code, err := i.GetInvitationLinkByToken(db, req.Token, logger)
+	invitation, code, err := i.GetInvitationLinkByToken(db.Postgresql, req.Token, logger)
 	if err != nil {
 		logger.Error("Error getting invitation link by token", err)
 		return responseData, code, err
 	}
 
-	user, err = getOrCreateUser(invitation, db)
+	user, err = getOrCreateUser(invitation, db.Postgresql)
 	if err != nil {
 		logger.Error("error in getting or creating user", err)
 		return responseData, http.StatusInternalServerError, err
@@ -129,7 +130,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	userID = user.ID
 	invitation.Status = "accepted"
 
-	err = invitation.UpdateInvitation(db)
+	err = invitation.UpdateInvitation(db.Postgresql)
 	if err != nil {
 		logger.Error("error in updating invitation on acceptance", err)
 		return responseData, http.StatusBadRequest, err
@@ -140,26 +141,26 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 	orgmgt.UserID = userID
 	orgmgt.OrganisationID = invitation.OrganisationID
 
-	err = addUserToOrganisation(orgmgt, db)
+	err = addUserToOrganisation(orgmgt, db.Postgresql)
 	if err != nil {
 		logger.Error("error adding user to the invited organisation", err)
 		return responseData, http.StatusInternalServerError, err
 	}
 
-	defaultChannel, err := getGeneralChannel(db, orgmgt.OrganisationID)
+	defaultChannel, err := getGeneralChannel(db.Postgresql, orgmgt.OrganisationID)
 	if err != nil {
 		logger.Error("error getting general channel", err)
 	}
 
 	if defaultChannel.ID != "" {
-		err = addUserToChannel(&defaultChannel, orgmgt, user.Name, db)
+		err = addUserToChannel(&defaultChannel, orgmgt, logger, db)
 		if err != nil {
 			logger.Error("error adding user to the general channel", err)
 			return responseData, http.StatusInternalServerError, err
 		}
 	}
 
-	userData, err := user.GetUserByEmail(db, invitation.Email)
+	userData, err := user.GetUserByEmail(db.Postgresql, invitation.Email)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
 	}
@@ -169,7 +170,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *gorm.DB, c *gi
 		return responseData, http.StatusInternalServerError, errors.New("error creating token")
 	}
 
-	err = saveAccessToken(tokenData, userID, db)
+	err = saveAccessToken(tokenData, userID, db.Postgresql)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("error saving access token")
 	}
@@ -269,17 +270,41 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 	return nil
 }
 
-func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, username string, db *gorm.DB) error {
+func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, logger *utility.Logger, db *storage.Database) error {
+	var profile models.Profile
+
+	err := profile.GetProfileByUserId(db.Postgresql, orgmgt.UserID)
+
+	if err != nil {
+		return fmt.Errorf("failed to get user profile: %v", err)
+	}
 
 	reqs := models.JoinChannelsRequest{
-		Username:   username,
+		Username:   profile.UserName,
 		ChannelsID: chans.ID,
 		UserID:     orgmgt.UserID,
 	}
 
-	if _, err := chans.AddUserToChannel(db, reqs); err != nil {
+	if _, err := chans.AddUserToChannel(db.Postgresql, reqs); err != nil {
 		return err
 	}
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    fmt.Sprintf("%s joined this channel", profile.UserName),
+		Type:       "system",
+		UserId:     orgmgt.UserID,
+		ChannelsID: chans.ID,
+		OrgId:      chans.OrganisationID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
+
+	if err != nil {
+		logger.Error("failed to save system message for channel %s", chans.Name)
+	}
+
+	logger.Info("Added system message for user joining the channel")
+
 	return nil
 }
 

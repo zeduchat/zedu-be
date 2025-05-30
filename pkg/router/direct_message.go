@@ -41,6 +41,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		responseUrl.POST("/bot-dm-response", dmCtrl.BotDMResponse)
 	}
 
+	// Direct Messaege Channel endpoints
 	organisationUrls := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		// DM endpoints

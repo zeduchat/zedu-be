@@ -192,12 +192,12 @@ func (base *Controller) DeleteCustomAgentApp(c *gin.Context) {
 		return
 	}
 
-	ids := map[string]string{
-		"org_id":   org_id,
-		"agent_id": agent_id,
+	ids := models.IDS{
+		OrganisationID: org_id,
+		AgentID:        agent_id,
 	}
 
-	err, code := agents.DeleteCustomAgentApp(ids, base.Db.Postgresql)
+	err, code := agents.DeleteCustomAgentApp(base.Db.Postgresql, *base.Logger, ids)
 	if err != nil {
 		base.Logger.Error("Failed to delete agent app", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to delete agent app", err.Error(), nil)
@@ -449,7 +449,7 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 		return
 	}
 
-	err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
+	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
@@ -458,7 +458,7 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	}
 
 	base.Logger.Info("Custom agent created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", resp)
 	c.JSON(http.StatusCreated, rd)
 }
 

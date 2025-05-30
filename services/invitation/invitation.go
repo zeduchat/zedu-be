@@ -36,7 +36,7 @@ func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *uti
 	return http.StatusOK, nil
 }
 
-func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
+func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
 	var (
 		user   models.User
 		invite models.GeneralInvitation
@@ -44,24 +44,12 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		orgmgt models.OrgUserManagement
 	)
 
-	tx := db.Begin()
-	if tx.Error != nil {
-		return "", http.StatusInternalServerError, fmt.Errorf("failed to start transaction: %s", tx.Error)
-	}
-
-	defer func ()  {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			logger.Error("transaction failed", fmt.Errorf("%v", r))
-		}
-	}()
-
-	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
+	exists := postgresql.CheckExists(db.Postgresql, &user, "id = ?", userID)
 	if !exists {
 		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
 
-	err := db.Where("token = ? and active_status = ? AND expires_at > ?",
+	err := db.Postgresql.Where("token = ? and active_status = ? AND expires_at > ?",
 		req.Token,
 		true,
 		time.Now().UTC(),
@@ -77,12 +65,12 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
 	}
 
-	_, err = org.CheckOrgExists(invite.OrganisationID, tx)
+	_, err = org.CheckOrgExists(invite.OrganisationID, db.Postgresql)
 	if err != nil {
 		return "", http.StatusNotFound, fmt.Errorf("organisation not found or has been deleted")
 	}
 
-	exists = postgresql.CheckExists(tx, &orgmgt,
+	exists = postgresql.CheckExists(db.Postgresql, &orgmgt,
 		"user_id = ? AND organisation_id = ?",
 		userID, invite.OrganisationID)
 	if exists {
@@ -96,12 +84,12 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		Status:         "active",
 	}
 
-	err = addToOrg.AddUserToOrganisation(tx)
+	err = addToOrg.AddUserToOrganisation(db.Postgresql)
 	if err != nil {
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
-	generalChannel, err := getGeneralChannel(tx, addToOrg.OrganisationID)
+	generalChannel, err := getGeneralChannel(db.Postgresql, orgmgt.OrganisationID)
 	if err != nil {
 		logger.Error("error getting default channel", err)
 	}
@@ -109,7 +97,7 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 	fmt.Println("=================================================General Channel ID:", generalChannel.ID)
 
 	if generalChannel.ID != "" {
-		err = addUserToChannel(&generalChannel, orgmgt, user.Name, tx)
+		err = addUserToChannel(&generalChannel, orgmgt, logger, db)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err

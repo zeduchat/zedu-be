@@ -58,6 +58,7 @@ type CreateChannelsRequest struct {
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
 	Description    string `json:"description"`
+	UserId         string `json:"user_id"`
 }
 
 type GetChannelsRequest struct {
@@ -140,7 +141,8 @@ type ChannelInfo struct {
 
 type AddMultipleMembersRequest struct {
 	ChannelID string   `json:"channel_id" validate:"required"`
-	UserIDs   []string `json:"user_ids" validate:"required"`
+	UserIDs   []string `json:"user_ids" validate:"required,dive,required,uuid"`
+	UserID    string   `json:"-"`
 }
 
 type ArchiveChannelRequest struct {
@@ -437,43 +439,43 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 	return req.Archived, nil
 }
 
-func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) error {
+func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
 	var (
 		users        = req.UserIDs
 		channelID    = req.ChannelID
 		userChanList []UserChannels
+		validUserIds = []string{}
 	)
 
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
-		return errors.New("channel does not exist")
-	}
-
-	if len(users) > 10 {
-		return errors.New("maximum of 10 users can be added")
+		return validUserIds, errors.New("channel does not exist")
 	}
 
 	for _, user := range users {
+		if user == req.UserID {
+			continue
+		}
 		var userChannels UserChannels
 
 		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
-		fmt.Println(exist, channelID, user)
 		if !exist {
 			newUserChannels := UserChannels{
 				ChannelsID: channelID,
 				UserID:     user,
 				Username:   userChannels.Username,
 			}
+			validUserIds = append(validUserIds, user)
 			userChanList = append(userChanList, newUserChannels)
 		}
 	}
 
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
-		return fmt.Errorf("could not add users to channel: %v", err)
+		return validUserIds, fmt.Errorf("could not add users to channel: %v", err)
 	}
 
-	return nil
+	return validUserIds, nil
 }
 
 func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {

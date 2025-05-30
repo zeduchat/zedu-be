@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -48,13 +49,17 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
+	messageType := "message"
+	if req.Type != "" {
+		messageType = req.Type
+	}
 
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
-		Type:          "message",
+		Type:          messageType,
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
 		FullName:      profile.FullName,
@@ -102,6 +107,28 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	notification.Content = feed
 
 	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
+	dmChan := models.DmChannels{}
+	dmChan.ChannelId = req.ChannelsID
+	dmChan.UserId = req.UserId
+	dmChan.ChannelType = channel.ChannelType
+
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	// Add to the wait group for each goroutine that must complete first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Updating unread thread count")
+		dmChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	// Run this after the other finish
+	go func() {
+		wg.Wait()
+		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
 
 	// Handle DM-specific case
 	if channel.ChannelType == "dm" {
@@ -188,12 +215,17 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
 
+	messageType := "message"
+	if req.Type != "" {
+		messageType = req.Type
+	}
+
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		Username:      profile.UserName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,
-		Type:          "message",
+		Type:          messageType,
 		MessageCount:  0,
 		AvatarURL:     profile.AvatarURL,
 		FullName:      profile.FullName,
@@ -326,7 +358,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 
 		req.OrgId = dmchannel.OrgId
 
-		if dmchannel.ChatType != "bot" {
+		if dmchannel.ChatType != "bot" && dmchannel.ChannelType == "dm" {
 
 			pairRoomChan := models.DmChannels{}
 
@@ -421,6 +453,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		Mentions:      req.Mentions,
 		Media:         req.Media,
 		OrgansationID: channel.OrgId,
+		State:         req.State,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -441,6 +474,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		UserId:    *channel.ParticipantId,
 		Media:     req.Media,
 		UserType:  "bot",
+		State:     req.State,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelID, feed)

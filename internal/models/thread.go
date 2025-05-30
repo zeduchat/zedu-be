@@ -22,18 +22,18 @@ var ThreadIndexName = "threads"
 type Threads struct {
 	ID            string                 `gorm:"type:uuid;primary_key" json:"thread_id"`
 	ChannelsID    string                 `gorm:"type:uuid;index" json:"channels_id"`
-	EventName     string                 `gorm:"type:varchar(200);index" json:"event_name"`
+	EventName     string                 `gorm:"type:varchar(200);index" json:"event_name,omitempty"`
 	Username      string                 `gorm:"type:varchar(50);index" json:"username"`
-	ActionType    string                 `gorm:"type:text;index" json:"action_type"`
-	Status        string                 `gorm:"type:varchar(200);index" json:"status"`
+	ActionType    string                 `gorm:"type:text;index" json:"action_type,omitempty"`
+	Status        string                 `gorm:"type:varchar(200);index" json:"status,omitempty"`
 	CreatedAt     time.Time              `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	Messages      []Message              `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	MessageCount  int64                  `gorm:"type:int;" json:"message_count"`
+	MessageCount  int64                  `gorm:"type:int;" json:"message_count,omitempty"`
 	LastReply     time.Time              `json:"last_reply"`
 	AvatarURL     string                 `json:"avatar_url"`
 	Type          string                 `gorm:"default:thread" json:"type"`
 	Content       string                 `gorm:"type:text;index" json:"message"`
-	ChannelName   string                 `json:"channel_name"`
+	ChannelName   string                 `json:"channel_name,omitempty"`
 	CurrentStatus string                 `json:"current_status"`
 	FullName      string                 `json:"full_name"`
 	Email         string                 `json:"email"`
@@ -44,16 +44,18 @@ type Threads struct {
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mentions             `json:"mentions,omitempty"`
+	OrgansationID string                 `json:"org_id,omitempty"`
+	State         string                 `json:"state,omitempty"`
 }
 
 type ThreadDocument struct {
 	ID            string                 `json:"thread_id"`
 	ChannelsID    string                 `json:"channels_id"`
 	OrgansationID string                 `json:"org_id"`
-	EventName     string                 `json:"event_name"`
+	EventName     string                 `json:"event_name,omitempty"`
 	Username      string                 `json:"username"`
-	ActionType    string                 `json:"action_type"`
-	Status        string                 `json:"status"`
+	ActionType    string                 `json:"action_type,omitempty"`
+	Status        string                 `json:"status,omitempty"`
 	CreatedAt     time.Time              `json:"created_at"`
 	MessageCount  int64                  `json:"message_count"`
 	LastReply     time.Time              `json:"last_reply"`
@@ -61,7 +63,7 @@ type ThreadDocument struct {
 	UserType      string                 `json:"user_type"`
 	Type          string                 `json:"type"`
 	Content       string                 `json:"message"`
-	ChannelName   string                 `json:"channel_name"`
+	ChannelName   string                 `json:"channel_name,omitempty"`
 	CurrentStatus string                 `json:"current_status"`
 	FullName      string                 `json:"full_name"`
 	Email         string                 `json:"email"`
@@ -71,6 +73,7 @@ type ThreadDocument struct {
 	Count         int                    `json:"frequency,omitempty"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
+	State         string                 `json:"state,omitempty"`
 }
 
 var MediaMapping = map[string]interface{}{
@@ -106,6 +109,7 @@ var Thread_mapping = map[string]interface{}{
 			"user_type":   map[string]string{"type": "keyword"},
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
+			"state":       map[string]string{"type": "text"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -192,32 +196,36 @@ type CreateThreadMsgReq struct {
 	ThreadId   string                 `json:"thread_id"`
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
+	Type       string                 `json:"type"`
 }
 
 type BotReturnRequest struct {
 	ChannelID string                 `json:"channel_id"`
 	Content   string                 `json:"message"`
 	Media     []UploadedFileResponse `json:"media"`
+	State     string                 `json:"state"`
 	Mentions  []Mention              `json:"mentions"`
 }
 
 type FeedMessageRequest struct {
-	ChannelID string                 `json:"channel_id"`
-	FullName  string                 `json:"full_name"`
-	UserName  string                 `json:"username"`
-	CreatedAt string                 `json:"created_at"`
-	UpdatedAt string                 `json:"updated_at"`
-	Email     string                 `json:"email"`
-	AvatarURL string                 `json:"avatar_url,omitempty"`
-	MessageId string                 `json:"message_id,omitempty"`
-	Type      string                 `json:"type"`
-	Content   string                 `json:"message"`
-	ThreadId  string                 `json:"thread_id"`
-	OrgId     string                 `json:"org_id"`
-	UserId    string                 `json:"user_id"`
-	Media     []UploadedFileResponse `json:"media"`
-	UserType  string                 `json:"user_type"`
-	Id        string                 `json:"id",omitempty`
+	ChannelID   string                 `json:"channel_id"`
+	FullName    string                 `json:"full_name"`
+	UserName    string                 `json:"username"`
+	CreatedAt   string                 `json:"created_at"`
+	UpdatedAt   string                 `json:"updated_at"`
+	Email       string                 `json:"email"`
+	AvatarURL   string                 `json:"avatar_url,omitempty"`
+	MessageId   string                 `json:"message_id,omitempty"`
+	Type        string                 `json:"type"`
+	Content     string                 `json:"message"`
+	ThreadId    string                 `json:"thread_id"`
+	OrgId       string                 `json:"org_id"`
+	UserId      string                 `json:"user_id"`
+	Media       []UploadedFileResponse `json:"media"`
+	UserType    string                 `json:"user_type"`
+	Id          string                 `json:"id,omitempty"`
+	State       string                 `json:"state"`
+	ChannelName string                 `json:"channel_name,omitempty"`
 }
 
 type Mentions struct {
@@ -527,9 +535,50 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Thread
 	return c, nil
 }
 
-func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
+	var (
+		fileModel UploadedFileResponse
+		firstErr  error
+	)
 
-	query := map[string]interface{}{
+	for _, mediaFile := range mediaFiles {
+		count, countErr := fileModel.GetFileCountByLink(db, mediaFile.FileLink)
+		if countErr != nil {
+			logger.Error("Failed to get the number of files with the associated link:", countErr)
+			if firstErr == nil {
+				firstErr = countErr
+			}
+			continue
+		}
+
+		if count == 1 {
+			hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
+
+			err := DeleteUploadedFiles(logger, hashedFileName)
+			if err != nil {
+				logger.Error("Failed to delete uploaded file:", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
+		}
+
+		deleteErr := mediaFile.DeleteFileByID(db, mediaFile.ID)
+		if deleteErr != nil {
+			logger.Error("Failed to delete DB file entry:", deleteErr)
+			if firstErr == nil {
+				firstErr = deleteErr
+			}
+			continue
+		}
+	}
+
+	return c, firstErr
+}
+
+func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
+	messageQuery := map[string]interface{}{
 		"query": map[string]interface{}{
 			"match": map[string]interface{}{
 				"thread_id": c.ID,
@@ -538,7 +587,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	}
 
 	//deletes messages(replies to a thread)
-	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
+	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, messageQuery)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete thread messages, err: %v", err)
@@ -553,7 +602,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	return c, nil
 }
 
-func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
+func (c *Threads) ClearDMThreadsByChannelID(db *gorm.DB) (*Threads, error) {
 
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -564,7 +613,6 @@ func (c *Threads) ClearGroupDMThreads(db *gorm.DB) (*Threads, error) {
 	}
 
 	err := elastic.DeleteByQuery(storage.DB.Elastic, MessageIndexName, query)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete channel messages, err: %v", err)
 	}
