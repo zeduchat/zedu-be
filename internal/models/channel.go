@@ -141,7 +141,8 @@ type ChannelInfo struct {
 
 type AddMultipleMembersRequest struct {
 	ChannelID string   `json:"channel_id" validate:"required"`
-	UserIDs   []string `json:"user_ids" validate:"required"`
+	UserIDs   []string `json:"user_ids" validate:"required,dive,required,uuid"`
+	UserID    string   `json:"-"`
 }
 
 type ArchiveChannelRequest struct {
@@ -451,10 +452,12 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	}
 
 	for _, user := range users {
+		if user == req.UserID {
+			continue
+		}
 		var userChannels UserChannels
 
 		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
-		fmt.Println(exist, channelID, user)
 		if !exist {
 			newUserChannels := UserChannels{
 				ChannelsID: channelID,

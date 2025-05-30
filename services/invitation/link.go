@@ -289,7 +289,7 @@ func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, l
 		return err
 	}
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("%s joined the channel", profile.UserName),
+		Content:    fmt.Sprintf("%s joined this channel", profile.UserName),
 		Type:       "system",
 		UserId:     orgmgt.UserID,
 		ChannelsID: chans.ID,
