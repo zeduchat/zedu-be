@@ -184,7 +184,7 @@ func getGeneralChannel(db *gorm.DB, orgID string) (models.Channels, error) {
 
 	err := db.Where("organisation_id = ? AND name = ?", orgID, "general").First(&channels).Error
 	if err == nil {
-		return channels, fmt.Errorf("general channel not found: %v", err)
+		return channels, nil
 	}
 
 	//if general not found, get the first channel

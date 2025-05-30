@@ -44,6 +44,18 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		orgmgt models.OrgUserManagement
 	)
 
+	tx := db.Begin()
+	if tx.Error != nil {
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to start transaction: %s", tx.Error)
+	}
+
+	defer func ()  {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			logger.Error("transaction failed", fmt.Errorf("%v", r))
+		}
+	}()
+
 	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
 	if !exists {
 		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
@@ -65,12 +77,12 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
 	}
 
-	_, err = org.CheckOrgExists(invite.OrganisationID, db)
+	_, err = org.CheckOrgExists(invite.OrganisationID, tx)
 	if err != nil {
 		return "", http.StatusNotFound, fmt.Errorf("organisation not found or has been deleted")
 	}
 
-	exists = postgresql.CheckExists(db, &orgmgt,
+	exists = postgresql.CheckExists(tx, &orgmgt,
 		"user_id = ? AND organisation_id = ?",
 		userID, invite.OrganisationID)
 	if exists {
@@ -84,18 +96,20 @@ func GeneralInvitationVerify(db *gorm.DB, req models.VerifyShareableInvitationLi
 		Status:         "active",
 	}
 
-	err = addToOrg.AddUserToOrganisation(db)
+	err = addToOrg.AddUserToOrganisation(tx)
 	if err != nil {
 		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
-	generalChannel, err := getGeneralChannel(db, orgmgt.OrganisationID)
+	generalChannel, err := getGeneralChannel(tx, addToOrg.OrganisationID)
 	if err != nil {
 		logger.Error("error getting default channel", err)
 	}
 
+	fmt.Println("=================================================General Channel ID:", generalChannel.ID)
+
 	if generalChannel.ID != "" {
-		err = addUserToChannel(&generalChannel, orgmgt, user.Name, db)
+		err = addUserToChannel(&generalChannel, orgmgt, user.Name, tx)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err
