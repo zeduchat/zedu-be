@@ -76,12 +76,11 @@ func GenerateInvitationLink(baseurl, orgID, token string) string {
 	return baseurl + fmt.Sprintf("accept_org_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
 
-func GenerateChannelInvitationLink(baseurl, channelID, token string) string {
-	return baseurl + fmt.Sprintf("accept_channel_invitation?channel_id=%s&invitation_token=%s", channelID, token)
+func GenerateGeneralInvitationLink(baseurl, orgID, token string) string {
+	return baseurl + fmt.Sprintf("accept_general_invitation?org_id=%s&invitation_token=%s", orgID, token)
 }
 
 func GenerateUUIDFromString(strSeed string) (string, error) {
-
 	u, err := url.Parse(strSeed)
 	if err != nil {
 		return "", err
