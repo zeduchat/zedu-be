@@ -25,6 +25,7 @@ var (
 	ThreadSection      SectionType      = "thread_message"
 	ReplySection       SectionType      = "reply_message"
 	ChannelsSection    SectionType      = "channels_section"
+	DmChannelsSection  SectionType      = "dm_channels_section"
 )
 
 type Content struct {

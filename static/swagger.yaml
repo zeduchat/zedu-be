@@ -12832,11 +12832,13 @@ paths:
                     nullable: true
                     example: null
 
-  /organisations/{organisation_id}/group-dms/:
+  /organisations/{organisation_id}/group-dms:
     get:
       tags:
         - Group Direct Message
       summary: Retrieve Group DM Channels
+      security:
+        - bearerAuth: []
       description: Retrieves all Group DM channels within a given organisation.
       parameters:
         - name: organisation_id
@@ -12898,7 +12900,16 @@ paths:
       tags:
         - Group Direct Message
       summary: Create a Group DM Channel
+      security:
+        - bearerAuth: []
       description: Creates a new Group DM channel with specified participants.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
       requestBody:
         required: true
         content:
@@ -13030,6 +13041,8 @@ paths:
       tags:
         - Group Direct Message
       summary: Delete a Group DM Channel
+      security:
+        - bearerAuth: []
       description: Deletes a specified Group DM channel.
       parameters:
         - name: organisation_id
@@ -13145,6 +13158,8 @@ paths:
       tags:
         - Group Direct Message
       summary: Create a Thread in a Group DM Channel
+      security:
+        - bearerAuth: []
       description: Adds a new thread message to a specified Group DM channel.
       requestBody:
         required: true
@@ -13249,6 +13264,8 @@ paths:
       tags:
         - Group Direct Message
       summary: Edit a reply message
+      security:
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
@@ -13305,6 +13322,8 @@ paths:
         - Group Direct Message
       summary: Reply a Message in a Group DM Thread
       description: Replies an existing thread in a Group DM channel.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -13401,6 +13420,8 @@ paths:
         - Group Direct Message
       summary: Update a Thread
       description: Updates the content of a specific thread in a group DM channel.
+      security:
+        - bearerAuth: []
       parameters:
         - name: thread_id
           in: path
@@ -13475,6 +13496,8 @@ paths:
       tags:
         - Group Direct Message
       summary: Delete a Thread
+      security:
+        - bearerAuth: []
       description: Deletes a specific thread in a group DM channel.
       parameters:
         - name: thread_id
@@ -13509,6 +13532,8 @@ paths:
       tags:
         - Group Direct Message
       summary: Retrieve a specific thread reply message
+      security:
+        - bearerAuth: []
       parameters:
         - name: threadId
           in: path
@@ -13587,6 +13612,8 @@ paths:
       tags:
         - Group Direct Message
       summary: Get all thread messages
+      security:
+        - bearerAuth: []
       parameters:
         - name: channelId
           in: path

@@ -427,55 +427,56 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 	return nil
 }
 
-func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) (models.AgentResp, error) {
 	var (
 		orgIntegration models.OrganisationIntegrations
 		agentSettings  models.CustomIntegrationsSetting
 		organisation   models.Organisation
+		int_resp       models.AgentResp
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", org_id)
 	if !organisationExists {
-		return errors.New("organisation does not exist")
+		return int_resp, errors.New("organisation does not exist")
 	}
 
 	err := validateJSONURL(req.JSONUrl)
 	if err != nil {
-		return err
+		return int_resp, err
 	}
 
 	agentID, err := utility.GenerateUUIDFromString(req.JSONUrl)
 	if err != nil {
-		return fmt.Errorf("error generating agent ID from JSON URL: %v", err)
+		return int_resp, fmt.Errorf("error generating agent ID from JSON URL: %v", err)
 	}
 
 	// Check if the agent already exists in the organization
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", org_id, agentID)
 	if exists {
-		return errors.New("organisation already has that agent")
+		return int_resp, errors.New("organisation already has that agent")
 	}
 
 	// Make the external request to the JSON URL
 	data := map[string]string{"url": req.JSONUrl}
 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
 	if err != nil {
-		return errors.New("failed to create agent, invalid JSON supplied")
+		return int_resp, errors.New("failed to create agent, invalid JSON supplied")
 	}
 
 	data_r, ok := response.(map[string]interface{})
 	// data_r, ok := response_data["data"].(map[string]interface{})
 	if !ok {
-		return errors.New("failed to create agent, data field does not exist")
+		return int_resp, errors.New("failed to create agent, data field does not exist")
 	}
 
 	err = models.ValidateAgentData(data_r)
 	if err != nil {
-		return err
+		return int_resp, err
 	}
 
 	settings := ""
 	// if !ok {
-	// 	return errors.New("failed to create agent, settings field does not exist")
+	// 	return int_resp, errors.New("failed to create agent, settings field does not exist")
 	// }
 	settings_data := map[string]interface{}{"settings": settings}
 
@@ -491,13 +492,13 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
-		return err
+		return int_resp, err
 	}
 
 	enc_key := config.Config.Server.EncKey
 	api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
 	if err != nil {
-		return errors.New("failed to create external API key")
+		return int_resp, errors.New("failed to create external API key")
 	}
 
 	auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
@@ -506,7 +507,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 
 	settingJsonData, err := json.Marshal(settings_data)
 	if err != nil {
-		return fmt.Errorf("error serializing to JSON: %v", err)
+		return int_resp, fmt.Errorf("error serializing to JSON: %v", err)
 	}
 	serialized_settings := string(settingJsonData)
 
@@ -518,10 +519,32 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 
 	err = agentSettings.CreateIntegrationSettings(db)
 	if err != nil {
-		return errors.New("failed to create agent settings")
+		return int_resp, errors.New("failed to create agent settings")
 	}
 
-	return nil
+	agent := models.Integrations{
+		ID:             orgIntegration.IntegrationID,
+		Name:           orgIntegration.AppName,
+		JSONUrl:        orgIntegration.JSONUrl,
+		AppUrl:         orgIntegration.AppUrl,
+		AppLogo:        orgIntegration.AppLogo,
+		AppDescription: orgIntegration.AppDescription,
+		Category:       "Agents",
+		Status:         "success",
+		IsActive:       orgIntegration.IsActive,
+		CreatedAt:      orgIntegration.CreatedAt,
+		UpdatedAt:      orgIntegration.UpdatedAt,
+	}
+
+	int_resp = struct {
+		models.Integrations
+		Linked bool "json:\"linked\""
+	}{
+		Integrations: agent,
+		Linked:       true,
+	}
+
+	return int_resp, nil
 }
 
 func validateJSONURL(jsonUrl string) error {
