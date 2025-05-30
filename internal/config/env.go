@@ -109,6 +109,10 @@ type BaseConfig struct {
 	ELASTIC_URL                string `mapstructure:"ELASTIC_URL"`
 	ELASTIC_API_KEY            string `mapstructure:"ELASTIC_API_KEY"`
 	FIREBASE_SERVICE_FILE_PATH string `mapstructure:"FIREBASE_SERVICE_FILE_PATH"`
+
+  OPENROUTER_API_KEY string `mapstructure:"OPENROUTER_API_KEY"`
+
+
 	MONGO_URI                  string `mapstructure:"MONGO_URI"`
 	MONGO_DB_NAME              string `mapstructure:"MONGO_DB_NAME"`
 }
@@ -139,6 +143,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,
 			WebhookApiUrl:         config.WEBHOOK_API_URL,
 			FRONTEND_URL:          config.FRONTEND_URL,
+			OpenRouterApiKey:      config.OPENROUTER_API_KEY,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,

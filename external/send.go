@@ -94,7 +94,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		req, err = http.NewRequest(r.Method, r.Path, nil)
 	} else {
 		switch r.Headers["Content-Type"] {
-		case "application/x-www-form-urlencoded":
+		case "application/x-www-form-urlencoded", "application/json":
 			req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
 		default:
 			req, err = http.NewRequest(r.Method, r.Path, buf)

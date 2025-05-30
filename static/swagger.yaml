@@ -74,6 +74,8 @@ tags:
     description: API for group direct message
   - name: Bots
     description: API endpoints for bots
+  - name: TelexAI
+    description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
   - name: Mongogrations
     description: API endpoints for integrations to interact with a mongoDB instance through telex
   - name: File Management
@@ -7149,9 +7151,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  /dms/channels/{channel_id}/messages/message_id:
+  
+  /dms/channels/{channel_id}/messages/{message_id}:
+
     delete:
       tags:
         - Direct Message
@@ -7694,7 +7698,7 @@ paths:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}:
-    Delete:
+    delete:
       tags:
         - Direct Message
       summary: Retrieve DM channels
@@ -14690,6 +14694,40 @@ components:
           type: string
           format: date-time
           example: "0001-01-01T00:00:00Z"
+    
+    TelexAIChatCompletionsReq:
+      type: object
+      required:
+        # - org_id
+        - messages
+      properties:
+        # org_id:
+          # type: string
+          # example: "0191475b-7a5d-795f-a04b-8c2ff5344778"
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [system, user, assistant]
+                example: "user"
+              content:
+                type: string
+                example: "Who is Elon?"
+    TelexAIChatCompletionsResp:
+      type: object
+      properties:
+        Messages:
+          type: object
+          properties:
+            role:
+              type: string
+              example: "assistant"
+            content:
+              type: string
+              example: "Hi there, a query ticket has been created and we handle your query in no time"
 
     NotFoundErrorSchema:
       type: object
