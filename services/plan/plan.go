@@ -37,7 +37,7 @@ func CheckUserOrgPlanThreshold(c *gin.Context, logger *utility.Logger, db *gorm.
 	}
 
 	// Check if user count exceeds plan limit (plan maximum users)
-	if userCount >= int64(currentPlan.MaxUsers) {
+	if currentPlan.MaxUsers != -1 && userCount >= int64(currentPlan.MaxUsers) {
 		logger.Error("Maximum number of users for org plan reached!!")
 		return false
 	}
@@ -71,7 +71,7 @@ func CheckChannelPlanThreshold(c *gin.Context, logger *utility.Logger, db *gorm.
 	}
 
 	// Check if channels count exceeds plan limit (plan maximum channels)
-	if channelCount >= int64(currentPlan.MaxChannels) {
+	if currentPlan.MaxChannels != -1 && channelCount >= int64(currentPlan.MaxChannels) {
 		logger.Error("Maximum number of channels for org plan reached!!")
 		return false
 	}
