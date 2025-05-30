@@ -130,7 +130,7 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 
 	generateShareableInviteResponse := func(invite models.GeneralInvitation) models.ShareableInviteResponse {
 		return models.ShareableInviteResponse{
-			InvitationLink: utility.GenerateInvitationLink(base_url, invite.OrganisationID, invite.Token),
+			InvitationLink: utility.GenerateGeneralInvitationLink(base_url, invite.OrganisationID, invite.Token),
 			Expires_At:     invite.ExpiresAt,
 			Created_At:     invite.CreatedAt,
 		}
