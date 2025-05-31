@@ -503,7 +503,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 		"dm": func() ([]DmChannelsResponse, error) {
 			if err := db.Model(&DmChannels{}).
-				Select("dm_channels.*, p.user_name as username, p.avatar_url as avatar_url, u.email as participant_email").
+				Select("dm_channels.*, dm_channels.channel_id as id, COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as name, p.avatar_url as avatar_url, u.email as participant_email").
 				Joins("JOIN profiles AS p ON p.userid = dm_channels.user_id").
 				Joins("JOIN users AS u ON u.id = dm_channels.user_id").
 				Where("dm_channels.channel_id = ? AND dm_channels.user_id != ?", r.ChannelId, r.UserId).
@@ -714,6 +714,7 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 	if updateType == NewThread {
 
 		res, err := c.GetUserChannelsUnreadThread(storage.DB)
+		fmt.Println(res);
 
 		if err != nil {
 			logger.Error("Bulk update failed: %v", err)
