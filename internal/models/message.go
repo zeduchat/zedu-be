@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -366,7 +367,7 @@ func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, m
 			}
 			continue
 		}
-		
+
 		if count == 1 {
 			hashedFileName := utility.ExtractHashedFileName(mediaFile.FileLink)
 
@@ -427,7 +428,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, MessageIndexName, query, &messageData, c)
 
 	if err != nil {
-		return nil, pagR, errors.New(fmt.Sprintf("failed to fetch message records, error: %v", err))
+		return nil, pagR, fmt.Errorf("failed to fetch message records, error: %v", err)
 	}
 
 	err = thread.GetThreadById(db, ThreadID)
@@ -456,7 +457,7 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocume
 	rawJSON, _ := json.MarshalIndent(messageData.(map[string]interface{}), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &searchResult); errr != nil {
-		err = errors.New(fmt.Sprintf("failed to unmarshal result, error: %v", errr))
+		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
 		return
 	}
 
@@ -467,4 +468,34 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocume
 	}
 
 	return
+}
+
+func (m *MessageDocument) UpdateMessageUsername(logger *utility.Logger, mu *sync.Mutex) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	payload := map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": "ctx._source.username = params.new_username",
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"new_username": m.Username,
+			},
+		},
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"user_id.keyword": m.UserID,
+			},
+		},
+	}
+
+	err := elastic.UpdateByQueryWithScript(storage.DB.Elastic, payload, MessageIndexName)
+
+	if err != nil {
+		logger.Error("An error occurred while updating message index: %v", err)
+		return err
+	}
+
+	logger.Info("Updated username across message index")
+	return nil
 }

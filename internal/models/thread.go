@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1177,4 +1178,45 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	}
 
 	return threads, pagR, nil
+}
+
+func (t *ThreadDocument) UpdateThreadUsername(logger *utility.Logger, mu *sync.Mutex) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	script := `if (ctx._source.containsKey("messages")) {
+            for (int i = 0; i < ctx._source.messages.size(); i++) {
+                if (ctx._source.messages[i].user_id == params.user_id) {
+                    ctx._source.messages[i].username = params.new_username;
+                }
+            }
+        }
+        if (ctx._source.user_id == params.user_id) {
+            ctx._source.username = params.new_username;
+        }`
+
+	req := map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": script,
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"user_id":      t.UserId,
+				"new_username": t.Username,
+			},
+		},
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"user_id.keyword": t.UserId,
+			},
+		},
+	}
+
+	err := elastic.UpdateByQueryWithScript(storage.DB.Elastic, req, ThreadIndexName)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+	}
+
+	logger.Info("Updated username across thread index")
 }

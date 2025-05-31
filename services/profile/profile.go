@@ -36,7 +36,7 @@ func IsSameOrganization(db *gorm.DB, reqUserID string, targetUserID string) (int
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	
+
 	currentOrgID := (userProfile.CurrentOrg).String()
 
 	isMember, err := org.CheckUserIsMemberOfOrg(targetUserID, currentOrgID, db)
@@ -67,7 +67,7 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		req.AvatarURL = avatarURL
 	}
 
-	if err := userProfile.UpdateProfileFields(db, req, userId); err != nil {
+	if err := userProfile.UpdateProfileFields(db, req, userId, logger); err != nil {
 		return http.StatusBadRequest, err
 	}
 

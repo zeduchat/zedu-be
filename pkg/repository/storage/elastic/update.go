@@ -49,3 +49,28 @@ func UpdateDocWithScript(client *elasticsearch.Client, indexName, docID string, 
 
 	return nil
 }
+
+func UpdateByQueryWithScript(client *elasticsearch.Client, script map[string]interface{}, indexName string) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(script); err != nil {
+		return fmt.Errorf("error encoding update-by-query payload: %w", err)
+	}
+
+	res, err := client.UpdateByQuery(
+		[]string{indexName},
+		client.UpdateByQuery.WithBody(&buf),
+		client.UpdateByQuery.WithContext(context.Background()),
+		client.UpdateByQuery.WithRefresh(true),
+	)
+	if err != nil {
+		return fmt.Errorf("error executing update-by-query: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("error response from Elasticsearch: %s", res.String())
+	}
+
+	return nil
+}
