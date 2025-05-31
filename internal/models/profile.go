@@ -84,6 +84,10 @@ type UpdateProfileStatus struct {
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) error {
 	var userProfile Profile
 
+	if req.DisplayName != "" && req.UserName == "" {
+		req.UserName = req.DisplayName
+	}
+
 	profileUpdates := Profile{
 		FullName:          req.FullName,
 		UserName:          req.UserName,
