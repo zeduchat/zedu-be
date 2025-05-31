@@ -714,7 +714,6 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 	if updateType == NewThread {
 
 		res, err := c.GetUserChannelsUnreadThread(storage.DB)
-		fmt.Println(res);
 
 		if err != nil {
 			logger.Error("Bulk update failed: %v", err)
