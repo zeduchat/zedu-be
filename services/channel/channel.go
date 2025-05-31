@@ -356,13 +356,15 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
-		usernames = append(usernames, "@"+userDetails.Profile.UserName)
+		if userDetails.Profile.UserName != "" {
+			usernames = append(usernames, "@"+userDetails.Profile.UserName)
+		}
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("joined #%s along with %s", ch.Name, strings.Join(usernames, ", ")),
+		Content:    fmt.Sprintf("joined #%s along with %s", ch.Name, strings.Join(usernames[1:], ", ")),
 		Type:       "system",
-		UserId:     req.UserIDs[0],
+		UserId:     validUserIds[0],
 		ChannelsID: ch.ID,
 		OrgId:      ch.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),

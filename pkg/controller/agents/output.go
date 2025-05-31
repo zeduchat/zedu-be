@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -39,7 +38,6 @@ func (base *Controller) GetSystemAgentApps(c *gin.Context) {
 
 	agents, paginationResponse, err, code := agents.GetSystemAgentApps(c, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch agents", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
 		c.JSON(code, rd)

@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -66,7 +65,6 @@ func (base *Controller) GetCustomAgentApp(c *gin.Context) {
 
 	agents, paginationResponse, err, code := agents.GetCustomAgentApp(c, org_id, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch agents", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
 		c.JSON(code, rd)
@@ -542,7 +540,6 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 
 	integration_setting, code, err := agents.GetCustomAgentStatus(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch custom agents settings", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom agents settings", err.Error(), nil)
 		c.JSON(code, rd)
@@ -580,7 +577,6 @@ func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 
 	integration_setting, code, err := agents.GetCustomAgentSettings(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch custom agents settings", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom agents settings", err.Error(), nil)
 		c.JSON(code, rd)

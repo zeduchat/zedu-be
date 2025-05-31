@@ -1,7 +1,6 @@
 package utility
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 
@@ -41,7 +40,6 @@ func ResponseMessage(code int, status string, name string, message string, err i
 	}
 
 	if code == http.StatusInternalServerError {
-		fmt.Println("internal server error", message, err, data)
 		message = "internal server error"
 		err = message
 	}

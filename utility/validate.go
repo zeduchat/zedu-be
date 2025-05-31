@@ -24,12 +24,6 @@ func NewURLValidator(additionalDomains ...string) *URLValidator {
 		"ngrok.io",
 		"ngrok.app",
 		"ngrok-free.app",
-
-		// Render Domains
-		// "render.com",
-		// "render.app",
-		// "onrender.com",
-		// "app.render.com",
 	}
 
 	blockedDomains = append(blockedDomains, additionalDomains...)
