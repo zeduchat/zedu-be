@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -88,6 +89,9 @@ type OrganisationIntegrations struct {
 	AppName        string    `gorm:"column:app_name;type:text;" json:"app_name"`
 	AppLogo        string    `gorm:"column:app_logo;type:text;" json:"app_logo"`
 	AppUrl         string    `gorm:"column:app_url; type:text;" json:"app_url"`
+	IsPaid         bool      `gorm:"type:boolean;default:false" json:"is_paid"`
+	Price          float64   `gorm:"type:numeric" json:"price"`
+	Currency       string    `gorm:"type:varchar(10)" json:"currency"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -397,7 +401,7 @@ func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility
 		for _, channel := range dmchannels {
 			channelIDs = append(channelIDs, channel.ChannelId)
 		}
-	
+
 		err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
 		if err != nil {
 			tx.Rollback()
@@ -1190,6 +1194,23 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 	_, ok = data_r["provider"].(map[string]interface{})
 	if !ok {
 		return errors.New("Failed to save agent, invalid agent card: provider does not exist or is empty")
+	}
+
+	isPaid, ok := data_r["is_paid"].(bool)
+	if !ok {
+		return errors.New("failed to save agent: 'isPaid' field is missing or invalid")
+	}
+
+	if isPaid {
+		_, ok := data_r["price"].(float64)
+		if !ok {
+			return errors.New("failed to save agent: 'price' field is missing or not a valid number")
+		}
+
+		currency, ok := data_r["currency"].(string)
+		if !ok || strings.TrimSpace(currency) == "" {
+			return errors.New("failed to save agent: 'currency' field is missing or empty")
+		}
 	}
 
 	return nil

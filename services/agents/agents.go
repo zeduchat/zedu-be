@@ -489,6 +489,9 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.AppName = data_r["name"].(string)
 	orgIntegration.AppDescription = data_r["description"].(string)
 	orgIntegration.AppUrl = data_r["description"].(string)
+	orgIntegration.Price = data_r["price"].(float64)
+	orgIntegration.Currency = data_r["currency"].(string)
+	orgIntegration.IsPaid = data_r["is_paid"].(bool)
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {

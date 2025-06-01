@@ -39,6 +39,8 @@ func (base *Controller) TopUpOrgCredit(c *gin.Context) {
 		return
 	}
 
+	// process and integrate credit top-up payment - coming soon
+
 	organisationData, code, err := service.TopUpOrgCredit(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
