@@ -45,6 +45,14 @@ type CreditPackage struct {
 	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
+type CreditPackageResponse struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Credits  int     `json:"credits"`
+	Price    float64 `json:"price"`
+	Currency string  `json:"currency"`
+}
+
 type CreditTopUpRequest struct {
 	OrgID     string `json:"org_id" validate:"required"`
 	PackageID string `json:"package_id" validate:"required"`
@@ -197,6 +205,27 @@ func GetOrgCreditReport(orgID string, db *gorm.DB) (*gin.H, int, error) {
 		"balance":         balance,
 		"recent_topups":   recentTopUps,
 		"recent_usages":   recentUsages,
+	}
+
+	return &response, http.StatusOK, nil
+}
+
+func GetCreditPackages(db *gorm.DB) (*[]CreditPackageResponse, int, error) {
+	var creditPackages []CreditPackage
+
+	if err := db.Find(&creditPackages).Error; err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to get credit packages: %w", err)
+	}
+
+	var response []CreditPackageResponse
+	for _, credit_packages := range creditPackages {
+		response = append(response, CreditPackageResponse{
+			ID:       credit_packages.ID,
+			Name:     credit_packages.Name,
+			Price:    credit_packages.Price,
+			Credits:  credit_packages.Credits,
+			Currency: credit_packages.Currency,
+		})
 	}
 
 	return &response, http.StatusOK, nil

@@ -20,6 +20,7 @@ func Credits(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	creditUrl := r.Group(fmt.Sprintf("%v/credits", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		creditUrl.POST("/top-up", credit.TopUpOrgCredit)
+		creditUrl.GET("/packages", credit.GetCreditPackages)
 		creditUrl.GET("/usage-report/:org_id", credit.GetOrgCreditReport)
 
 	}

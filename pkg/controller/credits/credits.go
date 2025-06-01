@@ -67,3 +67,16 @@ func (base *Controller) GetOrgCreditReport(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 
 }
+
+func (base *Controller) GetCreditPackages(c *gin.Context) {
+	creditPackages, code, err := models.GetCreditPackages(base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Credit packages retrieved successfully", creditPackages)
+	c.JSON(http.StatusOK, rd)
+
+}
