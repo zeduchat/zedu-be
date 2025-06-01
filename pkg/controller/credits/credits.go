@@ -9,7 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	service "github.com/hngprojects/telex_be/services/credits"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -41,7 +40,7 @@ func (base *Controller) TopUpOrgCredit(c *gin.Context) {
 
 	// process and integrate credit top-up payment - coming soon
 
-	organisationData, code, err := service.TopUpOrgCredit(req, base.Db.Postgresql)
+	organisationData, code, err := models.TopUpOrgCredit(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -57,7 +56,7 @@ func (base *Controller) TopUpOrgCredit(c *gin.Context) {
 func (base *Controller) GetOrgCreditReport(c *gin.Context) {
 	org_id := c.Param("org_id")
 
-	creditUsageReport, code, err := service.GetOrgCreditReport(org_id, base.Db.Postgresql)
+	creditUsageReport, code, err := models.GetOrgCreditReport(org_id, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)

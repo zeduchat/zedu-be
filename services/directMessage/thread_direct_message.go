@@ -20,7 +20,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	org_credits "github.com/hngprojects/telex_be/services/credits"
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/user"
@@ -441,7 +440,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	}
 
 	// validate credit here
-	if !org_credits.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, logger) {
+	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, logger) {
 		logger.Error("Organisation has insufficient credit balance!!")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
 	}
@@ -461,7 +460,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
 	}
 
-	if err = org_credits.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
+	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
 		logger.Error("Organisation credit Recalculation failed")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
