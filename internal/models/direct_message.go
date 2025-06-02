@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
@@ -31,15 +34,22 @@ type DmChannels struct {
 	CreatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+	ThreadCount     int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
+	LastThreadId    string         `gorm:"column:last_thread_id" json:"last_thread_id"`
+	LastReadAt      time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
 }
 
 type DmChannelsResponse struct {
-	ID               string `json:"channel_id"`
-	Name             string `json:"username"`
-	ParticipantId    string `json:"participant_id"`
-	AvatarUrl        string `json:"avatar_url"`
-	ParticipantEmail string `json:"participant_email"`
-	ChannelType      string `json:"channel_type"`
+	ID               string    `json:"channel_id"`
+	Name             string    `json:"username"`
+	ParticipantId    string    `json:"participant_id"`
+	AvatarUrl        string    `json:"avatar_url"`
+	ParticipantEmail string    `json:"participant_email"`
+	ChannelType      string    `json:"channel_type"`
+	ThreadCount      int64     `json:"thread_count"`
+	LastThreadId     string    `json:"last_thread_id"`
+	LastReadAt       time.Time `json:"last_read_at"`
+	UserId           string    `json:"-"`
 }
 
 type DmChannelsRequest struct {
@@ -128,6 +138,9 @@ func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse
 		ParticipantEmail: appName,
 		AvatarUrl:        appLogo,
 		Name:             appName,
+		LastThreadId:     dm.LastThreadId,
+		ThreadCount:      dm.ThreadCount,
+		LastReadAt:       dm.LastReadAt,
 	}
 }
 
@@ -286,6 +299,9 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				ParticipantId:    *dmchan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
 				ChannelType:      "dm",
+				LastThreadId:     dmchan.LastThreadId,
+				ThreadCount:      dmchan.ThreadCount,
+				LastReadAt:       dmchan.LastReadAt,
 			})
 		} else if dmchan.ChannelType == "group_dm" {
 
@@ -321,12 +337,22 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 			sort.Strings(usernames)
 
+			var chanParti ChannelParticipant
+
+			exist := postgresql.CheckExists(db, &chanParti, "channel_id = ? AND user_id = ?", dmchan.ChannelId, dm.UserId)
+			if !exist {
+				return nil, paginationResp, fmt.Errorf("user not found in channel")
+			}
+
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
 				Name:             strings.Join(usernames, ", "),
 				AvatarUrl:        profilePic,
 				ParticipantEmail: email,
 				ChannelType:      "group_dm",
+				LastThreadId:     chanParti.LastThreadId,
+				ThreadCount:      chanParti.ThreadCount,
+				LastReadAt:       chanParti.LastReadAt,
 			})
 
 		}
@@ -356,8 +382,365 @@ func (r *DmChannels) FetchChannelParticipant(db *gorm.DB, req DmChannelsRequest)
 	exists := postgresql.CheckExists(db, &r, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId)
 
 	if !exists {
+		exists = postgresql.CheckExists(db, &r, "channel_id = ? AND channel_type = ?", req.ChannelId, "group_dm")
+	}
+
+	if !exists {
 		return exists, errors.New("channel does not exist")
 	}
 
 	return exists, nil
+}
+
+func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error) {
+
+	chanInfo := map[string]func() (DmChannelsResponse, error){
+		"dm": func() (DmChannelsResponse, error) {
+			res := DmChannelsResponse{}
+			var (
+				user   User
+				dmChan DmChannels
+			)
+
+			exists := postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", r.ChannelId, r.UserId)
+
+			if !exists {
+				return res, errors.New("channel does not exist")
+			}
+
+			userDetails, err := user.GetUserByID(db, *dmChan.ParticipantId)
+			if err != nil {
+				return res, err
+			}
+
+			if userDetails.Profile.UserName == "" {
+				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+			}
+
+			res = DmChannelsResponse{
+				ID:               r.ChannelId,
+				Name:             userDetails.Profile.UserName,
+				AvatarUrl:        userDetails.Profile.AvatarURL,
+				ParticipantId:    *dmChan.ParticipantId,
+				ParticipantEmail: userDetails.Email,
+				ChannelType:      "dm",
+				LastThreadId:     dmChan.LastThreadId,
+				ThreadCount:      dmChan.ThreadCount,
+				LastReadAt:       dmChan.LastReadAt,
+			}
+
+			return res, nil
+
+		},
+		"group_dm": func() (DmChannelsResponse, error) {
+			res := DmChannelsResponse{}
+			var (
+				chanPart []ChannelParticipant
+				user     User
+			)
+
+			err := postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", r.ChannelId)
+			if err != nil {
+				return res, fmt.Errorf("failed to get participants for group DM channel %s", r.ChannelId)
+			}
+
+			usernames := []string{}
+			profilePic := ""
+			email := ""
+
+			for _, part := range chanPart {
+				userDetails, err := user.GetUserByID(db, part.UserId)
+				if err != nil {
+					return res, err
+				}
+
+				if userDetails.Profile.UserName == "" {
+					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+				}
+
+				usernames = append(usernames, userDetails.Profile.UserName)
+
+				if profilePic == "" {
+					profilePic = userDetails.Profile.AvatarURL
+				}
+
+				if email == "" {
+					email = userDetails.Email
+				}
+			}
+
+			sort.Strings(usernames)
+
+			var chanParti ChannelParticipant
+
+			exist := postgresql.CheckExists(db, &chanParti, "channel_id = ? AND user_id = ?", r.ChannelId, r.UserId)
+			if !exist {
+				return res, fmt.Errorf("user not found in channel")
+			}
+
+			res = DmChannelsResponse{
+				ID:               r.ChannelId,
+				Name:             strings.Join(usernames, ", "),
+				AvatarUrl:        profilePic,
+				ParticipantEmail: email,
+				ChannelType:      "group_dm",
+				LastThreadId:     chanParti.LastThreadId,
+				ThreadCount:      chanParti.ThreadCount,
+				LastReadAt:       chanParti.LastReadAt,
+			}
+
+			return res, nil
+		},
+	}
+
+	return chanInfo[r.ChannelType]()
+}
+
+func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmChannelsResponse, error) {
+
+	var (
+		chanResp []DmChannelsResponse
+		db       = base.Postgresql
+	)
+
+	chanInfo := map[string]func() ([]DmChannelsResponse, error){
+
+		"dm": func() ([]DmChannelsResponse, error) {
+			if err := db.Model(&DmChannels{}).
+				Select("dm_channels.*, dm_channels.channel_id as id, COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as name, p.avatar_url as avatar_url, u.email as participant_email").
+				Joins("JOIN profiles AS p ON p.userid = dm_channels.user_id").
+				Joins("JOIN users AS u ON u.id = dm_channels.user_id").
+				Where("dm_channels.channel_id = ? AND dm_channels.user_id != ?", r.ChannelId, r.UserId).
+				Order("dm_channels.created_at").
+				Scan(&chanResp).Error; err != nil {
+				return nil, errors.New("error fetching channels")
+			}
+
+			return chanResp, nil
+		},
+
+		"group_dm": func() ([]DmChannelsResponse, error) {
+			var chanResp []DmChannelsResponse
+
+			var userProfiles []struct {
+				UserName  string
+				AvatarURL string
+			}
+
+			if err := db.Table("channel_participants AS cp").
+				Select("COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) AS user_name, p.avatar_url").
+				Joins("JOIN users u ON u.id = cp.user_id").
+				Joins("LEFT JOIN profiles p ON p.userid = u.id").
+				Where("cp.channel_id = ?", r.ChannelId).
+				Scan(&userProfiles).Error; err != nil {
+				return nil, errors.New("error fetching participant profiles")
+			}
+
+			usernames := []string{}
+			profilePic := ""
+			for _, prof := range userProfiles {
+				usernames = append(usernames, prof.UserName)
+				if profilePic == "" {
+					profilePic = prof.AvatarURL
+				}
+			}
+			sort.Strings(usernames)
+			userNames := strings.Join(usernames, ", ")
+
+			if err := db.
+				Table("channel_participants AS cp").
+				Select(`
+			cp.channel_id AS id,
+			? AS name,
+			? AS avatar_url,
+			u.email AS participant_email,
+			cp.last_thread_id,
+			cp.thread_count,
+			cp.last_read_at,
+			cp.user_id,
+			'group_dm' AS channel_type
+		`, userNames, profilePic).
+				Joins("JOIN users u ON u.id = cp.user_id").
+				Where("cp.channel_id = ? AND cp.user_id != ?", r.ChannelId, r.UserId).
+				Order("cp.created_at").
+				Scan(&chanResp).Error; err != nil {
+				return nil, fmt.Errorf("error fetching participants for channel %s: %w", r.ChannelId, err)
+			}
+
+			return chanResp, nil
+		},
+	}
+
+	return chanInfo[r.ChannelType]()
+}
+
+func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mutex, logger *utility.Logger) bool {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	updateMap := map[string]func() bool{
+		"dm": func() bool {
+			var uc DmChannels
+
+			query := "channel_id = ? AND user_id = ?"
+
+			exists := postgresql.CheckExists(db, &uc, query, c.ChannelId, c.UserId)
+
+			if exists && uc.LastThreadId == req.LastThreadId {
+				return false
+			}
+
+			updateFields := map[string]interface{}{
+				"last_thread_id": req.LastThreadId,
+				"last_read_at":   req.LastReadAt,
+				"thread_count":   0,
+			}
+
+			result := db.Model(&DmChannels{}).
+				Where(query, c.ChannelId, c.UserId).
+				Updates(updateFields)
+
+			if result.Error != nil {
+				logger.Error("an error occurend while updating user last read: %v", result.Error)
+				return false
+			}
+
+			logger.Info("user dm last read updated successfully")
+			return true
+		},
+		"group_dm": func() bool {
+			var uc ChannelParticipant
+
+			query := "channel_id = ? AND user_id = ?"
+
+			exists := postgresql.CheckExists(db, &uc, query, c.ChannelId, c.UserId)
+
+			if exists && uc.LastThreadId == req.LastThreadId {
+				return false
+			}
+
+			updateFields := map[string]interface{}{
+				"last_thread_id": req.LastThreadId,
+				"last_read_at":   req.LastReadAt,
+				"thread_count":   0,
+			}
+
+			result := db.Model(&ChannelParticipant{}).
+				Where(query, c.ChannelId, c.UserId).
+				Updates(updateFields)
+
+			if result.Error != nil {
+				logger.Error("an error occurend while updating user last read: %v", result.Error)
+				return false
+			}
+
+			logger.Info("user group dm last read updated successfully")
+			return true
+		},
+	}
+	return updateMap[c.ChannelType]()
+}
+
+func (r *DmChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *utility.Logger) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	updateFunc := map[string]func(){
+
+		"dm": func() {
+			query := "channel_id = ? AND user_id != ?"
+
+			updateFields := map[string]interface{}{
+				"thread_count": gorm.Expr("thread_count + 1"),
+			}
+
+			result := db.Model(&DmChannels{}).
+				Where(query, r.ChannelId, r.UserId).
+				Updates(updateFields)
+
+			if result.Error != nil {
+				logger.Error("an error occurred while updating dm channel counts: %v", result.Error)
+				return
+			}
+
+			logger.Info("user channels counts updated successfully")
+		},
+		"group_dm": func() {
+			query := "channel_id = ? AND user_id != ?"
+
+			updateFields := map[string]interface{}{
+				"thread_count": gorm.Expr("thread_count + 1"),
+			}
+
+			result := db.Model(&ChannelParticipant{}).
+				Where(query, r.ChannelId, r.UserId).
+				Updates(updateFields)
+
+			if result.Error != nil {
+				logger.Error("an error occurred while updating group dm channel counts: %v", result.Error)
+				return
+			}
+
+			logger.Info("user channels counts updated successfully")
+
+		},
+	}
+
+	updateFunc[r.ChannelType]()
+}
+
+func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Logger, updateType UnReadUpdate) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if updateType == Read {
+		dmResp, err := c.FetchDmChannelInfo(storage.DB.Postgresql)
+
+		if err != nil {
+			logger.Error("Error updating dm Section: %v, with userId: %s, channelId: %s", err, c.UserId, c.ChannelId)
+			return
+		}
+
+		notification := Notification[UnReadThreadChange]
+		notification.SectionType = DmChannelsSection
+		notification.Content = dmResp
+
+		err = centrifuge.PublishChannel(logger, c.UserId, notification)
+		if err != nil {
+			logger.Error("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelId, c.UserId, err.Error())
+			return
+		}
+	}
+
+	if updateType == NewThread {
+
+		res, err := c.GetUserChannelsUnreadThread(storage.DB)
+
+		if err != nil {
+			logger.Error("Bulk update failed: %v", err)
+			return
+		}
+
+		if len(res) < 1 {
+			logger.Error("Empty channel response")
+			return
+		}
+
+		for _, update := range res {
+			notification := Notification[UnReadThreadChange]
+			notification.SectionType = DmChannelsSection
+			notification.Content = update
+
+			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelId, update.UserId, err.Error()))
+				return
+			}
+		}
+	}
+
+	logger.Info("user last read updated successfully")
 }

@@ -1,7 +1,7 @@
 package invitation
 
 import (
-	"fmt"
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -9,7 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 type InvitationDetail struct {
@@ -51,7 +50,6 @@ func SendEmail(email, link, org_name, inviter_name string) error {
 		InviterName:      inviter_name,
 	}
 
-	fmt.Println("added to queue", email, link)
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
 	if err != nil {
 		return err

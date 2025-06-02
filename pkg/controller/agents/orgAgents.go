@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -66,7 +65,6 @@ func (base *Controller) GetCustomAgentApp(c *gin.Context) {
 
 	agents, paginationResponse, err, code := agents.GetCustomAgentApp(c, org_id, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch agents", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
 		c.JSON(code, rd)
@@ -449,7 +447,7 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 		return
 	}
 
-	err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
+	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
@@ -458,7 +456,7 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	}
 
 	base.Logger.Info("Custom agent created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", resp)
 	c.JSON(http.StatusCreated, rd)
 }
 
@@ -542,7 +540,6 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 
 	integration_setting, code, err := agents.GetCustomAgentStatus(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch custom agents settings", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom agents settings", err.Error(), nil)
 		c.JSON(code, rd)
@@ -580,7 +577,6 @@ func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 
 	integration_setting, code, err := agents.GetCustomAgentSettings(ids, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
-		fmt.Println(err)
 		base.Logger.Error("Failed to fetch custom agents settings", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch custom agents settings", err.Error(), nil)
 		c.JSON(code, rd)
