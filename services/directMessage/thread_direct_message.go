@@ -439,8 +439,20 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
+	// Calculate credit cost based on message and agent price
+	outputLength := len(req.Content)
+
+	var agentPrice float64 = 0.0
+	if val, ok := agentDetails["price"]; ok && val != nil {
+		if price, ok := val.(float64); ok {
+			agentPrice = price
+		}
+	}
+
+	creditUsed := models.CalculateCreditCost(0, outputLength, agentPrice)
+
 	// validate credit here
-	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, logger) {
+	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
 		logger.Error("Organisation has insufficient credit balance!!")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
 	}

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"math"
 	"time"
 
 	"errors"
@@ -74,9 +75,8 @@ func (c *CreditUsage) CreateCreditUsage(db *gorm.DB) error {
 	return nil
 }
 
-func OrgHasValidCreditBalance(db *gorm.DB, organisationID string, logger *utility.Logger) bool {
+func OrgHasValidCreditBalance(db *gorm.DB, organisationID string, creditUsed float64, logger *utility.Logger) bool {
 	var org Organisation
-	var tempCredit float64 = 5
 
 	err := db.First(&org, "id = ?", organisationID).Error
 	if err != nil {
@@ -84,7 +84,7 @@ func OrgHasValidCreditBalance(db *gorm.DB, organisationID string, logger *utilit
 		return false
 	}
 
-	if org.CreditBalance <= tempCredit {
+	if org.CreditBalance <= creditUsed {
 		logger.Error("Organisation has insufficient credit balance!!")
 		return false
 	}
@@ -229,4 +229,25 @@ func GetCreditPackages(db *gorm.DB) (*[]CreditPackageResponse, int, error) {
 	}
 
 	return &response, http.StatusOK, nil
+}
+
+func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) float64 {
+	const (
+		BaseCost     = 0.5
+		InputWeight  = 0.01
+		OutputWeight = 0.02
+		MaxCreditCap = 50.0
+	)
+
+	// Calculate cost based on message and agent price
+	rawCost := BaseCost +
+		(float64(inputLength) * InputWeight) +
+		(float64(outputLength) * OutputWeight) +
+		agentPrice
+
+	if rawCost > MaxCreditCap {
+		rawCost = MaxCreditCap
+	}
+
+	return math.Round(rawCost*100) / 100
 }
