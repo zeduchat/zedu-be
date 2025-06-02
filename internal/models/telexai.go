@@ -23,23 +23,9 @@ type TelexAIChatCompletionsResp struct {
 
 func (treq *TelexAIChatCompletionsReq) GetModel() string {
 	if treq.Model == "" {
-		return "google/gemma-3-4b-it:free"
+		return "qwen/qwen3-30b-a3b:free"
 	}
 	return treq.Model
-}
-
-func (treq *TelexAIChatCompletionsReq) IsValidModel() bool {
-	validModels := map[string]bool{
-		"openai/gpt-4":                            true,
-		"openai/gpt-3.5-turbo":                    true,
-		"meta-llama/llama-3.3-8b-instruct:free":   true,
-		"deepseek/deepseek-r1-0528-qwen3-8b:free": true,
-		"deepseek/deepseek-r1-0528:free":          true,
-		"qwen/qwen3-30b-a3b:free":                 true,
-		// more models to be added later on
-	}
-
-	return validModels[treq.GetModel()]
 }
 
 type TelexAIUsageLog struct {
@@ -68,7 +54,7 @@ type TelexAIUsageLog struct {
     Description          string   `json:"description"`
     Capabilities         []string `json:"capabilities"`
     Tags                 []string `json:"tags"`
-    URL                  string   `json:"url"`
+    // URL                  string   `json:"url"`
   }
 
 func (t *TelexAIUsageLog) CreateUsageLog(db *gorm.DB, logger *utility.Logger, ids IDS, req TelexAIChatCompletionsReq, usage external_models.OpenRouterUsage) error {

@@ -61,6 +61,10 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 
 	if req.Stream {
 		//TODO: implement streaming later
+
+		rd := utility.BuildErrorResponse(http.StatusNotImplemented, "error", "Streaming is not implemented yet", "Streaming is not implemented yet", nil)
+		c.JSON(http.StatusNotImplemented, rd)
+		return
 	} else {
 		response, code, err := telexai.ChatCompletions(base.Db, base.Logger, req, base.ExtReq, ids)
 		if err != nil {

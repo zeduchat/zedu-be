@@ -18,13 +18,6 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 		telexlogs models.TelexAIUsageLog
 	)
 
-	if !req.IsValidModel() {
-		logger.Error("invalid requested model: %s \n", req.Model)
-		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, fmt.Errorf("invalid or unsupported model: %s", req.Model)
-	}
-
-	// TODO: OrgID is useful for handling payments and premium access per organisation
-
 	openRouterPayload := external_models.OpenRouterReq{
 		Model:    req.GetModel(),
 		Messages: req.Messages,
@@ -38,24 +31,28 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 	logger.Info(fmt.Sprintf("Making request to model: %s for org: %s", req.GetModel(), ids.OrganisationID))
 	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
 	if err != nil {
+		if strings.Contains(err.Error(), "429") {
+			logger.Error("OpenRouter API call failed with 429: ", err)
+			return models.TelexAIChatCompletionsResp{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
+		}
 		logger.Error("OpenRouter API call failed: ", err)
-		return models.TelexAIChatCompletionsResp{}, http.StatusInternalServerError, err
+		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, err
 	}
 	result, ok := res.(external_models.OpenRouterResp)
 	if !ok {
 		logger.Error("failed to get chat completions: ", err)
-		return models.TelexAIChatCompletionsResp{}, http.StatusInternalServerError, err
-	}
-
-
-	if err := telexlogs.CreateUsageLog(db.Postgresql, logger, ids, req, result.Usage); err != nil {
-		logger.Error("failed to create usage log: ", err)
-		return models.TelexAIChatCompletionsResp{}, http.StatusInternalServerError, fmt.Errorf("failed to create usage log: %w", err)
+		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, err
 	}
 
 	if len(result.Choices) == 0 {
-		return models.TelexAIChatCompletionsResp{}, http.StatusInternalServerError, fmt.Errorf("empty response")
+		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, fmt.Errorf("empty response")
 	}
+
+	if err := telexlogs.CreateUsageLog(db.Postgresql, logger, ids, req, result.Usage); err != nil {
+		logger.Error("failed to create usage log: ", err)
+		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, fmt.Errorf("failed to create usage log: %w", err)
+	}
+
 	resp := models.TelexAIChatCompletionsResp{
 		Messages: result.Choices[0].Message,
 	}
@@ -148,7 +145,6 @@ func ListModels() (map[string]interface{}, error) {
 				Description:          "Flagship multimodal model with superior reasoning and general knowledge. Best for complex tasks and professional use.",
 				Capabilities:         []string{"multimodal", "advanced reasoning", "long-form generation"},
 				Tags:                 []string{"premium", "high-accuracy", "multimodal"},
-				URL:                  "https://openrouter.ai/openai/gpt-4",
 			},
 		},
 	}
@@ -156,25 +152,31 @@ func ListModels() (map[string]interface{}, error) {
 }
 
 func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChatCompletionsReq) string {
-	// Priority 1: Header
+	availableModels, _ := ListModels()
+	models := availableModels["models"].([]models.TelexAIModels)
+	modelMap := make(map[string]bool)
+	for _, model := range models {
+		modelMap[model.ID] = true
+	}
+
+	var selectedModel string
 	if headerModel := c.GetHeader("X-Model"); headerModel != "" {
 		logger.Info("Model selected via header: ", headerModel)
-		return strings.TrimSpace(headerModel)
-	}
-
-	// Priority 2: Query parameter
-	if queryModel := c.Query("model"); queryModel != "" {
+		selectedModel = strings.TrimSpace(headerModel)
+	} else if queryModel := c.Query("model"); queryModel != "" {
 		logger.Info("Model selected via query: ", queryModel)
-		return strings.TrimSpace(queryModel)
-	}
-
-	// Priority 3: Request body
-	if req.Model != "" {
+		selectedModel = strings.TrimSpace(queryModel)
+	} else if req.Model != "" {
 		logger.Info("Model selected via body: ", req.Model)
-		return strings.TrimSpace(req.Model)
+		selectedModel = strings.TrimSpace(req.Model)
+	} else {
+		logger.Info("Using default model")
+		selectedModel = "deepseek/deepseek-r1-0528-qwen3-8b:free"
 	}
 
-	// Priority 4: Default
-	logger.Info("Using default model")
-	return "deepseek/deepseek-r1-0528-qwen3-8b:free"
+	if _, exists := modelMap[selectedModel]; !exists {
+		logger.Error("Invalid model selected: ", selectedModel)
+		return "deepseek/deepseek-r1-0528-qwen3-8b:free"
+	}
+	return selectedModel
 }
