@@ -735,7 +735,7 @@ func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.
 
 	exists := postgresql.CheckExists(db, &uc, query, c.ChannelsID, c.UserID)
 
-	if exists && uc.LastThreadId == req.LastThreadId {
+	if !exists {
 		return false
 	}
 

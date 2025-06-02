@@ -497,3 +497,24 @@ func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMe
 
 	return response, nil
 }
+
+func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
+
+	// this section creates default integration
+	var orgIntResp []OrganisationIntegrations
+
+	err := db.Model(&Integrations{}).
+		Select("gen_random_uuid() AS id, id as integration_id,? as org_id, name as app_name, app_description, app_url, app_logo,json_url,false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at", o.ID).
+		Scan(&orgIntResp).Error
+
+	if err != nil {
+		return err
+	}
+
+	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
