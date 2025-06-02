@@ -28,7 +28,7 @@ var (
 	SlackGetManifest    string = "slack_get_manifest"
 	SlackGetAccessToken string = "slack_get_access_token"
 	AgentJsonContent    string = "fetch_agent_json_content"
-  GetChatCompletions     string = "get_open_router_chat_completions"
+	GetChatCompletions  string = "get_open_router_chat_completions"
 	SendAgentAPIKey     string = "send_agent_api_key"
 )
 
@@ -115,8 +115,6 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			}
 			return obj.RetriveJsonData()
 		case GetChatCompletions:
-			// openRouterReq := data.(models.OpenRouterReq)
-
 			obj := openrouter.RequestObj{
 				Name:         name,
 				Path:         openrouter.OpenRouterUrl,

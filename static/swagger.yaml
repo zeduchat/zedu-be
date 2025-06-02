@@ -5555,6 +5555,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /telexai/chat/:
+    post:
+      tags:
+        - TelexAI
+      summary: Handle chat completions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelexAIChatCompletionsReq'
+      responses:
+        '200':
+          description: Chat completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelexAIChatCompletionsResp'
+        '400':
+          description: Bad request due to malformed JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /invite:
     post:
       tags:
