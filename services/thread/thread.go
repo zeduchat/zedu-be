@@ -299,7 +299,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 	}
 
 	chanExist, _ := channel.CheckChannelExists(db, channelID)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, channelID)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, channelID, userID)
 
 	if !(dmChanExist || chanExist) {
 		return http.StatusNotFound, errors.New("channel does not exist")
@@ -331,9 +331,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		publishDst = channel.OrganisationID
 	} else {
 		if dmChannel.ChannelType == "dm" {
-			var dmChan models.DmChannels
-			_, _ = dmChan.FetchUserChannel(db, channelID, userID)
-			publishDst = *dmChan.ParticipantId
+			publishDst = *dmChannel.ParticipantId
 		}
 	}
 
@@ -403,7 +401,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	}
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelId)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelId, userID)
 
 	if !(dmChanExist || chanExist) {
 		return threadResp, http.StatusNotFound, errors.New("channel does not exist")
@@ -430,9 +428,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		publishDst = channel.OrganisationID
 	} else {
 		if dmChannel.ChannelType == "dm" {
-			var dmChan models.DmChannels
-			_, _ = dmChan.FetchUserChannel(db, req.ChannelId, userID)
-			publishDst = *dmChan.ParticipantId
+			publishDst = *dmChannel.ParticipantId
 		}
 	}
 

@@ -175,7 +175,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	}
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId, userID)
 
 	if !(dmChanExist || chanExist) {
 		return &newMsg, http.StatusNotFound, errors.New("channel does not exist")
@@ -200,9 +200,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		publishDst = channel.OrganisationID
 
 	} else {
-		var dmChan models.DmChannels
-		_, _ = dmChan.FetchUserChannel(db, req.ChannelsId, req.UserId)
-		publishDst = *dmChan.ParticipantId
+		publishDst = *dmChannel.ParticipantId
 	}
 
 	err = newMsg.GetMessageById(db, message.ID)
@@ -295,7 +293,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	)
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId, req.UserId)
 
 	if !(dmChanExist || chanExist) {
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
@@ -332,9 +330,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		publishDst = channel.OrganisationID
 	} else {
 		if dmChannel.ChannelType == "dm" {
-			var dmChan models.DmChannels
-			_, _ = dmChan.FetchUserChannel(db, req.ChannelsId, req.UserId)
-			publishDst = *dmChan.ParticipantId
+			publishDst = *dmChannel.ParticipantId
 		}
 	}
 
