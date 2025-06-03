@@ -88,6 +88,8 @@ tags:
     description: API endpoints for managing notification preferences
   - name: General-Invitation
     description: API endpoints for organisation general invitation
+  - name: TelexAI
+    description: API endpoints for telex AI
 
 paths:
   # Auth paths
@@ -5554,43 +5556,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
-  /telexai/chat/:
-    post:
-      tags:
-        - TelexAI
-      summary: Handle chat completions
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TelexAIChatCompletionsReq'
-      responses:
-        '200':
-          description: Chat completed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TelexAIChatCompletionsResp'
-        '400':
-          description: Bad request due to malformed JSON
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '422':
-          description: Validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /invite:
     post:
@@ -14254,6 +14219,138 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+  /telexai/chat:
+    post:
+      tags:
+        - TelexAI
+      summary: Send a chat message to a TelexAI model
+      parameters:
+        - in: header
+          name: X-TELEX-API-KEY
+          schema:
+            type: string
+          required: true
+          example: tlx-TXFh-VN/rfeCdKmeEOPh1J4gXs14Mc568JCGkbzLDcof2JL4qZKqxmjJmrz5G12taqfhlQUFsmZvjPOtEC1n/Q
+        - in: header
+          name: X-Model
+          schema:
+            type: string
+          required: true
+          example: deepseek/deepseek-r1-0528:free
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organisation_id:
+                  type: string
+                model:
+                  type: string
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+                stream:
+                  type: boolean
+              required:
+                - organisation_id
+                - model
+                - messages
+      responses:
+        '200':
+          description: Chat response from model
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      Messages:
+                        type: object
+                        properties:
+                          role:
+                            type: string
+                          content:
+                            type: string
+  /telexai/models:
+    get:
+      tags:
+        - TelexAI
+      summary: List all available models
+      parameters:
+        - in: header
+          name: X-TELEX-API-KEY
+          schema:
+            type: string
+          required: true
+          example: tlx-TXFh-VN/rfeCdKmeEOPh1J4gXs14Mc568JCGkbzLDcof2JL4qZKqxmjJmrz5G12taqfhlQUFsmZvjPOtEC1n/Q
+      responses:
+        '200':
+          description: List of models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      models:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            provider:
+                              type: string
+                            pricing:
+                              type: string
+                            context:
+                              type: integer
+                            created_at:
+                              type: string
+                              format: date
+                            input_cost_per_million:
+                              type: number
+                            output_cost_per_million:
+                              type: number
+                            type:
+                              type: string
+                            description:
+                              type: string
+                            capabilities:
+                              type: array
+                              items:
+                                type: string
+                            tags:
+                              type: array
+                              items:
+                                type: string
+
 
 
 components:
@@ -14731,40 +14828,6 @@ components:
           type: string
           format: date-time
           example: "0001-01-01T00:00:00Z"
-    
-    TelexAIChatCompletionsReq:
-      type: object
-      required:
-        # - org_id
-        - messages
-      properties:
-        # org_id:
-          # type: string
-          # example: "0191475b-7a5d-795f-a04b-8c2ff5344778"
-        messages:
-          type: array
-          items:
-            type: object
-            properties:
-              role:
-                type: string
-                enum: [system, user, assistant]
-                example: "user"
-              content:
-                type: string
-                example: "Who is Elon?"
-    TelexAIChatCompletionsResp:
-      type: object
-      properties:
-        Messages:
-          type: object
-          properties:
-            role:
-              type: string
-              example: "assistant"
-            content:
-              type: string
-              example: "Hi there, a query ticket has been created and we handle your query in no time"
 
     NotFoundErrorSchema:
       type: object
