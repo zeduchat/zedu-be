@@ -200,7 +200,9 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		publishDst = channel.OrganisationID
 
 	} else {
-		publishDst = *dmChannel.ParticipantId
+		var dmChan models.DmChannels
+		_, _ = dmChan.FetchUserChannel(db, req.ChannelsId, req.UserId)
+		publishDst = *dmChan.ParticipantId
 	}
 
 	err = newMsg.GetMessageById(db, message.ID)
@@ -284,7 +286,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
-		message     models.Message
+		message    models.Message
 		newMsg     models.MessageDocument
 		channel    models.Channels
 		dmChannel  models.DmChannels
@@ -330,7 +332,9 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		publishDst = channel.OrganisationID
 	} else {
 		if dmChannel.ChannelType == "dm" {
-			publishDst = *dmChannel.ParticipantId
+			var dmChan models.DmChannels
+			_, _ = dmChan.FetchUserChannel(db, req.ChannelsId, req.UserId)
+			publishDst = *dmChan.ParticipantId
 		}
 	}
 

@@ -108,7 +108,9 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 
 	// Handle DM-specific case
 	if channel.ChannelType == "dm" {
-		err = centrifuge.BatchBroadcastToChannel(logger, []string{*channel.ParticipantId, req.UserId}, notification)
+		var dmChan models.DmChannels
+		_, _ = dmChan.FetchUserChannel(db.Postgresql, req.ChannelsId, req.UserId)
+		err = centrifuge.BatchBroadcastToChannel(logger, []string{*dmChan.ParticipantId, req.UserId}, notification)
 		if err != nil {
 			logger.Error("Error Publishing to participant id: %s, error: %v", channel.ParticipantId, err.Error())
 			return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())

@@ -331,7 +331,9 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		publishDst = channel.OrganisationID
 	} else {
 		if dmChannel.ChannelType == "dm" {
-			publishDst = *dmChannel.ParticipantId
+			var dmChan models.DmChannels
+			_, _ = dmChan.FetchUserChannel(db, channelID, userID)
+			publishDst = *dmChan.ParticipantId
 		}
 	}
 
@@ -428,7 +430,9 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		publishDst = channel.OrganisationID
 	} else {
 		if dmChannel.ChannelType == "dm" {
-			publishDst = *dmChannel.ParticipantId
+			var dmChan models.DmChannels
+			_, _ = dmChan.FetchUserChannel(db, req.ChannelId, userID)
+			publishDst = *dmChan.ParticipantId
 		}
 	}
 

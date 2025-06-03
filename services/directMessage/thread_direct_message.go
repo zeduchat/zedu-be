@@ -132,7 +132,9 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	// Handle DM-specific case
 	if channel.ChannelType == "dm" {
-		err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
+		var dmChan models.DmChannels
+		_, _ = dmChan.FetchUserChannel(db.Postgresql, req.ChannelsID, req.UserId)
+		err = centrifuge.PublishChannel(logger, *dmChan.ParticipantId, notification)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", *channel.ParticipantId, err))
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish to participant")
