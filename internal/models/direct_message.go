@@ -377,13 +377,10 @@ func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID, userId string) (
 	if r.ChannelType == "dm" && userId != "" {
 		dmChan := DmChannels{}
 		exists := postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", channelID, userId)
-		if *dmChan.ParticipantId == userId {
-			*dmChan.ParticipantId = dmChan.UserId
-		}
-		r = &dmChan
 		if !exists {
 			return exists, errors.New("channel does not exist")
 		}
+		*r = dmChan
 	}
 
 	return exists, nil
