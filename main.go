@@ -29,7 +29,7 @@ import (
 )
 
 func main() {
-	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the app
+	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the apps
 
 	configuration := config.Setup(logger, "./app")
 	stripe.Key = configuration.Stripe.STRIPE_KEY
