@@ -13,11 +13,11 @@ import (
 
 func GetRecentLogs(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
-	logs := logs.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	logsHandler := logs.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	logUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
 
 	{
-		logUrl.GET("/logs", logs.GetTailLogs)
+		logUrl.GET("/logs", logsHandler.GetTailLogs)
 	}
 
 	return r
