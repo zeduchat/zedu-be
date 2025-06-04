@@ -88,7 +88,7 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to start transaction: %s", tx.Error)
 	}
 
-	defer func(){
+	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 			logger.Error("transaction failed", fmt.Errorf("%v", r))
@@ -128,16 +128,11 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 		og     models.Organisation
 	)
 
-	org, err := og.CheckOrgExists(req.OrganisationID, db)
+	_, err := og.CheckOrgExists(req.OrganisationID, db)
 	if err != nil {
 		return resp, http.StatusNotFound, err
 	}
 
-	if org.OwnerID != user_id {
-		return resp, http.StatusUnauthorized, fmt.Errorf("only organisation admins can create invitation")
-	}
-
-	
 	generateShareableInviteResponse := func(invite models.GeneralInvitation) models.ShareableInviteResponse {
 		return models.ShareableInviteResponse{
 			InvitationLink: utility.GenerateGeneralInvitationLink(base_url, invite.OrganisationID, invite.Token),
@@ -145,7 +140,7 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 			Created_At:     invite.CreatedAt,
 		}
 	}
-	
+
 	err, _ = postgresql.SelectOneFromDb(db, &invite,
 		"organisation_id = ? AND active_status = ? AND expires_at > ?",
 		req.OrganisationID,
