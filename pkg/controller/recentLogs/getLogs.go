@@ -8,7 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/logs"
+	"github.com/hngprojects/telex_be/services/recentLogs"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -27,7 +27,7 @@ func (base *Controller) GetTailLogs(c *gin.Context) {
 		lines = 100
 	}
 
-	result, err := logs.TailLines("logs/app.log", lines)
+	result, err := recentLogs.TailLines("logs/app.log", lines)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read logs", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
