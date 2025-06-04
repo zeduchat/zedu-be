@@ -2,10 +2,13 @@ package request
 
 import (
 	"fmt"
+	"net/http"
 
+	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/mocks"
 	"github.com/hngprojects/telex_be/external/thirdparty/integrations"
 	"github.com/hngprojects/telex_be/external/thirdparty/ipstack"
+	"github.com/hngprojects/telex_be/external/thirdparty/openrouter"
 	"github.com/hngprojects/telex_be/external/thirdparty/slack"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
@@ -25,6 +28,7 @@ var (
 	SlackGetManifest    string = "slack_get_manifest"
 	SlackGetAccessToken string = "slack_get_access_token"
 	AgentJsonContent    string = "fetch_agent_json_content"
+	GetChatCompletions  string = "get_open_router_chat_completions"
 	SendAgentAPIKey     string = "send_agent_api_key"
 )
 
@@ -110,6 +114,18 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				Timeout:      true,
 			}
 			return obj.RetriveJsonData()
+		case GetChatCompletions:
+			obj := openrouter.RequestObj{
+				Name:         name,
+				Path:         openrouter.OpenRouterUrl,
+				Method:       http.MethodPost,
+				SuccessCode:  http.StatusOK,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data.(external_models.OpenRouterReq),
+				Logger:       er.Logger,
+				Timeout:      true,
+			}
+			return obj.GetChatCompletions()
 		case SendAgentAPIKey:
 			data_content := data.(map[string]interface{})
 			obj := integrations.RequestObj{

@@ -74,6 +74,8 @@ tags:
     description: API for group direct message
   - name: Bots
     description: API endpoints for bots
+  - name: TelexAI
+    description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
   - name: Mongogrations
     description: API endpoints for integrations to interact with a mongoDB instance through telex
   - name: File Management
@@ -86,6 +88,8 @@ tags:
     description: API endpoints for managing notification preferences
   - name: General-Invitation
     description: API endpoints for organisation general invitation
+  - name: TelexAI
+    description: API endpoints for telex AI
 
 paths:
   # Auth paths
@@ -7149,9 +7153,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
 
-  /dms/channels/{channel_id}/messages/message_id:
+  
+  /dms/channels/{channel_id}/messages/{message_id}:
+
     delete:
       tags:
         - Direct Message
@@ -7694,7 +7700,7 @@ paths:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}:
-    Delete:
+    delete:
       tags:
         - Direct Message
       summary: Retrieve DM channels
@@ -14213,6 +14219,138 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+  /telexai/chat:
+    post:
+      tags:
+        - TelexAI
+      summary: Send a chat message to a TelexAI model
+      parameters:
+        - in: header
+          name: X-TELEX-API-KEY
+          schema:
+            type: string
+          required: true
+          example: tlx-TXFh-VN/rfeCdKmeEOPh1J4gXs14Mc568JCGkbzLDcof2JL4qZKqxmjJmrz5G12taqfhlQUFsmZvjPOtEC1n/Q
+        - in: header
+          name: X-Model
+          schema:
+            type: string
+          required: true
+          example: deepseek/deepseek-r1-0528:free
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                organisation_id:
+                  type: string
+                model:
+                  type: string
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+                stream:
+                  type: boolean
+              required:
+                - organisation_id
+                - model
+                - messages
+      responses:
+        '200':
+          description: Chat response from model
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      Messages:
+                        type: object
+                        properties:
+                          role:
+                            type: string
+                          content:
+                            type: string
+  /telexai/models:
+    get:
+      tags:
+        - TelexAI
+      summary: List all available models
+      parameters:
+        - in: header
+          name: X-TELEX-API-KEY
+          schema:
+            type: string
+          required: true
+          example: tlx-TXFh-VN/rfeCdKmeEOPh1J4gXs14Mc568JCGkbzLDcof2JL4qZKqxmjJmrz5G12taqfhlQUFsmZvjPOtEC1n/Q
+      responses:
+        '200':
+          description: List of models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      models:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            provider:
+                              type: string
+                            pricing:
+                              type: string
+                            context:
+                              type: integer
+                            created_at:
+                              type: string
+                              format: date
+                            input_cost_per_million:
+                              type: number
+                            output_cost_per_million:
+                              type: number
+                            type:
+                              type: string
+                            description:
+                              type: string
+                            capabilities:
+                              type: array
+                              items:
+                                type: string
+                            tags:
+                              type: array
+                              items:
+                                type: string
+
 
 
 components:

@@ -9,17 +9,15 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/mongogrations"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	mongogrations := mongogrations.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	store := mongodb.MongoStore{}
 
 	baseUrl := fmt.Sprintf("%v/agent_db/collections", ApiVersion)
-	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger, &store))
+	mongogrationsUrl := r.Group(baseUrl, middleware.APIKeyAuthMiddleware(db.Postgresql, logger, true))
 
 	{
 		mongogrationsUrl.POST("", mongogrations.CreateCollection)
@@ -29,7 +27,7 @@ func Mongogrations(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		mongogrationsUrl.PUT("/:collection_name/documents/:document_id", mongogrations.UpdateDocument)
 		mongogrationsUrl.DELETE("/:collection_name/documents/:document_id", mongogrations.DeleteDocument)
 	}
-	
+
 	baseUrl1 := fmt.Sprintf("%v/organisation", ApiVersion)
 	mongogrationsUrl1 := r.Group(baseUrl1, middleware.Authorize(db.Postgresql))
 	{
