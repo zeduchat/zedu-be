@@ -49,6 +49,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
+
 	messageType := "message"
 	if req.Type != "" {
 		messageType = req.Type
