@@ -72,14 +72,12 @@ func ListAllModels(logger *utility.Logger, extReq request.ExternalRequest, redis
     if err == nil && len(cachedModels) > 0 {
         logger.Info("Using cached models from Redis")
         
-        // First unmarshal to remove outer quotes
         var rawJSON string
         if err := json.Unmarshal([]byte(cachedModels), &rawJSON); err != nil {
             logger.Error("Failed to unmarshal outer JSON: ", err)
             return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal outer JSON: %w", err)
         }
 
-        // Then unmarshal the inner JSON to our struct
         var cachedModelsList external_models.OpenRouterModelsResponse
         if err := json.Unmarshal([]byte(rawJSON), &cachedModelsList); err != nil {
             logger.Error("Failed to unmarshal inner JSON: ", err)
@@ -100,7 +98,6 @@ func ListAllModels(logger *utility.Logger, extReq request.ExternalRequest, redis
 		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("invalid response format for models")
 	}
 
-	// Cache the models in Redis
 	modelsJSON, err := json.Marshal(modelsList)
 	if err != nil {
 		logger.Error("Failed to marshal models for caching: ", err)
