@@ -45,10 +45,11 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
-	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID, req.UserId)
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
+
 	messageType := "message"
 	if req.Type != "" {
 		messageType = req.Type
@@ -210,7 +211,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
-	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID, req.UserId)
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
@@ -350,7 +351,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 
 		dmchannel := models.DmChannels{}
 
-		res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+		res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID, req.UserId)
 
 		if !res || err != nil {
 			return &thread, http.StatusBadRequest, err
@@ -418,7 +419,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		threadResp models.ThreadDocument
 	)
 
-	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID)
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}

@@ -42,7 +42,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return nil, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
-	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsId)
+	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsId, req.UserId)
 	if !ch || err != nil {
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
 	}

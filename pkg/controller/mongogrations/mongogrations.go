@@ -11,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/mongogrations"
 	"github.com/hngprojects/telex_be/utility"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,10 +44,10 @@ func (base *Controller) CreateCollection(c *gin.Context) {
 		return
 	}
 
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		base.Logger.Error("failed to fetch api key credentials", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to fetch api key credentials", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -89,10 +90,10 @@ func (base *Controller) CreateDocument(c *gin.Context) {
 		return
 	}
 
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		base.Logger.Error("failed to fetch api key credentials", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to fetch api key credentials", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -142,17 +143,15 @@ func (base *Controller) GetAllDocuments(c *gin.Context) {
 		return
 	}
 
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		base.Logger.Error("failed to fetch api key credentials", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to fetch api key credentials", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	fullCollectionName := fmt.Sprintf("agent_%v_%v", ids.AgentID, collection_name)
-
-	// Call the service layer
 
 	results, err := mongogrations.GetAllDocuments(base.Db.Mongo, fullCollectionName, req.Filter, ids)
 	if err != nil {
@@ -190,10 +189,10 @@ func (base *Controller) GetDocument(c *gin.Context) {
 		return
 	}
 
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err.Error())
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		base.Logger.Error("failed to fetch api key credentials", err.Error())
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to fetch api key credentials", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -245,10 +244,10 @@ func (base *Controller) UpdateDocument(c *gin.Context) {
 		return
 	}
 
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		base.Logger.Error("failed to fetch api key credentials", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to fetch api key credentials", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -291,10 +290,10 @@ func (base *Controller) DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	ids, err := mongogrations.FetchMongoAgentIDs(c)
+	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
-		base.Logger.Error("Failed to fetch agent IDs", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch agent IDs", err.Error(), nil)
+		base.Logger.Error("failed to fetch api key credentials", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to fetch api key credentials", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

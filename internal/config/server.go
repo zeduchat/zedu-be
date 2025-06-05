@@ -18,4 +18,5 @@ type App struct {
 	ResetPasswordDuration int
 	WebhookApiUrl         string
 	FRONTEND_URL          string
+	OpenRouterApiKey      string
 }

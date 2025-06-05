@@ -29,7 +29,7 @@ import (
 )
 
 func main() {
-	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the app
+	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the apps
 
 	configuration := config.Setup(logger, "./app")
 	stripe.Key = configuration.Stripe.STRIPE_KEY
@@ -42,7 +42,7 @@ func main() {
 	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
-	firebase.ConnectFirebase(logger, configuration.Firebae)
+	firebase.ConnectFirebase(logger, configuration.Firebase)
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 
 	validatorRef := validator.New()

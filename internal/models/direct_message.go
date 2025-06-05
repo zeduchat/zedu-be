@@ -366,12 +366,21 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	return dmChansResp, paginationResp, nil
 }
 
-func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
+func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID, userId string) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ?", channelID)
 
 	if !exists {
 		return exists, errors.New("channel does not exist")
+	}
+
+	if r.ChannelType == "dm" && userId != "" {
+		dmChan := DmChannels{}
+		exists := postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", channelID, userId)
+		if !exists {
+			return exists, errors.New("channel does not exist")
+		}
+		*r = dmChan
 	}
 
 	return exists, nil
