@@ -73,13 +73,14 @@ func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.
 
 	fcmTokens, err := fcmtokens.GetFcmTokenByUserIds(userArr, db)
 
+	if len(fcmTokens) == 0 {
+		return nil
+	}
+
+
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
 		return err
-	}
-
-	if len(fcmTokens) == 0 {
-		return nil
 	}
 
 	title := fmt.Sprintf("#%s ", req.ChannelName)
