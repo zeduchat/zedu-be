@@ -21,7 +21,7 @@ type Configuration struct {
 	Channels     Channels
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
-	Firebae      Firebae
+	Firebase      Firebase
 	MongoDB      MongoDB
 	OpenRouter   OpenRouter
 }
@@ -235,7 +235,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ElasticEndpoint: config.ELASTIC_URL,
 			ElasticApiKey:   config.ELASTIC_API_KEY,
 		},
-		Firebae: Firebae{
+		Firebase: Firebase{
 			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
 		},
 		MongoDB: MongoDB{
