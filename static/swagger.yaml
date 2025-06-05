@@ -14496,8 +14496,6 @@ paths:
                               items:
                                 type: string
 
-<<<<<<< HEAD
-=======
   /logs:
     get:
       tags:
@@ -14545,7 +14543,6 @@ paths:
                     type: string
                     example: "file not found or inaccessible"
 
->>>>>>> be39d8162ad95897feae893636810972e5834d33
 components:
   schemas:
     OptInSchema:
