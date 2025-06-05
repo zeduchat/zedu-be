@@ -12,7 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func ConnectFirebase(logger *utility.Logger, config config.Firebae) {
+func ConnectFirebase(logger *utility.Logger, config config.Firebase) {
 	opt := option.WithCredentialsFile(config.ServiceFilePath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {

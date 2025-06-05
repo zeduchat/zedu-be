@@ -90,6 +90,8 @@ tags:
     description: API endpoints for organisation general invitation
   - name: TelexAI
     description: API endpoints for telex AI
+  - name: Logs
+    description: API endpoints for retrieving server logs
 
 paths:
   # Auth paths
@@ -14361,6 +14363,7 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+
   /telexai/chat:
     post:
       tags:
@@ -14493,6 +14496,56 @@ paths:
                               items:
                                 type: string
 
+<<<<<<< HEAD
+=======
+  /logs:
+    get:
+      tags:
+        - Logs
+      summary: Retrieve server logs
+      description: Fetches the last N lines of the server log file. Defaults to the last 100 lines if no limit is specified.
+      parameters:
+        - name: lines
+          in: query
+          required: false
+          description: Number of lines to fetch from the end of the log file
+          schema:
+            type: integer
+            example: 100
+      responses:
+        "200":
+          description: Logs retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  [2025/06/04 21:49:49 WAT] [fileLogs] [EROR] (github.com/...)
+                  [2025/06/04 21:49:53 WAT] [fileLogs] [INFO] (github.com/...)
+                  [2025/06/04 21:49:53 WAT] [fileLogs] [EROR] (github.com/...)
+                  [2025/06/04 21:49:54 WAT] [fileLogs] [EROR] (github.com/...)
+                  [2025/06/04 21:49:58 WAT] [fileLogs] [INFO] (github.com/...)
+        "500":
+          description: Failed to read logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to read logs"
+                  error:
+                    type: string
+                    example: "file not found or inaccessible"
+
+>>>>>>> be39d8162ad95897feae893636810972e5834d33
 components:
   schemas:
     OptInSchema:

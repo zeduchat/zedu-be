@@ -1,5 +1,5 @@
 package config
 
-type Firebae struct {
+type Firebase struct {
 	ServiceFilePath string
 }

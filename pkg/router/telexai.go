@@ -21,7 +21,7 @@ func TelexAI(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 
 	{
 		aiProxyUrl.POST("/chat", aiProxyCtrl.RespondToChat)
-		aiProxyUrl.GET("/models", aiProxyCtrl.ListModels)
+		aiProxyUrl.GET("/models", aiProxyCtrl.ListAllModels)
 	}
 	return r
 }

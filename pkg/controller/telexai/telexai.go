@@ -56,7 +56,13 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 	// 	return
 	// }
 
-	model := telexai.ExtractModel(c, base.Logger, req)
+	model, err := telexai.ExtractModel(c, base.Logger, req, base.ExtReq, base.Db.Redis)
+	if err != nil {
+		base.Logger.Error("failed to extract model", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to extract model", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 	req.Model = model
 
 	if req.Stream {
@@ -79,16 +85,16 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 	}
 }
 
-func (base *Controller) ListModels(c *gin.Context) {
-	models, err := telexai.ListModels()
+func (base *Controller) ListAllModels(c *gin.Context) {
+	models, err := telexai.ListAllModels(base.Logger, base.ExtReq, base.Db.Redis)
 	if err != nil {
-		base.Logger.Error("Failed to list models", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to list models", err.Error(), nil)
+		base.Logger.Error("Failed to list all models", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to list all models", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	base.Logger.Info("models listed successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "models listed successfully", models)
+	base.Logger.Info("all models listed successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "all models listed successfully", models)
 	c.JSON(http.StatusOK, rd)
 }

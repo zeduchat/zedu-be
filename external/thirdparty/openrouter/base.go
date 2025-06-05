@@ -18,7 +18,6 @@ type RequestObj struct {
 
 var (
 	JsonDecodeMethod = "json"
-	OpenRouterUrl    = "https://openrouter.ai/api/v1/chat/completions"
 )
 
 func (r *RequestObj) getNewSendRequestObject(data interface{}, headers map[string]string, urlprefix string) *external.SendRequestObject {
