@@ -247,6 +247,18 @@ func (base *Controller) UpdateDeviceNotification(c *gin.Context) {
 		return
 	}
 
+	if !utility.ValidateTimeRange(req.TimeRange) {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", "invalid time range supplied, time range must be in format HH:MM AM/PM - HH:MM AM/PM and start time must be before end time", nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if !ValidateNotifOption(string(req.NotifyAbout)) {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", "invalid notify_about suppplied, notify_about must be one of all_new_messages, mentions or nothing", nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
 	req.OrgID = c.Param("org_id")
 
 	if _, err := uuid.Parse(req.OrgID); err != nil {
@@ -343,4 +355,13 @@ func ValidateDeviceType(device string) (bool, string) {
 
 	return true, ""
 
+}
+
+func ValidateNotifOption(option string) bool {
+	switch models.NotificationOption(option) {
+	case models.AllMessages, models.DirectMentions, models.Nothing:
+		return true
+	default:
+		return false
+	}
 }
