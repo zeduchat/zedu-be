@@ -38,10 +38,36 @@ func (r *RequestObj) GetChatCompletions() (external_models.OpenRouterResp, error
 		"Authorization": "Bearer " + apiKey,
 		"Content-Type":  "application/json",
 	}
-	err = r.getNewSendRequestObject(request, headers, "").SendRequest(&openRouterResponse)
+	err = r.getNewSendRequestObject(request, headers, "/chat/completions").SendRequest(&openRouterResponse)
 	if err != nil {
 		logger.Error("open router get chat completions", openRouterResponse, err.Error())
 		return openRouterResponse, err
 	}
 	return openRouterResponse, nil
+}
+
+
+func (r *RequestObj) GetAllModels() (external_models.OpenRouterModelsResponse, error) {
+	var (
+		openRouterModelsResponse external_models.OpenRouterModelsResponse
+		logger                   = r.Logger
+		config                   = config.GetConfig()
+	)
+
+	apiKey := config.App.OpenRouterApiKey
+	if apiKey == "" {
+		logger.Error("open router get all models", "detail:", "config apiKey not found")
+		return openRouterModelsResponse, fmt.Errorf("config apiKey not found")
+	}
+
+	headers := map[string]string{
+		"Authorization": "Bearer " + apiKey,
+		"Content-Type":  "application/json",
+	}
+	err := r.getNewSendRequestObject(nil, headers, "/models").SendRequest(&openRouterModelsResponse)
+	if err != nil {
+		logger.Error("open router get all models", openRouterModelsResponse, err.Error())
+		return openRouterModelsResponse, err
+	}
+	return openRouterModelsResponse, nil
 }
