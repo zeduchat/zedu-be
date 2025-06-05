@@ -14101,7 +14101,7 @@ paths:
     get:
       tags:
         - Notification Preferences
-      summary: Fetch notification preferences
+      summary: Fetch notification preferences for an oragnisation
       security:
         - bearerAuth: []
       description: Fetch notification preferencesa for an organisation.
