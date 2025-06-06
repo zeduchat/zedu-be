@@ -28,3 +28,14 @@ func AddNotificationToQueue(rdb *redis.Client, name names.NotificationName, data
 
 	return nil
 }
+
+func AddPushNotificationToQueue(rdb *redis.Client, notificationRecord models.PushNotificationRecord) error {
+
+	err := notificationRecord.PushToQueue(rdb)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

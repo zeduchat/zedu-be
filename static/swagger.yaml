@@ -90,6 +90,8 @@ tags:
     description: API endpoints for organisation general invitation
   - name: TelexAI
     description: API endpoints for telex AI
+  - name: Logs
+    description: API endpoints for retrieving server logs
 
 paths:
   # Auth paths
@@ -5445,7 +5447,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-    
+
   /profile/image:
     delete:
       tags:
@@ -7153,11 +7155,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UnprocessedEntityErrorSchema'
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
-  
   /dms/channels/{channel_id}/messages/{message_id}:
-
     delete:
       tags:
         - Direct Message
@@ -9818,7 +9818,7 @@ paths:
                           example: "2024-09-29T04:28:21.076005+01:00"
         404:
           description: Organisation or agent not found.
-  
+
   /organisations/{organisation_id}/agents/{agent_id}/settings:
     post:
       summary: Add a new agent setting
@@ -9874,7 +9874,7 @@ paths:
                     example: Agent setting added successfully
         400:
           description: Invalid request.
- 
+
     patch:
       summary: Update an existing agent setting
       description: Updates a form field's label in the agent settings for a specific organization.
@@ -12202,7 +12202,7 @@ paths:
       responses:
         200:
           description: Document created successfully
-  
+
     get:
       tags:
         - Agent Database
@@ -12227,7 +12227,7 @@ paths:
       responses:
         200:
           description: Documents retrieved successfully
-  
+
   /agent_db/collections/{collection_name}/documents/{document_id}:
     get:
       tags:
@@ -12300,7 +12300,7 @@ paths:
       responses:
         200:
           description: Document updated successfully
-  
+
     delete:
       tags:
         - Agent Database
@@ -12319,7 +12319,6 @@ paths:
       responses:
         200:
           description: Document deleted successfully
-
 
   # firebase fcmtokenpath
   /fcmtoken:
@@ -13873,17 +13872,16 @@ paths:
                   error:
                     type: object
 
-## Notification Preference routes
-
+  ## Notification Preference routes
 
   /channels/{channel_id}/notification-preference:
     post:
       tags:
-      -  Notification Preferences
+        - Notification Preferences
       summary: Add or update channel notification preference
       security:
         - bearerAuth: []
-      description:  Add or update channel notification preference
+      description: Add or update channel notification preference
       parameters:
         - name: channel_id
           in: path
@@ -13891,7 +13889,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: ID of the channel to create the message in.
+          description: ID of the channel.
       requestBody:
         required: true
         content:
@@ -13957,7 +13955,7 @@ paths:
 
     get:
       tags:
-      -  Notification Preferences
+        - Notification Preferences
       summary: Fetch notification preferences
       security:
         - bearerAuth: []
@@ -13969,7 +13967,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: ID of the channel to create the message in.
+          description: ID of the channel.
         - name: device_type
           in: query
           required: true
@@ -14022,11 +14020,157 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
+  /organisations/{orgId}/notification-preference:
+    post:
+      tags:
+        - Notification Preferences
+      summary: Add or update organisation notification preference
+      security:
+        - bearerAuth: []
+      description: Add or update organisation notification preference
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notify_about:
+                  type: string
+                  enum: ["all_new_messages", "mentions", "nothing"]
+                send_mail:
+                  type: boolean
+                  example: true
+                time_range:
+                  type: string
+                  example: "09:00 AM - 05:30 PM"
+                  description: "Time range must be in format HH:MM AM/PM - HH:MM AM/PM and start time must be before end time."
+                device_type:
+                  type: string
+                  format: string
+                  enum: [web, mobile, desktop]
+                  example: web
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+                    example: true
+                  at_mentions:
+                    type: boolean
+                    example: true
+                  at_channel:
+                    type: boolean
+                    example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+    get:
+      tags:
+        - Notification Preferences
+      summary: Fetch notification preferences for an oragnisation
+      security:
+        - bearerAuth: []
+      description: Fetch notification preferencesa for an organisation.
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation.
+        - name: device_type
+          in: query
+          required: true
+          schema:
+            type: string
+            format: string
+            enum: [web, mobile, desktop]
+            example: web
+          description: device type.
+
+      responses:
+        "200":
+          description: notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notify_about:
+                    type: string
+                    enum: ["all_new_messages", "mentions", "nothing"]
+                  send_mail:
+                    type: boolean
+                    example: true
+                  time_range:
+                    type: string
+                    example: "09:00 AM - 05:30 PM"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /organisations/{orgId}/channels/notification-preference:
     get:
       tags:
-      -  Notification Preferences
+        - Notification Preferences
       summary: Fetch notification preferences for channels
       security:
         - bearerAuth: []
@@ -14091,57 +14235,57 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
   /invite/general:
-      post:
-        tags:
-          - General-Invitation
-        summary: Create a general invitation to an organisation
-        requestBody:
-          required: true
+    post:
+      tags:
+        - General-Invitation
+      summary: Create a general invitation to an organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - organisation_id
+                - role_id
+              properties:
+                organisation_id:
+                  type: string
+                  example: "01964d79-283b-710e-9690-c09aa53bb6f3"
+                role_id:
+                  type: string
+                  example: "0191be6d-28ca-7b3c-b0e1-58dc5487ad88"
+      responses:
+        "201":
+          description: Invitation created successfully
           content:
             application/json:
               schema:
                 type: object
-                required:
-                  - organisation_id
-                  - role_id
                 properties:
-                  organisation_id:
+                  status:
                     type: string
-                    example: "01964d79-283b-710e-9690-c09aa53bb6f3"
-                  role_id:
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
                     type: string
-                    example: "0191be6d-28ca-7b3c-b0e1-58dc5487ad88"
-        responses:
-          '201':
-            description: Invitation created successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: success
-                    status_code:
-                      type: integer
-                      example: 201
-                    message:
-                      type: string
-                      example: Invitation created successfully
-                    data:
-                      type: object
-                      properties:
-                        invitation_link:
-                          type: string
-                          example: accept_org_invitation?org_id=01964d79-283b-710e-9690-c09aa53bb6f3&invitation_token=1b4db7eb-4057-5ddf-91e0-36dec72071f5
-                        expires_at:
-                          type: string
-                          format: date-time
-                          example: "2025-05-21T07:36:36.157618+01:00"
-                        created_at:
-                          type: string
-                          format: date-time
-                          example: "2025-05-19T07:36:36.157662+01:00"
+                    example: Invitation created successfully
+                  data:
+                    type: object
+                    properties:
+                      invitation_link:
+                        type: string
+                        example: accept_org_invitation?org_id=01964d79-283b-710e-9690-c09aa53bb6f3&invitation_token=1b4db7eb-4057-5ddf-91e0-36dec72071f5
+                      expires_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-21T07:36:36.157618+01:00"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-19T07:36:36.157662+01:00"
 
   /invite/general/verify:
     post:
@@ -14161,7 +14305,7 @@ paths:
                   type: string
                   example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
       responses:
-        '409':
+        "409":
           description: User is already a member of the organisation
           content:
             application/json:
@@ -14203,7 +14347,7 @@ paths:
                   type: string
                   example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
       responses:
-        '200':
+        "200":
           description: Invitation status updated successfully
           content:
             application/json:
@@ -14219,6 +14363,7 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+
   /telexai/chat:
     post:
       tags:
@@ -14264,7 +14409,7 @@ paths:
                 - model
                 - messages
       responses:
-        '200':
+        "200":
           description: Chat response from model
           content:
             application/json:
@@ -14300,7 +14445,7 @@ paths:
           required: true
           example: tlx-TXFh-VN/rfeCdKmeEOPh1J4gXs14Mc568JCGkbzLDcof2JL4qZKqxmjJmrz5G12taqfhlQUFsmZvjPOtEC1n/Q
       responses:
-        '200':
+        "200":
           description: List of models
           content:
             application/json:
@@ -14351,7 +14496,52 @@ paths:
                               items:
                                 type: string
 
-
+  /logs:
+    get:
+      tags:
+        - Logs
+      summary: Retrieve server logs
+      description: Fetches the last N lines of the server log file. Defaults to the last 100 lines if no limit is specified.
+      parameters:
+        - name: lines
+          in: query
+          required: false
+          description: Number of lines to fetch from the end of the log file
+          schema:
+            type: integer
+            example: 100
+      responses:
+        "200":
+          description: Logs retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  [2025/06/04 21:49:49 WAT] [fileLogs] [EROR] (github.com/...)
+                  [2025/06/04 21:49:53 WAT] [fileLogs] [INFO] (github.com/...)
+                  [2025/06/04 21:49:53 WAT] [fileLogs] [EROR] (github.com/...)
+                  [2025/06/04 21:49:54 WAT] [fileLogs] [EROR] (github.com/...)
+                  [2025/06/04 21:49:58 WAT] [fileLogs] [INFO] (github.com/...)
+        "500":
+          description: Failed to read logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to read logs"
+                  error:
+                    type: string
+                    example: "file not found or inaccessible"
 
 components:
   schemas:
@@ -14784,7 +14974,6 @@ components:
         title: "Mr"
         name_pronounciation: "u-ser-name"
       description: Fields to update in the user profile. All fields are optional; only provided fields will be updated.
-
 
     ProfileResponseSchema:
       type: object
@@ -17450,32 +17639,6 @@ components:
       required:
         - status
 
-    UserNotificationPreferencesResponseSchema:
-      type: object
-      properties:
-        notify_about:
-          type: object
-          properties:
-            option:
-              type: string
-              enum: ["all_new_messages", "direct_messages_mentions", "nothing"]
-        notification_schedule:
-          type: boolean
-        from_hour:
-          type: string
-          format: time
-        to_hour:
-          type: string
-          format: time
-        notification_method_email:
-          type: boolean
-      required:
-        - notify_about
-        - notification_schedule
-        - from_hour
-        - to_hour
-        - notification_method_email
-
     UserNotificationPreferencesUpdateSchema:
       type: object
       properties:
@@ -17503,52 +17666,52 @@ components:
         - appearance
         - notification_method_email
 
-  responses:
-    UnauthorizedError:
-      description: Authentication information is missing or invalid
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              status:
-                type: string
-                example: error
-              message:
-                type: string
-                example: Unauthorized
+      responses:
+        UnauthorizedError:
+          description: Authentication information is missing or invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Unauthorized
 
-    NotFoundError:
-      description: The specified resource was not found
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              status:
-                type: string
-                example: error
-              message:
-                type: string
-                example: Not Found
+        NotFoundError:
+          description: The specified resource was not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Not Found
 
-  parameters:
-    PageLimitParam:
-      name: page
-      in: query
-      description: Page number for pagination
-      required: false
-      schema:
-        type: integer
-        default: 1
-    LimitParam:
-      name: limit
-      in: query
-      description: Number of items per page
-      required: false
-      schema:
-        type: integer
-        default: 10
+        parameters:
+          PageLimitParam:
+            name: page
+            in: query
+            description: Page number for pagination
+            required: false
+            schema:
+              type: integer
+              default: 1
+          LimitParam:
+            name: limit
+            in: query
+            description: Number of items per page
+            required: false
+            schema:
+              type: integer
+              default: 10
 
   securitySchemes:
     bearerAuth:

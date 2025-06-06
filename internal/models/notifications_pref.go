@@ -15,6 +15,7 @@ import (
 
 type NotificationType string
 type SectionType string
+type ChannelType string
 
 var (
 	Updated            NotificationType = "updated"
@@ -26,6 +27,9 @@ var (
 	ReplySection       SectionType      = "reply_message"
 	ChannelsSection    SectionType      = "channels_section"
 	DmChannelsSection  SectionType      = "dm_channels_section"
+	Channel            ChannelType      = "channel"
+	DMChannel          ChannelType      = "dm_channel"
+	GroupDMChannel     ChannelType      = "group_dm_channel"
 )
 
 type Content struct {
@@ -86,12 +90,24 @@ type DeviceNotificationSettings struct {
 	ChannelsID string `json:"channels_id"`
 	UserID     string `json:"user_id"`
 	DeviceType string `json:"device_type" validate:"required,oneof=web mobile desktop"`
+	OrgID      string `json:"organisation_id"`
 }
 
+type NotificationOption string
+
+const (
+	AllMessages    NotificationOption = "all_new_messages"
+	DirectMentions NotificationOption = "mentions"
+	Nothing        NotificationOption = "nothing"
+)
+
 type DeviceNotification struct {
-	Muted      bool `json:"muted"`
-	AtMentions bool `json:"at_mentions"`
-	AtChannel  bool `json:"at_channel"`
+	Muted       bool               `json:"muted,omitempty"`
+	AtMentions  bool               `json:"at_mentions,omitempty"`
+	NotifyAbout NotificationOption `json:"notify_about,omitempty"`
+	AtChannel   bool               `json:"at_channel,omitempty"`
+	SendMail    bool               `json:"send_mail,omitempty"`
+	TimeRange   string             `json:"time_range,omitempty"`
 }
 
 type ChannelNotificationInfo struct {
@@ -217,4 +233,73 @@ func (n *DeviceNotificationSettings) GetUserChannelsNotificationPrefs(db *gorm.D
 	}
 
 	return result, nil
+}
+
+func (n *DeviceNotificationSettings) UpdateDeviceOrgNotification(db *gorm.DB) (DeviceNotification, int, error) {
+	var pref OrgUserManagement
+	exist := postgresql.CheckExists(db, &pref, "organisation_id = ? AND user_id = ?", n.OrgID, n.UserID)
+	if !exist {
+		return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("entry does not exist")
+	}
+
+	if pref.Preferences == nil {
+		pref.Preferences = make(NotificationPreference)
+
+		deviceSettings := pref.Preferences[n.DeviceType]
+		deviceSettings.NotifyAbout = n.NotifyAbout
+		deviceSettings.SendMail = n.SendMail
+		deviceSettings.TimeRange = n.TimeRange
+
+		pref.Preferences[n.DeviceType] = deviceSettings
+
+		// Save the updated preference
+		if err := db.Save(&pref).Error; err != nil {
+			return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("failed to save entry")
+		}
+
+		return deviceSettings, http.StatusOK, db.Save(&pref).Error
+	}
+
+	deviceSettings := pref.Preferences[n.DeviceType]
+	deviceSettings.NotifyAbout = n.NotifyAbout
+	deviceSettings.SendMail = n.SendMail
+	deviceSettings.TimeRange = n.TimeRange
+
+	// Save back to preferences
+	pref.Preferences[n.DeviceType] = deviceSettings
+
+	return deviceSettings, http.StatusOK, db.Save(&pref).Error
+}
+
+func (n *DeviceNotificationSettings) GetOrCreateDeviceOrgNotification(db *gorm.DB) (DeviceNotification, error) {
+
+	var pref OrgUserManagement
+	exist := postgresql.CheckExists(db, &pref, "organisation_id = ? AND user_id = ?", n.OrgID, n.UserID)
+
+	if !exist {
+		return DeviceNotification{}, fmt.Errorf("entry does not exist")
+	}
+
+	// Initialize if nil
+	if pref.Preferences == nil {
+		pref.Preferences = make(NotificationPreference)
+	}
+	// Check if settings for deviceType exist
+	deviceSettings, ok := pref.Preferences[n.DeviceType]
+	if !ok {
+		// If not exist, create default settings
+		deviceSettings = DeviceNotification{
+			NotifyAbout: AllMessages,
+			SendMail:    false,
+			TimeRange:   "12:00 AM - 11:59 PM",
+		}
+		pref.Preferences[n.DeviceType] = deviceSettings
+
+		// Save the updated preference
+		if err := db.Save(&pref).Error; err != nil {
+			return DeviceNotification{}, err
+		}
+	}
+
+	return deviceSettings, nil
 }

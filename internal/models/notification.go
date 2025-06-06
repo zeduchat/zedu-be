@@ -71,10 +71,19 @@ type SendLoginAlertMail struct {
 }
 
 type PushNotificationRecord struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-	Data string `json:"data"`
-	Sent bool   `json:"sent"`
+	ChannelType ChannelType `json:"channel_type"`
+	Section     SectionType `json:"section"`
+	Data        string      `json:"data"`
+	ChannelId   string
+	Sent        bool `json:"sent"`
+}
+
+type NotificationProcessPayload struct {
+	Notification Content
+	OrgId        string
+	ChannelId    string
+	UserId       string
+	ChannelType  ChannelType
 }
 
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {

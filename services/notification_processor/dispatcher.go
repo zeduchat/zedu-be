@@ -20,11 +20,11 @@ type Dispatcher struct {
 	JobQueueCount int64
 	scaleLock     sync.Mutex
 	Metrics       *Metrics
-	DB            storage.Database
+	DB            *storage.Database
 	Logger        *utility.Logger
 }
 
-func NewDispatcher(startWorkers int, maxJobs int, db storage.Database, logger *utility.Logger) *Dispatcher {
+func NewDispatcher(startWorkers int, maxJobs int, db *storage.Database, logger *utility.Logger) *Dispatcher {
 	pool := make(chan WorkerSlot, startWorkers)
 	return &Dispatcher{
 		WorkerPool: pool,
@@ -43,6 +43,7 @@ func (d *Dispatcher) Run() {
 		d.startWorker(i)
 	}
 	go d.dispatch()
+	d.Logger.Info("Started Dispatchers...")
 }
 
 func (d *Dispatcher) startWorker(id int) {
@@ -117,13 +118,13 @@ func (d *Dispatcher) dispatch() {
 
 func (d *Dispatcher) ScaleWorkers(queueLength int) {
 
-	desiredWorkers := queueLength / d.MaxJobs // 1 worker per Max jobs
+	desiredWorkers := queueLength / d.MaxJobs
 
 	if desiredWorkers > d.MaxWorkers {
-		desiredWorkers = d.MaxWorkers // Safety cap
+		desiredWorkers = d.MaxWorkers
 	}
 	if desiredWorkers < 5 {
-		desiredWorkers = 5 // leave 5 workers default
+		desiredWorkers = 5
 	}
 
 	currentWorkers := len(d.Workers)
@@ -158,10 +159,9 @@ func FeedDispatcher(d *Dispatcher) {
 		notificationRecord := models.PushNotificationRecord{}
 		atomic.StoreInt64(&d.Metrics.QueuedJobs, int64(queueLen))
 		d.ScaleWorkers(int(queueLen))
-
 		rec, err := notificationRecord.PopFromQueue(d.DB.Redis)
 		if err != nil {
-			if strings.Contains(err.Error(), "empty queue") {
+			if strings.Contains(err.Error(), "could not pop from Redis queue: redis: nil") {
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}

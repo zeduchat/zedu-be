@@ -29,6 +29,7 @@ var (
 	SlackGetAccessToken string = "slack_get_access_token"
 	AgentJsonContent    string = "fetch_agent_json_content"
 	GetChatCompletions  string = "get_open_router_chat_completions"
+	GetAllModels        string = "get_all_models"
 	SendAgentAPIKey     string = "send_agent_api_key"
 )
 
@@ -42,7 +43,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			obj := ipstack.RequestObj{
 				Name:         name,
 				Path:         fmt.Sprintf("%v", config.IPStack.BaseUrl),
-				Method:       "GET",
+				Method:       http.MethodGet,
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
@@ -53,7 +54,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			obj := slack.RequestObj{
 				Name:         name,
 				Path:         fmt.Sprintf("%v", config.Slack.BaseUrl),
-				Method:       "POST",
+				Method:       http.MethodPost,
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
@@ -64,7 +65,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			obj := slack.RequestObj{
 				Name:         name,
 				Path:         fmt.Sprintf("%v", config.Slack.BaseUrl),
-				Method:       "GET",
+				Method:       http.MethodGet,
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
@@ -77,7 +78,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			obj := slack.RequestObj{
 				Name:         name,
 				Path:         fmt.Sprintf("%v", config.Slack.ManifestUrl),
-				Method:       "GET",
+				Method:       http.MethodGet,
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
@@ -91,7 +92,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			obj := slack.RequestObj{
 				Name:         name,
 				Path:         fmt.Sprintf("%v", config.Slack.BaseUrl),
-				Method:       "POST",
+				Method:       http.MethodPost,
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
@@ -106,7 +107,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			obj := integrations.RequestObj{
 				Name:         name,
 				Path:         data_content["url"],
-				Method:       "GET",
+				Method:       http.MethodGet,
 				SuccessCode:  200,
 				DecodeMethod: JsonDecodeMethod,
 				RequestData:  data,
@@ -114,10 +115,23 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				Timeout:      true,
 			}
 			return obj.RetriveJsonData()
+		case SendAgentAPIKey:
+			data_content := data.(map[string]interface{})
+			obj := integrations.RequestObj{
+				Name:         name,
+				Path:         data_content["url"].(string),
+				Method:       http.MethodPost,
+				SuccessCode:  200,
+				DecodeMethod: JsonDecodeMethod,
+				RequestData:  data_content["payload"].(map[string]string),
+				Logger:       er.Logger,
+			}
+			return obj.SendAgentApiKey()
 		case GetChatCompletions:
+
 			obj := openrouter.RequestObj{
 				Name:         name,
-				Path:         openrouter.OpenRouterUrl,
+				Path:         config.OpenRouter.BaseUrl,
 				Method:       http.MethodPost,
 				SuccessCode:  http.StatusOK,
 				DecodeMethod: JsonDecodeMethod,
@@ -126,18 +140,18 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 				Timeout:      true,
 			}
 			return obj.GetChatCompletions()
-		case SendAgentAPIKey:
-			data_content := data.(map[string]interface{})
-			obj := integrations.RequestObj{
+		case GetAllModels:
+			obj := openrouter.RequestObj{
 				Name:         name,
-				Path:         data_content["url"].(string),
-				Method:       "POST",
-				SuccessCode:  200,
+				Path:         config.OpenRouter.BaseUrl,
+				Method:       http.MethodGet,
+				SuccessCode:  http.StatusOK,
 				DecodeMethod: JsonDecodeMethod,
-				RequestData:  data_content["payload"].(map[string]string),
+				RequestData:  data,
 				Logger:       er.Logger,
+				Timeout:      true,
 			}
-			return obj.SendAgentApiKey()
+			return obj.GetAllModels()
 		default:
 			return nil, fmt.Errorf("request not found")
 		}

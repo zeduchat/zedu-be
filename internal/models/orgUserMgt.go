@@ -12,12 +12,13 @@ import (
 )
 
 type OrgUserManagement struct {
-	UserID         string    `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
-	OrganisationID string    `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
-	Status         string    `gorm:"type:varchar(255)" json:"status"`
-	RoleID         string    `gorm:"type:uuid;null" json:"role_id"`
-	CreatedAt      time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
-	DeletedAt      time.Time `gorm:"index" json:"deleted_at"`
+	UserID         string                 `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
+	OrganisationID string                 `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
+	Status         string                 `gorm:"type:varchar(255)" json:"status"`
+	RoleID         string                 `gorm:"type:uuid;null" json:"role_id"`
+	CreatedAt      time.Time              `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	DeletedAt      time.Time              `gorm:"index" json:"deleted_at"`
+	Preferences    NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
 }
 
 type OrgUserCreateRequest struct {
@@ -61,9 +62,9 @@ type UpdateMemberRequest struct {
 }
 
 type OrgUserRoleInfo struct {
-	RoleID          string `json:"role_id"`
-	RoleName        string `json:"role_name"`
-	OrganisationID  string `json:"organisation_id"`
+	RoleID         string `json:"role_id"`
+	RoleName       string `json:"role_name"`
+	OrganisationID string `json:"organisation_id"`
 }
 
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
@@ -278,16 +279,15 @@ func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID
 	var userRoleInfo OrgUserRoleInfo
 
 	err := db.Table("org_user_managements").
-    Select(`
+		Select(`
         org_user_managements.role_id,
         org_user_managements.organisation_id,
         org_roles.name AS role_name
     `).
-    Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
-    Where("org_user_managements.user_id = ?", userID).
-    Where("org_user_managements.organisation_id = ?", orgID).
-    Scan(&userRoleInfo).Error
-
+		Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
+		Where("org_user_managements.user_id = ?", userID).
+		Where("org_user_managements.organisation_id = ?", orgID).
+		Scan(&userRoleInfo).Error
 
 	if err != nil {
 		return userRoleInfo, fmt.Errorf("failed to get user role in organisation: %v", err)

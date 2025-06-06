@@ -153,5 +153,6 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		return fmt.Errorf("external requests error for request %v, code %v", name, strconv.Itoa(res.StatusCode))
 	}
 
+
 	return nil
 }
