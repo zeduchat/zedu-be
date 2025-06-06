@@ -499,3 +499,13 @@ func (m *MessageDocument) UpdateMessageUsername(logger *utility.Logger, mu *sync
 	logger.Info("Updated username across message index")
 	return nil
 }
+
+func (m *MessageDocument) DeleteSavedMessage(db *storage.Database, logger *utility.Logger, messageId string) error {
+	err := elastic.DeleteDocument(db.Elastic, MessageIndexName, messageId)
+	if err != nil {
+		logger.Error("An error occurred while deleting message: %v", err)
+		return err
+	}
+
+	return nil
+}
