@@ -137,12 +137,12 @@ func GetAgentSettingsAllOrgs(db *gorm.DB, agent_id string) ([]models.Integration
 	return settings, nil
 }
 
-func GetActivatedOrganizations(db *gorm.DB, agent_id string, api_key string) ([]models.Organisation, error) {
+func GetActivatedOrganizations(db *gorm.DB, agent_id string, api_key string) ([]models.Organisation, error, int) {
 	var organisation models.Organisation
 
-	organisations, err := organisation.GetActivatedOrganizations(db, agent_id, api_key)
+	organisations, err, code := organisation.GetActivatedOrganizations(db, agent_id, api_key)
 	if err != nil {
-		return organisations, err
+		return organisations, err, code
 	}
-	return organisations, nil
+	return organisations, nil, 200
 }

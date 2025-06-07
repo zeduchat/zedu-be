@@ -52,20 +52,20 @@ func (us *IntegrationSettings) GetIntegrationSettingsAllOrgs(db *gorm.DB, integr
 	return intSettings, nil
 }
 
-func (org *Organisation) GetActivatedOrganizations(db *gorm.DB, agent_id string, api_key string) ([]Organisation, error) {
+func (org *Organisation) GetActivatedOrganizations(db *gorm.DB, agent_id string, api_key string) ([]Organisation, error, int) {
 	var organisations []Organisation
 	var intSettings []IntegrationSettings
 	var agent OrganisationIntegrations
 
 	err := db.Where("id = ? AND pre_shared_key = ?", agent_id, api_key).First(&agent).Error
 	if err != nil {
-		return nil, fmt.Errorf("agent not found or invalid key: %v", err)
+		return nil, fmt.Errorf("agent not found or invalid agent key: %v", err), 400
 	}
 
 	// Get all integration settings for this agent
 	err = db.Where("integration_id = ?", agent_id).Find(&intSettings).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get integration settings: %v", err)
+		return nil, fmt.Errorf("failed to get integration settings: %v", err), 400
 	}
 
 	// Deduplicate org IDs
@@ -80,15 +80,15 @@ func (org *Organisation) GetActivatedOrganizations(db *gorm.DB, agent_id string,
 	}
 
 	if len(orgIDs) == 0 {
-		return []Organisation{}, nil
+		return []Organisation{}, nil, 400
 	}
 
 	err = db.Where("id IN ?", orgIDs).Find(&organisations).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch organizations: %v", err)
+		return nil, fmt.Errorf("failed to fetch organizations: %v", err), 400
 	}
 
-	return organisations, nil
+	return organisations, nil, 200
 }
 
 func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]IntegrationSettings, error) {

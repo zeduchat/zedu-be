@@ -417,11 +417,11 @@ func (base *Controller) GetActivatedOrganizations(c *gin.Context) {
 		return
 	}
 
-	organisations, err := agents.GetActivatedOrganizations(base.Db.Postgresql, agent_id, api_key)
+	organisations, err, code := agents.GetActivatedOrganizations(base.Db.Postgresql, agent_id, api_key)
 
 	if err != nil {
 		base.Logger.Error("Failed to fetch organisation that has activated this agent!!", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch organisations that has activated this agent!!", err, nil)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
