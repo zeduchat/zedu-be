@@ -30,6 +30,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		Description:    req.Description,
 		OwnerId:        req.UserId,
 		OrganisationID: req.OrganisationID,
+		IsPrivate:      req.IsPrivate,
 	}
 
 	joinChannelsReq.ChannelsID = channel.ID
@@ -58,7 +59,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("%s created and joined the channel", profile.UserName),
+		Content:    fmt.Sprintf("%s created #%s", profile.UserName, channel.Name),
 		Type:       "system",
 		UserId:     req.UserId,
 		ChannelsID: channel.ID,
