@@ -1246,7 +1246,7 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("failed to save agent: 'isPaid' field is missing or invalid")
 	}
 
-	_, ok = data_r["version"].(bool)
+	_, ok = data_r["version"].(string)
 	if !ok {
 		return errors.New("failed to save agent: 'Version' field is missing or invalid")
 	}
@@ -1298,4 +1298,66 @@ func (cis *CustomIntegrationsSetting) FetchAPIKey(db *gorm.DB, ids IDS) (string,
 	}
 
 	return cis.SettingEntry, http.StatusOK, nil
+}
+
+func ValidateAgentVersionAndUpdate(data_r map[string]interface{}, agentID, db *gorm.DB) error {
+	var agent OrganisationIntegrations
+
+	version, ok := data_r["version"].(string)
+	if !ok {
+		return errors.New("failed to save agent: 'version' field is missing or invalid")
+	}
+
+	err := db.Where("id = ?", agentID).First(&agent).Error
+	if err != nil {
+		return fmt.Errorf("agent not found: %v", err)
+	}
+
+	if agent.Version != version {
+		if appName, ok := data_r["app_name"].(string); ok {
+			agent.AppName = appName
+		}
+
+		if appDesc, ok := data_r["app_description"].(string); ok {
+			agent.AppDescription = appDesc
+		}
+
+		if appLogo, ok := data_r["app_logo"].(string); ok {
+			agent.AppLogo = appLogo
+		}
+
+		if provider, ok := data_r["provider"].(string); ok {
+			agent.Provider = provider
+		}
+
+		isPaid, _ := data_r["is_paid"].(bool)
+
+		if isPaid {
+			rawPrices, ok := data_r["prices"]
+			if !ok {
+				return errors.New("failed to save agent: 'prices' field is missing")
+			}
+
+			jsonBytes, err := json.Marshal(rawPrices)
+			if err != nil {
+				return errors.New("failed to save agent: 'prices' field could not be marshaled")
+			}
+
+			var prices JSONPrices
+			if err := json.Unmarshal(jsonBytes, &prices); err != nil {
+				return errors.New("failed to save agent: 'prices' field is invalid")
+			}
+
+			agent.Prices = prices
+		}
+
+		agent.Version = version
+
+		// Save updates
+		if err := db.Save(&agent).Error; err != nil {
+			return fmt.Errorf("failed to update agent info: %v", err)
+		}
+	}
+
+	return nil
 }
