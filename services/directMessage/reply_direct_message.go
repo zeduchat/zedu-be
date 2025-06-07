@@ -106,7 +106,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		ChannelType:  models.DMChannel,
 		Data:         string(dataByte),
 		Sent:         false,
-		ChannelId:    *channel.ParticipantId,
+		ChannelId:    req.ChannelsId,
 		Section:      models.ReplySection,
 		UpdateChange: updateResp,
 		Type:         models.NewMessage,
