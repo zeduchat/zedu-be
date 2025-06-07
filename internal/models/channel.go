@@ -19,20 +19,19 @@ import (
 )
 
 type Channels struct {
-	ID             string  `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name           string  `gorm:"column:name; type:text; not null" json:"name"`
-	Description    string  `gorm:"column:description; type:text; not null" json:"description"`
-	OrganisationID string  `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
-	OwnerId        string  `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	Users          []User  `gorm:"many2many:user_channels;" json:"users,omitempty"`
-	UserCount      int64   `gorm:"-" json:"user_count,omitempty"`
-	MessageCount   int64   `gorm:"-" json:"-"`
-	Archived       bool    `gorm:"column:archived;null; default:false" json:"archived"`
-	GroupID        *string `gorm:"column:group_id; type:uuid;index;" json:"-"`
-
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
-	// Threads   []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
+	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
+	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
+	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
+	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
+	MessageCount   int64     `gorm:"-" json:"-"`
+	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived"`
+	GroupID        *string   `gorm:"column:group_id; type:uuid;index;" json:"-"`
+	IsPrivate      bool      `gorm:"column:is_private;default:false" json:"is_private"`
+	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 }
 
 type UserChannels struct {
@@ -57,6 +56,7 @@ type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
+	IsPrivate      bool   `json:"is_private" validate:"required"`
 	Description    string `json:"description"`
 	UserId         string `json:"user_id"`
 }
@@ -379,6 +379,10 @@ func (r *Channels) AddUserToChannel(db *gorm.DB, req JoinChannelsRequest) (Chann
 		return channel, errors.New("channel does not exist")
 	}
 
+	if channel.IsPrivate && req.UserID != channel.OwnerId {
+		return channel, errors.New("permission denied, channel type is private")
+	}
+
 	var userChannels UserChannels
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	if exist {
@@ -443,6 +447,7 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	var (
 		users        = req.UserIDs
 		channelID    = req.ChannelID
+		userChannel  UserChannels
 		userChanList []UserChannels
 		validUserIds = []string{}
 	)
@@ -450,6 +455,12 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
 		return validUserIds, errors.New("channel does not exist")
+	}
+
+	inviterExist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channelID, req.UserID)
+
+	if r.IsPrivate && !inviterExist {
+		return validUserIds, errors.New("invitation denied, inviter not in channel!")
 	}
 
 	for _, user := range users {
@@ -676,7 +687,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 	chanResp := make(GetUserChannelResp, 0)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.organisation_id = ? AND uc.user_id = ?", ids.OrganisationID, ids.UserID).
 		Order("channels.created_at").
@@ -854,7 +865,7 @@ func (uc *UserChannels) GetUserChannel(base *storage.Database, userId, channel_i
 	)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id,  channels.is_private, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.id = ? AND uc.user_id = ?", channel_id, userId).
 		Order("channels.created_at").
@@ -873,7 +884,7 @@ func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, user
 	)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.id = ? AND uc.user_id != ?", channel_id, userId).
 		Order("channels.created_at").

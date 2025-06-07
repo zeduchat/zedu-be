@@ -688,8 +688,26 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 
 func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
-		threads []Threads
+		threads     []Threads
+		channel     Channels
+		userChannel UserChannels
+		dmChannel   DmChannels
 	)
+
+	chanExist, _ := channel.CheckChannelExists(db, channelID)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, channelID, userId)
+
+	if !(dmChanExist || chanExist) {
+		return nil, &elastic.PaginationResponse{}, errors.New("channel does not exist")
+	}
+
+	if chanExist {
+		userExist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channelID, userId)
+
+		if channel.IsPrivate && !userExist {
+			return nil, &elastic.PaginationResponse{}, errors.New("permission denied, private channel")
+		}
+	}
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
