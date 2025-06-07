@@ -71,11 +71,14 @@ type SendLoginAlertMail struct {
 }
 
 type PushNotificationRecord struct {
-	ChannelType ChannelType `json:"channel_type"`
-	Section     SectionType `json:"section"`
-	Data        string      `json:"data"`
-	ChannelId   string
-	Sent        bool `json:"sent"`
+	ChannelType        ChannelType            `json:"channel_type"`
+	Section            SectionType            `json:"section"`
+	Data               string                 `json:"data"`
+	ChannelId          string                 `json:"channel_id"`
+	Sent               bool                   `json:"sent"`
+	UpdateChange       map[string]interface{} `json:"update_change"`
+	Type               NotificationType       `json:"type"`
+	ModifcationDetails ModifcationDetails     `json:"modificaion_details"`
 }
 
 type NotificationProcessPayload struct {
