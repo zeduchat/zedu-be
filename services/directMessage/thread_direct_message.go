@@ -442,12 +442,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	// Calculate credit cost based on message and agent price
 	outputLength := len(req.Content)
 
-	var agentPrice float64 = 0.0
-	if val, ok := agentDetails["price"]; ok && val != nil {
-		if price, ok := val.(float64); ok {
-			agentPrice = price
-		}
-	}
+	var agentPrice float64 = 0.0 // temp value
 
 	creditUsed := models.CalculateCreditCost(0, outputLength, agentPrice)
 

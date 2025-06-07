@@ -1,12 +1,12 @@
 package models
 
 import (
+	"database/sql/driver"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -73,25 +73,37 @@ type ActivateChannelAgent struct {
 	Status bool `json:"status"`
 }
 
+type Price struct {
+	Amount        float64 `json:"amount"`
+	OperationType string  `json:"operation_type"`
+	currency      string  `json:"currency"`
+}
+
+type JSONPrices []Price
+
 type OrganisationIntegrations struct {
-	ID             string    `gorm:"type:uuid;primary_key" json:"id"`
-	OrgID          string    `gorm:"type:uuid;" json:"org_id"`
-	IntegrationID  string    `gorm:"type:uuid;" json:"integration_id"`
-	IsActive       bool      `gorm:"type:boolean;default:false" json:"is_active"`
-	IsSystem       bool      `gorm:"type:boolean;default:false" json:"is_system"`
-	IsArchived     bool      `gorm:"type:boolean;default:false" json:"is_archived"`
-	ArchivedAt     time.Time `gorm:"index" json:"-"`
-	JSONSchema     JSONB     `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
-	JSONUrl        string    `gorm:"type:text; column:json_url;" json:"json_url"`
-	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	AppDescription string    `gorm:"column:app_description;type:text;" json:"app_description"`
-	AppName        string    `gorm:"column:app_name;type:text;" json:"app_name"`
-	AppLogo        string    `gorm:"column:app_logo;type:text;" json:"app_logo"`
-	AppUrl         string    `gorm:"column:app_url; type:text;" json:"app_url"`
-	IsPaid         bool      `gorm:"type:boolean;default:false" json:"is_paid"`
-	Price          float64   `gorm:"type:numeric" json:"price"`
-	Currency       string    `gorm:"type:varchar(10)" json:"currency"`
+	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID              string     `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID      string     `gorm:"type:uuid;" json:"integration_id"`
+	IsActive           bool       `gorm:"type:boolean;default:false" json:"is_active"`
+	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
+	IsArchived         bool       `gorm:"type:boolean;default:false" json:"is_archived"`
+	ArchivedAt         time.Time  `gorm:"index" json:"-"`
+	JSONSchema         JSONB      `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
+	JSONUrl            string     `gorm:"type:text; column:json_url;" json:"json_url"`
+	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	AppDescription     string     `gorm:"column:app_description;type:text;" json:"app_description"`
+	AppName            string     `gorm:"column:app_name;type:text;" json:"app_name"`
+	AppLogo            string     `gorm:"column:app_logo;type:text;" json:"app_logo"`
+	AppUrl             string     `gorm:"column:app_url; type:text;" json:"app_url"`
+	IsPaid             bool       `gorm:"type:boolean;default:false" json:"is_paid"`
+	IsApproved         bool       `gorm:"type:boolean;default:false" json:"is_approved"`
+	Prices             JSONPrices `gorm:"type:jsonb" json:"prices"`
+	Version            string     `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
+	Provider           string     `gorm:"type:varchar(50)" json:"provider"`
+	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
+	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -175,6 +187,19 @@ type AgentsResp []struct {
 type AgentResp struct {
 	Integrations
 	Linked bool `json:"linked"`
+}
+
+func (p *JSONPrices) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal JSONPrices: value is not []byte")
+	}
+
+	return json.Unmarshal(bytes, p)
+}
+
+func (p JSONPrices) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {
@@ -1201,15 +1226,25 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("failed to save agent: 'isPaid' field is missing or invalid")
 	}
 
+	_, ok = data_r["version"].(bool)
+	if !ok {
+		return errors.New("failed to save agent: 'Version' field is missing or invalid")
+	}
+
 	if isPaid {
-		_, ok := data_r["price"].(float64)
+		rawPrices, ok := data_r["prices"]
 		if !ok {
-			return errors.New("failed to save agent: 'price' field is missing or not a valid number")
+			return errors.New("failed to save agent: 'prices' field is missing")
 		}
 
-		currency, ok := data_r["currency"].(string)
-		if !ok || strings.TrimSpace(currency) == "" {
-			return errors.New("failed to save agent: 'currency' field is missing or empty")
+		jsonBytes, err := json.Marshal(rawPrices)
+		if err != nil {
+			return errors.New("failed to save agent: 'prices' field could not be marshaled")
+		}
+
+		var prices JSONPrices
+		if err := json.Unmarshal(jsonBytes, &prices); err != nil {
+			return errors.New("failed to save agent: 'prices' field is invalid")
 		}
 	}
 
