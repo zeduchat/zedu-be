@@ -122,6 +122,11 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 			"app_name":        agent.AppName,
 			"app_logo":        agent.AppLogo,
 			"app_description": agent.AppDescription,
+			"version":         agent.Version,
+			"is_paid":         agent.IsPaid,
+			"is_approved":     agent.IsApproved,
+			"provider":        agent.Provider,
+			"prices":          agent.Prices,
 			"agent":           true,
 		}
 	}
