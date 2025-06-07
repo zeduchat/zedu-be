@@ -9,6 +9,9 @@ import (
 	"net/http"
 	"time"
 
+	"crypto/rand"
+	"encoding/hex"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
@@ -18,19 +21,27 @@ import (
 )
 
 type Integrations struct {
-	ID              string    `gorm:"type:uuid;primary_key" json:"id"`
-	Name            string    `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
-	JSONUrl         string    `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
-	AppUrl          string    `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
-	AppLogo         string    `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
-	AppDescription  string    `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
-	IntegrationType string    `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
-	Info            string    `gorm:"colummn:info; type:varchar(255);" json:"info"`
-	IsActive        bool      `gorm:"type:boolean;default:false" json:"is_active"`
-	Category        string    `json:"category"`
-	Status          string    `json:"status"`
-	CreatedAt       time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
+	Name               string     `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
+	JSONUrl            string     `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
+	AppUrl             string     `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
+	AppLogo            string     `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
+	AppDescription     string     `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
+	IntegrationType    string     `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
+	Info               string     `gorm:"colummn:info; type:varchar(255);" json:"info"`
+	IsActive           bool       `gorm:"type:boolean;default:false" json:"is_active"`
+	Category           string     `json:"category"`
+	Status             string     `json:"status"`
+	IsPaid             bool       `gorm:"type:boolean;default:false" json:"is_paid"`
+	IsApproved         bool       `gorm:"type:boolean;default:false" json:"is_approved"`
+	Prices             JSONPrices `gorm:"type:jsonb" json:"prices"`
+	Version            string     `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
+	Provider           string     `gorm:"type:varchar(50)" json:"provider"`
+	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
+	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
+	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
+	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type UpdateAgent struct {
@@ -104,6 +115,7 @@ type OrganisationIntegrations struct {
 	Provider           string     `gorm:"type:varchar(50)" json:"provider"`
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
+	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -200,6 +212,14 @@ func (p *JSONPrices) Scan(value interface{}) error {
 
 func (p JSONPrices) Value() (driver.Value, error) {
 	return json.Marshal(p)
+}
+
+func GenerateAgentKey() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 func (i *Integrations) CreateIntegration(db *gorm.DB, req Integrations) error {

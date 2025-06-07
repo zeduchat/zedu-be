@@ -459,6 +459,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	// Make the external request to the JSON URL
 	data := map[string]string{"url": req.JSONUrl}
 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
 	if err != nil {
 		return int_resp, errors.New("failed to create agent, invalid JSON supplied")
 	}
@@ -470,6 +471,11 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	}
 
 	err = models.ValidateAgentData(data_r)
+	if err != nil {
+		return int_resp, err
+	}
+
+	psk, err := models.GenerateAgentKey()
 	if err != nil {
 		return int_resp, err
 	}
@@ -495,6 +501,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.DefaultInputModes = data_r["default_input_modes"].([]string)
 	orgIntegration.DefaultOutputModes = data_r["default_output_modes"].([]string)
 	orgIntegration.IsPaid = data_r["is_paid"].(bool)
+	orgIntegration.PreSharedKey = psk
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
