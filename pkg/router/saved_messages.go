@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/pkg/controller/savedmessages"
+	"github.com/hngprojects/telex_be/pkg/controller/savedMessages"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -14,7 +14,7 @@ import (
 
 func SavedMessages(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
-	savedMessages := savedmessages.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	savedMessages := savedMessages.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	savedMessagesUrl := r.Group(fmt.Sprintf("%v/messages", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{

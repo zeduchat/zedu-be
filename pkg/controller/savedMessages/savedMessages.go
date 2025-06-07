@@ -1,4 +1,4 @@
-package savedmessages
+package savedMessages
 
 import (
 	"net/http"
@@ -10,7 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/savedmessage"
+	"github.com/hngprojects/telex_be/services/savedMessages"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -48,10 +48,10 @@ func (base *Controller) SaveMessageForLater(c *gin.Context) {
 
 	req.UserId = userId
 
-	messageDocument, err := savedmessage.SaveMsgForLater(req, base.Db, base.Logger)
+	messageDocument, err := savedMessages.SaveMsgForLater(req, base.Db, base.Logger)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to save message", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
@@ -60,7 +60,7 @@ func (base *Controller) SaveMessageForLater(c *gin.Context) {
 }
 
 func (base *Controller) GetAllSavedMessages(c *gin.Context) {
-	file, err := savedmessage.GetAllSavedMessages(base.Db, base.Logger)
+	file, err := savedMessages.GetAllSavedMessages(base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
@@ -75,7 +75,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 func (base *Controller) DeleteMessageByID(c *gin.Context) {
 	messageId := c.Param("id")
 
-	err := savedmessage.DeleteSavedMessage(messageId, base.Db, base.Logger)
+	err := savedMessages.DeleteSavedMessage(messageId, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to delete message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)

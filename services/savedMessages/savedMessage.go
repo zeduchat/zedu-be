@@ -1,28 +1,33 @@
-package savedmessage
+package savedMessages
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func SaveMsgForLater(req models.CreateMessageRequest, db *storage.Database, logger *utility.Logger) (*models.MessageDocument, error) {
 	var (
 		profile       models.Profile
+		channels      models.Channels
 		user          models.User
 		agent_message = false
 	)
-	
+
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
-		fmt.Printf("Thread ID: %v \n", threadId)
 		return nil, errors.New("invalid thread ID")
+	}
+
+	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
+	if !chanExist {
+		return nil, errors.New("channel does not exist")
 	}
 
 	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -40,6 +45,7 @@ func SaveMsgForLater(req models.CreateMessageRequest, db *storage.Database, logg
 	messageDoc := models.MessageDocument{
 		ID:           utility.GenerateUUID(),
 		Content:      req.Content,
+		ChannelsID:   req.ChannelsId,
 		UserID:       req.UserId,
 		ThreadID:     threadId,
 		AgentMessage: agent_message,
@@ -55,16 +61,11 @@ func SaveMsgForLater(req models.CreateMessageRequest, db *storage.Database, logg
 		Mentions:     req.Mentions,
 	}
 
-	fmt.Printf("Message-Doc: %v \n", messageDoc)
-
-	create, createErr := messageDoc.CreateMessage(db, logger)
+	_, createErr := messageDoc.CreateMessageForLater(db, logger)
 	if createErr != nil {
-		logger.Error("failed to save message: %v", err)
+		logger.Error("failed to save message: %v", createErr)
 		return nil, errors.New("failed to save message, error: " + createErr.Error())
 	}
-
-	fmt.Printf("Create: %v \n", create)
-	fmt.Printf("Message: %v", &messageDoc)
 
 	return &messageDoc, nil
 }
@@ -78,7 +79,7 @@ func GetAllSavedMessages(db *storage.Database, logger *utility.Logger) ([]models
 
 	var rawResponse interface{}
 
-	err := elastic.SelectAll(db.Elastic, "messages", query, &rawResponse)
+	err := elastic.SelectAll(db.Elastic, models.SavedMessageIndexName, query, &rawResponse)
 	if err != nil {
 		logger.Error("An error occurred while retrieving messages from elastic: %v", err)
 		return nil, err

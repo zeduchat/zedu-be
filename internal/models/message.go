@@ -18,6 +18,7 @@ import (
 )
 
 var MessageIndexName = "messages"
+var SavedMessageIndexName = "savedmessages"
 
 type Message struct {
 	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
@@ -500,8 +501,30 @@ func (m *MessageDocument) UpdateMessageUsername(logger *utility.Logger, mu *sync
 	return nil
 }
 
+func (m *MessageDocument) CreateMessageForLater(db *storage.Database, logger *utility.Logger) (map[string]interface{}, error) {
+	var (
+		dmChannels   DmChannels
+		userChannels UserChannels
+	)
+
+	updateResp := map[string]interface{}{}
+
+	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ?", m.ChannelsID)
+
+	if !(dmChanExist || chanExist) && !m.AgentMessage {
+		return updateResp, errors.New("user not in channel")
+	}
+
+	err := elastic.AddDocument(db.Elastic, SavedMessageIndexName, m.ID, interface{}(&m), logger)
+	if err != nil {
+		return updateResp, err
+	}	
+	return updateResp, nil
+}
+
 func (m *MessageDocument) DeleteSavedMessage(db *storage.Database, logger *utility.Logger, messageId string) error {
-	err := elastic.DeleteDocument(db.Elastic, MessageIndexName, messageId)
+	err := elastic.DeleteDocument(db.Elastic, SavedMessageIndexName, messageId)
 	if err != nil {
 		logger.Error("An error occurred while deleting message: %v", err)
 		return err
