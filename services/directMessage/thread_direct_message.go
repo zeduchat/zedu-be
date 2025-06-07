@@ -113,6 +113,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		Sent:        false,
 		ChannelId:   *channel.ParticipantId,
 		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
 	}
 
 	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)

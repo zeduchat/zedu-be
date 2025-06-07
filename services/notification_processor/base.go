@@ -28,9 +28,10 @@ func ProcessNotification(req Job, logger *utility.Logger) error {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	notifData := models.Notification[models.NewMessage]
+	notifData := models.Notification[notification.Type]
 	notifData.SectionType = notification.Section
 	notifData.Content = feed
+	notifData.UpdateChange = notification.UpdateChange
 
 	processPayload := models.NotificationProcessPayload{
 		Notification: notifData,
@@ -75,7 +76,13 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		return fmt.Errorf("failed to query entry of userids")
 	}
 
-	err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notifPayload.Notification)
+	orgUserIds := make([]string, 0)
+
+	for _, userId := range userIDs {
+		orgUserIds = append(orgUserIds, fmt.Sprintf("%s:%s", orgId, userId))
+	}
+
+	err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
 	if err != nil {
 		logger.Error("Error Publishing to channelid: %s, with orgid: %s error: %v", channelId, orgId, err.Error())
 		return fmt.Errorf("failed to publish thread data")
@@ -92,6 +99,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		ChannelName: feed.ChannelName,
 		UserIds:     userIDs,
 		Message:     feed.Content,
+		UserId:      userId,
 		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 	}
 
@@ -157,7 +165,13 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				return nil
 			}
 
-			err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notifPayload.Notification)
+			orgUserIds := make([]string, 0)
+
+			for _, userId := range userIDs {
+				orgUserIds = append(orgUserIds, fmt.Sprintf("%s:%s", orgId, userId))
+			}
+
+			err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
 			if err != nil {
 				logger.Error("Error Publishing to group_dm; channelid: %s, with orgid: %s error: %v", channelId, orgId, err.Error())
 				return fmt.Errorf("failed to publish data")

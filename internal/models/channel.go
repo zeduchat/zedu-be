@@ -711,13 +711,13 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, ids IDS) (GetUserNotCh
 	return chanResp, nil
 }
 
-func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChannels, error) {
-	var users []UserChannels
+func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId, userId string) ([]string, error) {
+	var users []string
 
 	if err := db.Table("user_channels").
 		Select("user_channels.*").
-		Where("user_channels.channels_id = ?", channelId).
-		Scan(&users).Error; err != nil {
+		Where("user_channels.channels_id = ? AND user_channels.user_id != ?", channelId, userId).
+		Pluck("user_id", &users).Error; err != nil {
 		return nil, err
 	}
 
