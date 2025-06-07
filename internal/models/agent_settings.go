@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	// "github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -49,6 +50,45 @@ func (us *IntegrationSettings) GetIntegrationSettingsAllOrgs(db *gorm.DB, integr
 		return nil, fmt.Errorf("failed to get integration settings: %v", err)
 	}
 	return intSettings, nil
+}
+
+func (org *Organisation) GetActivatedOrganizations(db *gorm.DB, agent_id string, api_key string) ([]Organisation, error) {
+	var organisations []Organisation
+	var intSettings []IntegrationSettings
+	var agent OrganisationIntegrations
+
+	err := db.Where("id = ? AND pre_shared_key = ?", agent_id, api_key).First(&agent).Error
+	if err != nil {
+		return nil, fmt.Errorf("agent not found or invalid key: %v", err)
+	}
+
+	// Get all integration settings for this agent
+	err = db.Where("integration_id = ?", agent_id).Find(&intSettings).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get integration settings: %v", err)
+	}
+
+	// Deduplicate org IDs
+	orgIDMap := make(map[string]bool)
+	for _, setting := range intSettings {
+		orgIDMap[setting.OrgID] = true
+	}
+
+	orgIDs := make([]string, 0, len(orgIDMap))
+	for id := range orgIDMap {
+		orgIDs = append(orgIDs, id)
+	}
+
+	if len(orgIDs) == 0 {
+		return []Organisation{}, nil
+	}
+
+	err = db.Where("id IN ?", orgIDs).Find(&organisations).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch organizations: %v", err)
+	}
+
+	return organisations, nil
 }
 
 func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string]string) ([]IntegrationSettings, error) {
