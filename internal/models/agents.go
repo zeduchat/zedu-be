@@ -95,6 +95,16 @@ type Provider struct {
 	URL          string `json:"url"`
 }
 
+type Skill struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	InputModes  []string `json:"inputModes"`
+	OutputModes []string `json:"outputModes"`
+	Examples    []string `json:"exmaples"`
+	Tags        []string `json:"tags"`
+}
+
 type JSONPrices []Price
 
 type OrganisationIntegrations struct {
@@ -121,6 +131,7 @@ type OrganisationIntegrations struct {
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
+	Skills             []Skill    `gorm:"type:jsonb" json:"skills"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -1217,9 +1228,14 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("Failed to save agent, skills field does not exist or is empty")
 	}
 
-	_, ok = skills.([]interface{})
-	if !ok {
-		return errors.New("Failed to save agent, skills field is not an array")
+	skillsBytes, err := json.Marshal(skills)
+	if err != nil {
+		return err
+	}
+
+	var skillsObj []Skill
+	if err := json.Unmarshal(skillsBytes, &skillsObj); err != nil {
+		return errors.New("failed to save agent: 'skills' field is invalid")
 	}
 
 	defaultInputModes, ok := data_r["defaultInputModes"]

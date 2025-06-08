@@ -480,7 +480,11 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return int_resp, err
 	}
 
-	bytes, _ := json.Marshal(data_r)
+	bytes, err := json.Marshal(data_r)
+	if err != nil {
+		return int_resp, err
+	}
+
 	var payload models.OrganisationIntegrations
 	json.Unmarshal(bytes, &payload)
 
@@ -504,6 +508,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.Version = payload.Version
 	orgIntegration.DefaultInputModes = payload.DefaultInputModes
 	orgIntegration.DefaultOutputModes = payload.DefaultOutputModes
+	orgIntegration.Skills = payload.Skills
 	orgIntegration.IsPaid = payload.IsPaid
 	orgIntegration.PreSharedKey = psk
 
