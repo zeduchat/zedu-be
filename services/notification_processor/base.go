@@ -79,7 +79,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	orgUserIds := make([]string, 0)
 
 	for _, userId := range userIDs {
-		orgUserIds = append(orgUserIds, fmt.Sprintf("%s:%s", orgId, userId))
+		orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
 	}
 
 	err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
@@ -124,7 +124,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 	typeCall := map[models.ChannelType]func() error{
 		models.DMChannel: func() error {
-			err := centrifuge.PublishChannel(logger, fmt.Sprintf("%s:%s", orgId, channelId), notifPayload.Notification)
+			err := centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, channelId), notifPayload.Notification)
 			if err != nil {
 				logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", channelId, err))
 				return fmt.Errorf("failed to publish to participant")
@@ -168,7 +168,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			orgUserIds := make([]string, 0)
 
 			for _, userId := range userIDs {
-				orgUserIds = append(orgUserIds, fmt.Sprintf("%s:%s", orgId, userId))
+				orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
 			}
 
 			err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
