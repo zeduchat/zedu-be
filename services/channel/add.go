@@ -119,6 +119,16 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
+	notification := models.Notification[models.ReplyCountChange]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = updateResp
+
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
+	}
+
 	dataByte, _ := json.Marshal(feed)
 
 	notifRec := models.PushNotificationRecord{
@@ -145,11 +155,11 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
-		message    models.Message
-		newMsg     models.MessageDocument
-		channel    models.Channels
-		dmChannel  models.DmChannels
-		user       models.User
+		message   models.Message
+		newMsg    models.MessageDocument
+		channel   models.Channels
+		dmChannel models.DmChannels
+		user      models.User
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")

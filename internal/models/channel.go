@@ -713,7 +713,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, ids IDS) (GetUserNotCh
 	err := db.Table("channels").
 		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", ids.UserID).
-		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Where("channels.organisation_id = ? AND channels.is_private !=  ?", ids.OrganisationID, "true").
 		Order("channels.created_at").
 		Scan(&chanResp).Error
 
