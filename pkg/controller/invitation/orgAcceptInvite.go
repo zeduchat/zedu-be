@@ -1,6 +1,7 @@
 package invitation
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -36,11 +37,11 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
 		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to create blog", nil)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to get user claims", nil)
 			c.JSON(http.StatusNotFound, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get user claims", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -49,7 +50,7 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	response, code, err := invitation.GeneralInvitationVerify(base.Db, req, base.Logger, userId)
 	if err != nil {
 		base.Logger.Info("Failed to verify invitation", err.Error())
-		rd := utility.BuildErrorResponse(code, "error", "Failed to verify invitation", err.Error(), nil)
+		rd := utility.BuildErrorResponse(code, "error", fmt.Errorf("failed to verify invitation: %w", err).Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}

@@ -59,11 +59,11 @@ func (w Worker) Start() {
 
 			select {
 			case job := <-w.JobChannel:
-				w.Logger.Info("Worker %d: Handling job: %+v\n", w.ID, job)
+				w.Logger.Info("Worker %d: Handling job: %+v\n", w.ID, job.Notification.ChannelType)
 				atomic.AddInt32(&w.JobCount, 1)
 				atomic.StoreInt32(&w.Busy, 1)
 
-				err := error.Error
+				err := ProcessNotification(job, w.Logger)
 				if err != nil {
 					w.Logger.Info("Worker %d: error sending notification: %v\n", w.ID, err)
 					atomic.AddInt64(&w.Metrics.FailedJobs, 1)

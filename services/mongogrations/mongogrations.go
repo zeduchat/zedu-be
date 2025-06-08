@@ -2,36 +2,13 @@ package mongogrations
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
-
-func FetchMongoAgentIDs(c *gin.Context) (models.IDS, error) {
-	var idmodel models.IDS
-
-	agentID, ok := c.Get("agent_id")
-	if !ok {
-		return idmodel, errors.New("agent_id is required")
-	}
-
-	organisationID, ok := c.Get("org_id")
-	if !ok {
-		return idmodel, errors.New("organisation_id is required")
-	}
-
-	ids := models.IDS{
-		AgentID:        agentID.(string),
-		OrganisationID: organisationID.(string),
-	}
-
-	return ids, nil
-}
 
 func CreateCollection(db *mongo.Client, collection_name string, ids models.IDS) error {
 	if collection_name == "" {

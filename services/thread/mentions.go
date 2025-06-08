@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,7 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
-	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
+	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
@@ -102,7 +101,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		UserType:    userType,
 		FullName:    utility.ThisOrThat(profile.FullName, req.AgentName),
 		UserId:      req.UserId,
-		OrgId:       req.OrgId,
+		OrgId:       channel.OrganisationID,
 		Media:       req.Media,
 		ChannelName: channel.Name,
 	}
@@ -113,36 +112,29 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
-	notification := models.Notification[models.NewMessage]
-	notification.SectionType = models.ThreadSection
-	notification.Content = feed
+	dataByte, _ := json.Marshal(feed)
 
-	err = centrifuge.PublishChannel(logger, req.OrgId, notification)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error()))
-		return nil, fmt.Errorf("failed to publish thread data")
-	}
-
-	// Push notification to channel users
-
-	pushReq := models.PushFCMRequest{
+	notifRec := models.PushNotificationRecord{
+		ChannelType: models.Channel,
+		Data:        string(dataByte),
+		Sent:        false,
 		ChannelId:   req.ChannelsID,
-		ChannelName: channel.Name,
-		UserId:      req.UserId,
-		Message:     req.Content,
-		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
+		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
 	}
 
-	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
+	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
+
 	if err != nil {
-		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error())
 	}
 
-	logger.Info("sent push notification to channel users")
+	logger.Info("added notification to queue for channel %s", req.ChannelsID)
 
 	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsID
 	userChan.UserID = req.UserId
+	userChan.OrgId = channel.OrganisationID
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 

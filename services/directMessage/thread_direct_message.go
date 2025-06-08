@@ -20,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/actions"
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/user"
@@ -28,11 +29,9 @@ import (
 
 func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 	var (
-		profile   models.Profile
-		user      models.User
-		channel   models.DmChannels
-		chanParts []models.ChannelParticipant
-		userIDs   []string
+		profile models.Profile
+		user    models.User
+		channel models.DmChannels
 	)
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -45,10 +44,11 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
-	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID, req.UserId)
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
+
 	messageType := "message"
 	if req.Type != "" {
 		messageType = req.Type
@@ -81,19 +81,22 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
 
+	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  threadDoc.ID,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		UserId:    req.UserId,
-		UserType:  "user",
-		Media:     req.Media,
+		ChannelID:   req.ChannelsID,
+		UserName:    profile.UserName,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:   profile.AvatarURL,
+		Type:        "message",
+		Content:     req.Content,
+		ThreadId:    threadDoc.ID,
+		Email:       user.Email,
+		FullName:    profile.FullName,
+		UserId:      req.UserId,
+		UserType:    "user",
+		Media:       req.Media,
+		ChannelName: username,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -102,16 +105,30 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
 	}
 
-	notification := models.Notification[models.NewMessage]
-	notification.SectionType = models.ThreadSection
-	notification.Content = feed
+	dataByte, _ := json.Marshal(feed)
 
-	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+	notifRec := models.PushNotificationRecord{
+		ChannelType: models.DMChannel,
+		Data:        string(dataByte),
+		Sent:        false,
+		ChannelId:   *channel.ParticipantId,
+		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
+	}
+
+	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
+
+	if err != nil {
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error())
+	}
+
+	logger.Info("added notification to queue for channel %s", req.ChannelsID)
 
 	dmChan := models.DmChannels{}
 	dmChan.ChannelId = req.ChannelsID
 	dmChan.UserId = req.UserId
 	dmChan.ChannelType = channel.ChannelType
+	dmChan.OrgId = req.OrgId
 
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
@@ -129,65 +146,6 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		wg.Wait()
 		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
 	}()
-
-	// Handle DM-specific case
-	if channel.ChannelType == "dm" {
-		err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", *channel.ParticipantId, err))
-			return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish to participant")
-		}
-
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserId:      *channel.ParticipantId,
-			Message:     req.Content,
-			TimeStamp:   threadDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
-		}
-
-		return &threadDoc, http.StatusCreated, nil
-	}
-
-	err = postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id = ?", channel.ChannelId)
-	if err != nil {
-		return &threadDoc, http.StatusNotFound, fmt.Errorf("failed to fetch participants: %v", err)
-	}
-
-	for _, cp := range chanParts {
-		if cp.UserId != req.UserId {
-			userIDs = append(userIDs, cp.UserId)
-		}
-	}
-
-	if len(userIDs) == 0 {
-		return &threadDoc, http.StatusCreated, nil
-	}
-
-	// Handle non-DM (group) case
-	err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", userIDs, err))
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to broadcast webhook data: %v", err)
-	}
-
-	pushReq := models.PushFCMRequest{
-		ChannelName: username,
-		UserIds:     userIDs,
-		Message:     req.Content,
-		TimeStamp:   threadDoc.CreatedAt.String(),
-		AvatarUrl:   profile.AvatarURL,
-	}
-
-	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send push notification to users %s: %v", userIDs, err))
-	}
 
 	return &threadDoc, http.StatusCreated, nil
 }
@@ -210,7 +168,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
 
-	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID, req.UserId)
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}
@@ -350,7 +308,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 
 		dmchannel := models.DmChannels{}
 
-		res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+		res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID, req.UserId)
 
 		if !res || err != nil {
 			return &thread, http.StatusBadRequest, err
@@ -419,7 +377,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		user       models.User
 	)
 
-	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID)
+	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
 	}

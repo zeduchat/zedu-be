@@ -17,7 +17,7 @@ func CreateGroupThreadDMMessage(req models.CreateThreadMsgReq, db *storage.Datab
 
 	dmchannel := models.DmChannels{}
 
-	res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID)
+	res, err := dmchannel.CheckChannelExists(db.Postgresql, req.ChannelsID, "")
 	if !res || err != nil {
 		return &thread, http.StatusBadRequest, err
 	}

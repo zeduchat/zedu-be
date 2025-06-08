@@ -371,12 +371,21 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	return dmChansResp, paginationResp, nil
 }
 
-func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, error) {
+func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID, userId string) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ?", channelID)
 
 	if !exists {
 		return exists, errors.New("channel does not exist")
+	}
+
+	if r.ChannelType == "dm" && userId != "" {
+		dmChan := DmChannels{}
+		exists := postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", channelID, userId)
+		if !exists {
+			return exists, errors.New("channel does not exist")
+		}
+		*r = dmChan
 	}
 
 	return exists, nil
@@ -385,6 +394,10 @@ func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID string) (bool, er
 func (r *DmChannels) FetchChannelParticipant(db *gorm.DB, req DmChannelsRequest) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId)
+
+	if !exists {
+		exists = postgresql.CheckExists(db, &r, "channel_id = ? AND channel_type = ?", req.ChannelId, "group_dm")
+	}
 
 	if !exists {
 		return exists, errors.New("channel does not exist")
@@ -508,7 +521,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 		"dm": func() ([]DmChannelsResponse, error) {
 			if err := db.Model(&DmChannels{}).
-				Select("dm_channels.*, p.user_name as username, p.avatar_url as avatar_url, u.email as participant_email").
+				Select("dm_channels.*, dm_channels.channel_id as id, COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as name, p.avatar_url as avatar_url, u.email as participant_email").
 				Joins("JOIN profiles AS p ON p.userid = dm_channels.user_id").
 				Joins("JOIN users AS u ON u.id = dm_channels.user_id").
 				Where("dm_channels.channel_id = ? AND dm_channels.user_id != ?", r.ChannelId, r.UserId).
@@ -709,7 +722,7 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 		notification.SectionType = DmChannelsSection
 		notification.Content = dmResp
 
-		err = centrifuge.PublishChannel(logger, c.UserId, notification)
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, c.UserId), notification)
 		if err != nil {
 			logger.Error("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelId, c.UserId, err.Error())
 			return
@@ -735,7 +748,7 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 			notification.SectionType = DmChannelsSection
 			notification.Content = update
 
-			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), notification)
 			if err != nil {
 				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelId, update.UserId, err.Error()))
 				return

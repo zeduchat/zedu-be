@@ -9,7 +9,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/nyaruka/phonenumbers"
 )
@@ -24,12 +26,6 @@ func NewURLValidator(additionalDomains ...string) *URLValidator {
 		"ngrok.io",
 		"ngrok.app",
 		"ngrok-free.app",
-
-		// Render Domains
-		"render.com",
-		"render.app",
-		"onrender.com",
-		"app.render.com",
 	}
 
 	blockedDomains = append(blockedDomains, additionalDomains...)
@@ -37,7 +33,7 @@ func NewURLValidator(additionalDomains ...string) *URLValidator {
 		blockedDomains: blockedDomains,
 	}
 }
-func (v *URLValidator) Validate (urlStr string) error {
+func (v *URLValidator) Validate(urlStr string) error {
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
 		return fmt.Errorf("invalid URL format: %w", err)
@@ -152,4 +148,35 @@ func ValidateDocument(doc map[string]interface{}) error {
 		}
 	}
 	return nil
+}
+
+func RegisterCustomValidations(v *validator.Validate) {
+
+	_ = v.RegisterValidation("timezone", func(fl validator.FieldLevel) bool {
+		tz := fl.Field().String()
+		_, err := time.LoadLocation(tz)
+		return err == nil
+	})
+}
+
+func ValidateTimeRange(value string) bool {
+
+	// Validate format using regex
+	re := regexp.MustCompile(`^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)\s?-\s?(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$`)
+	if !re.MatchString(value) {
+		return false
+	}
+
+	// Optional: validate logical order
+	parts := strings.Split(value, "-")
+	if len(parts) != 2 {
+		return false
+	}
+	_, err1 := time.Parse("3:04 PM", strings.TrimSpace(parts[0]))
+	_, err2 := time.Parse("3:04 PM", strings.TrimSpace(parts[1]))
+
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	return true
 }

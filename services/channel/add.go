@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
+	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
@@ -96,21 +95,21 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsId,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt: messageDoc.UpdatedAt.String(),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     user.Email,
-		UserType:  userType,
-		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
-		OrgId:     req.OrgId,
-		UserId:    req.UserId,
-		Media:     req.Media,
-		Id:        messageDoc.ID,
+		ChannelID:    req.ChannelsId,
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:    messageDoc.UpdatedAt.String(),
+		AvatarURL:    profile.AvatarURL,
+		Type:         "message",
+		Content:      req.Content,
+		ThreadId:     req.ThreadId,
+		Email:        user.Email,
+		UserType:     userType,
+		UserName:     utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
+		OrgId:        channels.OrganisationID,
+		UserId:       req.UserId,
+		Media:        req.Media,
+		Id:           messageDoc.ID,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -119,29 +118,36 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	notification := models.Notification[models.NewMessage]
-	notification.SectionType = models.ReplySection
+	notification := models.Notification[models.ReplyCountChange]
+	notification.SectionType = models.ChannelsSection
 	notification.Content = feed
 	notification.UpdateChange = updateResp
 
-	err = centrifuge.PublishChannel(logger, req.OrgId, notification)
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to with orgid: %s error: %v", req.OrgId, err.Error()))
-		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
-	pushReq := models.PushFCMRequest{
-		ChannelId:   req.ChannelsId,
-		ChannelName: channels.Name,
-		UserId:      req.UserId,
-		Message:     req.Content,
-		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
+	dataByte, _ := json.Marshal(feed)
+
+	notifRec := models.PushNotificationRecord{
+		ChannelType:  models.Channel,
+		Data:         string(dataByte),
+		Sent:         false,
+		ChannelId:    req.ChannelsId,
+		Section:      models.ReplySection,
+		UpdateChange: updateResp,
+		Type:         models.NewMessage,
 	}
 
-	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
+	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
+
 	if err != nil {
-		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsId, req.OrgId, err.Error())
 	}
+
+	logger.Info("added notification to queue for channel %s", req.ChannelsId)
 
 	return &messageDoc, http.StatusCreated, nil
 }
@@ -149,13 +155,11 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
-		message    models.Message
-		newMsg     models.MessageDocument
-		channel    models.Channels
-		dmChannel  models.DmChannels
-		publishDst string
-		chanParts  []models.ChannelParticipant
-		user       models.User
+		message   models.Message
+		newMsg    models.MessageDocument
+		channel   models.Channels
+		dmChannel models.DmChannels
+		user      models.User
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -175,7 +179,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	}
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId, userID)
 
 	if !(dmChanExist || chanExist) {
 		return &newMsg, http.StatusNotFound, errors.New("channel does not exist")
@@ -194,13 +198,6 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 
 	if err := thread.DetectAndAddMentions(message.ID, req.Content, db); err != nil {
 		return nil, http.StatusBadRequest, err
-	}
-
-	if channel.OrganisationID != "" {
-		publishDst = channel.OrganisationID
-
-	} else {
-		publishDst = *dmChannel.ParticipantId
 	}
 
 	err = newMsg.GetMessageById(db, message.ID)
@@ -236,45 +233,9 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		MessageId: req.MessageId,
 	}
 
-	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
-		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
-		if err != nil {
-			return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
-		}
-
-		userIDs := []string{}
-
-		for _, participant := range chanParts {
-			if participant.UserId != req.UserId {
-				userIDs = append(userIDs, participant.UserId)
-			}
-		}
-
-		if len(userIDs) == 0 {
-			return nil, http.StatusOK, nil
-		}
-
-		err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
-			return nil, http.StatusBadRequest, errors.New("failed to broadcast data")
-		}
-
-		return nil, http.StatusOK, nil
-	}
-
-	if dmChannel.ChannelType == "dm" {
-		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, req.UserId}, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-			return nil, http.StatusBadRequest, errors.New("failed to publish data")
-		}
-		return nil, http.StatusOK, nil
-	}
-
-	err = centrifuge.PublishChannel(logger, publishDst, notification)
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
@@ -284,16 +245,14 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
-		message     models.Message
-		newMsg     models.MessageDocument
-		channel    models.Channels
-		dmChannel  models.DmChannels
-		publishDst string
-		chanParts  []models.ChannelParticipant
+		message   models.Message
+		newMsg    models.MessageDocument
+		channel   models.Channels
+		dmChannel models.DmChannels
 	)
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId, req.UserId)
 
 	if !(dmChanExist || chanExist) {
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
@@ -325,54 +284,9 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageId,
 	}
-
-	if channel.OrganisationID != "" {
-		publishDst = channel.OrganisationID
-	} else {
-		if dmChannel.ChannelType == "dm" {
-			publishDst = *dmChannel.ParticipantId
-		}
-	}
-
-	if dmChannel.ChannelType == "group_dm" && channel.OrganisationID == "" {
-		err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChannel.ChannelId)
-		if err != nil {
-			return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants: %s", err)
-		}
-
-		userIDs := []string{}
-
-		for _, participant := range chanParts {
-			if participant.UserId != req.UserId {
-				userIDs = append(userIDs, participant.UserId)
-			}
-		}
-
-		if len(userIDs) == 0 {
-			return nil, http.StatusOK, nil
-		}
-
-		err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error broadcasting to with destination id: %s error: %v", publishDst, err.Error()))
-			return nil, http.StatusBadRequest, errors.New("failed to broadcast data")
-		}
-
-		return nil, http.StatusOK, nil
-	}
-
-	if dmChannel.ChannelType == "dm" {
-		err = centrifuge.BatchBroadcastToChannel(logger, []string{publishDst, req.UserId}, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
-			return nil, http.StatusBadRequest, errors.New("failed to publish data")
-		}
-		return nil, http.StatusOK, nil
-	}
-
-	err = centrifuge.PublishChannel(logger, publishDst, notification)
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", publishDst, err.Error()))
+		logger.Error("Error Publishing to with destination id: %s error: %v", req.ChannelsId, err.Error())
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 

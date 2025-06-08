@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -226,4 +227,141 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "member added successfully", nil)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateDeviceNotification(c *gin.Context) {
+	var (
+		req models.DeviceNotificationSettings
+	)
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if !utility.ValidateTimeRange(req.TimeRange) {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", "invalid time range supplied, time range must be in format HH:MM AM/PM - HH:MM AM/PM and start time must be before end time", nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if !ValidateNotifOption(string(req.NotifyAbout)) {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", "invalid notify_about suppplied, notify_about must be one of all_new_messages, mentions or nothing", nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.OrgID = c.Param("org_id")
+
+	if _, err := uuid.Parse(req.OrgID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserID = userClaims["user_id"].(string)
+
+	respData, code, err := organisation.UpdateDeviceNotification(base.Db.Postgresql, base.Logger, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("notification settings updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "notification settings updated successfully", respData)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetChannelNotificationPref(c *gin.Context) {
+
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	UserId := userClaims["user_id"].(string)
+
+	DeviceType := c.Query("device_type")
+
+	if valid, msg := ValidateDeviceType(DeviceType); !valid {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", msg, errors.New(msg), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id":      orgId,
+		"user_id":     UserId,
+		"device_type": DeviceType,
+	}
+
+	respData, err := organisation.GetOrCreateDeviceNotification(base.Db.Postgresql, base.Logger, ids)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("device notification fetched successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "device notification fetched successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func ValidateDeviceType(device string) (bool, string) {
+
+	devices := map[string]bool{
+		"web":     true,
+		"desktop": true,
+		"mobile":  true,
+	}
+
+	if device == "" {
+		return false, "empty device type passed"
+	}
+
+	exist := devices[device]
+
+	if !exist {
+		return false, "invalid device passed, device supported: web, desktop, mobile"
+	}
+
+	return true, ""
+
+}
+
+func ValidateNotifOption(option string) bool {
+	switch models.NotificationOption(option) {
+	case models.AllMessages, models.DirectMentions, models.Nothing:
+		return true
+	default:
+		return false
+	}
 }

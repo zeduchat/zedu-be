@@ -2,11 +2,13 @@ package models
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Profile struct {
@@ -79,8 +81,12 @@ type UpdateProfileStatus struct {
 	UserId            string
 }
 
-func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string) error {
+func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) error {
 	var userProfile Profile
+
+	if req.DisplayName != "" && req.UserName == "" {
+		req.UserName = req.DisplayName
+	}
 
 	profileUpdates := Profile{
 		FullName:          req.FullName,
@@ -98,6 +104,27 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	exist := postgresql.CheckExists(db, &userProfile, query, userId)
 	if !exist {
 		return errors.New("Profile does not exists")
+	}
+
+	if req.UserName != "" && req.UserName != userProfile.UserName {
+
+		updateThreadsIndex := ThreadDocument{
+			UserId:   userId,
+			Username: req.UserName,
+		}
+
+		logger.Info("Updating username across threads index")
+		go updateThreadsIndex.UpdateThreadUsername(logger, &sync.Mutex{})
+
+		updateMessagesIndex := MessageDocument{
+			UserID:   userId,
+			Username: req.UserName,
+		}
+
+		logger.Info("Updating username across messages index")
+		go updateMessagesIndex.UpdateMessageUsername(logger, &sync.Mutex{})
+
+		logger.Info("Successfully updated username across indexess")
 	}
 
 	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)

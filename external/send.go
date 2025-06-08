@@ -94,7 +94,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 		req, err = http.NewRequest(r.Method, r.Path, nil)
 	} else {
 		switch r.Headers["Content-Type"] {
-		case "application/x-www-form-urlencoded":
+		case "application/x-www-form-urlencoded", "application/json":
 			req, err = http.NewRequest(r.Method, r.Path, data.(io.Reader))
 		default:
 			req, err = http.NewRequest(r.Method, r.Path, buf)
@@ -152,6 +152,7 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return fmt.Errorf("external requests error for request %v, code %v", name, strconv.Itoa(res.StatusCode))
 	}
+
 
 	return nil
 }

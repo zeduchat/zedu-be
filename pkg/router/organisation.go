@@ -50,6 +50,8 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)
 		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
 		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
+		organisationUrl.GET("/:org_id/notification-preference", organisationCtrl.GetChannelNotificationPref)
+		organisationUrl.POST("/:org_id/notification-preference", organisationCtrl.UpdateDeviceNotification)
 
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)

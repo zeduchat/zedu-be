@@ -227,7 +227,7 @@ func (base *Controller) LeaveChannels(c *gin.Context) {
 
 	user_id := userClaims["user_id"].(string)
 
-	code, err := channel.LeaveChannels(base.Db.Postgresql, channelId, user_id)
+	code, err := channel.LeaveChannels(base.Db, channelId, user_id, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -643,7 +643,26 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 		return
 	}
 
-	err = channel.AddMultipleMembersToChannel(base.Db.Postgresql, req)
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to fetch user claims", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	req.UserID = userID.(string)
+
+	err = channel.AddMultipleMembersToChannel(base.Db, req, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to add users to channel", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
