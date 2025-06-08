@@ -102,12 +102,6 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 		return nil, nil, code, err
 	}
 
-	ch, err := channel.CheckChannelExists(db, channelID)
-
-	if !ch || err != nil {
-		return nil, nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
-	}
-
 	timeRange, check := GetGroupByDate(c)
 
 	if check {
@@ -130,7 +124,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			}
 			userChannel.ChannelsID = channelID
 			userChannel.UserID = userID
-			userChannel.OrgId = channel.OrganisationID
+			userChannel.OrgId = orgId
 			var wg sync.WaitGroup
 
 			wg.Add(1)
@@ -170,8 +164,14 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 	exists := postgresql.CheckExists(db, &uc, "channels_id = ?", channelID)
 	if exists {
 
+		ch, err := channel.CheckChannelExists(db, channelID)
+
+		if !ch || err != nil {
+			return nil, nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
+		}
+
 		logger.Info("updating user channel count for channel %s", channelID)
-		updateCall["channels"]("", "")
+		updateCall["channels"]("", channel.OrganisationID)
 	} else if postgresql.CheckExists(db, &dmChan, "channel_id = ?", channelID) {
 
 		logger.Info("updating user dm channel count for channel %s", channelID)
