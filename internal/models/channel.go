@@ -903,7 +903,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 
 	if updateType == Read {
 
-		res, err := c.GetUserChannel(storage.DB, fmt.Sprintf("%s/%s", c.OrgId, c.UserID), c.ChannelsID)
+		res, err := c.GetUserChannel(storage.DB, c.UserID, c.ChannelsID)
 
 		if err != nil {
 			logger.Error("Bulk update failed: %v", err)
@@ -919,7 +919,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 		notification.SectionType = ChannelsSection
 		notification.Content = res[0]
 
-		err = centrifuge.PublishChannel(logger, c.UserID, notification)
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, c.UserID), notification)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, c.UserID, err.Error()))
 			return
