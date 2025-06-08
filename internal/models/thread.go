@@ -209,24 +209,25 @@ type BotReturnRequest struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID   string                 `json:"channel_id"`
-	FullName    string                 `json:"full_name"`
-	UserName    string                 `json:"username"`
-	CreatedAt   string                 `json:"created_at"`
-	UpdatedAt   string                 `json:"updated_at"`
-	Email       string                 `json:"email"`
-	AvatarURL   string                 `json:"avatar_url,omitempty"`
-	MessageId   string                 `json:"message_id,omitempty"`
-	Type        string                 `json:"type"`
-	Content     string                 `json:"message"`
-	ThreadId    string                 `json:"thread_id"`
-	OrgId       string                 `json:"org_id"`
-	UserId      string                 `json:"user_id"`
-	Media       []UploadedFileResponse `json:"media"`
-	UserType    string                 `json:"user_type"`
-	Id          string                 `json:"id,omitempty"`
-	State       string                 `json:"state"`
-	ChannelName string                 `json:"channel_name,omitempty"`
+	ChannelID    string                 `json:"channel_id"`
+	FullName     string                 `json:"full_name"`
+	UserName     string                 `json:"username"`
+	CreatedAt    string                 `json:"created_at"`
+	UpdatedAt    string                 `json:"updated_at"`
+	Email        string                 `json:"email"`
+	AvatarURL    string                 `json:"avatar_url,omitempty"`
+	MessageId    string                 `json:"message_id,omitempty"`
+	Type         string                 `json:"type"`
+	Content      string                 `json:"message"`
+	ThreadId     string                 `json:"thread_id"`
+	OrgId        string                 `json:"org_id"`
+	UserId       string                 `json:"user_id"`
+	Media        []UploadedFileResponse `json:"media"`
+	UserType     string                 `json:"user_type"`
+	Id           string                 `json:"id,omitempty"`
+	State        string                 `json:"state"`
+	ChannelName  string                 `json:"channel_name,omitempty"`
+	UpdateChange map[string]interface{} `json:"update_change"`
 }
 
 type Mentions struct {
