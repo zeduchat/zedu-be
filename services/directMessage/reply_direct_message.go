@@ -91,7 +91,6 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		UserId:       req.UserId,
 		Media:        req.Media,
 		Id:           messageDoc.ID,
-		UpdateChange: updateResp,
 		ChannelName:  username,
 	}
 
@@ -104,6 +103,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 	notification := models.Notification[models.ReplyCountChange]
 	notification.SectionType = models.ChannelsSection
 	notification.Content = feed
+	notification.UpdateChange = updateResp
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {

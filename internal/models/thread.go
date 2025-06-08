@@ -227,7 +227,6 @@ type FeedMessageRequest struct {
 	Id           string                 `json:"id,omitempty"`
 	State        string                 `json:"state"`
 	ChannelName  string                 `json:"channel_name,omitempty"`
-	UpdateChange map[string]interface{} `json:"update_change"`
 }
 
 type Mentions struct {

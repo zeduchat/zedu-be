@@ -110,7 +110,6 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		UserId:       req.UserId,
 		Media:        req.Media,
 		Id:           messageDoc.ID,
-		UpdateChange: updateResp,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -122,6 +121,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	notification := models.Notification[models.ReplyCountChange]
 	notification.SectionType = models.ChannelsSection
 	notification.Content = feed
+	notification.UpdateChange = updateResp
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
