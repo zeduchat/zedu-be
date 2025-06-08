@@ -101,6 +101,16 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
+	notification := models.Notification[models.ReplyCountChange]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = updateResp
+
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
+	}
+
 	dataByte, _ := json.Marshal(feed)
 
 	notifRec := models.PushNotificationRecord{
