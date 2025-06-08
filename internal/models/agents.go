@@ -36,7 +36,7 @@ type Integrations struct {
 	IsApproved         bool       `gorm:"type:boolean;default:false" json:"is_approved"`
 	Prices             JSONPrices `gorm:"type:jsonb" json:"prices"`
 	Version            string     `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
-	Provider           string     `gorm:"type:varchar(50)" json:"provider"`
+	Provider           Provider   `gorm:"type:jsonb" json:"provider"`
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
@@ -87,7 +87,12 @@ type ActivateChannelAgent struct {
 type Price struct {
 	Amount        float64 `json:"amount"`
 	OperationType string  `json:"operation_type"`
-	currency      string  `json:"currency"`
+	Currency      string  `json:"currency"`
+}
+
+type Provider struct {
+	Organization string `json:"organization"`
+	URL          string `json:"url"`
 }
 
 type JSONPrices []Price
@@ -112,7 +117,7 @@ type OrganisationIntegrations struct {
 	IsApproved         bool       `gorm:"type:boolean;default:false" json:"is_approved"`
 	Prices             JSONPrices `gorm:"type:jsonb" json:"prices"`
 	Version            string     `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
-	Provider           string     `gorm:"type:varchar(50)" json:"provider"`
+	Provider           Provider   `gorm:"type:jsonb" json:"provider"`
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
@@ -1236,9 +1241,19 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("Failed to save agent, defaultOutputModes field is not an array")
 	}
 
-	_, ok = data_r["provider"].(map[string]interface{})
+	providerMap, ok := data_r["provider"].(map[string]interface{})
 	if !ok {
 		return errors.New("Failed to save agent, invalid agent card: provider does not exist or is empty")
+	}
+
+	providerBytes, err := json.Marshal(providerMap)
+	if err != nil {
+		return err
+	}
+
+	var provider Provider
+	if err := json.Unmarshal(providerBytes, &provider); err != nil {
+		return err
 	}
 
 	isPaid, ok := data_r["is_paid"].(bool)
@@ -1326,7 +1341,7 @@ func ValidateAgentVersionAndUpdate(data_r map[string]interface{}, agentID, db *g
 			agent.AppLogo = appLogo
 		}
 
-		if provider, ok := data_r["provider"].(string); ok {
+		if provider, ok := data_r["provider"].(Provider); ok {
 			agent.Provider = provider
 		}
 

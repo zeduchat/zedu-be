@@ -480,6 +480,10 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return int_resp, err
 	}
 
+	bytes, _ := json.Marshal(data_r)
+	var payload models.OrganisationIntegrations
+	json.Unmarshal(bytes, &payload)
+
 	settings := ""
 	// if !ok {
 	// 	return int_resp, errors.New("failed to create agent, settings field does not exist")
@@ -495,12 +499,12 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.AppName = data_r["name"].(string)
 	orgIntegration.AppDescription = data_r["description"].(string)
 	orgIntegration.AppUrl = data_r["url"].(string)
-	orgIntegration.Prices = data_r["prices"].(models.JSONPrices)
-	orgIntegration.Provider = data_r["provider"].(string)
-	orgIntegration.Version = data_r["version"].(string)
-	orgIntegration.DefaultInputModes = data_r["default_input_modes"].([]string)
-	orgIntegration.DefaultOutputModes = data_r["default_output_modes"].([]string)
-	orgIntegration.IsPaid = data_r["is_paid"].(bool)
+	orgIntegration.Prices = payload.Prices
+	orgIntegration.Provider = payload.Provider
+	orgIntegration.Version = payload.Version
+	orgIntegration.DefaultInputModes = payload.DefaultInputModes
+	orgIntegration.DefaultOutputModes = payload.DefaultOutputModes
+	orgIntegration.IsPaid = payload.IsPaid
 	orgIntegration.PreSharedKey = psk
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
