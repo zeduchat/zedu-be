@@ -42,6 +42,7 @@ type Integrations struct {
 	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
 	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 }
 
 type UpdateAgent struct {
@@ -106,6 +107,7 @@ type Skill struct {
 }
 
 type JSONPrices []Price
+type JSONSkills []Skill
 
 type OrganisationIntegrations struct {
 	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
@@ -131,7 +133,7 @@ type OrganisationIntegrations struct {
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
-	Skills             []Skill    `gorm:"type:jsonb" json:"skills"`
+	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -228,6 +230,30 @@ func (p *JSONPrices) Scan(value interface{}) error {
 
 func (p JSONPrices) Value() (driver.Value, error) {
 	return json.Marshal(p)
+}
+
+func (p *Provider) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("Scan failed: expected []byte but got %T", value)
+	}
+	return json.Unmarshal(bytes, p)
+}
+
+func (p Provider) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+func (s *JSONSkills) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("Scan failed: expected []byte but got %T", value)
+	}
+	return json.Unmarshal(bytes, s)
+}
+
+func (s JSONSkills) Value() (driver.Value, error) {
+	return json.Marshal(s)
 }
 
 func GenerateAgentKey() (string, error) {
