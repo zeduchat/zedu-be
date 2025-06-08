@@ -95,21 +95,22 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsId,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt: messageDoc.UpdatedAt.String(),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     user.Email,
-		UserType:  userType,
-		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
-		OrgId:     channels.OrganisationID,
-		UserId:    req.UserId,
-		Media:     req.Media,
-		Id:        messageDoc.ID,
+		ChannelID:    req.ChannelsId,
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:    messageDoc.UpdatedAt.String(),
+		AvatarURL:    profile.AvatarURL,
+		Type:         "message",
+		Content:      req.Content,
+		ThreadId:     req.ThreadId,
+		Email:        user.Email,
+		UserType:     userType,
+		UserName:     utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
+		OrgId:        channels.OrganisationID,
+		UserId:       req.UserId,
+		Media:        req.Media,
+		Id:           messageDoc.ID,
+		UpdateChange: updateResp,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -148,7 +149,6 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		newMsg     models.MessageDocument
 		channel    models.Channels
 		dmChannel  models.DmChannels
-		publishDst string
 		user       models.User
 	)
 
@@ -225,7 +225,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", publishDst, err.Error()))
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
