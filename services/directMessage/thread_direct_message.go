@@ -128,6 +128,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	dmChan.ChannelId = req.ChannelsID
 	dmChan.UserId = req.UserId
 	dmChan.ChannelType = channel.ChannelType
+	dmChan.OrgId = req.OrgId
 
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}

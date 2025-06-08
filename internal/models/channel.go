@@ -45,6 +45,7 @@ type UserChannels struct {
 	MentionCount int64                  `gorm:"column:mention_count;default:0" json:"mention_count"`
 	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`
 	Preferences  NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
+	OrgId        string                 `gorm:"-" json:"-"`
 }
 
 type UpdateLastRead struct {
@@ -902,7 +903,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 
 	if updateType == Read {
 
-		res, err := c.GetUserChannel(storage.DB, c.UserID, c.ChannelsID)
+		res, err := c.GetUserChannel(storage.DB, fmt.Sprintf("%s/%s", c.OrgId, c.UserID), c.ChannelsID)
 
 		if err != nil {
 			logger.Error("Bulk update failed: %v", err)
@@ -944,7 +945,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			notification.SectionType = ChannelsSection
 			notification.Content = update
 
-			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), notification)
 			if err != nil {
 				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
 				return

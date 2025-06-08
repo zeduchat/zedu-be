@@ -134,6 +134,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsID
 	userChan.UserID = req.UserId
+	userChan.OrgId = channel.OrganisationID
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 

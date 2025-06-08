@@ -717,7 +717,7 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 		notification.SectionType = DmChannelsSection
 		notification.Content = dmResp
 
-		err = centrifuge.PublishChannel(logger, c.UserId, notification)
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, c.UserId), notification)
 		if err != nil {
 			logger.Error("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelId, c.UserId, err.Error())
 			return
@@ -743,7 +743,7 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 			notification.SectionType = DmChannelsSection
 			notification.Content = update
 
-			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), notification)
 			if err != nil {
 				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelId, update.UserId, err.Error()))
 				return
