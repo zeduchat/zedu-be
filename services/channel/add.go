@@ -149,7 +149,6 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		newMsg     models.MessageDocument
 		channel    models.Channels
 		dmChannel  models.DmChannels
-		publishDst string
 		user       models.User
 	)
 
@@ -226,7 +225,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", publishDst, err.Error()))
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
