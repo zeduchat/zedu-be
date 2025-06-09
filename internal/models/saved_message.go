@@ -37,7 +37,7 @@ func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
 
 	if !(dmChanExist || chanExist) {
-		return errors.New("User not in channel")
+		return errors.New("user not in channel")
 	}
 
 	err := postgresql.CreateOneRecord(db, &m)
@@ -52,7 +52,7 @@ func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID string) error {
 	var savedMessage SavedMessage
 	idExists := postgresql.CheckExists(db, &savedMessage, "id = ?", messageID)
 	if !idExists {
-		return errors.New("Invalid message ID")
+		return errors.New("invalid message ID")
 	}
 
 	query := db.Where("id = ?", messageID)

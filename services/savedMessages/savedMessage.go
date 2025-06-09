@@ -34,6 +34,16 @@ func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger
 		logger.Error("organisation does not exist")
 		return nil, errors.New("organisation does not exist")
 	}
+	
+	isMember, err := org.CheckUserIsMemberOfOrg(req.UserId, req.OrgId, db.Postgresql)
+	if err != nil {
+		logger.Error("an error occurred, %v", err)
+		return nil, err
+	}
+	if !isMember {
+		logger.Error("user not authorised to retrieve this organisation")
+		return nil, errors.New("user not authorised to retrieve this organisation")
+	}
 
 	messageToSave := models.SavedMessage{
 		ID:         utility.GenerateUUID(),
