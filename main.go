@@ -69,6 +69,7 @@ func main() {
 		seed.SeedPlans(logger, db.Postgresql)
 		seed.SeedIntegrations(logger, db.Postgresql)
 		seed.SeedIndex(logger, db.Elastic)
+		seed.SeedCreditPackages(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

@@ -57,7 +57,10 @@ func AuthMigrationModels() []interface{} {
 		models.User{},
 		models.UserChannels{},
 		models.Webhook{},
-	}// an array of db models, example: User{}
+		models.CreditUsage{},
+		models.CreditTransaction{},
+		models.CreditPackage{},
+	} // an array of db models, example: User{}
 }
 
 func AlterColumnModels() []AlterColumn {

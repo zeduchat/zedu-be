@@ -95,6 +95,13 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 				IsActive:       org_agents.IsActive,
 				CreatedAt:      org_agents.CreatedAt,
 				UpdatedAt:      org_agents.UpdatedAt,
+				Version:        org_agents.Version,
+				Prices:         org_agents.Prices,
+				Provider:       org_agents.Provider,
+				PreSharedKey:   org_agents.PreSharedKey,
+				IsPaid:         org_agents.IsPaid,
+				IsApproved:     org_agents.IsApproved,
+				Skills:         org_agents.Skills,
 			}
 
 			int_resp = append(int_resp, struct {
@@ -130,6 +137,13 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 			IsActive:       org_agents.IsActive,
 			CreatedAt:      org_agents.CreatedAt,
 			UpdatedAt:      org_agents.UpdatedAt,
+			Version:        org_agents.Version,
+			Prices:         org_agents.Prices,
+			Provider:       org_agents.Provider,
+			PreSharedKey:   org_agents.PreSharedKey,
+			IsPaid:         org_agents.IsPaid,
+			IsApproved:     org_agents.IsApproved,
+			Skills:         org_agents.Skills,
 		}
 
 		int_resp = append(int_resp, struct {
@@ -459,6 +473,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	// Make the external request to the JSON URL
 	data := map[string]string{"url": req.JSONUrl}
 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
 	if err != nil {
 		return int_resp, errors.New("failed to create agent, invalid JSON supplied")
 	}
@@ -474,6 +489,19 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return int_resp, err
 	}
 
+	psk, err := models.GenerateAgentKey()
+	if err != nil {
+		return int_resp, err
+	}
+
+	bytes, err := json.Marshal(data_r)
+	if err != nil {
+		return int_resp, err
+	}
+
+	var payload models.OrganisationIntegrations
+	json.Unmarshal(bytes, &payload)
+
 	settings := ""
 	// if !ok {
 	// 	return int_resp, errors.New("failed to create agent, settings field does not exist")
@@ -488,7 +516,15 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.ID = utility.GenerateUUID()
 	orgIntegration.AppName = data_r["name"].(string)
 	orgIntegration.AppDescription = data_r["description"].(string)
-	orgIntegration.AppUrl = data_r["description"].(string)
+	orgIntegration.AppUrl = data_r["url"].(string)
+	orgIntegration.Prices = payload.Prices
+	orgIntegration.Provider = payload.Provider
+	orgIntegration.Version = payload.Version
+	orgIntegration.DefaultInputModes = payload.DefaultInputModes
+	orgIntegration.DefaultOutputModes = payload.DefaultOutputModes
+	orgIntegration.Skills = payload.Skills
+	orgIntegration.IsPaid = payload.IsPaid
+	orgIntegration.PreSharedKey = psk
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {

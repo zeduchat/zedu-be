@@ -19,20 +19,19 @@ import (
 )
 
 type Channels struct {
-	ID             string  `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name           string  `gorm:"column:name; type:text; not null" json:"name"`
-	Description    string  `gorm:"column:description; type:text; not null" json:"description"`
-	OrganisationID string  `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
-	OwnerId        string  `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	Users          []User  `gorm:"many2many:user_channels;" json:"users,omitempty"`
-	UserCount      int64   `gorm:"-" json:"user_count,omitempty"`
-	MessageCount   int64   `gorm:"-" json:"-"`
-	Archived       bool    `gorm:"column:archived;null; default:false" json:"archived"`
-	GroupID        *string `gorm:"column:group_id; type:uuid;index;" json:"-"`
-
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
-	// Threads   []Threads `gorm:"foreignKey:ChannelsID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"threads"`
+	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
+	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
+	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
+	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
+	MessageCount   int64     `gorm:"-" json:"-"`
+	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived"`
+	GroupID        *string   `gorm:"column:group_id; type:uuid;index;" json:"-"`
+	IsPrivate      bool      `gorm:"column:is_private;default:false" json:"is_private"`
+	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
 }
 
 type UserChannels struct {
@@ -46,6 +45,7 @@ type UserChannels struct {
 	MentionCount int64                  `gorm:"column:mention_count;default:0" json:"mention_count"`
 	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`
 	Preferences  NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
+	OrgId        string                 `gorm:"-" json:"-"`
 }
 
 type UpdateLastRead struct {
@@ -57,6 +57,7 @@ type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
+	IsPrivate      bool   `json:"is_private" validate:"required"`
 	Description    string `json:"description"`
 	UserId         string `json:"user_id"`
 }
@@ -379,6 +380,10 @@ func (r *Channels) AddUserToChannel(db *gorm.DB, req JoinChannelsRequest) (Chann
 		return channel, errors.New("channel does not exist")
 	}
 
+	if channel.IsPrivate && req.UserID != channel.OwnerId {
+		return channel, errors.New("permission denied, channel type is private")
+	}
+
 	var userChannels UserChannels
 	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	if exist {
@@ -443,6 +448,7 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	var (
 		users        = req.UserIDs
 		channelID    = req.ChannelID
+		userChannel  UserChannels
 		userChanList []UserChannels
 		validUserIds = []string{}
 	)
@@ -450,6 +456,12 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
 	if !exists {
 		return validUserIds, errors.New("channel does not exist")
+	}
+
+	inviterExist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channelID, req.UserID)
+
+	if r.IsPrivate && !inviterExist {
+		return validUserIds, errors.New("invitation denied, inviter not in channel!")
 	}
 
 	for _, user := range users {
@@ -676,7 +688,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 	chanResp := make(GetUserChannelResp, 0)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.organisation_id = ? AND uc.user_id = ?", ids.OrganisationID, ids.UserID).
 		Order("channels.created_at").
@@ -701,7 +713,7 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, ids IDS) (GetUserNotCh
 	err := db.Table("channels").
 		Select("channels.id, channels.name, channels.description, channels.created_at, channels.archived, 'false' AS access").
 		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE user_channels.user_id = ?)", ids.UserID).
-		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Where("channels.organisation_id = ? AND channels.is_private !=  ?", ids.OrganisationID, "true").
 		Order("channels.created_at").
 		Scan(&chanResp).Error
 
@@ -711,13 +723,13 @@ func (uc *UserChannels) GetUserNotInChannels(db *gorm.DB, ids IDS) (GetUserNotCh
 	return chanResp, nil
 }
 
-func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId string) ([]UserChannels, error) {
-	var users []UserChannels
+func (ch *Channels) FetchChannelUsers(db *gorm.DB, channelId, userId string) ([]string, error) {
+	var users []string
 
 	if err := db.Table("user_channels").
 		Select("user_channels.*").
-		Where("user_channels.channels_id = ?", channelId).
-		Scan(&users).Error; err != nil {
+		Where("user_channels.channels_id = ? AND user_channels.user_id != ?", channelId, userId).
+		Pluck("user_id", &users).Error; err != nil {
 		return nil, err
 	}
 
@@ -854,7 +866,7 @@ func (uc *UserChannels) GetUserChannel(base *storage.Database, userId, channel_i
 	)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id,  channels.is_private, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.id = ? AND uc.user_id = ?", channel_id, userId).
 		Order("channels.created_at").
@@ -873,7 +885,7 @@ func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, user
 	)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.id = ? AND uc.user_id != ?", channel_id, userId).
 		Order("channels.created_at").
@@ -907,7 +919,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 		notification.SectionType = ChannelsSection
 		notification.Content = res[0]
 
-		err = centrifuge.PublishChannel(logger, c.UserID, notification)
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, c.UserID), notification)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, c.UserID, err.Error()))
 			return
@@ -933,7 +945,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			notification.SectionType = ChannelsSection
 			notification.Content = update
 
-			err = centrifuge.PublishChannel(logger, update.UserId, notification)
+			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), notification)
 			if err != nil {
 				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
 				return

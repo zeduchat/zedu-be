@@ -23,6 +23,7 @@ var (
 	NewMessage         NotificationType = "new_message"
 	StatusUpdate       NotificationType = "status_update"
 	UnReadThreadChange NotificationType = "unread_thread_change"
+	ReplyCountChange   NotificationType = "reply_count_change"
 	ThreadSection      SectionType      = "thread_message"
 	ReplySection       SectionType      = "reply_message"
 	ChannelsSection    SectionType      = "channels_section"
@@ -65,6 +66,9 @@ var Notification = map[NotificationType]Content{
 	},
 	UnReadThreadChange: Content{
 		NotificationType: UnReadThreadChange,
+	},
+	ReplyCountChange: Content{
+		NotificationType: ReplyCountChange,
 	},
 }
 

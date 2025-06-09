@@ -120,6 +120,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		Sent:        false,
 		ChannelId:   req.ChannelsID,
 		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
 	}
 
 	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
@@ -130,10 +131,10 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	logger.Info("added notification to queue for channel %s", req.ChannelsID)
 
-
 	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsID
 	userChan.UserID = req.UserId
+	userChan.OrgId = channel.OrganisationID
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 

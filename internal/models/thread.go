@@ -209,24 +209,24 @@ type BotReturnRequest struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID   string                 `json:"channel_id"`
-	FullName    string                 `json:"full_name"`
-	UserName    string                 `json:"username"`
-	CreatedAt   string                 `json:"created_at"`
-	UpdatedAt   string                 `json:"updated_at"`
-	Email       string                 `json:"email"`
-	AvatarURL   string                 `json:"avatar_url,omitempty"`
-	MessageId   string                 `json:"message_id,omitempty"`
-	Type        string                 `json:"type"`
-	Content     string                 `json:"message"`
-	ThreadId    string                 `json:"thread_id"`
-	OrgId       string                 `json:"org_id"`
-	UserId      string                 `json:"user_id"`
-	Media       []UploadedFileResponse `json:"media"`
-	UserType    string                 `json:"user_type"`
-	Id          string                 `json:"id,omitempty"`
-	State       string                 `json:"state"`
-	ChannelName string                 `json:"channel_name,omitempty"`
+	ChannelID    string                 `json:"channel_id"`
+	FullName     string                 `json:"full_name"`
+	UserName     string                 `json:"username"`
+	CreatedAt    string                 `json:"created_at"`
+	UpdatedAt    string                 `json:"updated_at"`
+	Email        string                 `json:"email"`
+	AvatarURL    string                 `json:"avatar_url,omitempty"`
+	MessageId    string                 `json:"message_id,omitempty"`
+	Type         string                 `json:"type"`
+	Content      string                 `json:"message"`
+	ThreadId     string                 `json:"thread_id"`
+	OrgId        string                 `json:"org_id"`
+	UserId       string                 `json:"user_id"`
+	Media        []UploadedFileResponse `json:"media"`
+	UserType     string                 `json:"user_type"`
+	Id           string                 `json:"id,omitempty"`
+	State        string                 `json:"state"`
+	ChannelName  string                 `json:"channel_name,omitempty"`
 }
 
 type Mentions struct {
@@ -688,8 +688,26 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 
 func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
-		threads []Threads
+		threads     []Threads
+		channel     Channels
+		userChannel UserChannels
+		dmChannel   DmChannels
 	)
+
+	chanExist, _ := channel.CheckChannelExists(db, channelID)
+	dmChanExist, _ := dmChannel.CheckChannelExists(db, channelID, userId)
+
+	if !(dmChanExist || chanExist) {
+		return nil, &elastic.PaginationResponse{}, errors.New("channel does not exist")
+	}
+
+	if chanExist {
+		userExist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channelID, userId)
+
+		if channel.IsPrivate && !userExist {
+			return nil, &elastic.PaginationResponse{}, errors.New("permission denied, private channel")
+		}
+	}
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit

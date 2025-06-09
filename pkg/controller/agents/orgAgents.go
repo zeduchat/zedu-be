@@ -397,6 +397,37 @@ func (base *Controller) UpdateCustomAgent(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetActivatedOrganizations(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+	api_key := c.Query("api_key")
+
+	if api_key == "" {
+		base.Logger.Error("missing api_key")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "missing api_key", "api_key is required", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	organisations, err, code := agents.GetActivatedOrganizations(base.Db.Postgresql, agent_id, api_key)
+
+	if err != nil {
+		base.Logger.Error("Failed to fetch organisation that has activated this agent!!", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Successful", organisations)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) GetAgentSettingsAllOrgs(c *gin.Context) {
 	agent_id := c.Param("agent_id")
 	if _, err := uuid.Parse(agent_id); err != nil {
