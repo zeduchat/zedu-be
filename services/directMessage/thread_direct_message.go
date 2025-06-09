@@ -73,7 +73,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserType:      "user",
 		Mentions:      req.Mentions,
 		Media:         req.Media,
-		OrgansationID: req.OrgId,
+		OrgansationID: channel.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -97,6 +97,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserType:    "user",
 		Media:       req.Media,
 		ChannelName: username,
+		OrgId:       channel.OrgId,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -119,7 +120,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
 
 	if err != nil {
-		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error())
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, channel.OrgId, err.Error())
 	}
 
 	logger.Info("added notification to queue for channel %s", req.ChannelsID)
@@ -128,7 +129,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	dmChan.ChannelId = req.ChannelsID
 	dmChan.UserId = req.UserId
 	dmChan.ChannelType = channel.ChannelType
-	dmChan.OrgId = req.OrgId
+	dmChan.OrgId = channel.OrgId
 
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
