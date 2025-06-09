@@ -95,6 +95,13 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 				IsActive:       org_agents.IsActive,
 				CreatedAt:      org_agents.CreatedAt,
 				UpdatedAt:      org_agents.UpdatedAt,
+				Version:        org_agents.Version,
+				Prices:         org_agents.Prices,
+				Provider:       org_agents.Provider,
+				PreSharedKey:   org_agents.PreSharedKey,
+				IsPaid:         org_agents.IsPaid,
+				IsApproved:     org_agents.IsApproved,
+				Skills:         org_agents.Skills,
 			}
 
 			int_resp = append(int_resp, struct {
@@ -130,6 +137,13 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 			IsActive:       org_agents.IsActive,
 			CreatedAt:      org_agents.CreatedAt,
 			UpdatedAt:      org_agents.UpdatedAt,
+			Version:        org_agents.Version,
+			Prices:         org_agents.Prices,
+			Provider:       org_agents.Provider,
+			PreSharedKey:   org_agents.PreSharedKey,
+			IsPaid:         org_agents.IsPaid,
+			IsApproved:     org_agents.IsApproved,
+			Skills:         org_agents.Skills,
 		}
 
 		int_resp = append(int_resp, struct {
