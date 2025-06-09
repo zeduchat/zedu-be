@@ -12,6 +12,8 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"time"
+
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -49,16 +51,31 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, errors.New("failed to upload organisation logo")
 	}
 
+	plan := models.Plan{}
+	planName := "Free"
+
+	if req.Plan != "" {
+		planName = req.Plan
+	}
+
+	err = db.Where("name = ?", planName).First(&plan).Error
+	if err != nil {
+		return nil, err
+	}
+
+	credits := plan.Credits
+
 	org := models.Organisation{
-		ID:          orgId,
-		Name:        strings.ToLower(req.Name),
-		Description: strings.ToLower(req.Description),
-		Location:    strings.ToLower(req.Location),
-		Email:       strings.ToLower(req.Email),
-		Type:        strings.ToLower(req.Type),
-		OwnerID:     userId,
-		Country:     strings.ToLower(req.Country),
-		LogoURL:     picUrl,
+		ID:            orgId,
+		Name:          strings.ToLower(req.Name),
+		Description:   strings.ToLower(req.Description),
+		Location:      strings.ToLower(req.Location),
+		Email:         strings.ToLower(req.Email),
+		Type:          strings.ToLower(req.Type),
+		OwnerID:       userId,
+		CreditBalance: float64(credits),
+		Country:       strings.ToLower(req.Country),
+		LogoURL:       picUrl,
 	}
 
 	// Check if the organisation name already exists
@@ -69,6 +86,46 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	err = org.CreateOrganisation(db)
 
+	if err != nil {
+		return nil, err
+	}
+
+	// create credit transaction
+	credit_transaction := models.CreditTransaction{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgId,
+		Amount:         float64(credits), // Initial Top up amout
+		BalanceBefore:  0.00,
+		BalanceAfter:   float64(org.CreditBalance),
+		Type:           "Initial Top-up",
+	}
+
+	err = credit_transaction.CreateCreditTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// create organization plan
+	now := time.Now()
+	end := now.AddDate(0, 1, 0) // assuming this is monthly plan
+	organisation_plan := models.OrganisationPlan{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgId,
+		PlanID:         plan.ID,
+		StartedAt:      now,
+		EndedAt:        end,
+		Status:         "Active",
+	}
+
+	err = organisation_plan.Create(db)
+	if err != nil {
+		return nil, err
+	}
+
+	org.OrgPlanID = organisation_plan.ID
+
+	// Save the updated organisation plan ID
+	err = db.Model(&org).Update("org_plan_id", organisation_plan.ID).Error
 	if err != nil {
 		return nil, err
 	}

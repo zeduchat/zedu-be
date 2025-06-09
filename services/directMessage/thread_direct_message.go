@@ -375,6 +375,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		channel    models.DmChannels
 		orgAgent   models.OrganisationIntegrations
 		threadResp models.ThreadDocument
+		user       models.User
 	)
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
@@ -390,6 +391,44 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 	if err != nil {
 		return &threadResp, http.StatusInternalServerError, err
+	}
+
+	user, err = user.GetUserByID(db.Postgresql, *channel.ParticipantId)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to get user")
+	}
+
+	// Calculate credit cost based on message and agent price
+	outputLength := len(req.Content)
+
+	var agentPrice float64 = 0.0 // temp value
+
+	creditUsed := models.CalculateCreditCost(0, outputLength, agentPrice)
+
+	// validate credit here
+	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
+		logger.Error("Organisation has insufficient credit balance!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
+	}
+
+	// save organisation credit usage
+	credit_usage := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: channel.OrgId,
+		Amount:         5,
+		AgentID:        *channel.ParticipantId,
+		UserID:         *channel.ParticipantId,
+	}
+
+	err = credit_usage.CreateCreditUsage(db.Postgresql)
+	if err != nil {
+		logger.Error("failed to create credit usage!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
+	}
+
+	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
+		logger.Error("Organisation credit Recalculation failed")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	threadDoc := models.ThreadDocument{

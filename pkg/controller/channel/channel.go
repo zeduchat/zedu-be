@@ -8,6 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/hngprojects/telex_be/services/plan"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -61,6 +62,13 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		return
 	}
 	req.UserId = userId
+
+	if !plan.CheckChannelPlanThreshold(c, base.Logger, base.Db.Postgresql, req.OrganisationID) {
+		base.Logger.Error("Maximum number of channels for org plan reached!!")
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You have reached the maximum number of channels for your organization plan", "Plan Limit Reached", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
 
 	respData, code, err := channel.CreateChannel(req, base.Db, base.Logger)
 	if err != nil {

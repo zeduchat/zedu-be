@@ -55,6 +55,7 @@ type Plan struct {
 	IsForSmallBusiness      bool           `gorm:"not null" json:"is_for_small_business"`
 	IsForLargeEnterprise    bool           `gorm:"not null" json:"is_for_large_enterprise"`
 	CreatedAt               time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Credits                 int            `gorm:"not null;default:0" json:"credits"`
 	UpdatedAt               time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt               gorm.DeletedAt `gorm:"index" json:"-"`
 }
