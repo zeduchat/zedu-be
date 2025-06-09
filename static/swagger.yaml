@@ -78,8 +78,6 @@ tags:
     description: API endpoints for bots
   - name: TelexAI
     description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
-  - name: Mongogrations
-    description: API endpoints for integrations to interact with a mongoDB instance through telex
   - name: File Management
     description: API for uploading and retrieving files
   - name: Search
@@ -14714,10 +14712,7 @@ paths:
               properties:
                 content:
                   type: string
-                  example: "My test again for saved messages"
-                user_id:
-                  type: string
-                  example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                  example: "Sample content for saved messages"
                 channels_id:
                   type: string
                   example: "019747e0-fa9d-75c2-af24-b85cdc078840"
