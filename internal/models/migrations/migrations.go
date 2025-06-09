@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.SavedMessage{},
 		models.APIStatus{},
 		models.AccessToken{},
 		models.Blog{},

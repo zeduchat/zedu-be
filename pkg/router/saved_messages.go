@@ -15,12 +15,12 @@ import (
 func SavedMessages(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	savedMessages := savedMessages.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	savedMessagesUrl := r.Group(fmt.Sprintf("%v/messages", ApiVersion), middleware.Authorize(db.Postgresql))
+	savedMessagesUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		savedMessagesUrl.POST("/save", savedMessages.SaveMessageForLater)
-		savedMessagesUrl.GET("/saved", savedMessages.GetAllSavedMessages)
-		savedMessagesUrl.DELETE("/message/:id", savedMessages.DeleteMessageByID)
+		savedMessagesUrl.POST("/save-message", savedMessages.SaveMessageForLater)
+		savedMessagesUrl.GET("/saved-message", savedMessages.GetAllSavedMessages)
+		savedMessagesUrl.DELETE("/saved-message/:id", savedMessages.DeleteMessageByID)
 	}
 
 	return r

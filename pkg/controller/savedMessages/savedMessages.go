@@ -22,7 +22,7 @@ type Controller struct {
 }
 
 func (base *Controller) SaveMessageForLater(c *gin.Context) {
-	var req models.CreateMessageRequest
+	var req models.SaveMessageRequest
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {

@@ -5563,7 +5563,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /credits/packages:
     get:
       tags:
@@ -5599,7 +5598,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -5643,7 +5642,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
   /credits/top-up:
     post:
       tags:
@@ -14695,7 +14694,7 @@ paths:
                     type: string
                     example: "file not found or inaccessible"
 
-  /messages/save:
+  /save-message:
     post:
       tags:
         - Saved Messages
@@ -14711,6 +14710,7 @@ paths:
                 - content
                 - thread_id
                 - channels_id
+                - org_id
               properties:
                 content:
                   type: string
@@ -14726,10 +14726,7 @@ paths:
                   example: "019744be-4864-7e65-aa9a-959348898754"
                 org_id:
                   type: string
-                  example: ""
-                agent_name:
-                  type: string
-                  example: "telex_bot"
+                  example: "44be0197-7e65-4864-aa9a-898754959348"
                 media:
                   type: array
                   items:
@@ -14748,17 +14745,6 @@ paths:
                         type: string
                         format: uri
                         example: "https://127.0.0.1:9000/realzy-bucket/images/sample.jpg"
-                mentions:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      user_id:
-                        type: string
-                        example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
-                      username:
-                        type: string
-                        example: "realzy"
       security:
         - bearerAuth: []
       responses:
@@ -14797,35 +14783,13 @@ paths:
                       user_id:
                         type: string
                         example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
-                      username:
-                        type: string
-                        example: "realzy"
                       created_at:
                         type: string
                         format: date-time
                         example: "2025-06-07T01:23:31.7077586Z"
-                      updated_at:
-                        type: string
-                        format: date-time
-                        example: "2025-06-07T01:23:31.7077586Z"
-                      user_type:
-                        type: string
-                        example: "user"
                       thread_id:
                         type: string
                         example: "019744be-4864-7e65-aa9a-959348898754"
-                      avatar_url:
-                        type: string
-                        example: ""
-                      edited:
-                        type: boolean
-                        example: false
-                      full_name:
-                        type: string
-                        example: "REALZY TEST1"
-                      email:
-                        type: string
-                        example: "testrealzy@gmail.com"
         "400":
           description: Invalid request
           content:
@@ -14868,8 +14832,8 @@ paths:
                     type: object
                     nullable: true
                     example: null
-  
-  /messages/saved:
+
+  /saved-message:
     get:
       tags:
         - Saved Messages
@@ -14915,35 +14879,13 @@ paths:
                         user_id:
                           type: string
                           example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
-                        username:
-                          type: string
-                          example: "realzy"
                         created_at:
                           type: string
                           format: date-time
                           example: "2025-06-07T01:23:31.7077586Z"
-                        updated_at:
-                          type: string
-                          format: date-time
-                          example: "2025-06-07T01:23:31.7077586Z"
-                        user_type:
-                          type: string
-                          example: "user"
                         thread_id:
                           type: string
                           example: "019744be-4864-7e65-aa9a-959348898754"
-                        avatar_url:
-                          type: string
-                          example: ""
-                        edited:
-                          type: boolean
-                          example: false
-                        full_name:
-                          type: string
-                          example: "REALZY TEST1"
-                        email:
-                          type: string
-                          example: "testrealzy@gmail.com"
         "500":
           description: Internal server error
           content:
@@ -14964,7 +14906,7 @@ paths:
                     type: string
                     example: "Failed to retrieve saved messages"
 
-  /messages/message/{id}:
+  /saved-message/{id}:
     delete:
       tags:
         - Saved Messages
@@ -15033,7 +14975,6 @@ paths:
                   error:
                     type: string
                     example: "Failed to delete message"
-
 
 components:
   schemas:

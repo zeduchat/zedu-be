@@ -7,98 +7,69 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SaveMsgForLater(req models.CreateMessageRequest, db *storage.Database, logger *utility.Logger) (*models.MessageDocument, error) {
+func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger *utility.Logger) (*models.SavedMessage, error) {
 	var (
-		profile       models.Profile
-		channels      models.Channels
-		user          models.User
-		agent_message = false
+		channels models.Channels
+		org      models.Organisation
 	)
 
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
+		logger.Error("invalid thread ID")
 		return nil, errors.New("invalid thread ID")
 	}
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
 	if !chanExist {
+		logger.Error("channel does not exist")
 		return nil, errors.New("channel does not exist")
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
-	if err != nil && !agent_message {
-		logger.Error("failed to get user profile: %v", err)
-		return nil, errors.New("failed to get user profile")
+	orgExist := postgresql.CheckExists(db.Postgresql, &org, "id = ?", req.OrgId)
+	if !orgExist {
+		logger.Error("organisation does not exist")
+		return nil, errors.New("organisation does not exist")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
-	if err != nil && !agent_message {
-		logger.Error("failed to get user: %v", err)
-		return nil, errors.New("failed to get user")
+	messageToSave := models.SavedMessage{
+		ID:         utility.GenerateUUID(),
+		Content:    req.Content,
+		ChannelsID: req.ChannelsId,
+		UserID:     req.UserId,
+		CreatedAt:  time.Now().UTC(),
+		ThreadID:   threadId,
 	}
 
-	messageDoc := models.MessageDocument{
-		ID:           utility.GenerateUUID(),
-		Content:      req.Content,
-		ChannelsID:   req.ChannelsId,
-		UserID:       req.UserId,
-		ThreadID:     threadId,
-		AgentMessage: agent_message,
-		CreatedAt:    time.Now().UTC(),
-		UpdatedAt:    time.Now().UTC(),
-		AvatarURL:    profile.AvatarURL,
-		Edited:       false,
-		UserType:     "user",
-		Username:     utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
-		Email:        user.Email,
-		Media:        req.Media,
-		Mentions:     req.Mentions,
-	}
-
-	_, createErr := messageDoc.CreateMessageForLater(db, logger)
+	createErr := messageToSave.CreateMessageRecord(db.Postgresql)
 	if createErr != nil {
 		logger.Error("failed to save message: %v", createErr)
 		return nil, errors.New("failed to save message, error: " + createErr.Error())
 	}
 
-	return &messageDoc, nil
+	return &messageToSave, nil
 }
 
-func GetAllSavedMessages(db *storage.Database, logger *utility.Logger) ([]models.MessageDocument, error) {
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"match_all": map[string]interface{}{},
-		},
-	}
-
-	var rawResponse interface{}
-
-	err := elastic.SelectAll(db.Elastic, models.SavedMessageIndexName, query, &rawResponse)
+func GetAllSavedMessages(db *storage.Database, logger *utility.Logger) ([]models.SavedMessage, error) {
+	var savedMessage *models.SavedMessage
+	messageCollection, err := savedMessage.GetSavedMessages(db.Postgresql)
 	if err != nil {
-		logger.Error("An error occurred while retrieving messages from elastic: %v", err)
+		logger.Error("An error occurred while fetching messages from Postgres: %v", err)
 		return nil, err
 	}
 
-	messageDoc, err := models.UnMarsahlMessageResponse(rawResponse)
-	if err != nil {
-		logger.Error("An error occurred while unmarshalling message response from elastic: %v", err)
-		return nil, err
-	}
-
-	return messageDoc, nil
+	return messageCollection, nil
 }
 
 func DeleteSavedMessage(messageId string, db *storage.Database, logger *utility.Logger) error {
-	var message models.MessageDocument
+	var savedMessage *models.SavedMessage
 
-	err := message.DeleteSavedMessage(db, logger, messageId)
+	err := savedMessage.DeleteMessageByID(db.Postgresql, messageId)
 	if err != nil {
+		logger.Error("An error occurred while deleting message with id %v from Postgres", err)
 		return err
 	}
 
