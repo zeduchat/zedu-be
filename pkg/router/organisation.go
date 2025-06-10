@@ -64,7 +64,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	// Test routes
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
 	{
-		testOrganisationUrl.GET("/:org_id/load-metrics", organisationCtrl.GetLoadingMetrics)
+		testOrganisationUrl.GET("/:org_id/load-org-info", organisationCtrl.GetLoadingMetrics)
 	}
 
 	return r

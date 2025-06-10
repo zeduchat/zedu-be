@@ -3009,6 +3009,49 @@ paths:
                       deleted_at: "0001-01-01T00:13:35+00:13"
                       threads: null
 
+  /organisations/{org_id}/load-org-info:
+    get:
+      summary: Load organisation info
+      tags:
+        - organisation
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+            type: string
+          description: Organisation ID
+      responses:
+        '200':
+          description: Organisation info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: loading metrics retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      org_user_info:
+                        type: string
+                        example: user6, user5 and 3 others are in this organisation
+                      organisation_name:
+                        type: string
+                        example: testorg-2
+                      users_photos:
+                        type: array
+                        items:
+                          type: string
+
   /channels/add-multiple:
     post:
       tags:
