@@ -41,8 +41,8 @@ func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger
 		return nil, err
 	}
 	if !isMember {
-		logger.Error("user not authorised to retrieve this organisation")
-		return nil, errors.New("user not authorised to retrieve this organisation")
+		logger.Error("user is not a member of this organisation")
+		return nil, errors.New("user is not a member of this organisation")
 	}
 
 	messageToSave := models.SavedMessage{

@@ -7,7 +7,6 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
-		models.SavedMessage{},
 		models.APIStatus{},
 		models.AccessToken{},
 		models.Blog{},
@@ -48,6 +47,7 @@ func AuthMigrationModels() []interface{} {
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},
+		models.SavedMessage{},
 		models.SlackTelex{},
 		models.SlackToken{},
 		models.SlashCommand{},
