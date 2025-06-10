@@ -483,7 +483,7 @@ func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Prof
 	if err := query.Find(&profiles).Error; err != nil {
 		return profiles, fmt.Errorf("failed to fetch user profiles: %w", err)
 	}
-	
+
 	o.Name = org.Name
 
 	return profiles, nil
@@ -500,6 +500,18 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 
 	if err != nil {
 		return err
+	}
+
+	if len(orgIntResp) == 0 {
+		return nil
+	}
+
+	for i := range orgIntResp {
+		key, err := GenerateAgentKey()
+		if err != nil {
+			return err
+		}
+		orgIntResp[i].PreSharedKey = key
 	}
 
 	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
