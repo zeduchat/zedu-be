@@ -15,7 +15,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/channel"
-	"github.com/hngprojects/telex_be/services/plan"
 	"github.com/hngprojects/telex_be/utility"
 )
 

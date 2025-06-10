@@ -65,7 +65,10 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	}
 
 	base.Logger.Info("user invited successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", map[string]interface{}{
+		"isMember": false,
+		"message":  response,
+	})
 	c.JSON(http.StatusOK, rd)
 }
 
