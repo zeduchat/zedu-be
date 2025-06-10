@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -23,6 +24,13 @@ type Controller struct {
 
 func (base *Controller) SaveMessageForLater(c *gin.Context) {
 	var req models.SaveMessageRequest
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -47,6 +55,7 @@ func (base *Controller) SaveMessageForLater(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	req.UserId = userId
+	req.OrgId = orgId
 
 	messageDocument, err := savedMessages.SaveMsgForLater(req, base.Db, base.Logger)
 	if err != nil {
@@ -60,7 +69,23 @@ func (base *Controller) SaveMessageForLater(c *gin.Context) {
 }
 
 func (base *Controller) GetAllSavedMessages(c *gin.Context) {
-	file, err := savedMessages.GetAllSavedMessages(base.Db, base.Logger)
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	file, err := savedMessages.GetAllSavedMessages(base.Db, base.Logger, userId, orgId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
@@ -73,9 +98,30 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 }
 
 func (base *Controller) DeleteMessageByID(c *gin.Context) {
-	messageId := c.Param("id")
+	orgId := c.Param("org_id")
+	messageId := c.Param("messageId")
 
-	err := savedMessages.DeleteSavedMessage(messageId, base.Db, base.Logger)
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(messageId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", "unable to parse message id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	err := savedMessages.DeleteSavedMessage(base.Db, base.Logger, messageId, orgId, userId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to delete message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)

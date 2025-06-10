@@ -14,7 +14,9 @@ type SavedMessage struct {
 	ID         string                 `gorm:"type:uuid;primary_key" json:"id"`
 	Content    string                 `gorm:"column:content; type:text; not null" json:"content"`
 	ChannelsID string                 `gorm:"type:uuid;not null;index" json:"channels_id"`
+	OrgId      string                 `gorm:"type:uuid;not null;index" json:"org_id"`
 	UserID     string                 `gorm:"type:uuid;not null;index" json:"user_id"`
+	Type       string                 `gorm:"type:text;not null;index" json:"type,omitempty"`
 	CreatedAt  time.Time              `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt  gorm.DeletedAt         `gorm:"index" json:"-"`
 	ThreadID   uuid.UUID              `gorm:"type:uuid;null;index" json:"thread_id"`
@@ -23,18 +25,33 @@ type SavedMessage struct {
 
 type SaveMessageRequest struct {
 	Content    string                 `json:"content" validate:"required"`
-	OrgId      string                 `json:"org_id" validate:"required"`
 	ChannelsId string                 `json:"channels_id" validate:"required"`
 	ThreadId   string                 `json:"thread_id" validate:"required"`
+	Type       string                 `json:"type"`
+	OrgId      string                 `json:"org_id"`
 	UserId     string                 `json:"user_id"`
 	Media      []UploadedFileResponse `json:"media"`
 }
 
 func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 	var (
+		org          Organisation
 		dmChannels   DmChannels
 		userChannels UserChannels
 	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", m.OrgId)
+	if !exists {
+		return errors.New("organisation not found")
+	}
+
+	isMember, err := new(Organisation).CheckUserIsMemberOfOrg(m.UserID, m.OrgId, db)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return errors.New("user is not a member of organisation")
+	}
 
 	chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
@@ -43,9 +60,9 @@ func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 		return errors.New("user not in channel")
 	}
 
-	err := postgresql.CreateOneRecord(db, &m)
-	if err != nil {
-		return err
+	createErr := postgresql.CreateOneRecord(db, &m)
+	if createErr != nil {
+		return createErr
 	}
 
 	return nil
@@ -93,25 +110,43 @@ func (c *SavedMessage) DeleteSavedMessageMediaFiles(logger *utility.Logger, db *
 	return firstErr
 }
 
-func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID string) (*SavedMessage, error) {
-	query := db.Where("id = ?", messageID)
+func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID, orgId, userId string) (*SavedMessage, error) {
+	var org Organisation
 
-	err := query.First(&m).Error
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
+	if !exists {
+		return nil, errors.New("organisation not found")
+	}
+
+	isMember, err := new(Organisation).CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil {
 		return nil, err
+	}
+	if !isMember {
+		return nil, errors.New("user is not a member of organisation")
+	}
+
+	query := db.Where("id = ? AND org_id = ?", messageID, orgId)
+
+	findErr := query.First(&m).Error
+	if findErr != nil {
+		return nil, findErr
 	}
 
 	return m, nil
 }
 
-func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID string) error {
-	var savedMessage SavedMessage
+func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID, orgId string) error {
+	var (
+		savedMessage SavedMessage
+	)
+
 	idExists := postgresql.CheckExists(db, &savedMessage, "id = ?", messageID)
 	if !idExists {
 		return errors.New("invalid message ID")
 	}
 
-	query := db.Where("id = ?", messageID)
+	query := db.Where("id = ? AND org_id = ?", messageID, orgId)
 	err := query.Delete(&SavedMessage{}).Error
 	if err != nil {
 		return err
@@ -120,9 +155,26 @@ func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID string) error {
 	return nil
 }
 
-func (m *SavedMessage) GetSavedMessages(db *gorm.DB) ([]SavedMessage, error) {
-	var messages []SavedMessage
+func (m *SavedMessage) GetSavedMessages(db *gorm.DB, userId, orgId string) ([]SavedMessage, error) {
+	var (
+		org          Organisation
+		organisation *Organisation
+		messages     []SavedMessage
+	)
 
-	result := db.Order("created_at DESC").Find(&messages)
-	return messages, result.Error
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
+	if !exists {
+		return nil, errors.New("organisation not found")
+	}
+
+	isMember, err := organisation.CheckUserIsMemberOfOrg(userId, orgId, db)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, errors.New("user is not a member of organisation")
+	}
+
+	findErr := db.Order("created_at DESC").Find(&messages).Where("org_id = ?", orgId).Error
+	return messages, findErr
 }

@@ -14747,12 +14747,19 @@ paths:
                     type: string
                     example: "file not found or inaccessible"
 
-  /save-message:
+  /organisations/{organisationId}/save-message:
     post:
       tags:
         - Saved Messages
       summary: Save a message for later
       description: Creates and stores a new message in the system.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
       requestBody:
         required: true
         content:
@@ -14763,7 +14770,6 @@ paths:
                 - content
                 - thread_id
                 - channels_id
-                - org_id
               properties:
                 content:
                   type: string
@@ -14774,9 +14780,9 @@ paths:
                 thread_id:
                   type: string
                   example: "019744be-4864-7e65-aa9a-959348898754"
-                org_id:
+                type:
                   type: string
-                  example: "44be0197-7e65-4864-aa9a-898754959348"
+                  example: "message"
                 media:
                   type: array
                   items:
@@ -14821,18 +14827,21 @@ paths:
                         type: string
                         format: uuid
                         example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
-                      message:
+                      content:
                         type: string
                         example: "My test again for saved messages"
                       org_id:
                         type: string
-                        example: ""
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
                       channels_id:
                         type: string
                         example: "019747e0-fa9d-75c2-af24-b85cdc078840"
                       user_id:
                         type: string
                         example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      type:
+                        type: string
+                        example: "message"
                       created_at:
                         type: string
                         format: date-time
@@ -14883,12 +14892,19 @@ paths:
                     nullable: true
                     example: null
 
-  /saved-message:
+  /organisations/{organisationId}/saved-message:
     get:
       tags:
         - Saved Messages
       summary: Get all saved messages
       description: Retrieves all saved messages from the system.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
       security:
         - bearerAuth: []
       responses:
@@ -14956,7 +14972,7 @@ paths:
                     type: string
                     example: "Failed to retrieve saved messages"
 
-  /saved-message/{id}:
+  /organisations/{organisationId}/saved-message/{messageId}:
     delete:
       tags:
         - Saved Messages
@@ -14965,7 +14981,13 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: id
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
+        - name: messageId
           in: path
           required: true
           description: The ID of the message to delete
