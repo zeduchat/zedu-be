@@ -499,4 +499,3 @@ func (m *MessageDocument) UpdateMessageUsername(logger *utility.Logger, mu *sync
 	logger.Info("Updated username across message index")
 	return nil
 }
-

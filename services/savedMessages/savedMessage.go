@@ -34,7 +34,7 @@ func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger
 		logger.Error("organisation does not exist")
 		return nil, errors.New("organisation does not exist")
 	}
-	
+
 	isMember, err := org.CheckUserIsMemberOfOrg(req.UserId, req.OrgId, db.Postgresql)
 	if err != nil {
 		logger.Error("an error occurred, %v", err)
@@ -52,6 +52,7 @@ func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger
 		UserID:     req.UserId,
 		CreatedAt:  time.Now().UTC(),
 		ThreadID:   threadId,
+		Media:      req.Media,
 	}
 
 	createErr := messageToSave.CreateMessageRecord(db.Postgresql)
@@ -77,10 +78,22 @@ func GetAllSavedMessages(db *storage.Database, logger *utility.Logger) ([]models
 func DeleteSavedMessage(messageId string, db *storage.Database, logger *utility.Logger) error {
 	var savedMessage *models.SavedMessage
 
-	err := savedMessage.DeleteMessageByID(db.Postgresql, messageId)
+	message, err := savedMessage.GetSavedMessageByID(db.Postgresql, messageId)
 	if err != nil {
-		logger.Error("An error occurred while deleting message with id %v from Postgres", err)
+		logger.Error("An error occurred while fetching message from Postgres: %v", err)
 		return err
+	}
+
+	mediaErr := savedMessage.DeleteSavedMessageMediaFiles(logger, db.Postgresql, message.Media)
+	if mediaErr != nil {
+		logger.Error("An error occurred while deleting media file: %v", mediaErr)
+		return mediaErr
+	}
+
+	deleteErr := savedMessage.DeleteMessageByID(db.Postgresql, messageId)
+	if deleteErr != nil {
+		logger.Error("An error occurred while deleting saved message: %v", deleteErr)
+		return deleteErr
 	}
 
 	return nil
