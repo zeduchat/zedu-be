@@ -13051,6 +13051,12 @@ paths:
       security:
         - bearerAuth: []
       description: Adds a new thread message to a specified Group DM channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -13060,38 +13066,38 @@ paths:
               properties:
                 content:
                   type: string
-              media:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                      example: "550e8400-e29b-41d4-a716-446655440000"
-                    file_name:
-                      type: string
-                      example: "slsslsl"
-                    file_type:
-                      type: string
-                      example: "png"
-                    file_link:
-                      type: string
-                      format: uri
-                      example: "https://example.com/file.png"
-              mentions:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [bot, user]
-                      example: "bot"
-                    id:
-                      type: string
-                      format: uuid
-                      example: "550e8400-e29b-41d4-a716-446655440000"
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
               required:
                 - content
       responses:
@@ -13214,6 +13220,12 @@ paths:
       description: Replies an existing thread in a Group DM channel.
       security:
         - bearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
