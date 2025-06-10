@@ -12,8 +12,19 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
 )
+
+var MapPackagePriceID map[string]string
+
+func SetMapPackagePriceID(stripeConfig config.Stripe) {
+	MapPackagePriceID = map[string]string{
+		"starter pack":    stripeConfig.STRIPE_BASIC_CREDIT_ID,
+		"pro bundle":      stripeConfig.STRIPE_ADVANCED_CREDIT_ID,
+		"enterprise pack": stripeConfig.STRIPE_PREMIUM_CREDIT_ID,
+	}
+}
 
 type CreditUsage struct {
 	ID             string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
@@ -57,6 +68,7 @@ type CreditPackageResponse struct {
 type CreditTopUpRequest struct {
 	OrgID     string `json:"org_id" validate:"required"`
 	PackageID string `json:"package_id" validate:"required"`
+	Email     string `json:"email" validate:"required"`
 }
 
 func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
@@ -229,6 +241,17 @@ func GetCreditPackages(db *gorm.DB) (*[]CreditPackageResponse, int, error) {
 	}
 
 	return &response, http.StatusOK, nil
+}
+
+func GetCreditPackageByID(db *gorm.DB, id string) (*CreditPackage, int, error) {
+	var creditPackage CreditPackage
+
+	exists := postgresql.CheckExists(db, &creditPackage, "id = ?", id)
+	if !exists {
+		return nil, http.StatusNotFound, fmt.Errorf("credit package not found")
+	}
+
+	return &creditPackage, http.StatusOK, nil
 }
 
 func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) float64 {
