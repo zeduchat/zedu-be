@@ -54,6 +54,9 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		CancelURL:  stripe.String(url + "dashboard/credits"),
 	}
 
+	params.AddMetadata("org_id", req.OrgID)
+	params.AddMetadata("flow", "Credits Top Up")
+
 	session, err := session.New(params)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
