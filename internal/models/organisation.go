@@ -71,6 +71,12 @@ type UserInOrgResponse struct {
 	EntityType  string    `json:"entity_type"` // "user" or "bot"
 }
 
+type OrgMetricsResponse struct {
+	OrgUserInfo string   `json:"org_user_info"`
+	OrgName     string   `json:"organisation_name"`
+	UsersPhotos []string `json:"users_photos"`
+}
+
 type AddUserToOrgRequestModel struct {
 	UserId string `json:"user_id" validate:"required"`
 }
@@ -458,46 +464,29 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-type OrgMetricsResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	OwnerID   string `json:"owner_id"`
-	OwnerName string `json:"owner_name"`
-	Users     []User `json:"users"`
-}
-
-func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMetricsResponse, error) {
-	var org Organisation
-	var ogm OrgMetricsResponse
-
+func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Profile, error) {
+	var (
+		org      Organisation
+		profiles []Profile
+	)
 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
 	if !exists {
-		return ogm, errors.New("organisation not found")
+		return profiles, errors.New("organisation not found")
 	}
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &org, "id = ?", orgID)
-	if err != nil {
-		return ogm, err
+	query := db.Table("profiles").
+		Select("profiles.*").
+		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid").
+		Where("org_user_managements.organisation_id = ?", orgID).
+		Order("profiles.created_at DESC")
+
+	if err := query.Find(&profiles).Error; err != nil {
+		return profiles, fmt.Errorf("failed to fetch user profiles: %w", err)
 	}
+	
+	o.Name = org.Name
 
-	var owner User
-
-	err, _ = postgresql.SelectOneFromDb(db.Preload("Profile"), &owner, "id = ?", org.OwnerID)
-	if err != nil {
-		return ogm, err
-	}
-
-	response := OrgMetricsResponse{
-		ID:        org.ID,
-		Name:      org.Name,
-		Email:     org.Email,
-		OwnerID:   org.OwnerID,
-		OwnerName: owner.Profile.FullName,
-		Users:     org.Users,
-	}
-
-	return response, nil
+	return profiles, nil
 }
 
 func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
