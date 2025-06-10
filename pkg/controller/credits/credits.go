@@ -60,40 +60,6 @@ func (base *Controller) PurchaseCredits(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) TopUpOrgCredit(c *gin.Context) {
-
-	var req models.CreditTopUpRequest
-
-	err := c.ShouldBind(&req)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	err = base.Validator.Struct(&req)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
-			utility.ValidationResponse(err, base.Validator), nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
-	// process and integrate credit top-up payment - coming soon
-
-	organisationData, code, err := models.TopUpOrgCredit(req, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
-		c.JSON(code, rd)
-		base.Logger.Error(err.Error())
-		return
-	}
-
-	base.Logger.Info("Credit top-up was done successfully")
-	rd := utility.BuildSuccessResponse(code, "Credit top-up was done successfully", organisationData)
-	c.JSON(code, rd)
-}
-
 func (base *Controller) GetOrgCreditReport(c *gin.Context) {
 	org_id := c.Param("org_id")
 

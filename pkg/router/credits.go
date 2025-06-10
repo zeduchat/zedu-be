@@ -18,13 +18,10 @@ func Credits(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	credit := credits.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	creditUrl := r.Group(fmt.Sprintf("%v/credits", ApiVersion), middleware.Authorize(db.Postgresql))
-	webhookUrl := r.Group(fmt.Sprintf("%v/credits", ApiVersion))
 	{
-		// creditUrl.POST("/top-up", credit.TopUpOrgCredit)
 		creditUrl.POST("/purchase", credit.PurchaseCredits)
 		creditUrl.GET("/packages", credit.GetCreditPackages)
 		creditUrl.GET("/usage-report/:org_id", credit.GetOrgCreditReport)
-		webhookUrl.POST("webhook", credit.HandleStripeCreditPaymentWebhook)
 
 	}
 	return r

@@ -55,7 +55,8 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 	}
 
 	params.AddMetadata("org_id", req.OrgID)
-	params.AddMetadata("flow", "Credits Top Up")
+	params.AddMetadata("flow", "credit_topup")
+	params.AddMetadata("package_id", req.PackageID)
 
 	session, err := session.New(params)
 	if err != nil {

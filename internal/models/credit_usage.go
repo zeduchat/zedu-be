@@ -133,17 +133,17 @@ func UpdateOrgCreditBalance(db *gorm.DB, organisationID string) error {
 		Update("credit_balance", balance).Error
 }
 
-func TopUpOrgCredit(req CreditTopUpRequest, db *gorm.DB) (*gin.H, int, error) {
+func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, error) {
 	var org Organisation
 
-	org, err := org.GetOrgByID(db, req.OrgID)
+	org, err := org.GetOrgByID(db, OrgID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("org not found")
 	}
 
 	var credit_pkg CreditPackage
 
-	err = db.Where("id = ?", req.PackageID).First(&credit_pkg).Error
+	err = db.Where("id = ?", PackageID).First(&credit_pkg).Error
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("credit package does not exist: %v", err)
 	}
@@ -151,7 +151,7 @@ func TopUpOrgCredit(req CreditTopUpRequest, db *gorm.DB) (*gin.H, int, error) {
 	// create credit transaction
 	credit_transaction := CreditTransaction{
 		ID:             utility.GenerateUUID(),
-		OrganisationID: req.OrgID,
+		OrganisationID: OrgID,
 		Amount:         float64(credit_pkg.Credits),
 		BalanceBefore:  float64(org.CreditBalance),
 		BalanceAfter:   float64(org.CreditBalance) + float64(credit_pkg.Credits),
@@ -163,12 +163,12 @@ func TopUpOrgCredit(req CreditTopUpRequest, db *gorm.DB) (*gin.H, int, error) {
 		return nil, http.StatusBadRequest, fmt.Errorf("unable to create credit transaction: %v", err)
 	}
 
-	if err = UpdateOrgCreditBalance(db, req.OrgID); err != nil {
+	if err = UpdateOrgCreditBalance(db, OrgID); err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	// refetch org with updated values
-	org, err = org.GetOrgByID(db, req.OrgID)
+	org, err = org.GetOrgByID(db, OrgID)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to fetch updated organisation details")
 	}
