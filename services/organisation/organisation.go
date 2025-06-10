@@ -525,15 +525,51 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 
 func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
 	var (
-		o   models.Organisation
-		ogm models.OrgMetricsResponse
+		o         models.Organisation
+		ogm       models.OrgMetricsResponse
+		userNames []string
+		userInfo  string
 	)
 
-	metrics, err := o.LoadOrganisationMetrics(db, orgId)
+	userPhotos := []string{}
+
+	profiles, err := o.FetchUsersInOrgProfile(db, orgId)
 	if err != nil {
 		return ogm, err
 	}
-	return metrics, nil
+
+	for _, profile := range profiles {
+		if profile.AvatarURL != "" {
+			userPhotos = append(userPhotos, profile.AvatarURL)
+		}
+		if profile.FirstName != "" {
+			userNames = append(userNames, profile.FirstName)
+		}
+	}
+
+	if len(userPhotos) > 5 {
+		userPhotos = userPhotos[:5]
+	}
+
+	totalUsers := len(profiles)
+	if totalUsers > 0 {
+		if totalUsers <= 2 {
+			userInfo = fmt.Sprintf("%s are in this organisation",
+				strings.Join(userNames[:2], " and "))
+		} else {
+			userInfo = fmt.Sprintf("%s and %d others are in this organisation",
+				strings.Join(userNames[:2], ", "),
+				totalUsers-2)
+		}
+	}
+
+	response := models.OrgMetricsResponse{
+		OrgUserInfo: userInfo,
+		OrgName:     o.Name,
+		UsersPhotos: userPhotos,
+	}
+
+	return response, nil
 }
 
 func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {

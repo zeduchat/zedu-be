@@ -417,7 +417,6 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 			)
 
 			exists := postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", r.ChannelId, r.UserId)
-
 			if !exists {
 				return res, errors.New("channel does not exist")
 			}
