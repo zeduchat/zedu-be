@@ -109,7 +109,7 @@ func (base *Controller) UnPinMessage(c *gin.Context) {
 	channelID := c.Param("channelId")
 
 	if _, err := uuid.Parse(pinnedID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid id format", errors.New("failed to parse id"), nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid id format", errors.New("failed to parse messageId"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
