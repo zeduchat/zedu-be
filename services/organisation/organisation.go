@@ -531,11 +531,19 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 		userInfo  string
 	)
 
-	userPhotos := []string{}
+	userPhotos := make([]string, 0, 5)
 
 	profiles, err := o.FetchUsersInOrgProfile(db, orgId)
 	if err != nil {
 		return ogm, err
+	}
+
+	if len(profiles) == 0 {
+		return models.OrgMetricsResponse{
+			OrgUserInfo: "No members yet",
+			OrgName:     o.Name,
+			UsersPhotos: []string{},
+		}, nil
 	}
 
 	for _, profile := range profiles {
@@ -551,16 +559,17 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 		userPhotos = userPhotos[:5]
 	}
 
-	totalUsers := len(profiles)
-	if totalUsers > 0 {
-		if totalUsers <= 2 {
-			userInfo = fmt.Sprintf("%s are in this organisation",
-				strings.Join(userNames[:2], " and "))
-		} else {
-			userInfo = fmt.Sprintf("%s and %d others are in this organisation",
-				strings.Join(userNames[:2], ", "),
-				totalUsers-2)
-		}
+	switch len(userNames) {
+	case 0:
+		userInfo = "No named members yet"
+	case 1:
+		userInfo = fmt.Sprintf("%s is in this organisation", userNames[0])
+	case 2:
+		userInfo = fmt.Sprintf("%s and %s are in this organisation",
+			userNames[0], userNames[1])
+	default:
+		userInfo = fmt.Sprintf("%s, %s and %d others are in this organisation",
+			userNames[0], userNames[1], len(userNames)-2)
 	}
 
 	response := models.OrgMetricsResponse{
