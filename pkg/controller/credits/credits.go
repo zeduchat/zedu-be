@@ -9,6 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	service "github.com/hngprojects/telex_be/services/credits"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -19,9 +20,16 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) TopUpOrgCredit(c *gin.Context) {
+func (base *Controller) PurchaseCredits(c *gin.Context) {
 
 	var req models.CreditTopUpRequest
+	var url = c.Request.Header.Get("Referer")
+
+	if url == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "missing URL", "missing URL", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -38,9 +46,8 @@ func (base *Controller) TopUpOrgCredit(c *gin.Context) {
 		return
 	}
 
-	// process and integrate credit top-up payment - coming soon
-
-	organisationData, code, err := models.TopUpOrgCredit(req, base.Db.Postgresql)
+	// process and integrate credit top-up payment
+	checkoutSession, code, err := service.PurchaseCredits(req, base.Db.Postgresql, url)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -48,8 +55,8 @@ func (base *Controller) TopUpOrgCredit(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Credit top-up was done successfully")
-	rd := utility.BuildSuccessResponse(code, "Credit top-up was done successfully", organisationData)
+	base.Logger.Info("Checkout Session URL generated succesfully")
+	rd := utility.BuildSuccessResponse(code, "Checkout Session URL generated succesfully", checkoutSession)
 	c.JSON(code, rd)
 }
 

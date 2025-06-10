@@ -52,6 +52,8 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
 	}
 
+	params.AddMetadata("flow", "subscription")
+
 	session, err := session.New(params)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
