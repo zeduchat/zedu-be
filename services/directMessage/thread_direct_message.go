@@ -108,11 +108,17 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	dataByte, _ := json.Marshal(feed)
 
+	typeChannelId := req.ChannelsID
+
+	if channel.ChannelType == string(models.DMChannel) {
+		typeChannelId = *channel.ParticipantId
+	}
+
 	notifRec := models.PushNotificationRecord{
 		ChannelType: models.DMChannel,
 		Data:        string(dataByte),
 		Sent:        false,
-		ChannelId:   *channel.ParticipantId,
+		ChannelId:   typeChannelId,
 		Section:     models.ThreadSection,
 		Type:        models.NewMessage,
 	}
