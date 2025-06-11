@@ -14687,7 +14687,7 @@ paths:
       summary: Send a chat message to a TelexAI model
       parameters:
         - in: header
-          name: X-TELEX-API-KEY
+          name: X-AGENT-API-KEY
           schema:
             type: string
           required: true
