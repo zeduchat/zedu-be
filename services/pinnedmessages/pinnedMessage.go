@@ -18,14 +18,12 @@ func PinMessage(req models.PinMessageRequest, db *storage.Database, logger *util
 	}
 
 	messageToPin := models.PinnedMessage{
-		ID:             utility.GenerateUUID(),
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsId,
-		OrganisationID: req.OrgId,
-		UserID:         req.UserId,
-		PinnedAt:       time.Now().UTC(),
-		ThreadID:       threadId,
-		Media:          req.Media,
+		ID:         utility.GenerateUUID(),
+		ChannelsID: req.ChannelsId,
+		OrgId:      req.OrgId,
+		UserID:     req.UserId,
+		PinnedAt:   time.Now().UTC(),
+		ThreadID:   threadId,
 	}
 
 	createErr := messageToPin.CreatePinnedMessageRecord(db.Postgresql)
@@ -37,10 +35,10 @@ func PinMessage(req models.PinMessageRequest, db *storage.Database, logger *util
 	return &messageToPin, nil
 }
 
-func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, channelID, userID string) ([]models.PinnedMessage, error) {
+func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, orgID, channelID, userID string) ([]models.PinnedMessage, error) {
 	var pinnedMessage *models.PinnedMessage
 
-	messageCollection, err := pinnedMessage.GetPinnedMessagesForChannel(db.Postgresql, channelID, userID)
+	messageCollection, err := pinnedMessage.GetPinnedMessagesForChannel(db.Postgresql, orgID, channelID, userID)
 	if err != nil {
 		logger.Error("An error occurred while fetching pinned messages: %v", err)
 		return nil, err
@@ -49,10 +47,10 @@ func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, channelI
 	return messageCollection, nil
 }
 
-func UnPinMessage(db *storage.Database, logger *utility.Logger, pinnedID, channelID, userID string) error {
+func UnPinMessage(db *storage.Database, logger *utility.Logger, pinnedID, orgID, channelID, userID string) error {
 	var pinnedMessage *models.PinnedMessage
 
-	_, getErr := pinnedMessage.GetPinnedMessageByID(db.Postgresql, pinnedID, channelID, userID)
+	_, getErr := pinnedMessage.GetPinnedMessageByID(db.Postgresql, pinnedID, orgID, channelID, userID)
 	if getErr != nil {
 		logger.Error("An error occurred while fetching pinned message record: %v", getErr)
 		return getErr

@@ -14747,13 +14747,19 @@ paths:
                     type: string
                     example: "file not found or inaccessible"
 
-  /channels/{channelId}/pin:
+  /organisations/{organisationId}/channels/{channelId}/pin:
     post:
       tags:
         - Pinned Messages
       summary: Pin a message to a channel or DM
       description: Pins a specific message in a given channel or DM thread.
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
@@ -14767,36 +14773,9 @@ paths:
             schema:
               type: object
               properties:
-                content:
-                  type: string
-                  example: "Third message for pinned messages"
                 thread_id:
                   type: string
                   example: "019744be-4864-7e65-bb9a-959348898754"
-                org_id:
-                  type: string
-                  example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
-                media:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        example: "019758f6-be18-74a1-842d-ba88fb294473"
-                      file_name:
-                        type: string
-                        example: "Screenshot 2025-01-20 203658 - Copy.png"
-                      file_type:
-                        type: string
-                        example: "png"
-                      mime_type:
-                        type: string
-                        example: "image/png"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/public/file-uploads/dfc961d3.png"
       security:
         - bearerAuth: []
       responses:
@@ -14822,9 +14801,6 @@ paths:
                       id:
                         type: string
                         example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
-                      content:
-                        type: string
-                        example: "Third message for pinned messages"
                       channels_id:
                         type: string
                         example: "019747e0-fa9d-75c2-af24-b85cdc078840"
@@ -14844,11 +14820,6 @@ paths:
                       thread_id:
                         type: string
                         example: "019744be-4864-7e65-bb9a-959348898754"
-                      media:
-                        type: array
-                        items:
-                          type: object
-                        example: []
         "400":
           description: Invalid input or message already pinned
           content:
@@ -14892,13 +14863,19 @@ paths:
                     nullable: true
                     example: null
 
-  /channels/{channelId}/pin/{messageId}:
+  /organisations/{organisationId}/channels/{channelId}/pin/{messageId}:
     delete:
       tags:
         - Pinned Messages
       summary: Unpin a message from a channel or DM
       description: Removes a message from the pinned list in the specified channel.
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
@@ -14973,13 +14950,19 @@ paths:
                     nullable: true
                     example: null
 
-  /channels/{channelId}/pinned-messages:
+  /organisations/{organisationId}/channels/{channelId}/pinned-messages:
     get:
       tags:
         - Pinned Messages
       summary: Retrieve pinned messages
       description: Fetches all pinned messages in the specified channel or DM, sorted by pin time.
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
@@ -15013,18 +14996,10 @@ paths:
                         id:
                           type: string
                           example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
-                        content:
-                          type: string
-                          example: "Pinned message content"
                         pinned_at:
                           type: string
                           format: date-time
                           example: "2025-06-10T16:10:17.0247925Z"
-                        media:
-                          type: array
-                          items:
-                            type: object
-                          example: []
         "400":
           description: Bad request (missing or invalid params)
           content:
