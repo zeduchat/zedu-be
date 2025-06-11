@@ -274,3 +274,51 @@ func CalculateCreditCost(inputLength int, agentPrice float64) float64 {
 
 	return math.Round(rawCost*100) / 100
 }
+
+func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]CreditUsage, postgresql.PaginationResponse, error) {
+	var creditUsage []CreditUsage
+
+	query := db.Model(&CreditUsage{}).
+		Where("organisation_id = ?", org_id).
+		Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditUsage,
+		nil,
+	)
+	if err != nil {
+		return creditUsage, paginationResponse, err
+	}
+
+	return creditUsage, paginationResponse, nil
+}
+
+func GetOrgCreditUsage(org_id string, db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
+	var creditTransact []CreditTransaction
+
+	query := db.Model(&CreditTransaction{}).
+		Where("organisation_id = ?", org_id).
+		Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditTransact,
+		nil,
+	)
+	if err != nil {
+		return creditTransact, paginationResponse, err
+	}
+
+	return creditTransact, paginationResponse, nil
+}

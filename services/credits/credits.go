@@ -50,8 +50,8 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL: stripe.String(url + "client?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "client"),
+		SuccessURL: stripe.String(url + "client/settings/organisation/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "client/settings/organisation/billing"),
 	}
 
 	params.AddMetadata("org_id", req.OrgID)

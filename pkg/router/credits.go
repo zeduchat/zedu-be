@@ -22,6 +22,8 @@ func Credits(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		creditUrl.POST("/purchase", credit.PurchaseCredits)
 		creditUrl.GET("/packages", credit.GetCreditPackages)
 		creditUrl.GET("/usage-report/:org_id", credit.GetOrgCreditReport)
+		creditUrl.GET("/transactions/:org_id", credit.GetOrgCreditTransactions)
+		creditUrl.GET("/usage/:org_id", credit.GetOrgCreditUsage)
 
 	}
 	return r
