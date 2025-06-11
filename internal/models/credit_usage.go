@@ -34,6 +34,18 @@ type CreditUsage struct {
 	UserID         string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+
+	User  User                     `gorm:"foreignKey:UserID;references:ID"`
+	Agent OrganisationIntegrations `gorm:"foreignKey:AgentID;references:ID"`
+}
+
+type CreditUsageResponse struct {
+	ID             string    `json:"id"`
+	OrganisationID string    `json:"organisation_id"`
+	Amount         float64   `json:"amount"`
+	UserName       string    `json:"user_name"`
+	AgentName      string    `json:"agent_name"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type CreditTransaction struct {
@@ -273,4 +285,66 @@ func CalculateCreditCost(inputLength int, agentPrice float64) float64 {
 	}
 
 	return math.Round(rawCost*100) / 100
+}
+
+func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]CreditUsage, postgresql.PaginationResponse, error) {
+	var creditUsage []CreditUsage
+
+	query := db.Model(&CreditUsage{}).
+		Where("organisation_id = ?", org_id).
+		Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditUsage,
+		nil,
+	)
+	if err != nil {
+		return creditUsage, paginationResponse, err
+	}
+
+	return creditUsage, paginationResponse, nil
+}
+
+func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
+	var creditUsages []CreditUsage
+	var creditUsageResponses []CreditUsageResponse
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&CreditUsage{}).
+		Where("organisation_id = ?", orgID).
+		Preload("User").
+		Preload("Agent").
+		Order("created_at DESC")
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditUsages,
+		nil,
+	)
+	if err != nil {
+		return creditUsageResponses, paginationResponse, err
+	}
+
+	for _, usage := range creditUsages {
+		creditUsageResponses = append(creditUsageResponses, CreditUsageResponse{
+			ID:             usage.ID,
+			OrganisationID: usage.OrganisationID,
+			Amount:         usage.Amount,
+			UserName:       usage.User.Name,
+			AgentName:      usage.Agent.AppName,
+			CreatedAt:      usage.CreatedAt,
+		})
+	}
+
+	return creditUsageResponses, paginationResponse, nil
 }

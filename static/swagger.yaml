@@ -5774,6 +5774,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /credits/transactions/{org_id}:
+    get:
+      tags:
+        - credits
+      summary: Retrieve organization credit transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to retrieve it credit report.
+      responses:
+        "200":
+          description: Credit transactions retrieved successfully
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+ 
+  /credits/usage/{org_id}:
+    get:
+      tags:
+        - credits
+      summary: Retrieve organization credit usage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to retrieve it credit report.
+      responses:
+        "200":
+          description: Credit usage retrieved successfully
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+ 
+
   /invite:
     post:
       tags:
