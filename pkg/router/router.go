@@ -66,6 +66,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	FcmToken(r, ApiVersion, validator, db, logger)
 	TelexAI(r, ApiVersion, validator, db, logger)
 	GetRecentLogs(r, ApiVersion, validator, db, logger)
+	ForwardMessage(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

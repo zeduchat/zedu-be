@@ -50,31 +50,34 @@ type Threads struct {
 }
 
 type ThreadDocument struct {
-	ID            string                 `json:"thread_id"`
-	ChannelsID    string                 `json:"channels_id"`
-	OrgansationID string                 `json:"org_id"`
-	EventName     string                 `json:"event_name,omitempty"`
-	Username      string                 `json:"username"`
-	ActionType    string                 `json:"action_type,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-	CreatedAt     time.Time              `json:"created_at"`
-	MessageCount  int64                  `json:"message_count"`
-	LastReply     time.Time              `json:"last_reply"`
-	AvatarURL     string                 `json:"avatar_url"`
-	UserType      string                 `json:"user_type"`
-	Type          string                 `json:"type"`
-	Content       string                 `json:"message"`
-	ChannelName   string                 `json:"channel_name,omitempty"`
-	CurrentStatus string                 `json:"current_status"`
-	FullName      string                 `json:"full_name"`
-	Email         string                 `json:"email"`
-	UserId        string                 `json:"user_id"`
-	Edited        bool                   `json:"edited"`
-	Messages      []MessageDocument      `json:"messages,omitempty"`
-	Count         int                    `json:"frequency,omitempty"`
-	Media         []UploadedFileResponse `json:"media,omitempty"`
-	Mentions      []Mention              `json:"mentions,omitempty"`
-	State         string                 `json:"state,omitempty"`
+	ID               string                 `json:"thread_id"`
+	ChannelsID       string                 `json:"channels_id"`
+	OrgansationID    string                 `json:"org_id"`
+	EventName        string                 `json:"event_name,omitempty"`
+	Username         string                 `json:"username"`
+	ActionType       string                 `json:"action_type,omitempty"`
+	Status           string                 `json:"status,omitempty"`
+	CreatedAt        time.Time              `json:"created_at"`
+	MessageCount     int64                  `json:"message_count"`
+	LastReply        time.Time              `json:"last_reply"`
+	AvatarURL        string                 `json:"avatar_url"`
+	UserType         string                 `json:"user_type"`
+	Type             string                 `json:"type"`
+	Content          string                 `json:"message"`
+	ChannelName      string                 `json:"channel_name,omitempty"`
+	CurrentStatus    string                 `json:"current_status"`
+	FullName         string                 `json:"full_name"`
+	Email            string                 `json:"email"`
+	UserId           string                 `json:"user_id"`
+	Edited           bool                   `json:"edited"`
+	Messages         []MessageDocument      `json:"messages,omitempty"`
+	Count            int                    `json:"frequency,omitempty"`
+	Media            []UploadedFileResponse `json:"media,omitempty"`
+	Mentions         []Mention              `json:"mentions,omitempty"`
+	State            string                 `json:"state,omitempty"`
+	IsForwarded      bool                   `json:"is_forwarded,omitempty"`
+	ForwardedFromID  string                 `json:"forwarded_from_id,omitempty"`
+	OriginalSenderID string                 `json:"original_sender_id,omitempty"`
 }
 
 var MediaMapping = map[string]interface{}{
@@ -139,6 +142,15 @@ var Thread_mapping = map[string]interface{}{
 			"messages": map[string]interface{}{
 				"type":       "nested",
 				"properties": MessageMapping,
+			},
+			"is_forwarded": map[string]string{
+				"type": "boolean",
+			},
+			"forwarded_from_id": map[string]string{
+				"type": "keyword",
+			},
+			"original_sender_id": map[string]string{
+				"type": "keyword",
 			},
 		},
 	},
@@ -209,24 +221,24 @@ type BotReturnRequest struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID    string                 `json:"channel_id"`
-	FullName     string                 `json:"full_name"`
-	UserName     string                 `json:"username"`
-	CreatedAt    string                 `json:"created_at"`
-	UpdatedAt    string                 `json:"updated_at"`
-	Email        string                 `json:"email"`
-	AvatarURL    string                 `json:"avatar_url,omitempty"`
-	MessageId    string                 `json:"message_id,omitempty"`
-	Type         string                 `json:"type"`
-	Content      string                 `json:"message"`
-	ThreadId     string                 `json:"thread_id"`
-	OrgId        string                 `json:"org_id"`
-	UserId       string                 `json:"user_id"`
-	Media        []UploadedFileResponse `json:"media"`
-	UserType     string                 `json:"user_type"`
-	Id           string                 `json:"id,omitempty"`
-	State        string                 `json:"state"`
-	ChannelName  string                 `json:"channel_name,omitempty"`
+	ChannelID   string                 `json:"channel_id"`
+	FullName    string                 `json:"full_name"`
+	UserName    string                 `json:"username"`
+	CreatedAt   string                 `json:"created_at"`
+	UpdatedAt   string                 `json:"updated_at"`
+	Email       string                 `json:"email"`
+	AvatarURL   string                 `json:"avatar_url,omitempty"`
+	MessageId   string                 `json:"message_id,omitempty"`
+	Type        string                 `json:"type"`
+	Content     string                 `json:"message"`
+	ThreadId    string                 `json:"thread_id"`
+	OrgId       string                 `json:"org_id"`
+	UserId      string                 `json:"user_id"`
+	Media       []UploadedFileResponse `json:"media"`
+	UserType    string                 `json:"user_type"`
+	Id          string                 `json:"id,omitempty"`
+	State       string                 `json:"state"`
+	ChannelName string                 `json:"channel_name,omitempty"`
 }
 
 type Mentions struct {

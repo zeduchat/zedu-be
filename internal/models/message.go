@@ -35,24 +35,27 @@ type Message struct {
 }
 
 type MessageDocument struct {
-	ID             string                 `json:"id",omitempty`
-	Content        string                 `json:"message"`
-	OrganisationID string                 `json:"org_id"`
-	ChannelsID     string                 `json:"channels_id"`
-	UserID         string                 `json:"user_id"`
-	Username       string                 `json:"username"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt         `json:"-"`
-	AgentMessage   bool                   `json:"-"`
-	UserType       string                 `json:"user_type"`
-	ThreadID       uuid.UUID              `json:"thread_id"`
-	AvatarURL      string                 `json:"avatar_url"`
-	Edited         bool                   `json:"edited"`
-	FullName       string                 `json:"full_name"`
-	Email          string                 `json:"email"`
-	Media          []UploadedFileResponse `json:"media,omitempty"`
-	Mentions       []Mention              `json:"mentions,omitempty"`
+	ID               string                 `json:"id",omitempty`
+	Content          string                 `json:"message"`
+	OrganisationID   string                 `json:"org_id"`
+	ChannelsID       string                 `json:"channels_id"`
+	UserID           string                 `json:"user_id"`
+	Username         string                 `json:"username"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt         `json:"-"`
+	AgentMessage     bool                   `json:"-"`
+	UserType         string                 `json:"user_type"`
+	ThreadID         uuid.UUID              `json:"thread_id"`
+	AvatarURL        string                 `json:"avatar_url"`
+	Edited           bool                   `json:"edited"`
+	FullName         string                 `json:"full_name"`
+	Email            string                 `json:"email"`
+	Media            []UploadedFileResponse `json:"media,omitempty"`
+	Mentions         []Mention              `json:"mentions,omitempty"`
+	IsForwarded      bool                   `json:"is_forwarded,omitempty"`
+	ForwardedFromID  string                 `json:"forwarded_from_id,omitempty"`
+	OriginalSenderID string                 `json:"original_sender_id,omitempty"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -89,6 +92,15 @@ var MessageMapping = map[string]interface{}{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 		},
+		"is_forwarded": map[string]string{
+			"type": "boolean",
+		},
+		"forwarded_from_id": map[string]string{
+			"type": "keyword",
+		},
+		"original_sender_id": map[string]string{
+			"type": "keyword",
+		},
 	},
 }
 
@@ -110,6 +122,19 @@ type EditMessageRequest struct {
 	ThreadId   string `json:"thread_id" validate:"required"`
 	MessageId  string `json:"message_id" validate:"required"`
 	OrgId      string `json:"org_id"`
+}
+
+type ForwardReplyMessageRequest struct {
+	UserId     string `json:"user_id" validate:"required"`
+	ThreadId   string `json:"thread_id" validate:"required"`
+	MessageId  string `json:"message_id" validate:"required"`
+	ChannelsId string `json:"channels_id"`
+}
+
+type ForwardThreadMessageRequest struct {
+	UserId     string `json:"user_id" validate:"required"`
+	ThreadId   string `json:"thread_id" validate:"required"`
+	ChannelsId string `json:"channels_id"`
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]interface{}, error) {

@@ -78,8 +78,6 @@ tags:
     description: API endpoints for bots
   - name: TelexAI
     description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
-  - name: Mongogrations
-    description: API endpoints for integrations to interact with a mongoDB instance through telex
   - name: File Management
     description: API for uploading and retrieving files
   - name: Search
@@ -94,6 +92,8 @@ tags:
     description: API endpoints for telex AI
   - name: Logs
     description: API endpoints for retrieving server logs
+  - name: Message Forwarding
+    description: API endpoints for handling message forwarding
 
 paths:
   # Auth paths
@@ -3022,7 +3022,7 @@ paths:
             type: string
           description: Organisation ID
       responses:
-        '200':
+        "200":
           description: Organisation info retrieved successfully
           content:
             application/json:
@@ -4106,7 +4106,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  
   /subscriptions/plans:
     get:
       summary: Fetch all available subscription plans
@@ -4126,8 +4125,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  
-  
   /subscriptions/current/{orgId}:
     get:
       summary: Current subscription for an organization
@@ -5626,7 +5623,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /credits/packages:
     get:
       tags:
@@ -5662,7 +5658,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -5706,7 +5702,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
   /credits/top-up:
     post:
       tags:
@@ -14769,6 +14765,191 @@ paths:
                   error:
                     type: string
                     example: "file not found or inaccessible"
+
+  /channels/{channelId}/thread/forward:
+    post:
+      tags:
+        - Message Forwarding
+      summary: Forward a thread message
+      description: Forwards a thread message and links it to the original message.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                thread_id:
+                  type: string
+              required:
+                - user_id
+                - thread_id
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Thread message forwarded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Thread message forwarded successfully"
+                  data:
+                    $ref: "#/components/schemas/ThreadDocument"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+                  error:
+                    type: string
+                    example: "Missing required field"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /channels/{channelId}/message/forward:
+    post:
+      tags:
+        - Message Forwarding
+      summary: Forward a reply message
+      description: Forwards a reply message and links it to the original message.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                thread_id:
+                  type: string
+                message_id:
+                  type: string
+              required:
+                - user_id
+                - thread_id
+                - message_id
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reply message forwarded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Reply message forwarded successfully"
+                  data:
+                    $ref: "#/components/schemas/MessageDocument"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+                  error:
+                    type: string
+                    example: "Missing required field"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
 
 components:
   schemas:
