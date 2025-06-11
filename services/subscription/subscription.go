@@ -232,3 +232,13 @@ func GetSubscriptions(customerID string, db *gorm.DB) ([]models.OrgPlanDetails, 
 
 	return currentPlans, http.StatusOK, nil
 }
+
+func GetSubscriptionPlans(db *gorm.DB) (*[]models.Plan, int, error) {
+
+	subscriptionPlans, err := models.GetSubscriptionPlans(db)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("failed to retrieve subscription plans")
+	}
+
+	return subscriptionPlans, http.StatusOK, nil
+}
