@@ -2,61 +2,201 @@ package notification_processor
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AddNotificationToQueue(rdb *redis.Client, name names.NotificationName, data interface{}) error {
-	dataByte, err := json.Marshal(data)
+func ProcessNotification(req Job, logger *utility.Logger) error {
+
+	var (
+		feed = models.FeedMessageRequest{}
+		db   = storage.DB.Postgresql
+	)
+
+	notification := req.Notification
+
+	err := json.Unmarshal([]byte(notification.Data), &feed)
 	if err != nil {
-		return err
+		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	notificationRecord := models.PushNotificationRecord{
-		Name: string(name),
-		Data: string(dataByte),
-		Sent: false,
+	notifData := models.Notification[notification.Type]
+	notifData.SectionType = notification.Section
+	notifData.Content = feed
+	notifData.UpdateChange = notification.UpdateChange
+
+	processPayload := models.NotificationProcessPayload{
+		Notification: notifData,
+		OrgId:        feed.OrgId,
+		ChannelId:    notification.ChannelId,
+		UserId:       feed.UserId,
+		ChannelType:  notification.ChannelType,
 	}
 
-	err = notificationRecord.PushToQueue(rdb)
+	typeCall := map[models.ChannelType]func(db *gorm.DB, notification models.NotificationProcessPayload, logger *utility.Logger) error{
+		models.Channel:        ChannelNotification,
+		models.DMChannel:      DMNotification,
+		models.GroupDMChannel: DMNotification,
+	}
+
+	err = typeCall[notification.ChannelType](db, processPayload, logger)
+
 	if err != nil {
-		return err
+		return fmt.Errorf("error sending notification data, %v", err)
 	}
 
 	return nil
+
 }
 
-func ProcessNotification(db *gorm.DB, rec models.PushNotificationRecord, logger *utility.Logger) error {
+func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
 
-	var err error
+	var (
+		channelId = notifPayload.ChannelId
+		orgId     = notifPayload.OrgId
+		userId    = notifPayload.UserId
+		userIDs   []string
+	)
 
-	if rec.Name == string(names.SendPushNotification) {
+	err := db.
+		Model(&models.UserChannels{}).
+		Where("channels_id = ? AND user_id != ?", channelId, userId).
+		Where(`preferences->'web'->>'muted' = ? OR preferences = '{}' OR preferences->'mobile'->>'muted' = ?`, "false", "false").
+		Pluck("user_id", &userIDs).Error
 
-		err = DMNotification(db, logger, rec)
-	} else if rec.Name == string(names.SendMassPushNotification) {
-
-		err = ChannelNotification(db, logger, rec)
+	if err != nil {
+		return fmt.Errorf("failed to query entry of userids")
 	}
 
-	return err
+	orgUserIds := make([]string, 0)
 
-}
+	for _, userId := range userIDs {
+		orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
+	}
 
-func ChannelNotification(db *gorm.DB, logger *utility.Logger, rec models.PushNotificationRecord) error {
+	err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
+	if err != nil {
+		logger.Error("Error Publishing to channelid: %s, with orgid: %s error: %v", channelId, orgId, err.Error())
+		return fmt.Errorf("failed to publish thread data")
+	}
 
-	// channel_query := ""
-	// mention_query := ""
+	logger.Info("published new_message notification to %d users", len(userIDs))
 
+	// Push fcm notification to channel users
+
+	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
+
+	pushReq := models.PushFCMRequest{
+		ChannelId:   channelId,
+		ChannelName: feed.ChannelName,
+		UserIds:     userIDs,
+		Message:     feed.Content,
+		UserId:      userId,
+		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
+	}
+
+	err = push_notifications.PushFCMToUsers(pushReq, logger, db)
+	if err != nil {
+		logger.Error("failed to send push notifcation to channel users, Err: %v", err.Error())
+	}
+
+	logger.Info("sent fcm push notification to channel users")
 	return nil
 }
 
-func DMNotification(db *gorm.DB, logger *utility.Logger, rec models.PushNotificationRecord) error {
-	return nil
+func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
+
+	var (
+		channelId = notifPayload.ChannelId
+		orgId     = notifPayload.OrgId
+		userId    = notifPayload.UserId
+	)
+
+	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
+
+	typeCall := map[models.ChannelType]func() error{
+		models.DMChannel: func() error {
+			err := centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, channelId), notifPayload.Notification)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", channelId, err))
+				return fmt.Errorf("failed to publish to participant")
+			}
+
+			pushReq := models.PushFCMRequest{
+				ChannelName: feed.ChannelName,
+				UserId:      channelId,
+				Message:     feed.Content,
+				TimeStamp:   feed.CreatedAt,
+				AvatarUrl:   feed.AvatarURL,
+			}
+
+			err = push_notifications.PushFCMToUser(pushReq, logger, db)
+			if err != nil {
+				logger.Error("Failed to send push notification to user %s: %v", channelId, err)
+				return fmt.Errorf("failed to send push notification to user %s: %v", channelId, err)
+			}
+
+			return nil
+		},
+		models.GroupDMChannel: func() error {
+
+			var (
+				userIDs []string
+			)
+
+			err := db.
+				Model(&models.ChannelParticipant{}).
+				Where("channel_id = ? AND user_id != ?", channelId, userId).
+				Pluck("user_id", &userIDs).Error
+
+			if err != nil {
+				return fmt.Errorf("failed to fetch participants: %v", err)
+			}
+
+			if len(userIDs) == 0 {
+				return nil
+			}
+
+			orgUserIds := make([]string, 0)
+
+			for _, userId := range userIDs {
+				orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
+			}
+
+			err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
+			if err != nil {
+				logger.Error("Error Publishing to group_dm; channelid: %s, with orgid: %s error: %v", channelId, orgId, err.Error())
+				return fmt.Errorf("failed to publish data")
+			}
+
+			logger.Info("published new_message notification to %d users in group_dm", len(userIDs))
+
+			pushReq := models.PushFCMRequest{
+				UserIds:     userIDs,
+				ChannelName: feed.ChannelName,
+				Message:     feed.Content,
+				TimeStamp:   feed.CreatedAt,
+				AvatarUrl:   feed.AvatarURL,
+			}
+
+			err = push_notifications.PushFCMToUsers(pushReq, logger, db)
+			if err != nil {
+				logger.Error("failed to send push notification to users %s: %v", userIDs, err)
+			}
+
+			return nil
+		},
+	}
+
+	return typeCall[notifPayload.ChannelType]()
 }
 
 func FetchUsersEmails(db *gorm.DB, logger *utility.Logger) {}

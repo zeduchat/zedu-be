@@ -25,6 +25,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/pkg/router"
+	np "github.com/hngprojects/telex_be/services/notification_processor"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -39,6 +40,7 @@ func main() {
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)
+	models.SetMapPackagePriceID(configuration.Stripe)
 	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
@@ -53,10 +55,14 @@ func main() {
 		}
 		return name
 	})
+	utility.RegisterCustomValidations(validatorRef)
 
 	db := storage.Connection()
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
+	dispatcher := np.NewDispatcher(0, 15, db, logger)
+	dispatcher.Run()
+	go np.FeedDispatcher(dispatcher)
 
 	if configuration.Database.Migrate {
 		migrations.RunAllMigrations(db)
@@ -64,6 +70,7 @@ func main() {
 		seed.SeedPlans(logger, db.Postgresql)
 		seed.SeedIntegrations(logger, db.Postgresql)
 		seed.SeedIndex(logger, db.Elastic)
+		seed.SeedCreditPackages(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

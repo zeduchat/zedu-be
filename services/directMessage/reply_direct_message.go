@@ -1,6 +1,7 @@
 package dm
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,8 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
+	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -20,11 +20,9 @@ import (
 // Reply message fn (in dm / group_dm)
 func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database, logger *utility.Logger) (*models.MessageDocument, int, error) {
 	var (
-		profile   models.Profile
-		user      models.User
-		channel   models.DmChannels
-		userIDs   []string
-		chanParts []models.ChannelParticipant
+		profile models.Profile
+		user    models.User
+		channel models.DmChannels
 	)
 
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -75,22 +73,25 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return &messageDoc, http.StatusBadRequest, err
 	}
 
+	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsId,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt: messageDoc.UpdatedAt.String(),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		OrgId:     req.OrgId,
-		UserType:  "user",
-		UserId:    req.UserId,
-		Media:     req.Media,
-		Id:        messageDoc.ID,
+		ChannelID:    req.ChannelsId,
+		UserName:     profile.UserName,
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:    messageDoc.UpdatedAt.String(),
+		AvatarURL:    profile.AvatarURL,
+		Type:         "message",
+		Content:      req.Content,
+		ThreadId:     req.ThreadId,
+		Email:        user.Email,
+		FullName:     profile.FullName,
+		OrgId:        req.OrgId,
+		UserType:     "user",
+		UserId:       req.UserId,
+		Media:        req.Media,
+		Id:           messageDoc.ID,
+		ChannelName:  username,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -99,72 +100,36 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
-	notification := models.Notification[models.NewMessage]
-	notification.SectionType = models.ReplySection
+	notification := models.Notification[models.ReplyCountChange]
+	notification.SectionType = models.ChannelsSection
 	notification.Content = feed
 	notification.UpdateChange = updateResp
 
-	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
-
-	// Handle DM-specific case
-	if channel.ChannelType == "dm" {
-		err = centrifuge.BatchBroadcastToChannel(logger, []string{*channel.ParticipantId, req.UserId}, notification)
-		if err != nil {
-			logger.Error("Error Publishing to participant id: %s, error: %v", channel.ParticipantId, err.Error())
-			return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
-		}
-
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserId:      *channel.ParticipantId,
-			Message:     req.Content,
-			TimeStamp:   messageDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
-		}
-
-		return &messageDoc, http.StatusCreated, nil
-	}
-
-	err = postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id = ?", channel.ChannelId)
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
 	if err != nil {
-		return &messageDoc, http.StatusNotFound, fmt.Errorf("failed to fetch participants")
+		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
-	for _, participant := range chanParts {
-		if participant.UserId != req.UserId {
-			userIDs = append(userIDs, participant.UserId)
-		}
+	dataByte, _ := json.Marshal(feed)
+
+	notifRec := models.PushNotificationRecord{
+		ChannelType:  models.DMChannel,
+		Data:         string(dataByte),
+		Sent:         false,
+		ChannelId:    req.ChannelsId,
+		Section:      models.ReplySection,
+		UpdateChange: updateResp,
+		Type:         models.NewMessage,
 	}
 
-	// Handle group DM case
-	if len(userIDs) > 0 {
-		// Broadcast to all participants
-		err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", userIDs, err.Error()))
-			return nil, http.StatusInternalServerError, errors.New("failed to broadcast webhook data: " + err.Error())
-		}
+	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
 
-		// Send push notifications to all participants using the sender's username
-
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserIds:     userIDs,
-			Message:     req.Content,
-			TimeStamp:   messageDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", userIDs, err))
-		}
+	if err != nil {
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsId, req.OrgId, err.Error())
 	}
+
+	logger.Info("added notification to queue for channel %s", req.ChannelsId)
 
 	return &messageDoc, http.StatusCreated, nil
 }

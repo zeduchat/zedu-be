@@ -108,7 +108,7 @@ func BatchBroadcastToChannel(logger *utility.Logger, channelIDs []string, publis
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("broadcasted to %s", channelIDs))
+	logger.Info(fmt.Sprintf("broadcasted to %d channels", len(channelIDs)))
 
 	return nil
 }

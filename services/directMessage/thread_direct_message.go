@@ -20,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/actions"
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/user"
@@ -28,11 +29,9 @@ import (
 
 func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 	var (
-		profile   models.Profile
-		user      models.User
-		channel   models.DmChannels
-		chanParts []models.ChannelParticipant
-		userIDs   []string
+		profile models.Profile
+		user    models.User
+		channel models.DmChannels
 	)
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -74,7 +73,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserType:      "user",
 		Mentions:      req.Mentions,
 		Media:         req.Media,
-		OrgansationID: req.OrgId,
+		OrgansationID: channel.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -82,19 +81,23 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
 
+	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  threadDoc.ID,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		UserId:    req.UserId,
-		UserType:  "user",
-		Media:     req.Media,
+		ChannelID:   req.ChannelsID,
+		UserName:    profile.UserName,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:   profile.AvatarURL,
+		Type:        "message",
+		Content:     req.Content,
+		ThreadId:    threadDoc.ID,
+		Email:       user.Email,
+		FullName:    profile.FullName,
+		UserId:      req.UserId,
+		UserType:    "user",
+		Media:       req.Media,
+		ChannelName: username,
+		OrgId:       channel.OrgId,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -103,16 +106,38 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
 	}
 
-	notification := models.Notification[models.NewMessage]
-	notification.SectionType = models.ThreadSection
-	notification.Content = feed
+	dataByte, _ := json.Marshal(feed)
 
-	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
+	typeChannelId := req.ChannelsID
+	channelType := models.GroupDMChannel
+
+	if channel.ChannelType == string(models.DMChannel) {
+		typeChannelId = *channel.ParticipantId
+		channelType = models.DMChannel
+	}
+
+	notifRec := models.PushNotificationRecord{
+		ChannelType: channelType,
+		Data:        string(dataByte),
+		Sent:        false,
+		ChannelId:   typeChannelId,
+		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
+	}
+
+	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
+
+	if err != nil {
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, channel.OrgId, err.Error())
+	}
+
+	logger.Info("added notification to queue for channel %s", req.ChannelsID)
 
 	dmChan := models.DmChannels{}
 	dmChan.ChannelId = req.ChannelsID
 	dmChan.UserId = req.UserId
 	dmChan.ChannelType = channel.ChannelType
+	dmChan.OrgId = channel.OrgId
 
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
@@ -130,65 +155,6 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		wg.Wait()
 		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
 	}()
-
-	// Handle DM-specific case
-	if channel.ChannelType == "dm" {
-		err = centrifuge.PublishChannel(logger, *channel.ParticipantId, notification)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", *channel.ParticipantId, err))
-			return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish to participant")
-		}
-
-		pushReq := models.PushFCMRequest{
-			ChannelName: username,
-			UserId:      *channel.ParticipantId,
-			Message:     req.Content,
-			TimeStamp:   threadDoc.CreatedAt.String(),
-			AvatarUrl:   profile.AvatarURL,
-		}
-
-		err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
-		}
-
-		return &threadDoc, http.StatusCreated, nil
-	}
-
-	err = postgresql.SelectAllFromDb(db.Postgresql, "", &chanParts, "channel_id = ?", channel.ChannelId)
-	if err != nil {
-		return &threadDoc, http.StatusNotFound, fmt.Errorf("failed to fetch participants: %v", err)
-	}
-
-	for _, cp := range chanParts {
-		if cp.UserId != req.UserId {
-			userIDs = append(userIDs, cp.UserId)
-		}
-	}
-
-	if len(userIDs) == 0 {
-		return &threadDoc, http.StatusCreated, nil
-	}
-
-	// Handle non-DM (group) case
-	err = centrifuge.BatchBroadcastToChannel(logger, userIDs, notification)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error Broadcasting to channel IDs: %v, error: %v", userIDs, err))
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to broadcast webhook data: %v", err)
-	}
-
-	pushReq := models.PushFCMRequest{
-		ChannelName: username,
-		UserIds:     userIDs,
-		Message:     req.Content,
-		TimeStamp:   threadDoc.CreatedAt.String(),
-		AvatarUrl:   profile.AvatarURL,
-	}
-
-	err = push_notifications.PushFCMToUsers(pushReq, logger, db.Postgresql)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send push notification to users %s: %v", userIDs, err))
-	}
 
 	return &threadDoc, http.StatusCreated, nil
 }
@@ -417,6 +383,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		channel    models.DmChannels
 		orgAgent   models.OrganisationIntegrations
 		threadResp models.ThreadDocument
+		user       models.User
 	)
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
@@ -432,6 +399,44 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 	if err != nil {
 		return &threadResp, http.StatusInternalServerError, err
+	}
+
+	user, err = user.GetUserByID(db.Postgresql, *channel.ParticipantId)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to get user")
+	}
+
+	// Calculate credit cost based on message and agent price
+	outputLength := len(req.Content)
+
+	var agentPrice float64 = 0.0 // temp value
+
+	creditUsed := models.CalculateCreditCost(0, outputLength, agentPrice)
+
+	// validate credit here
+	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
+		logger.Error("Organisation has insufficient credit balance!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
+	}
+
+	// save organisation credit usage
+	credit_usage := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: channel.OrgId,
+		Amount:         5,
+		AgentID:        *channel.ParticipantId,
+		UserID:         *channel.ParticipantId,
+	}
+
+	err = credit_usage.CreateCreditUsage(db.Postgresql)
+	if err != nil {
+		logger.Error("failed to create credit usage!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
+	}
+
+	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
+		logger.Error("Organisation credit Recalculation failed")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	threadDoc := models.ThreadDocument{

@@ -356,7 +356,7 @@ func (group *Group) GetChannelsNotInGroup(db *storage.Database, ids map[string]s
 	}
 
 	err = db.Postgresql.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.organisation_id = ? AND channels.group_id IS NULL AND channels.archived = false AND uc.user_id = ?", org_id, user_id).
 		Order("channels.created_at").

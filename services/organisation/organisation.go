@@ -12,6 +12,8 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"time"
+
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -49,16 +51,31 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, errors.New("failed to upload organisation logo")
 	}
 
+	plan := models.Plan{}
+	planName := "Free"
+
+	if req.Plan != "" {
+		planName = req.Plan
+	}
+
+	err = db.Where("name = ?", planName).First(&plan).Error
+	if err != nil {
+		return nil, err
+	}
+
+	credits := plan.Credits
+
 	org := models.Organisation{
-		ID:          orgId,
-		Name:        strings.ToLower(req.Name),
-		Description: strings.ToLower(req.Description),
-		Location:    strings.ToLower(req.Location),
-		Email:       strings.ToLower(req.Email),
-		Type:        strings.ToLower(req.Type),
-		OwnerID:     userId,
-		Country:     strings.ToLower(req.Country),
-		LogoURL:     picUrl,
+		ID:            orgId,
+		Name:          strings.ToLower(req.Name),
+		Description:   strings.ToLower(req.Description),
+		Location:      strings.ToLower(req.Location),
+		Email:         strings.ToLower(req.Email),
+		Type:          strings.ToLower(req.Type),
+		OwnerID:       userId,
+		CreditBalance: float64(credits),
+		Country:       strings.ToLower(req.Country),
+		LogoURL:       picUrl,
 	}
 
 	// Check if the organisation name already exists
@@ -69,6 +86,46 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	err = org.CreateOrganisation(db)
 
+	if err != nil {
+		return nil, err
+	}
+
+	// create credit transaction
+	credit_transaction := models.CreditTransaction{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgId,
+		Amount:         float64(credits), // Initial Top up amout
+		BalanceBefore:  0.00,
+		BalanceAfter:   float64(org.CreditBalance),
+		Type:           "Initial Top-up",
+	}
+
+	err = credit_transaction.CreateCreditTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// create organization plan
+	now := time.Now()
+	end := now.AddDate(0, 1, 0) // assuming this is monthly plan
+	organisation_plan := models.OrganisationPlan{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgId,
+		PlanID:         plan.ID,
+		StartedAt:      now,
+		EndedAt:        end,
+		Status:         "Active",
+	}
+
+	err = organisation_plan.Create(db)
+	if err != nil {
+		return nil, err
+	}
+
+	org.OrgPlanID = organisation_plan.ID
+
+	// Save the updated organisation plan ID
+	err = db.Model(&org).Update("org_plan_id", organisation_plan.ID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -468,15 +525,60 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 
 func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
 	var (
-		o   models.Organisation
-		ogm models.OrgMetricsResponse
+		o         models.Organisation
+		ogm       models.OrgMetricsResponse
+		userNames []string
+		userInfo  string
 	)
 
-	metrics, err := o.LoadOrganisationMetrics(db, orgId)
+	userPhotos := make([]string, 0, 5)
+
+	profiles, err := o.FetchUsersInOrgProfile(db, orgId)
 	if err != nil {
 		return ogm, err
 	}
-	return metrics, nil
+
+	if len(profiles) == 0 {
+		return models.OrgMetricsResponse{
+			OrgUserInfo: "No members yet",
+			OrgName:     o.Name,
+			UsersPhotos: []string{},
+		}, nil
+	}
+
+	for _, profile := range profiles {
+		if profile.AvatarURL != "" {
+			userPhotos = append(userPhotos, profile.AvatarURL)
+		}
+		if profile.FirstName != "" {
+			userNames = append(userNames, profile.FirstName)
+		}
+	}
+
+	if len(userPhotos) > 5 {
+		userPhotos = userPhotos[:5]
+	}
+
+	switch len(userNames) {
+	case 0:
+		userInfo = "No named members yet"
+	case 1:
+		userInfo = fmt.Sprintf("%s is in this organisation", userNames[0])
+	case 2:
+		userInfo = fmt.Sprintf("%s and %s are in this organisation",
+			userNames[0], userNames[1])
+	default:
+		userInfo = fmt.Sprintf("%s, %s and %d others are in this organisation",
+			userNames[0], userNames[1], len(userNames)-2)
+	}
+
+	response := models.OrgMetricsResponse{
+		OrgUserInfo: userInfo,
+		OrgName:     o.Name,
+		UsersPhotos: userPhotos,
+	}
+
+	return response, nil
 }
 
 func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {

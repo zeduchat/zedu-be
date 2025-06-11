@@ -82,7 +82,17 @@ func (l *Logger) Info(arg0 interface{}, args ...interface{}) {
 	//	Message: fmt.Sprintf(arg0.(string), args...),
 	//}
 	//go record.Save(l)
-	l.logger.Log(log.INFO, getSource(), fmt.Sprintf(arg0.(string), args...))
+	// l.logger.Log(log.INFO, getSource(), fmt.Sprintf(arg0.(string), args...))
+
+	var msg string
+
+	if format, ok := arg0.(string); ok && len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	} else {
+		msg = fmt.Sprint(append([]interface{}{arg0}, args...)...)
+	}
+
+	l.logger.Log(log.INFO, getSource(), msg)
 }
 
 // Debug log debug
@@ -151,8 +161,8 @@ func (l *Logger) Audit(record *AuditLog) {
 	l.logger.Log(log.INFO, getSource(), string(js))
 }
 
-func(l *Logger) LogToStdout(arg0 interface{}, args ...interface{}) {
-	
+func (l *Logger) LogToStdout(arg0 interface{}, args ...interface{}) {
+
 }
 
 func Header2Map(header http.Header) map[string]interface{} {
@@ -177,5 +187,3 @@ func SpewResultForDebugging(description string, v interface{}) {
 	spew.Dump(v)
 	fmt.Println("**** End Result ******")
 }
-
-

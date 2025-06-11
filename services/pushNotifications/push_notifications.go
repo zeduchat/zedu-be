@@ -35,7 +35,7 @@ func PushFCMToUser(req models.PushFCMRequest, logger *utility.Logger, db *gorm.D
 	err = firebase.SendNotificationByFCMToken(logger, fcmtoken, title, body, req.AvatarUrl)
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		logger.Error("Failed to send mass push notification, %s", err.Error())
 		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
 	}
 
@@ -52,20 +52,14 @@ func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.
 	userArr := make([]string, 0)
 
 	if len(req.UserIds) == 0 {
-		users, err := channel.FetchChannelUsers(db, req.ChannelId)
+		users, err := channel.FetchChannelUsers(db, req.ChannelId, req.UserId)
 
 		if err != nil {
 			logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
 			return err
 		}
 
-		for _, user := range users {
-			if user.UserID == req.UserId {
-				continue
-			}
-
-			userArr = append(userArr, user.UserID)
-		}
+		userArr = users
 
 	} else {
 		userArr = req.UserIds
@@ -73,13 +67,13 @@ func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.
 
 	fcmTokens, err := fcmtokens.GetFcmTokenByUserIds(userArr, db)
 
+	if len(fcmTokens) == 0 {
+		return nil
+	}
+
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
 		return err
-	}
-
-	if len(fcmTokens) == 0 {
-		return nil
 	}
 
 	title := fmt.Sprintf("#%s ", req.ChannelName)
@@ -88,7 +82,7 @@ func PushFCMToUsers(req models.PushFCMRequest, logger *utility.Logger, db *gorm.
 	err = firebase.SendNotificationByFCMTokens(logger, fcmTokens, title, body)
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		logger.Error("Failed to send mass push notification, %s", err.Error())
 		return fmt.Errorf("Failed to send mass push notification, %s", err.Error())
 	}
 

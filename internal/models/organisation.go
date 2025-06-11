@@ -23,6 +23,7 @@ type Organisation struct {
 	Country            string           `gorm:"type:varchar(255)" json:"country"`
 	OwnerID            string           `gorm:"type:uuid;" json:"owner_id"`
 	LogoURL            string           `gorm:"type:varchar(255)" json:"logo_url"`
+	CreditBalance      float64          `gorm:"type:decimal(10,2);default:0" json:"credit_balance"`
 	ChannelssCount     int64            `gorm:"-" json:"channels_count"`
 	TotalMessagesCount int64            `gorm:"-" json:"total_messages_count"`
 	OrgRoles           []OrgRole        `gorm:"foreignKey:OrganisationID" json:"org_roles"`
@@ -45,6 +46,7 @@ type CreateOrgRequestModel struct {
 	Location    string `json:"location"`
 	Country     string `json:"country" validate:"required"`
 	LogoURL     string `json:"logo_url" `
+	Plan        string `json:"plan"`
 }
 
 type UpdateOrgRequestModel struct {
@@ -67,6 +69,12 @@ type UserInOrgResponse struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	EntityType  string    `json:"entity_type"` // "user" or "bot"
+}
+
+type OrgMetricsResponse struct {
+	OrgUserInfo string   `json:"org_user_info"`
+	OrgName     string   `json:"organisation_name"`
+	UsersPhotos []string `json:"users_photos"`
 }
 
 type AddUserToOrgRequestModel struct {
@@ -456,46 +464,29 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-type OrgMetricsResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	OwnerID   string `json:"owner_id"`
-	OwnerName string `json:"owner_name"`
-	Users     []User `json:"users"`
-}
-
-func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMetricsResponse, error) {
-	var org Organisation
-	var ogm OrgMetricsResponse
-
+func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Profile, error) {
+	var (
+		org      Organisation
+		profiles []Profile
+	)
 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
 	if !exists {
-		return ogm, errors.New("organisation not found")
+		return profiles, errors.New("organisation not found")
 	}
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &org, "id = ?", orgID)
-	if err != nil {
-		return ogm, err
+	query := db.Table("profiles").
+		Select("profiles.*").
+		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid").
+		Where("org_user_managements.organisation_id = ?", orgID).
+		Order("profiles.created_at DESC")
+
+	if err := query.Find(&profiles).Error; err != nil {
+		return profiles, fmt.Errorf("failed to fetch user profiles: %w", err)
 	}
 
-	var owner User
+	o.Name = org.Name
 
-	err, _ = postgresql.SelectOneFromDb(db.Preload("Profile"), &owner, "id = ?", org.OwnerID)
-	if err != nil {
-		return ogm, err
-	}
-
-	response := OrgMetricsResponse{
-		ID:        org.ID,
-		Name:      org.Name,
-		Email:     org.Email,
-		OwnerID:   org.OwnerID,
-		OwnerName: owner.Profile.FullName,
-		Users:     org.Users,
-	}
-
-	return response, nil
+	return profiles, nil
 }
 
 func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
@@ -509,6 +500,18 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 
 	if err != nil {
 		return err
+	}
+
+	if len(orgIntResp) == 0 {
+		return nil
+	}
+
+	for i := range orgIntResp {
+		key, err := GenerateAgentKey()
+		if err != nil {
+			return err
+		}
+		orgIntResp[i].PreSharedKey = key
 	}
 
 	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))

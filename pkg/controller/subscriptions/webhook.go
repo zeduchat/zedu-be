@@ -74,17 +74,34 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			return
 		}
 
-		req := models.CompleteSubscriptionRequest{
-			Email:           orgEmail,
-			StripeSessionID: checkoutSession.ID,
-		}
+		switch checkoutSession.Metadata["flow"] {
+		case "credit_topup":
+			org_id := checkoutSession.Metadata["org_id"]
+			package_id := checkoutSession.Metadata["package_id"]
 
-		_, code, _, err := service.CompleteSubscriptionWebhook(req, base.Db.Postgresql)
-		if err != nil {
-			rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
-			c.JSON(code, rd)
-			base.Logger.Error(fmt.Sprintf("Subscription completion failed for session %s: %v", checkoutSession.ID, err.Error()))
-			return
+			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id)
+			if err != nil {
+				rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
+				c.JSON(code, rd)
+				base.Logger.Error(fmt.Sprintf("Credit top-up failed for session %s: %v", checkoutSession.ID, err.Error()))
+				return
+			}
+
+		case "subscription":
+			req := models.CompleteSubscriptionRequest{
+				Email:           orgEmail,
+				StripeSessionID: checkoutSession.ID,
+			}
+
+			_, code, _, err := service.CompleteSubscriptionWebhook(req, base.Db.Postgresql)
+			if err != nil {
+				rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
+				c.JSON(code, rd)
+				base.Logger.Error(fmt.Sprintf("Subscription completion failed for session %s: %v", checkoutSession.ID, err.Error()))
+				return
+			}
+		default:
+			base.Logger.Info("Unhandled flow: %s", checkoutSession.Metadata["flow"])
 		}
 
 		newWebhookData := models.ProcessedStripeWebhook{
