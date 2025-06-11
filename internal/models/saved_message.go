@@ -12,7 +12,7 @@ import (
 
 type SavedMessage struct {
 	ID         string                 `gorm:"type:uuid;primary_key" json:"id"`
-	Content    string                 `gorm:"column:content; type:text; not null" json:"content"`
+	Content    string                 `gorm:"column:content; type:text; not null" json:"content",omitempty`
 	ChannelsID string                 `gorm:"type:uuid;not null;index" json:"channels_id"`
 	OrgId      string                 `gorm:"type:uuid;not null;index" json:"org_id"`
 	UserID     string                 `gorm:"type:uuid;not null;index" json:"user_id"`
@@ -24,9 +24,9 @@ type SavedMessage struct {
 }
 
 type SaveMessageRequest struct {
-	Content    string                 `json:"content" validate:"required"`
 	ChannelsId string                 `json:"channels_id" validate:"required"`
 	ThreadId   string                 `json:"thread_id" validate:"required"`
+	Content    string                 `json:"content"`
 	Type       string                 `json:"type"`
 	OrgId      string                 `json:"org_id"`
 	UserId     string                 `json:"user_id"`

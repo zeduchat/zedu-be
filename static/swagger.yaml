@@ -14789,7 +14789,6 @@ paths:
             schema:
               type: object
               required:
-                - content
                 - thread_id
                 - channels_id
               properties:
