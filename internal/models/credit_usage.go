@@ -287,10 +287,10 @@ func CalculateCreditCost(inputLength int, agentPrice float64) float64 {
 	return math.Round(rawCost*100) / 100
 }
 
-func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]CreditUsage, postgresql.PaginationResponse, error) {
-	var creditUsage []CreditUsage
+func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
+	var creditTransanction []CreditTransaction
 
-	query := db.Model(&CreditUsage{}).
+	query := db.Model(&CreditTransaction{}).
 		Where("organisation_id = ?", org_id).
 		Order("created_at DESC")
 
@@ -301,14 +301,14 @@ func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]Cre
 		"created_at",
 		"desc",
 		pagination,
-		&creditUsage,
+		&creditTransanction,
 		nil,
 	)
 	if err != nil {
-		return creditUsage, paginationResponse, err
+		return creditTransanction, paginationResponse, err
 	}
 
-	return creditUsage, paginationResponse, nil
+	return creditTransanction, paginationResponse, nil
 }
 
 func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
