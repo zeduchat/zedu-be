@@ -116,7 +116,7 @@ func FetchAPIKey(db *gorm.DB, ids models.IDS) (string, int, error) {
 
 	var result struct {
 		AuthCredentials struct {
-			TelexAPIKey string `json:"telex_api_key"`
+			TelexAPIKey string `json:"agent_api_key"`
 		} `json:"auth_credentials"`
 	}
 

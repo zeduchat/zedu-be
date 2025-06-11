@@ -118,17 +118,16 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 		if isDBAuth {
 			store := mongodb.MongoStore{}
 
-			if !store.IsClientAvailable(){
+			if !store.IsClientAvailable() {
 				logger.Error("MongoDB Client is still connecting. Please try again...")
-				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "MongoDB client is still connecting. Please try again...", "Bad Request",nil)
+				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "MongoDB client is still connecting. Please try again...", "Bad Request", nil)
 				c.JSON(http.StatusBadRequest, rd)
 				c.Abort()
 				return
 			}
 		}
 
-
-		apiKey := c.GetHeader("X-TELEX-API-KEY")
+		apiKey := c.GetHeader("X-AGENT-API-KEY")
 		if apiKey == "" {
 			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "API key not found", "Unauthorized", nil)
 			c.JSON(http.StatusUnauthorized, rd)
@@ -145,7 +144,6 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 			c.Abort()
 			return
 		}
-
 
 		ids := models.IDS{
 			OrganisationID: org_id_slug,

@@ -674,7 +674,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 
 	// 		api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
 
-	// 		auth_credentials["telex_api_key"] = api_key
+	// 		auth_credentials["agent_api_key"] = api_key
 	// 		settings_data["auth_credentials"] = auth_credentials
 	// 		if err != nil {
 	// 			return errors.New("Failed to create external API key")

@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -387,7 +386,7 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
 
 	if ok {
-		api_key, _ = auth_credentials["telex_api_key"].(string)
+		api_key, _ = auth_credentials["agent_api_key"].(string)
 	}
 
 	// send api key to agent
@@ -531,14 +530,8 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return int_resp, err
 	}
 
-	enc_key := config.Config.Server.EncKey
-	api_key, err := utility.CreateExternalApiKey(org_id, orgIntegration.IntegrationID, enc_key)
-	if err != nil {
-		return int_resp, errors.New("failed to create external API key")
-	}
-
 	auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
-	auth_credentials["telex_api_key"] = api_key
+	auth_credentials["agent_api_key"] = psk
 	settings_data["auth_credentials"] = auth_credentials
 
 	settingJsonData, err := json.Marshal(settings_data)
@@ -918,10 +911,10 @@ func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.Ext
 	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
 
 	if ok {
-		api_key, ok := auth_credentials["telex_api_key"].(string)
+		api_key, ok := auth_credentials["agent_api_key"].(string)
 
 		if ok && api_key != "" {
-			status["telex_api_key"] = api_key
+			status["agent_api_key"] = api_key
 		}
 	}
 
@@ -987,8 +980,8 @@ func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomI
 	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
 
 	if ok {
-		api_key, ok := auth_credentials["telex_api_key"].(string)
-		if ok && api_key != ids["telex_api_key"] {
+		api_key, ok := auth_credentials["agent_api_key"].(string)
+		if ok && api_key != ids["agent_api_key"] {
 			return errors.New("an error occured: api_key Mismatch")
 		}
 	}
