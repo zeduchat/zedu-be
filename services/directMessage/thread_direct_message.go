@@ -111,7 +111,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	typeChannelId := req.ChannelsID
 	channelType := models.GroupDMChannel
 
-	if channel.ChannelType == string(models.DMChannel) {
+	if channel.ChannelType == "dm" {
 		typeChannelId = *channel.ParticipantId
 		channelType = models.DMChannel
 	}
