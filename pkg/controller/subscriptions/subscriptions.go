@@ -203,3 +203,18 @@ func (base *Controller) GetSubscriptions(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscriptions retrieved successfully", subscriptionsData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetSubscriptionPlans(c *gin.Context) {
+
+	subscriptionPlans, code, err := service.GetSubscriptionPlans(base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		base.Logger.Error(err.Error())
+		return
+	}
+
+	base.Logger.Info("subscription plans retreived")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription Plans retrieved successfully", subscriptionPlans)
+	c.JSON(http.StatusOK, rd)
+}
