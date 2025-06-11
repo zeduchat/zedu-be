@@ -34,6 +34,18 @@ type CreditUsage struct {
 	UserID         string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+
+	User  User                     `gorm:"foreignKey:UserID;references:ID"`
+	Agent OrganisationIntegrations `gorm:"foreignKey:AgentID;references:ID"`
+}
+
+type CreditUsageResponse struct {
+	ID             string    `json:"id"`
+	OrganisationID string    `json:"organisation_id"`
+	Amount         float64   `json:"amount"`
+	UserName       string    `json:"user_name"`
+	AgentName      string    `json:"agent_name"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type CreditTransaction struct {
@@ -299,26 +311,40 @@ func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]Cre
 	return creditUsage, paginationResponse, nil
 }
 
-func GetOrgCreditUsage(org_id string, db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
-	var creditTransact []CreditTransaction
-
-	query := db.Model(&CreditTransaction{}).
-		Where("organisation_id = ?", org_id).
-		Order("created_at DESC")
+func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
+	var creditUsages []CreditUsage
+	var creditUsageResponses []CreditUsageResponse
 
 	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&CreditUsage{}).
+		Where("organisation_id = ?", orgID).
+		Preload("User").
+		Preload("Agent").
+		Order("created_at DESC")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"created_at",
 		"desc",
 		pagination,
-		&creditTransact,
+		&creditUsages,
 		nil,
 	)
 	if err != nil {
-		return creditTransact, paginationResponse, err
+		return creditUsageResponses, paginationResponse, err
 	}
 
-	return creditTransact, paginationResponse, nil
+	for _, usage := range creditUsages {
+		creditUsageResponses = append(creditUsageResponses, CreditUsageResponse{
+			ID:             usage.ID,
+			OrganisationID: usage.OrganisationID,
+			Amount:         usage.Amount,
+			UserName:       usage.User.Name,
+			AgentName:      usage.Agent.AppName,
+			CreatedAt:      usage.CreatedAt,
+		})
+	}
+
+	return creditUsageResponses, paginationResponse, nil
 }
