@@ -254,7 +254,7 @@ func GetCreditPackageByID(db *gorm.DB, id string) (*CreditPackage, int, error) {
 	return &creditPackage, http.StatusOK, nil
 }
 
-func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) float64 {
+func CalculateCreditCost(inputLength int, agentPrice float64) float64 {
 	const (
 		BaseCost     = 0.5
 		InputWeight  = 0.01
@@ -265,7 +265,7 @@ func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) 
 	// Calculate cost based on message and agent price
 	rawCost := BaseCost +
 		(float64(inputLength) * InputWeight) +
-		(float64(outputLength) * OutputWeight) +
+		(OutputWeight) +
 		agentPrice
 
 	if rawCost > MaxCreditCap {
