@@ -2221,7 +2221,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-  /channels/{channel_id}/messages/message_id:
+  /channels/{channel_id}/messages/{message_id}:
     delete:
       tags:
         - messages
