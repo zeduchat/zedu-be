@@ -11,7 +11,6 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -163,11 +162,10 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 }
 
 func VerifyCredentials(db *gorm.DB, ids models.IDS) (string, string, error) {
-	var (
-		orgint models.OrganisationIntegrations
-	)
-	exist := postgresql.CheckExists(db, &orgint, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids.OrganisationID, "%"+ids.AgentID)
-	if !exist {
+	var orgint models.OrganisationIntegrations
+
+	err := db.Where("org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID).First(&orgint).Error
+	if err != nil {
 		return "", "", fmt.Errorf("agent does not exist in organisation")
 	}
 
