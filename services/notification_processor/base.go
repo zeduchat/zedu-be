@@ -130,6 +130,8 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				return fmt.Errorf("failed to publish to participant")
 			}
 
+			logger.Info("published new_message notification to %d users in dm", 1)
+
 			pushReq := models.PushFCMRequest{
 				ChannelName: feed.ChannelName,
 				UserId:      channelId,

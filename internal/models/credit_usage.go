@@ -34,6 +34,18 @@ type CreditUsage struct {
 	UserID         string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+
+	User  User                     `gorm:"foreignKey:UserID;references:ID"`
+	Agent OrganisationIntegrations `gorm:"foreignKey:AgentID;references:ID"`
+}
+
+type CreditUsageResponse struct {
+	ID             string    `json:"id"`
+	OrganisationID string    `json:"organisation_id"`
+	Amount         float64   `json:"amount"`
+	UserName       string    `json:"user_name"`
+	AgentName      string    `json:"agent_name"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type CreditTransaction struct {
@@ -254,7 +266,7 @@ func GetCreditPackageByID(db *gorm.DB, id string) (*CreditPackage, int, error) {
 	return &creditPackage, http.StatusOK, nil
 }
 
-func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) float64 {
+func CalculateCreditCost(inputLength int, agentPrice float64) float64 {
 	const (
 		BaseCost     = 0.5
 		InputWeight  = 0.01
@@ -265,7 +277,7 @@ func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) 
 	// Calculate cost based on message and agent price
 	rawCost := BaseCost +
 		(float64(inputLength) * InputWeight) +
-		(float64(outputLength) * OutputWeight) +
+		(OutputWeight) +
 		agentPrice
 
 	if rawCost > MaxCreditCap {
@@ -273,4 +285,66 @@ func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) 
 	}
 
 	return math.Round(rawCost*100) / 100
+}
+
+func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
+	var creditTransanction []CreditTransaction
+
+	query := db.Model(&CreditTransaction{}).
+		Where("organisation_id = ?", org_id).
+		Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditTransanction,
+		nil,
+	)
+	if err != nil {
+		return creditTransanction, paginationResponse, err
+	}
+
+	return creditTransanction, paginationResponse, nil
+}
+
+func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
+	var creditUsages []CreditUsage
+	var creditUsageResponses []CreditUsageResponse
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&CreditUsage{}).
+		Where("organisation_id = ?", orgID).
+		Preload("User").
+		Preload("Agent").
+		Order("created_at DESC")
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditUsages,
+		nil,
+	)
+	if err != nil {
+		return creditUsageResponses, paginationResponse, err
+	}
+
+	for _, usage := range creditUsages {
+		creditUsageResponses = append(creditUsageResponses, CreditUsageResponse{
+			ID:             usage.ID,
+			OrganisationID: usage.OrganisationID,
+			Amount:         usage.Amount,
+			UserName:       usage.User.Name,
+			AgentName:      usage.Agent.AppName,
+			CreatedAt:      usage.CreatedAt,
+		})
+	}
+
+	return creditUsageResponses, paginationResponse, nil
 }
