@@ -19,6 +19,7 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	subscriptionUrl := r.Group(fmt.Sprintf("%v/subscriptions", ApiVersion), middleware.Authorize(db.Postgresql))
 	webhookUrl := r.Group(fmt.Sprintf("%v/subscriptions", ApiVersion))
 	{
+		subscriptionUrl.GET("/plans", subscription.GetSubscriptionPlans)
 		subscriptionUrl.POST("/create", subscription.CreateSubscription)
 		subscriptionUrl.GET("/current/:org_id", subscription.GetCurrentSubscription)
 		subscriptionUrl.GET("/list/:org_id", subscription.GetSubscriptions)

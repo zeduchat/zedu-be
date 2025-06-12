@@ -525,15 +525,60 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 
 func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
 	var (
-		o   models.Organisation
-		ogm models.OrgMetricsResponse
+		o         models.Organisation
+		ogm       models.OrgMetricsResponse
+		userNames []string
+		userInfo  string
 	)
 
-	metrics, err := o.LoadOrganisationMetrics(db, orgId)
+	userPhotos := make([]string, 0, 5)
+
+	profiles, err := o.FetchUsersInOrgProfile(db, orgId)
 	if err != nil {
 		return ogm, err
 	}
-	return metrics, nil
+
+	if len(profiles) == 0 {
+		return models.OrgMetricsResponse{
+			OrgUserInfo: "No members yet",
+			OrgName:     o.Name,
+			UsersPhotos: []string{},
+		}, nil
+	}
+
+	for _, profile := range profiles {
+		if profile.AvatarURL != "" {
+			userPhotos = append(userPhotos, profile.AvatarURL)
+		}
+		if profile.FirstName != "" {
+			userNames = append(userNames, profile.FirstName)
+		}
+	}
+
+	if len(userPhotos) > 5 {
+		userPhotos = userPhotos[:5]
+	}
+
+	switch len(userNames) {
+	case 0:
+		userInfo = "No named members yet"
+	case 1:
+		userInfo = fmt.Sprintf("%s is in this organisation", userNames[0])
+	case 2:
+		userInfo = fmt.Sprintf("%s and %s are in this organisation",
+			userNames[0], userNames[1])
+	default:
+		userInfo = fmt.Sprintf("%s, %s and %d others are in this organisation",
+			userNames[0], userNames[1], len(userNames)-2)
+	}
+
+	response := models.OrgMetricsResponse{
+		OrgUserInfo: userInfo,
+		OrgName:     o.Name,
+		UsersPhotos: userPhotos,
+	}
+
+	return response, nil
 }
 
 func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {

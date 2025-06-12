@@ -254,3 +254,13 @@ func (r *ProcessedStripeWebhook) MarkWebhookAsProcessed(db *gorm.DB) error {
 	}
 	return nil
 }
+
+func GetSubscriptionPlans(db *gorm.DB) (*[]Plan, error) {
+	var subPlans []Plan
+
+	if err := db.Find(&subPlans).Error; err != nil {
+		return nil, err
+	}
+
+	return &subPlans, nil
+}

@@ -48,9 +48,11 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
+		SuccessURL: stripe.String(url + "client/settings/organisation/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "client/settings/organisation/billing"),
 	}
+
+	params.AddMetadata("flow", "subscription")
 
 	session, err := session.New(params)
 	if err != nil {
@@ -229,4 +231,14 @@ func GetSubscriptions(customerID string, db *gorm.DB) ([]models.OrgPlanDetails, 
 	}
 
 	return currentPlans, http.StatusOK, nil
+}
+
+func GetSubscriptionPlans(db *gorm.DB) (*[]models.Plan, int, error) {
+
+	subscriptionPlans, err := models.GetSubscriptionPlans(db)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("failed to retrieve subscription plans")
+	}
+
+	return subscriptionPlans, http.StatusOK, nil
 }

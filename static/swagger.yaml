@@ -3009,6 +3009,49 @@ paths:
                       deleted_at: "0001-01-01T00:13:35+00:13"
                       threads: null
 
+  /organisations/{org_id}/load-org-info:
+    get:
+      summary: Load organisation info
+      tags:
+        - organisation
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+            type: string
+          description: Organisation ID
+      responses:
+        '200':
+          description: Organisation info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: loading metrics retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      org_user_info:
+                        type: string
+                        example: user6, user5 and 3 others are in this organisation
+                      organisation_name:
+                        type: string
+                        example: testorg-2
+                      users_photos:
+                        type: array
+                        items:
+                          type: string
+
   /channels/add-multiple:
     post:
       tags:
@@ -4063,6 +4106,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  
+  /subscriptions/plans:
+    get:
+      summary: Fetch all available subscription plans
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Subscription plans retrieved successfully
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  
+  
   /subscriptions/current/{orgId}:
     get:
       summary: Current subscription for an organization
@@ -5708,6 +5773,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
+  /credits/transactions/{org_id}:
+    get:
+      tags:
+        - credits
+      summary: Retrieve organization credit transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to retrieve it credit report.
+      responses:
+        "200":
+          description: Credit transactions retrieved successfully
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+ 
+  /credits/usage/{org_id}:
+    get:
+      tags:
+        - credits
+      summary: Retrieve organization credit usage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to retrieve it credit report.
+      responses:
+        "200":
+          description: Credit usage retrieved successfully
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+ 
 
   /invite:
     post:
@@ -13201,6 +13355,12 @@ paths:
       security:
         - bearerAuth: []
       description: Adds a new thread message to a specified Group DM channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -13210,38 +13370,38 @@ paths:
               properties:
                 content:
                   type: string
-              media:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                      example: "550e8400-e29b-41d4-a716-446655440000"
-                    file_name:
-                      type: string
-                      example: "slsslsl"
-                    file_type:
-                      type: string
-                      example: "png"
-                    file_link:
-                      type: string
-                      format: uri
-                      example: "https://example.com/file.png"
-              mentions:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [bot, user]
-                      example: "bot"
-                    id:
-                      type: string
-                      format: uuid
-                      example: "550e8400-e29b-41d4-a716-446655440000"
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
               required:
                 - content
       responses:
@@ -13364,6 +13524,12 @@ paths:
       description: Replies an existing thread in a Group DM channel.
       security:
         - bearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -14521,7 +14687,7 @@ paths:
       summary: Send a chat message to a TelexAI model
       parameters:
         - in: header
-          name: X-TELEX-API-KEY
+          name: X-AGENT-API-KEY
           schema:
             type: string
           required: true
