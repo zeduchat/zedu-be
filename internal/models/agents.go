@@ -1418,3 +1418,85 @@ func ValidateAgentVersionAndUpdate(data_r map[string]interface{}, agentID, db *g
 
 	return nil
 }
+
+func UpdateCustomAgent(db *gorm.DB, ids map[string]string) error {
+	var (
+		agentSettings CustomIntegrationsSetting
+		agent         OrganisationIntegrations
+		extReq        request.ExternalRequest
+	)
+
+	if err := db.Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"]).First(&agent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("agent with org_id %s and integration_id %s does not exist", ids["org_id"], ids["agent_id"])
+		}
+		return err
+	}
+
+	data := map[string]string{"url": agent.JSONUrl}
+	response, _ := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
+	data_r, _ := response.(map[string]interface{})
+
+	// Only generate new pre-shared key if agent does not it yet
+	if agent.PreSharedKey == "" {
+		psk, err := GenerateAgentKey()
+		if err != nil {
+			return err
+		}
+		agent.PreSharedKey = psk
+	}
+
+	bytes, err := json.Marshal(data_r)
+	if err != nil {
+		return err
+	}
+
+	var payload OrganisationIntegrations
+	json.Unmarshal(bytes, &payload)
+
+	agent.AppName = data_r["name"].(string)
+	agent.AppDescription = data_r["description"].(string)
+	agent.AppUrl = data_r["url"].(string)
+	agent.Prices = payload.Prices
+	agent.Provider = payload.Provider
+	agent.Version = payload.Version
+	agent.DefaultInputModes = payload.DefaultInputModes
+	agent.DefaultOutputModes = payload.DefaultOutputModes
+	agent.Skills = payload.Skills
+	agent.IsPaid = payload.IsPaid
+
+	if err := db.Save(&agent).Error; err != nil {
+		return err
+	}
+
+	// Find and update existing custom agent settings
+	err = db.Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"]).First(&agentSettings).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("agent settings for org_id %s and integration_id %s not found", ids["org_id"], ids["agent_id"])
+		}
+		return fmt.Errorf("error querying agent settings: %v", err)
+	}
+
+	// Update SettingEntry field with new serialized {agent api key}
+	settingsData := map[string]interface{}{"settings": ""}
+	authCredentials := map[string]interface{}{
+		"agent_auth_credentials": "Not-Set-Yet",
+		"agent_api_key":          agent.PreSharedKey,
+	}
+	settingsData["auth_credentials"] = authCredentials
+
+	settingJsonData, err := json.Marshal(settingsData)
+	if err != nil {
+		return fmt.Errorf("error serializing settings to JSON: %v", err)
+	}
+
+	agentSettings.SettingEntry = string(settingJsonData)
+
+	if err := db.Save(&agentSettings).Error; err != nil {
+		return fmt.Errorf("error updating agent settings: %v", err)
+	}
+
+	return nil
+}

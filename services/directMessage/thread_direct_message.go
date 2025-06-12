@@ -318,6 +318,14 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
+	ids := map[string]string{
+		"org_id":   channel.OrgId,
+		"agent_id": *channel.ParticipantId,
+	}
+
+	if err = models.UpdateCustomAgent(db.Postgresql, ids); err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("Failed to update custom agent: %v", err)
+	}
 	logger.Info(fmt.Sprintf("Pushed to RabbitMQ for integration: %s", routing_key))
 
 	return &threadDoc, http.StatusCreated, nil
