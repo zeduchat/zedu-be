@@ -416,7 +416,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		channel    models.DmChannels
 		orgAgent   models.OrganisationIntegrations
 		threadResp models.ThreadDocument
-		user       models.User
+		// user       models.User
 	)
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
@@ -434,10 +434,12 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return &threadResp, http.StatusInternalServerError, err
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, *channel.ParticipantId)
-	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("failed to get user")
-	}
+	// ParticipantID here is the ID of the agent and not a user, the identity of the User is irrelevant here - Shallom 
+
+	// user, err = user.GetUserByID(db.Postgresql, *channel.ParticipantId)
+	// if err != nil {
+	// 	return nil, http.StatusInternalServerError, errors.New("failed to get user")
+	// }
 
 	// Calculate credit cost based on message and agent price
 	outputLength := len(req.Content)
