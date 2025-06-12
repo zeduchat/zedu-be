@@ -6,11 +6,11 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
+	"gorm.io/gorm"
 )
 
-func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger *utility.Logger) (*models.SavedMessage, error) {
+func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
@@ -19,17 +19,47 @@ func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger
 
 	messageToSave := models.SavedMessage{
 		ID:         utility.GenerateUUID(),
-		Content:    req.Content,
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
 		Type:       req.Type,
 		CreatedAt:  time.Now().UTC(),
 		ThreadID:   threadId,
-		Media:      req.Media,
 	}
 
-	createErr := messageToSave.CreateMessageRecord(db.Postgresql)
+	createErr := messageToSave.CreateMessageRecord(db)
+	if createErr != nil {
+		logger.Error("failed to save thread message: %v", createErr)
+		return nil, errors.New("failed to save thread message, error: " + createErr.Error())
+	}
+
+	return &messageToSave, nil
+}
+
+func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
+	threadId, err := uuid.FromString(req.ThreadId)
+	if err != nil {
+		logger.Error("invalid thread ID")
+		return nil, errors.New("invalid thread ID")
+	}
+
+	messageId, err := uuid.FromString(req.MessageId)
+	if err != nil {
+		logger.Error("invalid message ID")
+		return nil, errors.New("invalid message ID")
+	}
+
+	messageToSave := models.SavedMessage{
+		ID:         utility.GenerateUUID(),
+		ChannelsID: req.ChannelsId,
+		OrgId:      req.OrgId,
+		UserID:     req.UserId,
+		CreatedAt:  time.Now().UTC(),
+		MessageID:  messageId,
+		ThreadID:   threadId,
+	}
+
+	createErr := messageToSave.CreateMessageRecord(db)
 	if createErr != nil {
 		logger.Error("failed to save message: %v", createErr)
 		return nil, errors.New("failed to save message, error: " + createErr.Error())
@@ -38,9 +68,10 @@ func SaveMsgForLater(req models.SaveMessageRequest, db *storage.Database, logger
 	return &messageToSave, nil
 }
 
-func GetAllSavedMessages(db *storage.Database, logger *utility.Logger, userId, orgId string) ([]models.SavedMessage, error) {
+func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, userId, orgId string) ([]models.SavedMessage, error) {
 	var savedMessage *models.SavedMessage
-	messageCollection, err := savedMessage.GetSavedMessages(db.Postgresql, userId, orgId)
+	
+	messageCollection, err := savedMessage.GetSavedMessages(db, userId, orgId)
 	if err != nil {
 		logger.Error("An error occurred while fetching messages from Postgres: %v", err)
 		return nil, err
@@ -49,22 +80,16 @@ func GetAllSavedMessages(db *storage.Database, logger *utility.Logger, userId, o
 	return messageCollection, nil
 }
 
-func DeleteSavedMessage(db *storage.Database, logger *utility.Logger, messageId, orgId, userId string) error {
+func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, messageId, orgId, userId string) error {
 	var savedMessage *models.SavedMessage
 
-	message, err := savedMessage.GetSavedMessageByID(db.Postgresql, messageId, orgId, userId)
+	_, err := savedMessage.GetSavedMessageByID(db, messageId, orgId, userId)
 	if err != nil {
 		logger.Error("An error occurred while fetching message from Postgres: %v", err)
 		return err
 	}
 
-	mediaErr := savedMessage.DeleteSavedMessageMediaFiles(logger, db.Postgresql, message.Media)
-	if mediaErr != nil {
-		logger.Error("An error occurred while deleting media file: %v", mediaErr)
-		return mediaErr
-	}
-
-	deleteErr := savedMessage.DeleteMessageByID(db.Postgresql, messageId, orgId)
+	deleteErr := savedMessage.DeleteMessageByID(db, messageId, orgId)
 	if deleteErr != nil {
 		logger.Error("An error occurred while deleting saved message: %v", deleteErr)
 		return deleteErr

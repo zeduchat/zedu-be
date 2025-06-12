@@ -18,9 +18,10 @@ func SavedMessages(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	savedMessagesUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		savedMessagesUrl.POST("/:org_id/save-message", savedMessages.SaveMessageForLater)
-		savedMessagesUrl.GET("/:org_id/saved-message", savedMessages.GetAllSavedMessages)
-		savedMessagesUrl.DELETE("/:org_id/saved-message/:messageId", savedMessages.DeleteMessageByID)
+		savedMessagesUrl.POST("/:org_id/thread/save", savedMessages.SaveThreadMessageForLater)
+		savedMessagesUrl.POST("/:org_id/message/save", savedMessages.SaveReplyMessageForLater)
+		savedMessagesUrl.GET("/:org_id/saved/message", savedMessages.GetAllSavedMessages)
+		savedMessagesUrl.DELETE("/:org_id/saved/message/:messageId", savedMessages.DeleteMessageByID)
 	}
 
 	return r

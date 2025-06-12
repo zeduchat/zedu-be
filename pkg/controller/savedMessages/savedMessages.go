@@ -22,7 +22,53 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) SaveMessageForLater(c *gin.Context) {
+func (base *Controller) SaveThreadMessageForLater(c *gin.Context) {
+	var req models.SaveThreadRequest
+	orgId := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserId = userId
+	req.OrgId = orgId
+
+	messageDocument, err := savedMessages.SaveThreadMessageForLater(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Message saved successfully", messageDocument)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) SaveReplyMessageForLater(c *gin.Context) {
 	var req models.SaveMessageRequest
 	orgId := c.Param("org_id")
 
@@ -57,7 +103,7 @@ func (base *Controller) SaveMessageForLater(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = orgId
 
-	messageDocument, err := savedMessages.SaveMsgForLater(req, base.Db, base.Logger)
+	messageDocument, err := savedMessages.SaveReplyMessageForLater(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -85,7 +131,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	file, err := savedMessages.GetAllSavedMessages(base.Db, base.Logger, userId, orgId)
+	file, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, userId, orgId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
@@ -121,7 +167,7 @@ func (base *Controller) DeleteMessageByID(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	err := savedMessages.DeleteSavedMessage(base.Db, base.Logger, messageId, orgId, userId)
+	err := savedMessages.DeleteSavedMessage(base.Db.Postgresql, base.Logger, messageId, orgId, userId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to delete message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)

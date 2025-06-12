@@ -95,21 +95,21 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID:    req.ChannelsId,
-		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt:    messageDoc.UpdatedAt.String(),
-		AvatarURL:    profile.AvatarURL,
-		Type:         "message",
-		Content:      req.Content,
-		ThreadId:     req.ThreadId,
-		Email:        user.Email,
-		UserType:     userType,
-		UserName:     utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:     utility.ThisOrThat(profile.FullName, req.AgentName),
-		OrgId:        channels.OrganisationID,
-		UserId:       req.UserId,
-		Media:        req.Media,
-		Id:           messageDoc.ID,
+		ChannelID: req.ChannelsId,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt: messageDoc.UpdatedAt.String(),
+		AvatarURL: profile.AvatarURL,
+		Type:      "message",
+		Content:   req.Content,
+		ThreadId:  req.ThreadId,
+		Email:     user.Email,
+		UserType:  userType,
+		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
+		OrgId:     channels.OrganisationID,
+		UserId:    req.UserId,
+		Media:     req.Media,
+		Id:        messageDoc.ID,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -245,10 +245,11 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
-		message   models.Message
-		newMsg    models.MessageDocument
-		channel   models.Channels
-		dmChannel models.DmChannels
+		message      models.Message
+		newMsg       models.MessageDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		savedMessage models.SavedMessage
 	)
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
@@ -259,12 +260,15 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	}
 
 	err := newMsg.GetMessageById(db, req.MessageId)
-
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("message not found")
 	}
 
 	req.ThreadId = newMsg.ThreadID.String()
+
+	if err := savedMessage.DeleteSavedMessageByMessageID(db, newMsg.ID, newMsg.ThreadID.String(), newMsg.OrganisationID); err != nil {
+		return nil, http.StatusBadRequest, err
+	}
 
 	updateResp, err := newMsg.DeleteMessage(db, logger)
 

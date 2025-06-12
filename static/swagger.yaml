@@ -14858,12 +14858,13 @@ paths:
                     type: string
                     example: "file not found or inaccessible"
 
-  /organisations/{organisationId}/save-message:
+
+  /organisations/{organisationId}/thread/save:
     post:
       tags:
         - Saved Messages
-      summary: Save a message for later
-      description: Creates and stores a new message in the system.
+      summary: Save a thread message for later
+      description: Creates and stores a thread message in the system.
       parameters:
         - name: organisationId
           in: path
@@ -14878,12 +14879,10 @@ paths:
             schema:
               type: object
               required:
-                - thread_id
                 - channels_id
+                - thread_id
+                - type
               properties:
-                content:
-                  type: string
-                  example: "Sample content for saved messages"
                 channels_id:
                   type: string
                   example: "019747e0-fa9d-75c2-af24-b85cdc078840"
@@ -14893,24 +14892,6 @@ paths:
                 type:
                   type: string
                   example: "message"
-                media:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      file_name:
-                        type: string
-                        example: "sample.jpg"
-                      file_type:
-                        type: string
-                        example: "jpg"
-                      mime_type:
-                        type: string
-                        example: "image/jpeg"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/images/sample.jpg"
       security:
         - bearerAuth: []
       responses:
@@ -14937,9 +14918,6 @@ paths:
                         type: string
                         format: uuid
                         example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
-                      content:
-                        type: string
-                        example: "My test again for saved messages"
                       org_id:
                         type: string
                         example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
@@ -15002,7 +14980,129 @@ paths:
                     nullable: true
                     example: null
 
-  /organisations/{organisationId}/saved-message:
+  /organisations/{organisationId}/message/save:
+    post:
+      tags:
+        - Saved Messages
+      summary: Save a reply message for later
+      description: Creates and stores a reply message in the system.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - thread_id
+                - channels_id
+                - message_id
+              properties:
+                channels_id:
+                  type: string
+                  example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-aa9a-959348898754"
+                message_id:
+                  type: string
+                  example: "019744be-fa9d-7e65-aa9a-b85cdc078840"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Message saved successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      message_id:
+                        type: string
+                        example: "019744be-fa9d-7e65-aa9a-b85cdc078840"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-07T01:23:31.7077586Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-aa9a-959348898754"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Validation error"
+                  error:
+                    type: string
+                    example: "Missing required field: thread_id"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Database error occurred"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+
+  /organisations/{organisationId}/saved/message:
     get:
       tags:
         - Saved Messages
@@ -15082,7 +15182,7 @@ paths:
                     type: string
                     example: "Failed to retrieve saved messages"
 
-  /organisations/{organisationId}/saved-message/{messageId}:
+  /organisations/{organisationId}/saved/message/{messageId}:
     delete:
       tags:
         - Saved Messages
