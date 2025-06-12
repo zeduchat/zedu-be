@@ -9,7 +9,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -135,9 +134,7 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 			return
 		}
 
-		encryption_key := config.Config.Server.EncKey
-
-		org_id_slug, agent_id_slug, err := utility.ValidateExternalApiKey(apiKey, encryption_key)
+		org_id_slug, agent_id_slug, err := models.ValidateAgentApiKey(db, apiKey)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "invalid API key", err.Error(), nil)
 			c.JSON(http.StatusUnauthorized, rd)
