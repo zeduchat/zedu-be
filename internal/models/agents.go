@@ -1500,3 +1500,20 @@ func UpdateCustomAgent(db *gorm.DB, ids map[string]string) error {
 
 	return nil
 }
+
+func ValidateAgentApiKey(db *gorm.DB, apiKey string) (string, string, error) {
+	var agentSettings CustomIntegrationsSetting
+
+	err := db.
+		Where("setting_entry::jsonb -> 'auth_credentials' ->> 'agent_api_key' = ?", apiKey).
+		First(&agentSettings).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", fmt.Errorf("no agent settings found for provided api key")
+		}
+		return "", "", fmt.Errorf("error querying agent settings: %v", err)
+	}
+
+	return agentSettings.OrgID, agentSettings.IntegrationID, nil
+}

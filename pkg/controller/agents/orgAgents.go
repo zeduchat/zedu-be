@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/agents"
@@ -630,9 +629,7 @@ func (base *Controller) GetCustomAgentSettingsExteranl(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -703,9 +700,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -744,9 +739,7 @@ func (base *Controller) AgentCallback(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
