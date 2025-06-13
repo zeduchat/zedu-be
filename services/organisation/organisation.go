@@ -593,7 +593,7 @@ func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStarted
 		return models.OrgGetStartedResponse{}, err
 	}
 
-	userProfiles, err := org.FetchOrgUsers(db.Postgresql, ids.OrganisationID)
+	userProfiles, err := org.FetchOrgUsers(db.Postgresql, ids)
 	if err != nil {
 		return models.OrgGetStartedResponse{}, fmt.Errorf("failed to fetch user profiles: %v", err.Error())
 	}
@@ -604,7 +604,7 @@ func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStarted
 	}
 
 	ogsr := models.OrgGetStartedResponse{
-		UserName: profile.FullName,
+		UserName: profile.UserName,
 		OrgUserProfile: userProfiles,
 		OrgChannel: orgChans,
 	}
