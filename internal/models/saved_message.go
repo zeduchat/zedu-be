@@ -15,7 +15,7 @@ type SavedMessage struct {
 	OrgId      string         `gorm:"type:uuid;not null;index" json:"org_id"`
 	UserID     string         `gorm:"type:uuid;not null;index" json:"user_id"`
 	Type       string         `gorm:"type:text;not null;index" json:"type,omitempty"`
-	MessageID  uuid.UUID      `gorm:"type:uuid;null;index" json:"message_id,omitempty"`
+	MessageID  *string        `gorm:"type:uuid;null;index" json:"message_id,omitempty"`
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
 	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
@@ -42,6 +42,7 @@ func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 		org          Organisation
 		dmChannels   DmChannels
 		userChannels UserChannels
+		savedMessage SavedMessage
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", m.OrgId)
@@ -62,6 +63,52 @@ func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 
 	if !(dmChanExist || chanExist) {
 		return errors.New("user not in channel")
+	}
+
+	msgExists := postgresql.CheckExists(db, &savedMessage, "org_id = ? AND channels_id = ? AND user_id = ? AND thread_id = ?", m.OrgId, m.ChannelsID, m.UserID, m.ThreadID)
+	if msgExists {
+		return errors.New("message to save already exists")
+	}
+
+	createErr := postgresql.CreateOneRecord(db, &m)
+	if createErr != nil {
+		return createErr
+	}
+
+	return nil
+}
+
+func (m *SavedMessage) CreateReplyMessageRecord(db *gorm.DB) error {
+	var (
+		org          Organisation
+		dmChannels   DmChannels
+		userChannels UserChannels
+		savedMessage SavedMessage
+	)
+
+	exists := postgresql.CheckExists(db, &org, "id = ?", m.OrgId)
+	if !exists {
+		return errors.New("organisation not found")
+	}
+
+	isMember, err := new(Organisation).CheckUserIsMemberOfOrg(m.UserID, m.OrgId, db)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return errors.New("user is not a member of organisation")
+	}
+
+	chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
+
+	if !(dmChanExist || chanExist) {
+		return errors.New("user not in channel")
+	}
+
+	msgExists := postgresql.CheckExists(db, &savedMessage, "org_id = ? AND channels_id = ? AND user_id = ? AND thread_id = ? AND message_id = ?", m.OrgId, m.ChannelsID, m.UserID, m.ThreadID, m.MessageID)
+	if msgExists {
+		return errors.New("message to save already exists")
 	}
 
 	createErr := postgresql.CreateOneRecord(db, &m)

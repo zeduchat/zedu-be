@@ -43,23 +43,17 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 		return nil, errors.New("invalid thread ID")
 	}
 
-	messageId, err := uuid.FromString(req.MessageId)
-	if err != nil {
-		logger.Error("invalid message ID")
-		return nil, errors.New("invalid message ID")
-	}
-
 	messageToSave := models.SavedMessage{
 		ID:         utility.GenerateUUID(),
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
 		CreatedAt:  time.Now().UTC(),
-		MessageID:  messageId,
+		MessageID:  &req.MessageId,
 		ThreadID:   threadId,
 	}
 
-	createErr := messageToSave.CreateMessageRecord(db)
+	createErr := messageToSave.CreateReplyMessageRecord(db)
 	if createErr != nil {
 		logger.Error("failed to save message: %v", createErr)
 		return nil, errors.New("failed to save message, error: " + createErr.Error())
