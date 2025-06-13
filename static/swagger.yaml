@@ -11356,8 +11356,8 @@ paths:
 
   /agents/me:
     get:
-      summary: Get integrations by owner ID
-      description: Retrieve a list of agents by owner ID
+      summary: Get all integrations by owner
+      description: Retrieve a list of agents by owner
       tags:
         - Agents
       security:
