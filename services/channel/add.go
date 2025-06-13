@@ -71,7 +71,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	quotedThread := models.QuotedMessage{
 		ThreadID:  threads.ID,
 		Content:   threads.Content,
-		Username:  threads.Content,
+		Username:  threads.Username,
 		FullName:  threads.FullName,
 		AvatarURL: threads.AvatarURL,
 		CreatedAt: threads.CreatedAt,
