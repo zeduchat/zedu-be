@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -477,7 +478,17 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 		return
 	}
 
-	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq, userId)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)

@@ -440,20 +440,29 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 	return nil
 }
 
-func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) (models.AgentResp, error) {
+func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest, user_id string) (models.AgentResp, error) {
 	var (
 		orgIntegration models.OrganisationIntegrations
 		agentSettings  models.CustomIntegrationsSetting
 		organisation   models.Organisation
 		int_resp       models.AgentResp
+		org            models.Organisation
 	)
+
+	isMember, err := org.CheckUserIsMemberOfOrg(user_id, org_id, db)
+	if err != nil {
+		return int_resp, err
+	}
+	if !isMember {
+		return int_resp, errors.New("user not a member of organisation")
+	}
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", org_id)
 	if !organisationExists {
 		return int_resp, errors.New("organisation does not exist")
 	}
 
-	err := validateJSONURL(req.JSONUrl)
+	err = validateJSONURL(req.JSONUrl)
 	if err != nil {
 		return int_resp, err
 	}
@@ -524,6 +533,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.Skills = payload.Skills
 	orgIntegration.IsPaid = payload.IsPaid
 	orgIntegration.PreSharedKey = psk
+	orgIntegration.OwnerID = user_id
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {

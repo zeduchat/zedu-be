@@ -26,6 +26,7 @@ type Integrations struct {
 	JSONUrl            string     `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
 	AppUrl             string     `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
 	AppLogo            string     `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
+	OwnerID            string     `gorm:"type:uuid;" json:"owner_id"`
 	AppDescription     string     `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType    string     `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
 	Info               string     `gorm:"colummn:info; type:varchar(255);" json:"info"`
@@ -113,6 +114,7 @@ type OrganisationIntegrations struct {
 	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
 	OrgID              string     `gorm:"type:uuid;" json:"org_id"`
 	IntegrationID      string     `gorm:"type:uuid;" json:"integration_id"`
+	OwnerID            string     `gorm:"type:uuid;" json:"owner_id"`
 	IsActive           bool       `gorm:"type:boolean;default:false" json:"is_active"`
 	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
 	IsArchived         bool       `gorm:"type:boolean;default:false" json:"is_archived"`
