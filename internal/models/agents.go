@@ -1519,3 +1519,13 @@ func ValidateAgentApiKey(db *gorm.DB, apiKey string) (string, string, error) {
 
 	return agentSettings.OrgID, agentSettings.IntegrationID, nil
 }
+
+func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, error) {
+	var agents []OrganisationIntegrations
+
+	err := db.Where("owner_id = ?", user_id).Find(&agents).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get integration settings: %v", err)
+	}
+	return agents, nil
+}
