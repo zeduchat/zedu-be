@@ -7612,6 +7612,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+  /organisations/{org_id}/get-started:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve get-started info for an organisation
+      description: Returns the current user's username, organisation users' profile details, and organisation channels metadata.
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get-started info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: get-started info retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      user_name:
+                        type: string
+                        example: micahshallom1034
+                      org_users_profile:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: DaBoy
+                            avatar_url:
+                              type: string
+                              example: https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
+                            is_online:
+                              type: boolean
+                              example: true
+                      org_channels:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: Default
+                            member_avatars:
+                              type: array
+                              items:
+                                type: string
+                              example:
+                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_da41992a35ce.jpeg
+                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
+                                - https://lh3.googleusercontent.com/a/ACg8ocJT...
+                            last_post_time:
+                              type: string
+                              example: Last post Apr 23 11:01
+                            members_count:
+                              type: integer
+                              example: 14
 
   /organisations/{org_id}/metrics:
     get:
@@ -14754,7 +14826,7 @@ paths:
       summary: List all available models
       parameters:
         - in: header
-          name: X-TELEX-API-KEY
+          name: X-AGENT-API-KEY
           schema:
             type: string
           required: true
@@ -14857,6 +14929,8 @@ paths:
                   error:
                     type: string
                     example: "file not found or inaccessible"
+  
+
 
 
   /organisations/{organisationId}/thread/save:
