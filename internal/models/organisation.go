@@ -524,26 +524,51 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 	return nil
 }
 
-func (o *Organisation) FetchOrgUsers(db *gorm.DB, orgID string) ([]OrgUsersProfile, error) {
-    var ouprof []OrgUsersProfile
+func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, error) {
+	const maxProfiles = 30
 
-    err := db.Table("org_user_managements AS oum").
-        Select("profiles.full_name as name, profiles.avatar_url").
-        Joins("JOIN users ON users.id = oum.user_id").
-        Joins("JOIN profiles ON profiles.userid = users.id").
-        Where("oum.organisation_id = ?", orgID).
-        Limit(30).
-        Find(&ouprof).Error
+	var (
+		completeProfiles   []OrgUsersProfile
+		incompleteProfiles []OrgUsersProfile
+	)
 
-    if err != nil {
-        return ouprof, err
-    }
+	err := db.Table("org_user_managements AS oum").
+		Select("profiles.user_name AS name, profiles.avatar_url AS avatar_url").
+		Joins("JOIN users ON users.id = oum.user_id").
+		Joins("JOIN profiles ON profiles.userid = users.id").
+		Where("oum.organisation_id = ? AND oum.user_id != ? AND TRIM(profiles.user_name) != '' AND TRIM(profiles.avatar_url) != ''",
+			ids.OrganisationID, ids.UserID).
+		Limit(maxProfiles).
+		Find(&completeProfiles).Error
+	if err != nil {
+		return nil, err
+	}
 
-    for i := range ouprof {
-        ouprof[i].IsOnline = true
-    }
+	remaining := maxProfiles - len(completeProfiles)
+	if remaining > 0 {
+		err = db.Table("org_user_managements AS oum").
+			Select("profiles.user_name AS name, profiles.avatar_url AS avatar_url").
+			Joins("JOIN users ON users.id = oum.user_id").
+			Joins("JOIN profiles ON profiles.userid = users.id").
+			Where("oum.organisation_id = ? AND oum.user_id != ? AND (TRIM(profiles.user_name) = '' OR TRIM(profiles.avatar_url) = '')",
+				ids.OrganisationID, ids.UserID).
+			Limit(remaining).
+			Find(&incompleteProfiles).Error
+		if err != nil {
+			return nil, err
+		}
+	}
 
-    return ouprof, nil
+	allProfiles := append(completeProfiles, incompleteProfiles...)
+	if len(allProfiles) > maxProfiles {
+		allProfiles = allProfiles[:maxProfiles]
+	}
+
+	for i := range allProfiles {
+		allProfiles[i].IsOnline = true
+	}
+
+	return allProfiles, nil
 }
 
 func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, orgID string) ([]OrgChannelsWithMemberAvatars, error) {
