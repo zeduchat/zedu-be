@@ -416,6 +416,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		channel    models.DmChannels
 		orgAgent   models.OrganisationIntegrations
 		threadResp models.ThreadDocument
+		// user       models.User
 	)
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
