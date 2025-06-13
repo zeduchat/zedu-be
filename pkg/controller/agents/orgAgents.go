@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/agents"
@@ -630,9 +629,7 @@ func (base *Controller) GetCustomAgentSettingsExteranl(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -694,7 +691,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	api_key, ok := auth_credentials["telex_api_key"].(string)
+	api_key, ok := auth_credentials["agent_api_key"].(string)
 
 	if !ok {
 		base.Logger.Error("api_key is missing in request body")
@@ -703,9 +700,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -717,7 +712,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 	ids := map[string]string{
 		"porg_id":       porg_id,
 		"pagent_id":     pint_id,
-		"telex_api_key": api_key,
+		"agent_api_key": api_key,
 	}
 
 	err = agents.UpdateCustomAgentSettingsExternal(ids, req, base.Db.Postgresql, base.ExtReq)
@@ -735,18 +730,16 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 
 func (base *Controller) AgentCallback(c *gin.Context) {
 
-	api_key := c.GetHeader("X-TELEX-API-KEY")
+	api_key := c.GetHeader("X-AGENT-API-KEY")
 
 	if api_key == "" {
-		base.Logger.Error("X-TELEX-API-KEY is missing in request header")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "X-TELEX-API-KEY is missing in request header", "invalid api key supplied", nil)
+		base.Logger.Error("X-AGENT-API-KEY is missing in request header")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "X-AGENT-API-KEY is missing in request header", "invalid api key supplied", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -758,7 +751,7 @@ func (base *Controller) AgentCallback(c *gin.Context) {
 	ids := map[string]string{
 		"porg_id":       porg_id,
 		"pagent_id":     pint_id,
-		"telex_api_key": api_key,
+		"agent_api_key": api_key,
 	}
 
 	err = agents.AgentCallback(ids, base.Db.Postgresql, base.ExtReq)

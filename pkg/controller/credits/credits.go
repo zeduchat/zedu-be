@@ -75,6 +75,52 @@ func (base *Controller) GetOrgCreditReport(c *gin.Context) {
 
 }
 
+func (base *Controller) GetOrgCreditTransactions(c *gin.Context) {
+	org_id := c.Param("org_id")
+
+	credits_transactions, paginationResponse, err := models.GetOrgCreditTransactions(org_id, base.Db.Postgresql, c)
+	if err != nil {
+		base.Logger.Error("Failed to fetch credit transactions", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch credit transactions", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(credits_transactions),
+	}
+
+	base.Logger.Info("credit transactions retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "credit transactions retrieved successfully.", credits_transactions, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetOrgCreditUsage(c *gin.Context) {
+	org_id := c.Param("org_id")
+
+	credits_usage, paginationResponse, err := models.GetOrgCreditUsage(org_id, base.Db.Postgresql, c)
+	if err != nil {
+		base.Logger.Error("Failed to fetch credit usage", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch credit usage", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(credits_usage),
+	}
+
+	base.Logger.Info("credit usage retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "credit usage retrieved successfully.", credits_usage, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) GetCreditPackages(c *gin.Context) {
 	creditPackages, code, err := models.GetCreditPackages(base.Db.Postgresql)
 	if err != nil {

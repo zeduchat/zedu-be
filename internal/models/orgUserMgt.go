@@ -26,6 +26,26 @@ type OrgUserCreateRequest struct {
 	UserID string `json:"user_id" validate:"required"`
 }
 
+type OrgGetStartedResponse struct {
+	UserName       string                         `json:"user_name"`
+	OrgUserProfile []OrgUsersProfile              `json:"org_users_profile"`
+	OrgChannel     []OrgChannelsWithMemberAvatars `json:"org_channels"`
+}
+
+type OrgUsersProfile struct {
+	Name      string `json:"name"`
+	AvatarUrl string `json:"avatar_url"`
+	IsOnline  bool   `json:"is_online"`
+}
+
+type OrgChannelsWithMemberAvatars struct {
+	Name          string   `json:"name"`
+	MemberAvatars []string `json:"member_avatars"`
+	LastPostTime  string   `json:"last_post_time"` // Formatted as "a few seconds ago", "2 minutes ago", etc.
+	MembersCount  int      `json:"members_count"`
+	UnreadCount   int      `json:"unread_count,omitempty"`
+}
+
 type OrgUserManagementResponse struct {
 	ID             string `json:"id"`
 	UserID         string `json:"user_id"`
