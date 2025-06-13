@@ -45,6 +45,7 @@ type CreditUsageResponse struct {
 	Amount         float64   `json:"amount"`
 	UserName       string    `json:"user_name"`
 	AgentName      string    `json:"agent_name"`
+	AppUrl         string    `json:"app_url"`
 	CreatedAt      time.Time `json:"created_at"`
 }
 
@@ -342,6 +343,7 @@ func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsage
 			Amount:         usage.Amount,
 			UserName:       usage.User.Name,
 			AgentName:      usage.Agent.AppName,
+			AppUrl:         usage.Agent.AppUrl,
 			CreatedAt:      usage.CreatedAt,
 		})
 	}
