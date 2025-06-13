@@ -11,13 +11,11 @@ import (
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/services/actions"
-	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
 )
@@ -166,16 +164,16 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
 
 	var (
-		routing_key = "new_message"
-		oci         models.OrganisationChannelsIntegrations
-		channel     models.Channels
+		// routing_key = "new_message"
+		// oci         models.OrganisationChannelsIntegrations
+		channel models.Channels
 	)
 
-	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
-		return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
-	}
+	// res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsID)
+	// if err != nil {
+	// 	logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
+	// 	return &models.ThreadDocument{}, fmt.Errorf("failed fetching filter status, error: %v", err)
+	// }
 
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsID,
@@ -191,58 +189,57 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 
 	req.OrgId = channel_info.OrganisationID
 	req.ThreadId = utility.GenerateUUID()
-	if !res {
-		return SaveThreadMessage(req, db, logger)
-	}
 
-	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
+	return SaveThreadMessage(req, db, logger)
 
-	feed := models.FeedQueue{
-		ChannelsId: req.ChannelsID,
-		Content:    req.Content,
-		ThreadId:   req.ThreadId,
-		ReturnUrl:  returnUrl,
-		Type:       "message/thread",
-		UserId:     req.UserId,
-		OrgId:      req.OrgId,
-		Media:      req.Media,
-		Mentions:   req.Mentions,
-	}
+	// returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
 
-	payload := map[string]interface{}{
-		"args": []map[string]interface{}{
-			{
-				"message_content": map[string]interface{}{
-					"channel_id": feed.ChannelsId,
-					"message":    feed.Content,
-					"thread_id":  feed.ThreadId,
-					// "is_channel_conversation": true,
-					"type":     feed.Type,
-					"user_id":  feed.UserId,
-					"org_id":   feed.OrgId,
-					"media":    feed.Media,
-					"mentions": feed.Mentions,
-				},
-				"channel_id": feed.ChannelsId,
-				"return_url": feed.ReturnUrl,
-			},
-		},
-		"task": "telex_queue_processor.handle_new_message",
-	}
+	// feed := models.FeedQueue{
+	// 	ChannelsId: req.ChannelsID,
+	// 	Content:    req.Content,
+	// 	ThreadId:   req.ThreadId,
+	// 	ReturnUrl:  returnUrl,
+	// 	Type:       "message/thread",
+	// 	UserId:     req.UserId,
+	// 	OrgId:      req.OrgId,
+	// 	Media:      req.Media,
+	// 	Mentions:   req.Mentions,
+	// }
 
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
-		return &models.ThreadDocument{}, fmt.Errorf("failed to marshal payload, error: %v", err)
-	}
+	// payload := map[string]interface{}{
+	// 	"args": []map[string]interface{}{
+	// 		{
+	// 			"message_content": map[string]interface{}{
+	// 				"channel_id": feed.ChannelsId,
+	// 				"message":    feed.Content,
+	// 				"thread_id":  feed.ThreadId,
+	// 				// "is_channel_conversation": true,
+	// 				"type":     feed.Type,
+	// 				"user_id":  feed.UserId,
+	// 				"org_id":   feed.OrgId,
+	// 				"media":    feed.Media,
+	// 				"mentions": feed.Mentions,
+	// 			},
+	// 			"channel_id": feed.ChannelsId,
+	// 			"return_url": feed.ReturnUrl,
+	// 		},
+	// 	},
+	// 	"task": "telex_queue_processor.handle_new_message",
+	// }
 
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
-		return &models.ThreadDocument{}, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
-	}
+	// payloadBytes, err := json.Marshal(payload)
+	// if err != nil {
+	// 	logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
+	// 	return &models.ThreadDocument{}, fmt.Errorf("failed to marshal payload, error: %v", err)
+	// }
 
-	return &models.ThreadDocument{}, nil
+	// err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	// if err != nil {
+	// 	logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
+	// 	return &models.ThreadDocument{}, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+	// }
+
+	// return &models.ThreadDocument{}, nil
 }
 
 func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {

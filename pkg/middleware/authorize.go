@@ -9,10 +9,8 @@ import (
 	"github.com/golang-jwt/jwt"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/mongodb"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -118,17 +116,16 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 		if isDBAuth {
 			store := mongodb.MongoStore{}
 
-			if !store.IsClientAvailable(){
+			if !store.IsClientAvailable() {
 				logger.Error("MongoDB Client is still connecting. Please try again...")
-				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "MongoDB client is still connecting. Please try again...", "Bad Request",nil)
+				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "MongoDB client is still connecting. Please try again...", "Bad Request", nil)
 				c.JSON(http.StatusBadRequest, rd)
 				c.Abort()
 				return
 			}
 		}
 
-
-		apiKey := c.GetHeader("X-TELEX-API-KEY")
+		apiKey := c.GetHeader("X-AGENT-API-KEY")
 		if apiKey == "" {
 			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "API key not found", "Unauthorized", nil)
 			c.JSON(http.StatusUnauthorized, rd)
@@ -136,16 +133,13 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 			return
 		}
 
-		encryption_key := config.Config.Server.EncKey
-
-		org_id_slug, agent_id_slug, err := utility.ValidateExternalApiKey(apiKey, encryption_key)
+		org_id_slug, agent_id_slug, err := models.ValidateAgentApiKey(db, apiKey)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "invalid API key", err.Error(), nil)
 			c.JSON(http.StatusUnauthorized, rd)
 			c.Abort()
 			return
 		}
-
 
 		ids := models.IDS{
 			OrganisationID: org_id_slug,
@@ -168,11 +162,10 @@ func APIKeyAuthMiddleware(db *gorm.DB, logger *utility.Logger, isDBAuth bool) gi
 }
 
 func VerifyCredentials(db *gorm.DB, ids models.IDS) (string, string, error) {
-	var (
-		orgint models.OrganisationIntegrations
-	)
-	exist := postgresql.CheckExists(db, &orgint, "org_id::text LIKE ? AND integration_id::text LIKE ?", "%"+ids.OrganisationID, "%"+ids.AgentID)
-	if !exist {
+	var orgint models.OrganisationIntegrations
+
+	err := db.Where("org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID).First(&orgint).Error
+	if err != nil {
 		return "", "", fmt.Errorf("agent does not exist in organisation")
 	}
 

@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -205,12 +206,11 @@ func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string) error {
 }
 
 func (p *Profile) GetProfileByUserId(db *gorm.DB, userId string) error {
-
-	query := db.Where("userid = ?", userId)
-
-	if err := query.First(&p).Error; err != nil {
-		return err
+	if err := db.Where("userid = ?", userId).First(&p).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("profile not found for user ID: %s", userId)
+		}
+		return fmt.Errorf("failed to fetch profile: %w", err)
 	}
-
 	return nil
 }
