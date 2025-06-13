@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"gorm.io/gorm"
 )
@@ -16,11 +15,13 @@ type PinnedMessage struct {
 	UserID     string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	Pinned     bool      `gorm:"type:boolean;default:true" json:"pinned"`
 	PinnedAt   time.Time `gorm:"column:pinned_at; not null; autoCreateTime" json:"pinned_at"`
-	ThreadID   uuid.UUID `gorm:"type:uuid;null;index" json:"thread_id"`
+	ThreadID   string    `gorm:"type:uuid;null;index" json:"thread_id"`
+	MessageID  *string   `gorm:"type:uuid;null;index" json:"message_id,omitempty"`
 }
 
 type PinMessageRequest struct {
 	ThreadId   string `json:"thread_id" validate:"required"`
+	MessageID  string `json:"message_id"`
 	OrgId      string `json:"org_id"`
 	ChannelsId string `json:"channels_id"`
 	UserId     string `json:"user_id"`
@@ -81,7 +82,7 @@ func (m *PinnedMessage) GetPinnedMessagesForChannel(db *gorm.DB, orgID, channelI
 	return messages, findErr
 }
 
-func (m *PinnedMessage) GetPinnedMessageByID(db *gorm.DB, messageID, orgID, channelID, userID string) (*PinnedMessage, error) {
+func (m *PinnedMessage) GetPinnedMessageByID(db *gorm.DB, messageID, orgID, channelID, userID string) error {
 	var (
 		org          Organisation
 		userChannels UserChannels
@@ -90,26 +91,26 @@ func (m *PinnedMessage) GetPinnedMessageByID(db *gorm.DB, messageID, orgID, chan
 
 	isMember, err := org.CheckUserIsMemberOfOrg(userID, orgID, db)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !isMember {
-		return nil, errors.New("user is not a member of this organisation")
+		return errors.New("user is not a member of this organisation")
 	}
 
 	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
 	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
 	if !(dmChanExist || userChanExist) {
-		return nil, errors.New("user not in channel")
+		return errors.New("user not in channel")
 	}
 
 	query := db.Where("id = ? AND org_id = ? AND channels_id = ?", messageID, orgID, channelID)
 
 	findErr := query.First(&m).Error
 	if findErr != nil {
-		return nil, findErr
+		return findErr
 	}
 
-	return m, nil
+	return nil
 }
 
 func (m *PinnedMessage) DeletePinnedMessageRecord(db *gorm.DB, pinnedID string) error {

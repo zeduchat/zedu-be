@@ -14773,7 +14773,7 @@ paths:
     post:
       tags:
         - Pinned Messages
-      summary: Pin a message to a channel or DM
+      summary: Pin a thread message to a channel or DM
       description: Pins a specific message in a given channel or DM thread.
       parameters:
         - name: organisationId
@@ -14886,6 +14886,127 @@ paths:
                     example: null
 
   /organisations/{organisationId}/channels/{channelId}/pin/{messageId}:
+    post:
+      tags:
+        - Pinned Messages
+      summary: Pin a reply message to a channel or DM
+      description: Pins a specific message in a given channel or DM thread.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM to pin the message in
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the message to pin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message pinned successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      pinned:
+                        type: boolean
+                        example: true
+                      pinned_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-10T16:10:17.0247925Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-bb9a-959348898754"
+        "400":
+          description: Invalid input or message already pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Message already pinned or input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+ 
     delete:
       tags:
         - Pinned Messages

@@ -18,7 +18,8 @@ func PinMessages(r *gin.Engine, ApiVersion string, validator *validator.Validate
 	pinnedMessagesUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		pinnedMessagesUrl.POST("/:org_id/channels/:channel_id/pin", pinnedMessages.PinMessage)
+		pinnedMessagesUrl.POST("/:org_id/channels/:channel_id/pin", pinnedMessages.PinThreadMessage)
+		pinnedMessagesUrl.POST("/:org_id/channels/:channel_id/pin/:messageId", pinnedMessages.PinReplyMessage)
 		pinnedMessagesUrl.GET("/:org_id/channels/:channel_id/pinned-messages", pinnedMessages.GetAllPinnedMessages)
 		pinnedMessagesUrl.DELETE("/:org_id/channels/:channel_id/pin/:messageId", pinnedMessages.UnPinMessage)
 	}

@@ -39,6 +39,7 @@ type Threads struct {
 	FullName      string                 `json:"full_name"`
 	Email         string                 `json:"email"`
 	Edited        bool                   `json:"edited"`
+	IsPinned      bool                   `json:"is_pinned"`
 	UserType      string                 `json:"user_type"`
 	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
@@ -70,6 +71,7 @@ type ThreadDocument struct {
 	Email         string                 `json:"email"`
 	UserId        string                 `json:"user_id"`
 	Edited        bool                   `json:"edited"`
+	IsPinned      bool                   `json:"is_pinned"`
 	Messages      []MessageDocument      `json:"messages,omitempty"`
 	Count         int                    `json:"frequency,omitempty"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
@@ -140,6 +142,9 @@ var Thread_mapping = map[string]interface{}{
 				"type":       "nested",
 				"properties": MessageMapping,
 			},
+			"is_pinned": map[string]string{
+				"type": "boolean",
+			},
 		},
 	},
 }
@@ -174,6 +179,7 @@ type ChannelCountInfo struct {
 	TotalThreads         int64 `json:"total_threads"`
 	TotalResolvedThreads int64 `json:"total_resolved_threads"`
 }
+
 type ChannelMetrics struct {
 	ChannelName  string `json:"channel_name"`
 	ThreadCount  int64  `json:"thread_count"`
@@ -209,24 +215,24 @@ type BotReturnRequest struct {
 }
 
 type FeedMessageRequest struct {
-	ChannelID    string                 `json:"channel_id"`
-	FullName     string                 `json:"full_name"`
-	UserName     string                 `json:"username"`
-	CreatedAt    string                 `json:"created_at"`
-	UpdatedAt    string                 `json:"updated_at"`
-	Email        string                 `json:"email"`
-	AvatarURL    string                 `json:"avatar_url,omitempty"`
-	MessageId    string                 `json:"message_id,omitempty"`
-	Type         string                 `json:"type"`
-	Content      string                 `json:"message"`
-	ThreadId     string                 `json:"thread_id"`
-	OrgId        string                 `json:"org_id"`
-	UserId       string                 `json:"user_id"`
-	Media        []UploadedFileResponse `json:"media"`
-	UserType     string                 `json:"user_type"`
-	Id           string                 `json:"id,omitempty"`
-	State        string                 `json:"state"`
-	ChannelName  string                 `json:"channel_name,omitempty"`
+	ChannelID   string                 `json:"channel_id"`
+	FullName    string                 `json:"full_name"`
+	UserName    string                 `json:"username"`
+	CreatedAt   string                 `json:"created_at"`
+	UpdatedAt   string                 `json:"updated_at"`
+	Email       string                 `json:"email"`
+	AvatarURL   string                 `json:"avatar_url,omitempty"`
+	MessageId   string                 `json:"message_id,omitempty"`
+	Type        string                 `json:"type"`
+	Content     string                 `json:"message"`
+	ThreadId    string                 `json:"thread_id"`
+	OrgId       string                 `json:"org_id"`
+	UserId      string                 `json:"user_id"`
+	Media       []UploadedFileResponse `json:"media"`
+	UserType    string                 `json:"user_type"`
+	Id          string                 `json:"id,omitempty"`
+	State       string                 `json:"state"`
+	ChannelName string                 `json:"channel_name,omitempty"`
 }
 
 type Mentions struct {

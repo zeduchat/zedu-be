@@ -23,7 +23,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) PinMessage(c *gin.Context) {
+func (base *Controller) PinThreadMessage(c *gin.Context) {
 	var req models.PinMessageRequest
 
 	err := c.ShouldBindJSON(&req)
@@ -64,7 +64,66 @@ func (base *Controller) PinMessage(c *gin.Context) {
 		return
 	}
 
-	messageDocument, err := pinnedmessages.PinMessage(req, base.Db, base.Logger)
+	messageDocument, err := pinnedmessages.PinThreadMessage(req, base.Db, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to pin message", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Message pinned successfully", messageDocument)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) PinReplyMessage(c *gin.Context) {
+	var req models.PinMessageRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	req.UserId = userId
+	req.OrgId = c.Param("org_id")
+	req.ChannelsId = c.Param("channel_id")
+	req.MessageID = c.Param("messageId")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.ChannelsId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.MessageID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", errors.New("failed to parse message id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	messageDocument, err := pinnedmessages.PinReplyMessage(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to pin message", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
