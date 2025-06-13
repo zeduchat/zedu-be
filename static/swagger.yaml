@@ -11354,6 +11354,49 @@ paths:
         404:
           description: Organisation not found.
 
+  /agents/me:
+    get:
+      summary: Get all integrations by owner
+      description: Retrieve a list of agents by owner
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: object
+                    properties:
+                      is_system:
+                        type: boolean
+                      is_active:
+                        type: boolean
+
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.
+
+
+
   /agents:
     get:
       summary: Get system integrations for telex

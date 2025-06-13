@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -449,6 +450,30 @@ func (base *Controller) GetAgentSettingsAllOrgs(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetAgentsByOwner(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	agents, err := agents.GetAgentsByOwner(base.Db.Postgresql, userId)
+	if err != nil {
+		base.Logger.Error("Failed to fetch agent", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch agent", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Agents fetch successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agents fetch successfully.", agents)
+	c.JSON(http.StatusOK, rd)
+}
+
 // Create custom agent
 func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	var (
@@ -477,7 +502,17 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 		return
 	}
 
-	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq, userId)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)

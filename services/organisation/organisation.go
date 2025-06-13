@@ -202,6 +202,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	}
 
 	err = org.AddSystemAgentstoOrg(db)
+
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +586,7 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStartedResponse, error) {
 	var (
 		profile models.Profile
-		org models.Organisation
+		org     models.Organisation
 	)
 
 	err := profile.GetProfileByUserId(db.Postgresql, ids.UserID)
@@ -604,11 +605,11 @@ func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStarted
 	}
 
 	ogsr := models.OrgGetStartedResponse{
-		UserName: profile.UserName,
+		UserName:       profile.UserName,
 		OrgUserProfile: userProfiles,
-		OrgChannel: orgChans,
+		OrgChannel:     orgChans,
 	}
-	
+
 	return ogsr, nil
 }
 
