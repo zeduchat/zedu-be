@@ -146,3 +146,11 @@ func GetActivatedOrganizations(db *gorm.DB, agent_id string, api_key string) ([]
 	}
 	return organisations, nil, 200
 }
+
+func GetAgentsByOwner(db *gorm.DB, userId string) ([]models.OrganisationIntegrations, error) {
+	agents, err := models.GetAgentsByOwner(db, userId)
+	if err != nil {
+		return nil, err
+	}
+	return agents, nil
+}

@@ -97,7 +97,6 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 				Version:        org_agents.Version,
 				Prices:         org_agents.Prices,
 				Provider:       org_agents.Provider,
-				PreSharedKey:   org_agents.PreSharedKey,
 				IsPaid:         org_agents.IsPaid,
 				IsApproved:     org_agents.IsApproved,
 				Skills:         org_agents.Skills,
@@ -139,7 +138,6 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 			Version:        org_agents.Version,
 			Prices:         org_agents.Prices,
 			Provider:       org_agents.Provider,
-			PreSharedKey:   org_agents.PreSharedKey,
 			IsPaid:         org_agents.IsPaid,
 			IsApproved:     org_agents.IsApproved,
 			Skills:         org_agents.Skills,
@@ -440,20 +438,29 @@ func UpdateJSONSchema(ids map[string]string, req models.UpdateJSONSchemaRequest,
 	return nil
 }
 
-func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest) (models.AgentResp, error) {
+func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest, user_id string) (models.AgentResp, error) {
 	var (
 		orgIntegration models.OrganisationIntegrations
 		agentSettings  models.CustomIntegrationsSetting
 		organisation   models.Organisation
 		int_resp       models.AgentResp
+		org            models.Organisation
 	)
+
+	isMember, err := org.CheckUserIsMemberOfOrg(user_id, org_id, db)
+	if err != nil {
+		return int_resp, err
+	}
+	if !isMember {
+		return int_resp, errors.New("user not a member of organisation")
+	}
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", org_id)
 	if !organisationExists {
 		return int_resp, errors.New("organisation does not exist")
 	}
 
-	err := validateJSONURL(req.JSONUrl)
+	err = validateJSONURL(req.JSONUrl)
 	if err != nil {
 		return int_resp, err
 	}
@@ -524,6 +531,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.Skills = payload.Skills
 	orgIntegration.IsPaid = payload.IsPaid
 	orgIntegration.PreSharedKey = psk
+	orgIntegration.OwnerID = user_id
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
