@@ -7,18 +7,11 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger *utility.Logger) (*models.PinnedMessage, error) {
 	var threads models.Threads
-	var pinnedMessage models.PinnedMessage
-
-	exists := postgresql.CheckExists(db.Postgresql, &pinnedMessage, "user_id = ? AND org_id = ? AND channels_id = ?", req.UserId, req.OrgId, req.ChannelsId)
-	if exists {
-		return nil, errors.New("pinned thread message already exists")
-	}
 
 	threads.ID = req.ThreadId
 	updateKey := map[string]interface{}{
@@ -50,12 +43,6 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 
 func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger *utility.Logger) (*models.PinnedMessage, error) {
 	var message models.Message
-	var pinnedMessage models.PinnedMessage
-
-	exists := postgresql.CheckExists(db.Postgresql, &pinnedMessage, "user_id = ? AND org_id = ? AND channels_id = ? AND message_id = ?", req.UserId, req.OrgId, req.ChannelsId, req.MessageID)
-	if exists {
-		return nil, errors.New("pinned reply message already exists")
-	}
 
 	updateKey := map[string]interface{}{
 		"is_pinned": true,
@@ -76,7 +63,7 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 		MessageID:  &req.MessageID,
 	}
 
-	createErr := messageToPin.CreatePinnedMessageRecord(db.Postgresql)
+	createErr := messageToPin.CreatePinnedReplyMessageRecord(db.Postgresql)
 	if createErr != nil {
 		logger.Error("failed to pin reply-message: %v", createErr)
 		return nil, errors.New("failed to pin reply-message, error: " + createErr.Error())

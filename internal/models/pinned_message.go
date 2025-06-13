@@ -29,9 +29,10 @@ type PinMessageRequest struct {
 
 func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
 	var (
-		dmChannels   DmChannels
-		userChannels UserChannels
-		org          Organisation
+		dmChannels    DmChannels
+		userChannels  UserChannels
+		org           Organisation
+		pinnedMessage PinnedMessage
 	)
 
 	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
@@ -47,6 +48,46 @@ func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
 	}
 	if !isMember {
 		return errors.New("user is not a member of this organisation")
+	}
+
+	exists := postgresql.CheckExists(db, &pinnedMessage, "user_id = ? AND org_id = ? AND channels_id = ?", m.UserID, m.OrgId, m.ChannelsID)
+	if exists {
+		return errors.New("pinned thread message already exists")
+	}
+
+	if err := postgresql.CreateOneRecord(db, &m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *PinnedMessage) CreatePinnedReplyMessageRecord(db *gorm.DB) error {
+	var (
+		dmChannels    DmChannels
+		userChannels  UserChannels
+		org           Organisation
+		pinnedMessage PinnedMessage
+	)
+
+	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
+	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
+
+	if !(dmChanExist || userChanExist) {
+		return errors.New("user not in channel")
+	}
+
+	isMember, err := org.CheckUserIsMemberOfOrg(m.UserID, m.OrgId, db)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return errors.New("user is not a member of this organisation")
+	}
+
+	exists := postgresql.CheckExists(db, &pinnedMessage, "user_id = ? AND org_id = ? AND channels_id = ? AND message_id = ?", m.UserID, m.OrgId, m.ChannelsID, m.MessageID)
+	if exists {
+		return errors.New("pinned reply message already exists")
 	}
 
 	if err := postgresql.CreateOneRecord(db, &m); err != nil {
