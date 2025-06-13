@@ -582,7 +582,7 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 	return response, nil
 }
 
-func FetchGetStarted(ids models.IDS, db *storage.Database) (models.OrgGetStartedResponse, error) {
+func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStartedResponse, error) {
 	var (
 		profile models.Profile
 		org models.Organisation

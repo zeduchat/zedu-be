@@ -356,10 +356,10 @@ func (base *Controller) GetStarted(c *gin.Context) {
 
 	ids := models.IDS{
 		OrganisationID: orgID,
-		UserID: userId,
+		UserID:         userId,
 	}
 
-	getstarted, err := organisation.FetchGetStarted(ids,  base.Db)
+	getstarted, err := organisation.FetchGetStarted(base.Db, ids)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve get-started info", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)

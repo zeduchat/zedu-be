@@ -434,39 +434,6 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return &threadResp, http.StatusInternalServerError, err
 	}
 
-	// Calculate credit cost based on message and agent price
-	inputLength := len(req.Content)
-
-	var agentPrice float64 = 0.0 // temp value
-
-	creditUsed := models.CalculateCreditCost(inputLength, agentPrice)
-
-	// validate credit here
-	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
-		logger.Error("Organisation has insufficient credit balance!!")
-		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
-	}
-
-	// save organisation credit usage
-	credit_usage := models.CreditUsage{
-		ID:             utility.GenerateUUID(),
-		OrganisationID: channel.OrgId,
-		Amount:         5,
-		AgentID:        *channel.ParticipantId,
-		UserID:         *channel.ParticipantId,
-	}
-
-	err = credit_usage.CreateCreditUsage(db.Postgresql)
-	if err != nil {
-		logger.Error("failed to create credit usage!!")
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
-	}
-
-	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
-		logger.Error("Organisation credit Recalculation failed")
-		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
-	}
-
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
 		Username:      agentDetails["app_name"].(string),
