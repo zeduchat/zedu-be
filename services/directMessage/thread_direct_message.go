@@ -434,19 +434,12 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return &threadResp, http.StatusInternalServerError, err
 	}
 
-	// ParticipantID here is the ID of the agent and not a user, the identity of the User is irrelevant here - Shallom 
-
-	// user, err = user.GetUserByID(db.Postgresql, *channel.ParticipantId)
-	// if err != nil {
-	// 	return nil, http.StatusInternalServerError, errors.New("failed to get user")
-	// }
-
 	// Calculate credit cost based on message and agent price
-	outputLength := len(req.Content)
+	inputLength := len(req.Content)
 
 	var agentPrice float64 = 0.0 // temp value
 
-	creditUsed := models.CalculateCreditCost(0, outputLength, agentPrice)
+	creditUsed := models.CalculateCreditCost(inputLength, agentPrice)
 
 	// validate credit here
 	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {

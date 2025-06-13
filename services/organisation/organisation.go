@@ -16,6 +16,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -579,6 +580,36 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 	}
 
 	return response, nil
+}
+
+func FetchGetStarted(ids models.IDS, db *storage.Database) (models.OrgGetStartedResponse, error) {
+	var (
+		profile models.Profile
+		org models.Organisation
+	)
+
+	err := profile.GetProfileByUserId(db.Postgresql, ids.UserID)
+	if err != nil {
+		return models.OrgGetStartedResponse{}, err
+	}
+
+	userProfiles, err := org.FetchOrgUsers(db.Postgresql, ids.OrganisationID)
+	if err != nil {
+		return models.OrgGetStartedResponse{}, fmt.Errorf("failed to fetch user profiles: %v", err.Error())
+	}
+
+	orgChans, err := org.FetchOrgChannelsPlusFirst3Members(db, ids.OrganisationID)
+	if err != nil {
+		return models.OrgGetStartedResponse{}, fmt.Errorf("failed to fetch channels in organisation with member images: %s", err.Error())
+	}
+
+	ogsr := models.OrgGetStartedResponse{
+		UserName: profile.FullName,
+		OrgUserProfile: userProfiles,
+		OrgChannel: orgChans,
+	}
+	
+	return ogsr, nil
 }
 
 func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte, ext string) (string, error) {

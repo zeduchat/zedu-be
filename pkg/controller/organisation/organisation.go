@@ -334,3 +334,39 @@ func (base *Controller) GetLoadingMetrics(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "loading metrics retrieved successfully", loadingMetrics)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetStarted(c *gin.Context) {
+	orgID := c.Param("org_id")
+
+	if _, err := uuid.Parse(orgID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve loading metrics", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to retrieve users", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	ids := models.IDS{
+		OrganisationID: orgID,
+		UserID: userId,
+	}
+
+	getstarted, err := organisation.FetchGetStarted(ids,  base.Db)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve get-started info", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("loading metrics retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "get-started info retrieved successfully", getstarted)
+	c.JSON(http.StatusOK, rd)
+}
