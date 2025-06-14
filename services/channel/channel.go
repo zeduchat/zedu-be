@@ -96,19 +96,25 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	return newchannel, http.StatusOK, nil
 }
 
-func GetChannel(db *gorm.DB, channelID, userId string) (models.GetChannelResp, int, error) {
+func GetChannel(db *gorm.DB, ids models.IDS) (models.GetChannelResp, int, error) {
 	var (
 		channel models.Channels
 		chanReq models.ChannelInfo
 	)
 
-	chanReq.ChannelID = channelID
-	chanReq.UserID = userId
+	chanReq.ChannelID = ids.ChannelID
+	chanReq.UserID = ids.UserID
 
 	chanresp, err := channel.GetChannelByID(db, chanReq)
 	if err != nil {
 		return chanresp, http.StatusBadRequest, err
 	}
+
+	err = models.UpdateUserChannelLastRead(db, ids.ChannelID, ids.UserID)
+	if err != nil {
+		return chanresp, http.StatusBadRequest, err
+	}
+
 	return chanresp, http.StatusOK, nil
 }
 
@@ -169,7 +175,12 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *utility.Logger) (int, error) {
 	var channel models.Channels
 
-	chanResp, _, err := GetChannel(db.Postgresql, channels_id, user_id)
+	ids := models.IDS{
+		UserID: user_id,
+		ChannelID: channels_id,
+	}
+
+	chanResp, _, err := GetChannel(db.Postgresql, ids)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
