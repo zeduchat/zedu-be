@@ -31,6 +31,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		profile       models.Profile
 		user          models.User
 		channels      models.Channels
+		threads        models.ThreadDocument
 		agent_message = false
 	)
 
@@ -46,8 +47,12 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("invalid thread ID")
 	}
 
-	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
+	err = threads.GetThreadById(db.Postgresql, req.ThreadId)
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
 
+	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
 	if !chanExist {
 		return nil, http.StatusBadRequest, errors.New("channel does not exist")
 	}
@@ -59,9 +64,17 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
-
 	if err != nil && !agent_message {
 		return nil, http.StatusBadRequest, errors.New("failed to get user")
+	}
+
+	quotedThread := models.QuotedMessage{
+		ThreadID:  threads.ID,
+		Content:   threads.Content,
+		Username:  threads.Username,
+		FullName:  threads.FullName,
+		AvatarURL: threads.AvatarURL,
+		CreatedAt: threads.CreatedAt,
 	}
 
 	messageDoc := models.MessageDocument{
@@ -82,10 +95,10 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		Media:          req.Media,
 		Mentions:       req.Mentions,
 		OrganisationID: channels.OrganisationID,
+		QuotedMessage:  &quotedThread,
 	}
 
 	updateResp, err := messageDoc.CreateMessage(db, logger)
-
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
 	}
