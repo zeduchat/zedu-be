@@ -21,7 +21,8 @@ func PinMessages(r *gin.Engine, ApiVersion string, validator *validator.Validate
 		pinnedMessagesUrl.POST("/:org_id/channels/:channel_id/pin", pinnedMessages.PinThreadMessage)
 		pinnedMessagesUrl.POST("/:org_id/channels/:channel_id/pin/:messageId", pinnedMessages.PinReplyMessage)
 		pinnedMessagesUrl.GET("/:org_id/channels/:channel_id/pinned-messages", pinnedMessages.GetAllPinnedMessages)
-		pinnedMessagesUrl.DELETE("/:org_id/channels/:channel_id/pin/:messageId", pinnedMessages.UnPinMessage)
+		pinnedMessagesUrl.DELETE("/:org_id/channels/:channel_id/pin/thread/:threadId", pinnedMessages.UnPinThreadMessage)
+		pinnedMessagesUrl.DELETE("/:org_id/channels/:channel_id/pin/message/:messageId", pinnedMessages.UnPinReplyMessage)
 	}
 
 	return r

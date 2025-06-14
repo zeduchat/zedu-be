@@ -170,7 +170,7 @@ func (base *Controller) GetAllPinnedMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) UnPinMessage(c *gin.Context) {
+func (base *Controller) UnPinThreadMessage(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		return
@@ -178,19 +178,13 @@ func (base *Controller) UnPinMessage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
-	pinnedID := c.Param("messageId")
+	
 	orgID := c.Param("org_id")
 	channelID := c.Param("channel_id")
+	threadID := c.Param("threadId")
 
 	if _, err := uuid.Parse(orgID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if _, err := uuid.Parse(pinnedID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid id format", errors.New("failed to parse messageId"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -201,9 +195,50 @@ func (base *Controller) UnPinMessage(c *gin.Context) {
 		return
 	}
 
-	err := pinnedmessages.UnPinMessage(base.Db, base.Logger, pinnedID, orgID, channelID, userId)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to unpin message", err.Error(), nil)
+	if err := pinnedmessages.UnPinThreadMessage(base.Db, base.Logger, userId, orgID, channelID, threadID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to unpin thread message", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	base.Logger.Info("Message unpinned successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Message unpinned successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UnPinReplyMessage(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+	
+	orgID := c.Param("org_id")
+	channelID := c.Param("channel_id")
+	messageID := c.Param("messageId")
+
+	if _, err := uuid.Parse(orgID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(messageID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", errors.New("failed to parse message id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := pinnedmessages.UnPinReplyMessage(base.Db, base.Logger, userId, orgID, channelID, messageID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to unpin reply message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}

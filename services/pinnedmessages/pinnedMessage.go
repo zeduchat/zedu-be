@@ -72,10 +72,10 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 	return &messageToPin, nil
 }
 
-func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, orgID, channelID, userID string) ([]models.PinnedMessage, error) {
+func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, orgID, channelID, userID string) ([]models.MessageDocument, error) {
 	var pinnedMessage *models.PinnedMessage
 
-	messageCollection, err := pinnedMessage.GetPinnedMessagesForChannel(db.Postgresql, orgID, channelID, userID)
+	messageCollection, err := pinnedMessage.GetAllPinnedMessagesForChannel(db, orgID, channelID, userID)
 	if err != nil {
 		logger.Error("An error occurred while fetching pinned messages: %v", err)
 		return nil, err
@@ -84,39 +84,45 @@ func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, orgID, c
 	return messageCollection, nil
 }
 
-func UnPinMessage(db *storage.Database, logger *utility.Logger, pinnedID, orgID, channelID, userID string) error {
+func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, userID, orgID, channelID, threadID string) error {
 	var threads models.Threads
-	var message models.Message
 	var pinnedMessage models.PinnedMessage
-
-	getErr := pinnedMessage.GetPinnedMessageByID(db.Postgresql, pinnedID, orgID, channelID, userID)
-	if getErr != nil {
-		logger.Error("An error occurred while fetching pinned message record: %v", getErr)
-		return getErr
-	}
 
 	updateKey := map[string]interface{}{
 		"is_pinned": false,
 	}
 
-	if pinnedMessage.MessageID != nil {
-		message.ID = *pinnedMessage.MessageID
-		_, err := message.UpdateMessage(db.Postgresql, updateKey)
-		if err != nil {
-			return err
-		}
-	} else {
-		threads.ID = pinnedMessage.ThreadID
-		_, err := threads.UpdateThread(db.Postgresql, updateKey)
-		if err != nil {
-			return err
-		}
+	threads.ID = threadID
+	_, err := threads.UpdateThread(db.Postgresql, updateKey)
+	if err != nil {
+		return err
 	}
 
-	deleteErr := pinnedMessage.DeletePinnedMessageRecord(db.Postgresql, pinnedID)
-	if deleteErr != nil {
-		logger.Error("An error occurred while deleting pinned message record: %v", deleteErr)
-		return deleteErr
+	if err := pinnedMessage.DeletePinnedThreadMessageRecord(db.Postgresql, userID, orgID, channelID, threadID); err != nil {
+		logger.Error("An error occurred while deleting pinned message record: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, userID, orgID, channelID, messageID string) error {
+	var message models.Message
+	var pinnedMessage models.PinnedMessage
+
+	updateKey := map[string]interface{}{
+		"is_pinned": false,
+	}
+
+	message.ID = messageID
+	_, err := message.UpdateMessage(db.Postgresql, updateKey)
+	if err != nil {
+		return err
+	}
+
+	if err := pinnedMessage.DeletePinnedReplyMessageRecord(db.Postgresql, userID, orgID, channelID, messageID); err != nil {
+		logger.Error("An error occurred while deleting pinned message record: %v", err)
+		return err
 	}
 
 	return nil
