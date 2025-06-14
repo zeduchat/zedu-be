@@ -14,6 +14,7 @@ import (
 
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -84,6 +85,7 @@ type GetUserChannelResp []struct {
 	MemberAvatars []string `json:"member_avatars"`
 	MembersCount  int      `json:"members_count"`
 	LastPostTime  string   `json:"last_post_time"`
+	UnreadCount   int64    `json:"unread_count"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -703,6 +705,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		var (
 			avatars      []string
 			totalMembers int64
+			lastReadAt   time.Time
 		)
 		if err := db.Table("user_channels").
 			Select("profiles.avatar_url").
@@ -713,6 +716,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			return nil, fmt.Errorf("error fetching member avatars: %w", err)
 		}
 
+
 		if err := db.Table("user_channels").
 			Where("channels_id = ?", chanResp[i].ID).
 			Count(&totalMembers).Error; err != nil {
@@ -722,6 +726,21 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		membersLeft := int(totalMembers) - len(avatars)
 		if membersLeft < 0 {
 			membersLeft = 0
+		}
+
+		err := db.Table("user_channels").
+			Where("channels_id = ? AND user_id = ?", chanResp[i].ID, ids.UserID).
+			Pluck("last_read_at", &lastReadAt).Error
+		if err != nil {
+			lastReadAt = time.Time{}
+			return nil, fmt.Errorf("error fetching last read at: %w", err)
+		}
+
+		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, lastReadAt)
+		if err != nil {
+			chanResp[i].UnreadCount = 0
+		} else {
+			chanResp[i].UnreadCount = unreadCount
 		}
 
 		lastPostTime, err := FetchLastMessageTime(base, chanResp[i].ID)
@@ -1023,4 +1042,55 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 	}
 
 	logger.Info("user last read updated successfully")
+}
+
+func GetChannelUnreadCount(db *storage.Database, channelID, userID string, lastReadAt time.Time) (int64, error) {
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": channelID,
+						},
+					},
+					{
+						"range": map[string]any{
+							"created_at": map[string]any{
+								"gt": lastReadAt.Format(time.RFC3339),
+							},
+						},
+					},
+				},
+			},
+		},
+		"track_total_hits": true,
+		"size":             0,
+	}
+
+	var result any
+	err := elastic.SelectAll(db.Elastic, MessageIndexName, query, &result)
+	if err != nil {
+		return 0, err
+	}
+
+	hits, ok := result.(map[string]any)["hits"].(map[string]any)
+	if !ok {
+		return 0, nil
+	}
+	total, ok := hits["total"].(map[string]any)
+	if !ok {
+		return 0, nil
+	}
+	value, ok := total["value"].(float64)
+	if !ok {
+		return 0, nil
+	}
+	return int64(value), nil
+}
+
+func UpdateUserChannelLastRead(db *gorm.DB, channelID, userID string) error {
+    return db.Model(&UserChannels{}).
+        Where("channels_id = ? AND user_id = ?", channelID, userID).
+        Update("last_read_at", time.Now()).Error
 }
