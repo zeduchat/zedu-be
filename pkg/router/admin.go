@@ -20,6 +20,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 
 	{
 		adminAuthUrl.GET("/admins", admin.ListAdmins)
+		adminAuthUrl.DELETE("/admins/:admin_id", admin.DeleteAdmin)
 		adminAuthUrl.POST("/admins", admin.CreateAdmin) // an admin can only be added by a superadmin when authenticated
 	}
 

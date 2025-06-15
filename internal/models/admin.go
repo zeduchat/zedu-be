@@ -59,11 +59,13 @@ func (a *Admin) CreateAdmin(db *gorm.DB) error {
 	return nil
 }
 
-func (a *Admin) DeleteAdmin(db *gorm.DB) error {
+func DeleteAdmin(db *gorm.DB, adminID string) error {
+	var admin Admin
+	if err := db.First(&admin, "id = ?", adminID).Error; err != nil {
+		return fmt.Errorf("admin with this ID does not exist")
+	}
 
-	err := postgresql.DeleteRecordFromDb(db, a)
-
-	if err != nil {
+	if err := db.Delete(&admin).Error; err != nil {
 		return err
 	}
 
@@ -115,6 +117,7 @@ func GetAllAdmins(db *gorm.DB) ([]CreateAdminResponse, error) {
 	var response []CreateAdminResponse
 	for _, admin := range admins {
 		response = append(response, CreateAdminResponse{
+			ID:    admin.ID,
 			Email: admin.Email,
 			Name:  admin.Name,
 			Role:  admin.Role,
