@@ -16,17 +16,17 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	admin := admin.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	adminAuthUrl := r.Group(fmt.Sprintf("%v/elevated", ApiVersion), middleware.Authorize(db.Postgresql))
+	adminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 
 	{
 		adminAuthUrl.GET("/users", admin.CreateAdmin)
 		adminAuthUrl.POST("/users", admin.CreateAdmin) // an admin can only be added by a superadmin when authenticated
 	}
 
-	adminUrl := r.Group(fmt.Sprintf("%v/elevated", ApiVersion))
+	adminUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion))
 
 	{
-		adminUrl.GET("/login", admin.LoginAdmin)
+		adminUrl.POST("/login", admin.LoginAdmin)
 	}
 
 	return r

@@ -65,6 +65,7 @@ func main() {
 	go np.FeedDispatcher(dispatcher)
 
 	if configuration.Database.Migrate {
+		println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 		seed.SeedPlans(logger, db.Postgresql)

@@ -29,7 +29,7 @@ type AdminLoginRequest struct {
 type CreateAdminRequest struct {
 	Email string `json:"email" validate:"required"`
 	Name  string `json:"name" validate:"required"`
-	Role  string `json:"name"`
+	Role  string `json:"role"`
 }
 
 const (
