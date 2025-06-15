@@ -25,6 +25,7 @@ type Channels struct {
 	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	OwnerName      string    `gorm:"-" json:"owner_name"`
 	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
 	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
 	MessageCount   int64     `gorm:"-" json:"-"`
