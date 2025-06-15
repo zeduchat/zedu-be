@@ -1040,3 +1040,43 @@ func AgentCallback(ids map[string]string, db *gorm.DB, extReq request.ExternalRe
 
 	return nil
 }
+
+func GetAllCustomAgent(c *gin.Context, db *gorm.DB) (models.AgentsResp, postgresql.PaginationResponse, error, int) {
+	var org_agents models.OrganisationIntegrations
+
+	var int_resp = models.AgentsResp{}
+
+	resp, paginationResult, err, code := org_agents.GetAllCustomAgent(db, c)
+
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err, code
+	}
+
+	for _, org_agents := range resp {
+
+		agent := models.Integrations{
+			ID:             org_agents.IntegrationID,
+			Name:           org_agents.AppName,
+			AppUrl:         org_agents.AppUrl,
+			AppLogo:        org_agents.AppLogo,
+			AppDescription: org_agents.AppDescription,
+			Category:       "Agents",
+			Status:         "success",
+			IsActive:       org_agents.IsActive,
+			Provider:       org_agents.Provider,
+			CreatedAt:      org_agents.CreatedAt,
+			Version:        org_agents.Version,
+		}
+
+		int_resp = append(int_resp, struct {
+			models.Integrations
+			Linked bool "json:\"linked\""
+		}{
+			Integrations: agent,
+			Linked:       true,
+		})
+
+	}
+
+	return int_resp, paginationResult, nil, code
+}

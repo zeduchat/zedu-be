@@ -801,3 +801,24 @@ func (base *Controller) AgentCallback(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent callback received successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetAllCustomAgent(c *gin.Context) {
+	agents, paginationResponse, err, code := agents.GetAllCustomAgent(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(agents),
+	}
+
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
+	c.JSON(http.StatusOK, rd)
+}

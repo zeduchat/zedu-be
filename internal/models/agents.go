@@ -1529,3 +1529,28 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 	}
 	return agents, nil
 }
+
+func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+	var (
+		orgIntResp []OrganisationIntegrations
+	)
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&OrganisationIntegrations{})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&orgIntResp,
+		nil,
+	)
+
+	if err != nil {
+		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return orgIntResp, paginationResponse, nil, http.StatusOK
+}
