@@ -32,6 +32,13 @@ type CreateAdminRequest struct {
 	Role  string `json:"role"`
 }
 
+type CreateAdminResponse struct {
+	ID    string `json:"id" validate:"required"`
+	Email string `json:"email" validate:"required"`
+	Name  string `json:"name" validate:"required"`
+	Role  string `json:"role"`
+}
+
 const (
 	RoleAdmin      = "admin"
 	RoleSuperAdmin = "superadmin"
@@ -97,4 +104,22 @@ func (user *Admin) ChangeRole(db *gorm.DB, role string, adminId string) error {
 	}
 
 	return nil
+}
+
+func GetAllAdmins(db *gorm.DB) ([]CreateAdminResponse, error) {
+	var admins []Admin
+	if err := db.Find(&admins).Error; err != nil {
+		return nil, err
+	}
+
+	var response []CreateAdminResponse
+	for _, admin := range admins {
+		response = append(response, CreateAdminResponse{
+			Email: admin.Email,
+			Name:  admin.Name,
+			Role:  admin.Role,
+		})
+	}
+
+	return response, nil
 }

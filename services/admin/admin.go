@@ -71,6 +71,11 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		responseData gin.H
 	)
 
+	var existing models.Admin
+	if err := db.Postgresql.Where("email = ?", email).First(&existing).Error; err == nil {
+		return nil, fmt.Errorf("admin with this email already exists")
+	}
+
 	plaintextPass, err := GenerateStrongPassword(16) // 16-char password
 	if err != nil {
 		return nil, err

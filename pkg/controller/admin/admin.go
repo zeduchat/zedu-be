@@ -81,3 +81,18 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Admin login successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) ListAdmins(c *gin.Context) {
+
+	respData, err := models.GetAllAdmins(base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(400, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("success")
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", respData)
+	c.JSON(http.StatusOK, rd)
+}

@@ -19,8 +19,8 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	adminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 
 	{
-		adminAuthUrl.GET("/users", admin.CreateAdmin)
-		adminAuthUrl.POST("/users", admin.CreateAdmin) // an admin can only be added by a superadmin when authenticated
+		adminAuthUrl.GET("/admins", admin.ListAdmins)
+		adminAuthUrl.POST("/admins", admin.CreateAdmin) // an admin can only be added by a superadmin when authenticated
 	}
 
 	adminUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion))
