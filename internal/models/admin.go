@@ -26,6 +26,12 @@ type AdminLoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type CreateAdminRequest struct {
+	Email string `json:"email" validate:"required"`
+	Name  string `json:"name" validate:"required"`
+	Role  string `json:"name"`
+}
+
 const (
 	RoleAdmin      = "admin"
 	RoleSuperAdmin = "superadmin"

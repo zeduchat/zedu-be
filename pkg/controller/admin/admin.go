@@ -5,12 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	admin "github.com/hngprojects/telex_be/services/admin"
-	"github.com/hngprojects/telex_be/services/group"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -21,19 +19,11 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) AddUser(c *gin.Context) {
+func (base *Controller) CreateAdmin(c *gin.Context) {
 
 	var (
-		req    models.CreateGroupRequest
-		org_id = c.Param("org_id")
+		req models.CreateAdminRequest
 	)
-
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("Invalid organisation id", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid organisation id", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Failed to parse request body", err)
@@ -49,18 +39,16 @@ func (base *Controller) AddUser(c *gin.Context) {
 		return
 	}
 
-	req.OrganisationID = org_id
-
-	response, err := group.CreateGroup(base.Db, req)
+	response, err := admin.CreateAdmin(base.Db, req, c)
 	if err != nil {
 		base.Logger.Error("Failed to create group", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to create group", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to add an admin", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Group created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Group created successfully", response)
+	base.Logger.Info("admin created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Admin created successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -81,7 +69,7 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, c, base.ExtReq)
+	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

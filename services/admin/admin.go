@@ -8,14 +8,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/external/request"
+	"crypto/rand"
+	"encoding/base64"
+	"strings"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
+func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 	var (
 		admin        = models.Admin{}
 		responseData gin.H
@@ -59,4 +63,80 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context, extRe
 	}
 
 	return responseData, http.StatusOK, nil
+}
+
+func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Context) (gin.H, error) {
+	var (
+		email        = strings.ToLower(req.Email)
+		responseData gin.H
+	)
+
+	plaintextPass, err := GenerateStrongPassword(16) // 16-char password
+	if err != nil {
+		return nil, err
+	}
+
+	password, err := utility.HashPassword(plaintextPass)
+	if err != nil {
+		return nil, err
+	}
+
+	admin := models.Admin{
+		ID:       utility.GenerateUUID(),
+		Name:     req.Name,
+		Email:    email,
+		Role:     req.Role,
+		Password: password,
+		IsActive: true,
+	}
+
+	err = admin.CreateAdmin(db.Postgresql)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenData, err := middleware.CreateAdminToken(admin, c)
+	if err != nil {
+		return nil, fmt.Errorf("error saving token: %w", err)
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: admin.ID}
+
+	err = access_token.CreateAccessToken(db.Postgresql, tokens)
+	if err != nil {
+		return nil, fmt.Errorf("error saving token: %w", err)
+	}
+
+	responseData = gin.H{
+		"user": map[string]interface{}{
+			"id":       admin.ID,
+			"email":    admin.Email,
+			"name":     admin.Name,
+			"password": plaintextPass, // show generated password to admin once to store it somewhere, for security purpose
+		},
+		"access_token": tokenData.AccessToken,
+	}
+
+	return responseData, nil
+}
+
+func GenerateStrongPassword(length int) (string, error) {
+	bytes := make([]byte, length)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	password := base64.URLEncoding.EncodeToString(bytes)
+
+	if len(password) > length {
+		password = password[:length]
+	}
+
+	return password, nil
 }
