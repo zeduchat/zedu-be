@@ -65,7 +65,7 @@ func (base *Controller) AddUser(c *gin.Context) {
 }
 
 func (base *Controller) LoginAdmin(c *gin.Context) {
-	var req models.LoginRequestModel
+	var req models.AdminLoginRequest
 
 	err := c.ShouldBind(&req)
 	if err != nil {

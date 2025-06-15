@@ -15,22 +15,22 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func LoginAdmin(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
+func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 	var (
-		user         = models.User{}
+		admin        = models.Admin{}
 		responseData gin.H
 	)
 
-	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	exists := postgresql.CheckExists(db, &admin, "email = ?", req.Email)
 	if !exists {
 		return responseData, 400, fmt.Errorf("invalid credentials")
 	}
 
-	if !utility.CompareHash(req.Password, user.Password) {
+	if !utility.CompareHash(req.Password, admin.Password) {
 		return responseData, 400, fmt.Errorf("invalid credentials")
 	}
 
-	tokenData, err := middleware.CreateToken(user, c)
+	tokenData, err := middleware.CreateAdminToken(admin, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
@@ -40,7 +40,7 @@ func LoginAdmin(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extRe
 		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
-	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: admin.ID}
 
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
@@ -48,20 +48,12 @@ func LoginAdmin(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extRe
 	}
 
 	responseData = gin.H{
-		"user": map[string]interface{}{
-			"id":              user.ID,
-			"email":           user.Email,
-			"username":        user.Name,
-			"is_verified":     user.IsVerified,
-			"is_onboarded":    user.IsOnboarded,
-			"profile_updated": user.ProfileUpdated,
-			"is_active":       user.IsActive,
-			"current_org":     user.CurrentOrg,
-			"first_name":      user.Profile.FirstName,
-			"last_name":       user.Profile.LastName,
-			"fullname":        user.Profile.FirstName + " " + user.Profile.LastName,
-			"phone":           user.Profile.Phone,
-			"avatar_url":      user.Profile.AvatarURL,
+		"admin": map[string]interface{}{
+			"id":        admin.ID,
+			"email":     admin.Email,
+			"name":      admin.Name,
+			"is_active": admin.IsActive,
+			"role":      admin.Role,
 		},
 		"access_token": tokenData.AccessToken,
 	}
