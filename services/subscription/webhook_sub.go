@@ -18,7 +18,7 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 	var planRepo models.Plan
 	var orgPlanRepo models.OrganisationPlan
 
-	org, err := orgRepo.GetOrgByEmail(db, req.Email)
+	org, err := orgRepo.GetOrgByID(db, req.OrgID)
 	if err != nil {
 		return nil, http.StatusNotFound, nil, errors.New("org not found")
 	}
@@ -28,12 +28,11 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
 	}
 
-	theAmt := int(sesh.AmountSubtotal) / 100
 	if sesh.PaymentStatus != "paid" {
 		return nil, http.StatusBadRequest, nil, errors.New("session not paid")
 	}
 
-	plan, err := planRepo.GetAPlanByAmount(db, theAmt)
+	plan, err := planRepo.GetPlanByName(db, req.PlanName)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("plan not found")
 	}
@@ -52,9 +51,11 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 			StartedAt:      time.Now(),
 			EndedAt:        time.Now().AddDate(0, 0, 30),
 			Status:         "Active",
+			SessionID:      req.StripeSessionID,
 		}
 		org.OrgPlanID = orgPlan.ID
 		org.OrganisationPlan = orgPlan
+		org.SubscriptionPlanId = req.StripeSessionID
 
 		err = orgPlan.Create(db)
 		if err != nil {
@@ -76,10 +77,12 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 			StartedAt:      time.Now(),
 			EndedAt:        time.Now().AddDate(0, 0, 30),
 			Status:         "Active",
+			SessionID:      req.StripeSessionID,
 		}
 
 		org.OrgPlanID = newOrgPlan.ID
 		org.OrganisationPlan = newOrgPlan
+		org.SubscriptionPlanId = req.StripeSessionID
 
 		err = newOrgPlan.Create(db)
 		if err != nil {
