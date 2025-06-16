@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
@@ -233,9 +234,20 @@ func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 		return
 	}
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": req.AgentID,
+		"user_id":  userId,
 	}
 
 	err := agents.ChangeStatus(ids, req, base.Db.Postgresql, base.ExtReq)
@@ -598,9 +610,19 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 		return
 	}
 
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "unauthorized user", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	userId := userID.(string)
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": agent_id,
+		"user_id":  userId,
 	}
 
 	integration_setting, code, err := agents.GetCustomAgentStatus(ids, base.Db.Postgresql, base.ExtReq)
