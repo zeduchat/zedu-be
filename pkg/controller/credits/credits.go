@@ -133,3 +133,24 @@ func (base *Controller) GetCreditPackages(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 
 }
+
+func (base *Controller) GetAllCreditUsage(c *gin.Context) {
+	credits_usage, paginationResponse, err := models.GetAllCreditUsage(base.Db.Postgresql, c)
+	if err != nil {
+		base.Logger.Error("Failed to fetch credit usage", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch credit usage", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(credits_usage),
+	}
+
+	base.Logger.Info("credit usage retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "credit usage retrieved successfully.", credits_usage, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
