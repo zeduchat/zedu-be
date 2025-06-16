@@ -82,28 +82,11 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 
 		// perfom credit charge
 		inputputLength := len(response.Messages.Content)
-		var agentPrice float64 = 0.0 // temp value
 
-		creditUsed := models.CalculateCreditCost(inputputLength, agentPrice)
-
-		credit_usage := models.CreditUsage{
-			ID:             utility.GenerateUUID(),
-			OrganisationID: ids.OrganisationID,
-			Amount:         creditUsed,
-			AgentID:        ids.AgentID,
-		}
-
-		err = credit_usage.CreateCreditUsage(base.Db.Postgresql)
+		err = telexai.ChargeAICreditUsage(base.Db, ids, inputputLength, base.Logger)
 		if err != nil {
-			base.Logger.Error("failed to create credit usage!!")
-			rd := utility.BuildErrorResponse(400, "error", "failed to create organisation credit usage", err.Error(), nil)
-			c.JSON(400, rd)
-			return
-		}
-
-		if err = models.UpdateOrgCreditBalance(base.Db.Postgresql, ids.OrganisationID); err != nil {
-			base.Logger.Error("Organisation credit Recalculation failed")
-			rd := utility.BuildErrorResponse(400, "error", "organisation credit recalculation failed", err.Error(), nil)
+			base.Logger.Error("failed to charge organization for AI credit usage!!")
+			rd := utility.BuildErrorResponse(400, "error", "failed to charge organization for AI organisation credit usage", err.Error(), nil)
 			c.JSON(400, rd)
 			return
 		}
