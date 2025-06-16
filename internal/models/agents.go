@@ -146,6 +146,13 @@ type OrganisationIntegrations struct {
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 }
 
+type AdminAgentResp struct {
+	Agent         OrganisationIntegrations  `json:"agent"`
+	AgentSettings CustomIntegrationsSetting `json:"agent_settings"`
+	User          User                      `json:"user"`
+	CreditUsed    int64                     `json:"credit_used"`
+}
+
 type OrganisationChannelsIntegrations struct {
 	ID            string    `gorm:"type:uuid;primary_key" json:"id"`
 	OrgID         string    `gorm:"type:uuid;" json:"org_id"`
@@ -1593,15 +1600,32 @@ func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (Cust
 	return metrics, nil
 }
 
-func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (OrganisationIntegrations, error) {
-	var orgIntegration OrganisationIntegrations
+func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (AdminAgentResp, error) {
+	var resp AdminAgentResp
 
-	if err := db.Where("integration_id = ?", agentID).First(&orgIntegration).Error; err != nil {
+	if err := db.Where("integration_id = ?", agentID).First(&resp.Agent).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return OrganisationIntegrations{}, errors.New("agent not found")
+			return AdminAgentResp{}, errors.New("agent not found")
 		}
-		return OrganisationIntegrations{}, err
+		return AdminAgentResp{}, err
 	}
 
-	return orgIntegration, nil
+	if err := postgresql.SelectAllFromDb(db, "", &resp.AgentSettings, "integration_id = ?", agentID); err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get agent settings: %v", err)
+	}
+
+	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
+	}
+
+	var total int64
+	if err := db.Table("credit_usages").
+		Select("COALESCE(SUM(amount), 0)").
+		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
+	}
+
+	resp.CreditUsed = total
+
+	return resp, nil
 }
