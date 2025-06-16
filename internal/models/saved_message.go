@@ -214,6 +214,24 @@ func (m *SavedMessage) DeleteSavedMessageByMessageID(db *gorm.DB, ids SavedMessa
 	return nil
 }
 
+func (m *SavedMessage) SavedThreadMsgExists(db *gorm.DB, ids SavedMessageIds) bool {
+	var (
+		savedMessage SavedMessage
+	)
+
+	idExists := postgresql.CheckExists(db, &savedMessage, "thread_id = ? AND org_id = ?", ids.ThreadID, ids.OrgID)
+	return idExists
+}
+
+func (m *SavedMessage) SavedReplyMsgExists(db *gorm.DB, ids SavedMessageIds) bool {
+	var (
+		savedMessage SavedMessage
+	)
+
+	idExists := postgresql.CheckExists(db, &savedMessage, "message_id = ? AND thread_id = ? AND org_id = ?", ids.MessageID, ids.ThreadID, ids.OrgID)
+	return idExists
+}
+
 func (m *SavedMessage) DeleteSavedThreadMsgByMessageID(db *gorm.DB, ids SavedMessageIds) error {
 	var (
 		savedMessage SavedMessage
