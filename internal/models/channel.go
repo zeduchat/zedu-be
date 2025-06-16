@@ -607,7 +607,7 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
 	}
 
-	updates := map[string]interface{}{}
+	updates := map[string]any{}
 	if req.Name != "" {
 		updates["name"] = req.Name
 	}

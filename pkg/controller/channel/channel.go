@@ -2,6 +2,7 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,7 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	userClaims:= claims.(jwt.MapClaims)
+	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
 	err := c.ShouldBindJSON(&req)
@@ -102,7 +103,7 @@ func (base *Controller) GetChannel(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	ids := models.IDS{
-		UserID: userId,
+		UserID:    userId,
 		ChannelID: channels_id,
 	}
 
@@ -413,16 +414,16 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 		return
 	}
 
-	result, err := channel.UpdateChannels(base.Db.Postgresql, req, id, userId)
+	result, code, err := channel.UpdateChannels(base.Db.Postgresql, req, id, userId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			base.Logger.Info("error: channel not found: %v", err)
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Channels not found", err, nil)
-			c.JSON(http.StatusNotFound, rd)
+			base.Logger.Info("error: channel not found: %v", err.Error())
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", fmt.Sprintf("Channels not found: %v", err.Error()), err.Error(), nil)
+			c.JSON(code, rd)
 		} else {
-			base.Logger.Info("error updating channel: %v", err)
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update channel", err, nil)
-			c.JSON(http.StatusInternalServerError, rd)
+			base.Logger.Info("error updating channel: %v", err.Error())
+			rd := utility.BuildErrorResponse(code, "error", fmt.Sprintf("Failed to update channel: %v", err.Error()), err.Error(), nil)
+			c.JSON(code, rd)
 		}
 		return
 	}
