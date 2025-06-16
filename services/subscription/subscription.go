@@ -53,6 +53,8 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	}
 
 	params.AddMetadata("flow", "subscription")
+	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("org_id", req.OrgID)
 
 	session, err := session.New(params)
 	if err != nil {

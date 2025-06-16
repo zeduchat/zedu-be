@@ -919,8 +919,10 @@ func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.Ext
 	if ok {
 		api_key, ok := auth_credentials["agent_api_key"].(string)
 
-		if ok && api_key != "" {
+		if ok && api_key != "" && ids["user_id"] == orgIntegration.OwnerID {
 			status["agent_api_key"] = api_key
+		} else {
+			status["agent_api_key"] = ""
 		}
 	}
 
