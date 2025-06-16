@@ -20,19 +20,18 @@ import (
 var MessageIndexName = "messages"
 
 type Message struct {
-	ID            string         `gorm:"type:uuid;primary_key" json:"id"`
-	Content       string         `gorm:"column:content; type:text; not null" json:"content"`
-	ChannelsID    string         `gorm:"type:uuid;not null;index" json:"channels_id"`
-	UserID        string         `gorm:"type:uuid;not null;index" json:"user_id"`
-	Username      string         `gorm:"column:username; type:varchar(100)" json:"username"`
-	CreatedAt     time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt     time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
-	ThreadID      uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
-	Mentions      []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
-	AvatarURL     string         `json:"avatar_url,omitempty"`
-	Edited        bool           `gorm:"type:bool" json:"edited,omitempty"`
-	QuotedMessage *QuotedMessage `json:"quoted_message,omitempty"`
+	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
+	Content    string         `gorm:"column:content; type:text; not null" json:"content"`
+	ChannelsID string         `gorm:"type:uuid;not null;index" json:"channels_id"`
+	UserID     string         `gorm:"type:uuid;not null;index" json:"user_id"`
+	Username   string         `gorm:"column:username; type:varchar(100)" json:"username"`
+	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
+	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
+	AvatarURL  string         `json:"avatar_url,omitempty"`
+	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
 type MessageDocument struct {
@@ -54,19 +53,6 @@ type MessageDocument struct {
 	Email          string                 `json:"email"`
 	Media          []UploadedFileResponse `json:"media,omitempty"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
-	QuotedMessage  *QuotedMessage         `json:"quoted_message,omitempty"`
-	IsForwarded      bool                   `json:"is_forwarded,omitempty"`
-	ForwardedFromID  string                 `json:"forwarded_from_id,omitempty"`
-	OriginalSenderID string                 `json:"original_sender_id,omitempty"`
-}
-
-type QuotedMessage struct {
-	ThreadID  string    `json:"thread_id"`
-	Content   string    `json:"message"`
-	Username  string    `json:"username"`
-	FullName  string    `json:"full_name"`
-	AvatarURL string    `json:"avatar_url,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 var MessageMapping = map[string]interface{}{
@@ -103,15 +89,6 @@ var MessageMapping = map[string]interface{}{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 		},
-		"is_forwarded": map[string]string{
-			"type": "boolean",
-		},
-		"forwarded_from_id": map[string]string{
-			"type": "keyword",
-		},
-		"original_sender_id": map[string]string{
-			"type": "keyword",
-		},
 	},
 }
 
@@ -135,14 +112,16 @@ type EditMessageRequest struct {
 	OrgId      string `json:"org_id"`
 }
 
-type ForwardReplyMessageRequest struct {
+type ForwardThreadMessageRequest struct {
 	ThreadId   string `json:"thread_id" validate:"required"`
-	MessageId  string `json:"message_id" validate:"required"`
+	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
 }
 
-type ForwardThreadMessageRequest struct {
+type ForwardReplyMessageRequest struct {
 	ThreadId   string `json:"thread_id" validate:"required"`
+	MessageId  string `json:"message_id" validate:"required"`
+	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
 }
 

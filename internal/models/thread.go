@@ -50,37 +50,40 @@ type Threads struct {
 }
 
 type ThreadDocument struct {
-	ID              string                 `json:"thread_id"`
-	ChannelsID      string                 `json:"channels_id"`
-	OrgansationID   string                 `json:"org_id"`
-	EventName       string                 `json:"event_name,omitempty"`
-	Username        string                 `json:"username"`
-	ActionType      string                 `json:"action_type,omitempty"`
-	Status          string                 `json:"status,omitempty"`
-	CreatedAt       time.Time              `json:"created_at"`
-	MessageCount    int64                  `json:"message_count"`
-	LastReply       time.Time              `json:"last_reply"`
-	AvatarURL       string                 `json:"avatar_url"`
-	UserType        string                 `json:"user_type"`
-	Type            string                 `json:"type"`
-	Content         string                 `json:"message"`
-	ChannelName     string                 `json:"channel_name,omitempty"`
-	CurrentStatus   string                 `json:"current_status"`
-	FullName        string                 `json:"full_name"`
-	Email           string                 `json:"email"`
-	UserId          string                 `json:"user_id"`
-	Edited          bool                   `json:"edited"`
-	Messages        []MessageDocument      `json:"messages,omitempty"`
-	Count           int                    `json:"frequency,omitempty"`
-	Media           []UploadedFileResponse `json:"media,omitempty"`
-	Mentions        []Mention              `json:"mentions,omitempty"`
-	State           string                 `json:"state,omitempty"`
-	IsForwarded     bool                   `json:"is_forwarded,omitempty"`
-	ForwardedFromID string                 `json:"forwarded_from_id,omitempty"`
-	SenderID        string                 `json:"sender_id,omitempty"`
-	SenderName      string                 `json:"sender_name,omitempty"`
-	SenderUsername  string                 `json:"sender_username,omitempty"`
-	SenderAvatarURL string                 `json:"sender_avatar_url"`
+	ID                     string                 `json:"thread_id"`
+	ChannelsID             string                 `json:"channels_id"`
+	OrgansationID          string                 `json:"org_id"`
+	EventName              string                 `json:"event_name,omitempty"`
+	Username               string                 `json:"username"`
+	ActionType             string                 `json:"action_type,omitempty"`
+	Status                 string                 `json:"status,omitempty"`
+	CreatedAt              time.Time              `json:"created_at"`
+	MessageCount           int64                  `json:"message_count"`
+	LastReply              time.Time              `json:"last_reply"`
+	AvatarURL              string                 `json:"avatar_url"`
+	UserType               string                 `json:"user_type"`
+	Type                   string                 `json:"type"`
+	Content                string                 `json:"message"`
+	ChannelName            string                 `json:"channel_name,omitempty"`
+	CurrentStatus          string                 `json:"current_status"`
+	FullName               string                 `json:"full_name"`
+	Email                  string                 `json:"email"`
+	UserId                 string                 `json:"user_id"`
+	Edited                 bool                   `json:"edited"`
+	Messages               []MessageDocument      `json:"messages,omitempty"`
+	Count                  int                    `json:"frequency,omitempty"`
+	Media                  []UploadedFileResponse `json:"media,omitempty"`
+	Mentions               []Mention              `json:"mentions,omitempty"`
+	State                  string                 `json:"state,omitempty"`
+	IsForwarded            bool                   `json:"is_forwarded,omitempty"`
+	ForwardedFromID        string                 `json:"forwarded_from_id,omitempty"`
+	SenderID               string                 `json:"sender_id,omitempty"`
+	SenderFullName         string                 `json:"sender_full_name,omitempty"`
+	SenderUsername         string                 `json:"sender_username,omitempty"`
+	SenderAvatarURL        string                 `json:"sender_avatar_url,omitempty"`
+	ForwardedAt            time.Time              `json:"forwarded_at,omitempty"`
+	ForwardedFromType      string                 `json:"forwarded_from_type,omitempty"`
+	ForwardedFromChannelID string                 `json:"forwarded_from_channel_id,omitempty"`
 }
 
 var MediaMapping = map[string]interface{}{
@@ -152,8 +155,27 @@ var Thread_mapping = map[string]interface{}{
 			"forwarded_from_id": map[string]string{
 				"type": "keyword",
 			},
-			"original_sender_id": map[string]string{
+			"sender_id": map[string]string{
 				"type": "keyword",
+			},
+			"sender_full_name": map[string]string{
+				"type": "keyword",
+			},
+			"sender_username": map[string]string{
+				"type": "keyword",
+			},
+			"sender_avatar_url": map[string]string{
+				"type": "keyword",
+			},
+			"forwarded_from_type": map[string]string{
+				"type": "keyword",
+			},
+			"forwarded_from_channel_id": map[string]string{
+				"type": "keyword",
+			},
+			"forwarded_at": map[string]string{
+				"type":   "date",
+				"format": "strict_date_optional_time||epoch_millis",
 			},
 		},
 	},

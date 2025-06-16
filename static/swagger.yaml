@@ -14992,12 +14992,9 @@ paths:
             schema:
               type: object
               properties:
-                user_id:
-                  type: string
                 thread_id:
                   type: string
               required:
-                - user_id
                 - thread_id
       security:
         - bearerAuth: []
@@ -15083,14 +15080,11 @@ paths:
             schema:
               type: object
               properties:
-                user_id:
-                  type: string
                 thread_id:
                   type: string
                 message_id:
                   type: string
               required:
-                - user_id
                 - thread_id
                 - message_id
       security:
