@@ -822,3 +822,17 @@ func (base *Controller) GetAllCustomAgent(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetCustomAgentMetrics(c *gin.Context) {
+	metrics, err := agents.GetCustomAgentMetrics(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch metrics", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch metrics", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("metrics retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "metrics retrieved successfully.", metrics)
+	c.JSON(http.StatusOK, rd)
+}

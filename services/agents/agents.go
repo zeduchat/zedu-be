@@ -1080,3 +1080,12 @@ func GetAllCustomAgent(c *gin.Context, db *gorm.DB) (models.AgentsResp, postgres
 
 	return int_resp, paginationResult, nil, code
 }
+
+func GetCustomAgentMetrics(c *gin.Context, db *gorm.DB) (models.CustomIntegrationsMetrics, error) {
+	metrics, err := new(models.OrganisationIntegrations).GetCustomAgentCountMetrics(db)
+	if err != nil {
+		return metrics, err
+	}
+
+	return metrics, nil
+}

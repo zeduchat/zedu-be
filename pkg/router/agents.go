@@ -77,6 +77,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	adminAgentUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		adminAgentUrl.GET("/agents/all", adminAgent.GetAllCustomAgent)
+		adminAgentUrl.GET("/agents/metrics", adminAgent.GetCustomAgentMetrics)
 	}
 
 	// Unauthenticated endpoint to fetch agents

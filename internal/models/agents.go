@@ -86,6 +86,14 @@ type ActivateChannelAgent struct {
 	Status bool `json:"status"`
 }
 
+type CustomIntegrationsMetrics struct {
+	All           int64   `json:"all"`
+	Active        int64   `json:"active"`
+	Inactive      int64   `json:"inactive"`
+	Organizations int64   `json:"organizations"`
+	Credits       float64 `json:"credits"`
+}
+
 type Price struct {
 	Amount        float64 `json:"amount"`
 	OperationType string  `json:"operation_type"`
@@ -1553,4 +1561,34 @@ func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context
 	}
 
 	return orgIntResp, paginationResponse, nil, http.StatusOK
+}
+
+func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (CustomIntegrationsMetrics, error) {
+	var metrics CustomIntegrationsMetrics
+
+	integrations := db.Model(&OrganisationIntegrations{})
+	organisations := db.Model(&Organisation{})
+	credits := db.Model(&CreditUsage{})
+
+	if err := integrations.Count(&metrics.All).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := integrations.Where("is_active = ?", true).Count(&metrics.Active).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := integrations.Where("is_active = ?", false).Count(&metrics.Inactive).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := organisations.Count(&metrics.Organizations).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := credits.Select("SUM(amount)").Scan(&metrics.Credits).Error; err != nil {
+		return metrics, err
+	}
+
+	return metrics, nil
 }
