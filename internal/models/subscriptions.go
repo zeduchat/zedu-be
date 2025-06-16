@@ -37,6 +37,7 @@ type DeleteSubscriptionRequest struct {
 
 type CompleteSubscriptionRequest struct {
 	Email           string `json:"email"`
+	PlanName        string `json:"plan_name"`
 	OrgID           string `json:"org_id"`
 	StripeSessionID string `json:"stripe_session_id" validate:"required"`
 }
@@ -263,4 +264,15 @@ func GetSubscriptionPlans(db *gorm.DB) (*[]Plan, error) {
 	}
 
 	return &subPlans, nil
+}
+
+func (r *Plan) GetPlanByName(db *gorm.DB, plan_name string) (Plan, error) {
+	query := db.Where("name = ?", plan_name)
+	err := query.First(&r).Error
+
+	if err != nil {
+		return *r, err
+	}
+
+	return *r, nil
 }
