@@ -30,7 +30,7 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 		channelID = c.Param("channelId")
 	)
 
-	err := c.ShouldBind(&req)
+	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)

@@ -136,14 +136,12 @@ type EditMessageRequest struct {
 }
 
 type ForwardReplyMessageRequest struct {
-	UserId     string `json:"user_id" validate:"required"`
 	ThreadId   string `json:"thread_id" validate:"required"`
 	MessageId  string `json:"message_id" validate:"required"`
 	ChannelsId string `json:"channels_id"`
 }
 
 type ForwardThreadMessageRequest struct {
-	UserId     string `json:"user_id" validate:"required"`
 	ThreadId   string `json:"thread_id" validate:"required"`
 	ChannelsId string `json:"channels_id"`
 }
