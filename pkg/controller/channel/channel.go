@@ -35,7 +35,7 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	userClaims := claims.(jwt.MapClaims)
+	userClaims:= claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
 	err := c.ShouldBindJSON(&req)
