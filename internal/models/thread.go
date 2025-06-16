@@ -21,32 +21,41 @@ import (
 var ThreadIndexName = "threads"
 
 type Threads struct {
-	ID            string                 `gorm:"type:uuid;primary_key" json:"thread_id"`
-	ChannelsID    string                 `gorm:"type:uuid;index" json:"channels_id"`
-	EventName     string                 `gorm:"type:varchar(200);index" json:"event_name,omitempty"`
-	Username      string                 `gorm:"type:varchar(50);index" json:"username"`
-	ActionType    string                 `gorm:"type:text;index" json:"action_type,omitempty"`
-	Status        string                 `gorm:"type:varchar(200);index" json:"status,omitempty"`
-	CreatedAt     time.Time              `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages      []Message              `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
-	MessageCount  int64                  `gorm:"type:int;" json:"message_count,omitempty"`
-	LastReply     time.Time              `json:"last_reply"`
-	AvatarURL     string                 `json:"avatar_url"`
-	Type          string                 `gorm:"default:thread" json:"type"`
-	Content       string                 `gorm:"type:text;index" json:"message"`
-	ChannelName   string                 `json:"channel_name,omitempty"`
-	CurrentStatus string                 `json:"current_status"`
-	FullName      string                 `json:"full_name"`
-	Email         string                 `json:"email"`
-	Edited        bool                   `json:"edited"`
-	UserType      string                 `json:"user_type"`
-	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
-	Count         int                    `json:"frequency,omitempty"`
-	UserId        string                 `json:"user_id"`
-	Media         []UploadedFileResponse `json:"media,omitempty"`
-	Mentions      []Mentions             `json:"mentions,omitempty"`
-	OrgansationID string                 `json:"org_id,omitempty"`
-	State         string                 `json:"state,omitempty"`
+	ID                     string                 `gorm:"type:uuid;primary_key" json:"thread_id"`
+	ChannelsID             string                 `gorm:"type:uuid;index" json:"channels_id"`
+	EventName              string                 `gorm:"type:varchar(200);index" json:"event_name,omitempty"`
+	Username               string                 `gorm:"type:varchar(50);index" json:"username"`
+	ActionType             string                 `gorm:"type:text;index" json:"action_type,omitempty"`
+	Status                 string                 `gorm:"type:varchar(200);index" json:"status,omitempty"`
+	CreatedAt              time.Time              `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Messages               []Message              `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	MessageCount           int64                  `gorm:"type:int;" json:"message_count,omitempty"`
+	LastReply              time.Time              `json:"last_reply"`
+	AvatarURL              string                 `json:"avatar_url"`
+	Type                   string                 `gorm:"default:thread" json:"type"`
+	Content                string                 `gorm:"type:text;index" json:"message"`
+	ChannelName            string                 `json:"channel_name,omitempty"`
+	CurrentStatus          string                 `json:"current_status"`
+	FullName               string                 `json:"full_name"`
+	Email                  string                 `json:"email"`
+	Edited                 bool                   `json:"edited"`
+	UserType               string                 `json:"user_type"`
+	Reactions              []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
+	Count                  int                    `json:"frequency,omitempty"`
+	UserId                 string                 `json:"user_id"`
+	Media                  []UploadedFileResponse `json:"media,omitempty"`
+	Mentions               []Mentions             `json:"mentions,omitempty"`
+	OrgansationID          string                 `json:"org_id,omitempty"`
+	State                  string                 `json:"state,omitempty"`
+	IsForwarded            bool                   `json:"is_forwarded,omitempty"`
+	ForwardedFromID        string                 `json:"forwarded_from_id,omitempty"`
+	SenderID               string                 `json:"sender_id,omitempty"`
+	SenderFullName         string                 `json:"sender_full_name,omitempty"`
+	SenderUsername         string                 `json:"sender_username,omitempty"`
+	SenderAvatarURL        string                 `json:"sender_avatar_url,omitempty"`
+	ForwardedAt            time.Time              `json:"forwarded_at,omitempty"`
+	ForwardedFromType      string                 `json:"forwarded_from_type,omitempty"`
+	ForwardedFromChannelID string                 `json:"forwarded_from_channel_id,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -81,7 +90,7 @@ type ThreadDocument struct {
 	SenderFullName         string                 `json:"sender_full_name,omitempty"`
 	SenderUsername         string                 `json:"sender_username,omitempty"`
 	SenderAvatarURL        string                 `json:"sender_avatar_url,omitempty"`
-	ForwardedAt            time.Time              `json:"forwarded_at,omitempty"`
+	ForwardedCreatedAt     time.Time              `json:"forwarded_created_at,omitempty"`
 	ForwardedFromType      string                 `json:"forwarded_from_type,omitempty"`
 	ForwardedFromChannelID string                 `json:"forwarded_from_channel_id,omitempty"`
 }
@@ -173,7 +182,7 @@ var Thread_mapping = map[string]interface{}{
 			"forwarded_from_channel_id": map[string]string{
 				"type": "keyword",
 			},
-			"forwarded_at": map[string]string{
+			"forwarded_created_at": map[string]string{
 				"type":   "date",
 				"format": "strict_date_optional_time||epoch_millis",
 			},

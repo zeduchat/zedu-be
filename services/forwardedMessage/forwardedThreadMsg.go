@@ -40,7 +40,7 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 	}
 
 	if err := originalMsg.GetThreadById(db.Postgresql, req.ThreadId); err != nil {
-		return nil, err
+		return nil, errors.New("failed to get thread message details")
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -53,7 +53,7 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		AvatarURL:              profile.AvatarURL,
 		FullName:               profile.FullName,
 		Email:                  user.Email,
-		CreatedAt:              originalMsg.CreatedAt,
+		CreatedAt:              time.Now().UTC(),
 		CurrentStatus:          "pending",
 		UserType:               originalMsg.UserType,
 		UserId:                 userID,
@@ -68,7 +68,7 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		ForwardedFromID:        originalMsg.ID,
 		ForwardedFromType:      originalMsg.Type,
 		ForwardedFromChannelID: originalMsg.ChannelsID,
-		ForwardedAt:            time.Now().UTC(),
+		ForwardedCreatedAt:     originalMsg.CreatedAt,
 		SenderID:               originalMsg.UserId,
 		SenderFullName:         originalMsg.FullName,
 		SenderUsername:         originalMsg.Username,

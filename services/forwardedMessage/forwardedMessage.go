@@ -40,7 +40,7 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 	}
 
 	if err := originalMsg.GetMessageById(db.Postgresql, req.MessageId); err != nil {
-		return nil, err
+		return nil, errors.New("failed to get reply message details")
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -53,7 +53,7 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 		AvatarURL:              profile.AvatarURL,
 		FullName:               profile.FullName,
 		Email:                  user.Email,
-		CreatedAt:              originalMsg.CreatedAt,
+		CreatedAt:              time.Now().UTC(),
 		CurrentStatus:          "pending",
 		UserType:               originalMsg.UserType,
 		UserId:                 userID,
@@ -66,7 +66,7 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 		IsForwarded:            true,
 		ForwardedFromID:        originalMsg.ID,
 		ForwardedFromType:      "reply",
-		ForwardedAt:            time.Now().UTC(),
+		ForwardedCreatedAt:     originalMsg.CreatedAt,
 		ForwardedFromChannelID: originalMsg.ChannelsID,
 		SenderID:               originalMsg.UserID,
 		SenderFullName:         originalMsg.FullName,

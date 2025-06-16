@@ -14984,7 +14984,7 @@ paths:
           required: true
           schema:
             type: string
-          description: ID of the channel
+          description: ID of the channel where thread message should be forwarded to
       requestBody:
         required: true
         content:
@@ -15072,7 +15072,7 @@ paths:
           required: true
           schema:
             type: string
-          description: ID of the channel
+          description: ID of the channel where reply message should be forwarded to
       requestBody:
         required: true
         content:
