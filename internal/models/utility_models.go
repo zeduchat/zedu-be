@@ -8,4 +8,6 @@ type IDS struct {
 	SettingID      string `json:"setting_id"`
 	RoleID         string `json:"role_id"`
 	OrgRoleID      string `json:"org_role_id"`
+	MessageID      string `json:"message_id"`
+	ThreadID       string `json:"thread_id"`
 }

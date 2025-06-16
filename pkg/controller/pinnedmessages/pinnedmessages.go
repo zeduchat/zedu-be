@@ -158,10 +158,10 @@ func (base *Controller) GetAllPinnedMessages(c *gin.Context) {
 		return
 	}
 
-	ids := models.PinMessageRequestIds{
-		UserId:     userId,
-		OrgId:      orgID,
-		ChannelsId: channelID,
+	ids := models.IDS{
+		UserID:         userId,
+		OrganisationID: orgID,
+		ChannelID:      channelID,
 	}
 
 	message, err := pinnedmessages.GetAllPinnedMessages(base.Db, base.Logger, ids)
@@ -201,11 +201,11 @@ func (base *Controller) UnPinThreadMessage(c *gin.Context) {
 		return
 	}
 
-	ids := models.PinMessageRequestIds{
-		UserId:     userId,
-		OrgId:      orgID,
-		ChannelsId: channelID,
-		ThreadId:   threadID,
+	ids := models.IDS{
+		UserID:         userId,
+		OrganisationID: orgID,
+		ChannelID:      channelID,
+		ThreadID:       threadID,
 	}
 	if err := pinnedmessages.UnPinThreadMessage(base.Db, base.Logger, ids); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to unpin thread message", err.Error(), nil)
@@ -249,10 +249,10 @@ func (base *Controller) UnPinReplyMessage(c *gin.Context) {
 		return
 	}
 
-	ids := models.PinMessageRequestIds{
-		UserId:     userId,
-		OrgId:      orgID,
-		ChannelsId: channelID,
+	ids := models.IDS{
+		UserID:         userId,
+		OrganisationID: orgID,
+		ChannelID:      channelID,
 		MessageID:  messageID,
 	}
 	if err := pinnedmessages.UnPinReplyMessage(base.Db, base.Logger, ids); err != nil {

@@ -72,7 +72,7 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 	return &messageToPin, nil
 }
 
-func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, ids models.PinMessageRequestIds) ([]models.MessageDocument, error) {
+func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, ids models.IDS) ([]models.MessageDocument, error) {
 	var pinnedMessage *models.PinnedMessage
 
 	messageCollection, err := pinnedMessage.GetAllPinnedMessagesForChannel(db, ids)
@@ -84,7 +84,7 @@ func GetAllPinnedMessages(db *storage.Database, logger *utility.Logger, ids mode
 	return messageCollection, nil
 }
 
-func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models.PinMessageRequestIds) error {
+func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models.IDS) error {
 	var threads models.Threads
 	var pinnedMessage models.PinnedMessage
 
@@ -92,7 +92,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 		"is_pinned": false,
 	}
 
-	threads.ID = ids.ThreadId
+	threads.ID = ids.ThreadID
 	_, err := threads.UpdateThread(db.Postgresql, updateKey)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 	return nil
 }
 
-func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.PinMessageRequestIds) error {
+func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.IDS) error {
 	var message models.Message
 	var pinnedMessage models.PinnedMessage
 
