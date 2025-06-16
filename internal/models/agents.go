@@ -1,16 +1,15 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql/driver"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
-
-	"crypto/rand"
-	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -589,12 +588,15 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.AppName = agent.Name
 		oi.AppUrl = agent.AppUrl
 		oi.AppLogo = agent.AppLogo
-
-		if agentExists {
-			oi.IsSystem = true
-		} else {
-			oi.IsSystem = false
-		}
+		oi.Prices = agent.Prices
+		oi.Provider = agent.Provider
+		oi.Version = agent.Version
+		oi.DefaultInputModes = agent.DefaultInputModes
+		oi.DefaultOutputModes = agent.DefaultOutputModes
+		oi.Skills = agent.Skills
+		oi.IsPaid = agent.IsPaid
+		oi.IsSystem = true
+		oi.OwnerID = ids["user_id"]
 
 		err := oi.CreateOrganisationIntegration(db)
 		if err != nil {
@@ -1298,33 +1300,6 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 	var provider Provider
 	if err := json.Unmarshal(providerBytes, &provider); err != nil {
 		return err
-	}
-
-	isPaid, ok := data_r["is_paid"].(bool)
-	if !ok {
-		return errors.New("failed to save agent: 'isPaid' field is missing or invalid")
-	}
-
-	_, ok = data_r["version"].(string)
-	if !ok {
-		return errors.New("failed to save agent: 'Version' field is missing or invalid")
-	}
-
-	if isPaid {
-		rawPrices, ok := data_r["prices"]
-		if !ok {
-			return errors.New("failed to save agent: 'prices' field is missing")
-		}
-
-		jsonBytes, err := json.Marshal(rawPrices)
-		if err != nil {
-			return errors.New("failed to save agent: 'prices' field could not be marshaled")
-		}
-
-		var prices JSONPrices
-		if err := json.Unmarshal(jsonBytes, &prices); err != nil {
-			return errors.New("failed to save agent: 'prices' field is invalid")
-		}
 	}
 
 	return nil

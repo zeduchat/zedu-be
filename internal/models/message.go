@@ -35,7 +35,7 @@ type Message struct {
 }
 
 type MessageDocument struct {
-	ID             string                 `json:"id",omitempty`
+	ID             string                 `json:"id,omitempty"`
 	Content        string                 `json:"message"`
 	OrganisationID string                 `json:"org_id"`
 	ChannelsID     string                 `json:"channels_id"`
