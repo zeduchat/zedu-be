@@ -1300,33 +1300,6 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return err
 	}
 
-	isPaid, ok := data_r["is_paid"].(bool)
-	if !ok {
-		return errors.New("failed to save agent: 'isPaid' field is missing or invalid")
-	}
-
-	_, ok = data_r["version"].(string)
-	if !ok {
-		return errors.New("failed to save agent: 'Version' field is missing or invalid")
-	}
-
-	if isPaid {
-		rawPrices, ok := data_r["prices"]
-		if !ok {
-			return errors.New("failed to save agent: 'prices' field is missing")
-		}
-
-		jsonBytes, err := json.Marshal(rawPrices)
-		if err != nil {
-			return errors.New("failed to save agent: 'prices' field could not be marshaled")
-		}
-
-		var prices JSONPrices
-		if err := json.Unmarshal(jsonBytes, &prices); err != nil {
-			return errors.New("failed to save agent: 'prices' field is invalid")
-		}
-	}
-
 	return nil
 }
 

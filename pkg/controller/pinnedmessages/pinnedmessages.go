@@ -158,7 +158,13 @@ func (base *Controller) GetAllPinnedMessages(c *gin.Context) {
 		return
 	}
 
-	file, err := pinnedmessages.GetAllPinnedMessages(base.Db, base.Logger, orgID, channelID, userId)
+	ids := models.PinMessageRequestIds{
+		UserId:     userId,
+		OrgId:      orgID,
+		ChannelsId: channelID,
+	}
+
+	message, err := pinnedmessages.GetAllPinnedMessages(base.Db, base.Logger, ids)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
@@ -166,7 +172,7 @@ func (base *Controller) GetAllPinnedMessages(c *gin.Context) {
 	}
 
 	base.Logger.Info("Pinned messages retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Pinned messages retrieved successfully", file)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Pinned messages retrieved successfully", message)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -178,7 +184,7 @@ func (base *Controller) UnPinThreadMessage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-	
+
 	orgID := c.Param("org_id")
 	channelID := c.Param("channel_id")
 	threadID := c.Param("threadId")
@@ -195,7 +201,13 @@ func (base *Controller) UnPinThreadMessage(c *gin.Context) {
 		return
 	}
 
-	if err := pinnedmessages.UnPinThreadMessage(base.Db, base.Logger, userId, orgID, channelID, threadID); err != nil {
+	ids := models.PinMessageRequestIds{
+		UserId:     userId,
+		OrgId:      orgID,
+		ChannelsId: channelID,
+		ThreadId:   threadID,
+	}
+	if err := pinnedmessages.UnPinThreadMessage(base.Db, base.Logger, ids); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to unpin thread message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
@@ -214,7 +226,7 @@ func (base *Controller) UnPinReplyMessage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-	
+
 	orgID := c.Param("org_id")
 	channelID := c.Param("channel_id")
 	messageID := c.Param("messageId")
@@ -237,7 +249,13 @@ func (base *Controller) UnPinReplyMessage(c *gin.Context) {
 		return
 	}
 
-	if err := pinnedmessages.UnPinReplyMessage(base.Db, base.Logger, userId, orgID, channelID, messageID); err != nil {
+	ids := models.PinMessageRequestIds{
+		UserId:     userId,
+		OrgId:      orgID,
+		ChannelsId: channelID,
+		MessageID:  messageID,
+	}
+	if err := pinnedmessages.UnPinReplyMessage(base.Db, base.Logger, ids); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to unpin reply message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return

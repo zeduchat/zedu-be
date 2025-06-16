@@ -30,6 +30,14 @@ type PinMessageRequest struct {
 	UserId     string `json:"user_id"`
 }
 
+type PinMessageRequestIds struct {
+	MessageID  string
+	ThreadId   string
+	ChannelsId string
+	OrgId      string
+	UserId     string
+}
+
 func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
 	var (
 		dmChannels    DmChannels
@@ -55,7 +63,7 @@ func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
 
 	exists := postgresql.CheckExists(db, &pinnedMessage, "user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ?", m.UserID, m.OrgId, m.ChannelsID, m.ThreadID)
 	if exists {
-		return errors.New("pinned thread message already exists")
+		return errors.New("message already pinned")
 	}
 
 	if err := postgresql.CreateOneRecord(db, &m); err != nil {
@@ -90,7 +98,7 @@ func (m *PinnedMessage) CreatePinnedReplyMessageRecord(db *gorm.DB) error {
 
 	exists := postgresql.CheckExists(db, &pinnedMessage, "user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ? AND message_id = ?", m.UserID, m.OrgId, m.ChannelsID, m.ThreadID, m.MessageID)
 	if exists {
-		return errors.New("pinned reply message already exists")
+		return errors.New("message already pinned")
 	}
 
 	if err := postgresql.CreateOneRecord(db, &m); err != nil {
@@ -100,7 +108,7 @@ func (m *PinnedMessage) CreatePinnedReplyMessageRecord(db *gorm.DB) error {
 	return nil
 }
 
-func (m *PinnedMessage) GetPinnedMessagesForChannel(db *gorm.DB, orgID, channelID, userID string) ([]PinnedMessage, error) {
+func (m *PinnedMessage) GetPinnedMessagesForChannel(db *gorm.DB, ids PinMessageRequestIds) ([]PinnedMessage, error) {
 	var (
 		org          Organisation
 		messages     []PinnedMessage
@@ -108,7 +116,7 @@ func (m *PinnedMessage) GetPinnedMessagesForChannel(db *gorm.DB, orgID, channelI
 		dmChannels   DmChannels
 	)
 
-	isMember, err := org.CheckUserIsMemberOfOrg(userID, orgID, db)
+	isMember, err := org.CheckUserIsMemberOfOrg(ids.UserId, ids.OrgId, db)
 	if err != nil {
 		return nil, err
 	}
@@ -116,24 +124,24 @@ func (m *PinnedMessage) GetPinnedMessagesForChannel(db *gorm.DB, orgID, channelI
 		return nil, errors.New("user is not a member of this organisation")
 	}
 
-	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
-	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
+	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", ids.ChannelsId, ids.UserId)
+	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", ids.ChannelsId)
 	if !(dmChanExist || userChanExist) {
 		return nil, errors.New("user not in channel")
 	}
 
-	findErr := db.Order("pinned_at DESC").Find(&messages).Where("pinned = ? AND org_id = ? AND channels_id = ?", true, orgID, channelID).Error
+	findErr := db.Order("pinned_at DESC").Find(&messages).Where("pinned = ? AND org_id = ? AND channels_id = ?", true, ids.OrgId, ids.ChannelsId).Error
 	return messages, findErr
 }
 
-func (m *PinnedMessage) GetAllPinnedMessagesForChannel(db *storage.Database, orgID, channelID, userID string) ([]MessageDocument, error) {
+func (m *PinnedMessage) GetAllPinnedMessagesForChannel(db *storage.Database, ids PinMessageRequestIds) ([]MessageDocument, error) {
 	var (
 		org          Organisation
 		userChannels UserChannels
 		dmChannels   DmChannels
 	)
 
-	isMember, err := org.CheckUserIsMemberOfOrg(userID, orgID, db.Postgresql)
+	isMember, err := org.CheckUserIsMemberOfOrg(ids.UserId, ids.OrgId, db.Postgresql)
 	if err != nil {
 		return nil, err
 	}
@@ -141,18 +149,18 @@ func (m *PinnedMessage) GetAllPinnedMessagesForChannel(db *storage.Database, org
 		return nil, errors.New("user is not a member of this organisation")
 	}
 
-	userChanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
-	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ?", channelID)
+	userChanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", ids.ChannelsId, ids.UserId)
+	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ?", ids.ChannelsId)
 	if !(dmChanExist || userChanExist) {
 		return nil, errors.New("user not in channel")
 	}
 
-	pinnedThreads, err := GetPinnedThreadMsgs(db)
+	pinnedThreads, err := GetPinnedThreadMsgs(db, ids.ChannelsId)
 	if err != nil {
 		return nil, err
 	}
 
-	pinnedReplies, err := GetPinnedReplyMsgs(db)
+	pinnedReplies, err := GetPinnedReplyMsgs(db, ids.ChannelsId)
 	if err != nil {
 		return nil, err
 	}
@@ -165,18 +173,29 @@ func (m *PinnedMessage) GetAllPinnedMessagesForChannel(db *storage.Database, org
 	return allPinned, nil
 }
 
-func GetPinnedThreadMsgs(db *storage.Database) ([]MessageDocument, error) {
+func GetPinnedThreadMsgs(db *storage.Database, channelsId string) ([]MessageDocument, error) {
 	var message []MessageDocument
 
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
-				"is_pinned": true,
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id": channelsId,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"is_pinned": true,
+						},
+					},
+				},
 			},
 		},
 	}
-	var results interface{}
 
+	var results interface{}
 	if err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &results); err != nil {
 		return nil, err
 	}
@@ -189,18 +208,29 @@ func GetPinnedThreadMsgs(db *storage.Database) ([]MessageDocument, error) {
 	return message, nil
 }
 
-func GetPinnedReplyMsgs(db *storage.Database) ([]MessageDocument, error) {
+func GetPinnedReplyMsgs(db *storage.Database, channelsId string) ([]MessageDocument, error) {
 	var message []MessageDocument
 
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
-				"is_pinned": true,
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id": channelsId,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"is_pinned": true,
+						},
+					},
+				},
 			},
 		},
 	}
-	var results interface{}
 
+	var results interface{}
 	if err := elastic.SelectAll(db.Elastic, MessageIndexName, query, &results); err != nil {
 		return nil, err
 	}
@@ -213,8 +243,8 @@ func GetPinnedReplyMsgs(db *storage.Database) ([]MessageDocument, error) {
 	return message, nil
 }
 
-func (m *PinnedMessage) DeletePinnedThreadMessageRecord(db *gorm.DB, userID, orgID, channelsID, threadID string) error {
-	query := db.Where("user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ?", userID, orgID, channelsID, threadID)
+func (m *PinnedMessage) DeletePinnedThreadMessageRecord(db *gorm.DB, ids PinMessageRequestIds) error {
+	query := db.Where("user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ?", ids.UserId, ids.OrgId, ids.ChannelsId, ids.ThreadId)
 
 	if err := query.First(&m).Error; err != nil {
 		return err
@@ -227,8 +257,8 @@ func (m *PinnedMessage) DeletePinnedThreadMessageRecord(db *gorm.DB, userID, org
 	return nil
 }
 
-func (m *PinnedMessage) DeletePinnedReplyMessageRecord(db *gorm.DB, userID, orgID, channelsID, messageID string) error {
-	query := db.Where("user_id = ? AND org_id = ? AND channels_id = ? AND message_id = ?", userID, orgID, channelsID, messageID)
+func (m *PinnedMessage) DeletePinnedReplyMessageRecord(db *gorm.DB, ids PinMessageRequestIds) error {
+	query := db.Where("user_id = ? AND org_id = ? AND channels_id = ? AND message_id = ?", ids.UserId, ids.OrgId, ids.ChannelsId, ids.MessageID)
 
 	if err := query.First(&m).Error; err != nil {
 		return err

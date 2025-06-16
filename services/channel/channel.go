@@ -53,7 +53,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
-
 	if err != nil {
 		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
 	}
@@ -68,7 +67,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
 	if err != nil {
 		logger.Error("failed to save system message for channel %s", channel.Name)
 	}
@@ -92,6 +90,8 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
+
+	newchannel.OwnerName = profile.UserName
 
 	return newchannel, http.StatusOK, nil
 }
