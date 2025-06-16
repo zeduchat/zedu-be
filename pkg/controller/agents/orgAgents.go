@@ -234,9 +234,20 @@ func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 		return
 	}
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": req.AgentID,
+		"user_id":  userId,
 	}
 
 	err := agents.ChangeStatus(ids, req, base.Db.Postgresql, base.ExtReq)
