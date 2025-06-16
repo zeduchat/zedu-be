@@ -836,3 +836,26 @@ func (base *Controller) GetCustomAgentMetrics(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "metrics retrieved successfully.", metrics)
 	c.JSON(http.StatusOK, rd)
 }
+
+
+func (base *Controller) GetCustomAgentByID(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	agent, err := agents.GetCustomAgentByID(c, base.Db.Postgresql, agent_id)
+	if err != nil {
+		base.Logger.Error("Failed to fetched agent details", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetched agent details", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Agent details fetched successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent details fetched successfully", agent)
+	c.JSON(http.StatusOK, rd)
+}

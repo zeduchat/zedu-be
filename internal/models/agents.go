@@ -1592,3 +1592,16 @@ func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (Cust
 
 	return metrics, nil
 }
+
+func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (OrganisationIntegrations, error) {
+	var orgIntegration OrganisationIntegrations
+
+	if err := db.Where("integration_id = ?", agentID).First(&orgIntegration).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return OrganisationIntegrations{}, errors.New("agent not found")
+		}
+		return OrganisationIntegrations{}, err
+	}
+
+	return orgIntegration, nil
+}

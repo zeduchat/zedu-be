@@ -1089,3 +1089,12 @@ func GetCustomAgentMetrics(c *gin.Context, db *gorm.DB) (models.CustomIntegratio
 
 	return metrics, nil
 }
+
+func GetCustomAgentByID(c *gin.Context, db *gorm.DB, agent_id string) (models.OrganisationIntegrations, error) {
+	agent, err := new(models.OrganisationIntegrations).GetCustomAgentByID(db, agent_id)
+	if err != nil {
+		return agent, err
+	}
+
+	return agent, nil
+}
