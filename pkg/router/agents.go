@@ -74,9 +74,9 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	// fetch all agents ---> will be used to get all agents on the superAdmin dashboard
 	adminAgent := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	adminAgentUrl := r.Group(fmt.Sprintf("%v/agents", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
+	adminAgentUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
-		adminAgentUrl.GET("/all", adminAgent.GetAllCustomAgent)
+		adminAgentUrl.GET("/agents/all", adminAgent.GetAllCustomAgent)
 	}
 
 	// Unauthenticated endpoint to fetch agents
