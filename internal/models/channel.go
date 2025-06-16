@@ -593,7 +593,10 @@ func (c *UserChannels) UserInChannels(db *gorm.DB, channelID, userID string) err
 }
 
 func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId string) (Channels, int, error) {
-	var channel Channels
+	var (
+		channel Channels
+		org Organisation
+	)
 
 	err := db.Where("id = ?", r.ID).First(&channel).Error
 	if err != nil {
@@ -603,9 +606,11 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 		return channel, http.StatusInternalServerError, err
 	}
 
-	if channel.OwnerId != userId {
-		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
-	}
+	org.ID = channel.OrganisationID
+
+	// if channel.OwnerId != userId && !org.IsOwner(db, userId) {
+	// 	return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
+	// }
 
 	updates := map[string]any{}
 	if req.Name != "" {
