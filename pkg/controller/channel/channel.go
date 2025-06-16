@@ -101,7 +101,12 @@ func (base *Controller) GetChannel(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := channel.GetChannel(base.Db.Postgresql, channels_id, userId)
+	ids := models.IDS{
+		UserID: userId,
+		ChannelID: channels_id,
+	}
+
+	respData, code, err := channel.GetChannel(base.Db.Postgresql, ids)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

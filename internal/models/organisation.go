@@ -466,30 +466,6 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Profile, error) {
-	var (
-		org      Organisation
-		profiles []Profile
-	)
-	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
-	if !exists {
-		return profiles, errors.New("organisation not found")
-	}
-
-	query := db.Table("profiles").
-		Select("profiles.*").
-		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid").
-		Where("org_user_managements.organisation_id = ?", orgID).
-		Order("profiles.created_at DESC")
-
-	if err := query.Find(&profiles).Error; err != nil {
-		return profiles, fmt.Errorf("failed to fetch user profiles: %w", err)
-	}
-
-	o.Name = org.Name
-
-	return profiles, nil
-}
 
 func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 
@@ -522,6 +498,31 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 		return err
 	}
 	return nil
+}
+
+func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Profile, error) {
+	var (
+		org      Organisation
+		profiles []Profile
+	)
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return profiles, errors.New("organisation not found")
+	}
+
+	query := db.Table("profiles").
+		Select("profiles.*").
+		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid").
+		Where("org_user_managements.organisation_id = ?", orgID).
+		Order("profiles.created_at DESC")
+
+	if err := query.Find(&profiles).Error; err != nil {
+		return profiles, fmt.Errorf("failed to fetch user profiles: %w", err)
+	}
+
+	o.Name = org.Name
+
+	return profiles, nil
 }
 
 func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, error) {
@@ -647,12 +648,12 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 				"must": []map[string]interface{}{
 					{
 						"term": map[string]interface{}{
-							"channels_id.keyword": channelID, // channelID is your input
+							"channels_id.keyword": channelID, 
 						},
 					},
 					{
 						"term": map[string]interface{}{
-							"type.keyword": "thread", // if you want only threads
+							"type.keyword": "thread", 
 						},
 					},
 				},
