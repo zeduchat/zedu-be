@@ -319,7 +319,13 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusNotFound, errors.New("thread not found")
 	}
 
-	if err := savedMessage.DeleteSavedThreadMsgByMessageID(db, threadDoc.ID, threadDoc.OrgansationID); err != nil {
+	savedMessageIds := models.SavedMessageIds{
+		UserID:   userID,
+		OrgID:    threadDoc.OrgansationID,
+		ThreadID: threadDoc.ID,
+	}
+
+	if err := savedMessage.DeleteSavedThreadMsgByMessageID(db, savedMessageIds); err != nil {
 		return http.StatusBadRequest, err
 	}
 

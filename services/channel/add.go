@@ -31,7 +31,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		profile       models.Profile
 		user          models.User
 		channels      models.Channels
-		threads        models.ThreadDocument
+		threads       models.ThreadDocument
 		agent_message = false
 	)
 
@@ -279,7 +279,13 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	req.ThreadId = newMsg.ThreadID.String()
 
-	if err := savedMessage.DeleteSavedMessageByMessageID(db, newMsg.ID, newMsg.ThreadID.String(), newMsg.OrganisationID); err != nil {
+	savedMessageIds := models.SavedMessageIds{
+		MessageID: newMsg.ID,
+		UserID:    req.UserId,
+		OrgID:     newMsg.OrganisationID,
+		ThreadID:  newMsg.ThreadID.String(),
+	}
+	if err := savedMessage.DeleteSavedMessageByMessageID(db, savedMessageIds); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
 

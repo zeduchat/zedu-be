@@ -62,10 +62,10 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	return &messageToSave, nil
 }
 
-func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, userId, orgId string) ([]models.SavedMessage, error) {
+func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) ([]models.SavedMessage, error) {
 	var savedMessage *models.SavedMessage
 	
-	messageCollection, err := savedMessage.GetSavedMessages(db, userId, orgId)
+	messageCollection, err := savedMessage.GetSavedMessages(db, ids)
 	if err != nil {
 		logger.Error("An error occurred while fetching messages from Postgres: %v", err)
 		return nil, err
@@ -74,16 +74,16 @@ func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, userId, orgId stri
 	return messageCollection, nil
 }
 
-func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, messageId, orgId, userId string) error {
+func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) error {
 	var savedMessage *models.SavedMessage
 
-	_, err := savedMessage.GetSavedMessageByID(db, messageId, orgId, userId)
+	_, err := savedMessage.GetSavedMessageByID(db, ids)
 	if err != nil {
 		logger.Error("An error occurred while fetching message from Postgres: %v", err)
 		return err
 	}
 
-	deleteErr := savedMessage.DeleteMessageByID(db, messageId, orgId, userId)
+	deleteErr := savedMessage.DeleteMessageByID(db, ids)
 	if deleteErr != nil {
 		logger.Error("An error occurred while deleting saved message: %v", deleteErr)
 		return deleteErr

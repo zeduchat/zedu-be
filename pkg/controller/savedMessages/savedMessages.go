@@ -131,7 +131,12 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	file, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, userId, orgId)
+	savedMessageIds := models.SavedMessageIds{
+		UserID: userId,
+		OrgID:  orgId,
+	}
+
+	file, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
@@ -167,7 +172,12 @@ func (base *Controller) DeleteMessageByID(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	err := savedMessages.DeleteSavedMessage(base.Db.Postgresql, base.Logger, messageId, orgId, userId)
+	savedMessageIds := models.SavedMessageIds{
+		MessageID: messageId,
+		UserID:    userId,
+		OrgID:     orgId,
+	}
+	err := savedMessages.DeleteSavedMessage(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to delete message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)

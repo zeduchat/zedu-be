@@ -37,6 +37,13 @@ type SaveMessageRequest struct {
 	UserId     string `json:"user_id"`
 }
 
+type SavedMessageIds struct {
+	MessageID string
+	ThreadID  string
+	OrgID     string
+	UserID    string
+}
+
 func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 	var (
 		org          Organisation
@@ -119,15 +126,15 @@ func (m *SavedMessage) CreateReplyMessageRecord(db *gorm.DB) error {
 	return nil
 }
 
-func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID, orgId, userId string) (*SavedMessage, error) {
+func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, ids SavedMessageIds) (*SavedMessage, error) {
 	var org Organisation
 
-	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
 	if !exists {
 		return nil, errors.New("organisation not found")
 	}
 
-	isMember, err := new(Organisation).CheckUserIsMemberOfOrg(userId, orgId, db)
+	isMember, err := new(Organisation).CheckUserIsMemberOfOrg(ids.UserID, ids.OrgID, db)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +142,7 @@ func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID, orgId, userId
 		return nil, errors.New("user is not a member of organisation")
 	}
 
-	query := db.Where("id = ? AND org_id = ? AND user_id = ?", messageID, orgId, userId)
+	query := db.Where("id = ? AND org_id = ? AND user_id = ?", ids.MessageID, ids.OrgID, ids.UserID)
 
 	findErr := query.First(&m).Error
 	if findErr != nil {
@@ -145,17 +152,17 @@ func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID, orgId, userId
 	return m, nil
 }
 
-func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID, orgId, userId string) error {
+func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, ids SavedMessageIds) error {
 	var (
 		savedMessage SavedMessage
 	)
 
-	idExists := postgresql.CheckExists(db, &savedMessage, "id = ?", messageID)
+	idExists := postgresql.CheckExists(db, &savedMessage, "id = ?", ids.MessageID)
 	if !idExists {
 		return errors.New("invalid message ID")
 	}
 
-	query := db.Where("id = ? AND org_id = ? AND user_id = ?", messageID, orgId, userId)
+	query := db.Where("id = ? AND org_id = ? AND user_id = ?", ids.MessageID, ids.OrgID, ids.UserID)
 	err := query.Delete(&SavedMessage{}).Error
 	if err != nil {
 		return err
@@ -164,19 +171,19 @@ func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID, orgId, userId s
 	return nil
 }
 
-func (m *SavedMessage) GetSavedMessages(db *gorm.DB, userId, orgId string) ([]SavedMessage, error) {
+func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessage, error) {
 	var (
 		org          Organisation
 		organisation *Organisation
 		messages     []SavedMessage
 	)
 
-	exists := postgresql.CheckExists(db, &org, "id = ?", orgId)
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
 	if !exists {
 		return nil, errors.New("organisation not found")
 	}
 
-	isMember, err := organisation.CheckUserIsMemberOfOrg(userId, orgId, db)
+	isMember, err := organisation.CheckUserIsMemberOfOrg(ids.UserID, ids.OrgID, db)
 	if err != nil {
 		return nil, err
 	}
@@ -184,21 +191,21 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, userId, orgId string) ([]Sa
 		return nil, errors.New("user is not a member of organisation")
 	}
 
-	findErr := db.Order("created_at DESC").Find(&messages).Where("org_id = ? AND user_id = ?", orgId, userId).Error
+	findErr := db.Order("created_at DESC").Find(&messages).Where("org_id = ? AND user_id = ?", ids.OrgID, ids.UserID).Error
 	return messages, findErr
 }
 
-func (m *SavedMessage) DeleteSavedMessageByMessageID(db *gorm.DB, messageID, threadID, orgID string) error {
+func (m *SavedMessage) DeleteSavedMessageByMessageID(db *gorm.DB, ids SavedMessageIds) error {
 	var (
 		savedMessage SavedMessage
 	)
 
-	idExists := postgresql.CheckExists(db, &savedMessage, "message_id = ? AND thread_id = ? AND org_id = ?", messageID, threadID, orgID)
+	idExists := postgresql.CheckExists(db, &savedMessage, "message_id = ? AND thread_id = ? AND org_id = ?", ids.MessageID, ids.ThreadID, ids.OrgID)
 	if !idExists {
 		return errors.New("invalid message ID")
 	}
 
-	query := db.Where("message_id = ? AND thread_id = ? AND org_id = ?", messageID, threadID, orgID)
+	query := db.Where("message_id = ? AND thread_id = ? AND org_id = ? AND user_id = ?", ids.MessageID, ids.ThreadID, ids.OrgID, ids.UserID)
 	err := query.Delete(&SavedMessage{}).Error
 	if err != nil {
 		return err
@@ -207,17 +214,17 @@ func (m *SavedMessage) DeleteSavedMessageByMessageID(db *gorm.DB, messageID, thr
 	return nil
 }
 
-func (m *SavedMessage) DeleteSavedThreadMsgByMessageID(db *gorm.DB, threadID, orgID string) error {
+func (m *SavedMessage) DeleteSavedThreadMsgByMessageID(db *gorm.DB, ids SavedMessageIds) error {
 	var (
 		savedMessage SavedMessage
 	)
 
-	idExists := postgresql.CheckExists(db, &savedMessage, "thread_id = ? AND org_id = ?", threadID, orgID)
+	idExists := postgresql.CheckExists(db, &savedMessage, "thread_id = ? AND org_id = ?", ids.ThreadID, ids.OrgID)
 	if !idExists {
 		return errors.New("invalid message ID")
 	}
 
-	query := db.Where("thread_id = ? AND org_id = ?", threadID, orgID)
+	query := db.Where("thread_id = ? AND org_id = ? AND user_id = ?", ids.ThreadID, ids.OrgID, ids.UserID)
 	err := query.Delete(&SavedMessage{}).Error
 	if err != nil {
 		return err
