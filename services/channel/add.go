@@ -275,8 +275,12 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		OrgID:     newMsg.OrganisationID,
 		ThreadID:  newMsg.ThreadID.String(),
 	}
-	if err := savedMessage.DeleteSavedMessageByMessageID(db, savedMessageIds); err != nil {
-		return nil, http.StatusBadRequest, err
+	exists := savedMessage.SavedReplyMsgExists(db, savedMessageIds)
+	if exists {
+		err := savedMessage.DeleteSavedMessageByMessageID(db, savedMessageIds)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
 	}
 
 	updateResp, err := newMsg.DeleteMessage(db, logger)
