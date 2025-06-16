@@ -263,15 +263,16 @@ func CountChannelsUsers(db *gorm.DB, channelId string) (int64, int, error) {
 	return count, http.StatusOK, nil
 }
 
-func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, channelId string, userId string) (models.Channels, error) {
+func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, channelId string, userId string) (models.Channels,int, error) {
 	var r models.Channels
 	r.ID = channelId
 
-	updatedChannels, _, err := r.UpdateChannels(db, req, userId)
+	updatedChannels, code, err := r.UpdateChannels(db, req, userId)
 	if err != nil {
-		return updatedChannels, err
+		return updatedChannels,code, err
 	}
-	return updatedChannels, nil
+
+	return updatedChannels, code, nil
 }
 
 func CheckUser(channelId, userID string, db *gorm.DB) (gin.H, int, error) {

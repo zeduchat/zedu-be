@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.OrganisationIntegrations{},
 		models.APIStatus{},
 		models.AccessToken{},
 		models.Blog{},
@@ -40,7 +41,6 @@ func AuthMigrationModels() []interface{} {
 		models.OrgUserManagement{},
 		models.Organisation{},
 		models.OrganisationChannelsIntegrations{},
-		models.OrganisationIntegrations{},
 		models.OrganisationPlan{},
 		models.PasswordReset{},
 		models.Permission{},
