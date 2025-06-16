@@ -17993,6 +17993,10 @@ components:
           type: string
           format: string
           description: ID of the user who created the channel
+        is_private:
+          type: boolean
+          format: boolean
+          description: if channel is private
 
     ChannelCreateResponseSchema:
       type: object
