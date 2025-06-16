@@ -83,7 +83,7 @@ func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, messageId, orgId, u
 		return err
 	}
 
-	deleteErr := savedMessage.DeleteMessageByID(db, messageId, orgId)
+	deleteErr := savedMessage.DeleteMessageByID(db, messageId, orgId, userId)
 	if deleteErr != nil {
 		logger.Error("An error occurred while deleting saved message: %v", deleteErr)
 		return deleteErr

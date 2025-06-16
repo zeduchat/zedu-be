@@ -135,7 +135,7 @@ func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID, orgId, userId
 		return nil, errors.New("user is not a member of organisation")
 	}
 
-	query := db.Where("id = ? AND org_id = ?", messageID, orgId)
+	query := db.Where("id = ? AND org_id = ? AND user_id = ?", messageID, orgId, userId)
 
 	findErr := query.First(&m).Error
 	if findErr != nil {
@@ -145,7 +145,7 @@ func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, messageID, orgId, userId
 	return m, nil
 }
 
-func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID, orgId string) error {
+func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID, orgId, userId string) error {
 	var (
 		savedMessage SavedMessage
 	)
@@ -155,7 +155,7 @@ func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, messageID, orgId string) e
 		return errors.New("invalid message ID")
 	}
 
-	query := db.Where("id = ? AND org_id = ?", messageID, orgId)
+	query := db.Where("id = ? AND org_id = ? AND user_id = ?", messageID, orgId, userId)
 	err := query.Delete(&SavedMessage{}).Error
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, userId, orgId string) ([]Sa
 		return nil, errors.New("user is not a member of organisation")
 	}
 
-	findErr := db.Order("created_at DESC").Find(&messages).Where("org_id = ?", orgId).Error
+	findErr := db.Order("created_at DESC").Find(&messages).Where("org_id = ? AND user_id = ?", orgId, userId).Error
 	return messages, findErr
 }
 
