@@ -466,7 +466,6 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-
 func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 
 	// this section creates default integration
@@ -648,12 +647,12 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 				"must": []map[string]interface{}{
 					{
 						"term": map[string]interface{}{
-							"channels_id.keyword": channelID, 
+							"channels_id.keyword": channelID,
 						},
 					},
 					{
 						"term": map[string]interface{}{
-							"type.keyword": "thread", 
+							"type.keyword": "thread",
 						},
 					},
 				},
@@ -688,4 +687,27 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 	lastMsgTime := time.UnixMilli(int64(lastMsgEpoch))
 
 	return lastMsgTime, nil
+}
+
+func (o *Organisation) GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]Organisation, postgresql.PaginationResponse, error) {
+	var organisations []Organisation
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&Organisation{})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&organisations,
+		nil,
+	)
+
+	if err != nil {
+		return organisations, paginationResponse, err
+	}
+
+	return organisations, paginationResponse, nil
 }

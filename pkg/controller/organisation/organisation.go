@@ -370,3 +370,27 @@ func (base *Controller) GetStarted(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "get-started info retrieved successfully", getstarted)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetAllOrganisations(c *gin.Context) {
+	organizations, paginationResponse, err := service.GetAllOrganisations(base.Db.Postgresql, c)
+
+	if err != nil {
+		base.Logger.Error("Failed to fetch organisation", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch organisation", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(organizations),
+	}
+
+	base.Logger.Info("organisation retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "organisation retrieved successfully", organizations, paginationData)
+
+	c.JSON(http.StatusOK, rd)
+
+}

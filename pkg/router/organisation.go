@@ -68,5 +68,10 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		testOrganisationUrl.GET("/:org_id/load-org-info", organisationCtrl.GetLoadingMetrics)
 	}
 
+	adminOrgUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
+	{
+		adminOrgUrl.GET("/organisations/all", organisationCtrl.GetAllOrganisations)
+	}
+
 	return r
 }
