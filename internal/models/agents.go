@@ -1,16 +1,15 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql/driver"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
-
-	"crypto/rand"
-	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -589,12 +588,14 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.AppName = agent.Name
 		oi.AppUrl = agent.AppUrl
 		oi.AppLogo = agent.AppLogo
-
-		if agentExists {
-			oi.IsSystem = true
-		} else {
-			oi.IsSystem = false
-		}
+		oi.Prices = agent.Prices
+		oi.Provider = agent.Provider
+		oi.Version = agent.Version
+		oi.DefaultInputModes = agent.DefaultInputModes
+		oi.DefaultOutputModes = agent.DefaultOutputModes
+		oi.Skills = agent.Skills
+		oi.IsPaid = agent.IsPaid
+		oi.IsSystem = true
 
 		err := oi.CreateOrganisationIntegration(db)
 		if err != nil {
