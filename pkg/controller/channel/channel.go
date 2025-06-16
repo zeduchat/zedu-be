@@ -377,7 +377,7 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
-		base.Logger.Info("error getting claims")
+		base.Logger.Info("error getting claims: user not authorized")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -386,24 +386,28 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	if _, err := uuid.Parse(id); err != nil {
+		base.Logger.Info("error parsing channel id: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid ID format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Info("error binding request body: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Info("error validating request: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
 	if req.Name == "general" {
+		base.Logger.Info("error: attempt to update channel name to general")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Cannot update channel name to general", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -412,9 +416,11 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	result, err := channel.UpdateChannels(base.Db.Postgresql, req, id, userId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			base.Logger.Info("error: channel not found: %v", err)
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Channels not found", err, nil)
 			c.JSON(http.StatusNotFound, rd)
 		} else {
+			base.Logger.Info("error updating channel: %v", err)
 			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update channel", err, nil)
 			c.JSON(http.StatusInternalServerError, rd)
 		}
