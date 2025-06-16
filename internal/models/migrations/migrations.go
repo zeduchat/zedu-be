@@ -47,6 +47,7 @@ func AuthMigrationModels() []interface{} {
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},
+		models.SavedMessage{},
 		models.SlackTelex{},
 		models.SlackToken{},
 		models.SlashCommand{},
