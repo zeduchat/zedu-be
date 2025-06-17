@@ -96,6 +96,8 @@ tags:
     description: API endpoints for managing messages saved for later
   - name: Pinned-Organisations
     description: API endpoints for managing pinned organisations
+  - name: Pinned Messages
+    description: API endpoints for pinning a specific message
 
 paths:
   # Auth paths
@@ -3024,7 +3026,7 @@ paths:
             type: string
           description: Organisation ID
       responses:
-        '200':
+        "200":
           description: Organisation info retrieved successfully
           content:
             application/json:
@@ -5664,6 +5666,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -5707,6 +5710,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
 
   /credits/top-up:
     post:
@@ -15488,6 +15492,511 @@ paths:
                   message:
                     type: string
                     example: Organisation unpinned successfully
+
+  /organisations/{organisationId}/channels/{channelId}/pin:
+    post:
+      tags:
+        - Pinned Messages
+      summary: Pin a thread message to a channel or DM
+      description: Pins a specific message in a given channel or DM thread.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM to pin the message in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message pinned successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      pinned:
+                        type: boolean
+                        example: true
+                      pinned_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-10T16:10:17.0247925Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-bb9a-959348898754"
+        "400":
+          description: Invalid input or message already pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Message already pinned or input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/channels/{channelId}/pin/thread/{threadId}:
+     delete:
+      tags:
+        - Pinned Messages
+      summary: Unpin a thread message from a channel or DM
+      description: Removes a thread message from the pinned list in the specified channel.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the pinned thread message to unpin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message unpinned successfully
+        "400":
+          description: Invalid message ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid message ID or not pinned"
+                  error:
+                    type: string
+                    example: "Record not found"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected DB failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/channels/{channelId}/pin/{messageId}:
+    post:
+      tags:
+        - Pinned Messages
+      summary: Pin a reply message to a channel or DM
+      description: Pins a specific message in a given channel or DM thread.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM to pin the message in
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the message to pin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message pinned successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      pinned:
+                        type: boolean
+                        example: true
+                      pinned_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-10T16:10:17.0247925Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-bb9a-959348898754"
+        "400":
+          description: Invalid input or message already pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Message already pinned or input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+  
+  /organisations/{organisationId}/channels/{channelId}/pin/message/{messageId}:
+    delete:
+      tags:
+        - Pinned Messages
+      summary: Unpin a reply message from a channel or DM
+      description: Removes a reply message from the pinned list in the specified channel.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reply pinned message to unpin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message unpinned successfully
+        "400":
+          description: Invalid message ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid message ID or not pinned"
+                  error:
+                    type: string
+                    example: "Record not found"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected DB failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/channels/{channelId}/pinned-messages:
+    get:
+      tags:
+        - Pinned Messages
+      summary: Retrieve pinned messages
+      description: Fetches all pinned messages in the specified channel or DM, sorted by pin time.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pinned messages fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Pinned messages retrieved
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                        pinned_at:
+                          type: string
+                          format: date-time
+                          example: "2025-06-10T16:10:17.0247925Z"
+        "400":
+          description: Bad request (missing or invalid params)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Missing required channel_id or thread_id"
+                  error:
+                    type: string
+                    example: "Validation error"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected DB failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
 
 components:
   schemas:

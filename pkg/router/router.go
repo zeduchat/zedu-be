@@ -67,6 +67,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	TelexAI(r, ApiVersion, validator, db, logger)
 	GetRecentLogs(r, ApiVersion, validator, db, logger)
 	SavedMessages(r, ApiVersion, validator, db, logger)
+	PinMessages(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
