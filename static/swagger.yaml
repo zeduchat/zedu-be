@@ -17975,6 +17975,9 @@ components:
         description:
           type: string
           description: Updated description of the channel
+        topic:
+          type: string
+          description: Updated topic of the channel
 
     ChannelCreateSchema:
       type: object
@@ -17997,6 +18000,9 @@ components:
           type: boolean
           format: boolean
           description: if channel is private
+        topic:
+          type: string
+          description: Topic of the channel
 
     ChannelCreateResponseSchema:
       type: object
