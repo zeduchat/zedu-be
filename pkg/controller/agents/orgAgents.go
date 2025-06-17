@@ -837,7 +837,6 @@ func (base *Controller) GetCustomAgentMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-
 func (base *Controller) GetCustomAgentByID(c *gin.Context) {
 	agent_id := c.Param("agent_id")
 	if _, err := uuid.Parse(agent_id); err != nil {
@@ -857,5 +856,29 @@ func (base *Controller) GetCustomAgentByID(c *gin.Context) {
 
 	base.Logger.Info("Agent details fetched successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent details fetched successfully", agent)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) AdminDeleteCustomAgentApp(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err, code := agents.AdminDeleteCustomAgentApp(base.Db.Postgresql, *base.Logger, agent_id)
+
+	if err != nil {
+		base.Logger.Error("Failed to delete agent app", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to delete agent app", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent app deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

@@ -149,7 +149,7 @@ type OrganisationIntegrations struct {
 type AdminAgentResp struct {
 	Agent      OrganisationIntegrations `json:"agent"`
 	User       User                     `json:"user"`
-	CreditUsed int64                    `json:"credit_used"`
+	CreditUsed float64                  `json:"credit_used"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -1613,7 +1613,7 @@ func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID strin
 		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
 	}
 
-	var total int64
+	var total float64
 	if err := db.Table("credit_usages").
 		Select("COALESCE(SUM(amount), 0)").
 		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
@@ -1623,4 +1623,76 @@ func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID strin
 	resp.CreditUsed = total
 
 	return resp, nil
+}
+
+func (i *OrganisationIntegrations) AdminDeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
+	var (
+		org_integration OrganisationIntegrations
+		dmchannels      []DmChannels
+		channelIDs      []string
+		thread          Threads
+	)
+
+	tx := db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error), http.StatusInternalServerError
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	exists := postgresql.CheckExists(tx, &org_integration, "integration_id = ?", agentID)
+	if !exists {
+		tx.Rollback()
+		return errors.New("agent app does not exist"), http.StatusBadRequest
+	}
+
+	err := tx.Delete(&OrganisationIntegrations{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
+	}
+
+	err = postgresql.SelectAllFromDb(tx, "", &dmchannels, "org_id = ? AND chat_type = 'bot' AND participant_id = ?", org_integration.OrgID, agentID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch bot DM channels: %w", err), http.StatusInternalServerError
+	}
+
+	if len(dmchannels) > 0 {
+		for _, channel := range dmchannels {
+			channelIDs = append(channelIDs, channel.ChannelId)
+		}
+
+		err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err), http.StatusInternalServerError
+	}
+
+	if len(channelIDs) > 0 {
+		for _, channelID := range channelIDs {
+			thread.ID = channelID
+			_, err := thread.ClearDMThreadsByChannelID(db)
+			if err != nil {
+				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+			}
+		}
+	}
+
+	return nil, http.StatusOK
 }

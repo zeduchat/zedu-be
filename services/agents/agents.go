@@ -1098,3 +1098,14 @@ func GetCustomAgentByID(c *gin.Context, db *gorm.DB, agent_id string) (models.Ad
 
 	return agent, nil
 }
+
+func AdminDeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
+	var org_agent models.OrganisationIntegrations
+
+	err, code := org_agent.AdminDeleteCustomAgentApp(db, logger, agentID)
+	if err != nil {
+		return err, code
+	}
+
+	return nil, code
+}
