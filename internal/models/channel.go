@@ -25,6 +25,7 @@ type Channels struct {
 	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	OwnerName      string    `gorm:"-" json:"owner_name"`
 	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
 	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
 	MessageCount   int64     `gorm:"-" json:"-"`
@@ -58,7 +59,7 @@ type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
-	IsPrivate      bool   `json:"is_private" validate:"required"`
+	IsPrivate      bool   `json:"is_private"`
 	Description    string `json:"description"`
 	UserId         string `json:"user_id"`
 }
@@ -592,7 +593,10 @@ func (c *UserChannels) UserInChannels(db *gorm.DB, channelID, userID string) err
 }
 
 func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId string) (Channels, int, error) {
-	var channel Channels
+	var (
+		channel Channels
+		org Organisation
+	)
 
 	err := db.Where("id = ?", r.ID).First(&channel).Error
 	if err != nil {
@@ -602,11 +606,13 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 		return channel, http.StatusInternalServerError, err
 	}
 
-	if channel.OwnerId != userId {
-		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
-	}
+	org.ID = channel.OrganisationID
 
-	updates := map[string]interface{}{}
+	// if channel.OwnerId != userId && !org.IsOwner(db, userId) {
+	// 	return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
+	// }
+
+	updates := map[string]any{}
 	if req.Name != "" {
 		updates["name"] = req.Name
 	}

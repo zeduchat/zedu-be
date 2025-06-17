@@ -689,3 +689,14 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 
 	return lastMsgTime, nil
 }
+
+func (o *Organisation) IsOwner(db *gorm.DB, userId string) bool {
+	var org Organisation
+
+	err := db.Where("id = ?", o.ID).First(&org).Error
+	if err != nil {
+		return false
+	}
+
+	return org.OwnerID == userId
+}
