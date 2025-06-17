@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.UserPinnedOrganisations{},
 		models.OrganisationIntegrations{},
 		models.APIStatus{},
 		models.AccessToken{},
