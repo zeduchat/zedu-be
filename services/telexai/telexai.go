@@ -154,7 +154,7 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 		AgentID:        ids.AgentID,
 	}
 
-	err := credit_usage.CreateCreditUsage(db.Postgresql)
+	err := credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
 	if err != nil {
 		logger.Error("failed to create credit usage!!")
 	}
