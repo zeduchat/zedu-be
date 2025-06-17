@@ -307,10 +307,10 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		UserID:         req.UserId,
 	}
 
-	err = credit_usage.CreateCreditUsage(db.Postgresql)
+	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
 	if err != nil {
-		logger.Error("failed to create credit usage!!")
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
+		logger.Error("failed to create/update credit usage!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update organisation credit usage: %v", err)
 	}
 
 	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
