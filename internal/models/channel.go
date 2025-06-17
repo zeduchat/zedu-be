@@ -23,6 +23,7 @@ type Channels struct {
 	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
 	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
 	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
+	Topic          string    `gorm:"column:topic; type:text; not null; default:'present'" json:"topic"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
 	OwnerName      string    `gorm:"-" json:"owner_name"`
@@ -62,6 +63,7 @@ type CreateChannelsRequest struct {
 	IsPrivate      bool   `json:"is_private"`
 	Description    string `json:"description"`
 	UserId         string `json:"user_id"`
+	Topic          string `json:"topic"`
 }
 
 type GetChannelsRequest struct {
@@ -113,6 +115,7 @@ type JoinChannelsRequest struct {
 type UpdateChannelsRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Topic       string `json:"topic"`
 }
 
 type UpdateChannelsUserNameReq struct {
@@ -595,7 +598,7 @@ func (c *UserChannels) UserInChannels(db *gorm.DB, channelID, userID string) err
 func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId string) (Channels, int, error) {
 	var (
 		channel Channels
-		org Organisation
+		org     Organisation
 	)
 
 	err := db.Where("id = ?", r.ID).First(&channel).Error
@@ -608,10 +611,6 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 
 	org.ID = channel.OrganisationID
 
-	// if channel.OwnerId != userId && !org.IsOwner(db, userId) {
-	// 	return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
-	// }
-
 	updates := map[string]any{}
 	if req.Name != "" {
 		updates["name"] = req.Name
@@ -619,6 +618,10 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 
 	if req.Description != "" {
 		updates["description"] = req.Description
+	}
+
+	if req.Topic != "" {
+		updates["topic"] = req.Topic
 	}
 
 	if len(updates) == 0 {
@@ -721,7 +724,6 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			Pluck("profiles.avatar_url", &avatars).Error; err != nil {
 			return nil, fmt.Errorf("error fetching member avatars: %w", err)
 		}
-
 
 		if err := db.Table("user_channels").
 			Where("channels_id = ?", chanResp[i].ID).
@@ -1096,7 +1098,7 @@ func GetChannelUnreadCount(db *storage.Database, channelID, userID string, lastR
 }
 
 func UpdateUserChannelLastRead(db *gorm.DB, channelID, userID string) error {
-    return db.Model(&UserChannels{}).
-        Where("channels_id = ? AND user_id = ?", channelID, userID).
-        Update("last_read_at", time.Now()).Error
+	return db.Model(&UserChannels{}).
+		Where("channels_id = ? AND user_id = ?", channelID, userID).
+		Update("last_read_at", time.Now()).Error
 }

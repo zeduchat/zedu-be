@@ -263,3 +263,7 @@ func (user *User) ActivateUser(db *gorm.DB, userId string) error {
 
 	return nil
 }
+
+func (u *User) CheckUserExists(db *gorm.DB, userID string) bool {
+	return postgresql.CheckExists(db, &u, "id = ?", userID)
+}

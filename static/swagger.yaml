@@ -94,6 +94,8 @@ tags:
     description: API endpoints for retrieving server logs
   - name: Saved Messages
     description: API endpoints for managing messages saved for later
+  - name: Pinned-Organisations
+    description: API endpoints for managing pinned organisations
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
 
@@ -15367,6 +15369,118 @@ paths:
                     type: string
                     example: "Failed to delete message"
 
+  /organisations/pin:
+    post:
+      tags:
+        - Pinned-Organisations
+      summary: Pin an organisation
+      description: Pins the specified organisation to the current user's pinned organisations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - org_id
+              properties:
+                org_id:
+                  type: string
+                  example: 01977eb2-bcf1-71a1-b0a4-5211e584df99
+      responses:
+        '200':
+          description: Organisation pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Organisation pinned successfully
+
+    get:
+      tags:
+        - Pinned-Organisations
+      summary: Fetch user's pinned organisations
+      description: Retrieves all organisations that the current user has pinned.
+      responses:
+        '200':
+          description: List of pinned organisations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: User pinned organisations fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01977eb7-6fd2-71a3-8fb2-a7a989a4c47d
+                        org_id:
+                          type: string
+                          example: 01977eb2-ae8a-71a1-8599-c26850dcc72f
+                        org_name:
+                          type: string
+                          example: test-org5
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-06-17T17:27:20.402442+01:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: 2025-06-17T17:27:20.402442+01:00
+
+  /organisations/pin/{org_id}:
+    delete:
+      tags:
+        - Pinned-Organisations
+      summary: Unpin an organisation
+      description: Removes a previously pinned organisation from the user's pinned list.
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation to unpin
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organisation unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Organisation unpinned successfully
+
   /channels/{channelId}/thread/forward:
     post:
       tags:
@@ -18146,6 +18260,9 @@ components:
         description:
           type: string
           description: Updated description of the channel
+        topic:
+          type: string
+          description: Updated topic of the channel
 
     ChannelCreateSchema:
       type: object
@@ -18168,6 +18285,9 @@ components:
           type: boolean
           format: boolean
           description: if channel is private
+        topic:
+          type: string
+          description: Topic of the channel
 
     ChannelCreateResponseSchema:
       type: object
