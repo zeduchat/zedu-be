@@ -147,10 +147,9 @@ type OrganisationIntegrations struct {
 }
 
 type AdminAgentResp struct {
-	Agent         OrganisationIntegrations  `json:"agent"`
-	AgentSettings CustomIntegrationsSetting `json:"agent_settings"`
-	User          User                      `json:"user"`
-	CreditUsed    int64                     `json:"credit_used"`
+	Agent      OrganisationIntegrations `json:"agent"`
+	User       User                     `json:"user"`
+	CreditUsed int64                    `json:"credit_used"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -1608,10 +1607,6 @@ func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID strin
 			return AdminAgentResp{}, errors.New("agent not found")
 		}
 		return AdminAgentResp{}, err
-	}
-
-	if err := postgresql.SelectAllFromDb(db, "", &resp.AgentSettings, "integration_id = ?", agentID); err != nil {
-		return AdminAgentResp{}, fmt.Errorf("failed to get agent settings: %v", err)
 	}
 
 	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
