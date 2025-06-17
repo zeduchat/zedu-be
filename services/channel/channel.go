@@ -31,6 +31,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		OwnerId:        req.UserId,
 		OrganisationID: req.OrganisationID,
 		IsPrivate:      req.IsPrivate,
+		Topic:          req.Topic,
 	}
 
 	joinChannelsReq.ChannelsID = channel.ID
@@ -263,11 +264,11 @@ func CountChannelsUsers(db *gorm.DB, channelId string) (int64, int, error) {
 	return count, http.StatusOK, nil
 }
 
-func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, channelId string, userId string) (models.Channels,int, error) {
+func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, ids models.IDS) (models.Channels,int, error) {
 	var r models.Channels
-	r.ID = channelId
+	r.ID = ids.ChannelID
 
-	updatedChannels, code, err := r.UpdateChannels(db, req, userId)
+	updatedChannels, code, err := r.UpdateChannels(db, req, ids.UserID)
 	if err != nil {
 		return updatedChannels,code, err
 	}
