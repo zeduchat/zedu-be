@@ -22,6 +22,16 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y sshpass
+        
+      - name: Run DB migrations
+        run: |
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+            set -e
+            cd '"$APP_DIR"' &&
+
+            echo "🗃️ Running DB migrations..." &&
+            make migrate-safe-up
+          '
 
       - name: Build and stop on failure
         run: |
