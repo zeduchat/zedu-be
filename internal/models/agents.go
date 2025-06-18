@@ -1,16 +1,15 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql/driver"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
-
-	"crypto/rand"
-	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -26,6 +25,7 @@ type Integrations struct {
 	JSONUrl            string     `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
 	AppUrl             string     `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
 	AppLogo            string     `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
+	OwnerID            string     `gorm:"type:uuid;" json:"owner_id"`
 	AppDescription     string     `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
 	IntegrationType    string     `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
 	Info               string     `gorm:"colummn:info; type:varchar(255);" json:"info"`
@@ -113,6 +113,7 @@ type OrganisationIntegrations struct {
 	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
 	OrgID              string     `gorm:"type:uuid;" json:"org_id"`
 	IntegrationID      string     `gorm:"type:uuid;" json:"integration_id"`
+	OwnerID            string     `gorm:"type:uuid;" json:"owner_id"`
 	IsActive           bool       `gorm:"type:boolean;default:false" json:"is_active"`
 	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
 	IsArchived         bool       `gorm:"type:boolean;default:false" json:"is_archived"`
@@ -587,12 +588,15 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.AppName = agent.Name
 		oi.AppUrl = agent.AppUrl
 		oi.AppLogo = agent.AppLogo
-
-		if agentExists {
-			oi.IsSystem = true
-		} else {
-			oi.IsSystem = false
-		}
+		oi.Prices = agent.Prices
+		oi.Provider = agent.Provider
+		oi.Version = agent.Version
+		oi.DefaultInputModes = agent.DefaultInputModes
+		oi.DefaultOutputModes = agent.DefaultOutputModes
+		oi.Skills = agent.Skills
+		oi.IsPaid = agent.IsPaid
+		oi.IsSystem = true
+		oi.OwnerID = ids["user_id"]
 
 		err := oi.CreateOrganisationIntegration(db)
 		if err != nil {
@@ -674,7 +678,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 
 	// 		api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
 
-	// 		auth_credentials["telex_api_key"] = api_key
+	// 		auth_credentials["agent_api_key"] = api_key
 	// 		settings_data["auth_credentials"] = auth_credentials
 	// 		if err != nil {
 	// 			return errors.New("Failed to create external API key")
@@ -1298,33 +1302,6 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return err
 	}
 
-	isPaid, ok := data_r["is_paid"].(bool)
-	if !ok {
-		return errors.New("failed to save agent: 'isPaid' field is missing or invalid")
-	}
-
-	_, ok = data_r["version"].(string)
-	if !ok {
-		return errors.New("failed to save agent: 'Version' field is missing or invalid")
-	}
-
-	if isPaid {
-		rawPrices, ok := data_r["prices"]
-		if !ok {
-			return errors.New("failed to save agent: 'prices' field is missing")
-		}
-
-		jsonBytes, err := json.Marshal(rawPrices)
-		if err != nil {
-			return errors.New("failed to save agent: 'prices' field could not be marshaled")
-		}
-
-		var prices JSONPrices
-		if err := json.Unmarshal(jsonBytes, &prices); err != nil {
-			return errors.New("failed to save agent: 'prices' field is invalid")
-		}
-	}
-
 	return nil
 }
 
@@ -1417,4 +1394,113 @@ func ValidateAgentVersionAndUpdate(data_r map[string]interface{}, agentID, db *g
 	}
 
 	return nil
+}
+
+func UpdateCustomAgent(db *gorm.DB, ids map[string]string) error {
+	var (
+		agentSettings CustomIntegrationsSetting
+		agent         OrganisationIntegrations
+		extReq        request.ExternalRequest
+	)
+
+	if err := db.Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"]).First(&agent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("agent with org_id %s and integration_id %s does not exist", ids["org_id"], ids["agent_id"])
+		}
+		return err
+	}
+
+	data := map[string]string{"url": agent.JSONUrl}
+	response, _ := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
+	data_r, _ := response.(map[string]interface{})
+
+	// Only generate new pre-shared key if agent does not it yet
+	if agent.PreSharedKey == "" {
+		psk, err := GenerateAgentKey()
+		if err != nil {
+			return err
+		}
+		agent.PreSharedKey = psk
+	}
+
+	bytes, err := json.Marshal(data_r)
+	if err != nil {
+		return err
+	}
+
+	var payload OrganisationIntegrations
+	json.Unmarshal(bytes, &payload)
+
+	agent.AppName = data_r["name"].(string)
+	agent.AppDescription = data_r["description"].(string)
+	agent.AppUrl = data_r["url"].(string)
+	agent.Prices = payload.Prices
+	agent.Provider = payload.Provider
+	agent.Version = payload.Version
+	agent.DefaultInputModes = payload.DefaultInputModes
+	agent.DefaultOutputModes = payload.DefaultOutputModes
+	agent.Skills = payload.Skills
+	agent.IsPaid = payload.IsPaid
+
+	if err := db.Save(&agent).Error; err != nil {
+		return err
+	}
+
+	// Find and update existing custom agent settings
+	err = db.Where("org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"]).First(&agentSettings).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("agent settings for org_id %s and integration_id %s not found", ids["org_id"], ids["agent_id"])
+		}
+		return fmt.Errorf("error querying agent settings: %v", err)
+	}
+
+	// Update SettingEntry field with new serialized {agent api key}
+	settingsData := map[string]interface{}{"settings": ""}
+	authCredentials := map[string]interface{}{
+		"agent_auth_credentials": "Not-Set-Yet",
+		"agent_api_key":          agent.PreSharedKey,
+	}
+	settingsData["auth_credentials"] = authCredentials
+
+	settingJsonData, err := json.Marshal(settingsData)
+	if err != nil {
+		return fmt.Errorf("error serializing settings to JSON: %v", err)
+	}
+
+	agentSettings.SettingEntry = string(settingJsonData)
+
+	if err := db.Save(&agentSettings).Error; err != nil {
+		return fmt.Errorf("error updating agent settings: %v", err)
+	}
+
+	return nil
+}
+
+func ValidateAgentApiKey(db *gorm.DB, apiKey string) (string, string, error) {
+	var agentSettings CustomIntegrationsSetting
+
+	err := db.
+		Where("setting_entry::jsonb -> 'auth_credentials' ->> 'agent_api_key' = ?", apiKey).
+		First(&agentSettings).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", fmt.Errorf("no agent settings found for provided api key")
+		}
+		return "", "", fmt.Errorf("error querying agent settings: %v", err)
+	}
+
+	return agentSettings.OrgID, agentSettings.IntegrationID, nil
+}
+
+func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, error) {
+	var agents []OrganisationIntegrations
+
+	err := db.Where("owner_id = ?", user_id).Find(&agents).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get integration settings: %v", err)
+	}
+	return agents, nil
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -69,6 +71,12 @@ type UserInOrgResponse struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	EntityType  string    `json:"entity_type"` // "user" or "bot"
+}
+
+type OrgMetricsResponse struct {
+	OrgUserInfo string   `json:"org_user_info"`
+	OrgName     string   `json:"organisation_name"`
+	UsersPhotos []string `json:"users_photos"`
 }
 
 type AddUserToOrgRequestModel struct {
@@ -458,59 +466,29 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-type OrgMetricsResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	OwnerID   string `json:"owner_id"`
-	OwnerName string `json:"owner_name"`
-	Users     []User `json:"users"`
-}
-
-func (o *Organisation) LoadOrganisationMetrics(db *gorm.DB, orgID string) (OrgMetricsResponse, error) {
-	var org Organisation
-	var ogm OrgMetricsResponse
-
-	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
-	if !exists {
-		return ogm, errors.New("organisation not found")
-	}
-
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users"), &org, "id = ?", orgID)
-	if err != nil {
-		return ogm, err
-	}
-
-	var owner User
-
-	err, _ = postgresql.SelectOneFromDb(db.Preload("Profile"), &owner, "id = ?", org.OwnerID)
-	if err != nil {
-		return ogm, err
-	}
-
-	response := OrgMetricsResponse{
-		ID:        org.ID,
-		Name:      org.Name,
-		Email:     org.Email,
-		OwnerID:   org.OwnerID,
-		OwnerName: owner.Profile.FullName,
-		Users:     org.Users,
-	}
-
-	return response, nil
-}
-
 func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 
 	// this section creates default integration
 	var orgIntResp []OrganisationIntegrations
 
 	err := db.Model(&Integrations{}).
-		Select("gen_random_uuid() AS id, id as integration_id,? as org_id, name as app_name, app_description, app_url, app_logo,json_url,false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at", o.ID).
+		Select("gen_random_uuid() AS id, id as integration_id, ? as org_id, ? as owner_id, name as app_name, app_description, app_url, app_logo, json_url, false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at", o.ID, o.OwnerID).
 		Scan(&orgIntResp).Error
 
 	if err != nil {
 		return err
+	}
+
+	if len(orgIntResp) == 0 {
+		return nil
+	}
+
+	for i := range orgIntResp {
+		key, err := GenerateAgentKey()
+		if err != nil {
+			return err
+		}
+		orgIntResp[i].PreSharedKey = key
 	}
 
 	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
@@ -519,4 +497,205 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 		return err
 	}
 	return nil
+}
+
+func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Profile, error) {
+	var (
+		org      Organisation
+		profiles []Profile
+	)
+	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+	if !exists {
+		return profiles, errors.New("organisation not found")
+	}
+
+	query := db.Table("profiles").
+		Select("profiles.*").
+		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid").
+		Where("org_user_managements.organisation_id = ?", orgID).
+		Order("profiles.created_at DESC")
+
+	if err := query.Find(&profiles).Error; err != nil {
+		return profiles, fmt.Errorf("failed to fetch user profiles: %w", err)
+	}
+
+	o.Name = org.Name
+
+	return profiles, nil
+}
+
+func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, error) {
+	const maxProfiles = 30
+
+	var (
+		completeProfiles   []OrgUsersProfile
+		incompleteProfiles []OrgUsersProfile
+	)
+
+	err := db.Table("org_user_managements AS oum").
+		Select("profiles.user_name AS name, profiles.avatar_url AS avatar_url").
+		Joins("JOIN users ON users.id = oum.user_id").
+		Joins("JOIN profiles ON profiles.userid = users.id").
+		Where("oum.organisation_id = ? AND oum.user_id != ? AND TRIM(profiles.user_name) != '' AND TRIM(profiles.avatar_url) != ''",
+			ids.OrganisationID, ids.UserID).
+		Limit(maxProfiles).
+		Find(&completeProfiles).Error
+	if err != nil {
+		return nil, err
+	}
+
+	remaining := maxProfiles - len(completeProfiles)
+	if remaining > 0 {
+		err = db.Table("org_user_managements AS oum").
+			Select("profiles.user_name AS name, profiles.avatar_url AS avatar_url").
+			Joins("JOIN users ON users.id = oum.user_id").
+			Joins("JOIN profiles ON profiles.userid = users.id").
+			Where("oum.organisation_id = ? AND oum.user_id != ? AND (TRIM(profiles.user_name) = '' OR TRIM(profiles.avatar_url) = '')",
+				ids.OrganisationID, ids.UserID).
+			Limit(remaining).
+			Find(&incompleteProfiles).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	allProfiles := append(completeProfiles, incompleteProfiles...)
+	if len(allProfiles) > maxProfiles {
+		allProfiles = allProfiles[:maxProfiles]
+	}
+
+	for i := range allProfiles {
+		allProfiles[i].IsOnline = true
+	}
+
+	return allProfiles, nil
+}
+
+func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, orgID string) ([]OrgChannelsWithMemberAvatars, error) {
+	var channels []struct {
+		ID   string
+		Name string
+	}
+
+	if err := db.Postgresql.Table("channels").
+		Select("id, name").
+		Where("organisation_id = ?", orgID).
+		Find(&channels).Error; err != nil {
+		return nil, err
+	}
+
+	var result []OrgChannelsWithMemberAvatars
+
+	for _, ch := range channels {
+		var avatars []string
+		if err := db.Postgresql.Table("user_channels").
+			Select("profiles.avatar_url").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", ch.ID).
+			Limit(3).
+			Pluck("profiles.avatar_url", &avatars).Error; err != nil {
+			return nil, err
+		}
+
+		for len(avatars) < 3 {
+			avatars = append(avatars, "")
+		}
+
+		var totalMembers int64
+		if err := db.Postgresql.Table("user_channels").
+			Where("channels_id = ?", ch.ID).
+			Count(&totalMembers).Error; err != nil {
+			return nil, err
+		}
+
+		membersLeft := int(totalMembers) - 3
+		if membersLeft < 0 {
+			membersLeft = 0
+		}
+
+		var lastPostString string
+		lastPostTime, err := FetchLastMessageTime(db, ch.ID)
+		if err != nil {
+			lastPostString = "Last post unavailable"
+		} else if lastPostTime.IsZero() {
+			lastPostString = "No posts yet"
+		} else {
+			duration := time.Since(lastPostTime)
+			if duration < time.Minute {
+				lastPostString = "Last post a few seconds ago"
+			} else {
+				lastPostString = fmt.Sprintf("Last post %s", lastPostTime.Format("Jan 2 15:04"))
+			}
+		}
+
+		result = append(result, OrgChannelsWithMemberAvatars{
+			Name:          ch.Name,
+			MemberAvatars: avatars,
+			MembersCount:  membersLeft,
+			LastPostTime:  lastPostString,
+		})
+	}
+
+	return result, nil
+}
+
+func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, error) {
+	query := map[string]interface{}{
+		"size": 0,
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"term": map[string]interface{}{
+							"channels_id.keyword": channelID,
+						},
+					},
+					{
+						"term": map[string]interface{}{
+							"type.keyword": "thread",
+						},
+					},
+				},
+			},
+		},
+		"aggs": map[string]interface{}{
+			"last_message": map[string]interface{}{
+				"max": map[string]interface{}{
+					"field": "created_at",
+				},
+			},
+		},
+	}
+
+	var lastMsgResult any
+	err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &lastMsgResult)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to fetch last message time: %w", err)
+	}
+
+	resultMap, ok := lastMsgResult.(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("failed to parse last message time result")
+	}
+
+	agg := resultMap["aggregations"].(map[string]interface{})["last_message"].(map[string]interface{})
+	lastMsgEpoch, ok := agg["value"].(float64)
+	if !ok || lastMsgEpoch == 0 {
+		return time.Time{}, nil
+	}
+
+	lastMsgTime := time.UnixMilli(int64(lastMsgEpoch))
+
+	return lastMsgTime, nil
+}
+
+func (o *Organisation) IsOwner(db *gorm.DB, userId string) bool {
+	var org Organisation
+
+	err := db.Where("id = ?", o.ID).First(&org).Error
+	if err != nil {
+		return false
+	}
+
+	return org.OwnerID == userId
 }

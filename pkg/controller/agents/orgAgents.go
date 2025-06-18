@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
@@ -233,9 +234,20 @@ func (base *Controller) ChangeAgentStatus(c *gin.Context) {
 		return
 	}
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": req.AgentID,
+		"user_id":  userId,
 	}
 
 	err := agents.ChangeStatus(ids, req, base.Db.Postgresql, base.ExtReq)
@@ -450,6 +462,30 @@ func (base *Controller) GetAgentSettingsAllOrgs(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetAgentsByOwner(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	agents, err := agents.GetAgentsByOwner(base.Db.Postgresql, userId)
+	if err != nil {
+		base.Logger.Error("Failed to fetch agent", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch agent", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Agents fetch successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agents fetch successfully.", agents)
+	c.JSON(http.StatusOK, rd)
+}
+
 // Create custom agent
 func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	var (
@@ -478,7 +514,17 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 		return
 	}
 
-	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq, userId)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
@@ -564,9 +610,19 @@ func (base *Controller) GetCustomAgentStatus(c *gin.Context) {
 		return
 	}
 
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "unauthorized user", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	userId := userID.(string)
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": agent_id,
+		"user_id":  userId,
 	}
 
 	integration_setting, code, err := agents.GetCustomAgentStatus(ids, base.Db.Postgresql, base.ExtReq)
@@ -630,9 +686,7 @@ func (base *Controller) GetCustomAgentSettingsExteranl(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -694,7 +748,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	api_key, ok := auth_credentials["telex_api_key"].(string)
+	api_key, ok := auth_credentials["agent_api_key"].(string)
 
 	if !ok {
 		base.Logger.Error("api_key is missing in request body")
@@ -703,9 +757,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -717,7 +769,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 	ids := map[string]string{
 		"porg_id":       porg_id,
 		"pagent_id":     pint_id,
-		"telex_api_key": api_key,
+		"agent_api_key": api_key,
 	}
 
 	err = agents.UpdateCustomAgentSettingsExternal(ids, req, base.Db.Postgresql, base.ExtReq)
@@ -735,18 +787,16 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 
 func (base *Controller) AgentCallback(c *gin.Context) {
 
-	api_key := c.GetHeader("X-TELEX-API-KEY")
+	api_key := c.GetHeader("X-AGENT-API-KEY")
 
 	if api_key == "" {
-		base.Logger.Error("X-TELEX-API-KEY is missing in request header")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "X-TELEX-API-KEY is missing in request header", "invalid api key supplied", nil)
+		base.Logger.Error("X-AGENT-API-KEY is missing in request header")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "X-AGENT-API-KEY is missing in request header", "invalid api key supplied", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	key := config.Config.Server.EncKey
-
-	porg_id, pint_id, err := utility.ValidateExternalApiKey(api_key, key)
+	porg_id, pint_id, err := models.ValidateAgentApiKey(base.Db.Postgresql, api_key)
 
 	if err != nil {
 		base.Logger.Error("An error occured: %s", err)
@@ -758,7 +808,7 @@ func (base *Controller) AgentCallback(c *gin.Context) {
 	ids := map[string]string{
 		"porg_id":       porg_id,
 		"pagent_id":     pint_id,
-		"telex_api_key": api_key,
+		"agent_api_key": api_key,
 	}
 
 	err = agents.AgentCallback(ids, base.Db.Postgresql, base.ExtReq)

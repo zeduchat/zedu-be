@@ -12,8 +12,19 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
 )
+
+var MapPackagePriceID map[string]string
+
+func SetMapPackagePriceID(stripeConfig config.Stripe) {
+	MapPackagePriceID = map[string]string{
+		"starter pack":    stripeConfig.STRIPE_BASIC_CREDIT_ID,
+		"pro bundle":      stripeConfig.STRIPE_ADVANCED_CREDIT_ID,
+		"enterprise pack": stripeConfig.STRIPE_PREMIUM_CREDIT_ID,
+	}
+}
 
 type CreditUsage struct {
 	ID             string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
@@ -23,6 +34,18 @@ type CreditUsage struct {
 	UserID         string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+
+	User  User                     `gorm:"foreignKey:UserID;references:ID"`
+	Agent OrganisationIntegrations `gorm:"foreignKey:AgentID;references:IntegrationID"`
+}
+
+type CreditUsageResponse struct {
+	ID             string    `json:"id"`
+	OrganisationID string    `json:"organisation_id"`
+	Amount         float64   `json:"amount"`
+	UserName       string    `json:"user_name"`
+	AgentName      string    `json:"agent_name"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type CreditTransaction struct {
@@ -57,6 +80,7 @@ type CreditPackageResponse struct {
 type CreditTopUpRequest struct {
 	OrgID     string `json:"org_id" validate:"required"`
 	PackageID string `json:"package_id" validate:"required"`
+	Email     string `json:"email" validate:"required"`
 }
 
 func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
@@ -67,11 +91,30 @@ func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
 	return nil
 }
 
-func (c *CreditUsage) CreateCreditUsage(db *gorm.DB) error {
-	err := postgresql.CreateOneRecord(db, c)
-	if err != nil {
+func (c *CreditUsage) UpdateOrCreateDailyCredit(db *gorm.DB, amount float64) error {
+	var existing CreditUsage
+	today := time.Now()
+	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	err := db.Where("agent_id = ? AND organisation_id = ? AND created_at >= ? AND created_at < ?",
+		c.AgentID, c.OrganisationID, startOfDay, endOfDay).
+		First(&existing).Error
+
+	if err == gorm.ErrRecordNotFound {
+		c.Amount = amount
+		if err := db.Create(c).Error; err != nil {
+			return err
+		}
+	} else if err == nil {
+		existing.Amount += amount
+		if err := db.Save(&existing).Error; err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
+
 	return nil
 }
 
@@ -121,17 +164,17 @@ func UpdateOrgCreditBalance(db *gorm.DB, organisationID string) error {
 		Update("credit_balance", balance).Error
 }
 
-func TopUpOrgCredit(req CreditTopUpRequest, db *gorm.DB) (*gin.H, int, error) {
+func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, error) {
 	var org Organisation
 
-	org, err := org.GetOrgByID(db, req.OrgID)
+	org, err := org.GetOrgByID(db, OrgID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("org not found")
 	}
 
 	var credit_pkg CreditPackage
 
-	err = db.Where("id = ?", req.PackageID).First(&credit_pkg).Error
+	err = db.Where("id = ?", PackageID).First(&credit_pkg).Error
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("credit package does not exist: %v", err)
 	}
@@ -139,7 +182,7 @@ func TopUpOrgCredit(req CreditTopUpRequest, db *gorm.DB) (*gin.H, int, error) {
 	// create credit transaction
 	credit_transaction := CreditTransaction{
 		ID:             utility.GenerateUUID(),
-		OrganisationID: req.OrgID,
+		OrganisationID: OrgID,
 		Amount:         float64(credit_pkg.Credits),
 		BalanceBefore:  float64(org.CreditBalance),
 		BalanceAfter:   float64(org.CreditBalance) + float64(credit_pkg.Credits),
@@ -151,12 +194,12 @@ func TopUpOrgCredit(req CreditTopUpRequest, db *gorm.DB) (*gin.H, int, error) {
 		return nil, http.StatusBadRequest, fmt.Errorf("unable to create credit transaction: %v", err)
 	}
 
-	if err = UpdateOrgCreditBalance(db, req.OrgID); err != nil {
+	if err = UpdateOrgCreditBalance(db, OrgID); err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	// refetch org with updated values
-	org, err = org.GetOrgByID(db, req.OrgID)
+	org, err = org.GetOrgByID(db, OrgID)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to fetch updated organisation details")
 	}
@@ -231,7 +274,18 @@ func GetCreditPackages(db *gorm.DB) (*[]CreditPackageResponse, int, error) {
 	return &response, http.StatusOK, nil
 }
 
-func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) float64 {
+func GetCreditPackageByID(db *gorm.DB, id string) (*CreditPackage, int, error) {
+	var creditPackage CreditPackage
+
+	exists := postgresql.CheckExists(db, &creditPackage, "id = ?", id)
+	if !exists {
+		return nil, http.StatusNotFound, fmt.Errorf("credit package not found")
+	}
+
+	return &creditPackage, http.StatusOK, nil
+}
+
+func CalculateCreditCost(inputLength int, agentPrice float64) float64 {
 	const (
 		BaseCost     = 0.5
 		InputWeight  = 0.01
@@ -242,7 +296,7 @@ func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) 
 	// Calculate cost based on message and agent price
 	rawCost := BaseCost +
 		(float64(inputLength) * InputWeight) +
-		(float64(outputLength) * OutputWeight) +
+		(OutputWeight) +
 		agentPrice
 
 	if rawCost > MaxCreditCap {
@@ -250,4 +304,66 @@ func CalculateCreditCost(inputLength int, outputLength int, agentPrice float64) 
 	}
 
 	return math.Round(rawCost*100) / 100
+}
+
+func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
+	var creditTransanction []CreditTransaction
+
+	query := db.Model(&CreditTransaction{}).
+		Where("organisation_id = ?", org_id).
+		Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditTransanction,
+		nil,
+	)
+	if err != nil {
+		return creditTransanction, paginationResponse, err
+	}
+
+	return creditTransanction, paginationResponse, nil
+}
+
+func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
+	var creditUsages []CreditUsage
+	var creditUsageResponses []CreditUsageResponse
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&CreditUsage{}).
+		Where("organisation_id = ?", orgID).
+		Preload("User").
+		Preload("Agent").
+		Order("created_at DESC")
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&creditUsages,
+		nil,
+	)
+	if err != nil {
+		return creditUsageResponses, paginationResponse, err
+	}
+
+	for _, usage := range creditUsages {
+		creditUsageResponses = append(creditUsageResponses, CreditUsageResponse{
+			ID:             usage.ID,
+			OrganisationID: usage.OrganisationID,
+			Amount:         usage.Amount,
+			UserName:       usage.User.Name,
+			AgentName:      usage.Agent.AppName,
+			CreatedAt:      usage.CreatedAt,
+		})
+	}
+
+	return creditUsageResponses, paginationResponse, nil
 }

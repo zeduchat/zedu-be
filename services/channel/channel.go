@@ -31,6 +31,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		OwnerId:        req.UserId,
 		OrganisationID: req.OrganisationID,
 		IsPrivate:      req.IsPrivate,
+		Topic:          req.Topic,
 	}
 
 	joinChannelsReq.ChannelsID = channel.ID
@@ -53,7 +54,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
-
 	if err != nil {
 		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
 	}
@@ -68,7 +68,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
 	if err != nil {
 		logger.Error("failed to save system message for channel %s", channel.Name)
 	}
@@ -93,22 +92,30 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		return newchannel, http.StatusBadRequest, err
 	}
 
+	newchannel.OwnerName = profile.UserName
+
 	return newchannel, http.StatusOK, nil
 }
 
-func GetChannel(db *gorm.DB, channelID, userId string) (models.GetChannelResp, int, error) {
+func GetChannel(db *gorm.DB, ids models.IDS) (models.GetChannelResp, int, error) {
 	var (
 		channel models.Channels
 		chanReq models.ChannelInfo
 	)
 
-	chanReq.ChannelID = channelID
-	chanReq.UserID = userId
+	chanReq.ChannelID = ids.ChannelID
+	chanReq.UserID = ids.UserID
 
 	chanresp, err := channel.GetChannelByID(db, chanReq)
 	if err != nil {
 		return chanresp, http.StatusBadRequest, err
 	}
+
+	err = models.UpdateUserChannelLastRead(db, ids.ChannelID, ids.UserID)
+	if err != nil {
+		return chanresp, http.StatusBadRequest, err
+	}
+
 	return chanresp, http.StatusOK, nil
 }
 
@@ -169,7 +176,12 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *utility.Logger) (int, error) {
 	var channel models.Channels
 
-	chanResp, _, err := GetChannel(db.Postgresql, channels_id, user_id)
+	ids := models.IDS{
+		UserID: user_id,
+		ChannelID: channels_id,
+	}
+
+	chanResp, _, err := GetChannel(db.Postgresql, ids)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
@@ -252,15 +264,16 @@ func CountChannelsUsers(db *gorm.DB, channelId string) (int64, int, error) {
 	return count, http.StatusOK, nil
 }
 
-func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, channelId string, userId string) (models.Channels, error) {
+func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, ids models.IDS) (models.Channels,int, error) {
 	var r models.Channels
-	r.ID = channelId
+	r.ID = ids.ChannelID
 
-	updatedChannels, _, err := r.UpdateChannels(db, req, userId)
+	updatedChannels, code, err := r.UpdateChannels(db, req, ids.UserID)
 	if err != nil {
-		return updatedChannels, err
+		return updatedChannels,code, err
 	}
-	return updatedChannels, nil
+
+	return updatedChannels, code, nil
 }
 
 func CheckUser(channelId, userID string, db *gorm.DB) (gin.H, int, error) {

@@ -78,8 +78,6 @@ tags:
     description: API endpoints for bots
   - name: TelexAI
     description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
-  - name: Mongogrations
-    description: API endpoints for integrations to interact with a mongoDB instance through telex
   - name: File Management
     description: API for uploading and retrieving files
   - name: Search
@@ -94,6 +92,12 @@ tags:
     description: API endpoints for telex AI
   - name: Logs
     description: API endpoints for retrieving server logs
+  - name: Saved Messages
+    description: API endpoints for managing messages saved for later
+  - name: Pinned-Organisations
+    description: API endpoints for managing pinned organisations
+  - name: Pinned Messages
+    description: API endpoints for pinning a specific message
 
 paths:
   # Auth paths
@@ -2221,7 +2225,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
-  /channels/{channel_id}/messages/message_id:
+  /channels/{channel_id}/messages/{message_id}:
     delete:
       tags:
         - messages
@@ -3008,6 +3012,49 @@ paths:
                       created_at: "2024-09-04T20:06:24.257395+01:00"
                       deleted_at: "0001-01-01T00:13:35+00:13"
                       threads: null
+
+  /organisations/{org_id}/load-org-info:
+    get:
+      summary: Load organisation info
+      tags:
+        - organisation
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+            type: string
+          description: Organisation ID
+      responses:
+        "200":
+          description: Organisation info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: loading metrics retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      org_user_info:
+                        type: string
+                        example: user6, user5 and 3 others are in this organisation
+                      organisation_name:
+                        type: string
+                        example: testorg-2
+                      users_photos:
+                        type: array
+                        items:
+                          type: string
 
   /channels/add-multiple:
     post:
@@ -4063,6 +4110,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  
+  /subscriptions/plans:
+    get:
+      summary: Fetch all available subscription plans
+      tags:
+        - subscription
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Subscription plans retrieved successfully
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  
+  
   /subscriptions/current/{orgId}:
     get:
       summary: Current subscription for an organization
@@ -5561,7 +5630,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /credits/packages:
     get:
       tags:
@@ -5597,7 +5665,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
+
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -5641,7 +5710,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
+
   /credits/top-up:
     post:
       tags:
@@ -5708,6 +5778,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
+  /credits/transactions/{org_id}:
+    get:
+      tags:
+        - credits
+      summary: Retrieve organization credit transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to retrieve it credit report.
+      responses:
+        "200":
+          description: Credit transactions retrieved successfully
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+ 
+  /credits/usage/{org_id}:
+    get:
+      tags:
+        - credits
+      summary: Retrieve organization credit usage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the organisation to retrieve it credit report.
+      responses:
+        "200":
+          description: Credit usage retrieved successfully
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+ 
 
   /invite:
     post:
@@ -7459,6 +7618,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+  /organisations/{org_id}/get-started:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve get-started info for an organisation
+      description: Returns the current user's username, organisation users' profile details, and organisation channels metadata.
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get-started info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: get-started info retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      user_name:
+                        type: string
+                        example: micahshallom1034
+                      org_users_profile:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: DaBoy
+                            avatar_url:
+                              type: string
+                              example: https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
+                            is_online:
+                              type: boolean
+                              example: true
+                      org_channels:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: Default
+                            member_avatars:
+                              type: array
+                              items:
+                                type: string
+                              example:
+                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_da41992a35ce.jpeg
+                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
+                                - https://lh3.googleusercontent.com/a/ACg8ocJT...
+                            last_post_time:
+                              type: string
+                              example: Last post Apr 23 11:01
+                            members_count:
+                              type: integer
+                              example: 14
 
   /organisations/{org_id}/metrics:
     get:
@@ -11128,6 +11359,49 @@ paths:
         404:
           description: Organisation not found.
 
+  /agents/me:
+    get:
+      summary: Get all integrations by owner
+      description: Retrieve a list of agents by owner
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successfully retrieved the list of integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: integrations retrieved successfully.
+                    description: A message describing the result.
+                  data:
+                    type: object
+                    properties:
+                      is_system:
+                        type: boolean
+                      is_active:
+                        type: boolean
+
+        400:
+          description: Invalid organisation_id or request.
+        404:
+          description: Organisation not found.
+
+
+
   /agents:
     get:
       summary: Get system integrations for telex
@@ -13201,6 +13475,12 @@ paths:
       security:
         - bearerAuth: []
       description: Adds a new thread message to a specified Group DM channel.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -13210,38 +13490,38 @@ paths:
               properties:
                 content:
                   type: string
-              media:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                      example: "550e8400-e29b-41d4-a716-446655440000"
-                    file_name:
-                      type: string
-                      example: "slsslsl"
-                    file_type:
-                      type: string
-                      example: "png"
-                    file_link:
-                      type: string
-                      format: uri
-                      example: "https://example.com/file.png"
-              mentions:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [bot, user]
-                      example: "bot"
-                    id:
-                      type: string
-                      format: uuid
-                      example: "550e8400-e29b-41d4-a716-446655440000"
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
               required:
                 - content
       responses:
@@ -13364,6 +13644,12 @@ paths:
       description: Replies an existing thread in a Group DM channel.
       security:
         - bearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -14521,7 +14807,7 @@ paths:
       summary: Send a chat message to a TelexAI model
       parameters:
         - in: header
-          name: X-TELEX-API-KEY
+          name: X-AGENT-API-KEY
           schema:
             type: string
           required: true
@@ -14589,7 +14875,7 @@ paths:
       summary: List all available models
       parameters:
         - in: header
-          name: X-TELEX-API-KEY
+          name: X-AGENT-API-KEY
           schema:
             type: string
           required: true
@@ -14692,6 +14978,1025 @@ paths:
                   error:
                     type: string
                     example: "file not found or inaccessible"
+  
+
+
+
+  /organisations/{organisationId}/thread/save:
+    post:
+      tags:
+        - Saved Messages
+      summary: Save a thread message for later
+      description: Creates and stores a thread message in the system.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channels_id
+                - thread_id
+                - type
+              properties:
+                channels_id:
+                  type: string
+                  example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-aa9a-959348898754"
+                type:
+                  type: string
+                  example: "message"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Message saved successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      type:
+                        type: string
+                        example: "message"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-07T01:23:31.7077586Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-aa9a-959348898754"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Validation error"
+                  error:
+                    type: string
+                    example: "Missing required field: thread_id"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Database error occurred"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/message/save:
+    post:
+      tags:
+        - Saved Messages
+      summary: Save a reply message for later
+      description: Creates and stores a reply message in the system.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - thread_id
+                - channels_id
+                - message_id
+              properties:
+                channels_id:
+                  type: string
+                  example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-aa9a-959348898754"
+                message_id:
+                  type: string
+                  example: "019744be-fa9d-7e65-aa9a-b85cdc078840"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Message saved successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      message_id:
+                        type: string
+                        example: "019744be-fa9d-7e65-aa9a-b85cdc078840"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-07T01:23:31.7077586Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-aa9a-959348898754"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Validation error"
+                  error:
+                    type: string
+                    example: "Missing required field: thread_id"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Database error occurred"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+
+  /organisations/{organisationId}/saved/message:
+    get:
+      tags:
+        - Saved Messages
+      summary: Get all saved messages
+      description: Retrieves all saved messages from the system.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Messages retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
+                        message:
+                          type: string
+                          example: "My test again for saved messages"
+                        org_id:
+                          type: string
+                          example: ""
+                        channels_id:
+                          type: string
+                          example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                        user_id:
+                          type: string
+                          example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-06-07T01:23:31.7077586Z"
+                        thread_id:
+                          type: string
+                          example: "019744be-4864-7e65-aa9a-959348898754"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Failed to retrieve saved messages"
+
+  /organisations/{organisationId}/saved/message/{messageId}:
+    delete:
+      tags:
+        - Saved Messages
+      summary: Delete a saved message
+      description: Deletes a message using its unique ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to save the message
+        - name: messageId
+          in: path
+          required: true
+          description: The ID of the message to delete
+          schema:
+            type: string
+            format: uuid
+            example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
+      responses:
+        "200":
+          description: Message deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Message deleted successfully"
+        "404":
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "Message not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Failed to delete message"
+
+  /organisations/pin:
+    post:
+      tags:
+        - Pinned-Organisations
+      summary: Pin an organisation
+      description: Pins the specified organisation to the current user's pinned organisations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - org_id
+              properties:
+                org_id:
+                  type: string
+                  example: 01977eb2-bcf1-71a1-b0a4-5211e584df99
+      responses:
+        '200':
+          description: Organisation pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Organisation pinned successfully
+
+    get:
+      tags:
+        - Pinned-Organisations
+      summary: Fetch user's pinned organisations
+      description: Retrieves all organisations that the current user has pinned.
+      responses:
+        '200':
+          description: List of pinned organisations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: User pinned organisations fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01977eb7-6fd2-71a3-8fb2-a7a989a4c47d
+                        org_id:
+                          type: string
+                          example: 01977eb2-ae8a-71a1-8599-c26850dcc72f
+                        org_name:
+                          type: string
+                          example: test-org5
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-06-17T17:27:20.402442+01:00
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: 2025-06-17T17:27:20.402442+01:00
+
+  /organisations/pin/{org_id}:
+    delete:
+      tags:
+        - Pinned-Organisations
+      summary: Unpin an organisation
+      description: Removes a previously pinned organisation from the user's pinned list.
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation to unpin
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organisation unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Organisation unpinned successfully
+
+  /organisations/{organisationId}/channels/{channelId}/pin:
+    post:
+      tags:
+        - Pinned Messages
+      summary: Pin a thread message to a channel or DM
+      description: Pins a specific message in a given channel or DM thread.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM to pin the message in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message pinned successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      pinned:
+                        type: boolean
+                        example: true
+                      pinned_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-10T16:10:17.0247925Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-bb9a-959348898754"
+        "400":
+          description: Invalid input or message already pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Message already pinned or input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/channels/{channelId}/pin/thread/{threadId}:
+     delete:
+      tags:
+        - Pinned Messages
+      summary: Unpin a thread message from a channel or DM
+      description: Removes a thread message from the pinned list in the specified channel.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the pinned thread message to unpin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message unpinned successfully
+        "400":
+          description: Invalid message ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid message ID or not pinned"
+                  error:
+                    type: string
+                    example: "Record not found"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected DB failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/channels/{channelId}/pin/{messageId}:
+    post:
+      tags:
+        - Pinned Messages
+      summary: Pin a reply message to a channel or DM
+      description: Pins a specific message in a given channel or DM thread.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM to pin the message in
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the message to pin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message pinned successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      pinned:
+                        type: boolean
+                        example: true
+                      pinned_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-10T16:10:17.0247925Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-bb9a-959348898754"
+        "400":
+          description: Invalid input or message already pinned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Message already pinned or input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+  
+  /organisations/{organisationId}/channels/{channelId}/pin/message/{messageId}:
+    delete:
+      tags:
+        - Pinned Messages
+      summary: Unpin a reply message from a channel or DM
+      description: Removes a reply message from the pinned list in the specified channel.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reply pinned message to unpin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message unpinned successfully
+        "400":
+          description: Invalid message ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid message ID or not pinned"
+                  error:
+                    type: string
+                    example: "Record not found"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected DB failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /organisations/{organisationId}/channels/{channelId}/pinned-messages:
+    get:
+      tags:
+        - Pinned Messages
+      summary: Retrieve pinned messages
+      description: Fetches all pinned messages in the specified channel or DM, sorted by pin time.
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation to pin the message in
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel or DM
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pinned messages fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Pinned messages retrieved
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                        pinned_at:
+                          type: string
+                          format: date-time
+                          example: "2025-06-10T16:10:17.0247925Z"
+        "400":
+          description: Bad request (missing or invalid params)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Missing required channel_id or thread_id"
+                  error:
+                    type: string
+                    example: "Validation error"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected DB failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
 
 components:
   schemas:
@@ -17293,6 +18598,9 @@ components:
         description:
           type: string
           description: Updated description of the channel
+        topic:
+          type: string
+          description: Updated topic of the channel
 
     ChannelCreateSchema:
       type: object
@@ -17311,6 +18619,13 @@ components:
           type: string
           format: string
           description: ID of the user who created the channel
+        is_private:
+          type: boolean
+          format: boolean
+          description: if channel is private
+        topic:
+          type: string
+          description: Topic of the channel
 
     ChannelCreateResponseSchema:
       type: object
