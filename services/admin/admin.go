@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"strings"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -23,15 +24,31 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 	var (
 		admin        = models.Admin{}
 		responseData gin.H
+		envEmail     = config.GetConfig().Admin.SUPER_ADMIN_EMAIL
+		envName      = config.GetConfig().Admin.SUPER_ADMIN_NAME
+		envPassword  = config.GetConfig().Admin.SUPER_ADMIN_PASSWORD
+		envRole      = config.GetConfig().Admin.SUPER_ADMIN_ROLE
 	)
 
-	exists := postgresql.CheckExists(db, &admin, "email = ?", req.Email)
-	if !exists {
-		return responseData, 400, fmt.Errorf("invalid credentials")
-	}
+	if req.Email == envEmail && req.Password == envPassword {
+		// Construct a pseudo-admin
+		admin = models.Admin{
+			ID:       utility.GenerateUUID(),
+			Email:    envEmail,
+			Name:     envName,
+			IsActive: true,
+			Role:     envRole,
+		}
+	} else {
+		// Proceed with DB check
+		exists := postgresql.CheckExists(db, &admin, "email = ?", req.Email)
+		if !exists {
+			return responseData, 400, fmt.Errorf("invalid credentials")
+		}
 
-	if !utility.CompareHash(req.Password, admin.Password) {
-		return responseData, 400, fmt.Errorf("invalid credentials")
+		if !utility.CompareHash(req.Password, admin.Password) {
+			return responseData, 400, fmt.Errorf("invalid credentials")
+		}
 	}
 
 	tokenData, err := middleware.CreateAdminToken(admin, c)
