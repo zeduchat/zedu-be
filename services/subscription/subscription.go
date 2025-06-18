@@ -55,6 +55,7 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	params.AddMetadata("flow", "subscription")
 	params.AddMetadata("plan_name", req.PlanName)
 	params.AddMetadata("org_id", req.OrgID)
+	params.AddMetadata("customer_id", stripeCustomer.ID)
 
 	session, err := session.New(params)
 	if err != nil {
