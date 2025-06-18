@@ -1204,29 +1204,42 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	return threads, pagR, nil
 }
 
-func (t *ThreadDocument) UpdateThreadUsername(logger *utility.Logger, mu *sync.Mutex) {
+func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *sync.Mutex) {
 
 	mu.Lock()
 	defer mu.Unlock()
 
-	script := `if (ctx._source.containsKey("messages")) {
-            for (int i = 0; i < ctx._source.messages.size(); i++) {
-                if (ctx._source.messages[i].user_id == params.user_id) {
-                    ctx._source.messages[i].username = params.new_username;
-                }
-            }
-        }
-        if (ctx._source.user_id == params.user_id) {
-            ctx._source.username = params.new_username;
-        }`
+	script := `
+	if (ctx._source.containsKey("messages")) {
+		for (int i = 0; i < ctx._source.messages.size(); i++) {
+			if (ctx._source.messages[i].user_id == params.user_id) {
+				if (params.new_username != null && !params.new_username.isEmpty()) {
+					ctx._source.messages[i].username = params.new_username;
+				}
+				if (params.new_avatarurl != null && !params.new_avatarurl.isEmpty()) {
+					ctx._source.messages[i].avatar_url = params.new_avatarurl;
+				}
+			}
+		}
+	}
+	if (ctx._source.user_id == params.user_id) {
+		if (params.new_username != null && !params.new_username.isEmpty()) {
+			ctx._source.username = params.new_username;
+		}
+		if (params.new_avatarurl != null && !params.new_avatarurl.isEmpty()) {
+			ctx._source.avatar_url = params.new_avatarurl;
+		}
+	}
+	`
 
 	req := map[string]interface{}{
 		"script": map[string]interface{}{
 			"source": script,
 			"lang":   "painless",
 			"params": map[string]interface{}{
-				"user_id":      t.UserId,
-				"new_username": t.Username,
+				"user_id":       t.UserId,
+				"new_username":  t.Username,
+				"new_avatarurl": t.AvatarURL,
 			},
 		},
 		"query": map[string]interface{}{

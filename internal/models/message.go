@@ -474,16 +474,24 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocume
 	return
 }
 
-func (m *MessageDocument) UpdateMessageUsername(logger *utility.Logger, mu *sync.Mutex) error {
+func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *sync.Mutex) error {
 	mu.Lock()
 	defer mu.Unlock()
 
 	payload := map[string]interface{}{
 		"script": map[string]interface{}{
-			"source": "ctx._source.username = params.new_username",
-			"lang":   "painless",
+			"source": `
+				if (params.new_username != null && !params.new_username.isEmpty()) {
+					ctx._source.username = params.new_username;
+				}
+				if (params.new_avatarurl != null && !params.new_avatarurl.isEmpty()) {
+					ctx._source.avatar_url = params.new_avatarurl;
+				}
+			`,
+			"lang": "painless",
 			"params": map[string]interface{}{
-				"new_username": m.Username,
+				"new_username":  m.Username,
+				"new_avatarurl": m.AvatarURL,
 			},
 		},
 		"query": map[string]interface{}{

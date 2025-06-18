@@ -65,6 +65,7 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		}
 
 		req.AvatarURL = avatarURL
+		req.AvatarUpdate = true
 	}
 
 	if err := userProfile.UpdateProfileFields(db, req, userId, logger); err != nil {
