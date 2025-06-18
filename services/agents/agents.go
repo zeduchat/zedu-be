@@ -509,10 +509,8 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	json.Unmarshal(bytes, &payload)
 
 	settings := ""
-	// if !ok {
-	// 	return int_resp, errors.New("failed to create agent, settings field does not exist")
-	// }
-	settings_data := map[string]interface{}{"settings": settings}
+	
+	settings_data := map[string]any{"settings": settings}
 
 	orgIntegration.OrgID = org_id
 	orgIntegration.JSONUrl = req.JSONUrl
@@ -538,7 +536,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return int_resp, err
 	}
 
-	auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
+	auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
 	auth_credentials["agent_api_key"] = psk
 	settings_data["auth_credentials"] = auth_credentials
 
@@ -921,8 +919,10 @@ func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.Ext
 	if ok {
 		api_key, ok := auth_credentials["agent_api_key"].(string)
 
-		if ok && api_key != "" {
+		if ok && api_key != "" && ids["user_id"] == orgIntegration.OwnerID {
 			status["agent_api_key"] = api_key
+		} else {
+			status["agent_api_key"] = ""
 		}
 	}
 

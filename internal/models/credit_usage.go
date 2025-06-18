@@ -93,11 +93,30 @@ func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
 	return nil
 }
 
-func (c *CreditUsage) CreateCreditUsage(db *gorm.DB) error {
-	err := postgresql.CreateOneRecord(db, c)
-	if err != nil {
+func (c *CreditUsage) UpdateOrCreateDailyCredit(db *gorm.DB, amount float64) error {
+	var existing CreditUsage
+	today := time.Now()
+	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	err := db.Where("agent_id = ? AND organisation_id = ? AND created_at >= ? AND created_at < ?",
+		c.AgentID, c.OrganisationID, startOfDay, endOfDay).
+		First(&existing).Error
+
+	if err == gorm.ErrRecordNotFound {
+		c.Amount = amount
+		if err := db.Create(c).Error; err != nil {
+			return err
+		}
+	} else if err == nil {
+		existing.Amount += amount
+		if err := db.Save(&existing).Error; err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
+
 	return nil
 }
 

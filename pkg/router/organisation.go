@@ -60,6 +60,11 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		//Channels notification prefence
 		organisationUrl.GET("/:org_id/channels/notification-preference", channelCtrl.GetUserChannelsNotificationPrefs)
 
+		// User pinned organisations routes
+		organisationUrl.POST("/pin", organisationCtrl.CreateUserPinnedOrganisation)
+		organisationUrl.GET("/pin", organisationCtrl.GetUserPinnedOrganisations)
+		organisationUrl.DELETE("/pin/:org_id", organisationCtrl.UnpinOrganisation)
+
 	}
 
 	// Test routes

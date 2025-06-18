@@ -711,3 +711,14 @@ func (o *Organisation) GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]Organ
 
 	return organisations, paginationResponse, nil
 }
+
+func (o *Organisation) IsOwner(db *gorm.DB, userId string) bool {
+	var org Organisation
+
+	err := db.Where("id = ?", o.ID).First(&org).Error
+	if err != nil {
+		return false
+	}
+
+	return org.OwnerID == userId
+}

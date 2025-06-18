@@ -31,6 +31,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		OwnerId:        req.UserId,
 		OrganisationID: req.OrganisationID,
 		IsPrivate:      req.IsPrivate,
+		Topic:          req.Topic,
 	}
 
 	joinChannelsReq.ChannelsID = channel.ID
@@ -53,7 +54,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
-
 	if err != nil {
 		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
 	}
@@ -68,7 +68,6 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
 	if err != nil {
 		logger.Error("failed to save system message for channel %s", channel.Name)
 	}
@@ -92,6 +91,8 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	if err != nil {
 		return newchannel, http.StatusBadRequest, err
 	}
+
+	newchannel.OwnerName = profile.UserName
 
 	return newchannel, http.StatusOK, nil
 }
@@ -263,15 +264,16 @@ func CountChannelsUsers(db *gorm.DB, channelId string) (int64, int, error) {
 	return count, http.StatusOK, nil
 }
 
-func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, channelId string, userId string) (models.Channels, error) {
+func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, ids models.IDS) (models.Channels,int, error) {
 	var r models.Channels
-	r.ID = channelId
+	r.ID = ids.ChannelID
 
-	updatedChannels, _, err := r.UpdateChannels(db, req, userId)
+	updatedChannels, code, err := r.UpdateChannels(db, req, ids.UserID)
 	if err != nil {
-		return updatedChannels, err
+		return updatedChannels,code, err
 	}
-	return updatedChannels, nil
+
+	return updatedChannels, code, nil
 }
 
 func CheckUser(channelId, userID string, db *gorm.DB) (gin.H, int, error) {

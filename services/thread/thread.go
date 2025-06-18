@@ -283,10 +283,11 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 
 func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (int, error) {
 	var (
-		thread    models.Threads
-		threadDoc models.ThreadDocument
-		channel   models.Channels
-		dmChannel models.DmChannels
+		thread       models.Threads
+		threadDoc    models.ThreadDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		savedMessage models.SavedMessage
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -316,6 +317,20 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 	err = threadDoc.GetThreadById(db, threadID)
 	if err != nil {
 		return http.StatusNotFound, errors.New("thread not found")
+	}
+
+	savedMessageIds := models.SavedMessageIds{
+		UserID:   userID,
+		OrgID:    threadDoc.OrgansationID,
+		ThreadID: threadDoc.ID,
+	}
+
+	exists := savedMessage.SavedThreadMsgExists(db, savedMessageIds)
+	if exists {
+		err := savedMessage.DeleteSavedThreadMsgByMessageID(db, savedMessageIds)
+		if err != nil {
+			return http.StatusBadRequest, err
+		}
 	}
 
 	if _, err := thread.DeleteThread(db); err != nil {

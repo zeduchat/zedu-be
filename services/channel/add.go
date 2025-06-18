@@ -31,7 +31,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		profile       models.Profile
 		user          models.User
 		channels      models.Channels
-		threads        models.ThreadDocument
+		threads       models.ThreadDocument
 		agent_message = false
 	)
 
@@ -68,15 +68,6 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
-	quotedThread := models.QuotedMessage{
-		ThreadID:  threads.ID,
-		Content:   threads.Content,
-		Username:  threads.Username,
-		FullName:  threads.FullName,
-		AvatarURL: threads.AvatarURL,
-		CreatedAt: threads.CreatedAt,
-	}
-
 	messageDoc := models.MessageDocument{
 		ID:             utility.GenerateUUID(),
 		Content:        req.Content,
@@ -95,7 +86,6 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		Media:          req.Media,
 		Mentions:       req.Mentions,
 		OrganisationID: channels.OrganisationID,
-		QuotedMessage:  &quotedThread,
 	}
 
 	updateResp, err := messageDoc.CreateMessage(db, logger)
@@ -258,10 +248,11 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.Message, int, error) {
 
 	var (
-		message   models.Message
-		newMsg    models.MessageDocument
-		channel   models.Channels
-		dmChannel models.DmChannels
+		message      models.Message
+		newMsg       models.MessageDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		savedMessage models.SavedMessage
 	)
 
 	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
@@ -272,12 +263,25 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	}
 
 	err := newMsg.GetMessageById(db, req.MessageId)
-
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("message not found")
 	}
 
 	req.ThreadId = newMsg.ThreadID.String()
+
+	savedMessageIds := models.SavedMessageIds{
+		MessageID: newMsg.ID,
+		UserID:    req.UserId,
+		OrgID:     newMsg.OrganisationID,
+		ThreadID:  newMsg.ThreadID.String(),
+	}
+	exists := savedMessage.SavedReplyMsgExists(db, savedMessageIds)
+	if exists {
+		err := savedMessage.DeleteSavedMessageByMessageID(db, savedMessageIds)
+		if err != nil {
+			return nil, http.StatusBadRequest, err
+		}
+	}
 
 	updateResp, err := newMsg.DeleteMessage(db, logger)
 
