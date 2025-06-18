@@ -237,6 +237,19 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 
 	logger.Info(fmt.Sprintf("Publishing to channel id: %s", publishfeed.ChannelID))
 
+	// Process and perform credit validation rules
+	inputputLength := len(req.Content)
+
+	var agentPrice float64 = 0.0 // temp value
+
+	creditUsed := models.CalculateCreditCost(inputputLength, agentPrice)
+
+	// validate credit here
+	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
+		logger.Error("Organisation has insufficient credit balance!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
+	}
+
 	returnUrl := fmt.Sprintf("%s/api/v1/dms/bot-dm-response", config.Config.App.Url)
 	feed := models.FeedQueue{
 		ChannelsId: req.ChannelsID,
@@ -283,6 +296,26 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+	}
+
+	// save organisation credit usage
+	credit_usage := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: channel.OrgId,
+		Amount:         creditUsed,
+		AgentID:        *channel.ParticipantId,
+		UserID:         req.UserId,
+	}
+
+	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
+	if err != nil {
+		logger.Error("failed to create/update credit usage!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update organisation credit usage: %v", err)
+	}
+
+	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
+		logger.Error("Organisation credit Recalculation failed")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	logger.Info(fmt.Sprintf("Pushed to RabbitMQ for integration: %s", routing_key))
@@ -383,7 +416,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		channel    models.DmChannels
 		orgAgent   models.OrganisationIntegrations
 		threadResp models.ThreadDocument
-		user       models.User
+		// user       models.User
 	)
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
@@ -399,44 +432,6 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
 	if err != nil {
 		return &threadResp, http.StatusInternalServerError, err
-	}
-
-	user, err = user.GetUserByID(db.Postgresql, *channel.ParticipantId)
-	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("failed to get user")
-	}
-
-	// Calculate credit cost based on message and agent price
-	outputLength := len(req.Content)
-
-	var agentPrice float64 = 0.0 // temp value
-
-	creditUsed := models.CalculateCreditCost(0, outputLength, agentPrice)
-
-	// validate credit here
-	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
-		logger.Error("Organisation has insufficient credit balance!!")
-		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
-	}
-
-	// save organisation credit usage
-	credit_usage := models.CreditUsage{
-		ID:             utility.GenerateUUID(),
-		OrganisationID: channel.OrgId,
-		Amount:         5,
-		AgentID:        *channel.ParticipantId,
-		UserID:         *channel.ParticipantId,
-	}
-
-	err = credit_usage.CreateCreditUsage(db.Postgresql)
-	if err != nil {
-		logger.Error("failed to create credit usage!!")
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to create organisation credit usage: %v", err)
-	}
-
-	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
-		logger.Error("Organisation credit Recalculation failed")
-		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	threadDoc := models.ThreadDocument{

@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -70,6 +71,7 @@ type UpdateUserProfileRequest struct {
 	Title             string `json:"title"`
 	NamePronunciation string `json:"name_pronounciation"`
 	Timezone          string `json:"timezone"`
+	AvatarUpdate      bool
 }
 
 type UpdateProfileStatus struct {
@@ -106,25 +108,27 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		return errors.New("Profile does not exists")
 	}
 
-	if req.UserName != "" && req.UserName != userProfile.UserName {
+	if req.AvatarUpdate || (req.UserName != "" && req.UserName != userProfile.UserName) {
 
 		updateThreadsIndex := ThreadDocument{
-			UserId:   userId,
-			Username: req.UserName,
+			UserId:    userId,
+			Username:  req.UserName,
+			AvatarURL: req.AvatarURL,
 		}
 
-		logger.Info("Updating username across threads index")
-		go updateThreadsIndex.UpdateThreadUsername(logger, &sync.Mutex{})
+		logger.Info("Updating username and avatar across threads index")
+		go updateThreadsIndex.UpdateThreadUserProfile(logger, &sync.Mutex{})
 
 		updateMessagesIndex := MessageDocument{
-			UserID:   userId,
-			Username: req.UserName,
+			UserID:    userId,
+			Username:  req.UserName,
+			AvatarURL: req.AvatarURL,
 		}
 
-		logger.Info("Updating username across messages index")
-		go updateMessagesIndex.UpdateMessageUsername(logger, &sync.Mutex{})
+		logger.Info("Updating username and avatar across messages index")
+		go updateMessagesIndex.UpdateMessageUserProfile(logger, &sync.Mutex{})
 
-		logger.Info("Successfully updated username across indexess")
+		logger.Info("Successfully updated username and avatar across indexess")
 	}
 
 	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)
@@ -205,12 +209,11 @@ func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string) error {
 }
 
 func (p *Profile) GetProfileByUserId(db *gorm.DB, userId string) error {
-
-	query := db.Where("userid = ?", userId)
-
-	if err := query.First(&p).Error; err != nil {
-		return err
+	if err := db.Where("userid = ?", userId).First(&p).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("profile not found for user ID: %s", userId)
+		}
+		return fmt.Errorf("failed to fetch profile: %w", err)
 	}
-
 	return nil
 }

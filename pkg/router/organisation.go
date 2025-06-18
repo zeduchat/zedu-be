@@ -55,9 +55,15 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)
+		organisationUrl.GET("/:org_id/get-started", organisationCtrl.GetStarted)
 
 		//Channels notification prefence
 		organisationUrl.GET("/:org_id/channels/notification-preference", channelCtrl.GetUserChannelsNotificationPrefs)
+
+		// User pinned organisations routes
+		organisationUrl.POST("/pin", organisationCtrl.CreateUserPinnedOrganisation)
+		organisationUrl.GET("/pin", organisationCtrl.GetUserPinnedOrganisations)
+		organisationUrl.DELETE("/pin/:org_id", organisationCtrl.UnpinOrganisation)
 
 	}
 

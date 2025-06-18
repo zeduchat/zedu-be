@@ -2,6 +2,7 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -101,7 +102,12 @@ func (base *Controller) GetChannel(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, code, err := channel.GetChannel(base.Db.Postgresql, channels_id, userId)
+	ids := models.IDS{
+		UserID:    userId,
+		ChannelID: channels_id,
+	}
+
+	respData, code, err := channel.GetChannel(base.Db.Postgresql, ids)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -372,7 +378,7 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
-		base.Logger.Info("error getting claims")
+		base.Logger.Info("error getting claims: user not authorized")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -381,37 +387,48 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	if _, err := uuid.Parse(id); err != nil {
+		base.Logger.Info("error parsing channel id: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid ID format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Info("error binding request body: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Info("error validating request: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
 	if req.Name == "general" {
+		base.Logger.Info("error: attempt to update channel name to general")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Cannot update channel name to general", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	result, err := channel.UpdateChannels(base.Db.Postgresql, req, id, userId)
+	ids := models.IDS{
+		ChannelID: id,
+		UserID:    userId,
+	}
+
+	result, code, err := channel.UpdateChannels(base.Db.Postgresql, req, ids)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Channels not found", err, nil)
-			c.JSON(http.StatusNotFound, rd)
+			base.Logger.Info("error: channel not found: %v", err.Error())
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", fmt.Sprintf("Channels not found: %v", err.Error()), err.Error(), nil)
+			c.JSON(code, rd)
 		} else {
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update channel", err, nil)
-			c.JSON(http.StatusInternalServerError, rd)
+			base.Logger.Info("error updating channel: %v", err.Error())
+			rd := utility.BuildErrorResponse(code, "error", fmt.Sprintf("Failed to update channel: %v", err.Error()), err.Error(), nil)
+			c.JSON(code, rd)
 		}
 		return
 	}

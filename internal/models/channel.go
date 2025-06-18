@@ -14,6 +14,7 @@ import (
 
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -22,8 +23,10 @@ type Channels struct {
 	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
 	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
 	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
+	Topic          string    `gorm:"column:topic; type:text; not null; default:'present'" json:"topic"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	OwnerName      string    `gorm:"-" json:"owner_name"`
 	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
 	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
 	MessageCount   int64     `gorm:"-" json:"-"`
@@ -57,9 +60,10 @@ type CreateChannelsRequest struct {
 	OrganisationID string `json:"organisation_id" validate:"required"`
 	Username       string `json:"username" validate:"required"`
 	Name           string `json:"name" validate:"required"`
-	IsPrivate      bool   `json:"is_private" validate:"required"`
+	IsPrivate      bool   `json:"is_private"`
 	Description    string `json:"description"`
 	UserId         string `json:"user_id"`
+	Topic          string `json:"topic"`
 }
 
 type GetChannelsRequest struct {
@@ -76,11 +80,15 @@ type GetChannelResp struct {
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl   string `json:"webhook_url,omitempty"`
-	ThreadCount  int64  `json:"thread_count"`
-	Access       bool   `json:"access"`
-	MentionCount int64  `json:"mention_count"`
-	LastThreadId string `json:"last_thread_id"`
+	WebhookUrl    string   `json:"webhook_url,omitempty"`
+	ThreadCount   int64    `json:"thread_count"`
+	Access        bool     `json:"access"`
+	MentionCount  int64    `json:"mention_count"`
+	LastThreadId  string   `json:"last_thread_id"`
+	MemberAvatars []string `json:"member_avatars"`
+	MembersCount  int      `json:"members_count"`
+	LastPostTime  string   `json:"last_post_time"`
+	UnreadCount   int64    `json:"unread_count"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -107,6 +115,7 @@ type JoinChannelsRequest struct {
 type UpdateChannelsRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Topic       string `json:"topic"`
 }
 
 type UpdateChannelsUserNameReq struct {
@@ -461,7 +470,7 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	inviterExist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channelID, req.UserID)
 
 	if r.IsPrivate && !inviterExist {
-		return validUserIds, errors.New("invitation denied, inviter not in channel!")
+		return validUserIds, errors.New("invitation denied, inviter not in channel")
 	}
 
 	for _, user := range users {
@@ -587,7 +596,10 @@ func (c *UserChannels) UserInChannels(db *gorm.DB, channelID, userID string) err
 }
 
 func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId string) (Channels, int, error) {
-	var channel Channels
+	var (
+		channel Channels
+		org     Organisation
+	)
 
 	err := db.Where("id = ?", r.ID).First(&channel).Error
 	if err != nil {
@@ -597,17 +609,19 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 		return channel, http.StatusInternalServerError, err
 	}
 
-	if channel.OwnerId != userId {
-		return Channels{}, http.StatusUnauthorized, errors.New("user not authorized")
-	}
+	org.ID = channel.OrganisationID
 
-	updates := map[string]interface{}{}
+	updates := map[string]any{}
 	if req.Name != "" {
 		updates["name"] = req.Name
 	}
 
 	if req.Description != "" {
 		updates["description"] = req.Description
+	}
+
+	if req.Topic != "" {
+		updates["topic"] = req.Topic
 	}
 
 	if len(updates) == 0 {
@@ -694,6 +708,88 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		Order("channels.created_at").
 		Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
+	}
+
+	for i := range chanResp {
+		var (
+			avatars      []string
+			totalMembers int64
+			lastReadAt   time.Time
+		)
+		if err := db.Table("user_channels").
+			Select("profiles.avatar_url").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", chanResp[i].ID).
+			Limit(8).
+			Pluck("profiles.avatar_url", &avatars).Error; err != nil {
+			return nil, fmt.Errorf("error fetching member avatars: %w", err)
+		}
+
+		if err := db.Table("user_channels").
+			Where("channels_id = ?", chanResp[i].ID).
+			Count(&totalMembers).Error; err != nil {
+			return nil, fmt.Errorf("error counting members: %w", err)
+		}
+
+		membersLeft := int(totalMembers) - len(avatars)
+		if membersLeft < 0 {
+			membersLeft = 0
+		}
+
+		err := db.Table("user_channels").
+			Where("channels_id = ? AND user_id = ?", chanResp[i].ID, ids.UserID).
+			Pluck("last_read_at", &lastReadAt).Error
+		if err != nil {
+			lastReadAt = time.Time{}
+			return nil, fmt.Errorf("error fetching last read at: %w", err)
+		}
+
+		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, lastReadAt)
+		if err != nil {
+			chanResp[i].UnreadCount = 0
+		} else {
+			chanResp[i].UnreadCount = unreadCount
+		}
+
+		lastPostTime, err := FetchLastMessageTime(base, chanResp[i].ID)
+		if err != nil {
+			chanResp[i].LastPostTime = "Last post unavailable"
+		} else if lastPostTime.IsZero() {
+			chanResp[i].LastPostTime = "No posts yet"
+		} else {
+			duration := time.Since(lastPostTime)
+
+			switch {
+			case duration < time.Minute:
+				chanResp[i].LastPostTime = "Just now"
+			case duration < time.Hour:
+				minutes := int(duration.Minutes())
+				if minutes == 1 {
+					chanResp[i].LastPostTime = "1 minute ago"
+				} else {
+					chanResp[i].LastPostTime = fmt.Sprintf("%d minutes ago", minutes)
+				}
+			case duration < 24*time.Hour:
+				hours := int(duration.Hours())
+				if hours == 1 {
+					chanResp[i].LastPostTime = "1 hour ago"
+				} else {
+					chanResp[i].LastPostTime = fmt.Sprintf("%d hourrs ago", hours)
+				}
+			case duration < 7*24*time.Hour:
+				days := int(duration.Hours() / 24)
+				if days == 1 {
+					chanResp[i].LastPostTime = "1 day ago"
+				} else {
+					chanResp[i].LastPostTime = fmt.Sprintf("%d days ago", days)
+				}
+			default:
+				chanResp[i].LastPostTime = "Long time ago"
+			}
+		}
+
+		chanResp[i].MemberAvatars = avatars
+		chanResp[i].MembersCount = membersLeft
 	}
 
 	return chanResp, nil
@@ -954,4 +1050,55 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 	}
 
 	logger.Info("user last read updated successfully")
+}
+
+func GetChannelUnreadCount(db *storage.Database, channelID, userID string, lastReadAt time.Time) (int64, error) {
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": channelID,
+						},
+					},
+					{
+						"range": map[string]any{
+							"created_at": map[string]any{
+								"gt": lastReadAt.Format(time.RFC3339),
+							},
+						},
+					},
+				},
+			},
+		},
+		"track_total_hits": true,
+		"size":             0,
+	}
+
+	var result any
+	err := elastic.SelectAll(db.Elastic, MessageIndexName, query, &result)
+	if err != nil {
+		return 0, err
+	}
+
+	hits, ok := result.(map[string]any)["hits"].(map[string]any)
+	if !ok {
+		return 0, nil
+	}
+	total, ok := hits["total"].(map[string]any)
+	if !ok {
+		return 0, nil
+	}
+	value, ok := total["value"].(float64)
+	if !ok {
+		return 0, nil
+	}
+	return int64(value), nil
+}
+
+func UpdateUserChannelLastRead(db *gorm.DB, channelID, userID string) error {
+	return db.Model(&UserChannels{}).
+		Where("channels_id = ? AND user_id = ?", channelID, userID).
+		Update("last_read_at", time.Now()).Error
 }

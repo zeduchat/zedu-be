@@ -48,11 +48,13 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/settings/billing"),
+		SuccessURL: stripe.String(url + "client/settings/organisation/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "client/settings/organisation/billing"),
 	}
 
 	params.AddMetadata("flow", "subscription")
+	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("org_id", req.OrgID)
 
 	session, err := session.New(params)
 	if err != nil {
