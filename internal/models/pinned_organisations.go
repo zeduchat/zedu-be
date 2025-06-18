@@ -10,12 +10,12 @@ import (
 )
 
 type UserPinnedOrganisations struct {
-	ID        string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	UserID    string         `gorm:"type:uuid;not null" json:"user_id"`
-	OrgID     string         `gorm:"type:uuid;not null" json:"org_id"`
-	CreatedAt time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        string         `gorm:"column:id;type:uuid;primaryKey;unique;not null" json:"id"`
+	UserID    string         `gorm:"column:user_id;type:uuid;not null" json:"user_id"`
+	OrgID     string         `gorm:"column:org_id;type:uuid;not null" json:"org_id"`
+	CreatedAt time.Time      `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;null;autoUpdateTime" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index" json:"-"`
 }
 
 type CreateUserPinnedOrganisationRequest struct {
@@ -66,8 +66,12 @@ func (u *UserPinnedOrganisations) UnpinOrganisation(db *gorm.DB, ids IDS) error 
 }
 
 func (u *UserPinnedOrganisations) RemoveOldestPinnedOrganisation(db *gorm.DB, userID string) error {
-	// If we have pinned organizations, get the oldest one
-	err := db.Where("user_id = ?", userID).First(&u).Error
+	var oldestPinnedOrg UserPinnedOrganisations
+
+	err := db.Table("user_pinned_organisations").
+		Where("user_id = ?", userID).
+		Order("created_at ASC").
+		First(&oldestPinnedOrg).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("no pinned organisations found")
@@ -75,8 +79,7 @@ func (u *UserPinnedOrganisations) RemoveOldestPinnedOrganisation(db *gorm.DB, us
 		return fmt.Errorf("failed to get oldest pinned organisation: %w", err)
 	}
 
-	// return postgresql.HardDeleteSpecificRecord(db, &u, "user_id = ? AND org_id = ?", u.UserID, u.OrgID)
-	return nil
+	return postgresql.HardDeleteSpecificRecord(db, &oldestPinnedOrg, "user_id = ? AND org_id = ?", oldestPinnedOrg.UserID, oldestPinnedOrg.OrgID)
 }
 
 func (u *UserPinnedOrganisations) CountCurrentUserPinnedOrganisations(db *gorm.DB, ids IDS) (int, error) {
