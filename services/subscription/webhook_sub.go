@@ -56,6 +56,7 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 		org.OrgPlanID = orgPlan.ID
 		org.OrganisationPlan = orgPlan
 		org.SubscriptionPlanId = req.StripeSessionID
+		org.StripeCustomerID = req.StripeCustomerID
 
 		err = orgPlan.Create(db)
 		if err != nil {
@@ -83,6 +84,7 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 		org.OrgPlanID = newOrgPlan.ID
 		org.OrganisationPlan = newOrgPlan
 		org.SubscriptionPlanId = req.StripeSessionID
+		org.StripeCustomerID = req.StripeCustomerID
 
 		err = newOrgPlan.Create(db)
 		if err != nil {

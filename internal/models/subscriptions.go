@@ -36,10 +36,11 @@ type DeleteSubscriptionRequest struct {
 }
 
 type CompleteSubscriptionRequest struct {
-	Email           string `json:"email"`
-	PlanName        string `json:"plan_name"`
-	OrgID           string `json:"org_id"`
-	StripeSessionID string `json:"stripe_session_id" validate:"required"`
+	Email            string `json:"email"`
+	PlanName         string `json:"plan_name"`
+	OrgID            string `json:"org_id"`
+	StripeCustomerID string `json:"stripe_customer_id"`
+	StripeSessionID  string `json:"stripe_session_id" validate:"required"`
 }
 
 type Plan struct {
