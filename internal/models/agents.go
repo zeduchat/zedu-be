@@ -1519,14 +1519,14 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 	return agents, nil
 }
 
-func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
 	var (
-		orgIntResp []OrganisationIntegrations
+		orgIntResp []Integrations
 	)
 
 	pagination := postgresql.GetPagination(c)
 
-	query := db.Model(&OrganisationIntegrations{})
+	query := db.Model(&Integrations{})
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -1547,19 +1547,18 @@ func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context
 func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (CustomIntegrationsMetrics, error) {
 	var metrics CustomIntegrationsMetrics
 
-	integrations := db.Model(&OrganisationIntegrations{})
 	organisations := db.Model(&Organisation{})
 	credits := db.Model(&CreditUsage{})
 
-	if err := integrations.Count(&metrics.All).Error; err != nil {
+	if err := db.Model(&OrganisationIntegrations{}).Count(&metrics.All).Error; err != nil {
 		return metrics, err
 	}
 
-	if err := integrations.Where("is_active = ?", true).Count(&metrics.Active).Error; err != nil {
+	if err := db.Model(&OrganisationIntegrations{}).Where("is_active = ?", true).Count(&metrics.Active).Error; err != nil {
 		return metrics, err
 	}
 
-	if err := integrations.Where("is_active = ?", false).Count(&metrics.Inactive).Error; err != nil {
+	if err := db.Model(&OrganisationIntegrations{}).Where("is_active = ?", false).Count(&metrics.Inactive).Error; err != nil {
 		return metrics, err
 	}
 
