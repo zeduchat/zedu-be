@@ -93,10 +93,6 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
 	}
 
-	if err := thread.DetectAndAddMentions(messageDoc.ID, req.Content, db.Postgresql); err != nil {
-		return &messageDoc, http.StatusBadRequest, err
-	}
-
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelsId,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
@@ -316,16 +312,16 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	var (
 		routing_key = "new_message"
-		oci         models.OrganisationChannelsIntegrations
-		channel     models.Channels
+		// oci         models.OrganisationChannelsIntegrations
+		channel models.Channels
 	)
 
-	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsId)
+	// res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsId)
 
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
-		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
-	}
+	// if err != nil {
+	// 	logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
+	// 	return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
+	// }
 
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsId,
@@ -341,7 +337,10 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	req.OrgId = channel_info.OrganisationID
 
-	if !res {
+	// sending reply message to agent would be implemented later
+
+	res := true
+	if res {
 		return SaveChannelsMsg(req, db, logger)
 	}
 
