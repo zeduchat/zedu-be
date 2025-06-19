@@ -1109,3 +1109,14 @@ func AdminDeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, agentID strin
 
 	return nil, code
 }
+
+func AdminUpdateAgent(req models.AdminUpdateAgent, agent_id string, db *gorm.DB) (models.OrganisationIntegrations, error) {
+	var agent models.OrganisationIntegrations
+
+	updatedAgent, err := agent.AdminUpdateAgent(db, agent_id, req)
+	if err != nil {
+		return models.OrganisationIntegrations{}, err
+	}
+
+	return updatedAgent, nil
+}

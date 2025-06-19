@@ -77,6 +77,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	adminAgentUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		adminAgentUrl.GET("/agents/all", adminAgent.GetAllCustomAgent)
+		adminAgentUrl.PUT("/agents/:agent_id", agentsCtrl.AdminUpdateAgent)
 		adminAgentUrl.GET("/agents/:agent_id", adminAgent.GetCustomAgentByID)
 		adminAgentUrl.GET("/agents/metrics", adminAgent.GetCustomAgentMetrics)
 		adminAgentUrl.DELETE("/agents/:agent_id", agentsCtrl.AdminDeleteCustomAgentApp)
