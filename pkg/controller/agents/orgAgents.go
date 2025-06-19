@@ -823,3 +823,84 @@ func (base *Controller) AgentCallback(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent callback received successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetAllCustomAgent(c *gin.Context) {
+	agents, paginationResponse, err, code := agents.GetAllCustomAgent(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(agents),
+	}
+
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetCustomAgentMetrics(c *gin.Context) {
+	metrics, err := agents.GetCustomAgentMetrics(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch metrics", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch metrics", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("metrics retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "metrics retrieved successfully.", metrics)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetCustomAgentByID(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	agent, err := agents.GetCustomAgentByID(c, base.Db.Postgresql, agent_id)
+	if err != nil {
+		base.Logger.Error("Failed to fetched agent details", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetched agent details", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Agent details fetched successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent details fetched successfully", agent)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) AdminDeleteCustomAgentApp(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err, code := agents.AdminDeleteCustomAgentApp(base.Db.Postgresql, *base.Logger, agent_id)
+
+	if err != nil {
+		base.Logger.Error("Failed to delete agent app", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to delete agent app", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent app deleted successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}

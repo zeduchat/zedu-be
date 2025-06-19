@@ -689,6 +689,29 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 	return lastMsgTime, nil
 }
 
+func (o *Organisation) GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]Organisation, postgresql.PaginationResponse, error) {
+	var organisations []Organisation
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&Organisation{})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&organisations,
+		nil,
+	)
+
+	if err != nil {
+		return organisations, paginationResponse, err
+	}
+
+	return organisations, paginationResponse, nil
+}
+
 func (o *Organisation) IsOwner(db *gorm.DB, userId string) bool {
 	var org Organisation
 

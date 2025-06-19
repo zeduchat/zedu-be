@@ -24,6 +24,7 @@ type Configuration struct {
 	Firebase     Firebase
 	MongoDB      MongoDB
 	OpenRouter   OpenRouter
+	Admin        Admin
 }
 
 type BaseConfig struct {
@@ -120,6 +121,11 @@ type BaseConfig struct {
 
 	MONGO_URI     string `mapstructure:"MONGO_URI"`
 	MONGO_DB_NAME string `mapstructure:"MONGO_DB_NAME"`
+
+	SUPER_ADMIN_EMAIL    string `mapstructure:"SUPER_ADMIN_EMAIL"`
+	SUPER_ADMIN_NAME     string `mapstructure:"SUPER_ADMIN_NAME"`
+	SUPER_ADMIN_PASSWORD string `mapstructure:"SUPER_ADMIN_PASSWORD"`
+	SUPER_ADMIN_ROLE     string `mapstructure:"SUPER_ADMIN_ROLE"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -252,6 +258,12 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		OpenRouter: OpenRouter{
 			ApiKey:  config.OPENROUTER_API_KEY,
 			BaseUrl: config.OPENROUTER_BASE_URL,
+		},
+		Admin: Admin{
+			SUPER_ADMIN_EMAIL:    config.SUPER_ADMIN_EMAIL,
+			SUPER_ADMIN_NAME:     config.SUPER_ADMIN_NAME,
+			SUPER_ADMIN_PASSWORD: config.SUPER_ADMIN_PASSWORD,
+			SUPER_ADMIN_ROLE:     config.SUPER_ADMIN_ROLE,
 		},
 	}
 }
