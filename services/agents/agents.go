@@ -509,7 +509,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	json.Unmarshal(bytes, &payload)
 
 	settings := ""
-	
+
 	settings_data := map[string]any{"settings": settings}
 
 	orgIntegration.OrgID = org_id
@@ -1055,8 +1055,8 @@ func GetAllCustomAgent(c *gin.Context, db *gorm.DB) (models.AgentsResp, postgres
 	for _, org_agents := range resp {
 
 		agent := models.Integrations{
-			ID:             org_agents.IntegrationID,
-			Name:           org_agents.AppName,
+			ID:             org_agents.ID,
+			Name:           org_agents.Name,
 			AppUrl:         org_agents.AppUrl,
 			AppLogo:        org_agents.AppLogo,
 			AppDescription: org_agents.AppDescription,
