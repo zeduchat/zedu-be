@@ -15455,7 +15455,7 @@ paths:
                           example: test-org5
                         avatar_url:
                           type: string
-                          example:"jpegs.jpegs"
+                          example: "jpegs.jpegs"
                         created_at:
                           type: string
                           format: date-time
