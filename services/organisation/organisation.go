@@ -599,3 +599,15 @@ func UploadOrganisationLogo(logger *utility.Logger, uniqueId string, file []byte
 	}
 	return "", nil
 }
+
+func GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]models.Organisation, postgresql.PaginationResponse, error) {
+	var org = models.Organisation{}
+
+	organisations, paginationResult, err := org.GetAllOrganisations(db, c)
+
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	return organisations, paginationResult, nil
+}

@@ -71,6 +71,17 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)
 	}
 
+	// fetch all agents ---> will be used to get all agents on the superAdmin dashboard
+	adminAgent := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+
+	adminAgentUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
+	{
+		adminAgentUrl.GET("/agents/all", adminAgent.GetAllCustomAgent)
+		adminAgentUrl.GET("/agents/:agent_id", adminAgent.GetCustomAgentByID)
+		adminAgentUrl.GET("/agents/metrics", adminAgent.GetCustomAgentMetrics)
+		adminAgentUrl.DELETE("/agents/:agent_id", agentsCtrl.AdminDeleteCustomAgentApp)
+	}
+
 	// Unauthenticated endpoint to fetch agents
 	intPage := r.Group(fmt.Sprintf("%v/agents", ApiVersion))
 	{

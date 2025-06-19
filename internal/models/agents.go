@@ -85,6 +85,14 @@ type ActivateChannelAgent struct {
 	Status bool `json:"status"`
 }
 
+type CustomIntegrationsMetrics struct {
+	All           int64   `json:"all"`
+	Active        int64   `json:"active"`
+	Inactive      int64   `json:"inactive"`
+	Organizations int64   `json:"organizations"`
+	Credits       float64 `json:"credits"`
+}
+
 type Price struct {
 	Amount        float64 `json:"amount"`
 	OperationType string  `json:"operation_type"`
@@ -135,6 +143,12 @@ type OrganisationIntegrations struct {
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
+}
+
+type AdminAgentResp struct {
+	Agent      OrganisationIntegrations `json:"agent"`
+	User       User                     `json:"user"`
+	CreditUsed float64                  `json:"credit_used"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -1503,4 +1517,163 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 		return nil, fmt.Errorf("failed to get integration settings: %v", err)
 	}
 	return agents, nil
+}
+
+func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+	var (
+		orgIntResp []OrganisationIntegrations
+	)
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&OrganisationIntegrations{})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&orgIntResp,
+		nil,
+	)
+
+	if err != nil {
+		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return orgIntResp, paginationResponse, nil, http.StatusOK
+}
+
+func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (CustomIntegrationsMetrics, error) {
+	var metrics CustomIntegrationsMetrics
+
+	integrations := db.Model(&OrganisationIntegrations{})
+	organisations := db.Model(&Organisation{})
+	credits := db.Model(&CreditUsage{})
+
+	if err := integrations.Count(&metrics.All).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := integrations.Where("is_active = ?", true).Count(&metrics.Active).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := integrations.Where("is_active = ?", false).Count(&metrics.Inactive).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := organisations.Count(&metrics.Organizations).Error; err != nil {
+		return metrics, err
+	}
+
+	if err := credits.Select("SUM(amount)").Scan(&metrics.Credits).Error; err != nil {
+		return metrics, err
+	}
+
+	return metrics, nil
+}
+
+func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (AdminAgentResp, error) {
+	var resp AdminAgentResp
+
+	if err := db.Where("integration_id = ?", agentID).First(&resp.Agent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return AdminAgentResp{}, errors.New("agent not found")
+		}
+		return AdminAgentResp{}, err
+	}
+
+	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
+	}
+
+	var total float64
+	if err := db.Table("credit_usages").
+		Select("COALESCE(SUM(amount), 0)").
+		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
+	}
+
+	resp.CreditUsed = total
+
+	return resp, nil
+}
+
+func (i *OrganisationIntegrations) AdminDeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
+	var (
+		org_integration OrganisationIntegrations
+		dmchannels      []DmChannels
+		channelIDs      []string
+		thread          Threads
+	)
+
+	tx := db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error), http.StatusInternalServerError
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	exists := postgresql.CheckExists(tx, &org_integration, "integration_id = ?", agentID)
+	if !exists {
+		tx.Rollback()
+		return errors.New("agent app does not exist"), http.StatusBadRequest
+	}
+
+	err := tx.Delete(&OrganisationIntegrations{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&OrganisationChannelsIntegrations{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation channels integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = postgresql.SelectAllFromDb(tx, "", &dmchannels, "org_id = ? AND chat_type = 'bot' AND participant_id = ?", org_integration.OrgID, agentID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch bot DM channels: %w", err), http.StatusInternalServerError
+	}
+
+	if len(dmchannels) > 0 {
+		for _, channel := range dmchannels {
+			channelIDs = append(channelIDs, channel.ChannelId)
+		}
+
+		err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err), http.StatusInternalServerError
+	}
+
+	if len(channelIDs) > 0 {
+		for _, channelID := range channelIDs {
+			thread.ID = channelID
+			_, err := thread.ClearDMThreadsByChannelID(db)
+			if err != nil {
+				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+			}
+		}
+	}
+
+	return nil, http.StatusOK
 }
