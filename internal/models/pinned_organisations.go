@@ -26,6 +26,7 @@ type GetUserPinnedOrganisationsResponse struct {
 	ID        string    `json:"id"`
 	OrgID     string    `json:"org_id"`
 	OrgName   string    `json:"org_name"`
+	AvatarUrl string    `json:"avatar_url"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -48,7 +49,7 @@ func (u *UserPinnedOrganisations) GetUserPinnedOrganisations(db *gorm.DB, ids ID
 	var pinnedOrgs []GetUserPinnedOrganisationsResponse
 
 	err := db.Table("user_pinned_organisations").
-		Select("user_pinned_organisations.id, user_pinned_organisations.org_id, organisations.name as org_name, user_pinned_organisations.created_at, user_pinned_organisations.updated_at").
+		Select("user_pinned_organisations.id, user_pinned_organisations.org_id, organisations.name as org_name, organisations.logo_url as avatar_url, user_pinned_organisations.created_at, user_pinned_organisations.updated_at").
 		Joins("JOIN organisations ON organisations.id = user_pinned_organisations.org_id").
 		Where("user_pinned_organisations.user_id = ?", ids.UserID).
 		Order("user_pinned_organisations.created_at DESC").
