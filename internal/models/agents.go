@@ -1637,6 +1637,12 @@ func (i *OrganisationIntegrations) AdminDeleteCustomAgentApp(db *gorm.DB, logger
 		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
 	}
 
+	err = tx.Delete(&OrganisationChannelsIntegrations{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation channels integration: %w", err), http.StatusInternalServerError
+	}
+
 	err = postgresql.SelectAllFromDb(tx, "", &dmchannels, "org_id = ? AND chat_type = 'bot' AND participant_id = ?", org_integration.OrgID, agentID)
 	if err != nil {
 		tx.Rollback()
