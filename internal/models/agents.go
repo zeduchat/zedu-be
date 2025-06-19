@@ -1520,17 +1520,21 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 }
 
 func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
-	var (
-		orgIntResp []OrganisationIntegrations
-	)
-
+	var orgIntResp []OrganisationIntegrations
 	pagination := postgresql.GetPagination(c)
 
-	query := db.Model(&OrganisationIntegrations{})
+	subQuery := db.
+		Model(&OrganisationIntegrations{}).
+		Select("MAX(created_at) AS max_created_at, integration_id").
+		Group("integration_id")
+
+	query := db.
+		Model(&OrganisationIntegrations{}).
+		Joins("JOIN (?) AS latest ON latest.integration_id = organisation_integrations.integration_id AND latest.max_created_at = organisation_integrations.created_at", subQuery)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
+		"organisation_integrations.created_at",
 		"desc",
 		pagination,
 		&orgIntResp,
