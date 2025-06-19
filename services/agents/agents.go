@@ -1055,8 +1055,8 @@ func GetAllCustomAgent(c *gin.Context, db *gorm.DB) (models.AgentsResp, postgres
 	for _, org_agents := range resp {
 
 		agent := models.Integrations{
-			ID:             org_agents.ID,
-			Name:           org_agents.Name,
+			ID:             org_agents.IntegrationID,
+			Name:           org_agents.AppName,
 			AppUrl:         org_agents.AppUrl,
 			AppLogo:        org_agents.AppLogo,
 			AppDescription: org_agents.AppDescription,
