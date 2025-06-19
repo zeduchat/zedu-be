@@ -52,6 +52,12 @@ type UpdateAgent struct {
 	IntegrationType string `json:"integration_type"`
 }
 
+type AdminUpdateAgent struct {
+	IsActive   bool `json:"is_active"`
+	IsApproved bool `json:"is_approved"`
+	IsSystem   bool `json:"is_system"`
+}
+
 type ChangeAgentStatus struct {
 	Status     bool   `json:"status" validate:"required,oneof=true false"`
 	AgentID    string `json:"integration_id"`
@@ -1679,4 +1685,23 @@ func (i *OrganisationIntegrations) AdminDeleteCustomAgentApp(db *gorm.DB, logger
 	}
 
 	return nil, http.StatusOK
+}
+
+func (i *OrganisationIntegrations) AdminUpdateAgent(db *gorm.DB, agentID string, req AdminUpdateAgent) (OrganisationIntegrations, error) {
+	var agent OrganisationIntegrations
+
+	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", agentID)
+	if !exists {
+		return agent, errors.New("agent app does not exist")
+	}
+
+	agent.IsActive = req.IsActive
+	agent.IsApproved = req.IsApproved
+	agent.IsSystem = req.IsSystem
+
+	if err := db.Save(&agent).Error; err != nil {
+		return agent, err
+	}
+
+	return agent, nil
 }

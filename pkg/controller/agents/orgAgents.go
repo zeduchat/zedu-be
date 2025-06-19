@@ -904,3 +904,42 @@ func (base *Controller) AdminDeleteCustomAgentApp(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent app deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) AdminUpdateAgent(c *gin.Context) {
+	var req models.AdminUpdateAgent
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	updatedAgents, err := agents.AdminUpdateAgent(req, agent_id, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to update agent app", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update agent app", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Agents updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agents updated successfully", updatedAgents)
+	c.JSON(http.StatusOK, rd)
+}
