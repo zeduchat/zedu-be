@@ -154,6 +154,12 @@ type OrganisationIntegrations struct {
 }
 
 type AdminAgentResp struct {
+	Agent      Integrations `json:"agent"`
+	User       User         `json:"user"`
+	CreditUsed float64      `json:"credit_used"`
+}
+
+type AdminCustomAgentResp struct {
 	Agent      OrganisationIntegrations `json:"agent"`
 	User       User                     `json:"user"`
 	CreditUsed float64                  `json:"credit_used"`
@@ -1637,25 +1643,25 @@ func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (Cust
 	return metrics, nil
 }
 
-func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (AdminAgentResp, error) {
-	var resp AdminAgentResp
+func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (AdminCustomAgentResp, error) {
+	var resp AdminCustomAgentResp
 
 	if err := db.Where("integration_id = ?", agentID).First(&resp.Agent).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AdminAgentResp{}, errors.New("agent not found")
+			return AdminCustomAgentResp{}, errors.New("agent not found")
 		}
-		return AdminAgentResp{}, err
+		return AdminCustomAgentResp{}, err
 	}
 
 	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
-		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
+		return AdminCustomAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
 	}
 
 	var total float64
 	if err := db.Table("credit_usages").
 		Select("COALESCE(SUM(amount), 0)").
 		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
-		return AdminAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
+		return AdminCustomAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
 	}
 
 	resp.CreditUsed = total
@@ -1758,4 +1764,30 @@ func (i *OrganisationIntegrations) AdminUpdateAgent(db *gorm.DB, agentID string,
 	}
 
 	return agent, nil
+}
+
+func (i *Integrations) GetAgentByID(db *gorm.DB, agentID string) (AdminAgentResp, error) {
+	var resp AdminAgentResp
+
+	if err := db.Where("id = ?", agentID).First(&resp.Agent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return AdminAgentResp{}, errors.New("agent not found")
+		}
+		return AdminAgentResp{}, err
+	}
+
+	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
+	}
+
+	var total float64
+	if err := db.Table("credit_usages").
+		Select("COALESCE(SUM(amount), 0)").
+		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
+	}
+
+	resp.CreditUsed = total
+
+	return resp, nil
 }
