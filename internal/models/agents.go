@@ -45,6 +45,7 @@ type Integrations struct {
 	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
+	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
 }
 
 type UpdateAgent struct {
@@ -345,7 +346,7 @@ func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context
 
 	err := db.Table("integrations AS i").
 		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, i.integration_type,
-				i.is_system_integration, 
+				i.is_system, 
 				COALESCE(oi.created_at, i.created_at) AS created_at, 
 				COALESCE(oi.updated_at, i.updated_at) AS updated_at, 
 				COALESCE(oi.is_active, false) AS is_active, 
@@ -1790,4 +1791,13 @@ func (i *Integrations) GetAgentByID(db *gorm.DB, agentID string) (AdminAgentResp
 	resp.CreditUsed = total
 
 	return resp, nil
+}
+
+func (si *Integrations) CreateSystemIntegration(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, &si)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
