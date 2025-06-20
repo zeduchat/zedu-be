@@ -169,61 +169,15 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 
 	for _, org_agents := range resp {
 
-		json_url := org_agents.JSONUrl
-		data := map[string]string{"url": json_url}
-
-		response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
-
-		if err != nil {
-			agent := models.Integrations{
-				ID:             org_agents.ID,
-				Name:           "Unavailable",
-				JSONUrl:        org_agents.JSONUrl,
-				AppDescription: "This agent is currently unavailable.",
-				Category:       "Unavailable",
-				IsActive:       false,
-				Status:         "failed",
-				CreatedAt:      org_agents.CreatedAt,
-				UpdatedAt:      org_agents.UpdatedAt,
-			}
-
-			int_resp = append(int_resp, struct {
-				models.Integrations
-				Linked bool "json:\"linked\""
-			}{
-				Integrations: agent,
-				Linked:       true,
-			})
-			continue
-		}
-
-		response_data := response.(map[string]interface{})
-
-		data_r := response_data["data"].(map[string]interface{})
-
-		description := data_r["descriptions"].(map[string]interface{})
-
-		category, ok := data_r["integration_category"].(string)
-
-		info, ok := data_r["info"].(string)
-		if !ok || info == "" {
-			info = "Undefined"
-		}
-
-		if !ok || category == "" {
-
-			category = "Undefined"
-		}
-
 		agent := models.Integrations{
 			ID:             org_agents.ID,
-			Name:           description["app_name"].(string),
+			Name:           org_agents.Name,
 			JSONUrl:        org_agents.JSONUrl,
-			AppUrl:         description["app_url"].(string),
-			AppLogo:        description["app_logo"].(string),
-			AppDescription: description["app_description"].(string),
-			Info:           info,
-			Category:       category,
+			AppUrl:         org_agents.AppUrl,
+			AppLogo:        org_agents.AppLogo,
+			AppDescription: org_agents.AppDescription,
+			Info:           org_agents.Info,
+			Category:       org_agents.Category,
 			Status:         "success",
 			IsActive:       org_agents.IsActive,
 			CreatedAt:      org_agents.CreatedAt,
@@ -251,48 +205,15 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		return models.Integrations{}, err, code
 	}
 
-	json_url := resp.JSONUrl
-	data := map[string]string{"url": json_url}
-
-	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
-
-	if err != nil {
-		extReq.Logger.Error("An error occurred while fetching agent json, err: %s ", err)
-		agent := models.Integrations{
-			ID:             resp.ID,
-			Name:           "Unavailable",
-			JSONUrl:        resp.JSONUrl,
-			AppDescription: "This agent is currently unavailable.",
-			Category:       "Unavailable",
-			IsActive:       false,
-			Status:         "failed",
-			CreatedAt:      resp.CreatedAt,
-			UpdatedAt:      resp.UpdatedAt,
-		}
-
-		return agent, nil, code
-	}
-
-	response_data := response.(map[string]interface{})
-
-	data_r := response_data["data"].(map[string]interface{})
-
-	description := data_r["descriptions"].(map[string]interface{})
-
-	info, ok := data_r["info"].(string)
-	if !ok {
-		info = "Undefined"
-	}
-
 	agent := models.Integrations{
 		ID:             resp.ID,
-		Name:           description["app_name"].(string),
+		Name:           resp.Name,
 		JSONUrl:        resp.JSONUrl,
 		Status:         "success",
-		AppUrl:         description["app_url"].(string),
-		AppLogo:        description["app_logo"].(string),
-		AppDescription: description["app_description"].(string),
-		Info:           info,
+		AppUrl:         resp.Category,
+		AppLogo:        resp.AppLogo,
+		AppDescription: resp.AppDescription,
+		Info:           resp.Info,
 		IsActive:       resp.IsActive,
 		CreatedAt:      resp.CreatedAt,
 		UpdatedAt:      resp.UpdatedAt,
