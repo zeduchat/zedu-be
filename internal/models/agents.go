@@ -211,6 +211,7 @@ type PartialOrganisationIntegration struct {
 	IsArchived    bool      `json:"is_archived"`
 	JSONUrl       string    `json:"json_url"`
 	AppName       string    `json:"app_name"`
+	Name          string    `json:"name"`
 	AppLogo       string    `json:"app_logo"`
 	AppUrl        string    `json:"app_url"`
 	IsPaid        bool      `json:"is_paid"`
