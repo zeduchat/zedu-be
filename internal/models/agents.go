@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -191,6 +193,23 @@ type IntegrationOutput struct {
 	CreatedAt             time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt             time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	IntegrationChannels   []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"integration_channels"`
+}
+
+type PartialOrganisationIntegration struct {
+	ID            string    `json:"id"`
+	IntegrationID *string   `json:"integration_id"`
+	OrgID         *string   `json:"org_id"`
+	IsActive      bool      `json:"is_active"`
+	IsSystem      bool      `json:"is_system"`
+	IsArchived    bool      `json:"is_archived"`
+	JSONUrl       string    `json:"json_url"`
+	AppName       string    `json:"app_name"`
+	AppLogo       string    `json:"app_logo"`
+	AppUrl        string    `json:"app_url"`
+	IsPaid        bool      `json:"is_paid"`
+	IsApproved    bool      `json:"is_approved"`
+	CreatedAt     time.Time `json:"created_at"`
+	Source        string    `json:"source"`
 }
 
 type IntegrationChannel struct {
@@ -1525,8 +1544,15 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 	return agents, nil
 }
 
-func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
-	var orgIntResp []OrganisationIntegrations
+func (i *PartialOrganisationIntegration) GetAllCustomAgent(
+	db *gorm.DB,
+	c *gin.Context,
+) ([]PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
+
+	var orgIntResp []PartialOrganisationIntegration
+	var integrationsResp []PartialOrganisationIntegration
+	var merged []PartialOrganisationIntegration
+
 	pagination := postgresql.GetPagination(c)
 
 	subQuery := db.
@@ -1534,24 +1560,51 @@ func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context
 		Select("MAX(created_at) AS max_created_at, integration_id").
 		Group("integration_id")
 
-	query := db.
+	orgQuery := db.
 		Model(&OrganisationIntegrations{}).
 		Joins("JOIN (?) AS latest ON latest.integration_id = organisation_integrations.integration_id AND latest.max_created_at = organisation_integrations.created_at", subQuery)
 
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		query,
-		"organisation_integrations.created_at",
-		"desc",
-		pagination,
-		&orgIntResp,
-		nil,
-	)
-
-	if err != nil {
-		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	if err := orgQuery.Find(&orgIntResp).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err, http.StatusInternalServerError
 	}
 
-	return orgIntResp, paginationResponse, nil, http.StatusOK
+	if err := db.
+		Table("integrations").
+		Find(&integrationsResp).Error; err != nil {
+		return nil, postgresql.PaginationResponse{}, err, http.StatusInternalServerError
+	}
+
+	for i := range orgIntResp {
+		orgIntResp[i].Source = "organization"
+	}
+
+	for i := range integrationsResp {
+		integrationsResp[i].Source = "non-organization"
+	}
+
+	merged = append(orgIntResp, integrationsResp...)
+
+	sort.Slice(merged, func(i, j int) bool {
+		return merged[i].CreatedAt.After(merged[j].CreatedAt)
+	})
+
+	start := (pagination.Page - 1) * pagination.Limit
+	end := start + pagination.Limit
+	if start > len(merged) {
+		start = len(merged)
+	}
+	if end > len(merged) {
+		end = len(merged)
+	}
+	paginated := merged[start:end]
+
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       len(merged),
+		TotalPagesCount: int(math.Ceil(float64(len(merged)) / float64(pagination.Limit))),
+	}
+
+	return paginated, paginationResponse, nil, http.StatusOK
 }
 
 func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (CustomIntegrationsMetrics, error) {
