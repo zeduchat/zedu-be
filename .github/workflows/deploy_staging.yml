@@ -25,12 +25,12 @@ jobs:
 
       - name: Run DB migrations
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST <<'EOF'
             set -e
-            cd '"$APP_DIR"'
+            cd $APP_DIR
             echo "🗃️ Running DB migrations..."
             make migrate-safe-up
-          '
+      EOF
 
       - name: Build and stop on failure
         run: |
