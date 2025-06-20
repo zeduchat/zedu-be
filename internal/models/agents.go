@@ -210,6 +210,7 @@ type PartialOrganisationIntegration struct {
 	IsApproved    bool      `json:"is_approved"`
 	CreatedAt     time.Time `json:"created_at"`
 	Source        string    `json:"source"`
+	Provider      Provider  `json:"provider"`
 }
 
 type IntegrationChannel struct {
