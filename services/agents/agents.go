@@ -1102,3 +1102,131 @@ func AdminUpdateAgent(req models.AdminUpdateAgent, agent_id string, db *gorm.DB)
 
 	return updatedAgent, nil
 }
+
+func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq request.ExternalRequest, admin_id string) (models.AgentResp, error) {
+	var (
+		systemIntegration models.Integrations
+		int_resp          models.AgentResp
+		agentSettings     models.IntegrationSettings
+	)
+
+	err := validateJSONURL(req.JSONUrl)
+	if err != nil {
+		return int_resp, err
+	}
+
+	agentID, err := utility.GenerateUUIDFromString(req.JSONUrl)
+	if err != nil {
+		return int_resp, fmt.Errorf("error generating agent ID from JSON URL: %v", err)
+	}
+
+	exists := postgresql.CheckExists(db, &systemIntegration, "id = ?", agentID)
+	if exists {
+		return int_resp, errors.New("organisation already has that agent")
+	}
+
+	data := map[string]string{"url": req.JSONUrl}
+	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+
+	if err != nil {
+		return int_resp, errors.New("failed to create agent, invalid JSON supplied")
+	}
+
+	data_r, ok := response.(map[string]interface{})
+	if !ok {
+		return int_resp, errors.New("failed to create agent, data field does not exist")
+	}
+
+	err = models.ValidateAgentData(data_r)
+	if err != nil {
+		return int_resp, err
+	}
+
+	psk, err := models.GenerateAgentKey()
+	if err != nil {
+		return int_resp, err
+	}
+
+	bytes, err := json.Marshal(data_r)
+	if err != nil {
+		return int_resp, err
+	}
+
+	var payload models.OrganisationIntegrations
+	json.Unmarshal(bytes, &payload)
+
+	systemIntegration.JSONUrl = req.JSONUrl
+	systemIntegration.ID = agentID
+	systemIntegration.IsActive = true
+	systemIntegration.IsSystem = true
+	systemIntegration.ID = utility.GenerateUUID()
+	systemIntegration.Name = data_r["name"].(string)
+	systemIntegration.AppDescription = data_r["description"].(string)
+	systemIntegration.AppUrl = data_r["url"].(string)
+	systemIntegration.Prices = payload.Prices
+	systemIntegration.Provider = payload.Provider
+	systemIntegration.Version = payload.Version
+	systemIntegration.DefaultInputModes = payload.DefaultInputModes
+	systemIntegration.DefaultOutputModes = payload.DefaultOutputModes
+	systemIntegration.Skills = payload.Skills
+	systemIntegration.IsPaid = payload.IsPaid
+	systemIntegration.PreSharedKey = psk
+	systemIntegration.OwnerID = admin_id
+
+	err = systemIntegration.CreateSystemIntegration(db)
+	if err != nil {
+		return int_resp, err
+	}
+
+	settings := ""
+
+	settings_data := map[string]any{"settings": settings}
+
+	auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
+	auth_credentials["agent_api_key"] = psk
+	settings_data["auth_credentials"] = auth_credentials
+
+	settingJsonData, err := json.Marshal(settings_data)
+	if err != nil {
+		return int_resp, fmt.Errorf("error serializing to JSON: %v", err)
+	}
+
+	serialized_settings := string(settingJsonData)
+
+	agentSettings.ID = utility.GenerateUUID()
+	agentSettings.SettingEntry = serialized_settings
+	agentSettings.IsSystem = true
+	agentSettings.OrgID = nil
+	agentSettings.IntegrationID = systemIntegration.ID
+	agentSettings.FormFieldValue = serialized_settings
+	agentSettings.FormFieldLabel = "Agent Auth"
+
+	err = agentSettings.CreateSystemIntegrationSettings(db)
+	if err != nil {
+		return int_resp, errors.New("failed to create agent settings")
+	}
+
+	agent := models.Integrations{
+		ID:             systemIntegration.ID,
+		Name:           systemIntegration.Name,
+		JSONUrl:        systemIntegration.JSONUrl,
+		AppUrl:         systemIntegration.AppUrl,
+		AppLogo:        systemIntegration.AppLogo,
+		AppDescription: systemIntegration.AppDescription,
+		Category:       "Agents",
+		Status:         "success",
+		IsActive:       systemIntegration.IsActive,
+		CreatedAt:      systemIntegration.CreatedAt,
+		UpdatedAt:      systemIntegration.UpdatedAt,
+	}
+
+	int_resp = struct {
+		models.Integrations
+		Linked bool "json:\"linked\""
+	}{
+		Integrations: agent,
+		Linked:       true,
+	}
+
+	return int_resp, nil
+}

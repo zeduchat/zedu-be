@@ -945,3 +945,44 @@ func (base *Controller) AdminUpdateAgent(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agents updated successfully", updatedAgents)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) CreateSystemAgent(c *gin.Context) {
+	var (
+		req models.CustomIntegrationRequest
+	)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("adminClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	adminClaims := claims.(jwt.MapClaims)
+	adminId := adminClaims["admin_id"].(string)
+
+	resp, err := agents.CreateSystemAgent(req, base.Db.Postgresql, base.ExtReq, adminId)
+	if err != nil {
+		base.Logger.Error("Failed to Create Sytem Agent, invalid url:  "+req.JSONUrl, err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Sytem agent created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", resp)
+	c.JSON(http.StatusCreated, rd)
+}
