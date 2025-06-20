@@ -1107,6 +1107,7 @@ func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq 
 	var (
 		systemIntegration models.Integrations
 		int_resp          models.AgentResp
+		agentSettings     models.IntegrationSettings
 	)
 
 	err := validateJSONURL(req.JSONUrl)
@@ -1175,6 +1176,34 @@ func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq 
 	err = systemIntegration.CreateSystemIntegration(db)
 	if err != nil {
 		return int_resp, err
+	}
+
+	settings := ""
+
+	settings_data := map[string]any{"settings": settings}
+
+	auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
+	auth_credentials["agent_api_key"] = psk
+	settings_data["auth_credentials"] = auth_credentials
+
+	settingJsonData, err := json.Marshal(settings_data)
+	if err != nil {
+		return int_resp, fmt.Errorf("error serializing to JSON: %v", err)
+	}
+
+	serialized_settings := string(settingJsonData)
+
+	agentSettings.ID = utility.GenerateUUID()
+	agentSettings.SettingEntry = serialized_settings
+	agentSettings.IsSystem = true
+	agentSettings.OrgID = nil
+	agentSettings.IntegrationID = systemIntegration.ID
+	agentSettings.FormFieldValue = serialized_settings
+	agentSettings.FormFieldLabel = "Agent Auth"
+
+	err = agentSettings.CreateSystemIntegrationSettings(db)
+	if err != nil {
+		return int_resp, errors.New("failed to create agent settings")
 	}
 
 	agent := models.Integrations{

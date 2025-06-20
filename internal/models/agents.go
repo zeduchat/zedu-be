@@ -1801,3 +1801,12 @@ func (si *Integrations) CreateSystemIntegration(db *gorm.DB) error {
 
 	return nil
 }
+
+func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, &i)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
