@@ -150,7 +150,7 @@ type OrganisationIntegrations struct {
 	Provider           Provider   `gorm:"type:jsonb" json:"provider"`
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
-	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
+	PreSharedKey       string     `gorm:"type:varchar(64)" json:"preshared_key"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 }
 
