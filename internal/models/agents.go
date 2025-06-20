@@ -644,6 +644,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.Skills = agent.Skills
 		oi.IsPaid = agent.IsPaid
 		oi.IsSystem = true
+		oi.PreSharedKey = agent.PreSharedKey
 		oi.OwnerID = ids["user_id"]
 
 		err := oi.CreateOrganisationIntegration(db)
