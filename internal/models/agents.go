@@ -1628,7 +1628,7 @@ func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 
 	var creditAggregates []CreditAggregate
 	err = db.Model(&CreditUsage{}).
-		Select("agent_id, SUM(amount) AS total_used").
+		Select("agent_id AS integration_id, COALESCE(SUM(amount), 0) AS total_used").
 		Where("agent_id IN ?", agentIDs).
 		Group("agent_id").
 		Scan(&creditAggregates).Error
@@ -1723,7 +1723,7 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 
 	var creditAggregates []CreditAggregate
 	err = db.Model(&CreditUsage{}).
-		Select("agent_id, SUM(amount) AS total_used").
+		Select("agent_id as integration_id,  COALESCE(SUM(amount), 0) AS total_used").
 		Where("agent_id IN ?", agentIDs).
 		Group("agent_id").
 		Scan(&creditAggregates).Error
