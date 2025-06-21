@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"time"
 
@@ -1556,29 +1555,135 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 	db *gorm.DB,
 	c *gin.Context,
+	search string,
+	sortBy string,
+	sortOrder string,
+	active bool,
 ) ([]PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
 
-	var integrationsResp []PartialOrganisationIntegration
+	var results []Integrations
 
 	pagination := postgresql.GetPagination(c)
 
-	if err := db.
-		Table("integrations").
-		Find(&integrationsResp).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err, http.StatusInternalServerError
+	query := db.Model(&Integrations{}).
+		Where("json_url != ''")
+
+	if search != "" {
+		searchValue := "%" + search + "%"
+		query = query.Where("name ILIKE ?", searchValue)
 	}
 
-	for i := range integrationsResp {
-		integrationsResp[i].Source = "non-organization"
+	if active {
+		query = query.Where("is_active = ?", true)
+	} else {
+		query = query.Where("is_active = ?", false)
 	}
 
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     pagination.Page,
-		PageCount:       len(integrationsResp),
-		TotalPagesCount: int(math.Ceil(float64(len(integrationsResp)) / float64(pagination.Limit))),
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
 	}
 
-	return integrationsResp, paginationResponse, nil, http.StatusOK
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		sortBy,
+		sortOrder,
+		pagination,
+		&results,
+		nil,
+	)
+
+	IntResp := make([]PartialOrganisationIntegration, len(results))
+	for i, int_mp := range results {
+		IntResp[i] = PartialOrganisationIntegration{
+			ID:         int_mp.ID,
+			Name:       int_mp.Name,
+			IsActive:   int_mp.IsActive,
+			IsPaid:     int_mp.IsPaid,
+			Provider:   int_mp.Provider,
+			CreatedAt:  int_mp.CreatedAt,
+			JSONUrl:    int_mp.JSONUrl,
+			Source:     "non-organization",
+			IsSystem:   int_mp.IsSystem,
+			IsApproved: int_mp.IsApproved,
+		}
+	}
+
+	if err != nil {
+		return IntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return IntResp, paginationResponse, nil, http.StatusOK
+}
+
+func (i *PartialOrganisationIntegration) GetAllCustomAgent(
+	db *gorm.DB,
+	c *gin.Context,
+	search string,
+	sortBy string,
+	sortOrder string,
+	active bool,
+) ([]PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
+
+	var results []OrganisationIntegrations
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&OrganisationIntegrations{}).
+		Where("json_url != ''")
+
+	if search != "" {
+		searchValue := "%" + search + "%"
+		query = query.Where("app_name ILIKE ?", searchValue)
+	}
+
+	if active {
+		query = query.Where("is_active = ?", true)
+	} else {
+		query = query.Where("is_active = ?", false)
+	}
+
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		sortBy,
+		sortOrder,
+		pagination,
+		&results,
+		nil,
+	)
+
+	orgIntResp := make([]PartialOrganisationIntegration, len(results))
+	for i, org := range results {
+		orgIntResp[i] = PartialOrganisationIntegration{
+			ID:            org.ID,
+			AppName:       org.AppName,
+			IntegrationID: &org.IntegrationID,
+			IsActive:      org.IsActive,
+			IsPaid:        org.IsPaid,
+			Provider:      org.Provider,
+			CreatedAt:     org.CreatedAt,
+			JSONUrl:       org.JSONUrl,
+			Source:        "organization",
+			IsSystem:      org.IsSystem,
+			IsApproved:    org.IsApproved,
+			OrgID:         &org.OrgID,
+		}
+	}
+
+	if err != nil {
+		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return orgIntResp, paginationResponse, nil, http.StatusOK
 }
 
 func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (CustomIntegrationsMetrics, error) {
