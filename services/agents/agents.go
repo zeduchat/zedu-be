@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -963,12 +964,38 @@ func AgentCallback(ids map[string]string, db *gorm.DB, extReq request.ExternalRe
 }
 
 func GetAllCustomAgent(c *gin.Context, db *gorm.DB) ([]models.PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
-	var org_agents models.PartialOrganisationIntegration
+	search := c.Query("search")
+	isSystem := c.DefaultQuery("is_system", "true")
+	sortBy := c.DefaultQuery("sort_by", "created_at")
+	sortOrder := c.DefaultQuery("sort_order", "desc")
+	is_active := c.DefaultQuery("is_active", "true")
 
-	resp, paginationResult, err, code := org_agents.GetAllCustomAgent(db, c)
-
+	isSystemBool, err := strconv.ParseBool(isSystem)
 	if err != nil {
-		return nil, postgresql.PaginationResponse{}, err, code
+		isSystemBool = false
+	}
+
+	active, err := strconv.ParseBool(is_active)
+	if err != nil {
+		active = false
+	}
+
+	var (
+		resp             []models.PartialOrganisationIntegration
+		paginationResult postgresql.PaginationResponse
+		code             int
+		fetchErr         error
+		orgAgentsModel   models.PartialOrganisationIntegration
+	)
+
+	if isSystemBool {
+		resp, paginationResult, fetchErr, code = orgAgentsModel.GetAllSystemAgent(db, c, search, sortBy, sortOrder, active)
+	} else {
+		resp, paginationResult, fetchErr, code = orgAgentsModel.GetAllCustomAgent(db, c, search, sortBy, sortOrder, active)
+	}
+
+	if fetchErr != nil {
+		return nil, postgresql.PaginationResponse{}, fetchErr, code
 	}
 
 	return resp, paginationResult, nil, code
