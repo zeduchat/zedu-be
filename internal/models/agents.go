@@ -158,6 +158,11 @@ type AdminAgentResp struct {
 	CreditUsed float64      `json:"credit_used"`
 }
 
+type CreditAggregate struct {
+	IntegrationID string
+	TotalUsed     float64
+}
+
 type AdminCustomAgentResp struct {
 	Agent      OrganisationIntegrations `json:"agent"`
 	User       User                     `json:"user"`
@@ -217,6 +222,7 @@ type PartialOrganisationIntegration struct {
 	CreatedAt     time.Time `json:"created_at"`
 	Source        string    `json:"source"`
 	Provider      Provider  `json:"provider"`
+	CreditUsed    float64   `json:"credit_used"`
 }
 
 type IntegrationChannel struct {
@@ -1615,6 +1621,33 @@ func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 		return IntResp, paginationResponse, err, http.StatusInternalServerError
 	}
 
+	agentIDs := make([]string, len(IntResp))
+	for i, agent := range IntResp {
+		agentIDs[i] = agent.ID
+	}
+
+	var creditAggregates []CreditAggregate
+	err = db.Model(&CreditUsage{}).
+		Select("agent_id, SUM(amount) AS total_used").
+		Where("agent_id IN ?", agentIDs).
+		Group("agent_id").
+		Scan(&creditAggregates).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	creditMap := map[string]float64{}
+	for _, ca := range creditAggregates {
+		creditMap[ca.IntegrationID] = ca.TotalUsed
+	}
+
+	for i := range IntResp {
+		if total, ok := creditMap[IntResp[i].ID]; ok {
+			IntResp[i].CreditUsed = total
+		}
+	}
+
 	return IntResp, paginationResponse, nil, http.StatusOK
 }
 
@@ -1681,6 +1714,33 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 
 	if err != nil {
 		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	agentIDs := make([]string, len(orgIntResp))
+	for i, agent := range orgIntResp {
+		agentIDs[i] = *agent.IntegrationID
+	}
+
+	var creditAggregates []CreditAggregate
+	err = db.Model(&CreditUsage{}).
+		Select("agent_id, SUM(amount) AS total_used").
+		Where("agent_id IN ?", agentIDs).
+		Group("agent_id").
+		Scan(&creditAggregates).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	creditMap := map[string]float64{}
+	for _, ca := range creditAggregates {
+		creditMap[ca.IntegrationID] = ca.TotalUsed
+	}
+
+	for i := range orgIntResp {
+		if total, ok := creditMap[*orgIntResp[i].IntegrationID]; ok {
+			orgIntResp[i].CreditUsed = total
+		}
 	}
 
 	return orgIntResp, paginationResponse, nil, http.StatusOK
