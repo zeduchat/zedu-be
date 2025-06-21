@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1554,29 +1553,14 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 	return agents, nil
 }
 
-func (i *PartialOrganisationIntegration) GetAllCustomAgent(
+func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 	db *gorm.DB,
 	c *gin.Context,
 ) ([]PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
 
-	var orgIntResp []PartialOrganisationIntegration
 	var integrationsResp []PartialOrganisationIntegration
-	var merged []PartialOrganisationIntegration
 
 	pagination := postgresql.GetPagination(c)
-
-	subQuery := db.
-		Model(&OrganisationIntegrations{}).
-		Select("MAX(created_at) AS max_created_at, integration_id").
-		Group("integration_id")
-
-	orgQuery := db.
-		Model(&OrganisationIntegrations{}).
-		Joins("JOIN (?) AS latest ON latest.integration_id = organisation_integrations.integration_id AND latest.max_created_at = organisation_integrations.created_at", subQuery)
-
-	if err := orgQuery.Find(&orgIntResp).Error; err != nil {
-		return nil, postgresql.PaginationResponse{}, err, http.StatusInternalServerError
-	}
 
 	if err := db.
 		Table("integrations").
@@ -1584,37 +1568,17 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 		return nil, postgresql.PaginationResponse{}, err, http.StatusInternalServerError
 	}
 
-	for i := range orgIntResp {
-		orgIntResp[i].Source = "organization"
-	}
-
 	for i := range integrationsResp {
 		integrationsResp[i].Source = "non-organization"
 	}
 
-	merged = append(orgIntResp, integrationsResp...)
-
-	sort.Slice(merged, func(i, j int) bool {
-		return merged[i].CreatedAt.After(merged[j].CreatedAt)
-	})
-
-	start := (pagination.Page - 1) * pagination.Limit
-	end := start + pagination.Limit
-	if start > len(merged) {
-		start = len(merged)
-	}
-	if end > len(merged) {
-		end = len(merged)
-	}
-	paginated := merged[start:end]
-
 	paginationResponse := postgresql.PaginationResponse{
 		CurrentPage:     pagination.Page,
-		PageCount:       len(merged),
-		TotalPagesCount: int(math.Ceil(float64(len(merged)) / float64(pagination.Limit))),
+		PageCount:       len(integrationsResp),
+		TotalPagesCount: int(math.Ceil(float64(len(integrationsResp)) / float64(pagination.Limit))),
 	}
 
-	return paginated, paginationResponse, nil, http.StatusOK
+	return integrationsResp, paginationResponse, nil, http.StatusOK
 }
 
 func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (CustomIntegrationsMetrics, error) {

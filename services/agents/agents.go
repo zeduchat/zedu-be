@@ -965,7 +965,7 @@ func AgentCallback(ids map[string]string, db *gorm.DB, extReq request.ExternalRe
 func GetAllCustomAgent(c *gin.Context, db *gorm.DB) ([]models.PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
 	var org_agents models.PartialOrganisationIntegration
 
-	resp, paginationResult, err, code := org_agents.GetAllCustomAgent(db, c)
+	resp, paginationResult, err, code := org_agents.GetAllSystemAgent(db, c)
 
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err, code
