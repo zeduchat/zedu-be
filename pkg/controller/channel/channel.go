@@ -414,7 +414,12 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 		return
 	}
 
-	result, code, err := channel.UpdateChannels(base.Db.Postgresql, req, id, userId)
+	ids := models.IDS{
+		ChannelID: id,
+		UserID:    userId,
+	}
+
+	result, code, err := channel.UpdateChannels(base.Db.Postgresql, req, ids)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			base.Logger.Info("error: channel not found: %v", err.Error())

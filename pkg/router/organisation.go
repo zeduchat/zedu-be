@@ -60,12 +60,22 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		//Channels notification prefence
 		organisationUrl.GET("/:org_id/channels/notification-preference", channelCtrl.GetUserChannelsNotificationPrefs)
 
+		// User pinned organisations routes
+		organisationUrl.POST("/pin", organisationCtrl.CreateUserPinnedOrganisation)
+		organisationUrl.GET("/pin", organisationCtrl.GetUserPinnedOrganisations)
+		organisationUrl.DELETE("/pin/:org_id", organisationCtrl.UnpinOrganisation)
+
 	}
 
 	// Test routes
 	testOrganisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion))
 	{
 		testOrganisationUrl.GET("/:org_id/load-org-info", organisationCtrl.GetLoadingMetrics)
+	}
+
+	adminOrgUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
+	{
+		adminOrgUrl.GET("/organisations/all", organisationCtrl.GetAllOrganisations)
 	}
 
 	return r

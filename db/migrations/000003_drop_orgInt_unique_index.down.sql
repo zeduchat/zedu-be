@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX idx_organisation_integrations_pre_shared_key
+ON organisation_integrations (pre_shared_key);

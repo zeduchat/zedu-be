@@ -31,6 +31,7 @@ type Message struct {
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
 	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
+	IsPinned   bool           `json:"is_pinned"`
 	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
@@ -52,6 +53,7 @@ type MessageDocument struct {
 	FullName       string                 `json:"full_name"`
 	Email          string                 `json:"email"`
 	Media          []UploadedFileResponse `json:"media,omitempty"`
+	IsPinned       bool                   `json:"is_pinned"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
 }
 
@@ -88,6 +90,9 @@ var MessageMapping = map[string]interface{}{
 		"deleted_at": map[string]string{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+		},
+		"is_pinned": map[string]string{
+			"type": "boolean",
 		},
 	},
 }
@@ -469,16 +474,24 @@ func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocume
 	return
 }
 
-func (m *MessageDocument) UpdateMessageUsername(logger *utility.Logger, mu *sync.Mutex) error {
+func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *sync.Mutex) error {
 	mu.Lock()
 	defer mu.Unlock()
 
 	payload := map[string]interface{}{
 		"script": map[string]interface{}{
-			"source": "ctx._source.username = params.new_username",
-			"lang":   "painless",
+			"source": `
+				if (params.new_username != null && !params.new_username.isEmpty()) {
+					ctx._source.username = params.new_username;
+				}
+				if (params.new_avatarurl != null && !params.new_avatarurl.isEmpty()) {
+					ctx._source.avatar_url = params.new_avatarurl;
+				}
+			`,
+			"lang": "painless",
 			"params": map[string]interface{}{
-				"new_username": m.Username,
+				"new_username":  m.Username,
+				"new_avatarurl": m.AvatarURL,
 			},
 		},
 		"query": map[string]interface{}{

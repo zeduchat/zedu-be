@@ -26,5 +26,13 @@ func Credits(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		creditUrl.GET("/usage/:org_id", credit.GetOrgCreditUsage)
 
 	}
+
+	adminCreditUsage := credits.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+
+	adminCreditUsageUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
+	{
+		adminCreditUsageUrl.GET("/credits/usage", adminCreditUsage.GetAllCreditUsage)
+	}
+
 	return r
 }

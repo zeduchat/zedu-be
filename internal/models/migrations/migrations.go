@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []interface{} {
 	return []interface{}{
+		models.UserPinnedOrganisations{},
 		models.OrganisationIntegrations{},
 		models.APIStatus{},
 		models.AccessToken{},
@@ -44,6 +45,7 @@ func AuthMigrationModels() []interface{} {
 		models.OrganisationPlan{},
 		models.PasswordReset{},
 		models.Permission{},
+		models.PinnedMessage{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},
@@ -61,6 +63,7 @@ func AuthMigrationModels() []interface{} {
 		models.CreditUsage{},
 		models.CreditTransaction{},
 		models.CreditPackage{},
+		models.Admin{},
 	} // an array of db models, example: User{}
 }
 

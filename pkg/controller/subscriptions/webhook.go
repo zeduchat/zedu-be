@@ -90,12 +90,14 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		case "subscription":
 			plan_name := checkoutSession.Metadata["plan_name"]
 			org_id := checkoutSession.Metadata["org_id"]
+			stripe_customer_id := checkoutSession.Metadata["customer_id"]
 
 			req := models.CompleteSubscriptionRequest{
-				Email:           orgEmail,
-				StripeSessionID: checkoutSession.ID,
-				PlanName:        plan_name,
-				OrgID:           org_id,
+				Email:            orgEmail,
+				StripeSessionID:  checkoutSession.ID,
+				PlanName:         plan_name,
+				OrgID:            org_id,
+				StripeCustomerID: stripe_customer_id,
 			}
 
 			_, code, _, err := service.CompleteSubscriptionWebhook(req, base.Db.Postgresql)

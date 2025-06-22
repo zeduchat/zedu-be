@@ -102,3 +102,54 @@ func GetUserClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, e
 	return userValue, nil
 
 }
+
+func CreateAdminToken(admin models.Admin, c *gin.Context) (*TokenDetailDTO, error) {
+
+	var (
+		tokenData = &TokenDetailDTO{}
+		config    = config.GetConfig()
+		err       error
+	)
+
+	tokenData.ExpiresAt = time.Now().AddDate(0, 0, config.Server.AccessTokenExpireDuration) // token valid for env set days
+	tokenData.AccessUuid = admin.ID
+	tokenData.AccessUuid = utility.GenerateUUID()
+
+	//create token
+	adminClaims := jwt.MapClaims{}
+
+	// specify admin claims
+	adminClaims["admin_id"] = admin.ID
+	adminClaims["role"] = admin.Role
+	adminClaims["access_uuid"] = tokenData.AccessUuid
+	adminClaims["exp"] = tokenData.ExpiresAt.Unix()
+	adminClaims["authorised"] = true
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, adminClaims)
+
+	tokenData.AccessToken, err = token.SignedString([]byte(config.Server.Secret))
+	if err != nil {
+		return tokenData, err
+	}
+
+	c.Set("admin_id", admin.ID)
+
+	return tokenData, nil
+}
+
+func GetAdminClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, error) {
+
+	claims, exists := c.Get("adminClaims")
+	if !exists {
+		return nil, errors.New("admin claims not found")
+	}
+
+	adminClaims := claims.(jwt.MapClaims)
+	adminValue, ok := adminClaims[theValue]
+	if !ok {
+		return nil, errors.New("invalid value")
+	}
+
+	return adminValue, nil
+
+}
