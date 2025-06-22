@@ -152,6 +152,7 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 		OrganisationID: ids.OrganisationID,
 		Amount:         creditUsed,
 		AgentID:        ids.AgentID,
+		UserID:         nil,
 	}
 
 	err := credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
