@@ -986,3 +986,24 @@ func (base *Controller) CreateSystemAgent(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", resp)
 	c.JSON(http.StatusCreated, rd)
 }
+
+func (base *Controller) GetAgentBills(c *gin.Context) {
+	agent_bills, paginationResponse, err, code := agents.GetAgentBills(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch agent bills", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agent bills", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(agent_bills),
+	}
+
+	base.Logger.Info("agent bills retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agent bills retrieved successfully.", agent_bills, paginationData)
+	c.JSON(http.StatusOK, rd)
+}

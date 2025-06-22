@@ -2031,3 +2031,30 @@ func CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
 
 	return nil
 }
+
+func (i *IntegrationBills) GetAgentBills(
+	db *gorm.DB,
+	c *gin.Context,
+) ([]IntegrationBills, postgresql.PaginationResponse, error, int) {
+
+	var intBills []IntegrationBills
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&IntegrationBills{})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&intBills,
+		nil,
+	)
+
+	if err != nil {
+		return intBills, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	return intBills, paginationResponse, nil, http.StatusOK
+}

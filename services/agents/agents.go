@@ -1178,3 +1178,21 @@ func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq 
 
 	return int_resp, nil
 }
+
+func GetAgentBills(c *gin.Context, db *gorm.DB) ([]models.IntegrationBills, postgresql.PaginationResponse, error, int) {
+	var (
+		resp             []models.IntegrationBills
+		paginationResult postgresql.PaginationResponse
+		code             int
+		fetchErr         error
+		agentBills       models.IntegrationBills
+	)
+
+	resp, paginationResult, fetchErr, code = agentBills.GetAgentBills(db, c)
+
+	if fetchErr != nil {
+		return nil, postgresql.PaginationResponse{}, fetchErr, code
+	}
+
+	return resp, paginationResult, nil, code
+}
