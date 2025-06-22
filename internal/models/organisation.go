@@ -29,6 +29,7 @@ type Organisation struct {
 	ChannelssCount     int64            `gorm:"-" json:"channels_count"`
 	TotalMessagesCount int64            `gorm:"-" json:"total_messages_count"`
 	OrgRoles           []OrgRole        `gorm:"foreignKey:OrganisationID" json:"org_roles"`
+	Pinned             bool             `json:"pinned"`
 	Users              []User           `gorm:"many2many:user_organisations;foreignKey:ID;joinForeignKey:organisation_id;References:ID;joinReferences:user_id"`
 	CreatedAt          time.Time        `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time        `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
@@ -245,13 +246,13 @@ func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]O
 }
 
 func (o *Organisation) GetUserOrganisations(db *gorm.DB, userID string) ([]Organisation, error) {
-	var (
-		orgs []Organisation
-	)
+	var orgs []Organisation
 
 	err := db.Table("organisations AS org").
-		Select("org.*").
+		Select(`org.*, 
+			(CASE WHEN upo.id IS NOT NULL THEN 1 ELSE 0 END) AS pinned`).
 		Joins("JOIN org_user_managements AS oum ON org.id = oum.organisation_id").
+		Joins("LEFT JOIN user_pinned_organisations AS upo ON org.id = upo.org_id AND upo.user_id = ?", userID).
 		Where("oum.user_id = ?", userID).
 		Find(&orgs).Error
 
@@ -687,6 +688,29 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 	lastMsgTime := time.UnixMilli(int64(lastMsgEpoch))
 
 	return lastMsgTime, nil
+}
+
+func (o *Organisation) GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]Organisation, postgresql.PaginationResponse, error) {
+	var organisations []Organisation
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&Organisation{})
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&organisations,
+		nil,
+	)
+
+	if err != nil {
+		return organisations, paginationResponse, err
+	}
+
+	return organisations, paginationResponse, nil
 }
 
 func (o *Organisation) IsOwner(db *gorm.DB, userId string) bool {

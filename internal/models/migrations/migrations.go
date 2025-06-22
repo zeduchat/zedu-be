@@ -45,6 +45,7 @@ func AuthMigrationModels() []interface{} {
 		models.OrganisationPlan{},
 		models.PasswordReset{},
 		models.Permission{},
+		models.PinnedMessage{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},
@@ -62,6 +63,7 @@ func AuthMigrationModels() []interface{} {
 		models.CreditUsage{},
 		models.CreditTransaction{},
 		models.CreditPackage{},
+		models.Admin{},
 	} // an array of db models, example: User{}
 }
 

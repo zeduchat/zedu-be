@@ -39,6 +39,7 @@ type Threads struct {
 	FullName               string                 `json:"full_name"`
 	Email                  string                 `json:"email"`
 	Edited                 bool                   `json:"edited"`
+	IsPinned               bool                   `json:"is_pinned"`
 	UserType               string                 `json:"user_type"`
 	Reactions              []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count                  int                    `json:"frequency,omitempty"`
@@ -79,6 +80,7 @@ type ThreadDocument struct {
 	Email                  string                 `json:"email"`
 	UserId                 string                 `json:"user_id"`
 	Edited                 bool                   `json:"edited"`
+	IsPinned               bool                   `json:"is_pinned"`
 	Messages               []MessageDocument      `json:"messages,omitempty"`
 	Count                  int                    `json:"frequency,omitempty"`
 	Media                  []UploadedFileResponse `json:"media,omitempty"`
@@ -158,6 +160,9 @@ var Thread_mapping = map[string]interface{}{
 				"type":       "nested",
 				"properties": MessageMapping,
 			},
+			"is_pinned": map[string]string{
+				"type": "boolean",
+			},
 			"is_forwarded": map[string]string{
 				"type": "boolean",
 			},
@@ -220,6 +225,7 @@ type ChannelCountInfo struct {
 	TotalThreads         int64 `json:"total_threads"`
 	TotalResolvedThreads int64 `json:"total_resolved_threads"`
 }
+
 type ChannelMetrics struct {
 	ChannelName  string `json:"channel_name"`
 	ThreadCount  int64  `json:"thread_count"`
@@ -1244,29 +1250,42 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	return threads, pagR, nil
 }
 
-func (t *ThreadDocument) UpdateThreadUsername(logger *utility.Logger, mu *sync.Mutex) {
+func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *sync.Mutex) {
 
 	mu.Lock()
 	defer mu.Unlock()
 
-	script := `if (ctx._source.containsKey("messages")) {
-            for (int i = 0; i < ctx._source.messages.size(); i++) {
-                if (ctx._source.messages[i].user_id == params.user_id) {
-                    ctx._source.messages[i].username = params.new_username;
-                }
-            }
-        }
-        if (ctx._source.user_id == params.user_id) {
-            ctx._source.username = params.new_username;
-        }`
+	script := `
+	if (ctx._source.containsKey("messages")) {
+		for (int i = 0; i < ctx._source.messages.size(); i++) {
+			if (ctx._source.messages[i].user_id == params.user_id) {
+				if (params.new_username != null && !params.new_username.isEmpty()) {
+					ctx._source.messages[i].username = params.new_username;
+				}
+				if (params.new_avatarurl != null && !params.new_avatarurl.isEmpty()) {
+					ctx._source.messages[i].avatar_url = params.new_avatarurl;
+				}
+			}
+		}
+	}
+	if (ctx._source.user_id == params.user_id) {
+		if (params.new_username != null && !params.new_username.isEmpty()) {
+			ctx._source.username = params.new_username;
+		}
+		if (params.new_avatarurl != null && !params.new_avatarurl.isEmpty()) {
+			ctx._source.avatar_url = params.new_avatarurl;
+		}
+	}
+	`
 
 	req := map[string]interface{}{
 		"script": map[string]interface{}{
 			"source": script,
 			"lang":   "painless",
 			"params": map[string]interface{}{
-				"user_id":      t.UserId,
-				"new_username": t.Username,
+				"user_id":       t.UserId,
+				"new_username":  t.Username,
+				"new_avatarurl": t.AvatarURL,
 			},
 		},
 		"query": map[string]interface{}{

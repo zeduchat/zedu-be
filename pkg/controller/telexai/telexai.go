@@ -79,6 +79,18 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 			c.JSON(code, rd)
 			return
 		}
+
+		// perfom credit charge
+		inputputLength := len(response.Messages.Content)
+
+		err = telexai.ChargeAICreditUsage(base.Db, ids, inputputLength, base.Logger)
+		if err != nil {
+			base.Logger.Error("failed to charge organization for AI credit usage!!")
+			rd := utility.BuildErrorResponse(400, "error", "failed to charge organization for AI organisation credit usage", err.Error(), nil)
+			c.JSON(400, rd)
+			return
+		}
+
 		base.Logger.Info("chat completed successfully")
 		rd := utility.BuildSuccessResponse(http.StatusOK, "chat completed successfully", response)
 		c.JSON(http.StatusOK, rd)

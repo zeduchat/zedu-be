@@ -74,11 +74,13 @@ func (base *Controller) GetAUserOrganisation(c *gin.Context) {
 
 	userData, code, err := service.GetAUserOrganisation(base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("failed to fetch user organisations", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
 		return
 	}
 
+	base.Logger.Info("user organisations retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User organisations retrieved successfully", userData)
 	c.JSON(http.StatusOK, rd)
 }
