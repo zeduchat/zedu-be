@@ -45,6 +45,7 @@ type Integrations struct {
 	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
+	CommissionRate     float64    `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 }
 
 type UpdateAgent struct {
@@ -151,6 +152,7 @@ type OrganisationIntegrations struct {
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64)" json:"preshared_key"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
+	CommissionRate     float64    `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 }
 
 type AdminAgentResp struct {
@@ -271,6 +273,22 @@ type AgentsResp []struct {
 type AgentResp struct {
 	Integrations
 	Linked bool `json:"linked"`
+}
+
+type IntegrationBills struct {
+	ID            string `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID         string `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID string `gorm:"type:uuid;" json:"integration_id"`
+	MakerID       string `gorm:"type:uuid;" json:"maker_id"`
+	CreditUsageID string `gorm:"type:uuid;" json:"credit_usage_id"`
+
+	TelexAmount  float64 `gorm:"type:decimal(10,2);not null" json:"telex_amount"`
+	MakerAmount  float64 `gorm:"type:decimal(10,2);not null" json:"maker_amount"`
+	TotalAmount  float64 `gorm:"type:decimal(10,2);not null" json:"total_amount"`
+	PayoutStatus string  `gorm:"type:varchar(20);default:'pending'" json:"payout_status"`
+
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 func (p *JSONPrices) Scan(value interface{}) error {
@@ -1956,6 +1974,59 @@ func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error
 	err := postgresql.CreateOneRecord(db, &i)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
+	var agent OrganisationIntegrations
+	if err := db.Where("integration_id = ?", usage.AgentID).First(&agent).Error; err != nil {
+		return fmt.Errorf("failed to fetch agent: %w", err)
+	}
+
+	commissionRate := agent.CommissionRate
+	creditAmount := usage.Amount
+
+	makerAmount := creditAmount * (commissionRate / 100)
+	telexAmount := creditAmount - makerAmount
+	totalAmount := creditAmount
+
+	var existingBill IntegrationBills
+
+	today := time.Now()
+	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	err := db.Where("integration_id = ? AND org_id = ? AND created_at >= ? AND created_at < ?",
+		usage.AgentID, usage.OrganisationID, startOfDay, endOfDay).
+		First(&existingBill).Error
+
+	if err == gorm.ErrRecordNotFound {
+		newBill := IntegrationBills{
+			ID:            utility.GenerateUUID(),
+			OrgID:         usage.OrganisationID,
+			IntegrationID: usage.AgentID,
+			MakerID:       agent.OwnerID,
+			CreditUsageID: usage.ID,
+			TelexAmount:   telexAmount,
+			MakerAmount:   makerAmount,
+			TotalAmount:   totalAmount,
+		}
+
+		if err := db.Create(&newBill).Error; err != nil {
+			return fmt.Errorf("failed to create new bill: %w", err)
+		}
+	} else if err == nil {
+		existingBill.TelexAmount += telexAmount
+		existingBill.MakerAmount += makerAmount
+		existingBill.TotalAmount += totalAmount
+
+		if err := db.Save(&existingBill).Error; err != nil {
+			return fmt.Errorf("failed to update existing bill: %w", err)
+		}
+	} else {
+		return fmt.Errorf("failed to query bill: %w", err)
 	}
 
 	return nil

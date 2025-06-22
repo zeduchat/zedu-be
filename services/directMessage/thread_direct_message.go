@@ -298,6 +298,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 	}
 
+	// credit usage and agent bill will be moved to BotResponse after proper testing
 	// save organisation credit usage
 	credit_usage := models.CreditUsage{
 		ID:             utility.GenerateUUID(),
@@ -311,6 +312,12 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	if err != nil {
 		logger.Error("failed to create/update credit usage!!")
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update organisation credit usage: %v", err)
+	}
+
+	err = models.CreateOrUpdateBillFromUsage(db.Postgresql, &credit_usage)
+	if err != nil {
+		logger.Error("failed to create/update agent bill")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update agent bill: %v", err)
 	}
 
 	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {

@@ -35,7 +35,7 @@ type CreditUsage struct {
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 
-	Agent        OrganisationIntegrations `gorm:"foreignKey:AgentID;references:IntegrationID"`
+	Agent        OrganisationIntegrations `gorm:"foreignKey:AgentID;references:ID"`
 	Organisation Organisation             `gorm:"foreignKey:OrganisationID;references:ID"`
 }
 
