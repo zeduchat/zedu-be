@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1585,7 +1586,7 @@ func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 		query = query.Where("is_active = ?", false)
 	}
 
-	if sortBy == "" {
+	if sortBy == "" || sortBy == "credit_used" {
 		sortBy = "created_at"
 	}
 	if sortOrder != "asc" && sortOrder != "desc" {
@@ -1648,6 +1649,15 @@ func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 		}
 	}
 
+	if sortBy == "credit_used" {
+		sort.SliceStable(IntResp, func(i, j int) bool {
+			if sortOrder == "asc" {
+				return IntResp[i].CreditUsed < IntResp[j].CreditUsed
+			}
+			return IntResp[i].CreditUsed > IntResp[j].CreditUsed
+		})
+	}
+
 	return IntResp, paginationResponse, nil, http.StatusOK
 }
 
@@ -1678,7 +1688,7 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 		query = query.Where("is_active = ?", false)
 	}
 
-	if sortBy == "" {
+	if sortBy == "" || sortBy == "credit_used" {
 		sortBy = "created_at"
 	}
 	if sortOrder != "asc" && sortOrder != "desc" {
@@ -1741,6 +1751,15 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 		if total, ok := creditMap[*orgIntResp[i].IntegrationID]; ok {
 			orgIntResp[i].CreditUsed = total
 		}
+	}
+
+	if sortBy == "credit_used" {
+		sort.SliceStable(orgIntResp, func(i, j int) bool {
+			if sortOrder == "asc" {
+				return orgIntResp[i].CreditUsed < orgIntResp[j].CreditUsed
+			}
+			return orgIntResp[i].CreditUsed > orgIntResp[j].CreditUsed
+		})
 	}
 
 	return orgIntResp, paginationResponse, nil, http.StatusOK
