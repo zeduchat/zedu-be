@@ -32,27 +32,31 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if _, err := uuid.Parse(channelID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
+	if _, err := uuid.Parse(channelID); err != nil {
+		base.Logger.Error("Invalid channel id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		base.Logger.Error("Unable to get user claims. User not authorized")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -65,7 +69,7 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 
 	threadData, err := forwardedMessage.ForwardThreadMessage(base.Db, req, base.Logger, userId)
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		base.Logger.Error(fmt.Sprintf("An error occurred while forwarding thread message: %v", err))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -85,6 +89,7 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -92,12 +97,14 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation failed")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
 	if _, err := uuid.Parse(channelID); err != nil {
+		base.Logger.Error("Invalid channel id format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -107,6 +114,7 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		base.Logger.Error("Unable to get user claims. User not authorized")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -116,7 +124,7 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 
 	response, err := forwardedMessage.ForwardReplyMessage(base.Db, req, base.Logger, userId)
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		base.Logger.Error(fmt.Sprintf("An error occurred while forwarding reply message: %v", err))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
