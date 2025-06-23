@@ -3029,7 +3029,6 @@ paths:
           description: Organisation ID
       responses:
         "200":
-        "200":
           description: Organisation info retrieved successfully
           content:
             application/json:
@@ -5666,7 +5665,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -5710,7 +5708,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /credits/top-up:
     post:
@@ -15393,7 +15390,7 @@ paths:
                   type: string
                   example: 01977eb2-bcf1-71a1-b0a4-5211e584df99
       responses:
-        '200':
+        "200":
           description: Organisation pinned successfully
           content:
             application/json:
@@ -15416,7 +15413,7 @@ paths:
       summary: Fetch user's pinned organisations
       description: Retrieves all organisations that the current user has pinned.
       responses:
-        '200':
+        "200":
           description: List of pinned organisations
           content:
             application/json:
@@ -15472,7 +15469,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Organisation unpinned successfully
           content:
             application/json:
@@ -15606,7 +15603,7 @@ paths:
                     example: null
 
   /organisations/{organisationId}/channels/{channelId}/pin/thread/{threadId}:
-     delete:
+    delete:
       tags:
         - Pinned Messages
       summary: Unpin a thread message from a channel or DM
@@ -15813,7 +15810,7 @@ paths:
                     type: object
                     nullable: true
                     example: null
-  
+
   /organisations/{organisationId}/channels/{channelId}/pin/message/{messageId}:
     delete:
       tags:
