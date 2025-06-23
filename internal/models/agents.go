@@ -289,6 +289,31 @@ type IntegrationBills struct {
 
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+
+	Organisation Organisation `gorm:"foreignKey:OrgID;references:ID"`
+	User         User         `gorm:"foreignKey:MakerID;references:ID"`
+}
+
+type IntegrationBillsResponse struct {
+	ID            string    `json:"id"`
+	OrgID         string    `json:"org_id"`
+	IntegrationID string    `json:"integration_id"`
+	CreditUsageID string    `json:"credit_usage_id"`
+	TelexAmount   float64   `json:"telex_amount"`
+	MakerAmount   float64   `json:"maker_amount"`
+	TotalAmount   float64   `json:"total_amount"`
+	PayoutStatus  string    `json:"payout_status"`
+	OrgName       string    `json:"org_name"`
+	AppName       string    `json:"app_name"`
+	OrgEmail      string    `json:"org_email"`
+	MakerName     string    `json:"maker_name"`
+	MakerEmail    string    `json:"maker_email"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type IntegrationApp struct {
+	IntegrationID string
+	AppName       string
 }
 
 func (p *JSONPrices) Scan(value interface{}) error {
@@ -2032,16 +2057,18 @@ func CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
 	return nil
 }
 
-func (i *IntegrationBills) GetAgentBills(
+func (i *IntegrationBillsResponse) GetAgentBills(
 	db *gorm.DB,
 	c *gin.Context,
-) ([]IntegrationBills, postgresql.PaginationResponse, error, int) {
+) ([]IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
 
 	var intBills []IntegrationBills
+	var agentBillResponses []IntegrationBillsResponse
 
 	pagination := postgresql.GetPagination(c)
 
-	query := db.Model(&IntegrationBills{})
+	query := db.Model(&IntegrationBills{}).
+		Preload("Organisation")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -2053,8 +2080,53 @@ func (i *IntegrationBills) GetAgentBills(
 	)
 
 	if err != nil {
-		return intBills, paginationResponse, err, http.StatusInternalServerError
+		return agentBillResponses, paginationResponse, err, http.StatusInternalServerError
 	}
 
-	return intBills, paginationResponse, nil, http.StatusOK
+	for _, bill := range intBills {
+		agentBillResponses = append(agentBillResponses, IntegrationBillsResponse{
+			ID:            bill.ID,
+			OrgID:         bill.OrgID,
+			IntegrationID: bill.IntegrationID,
+			CreditUsageID: bill.CreditUsageID,
+			TelexAmount:   bill.TelexAmount,
+			MakerAmount:   bill.MakerAmount,
+			TotalAmount:   bill.TotalAmount,
+			PayoutStatus:  bill.PayoutStatus,
+			OrgName:       bill.Organisation.Name,
+			OrgEmail:      bill.Organisation.Email,
+			MakerName:     bill.User.Name,
+			MakerEmail:    bill.User.Email,
+			CreatedAt:     bill.CreatedAt,
+		})
+	}
+
+	agentIDs := make([]string, len(agentBillResponses))
+	for i, agent := range agentBillResponses {
+		agentIDs[i] = *&agent.IntegrationID
+	}
+
+	var integrationApps []IntegrationApp
+
+	err = db.Model(&OrganisationIntegrations{}).
+		Select("integration_id, app_name").
+		Where("integration_id IN ?", agentIDs).
+		Scan(&integrationApps).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	appMap := make(map[string]string)
+	for _, app := range integrationApps {
+		appMap[app.IntegrationID] = app.AppName
+	}
+
+	for i, response := range agentBillResponses {
+		if appName, ok := appMap[response.IntegrationID]; ok {
+			agentBillResponses[i].AppName = appName
+		}
+	}
+
+	return agentBillResponses, paginationResponse, nil, http.StatusOK
 }
