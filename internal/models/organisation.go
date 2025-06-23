@@ -403,27 +403,36 @@ func (o *Organisation) CountOrganisationChannelss(db *gorm.DB, orgId string) (in
 	return int64(len(rs)), nil
 }
 
-func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]Invitation, postgresql.PaginationResponse, error) {
-	var invitations []Invitation
-
-	exists := postgresql.CheckExists(db, o, "id = ?", orgID)
+func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, ids IDS, invite_status string) ([]Invitation, postgresql.PaginationResponse, error) {
+	var (
+		invitations []Invitation
+	)
+	exists := postgresql.CheckExists(db, o, "id = ?", ids.OrganisationID)
 	if !exists {
 		return invitations, postgresql.PaginationResponse{}, errors.New("organisation not found")
 	}
 
-	exists = postgresql.CheckExists(db, &User{}, "id = ?", userID)
+	exists = postgresql.CheckExists(db, &User{}, "id = ?", ids.UserID)
 	if !exists {
 		return invitations, postgresql.PaginationResponse{}, errors.New("user not found")
 	}
 
 	pagination := postgresql.GetPagination(c)
+	offset := (pagination.Page - 1) * pagination.Limit
+
 	query := db.Table("invitations AS i").
 		Select("i.id, i.email, i.status, org_roles.name AS role, i.organisation_id, i.is_telex_user, i.created_at, i.expires_at").
-		Joins("JOIN org_roles ON org_roles.id = i.role::uuid").
-		Where("i.organisation_id = ?", orgID).
+		Joins("LEFT JOIN org_roles ON org_roles.id = i.role::uuid").
+		Where("i.organisation_id = ?", ids.OrganisationID).
 		Order("i.created_at DESC").
-		Offset((pagination.Page - 1) * pagination.Limit).
+		Offset(offset).
 		Limit(pagination.Limit)
+
+	if invite_status != "" && invite_status != "all" {
+		query = query.Where("i.status = ?", invite_status)
+	} else {
+		query = query.Where("i.status IN ?", []string{"accepted", "invited"})
+	}
 
 	if err := query.Find(&invitations).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -434,7 +443,7 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 
 	var totalInvites int64
 	if err := db.Table("invitations AS i").
-		Where("i.organisation_id = ?", orgID).
+		Where("i.organisation_id = ?", ids.OrganisationID).
 		Count(&totalInvites).Error; err != nil {
 		return invitations, postgresql.PaginationResponse{}, err
 	}
@@ -445,6 +454,7 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, userI
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
 	}
+
 	return invitations, paginationResponse, nil
 }
 

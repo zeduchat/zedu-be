@@ -68,12 +68,17 @@ func UpdateMember(db *gorm.DB, ownerId, orgID, userID string, req models.UpdateM
 	return resp, nil
 }
 
-func GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]models.Invitation, postgresql.PaginationResponse, error) {
+func GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID, invite_status string) ([]models.Invitation, postgresql.PaginationResponse, error) {
 	var (
 		o models.Organisation
 	)
 
-	invitations, paginationResponse, err := o.GetOrganisationInvites(c, db, userID, orgID)
+	ids := models.IDS{
+		UserID:         userID,
+		OrganisationID: orgID,
+	}
+
+	invitations, paginationResponse, err := o.GetOrganisationInvites(c, db, ids, invite_status)
 	if err != nil {
 		return invitations, paginationResponse, err
 	}

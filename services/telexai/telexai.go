@@ -139,5 +139,7 @@ func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChat
 		logger.Error("Invalid model selected: ", selectedModel)
 		return "deepseek/deepseek-r1-0528-qwen3-8b:free", fmt.Errorf("invalid model selected: %s", selectedModel)
 	}
-	return selectedModel, nil
+
+	// return selectedModel, nil --(credit wastage reasons)
+	return "deepseek/deepseek-r1-0528-qwen3-8b:free", nil
 }

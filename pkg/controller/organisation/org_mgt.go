@@ -136,6 +136,14 @@ func (base *Controller) UpdateMember(c *gin.Context) {
 
 func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 	orgId := c.Param("org_id")
+	invite_status := c.Query("invite_status")
+
+	if invite_status != "" && invite_status != "invited" && invite_status != "accepted" && invite_status != "all"{
+		base.Logger.Error("invalid invite status", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid invite status", "invite_status must be either 'pending', 'invited' or 'all'", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -154,7 +162,7 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
-	invitations, paginationResponse, err := organisation.GetOrganisationInvites(c, base.Db.Postgresql, userId, orgId)
+	invitations, paginationResponse, err := organisation.GetOrganisationInvites(c, base.Db.Postgresql, userId, orgId, invite_status)
 	if err != nil {
 		base.Logger.Error("failed to fetch organisation invites", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch organisation invites", err.Error(), nil)
@@ -162,6 +170,7 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
+	base.Logger.Info("organisation invites fetched successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", invitations, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 }
