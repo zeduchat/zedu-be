@@ -494,7 +494,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	// create agent bill to an organization only if special operation was performed
 	if req.OperationPrice != nil && *req.OperationPrice > 0 {
-		err = models.CreateOrUpdateBillFromUsage(db.Postgresql, &credit_usage)
+		err = orgAgent.CreateOrUpdateBillFromUsage(db.Postgresql, &credit_usage)
 		if err != nil {
 			logger.Error("failed to create/update agent bill")
 			return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update agent bill: %v", err)

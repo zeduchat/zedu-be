@@ -2004,7 +2004,7 @@ func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error
 	return nil
 }
 
-func CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
+func (i *OrganisationIntegrations) CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
 	var agent OrganisationIntegrations
 	if err := db.Where("integration_id = ?", usage.AgentID).First(&agent).Error; err != nil {
 		return fmt.Errorf("failed to fetch agent: %w", err)
