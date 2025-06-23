@@ -2061,6 +2061,8 @@ func (i *IntegrationBillsResponse) GetAgentBills(
 	db *gorm.DB,
 	c *gin.Context,
 ) ([]IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
+	agent_id := c.Query("agent_id")
+	payout_status := c.Query("payout_status")
 
 	var intBills []IntegrationBills
 	var agentBillResponses []IntegrationBillsResponse
@@ -2069,6 +2071,14 @@ func (i *IntegrationBillsResponse) GetAgentBills(
 
 	query := db.Model(&IntegrationBills{}).
 		Preload("Organisation")
+
+	if agent_id != "" {
+		query = query.Where("integration_id = ?", agent_id)
+	}
+
+	if payout_status != "" {
+		query = query.Where("payout_status = ?", payout_status)
+	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -2136,6 +2146,8 @@ func (i *IntegrationBillsResponse) GetOrgAgentBills(
 	c *gin.Context,
 	org_id string,
 ) ([]IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
+	agent_id := c.Query("agent_id")
+	payout_status := c.Query("payout_status")
 
 	var intBills []IntegrationBills
 	var agentBillResponses []IntegrationBillsResponse
@@ -2145,6 +2157,14 @@ func (i *IntegrationBillsResponse) GetOrgAgentBills(
 	query := db.Model(&IntegrationBills{}).
 		Where("org_id = ?", org_id).
 		Preload("Organisation")
+
+	if agent_id != "" {
+		query = query.Where("integration_id = ?", agent_id)
+	}
+
+	if payout_status != "" {
+		query = query.Where("payout_status = ?", payout_status)
+	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
