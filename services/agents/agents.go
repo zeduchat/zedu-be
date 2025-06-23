@@ -1196,3 +1196,21 @@ func GetAgentBills(c *gin.Context, db *gorm.DB) ([]models.IntegrationBillsRespon
 
 	return resp, paginationResult, nil, code
 }
+
+func GetOrgAgentBills(c *gin.Context, db *gorm.DB, org_id string) ([]models.IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
+	var (
+		resp             []models.IntegrationBillsResponse
+		paginationResult postgresql.PaginationResponse
+		code             int
+		fetchErr         error
+		agentBills       models.IntegrationBillsResponse
+	)
+
+	resp, paginationResult, fetchErr, code = agentBills.GetOrgAgentBills(db, c, org_id)
+
+	if fetchErr != nil {
+		return nil, postgresql.PaginationResponse{}, fetchErr, code
+	}
+
+	return resp, paginationResult, nil, code
+}

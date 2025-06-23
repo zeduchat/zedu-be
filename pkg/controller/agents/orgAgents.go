@@ -1007,3 +1007,33 @@ func (base *Controller) GetAgentBills(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "agent bills retrieved successfully.", agent_bills, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetOrgAgentBills(c *gin.Context) {
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid org id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org id format", "failed to decode org id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	agent_bills, paginationResponse, err, code := agents.GetOrgAgentBills(c, base.Db.Postgresql, org_id)
+	if err != nil {
+		base.Logger.Error("Failed to fetch organization agent bills", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch organization agent bills", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]interface{}{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(agent_bills),
+	}
+
+	base.Logger.Info("organization agent bills retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "organization agent bills retrieved successfully.", agent_bills, paginationData)
+	c.JSON(http.StatusOK, rd)
+}

@@ -2130,3 +2130,79 @@ func (i *IntegrationBillsResponse) GetAgentBills(
 
 	return agentBillResponses, paginationResponse, nil, http.StatusOK
 }
+
+func (i *IntegrationBillsResponse) GetOrgAgentBills(
+	db *gorm.DB,
+	c *gin.Context,
+	org_id string,
+) ([]IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
+
+	var intBills []IntegrationBills
+	var agentBillResponses []IntegrationBillsResponse
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&IntegrationBills{}).
+		Where("org_id = ?", org_id).
+		Preload("Organisation")
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&intBills,
+		nil,
+	)
+
+	if err != nil {
+		return agentBillResponses, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	for _, bill := range intBills {
+		agentBillResponses = append(agentBillResponses, IntegrationBillsResponse{
+			ID:            bill.ID,
+			OrgID:         bill.OrgID,
+			IntegrationID: bill.IntegrationID,
+			CreditUsageID: bill.CreditUsageID,
+			TelexAmount:   bill.TelexAmount,
+			MakerAmount:   bill.MakerAmount,
+			TotalAmount:   bill.TotalAmount,
+			PayoutStatus:  bill.PayoutStatus,
+			OrgName:       bill.Organisation.Name,
+			OrgEmail:      bill.Organisation.Email,
+			MakerName:     bill.User.Name,
+			MakerEmail:    bill.User.Email,
+			CreatedAt:     bill.CreatedAt,
+		})
+	}
+
+	agentIDs := make([]string, len(agentBillResponses))
+	for i, agent := range agentBillResponses {
+		agentIDs[i] = *&agent.IntegrationID
+	}
+
+	var integrationApps []IntegrationApp
+
+	err = db.Model(&OrganisationIntegrations{}).
+		Select("integration_id, app_name").
+		Where("integration_id IN ?", agentIDs).
+		Scan(&integrationApps).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	appMap := make(map[string]string)
+	for _, app := range integrationApps {
+		appMap[app.IntegrationID] = app.AppName
+	}
+
+	for i, response := range agentBillResponses {
+		if appName, ok := appMap[response.IntegrationID]; ok {
+			agentBillResponses[i].AppName = appName
+		}
+	}
+
+	return agentBillResponses, paginationResponse, nil, http.StatusOK
+}
