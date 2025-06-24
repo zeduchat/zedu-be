@@ -27,6 +27,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -34,6 +35,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
@@ -41,6 +43,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 
 	reqData, err := auth.ValidateCreateUserRequest(req, base.Db.Postgresql)
 	if err != nil {
+		base.Logger.Error("Error validating create user request", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -48,6 +51,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 
 	respData, code, err := auth.CreateUser(c, base.ExtReq, reqData, base.Db.Postgresql)
 	if err != nil {
+		base.Logger.Error("Error saving user: ", err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, respData)
 		base.Logger.Error("error saving user: ", err.Error())
 		c.JSON(http.StatusBadRequest, rd)
@@ -106,6 +110,7 @@ func (base *Controller) LoginUser(c *gin.Context) {
 
 	err := c.ShouldBind(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -113,6 +118,7 @@ func (base *Controller) LoginUser(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -120,18 +126,19 @@ func (base *Controller) LoginUser(c *gin.Context) {
 
 	respData, code, err := auth.LoginUser(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
+		base.Logger.Error("Error logging in user: ", err.Error())
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	base.Logger.Info("user login successfully")
-
 	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
 	if err != nil {
 		base.Logger.Error("error publishing login audit: ", err.Error())
 	}
 
+	base.Logger.Info("user login activity recorded successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user login successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
@@ -154,7 +161,7 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := auth.LogoutUser(access_uuid, owner_id, base.Db.Postgresql)
+	code, err := auth.LogoutUser(access_uuid, owner_id, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -163,7 +170,7 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 
 	base.Logger.Info("user logout successfully")
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "user logout successfully", respData)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user logout successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
 

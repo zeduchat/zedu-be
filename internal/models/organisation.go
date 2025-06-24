@@ -170,12 +170,12 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 	query = postgresql.PreloadEntities(query, &org, "OrgRoles", "OrgRoles.Permissions")
 
 	if err := query.First(&org).Error; err != nil {
-		return org, err
+		return org, fmt.Errorf("failed to retrieve organisation: %w", err)
 	}
 
 	channelsCount, err := o.CountOrganisationChannelss(db, orgID)
 	if err != nil {
-		return org, err
+		return org, fmt.Errorf("failed to count channels: %w", err)
 	}
 
 	org.ChannelssCount = channelsCount

@@ -16,6 +16,7 @@ type OrgUserManagement struct {
 	OrganisationID string                 `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
 	Status         string                 `gorm:"type:varchar(255)" json:"status"`
 	RoleID         string                 `gorm:"type:uuid;null" json:"role_id"`
+	IsDeactivated  bool                   `gorm:"type:uuid;default:false" json:"is_deactivated"`
 	CreatedAt      time.Time              `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time              `gorm:"index" json:"deleted_at"`
 	Preferences    NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
@@ -314,4 +315,10 @@ func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID
 	}
 
 	return userRoleInfo, nil
+}
+
+func (o *OrgUserManagement) CheckIsUserDeactivated(db *gorm.DB, ids IDS) bool {
+	var orgUserManagement OrgUserManagement
+
+	return postgresql.CheckExists(db, &orgUserManagement, "organisation_id = ? AND user_id = ? AND is_live = ?", ids.OrganisationID, ids.UserID, true)
 }

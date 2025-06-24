@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -304,6 +305,7 @@ func (base *Controller) GetChannelNotificationPref(c *gin.Context) {
 	orgId := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("failed to parse organisation id: %w", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -373,4 +375,37 @@ func ValidateNotifOption(option string) bool {
 	default:
 		return false
 	}
+}
+
+
+func (base *Controller) DeactivateMemberFromOrganisation(c *gin.Context) {
+	user_id := c.Query("user_id")
+
+	if _, err := uuid.Parse(user_id); err != nil {
+		base.Logger.Error("failed to parse organisation id: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	adminUserID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Error("failed to fetch logged in user ID(org admin): %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to get user ID", errors.New("failed to get user ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := organisation.DeactivateMemberFromOrganisation(base.Db.Postgresql, c, user_id, adminUserID.(string))
+	if err != nil {
+		base.Logger.Error("failed to deactivate member from organisation: %w", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to deactivate member from organisation", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+
+	base.Logger.Info("user deactivated from organisation successfully")
+	rd := utility.BuildSuccessResponse(code, "user deactivated from organisation successfully", nil)
+	c.JSON(code, rd)
 }

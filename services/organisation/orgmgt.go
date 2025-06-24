@@ -3,12 +3,15 @@ package organisation
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -119,4 +122,41 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 	logger.Info("fetched user notification settings successfully")
 
 	return resp, nil
+}
+
+func DeactivateMemberFromOrganisation(db *gorm.DB, c *gin.Context, user_id, adminUserID string) (int, error) {
+	var (
+		user       models.User
+		adminUser  models.User
+		user_token models.AccessToken
+	)
+
+	if !user.CheckUserExists(db, user_id) {
+		return http.StatusUnauthorized, errors.New("user does not exist")
+	}
+
+	if !adminUser.CheckUserExists(db, adminUserID) {
+		return http.StatusUnauthorized, errors.New("user does not exist")
+	}
+
+	if user_id == adminUserID {
+		return http.StatusForbidden, errors.New("you cannot deactivate your own account")
+	}
+
+	if err := user.DeactivateMemberFromOrganisation(db); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	user_token.OwnerID = user_id
+	code, err := user_token.GetMostRecentAccessToken(db)
+	if err != nil {
+		return code, fmt.Errorf("failed to get user token: %v", err)
+	}
+
+	_, err = auth.LogoutUser(user_token.ID, user.ID, db)
+	if err != nil {
+		return http.StatusBadRequest, errors.New("i")
+	}
+
+	return http.StatusOK, nil
 }
