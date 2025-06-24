@@ -1,0 +1,2 @@
+ALTER TABLE credit_usages
+ALTER COLUMN user_id DROP NOT NULL;

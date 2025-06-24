@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_organisation_integrations_pre_shared_key;

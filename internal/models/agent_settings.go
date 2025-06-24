@@ -15,8 +15,10 @@ import (
 
 type IntegrationSettings struct {
 	ID             string    `gorm:"type:uuid;primary_key" json:"id"`
-	OrgID          string    `gorm:"type:uuid;" json:"org_id"`
+	OrgID          *string   `gorm:"type:uuid;" json:"org_id"`
 	IntegrationID  string    `gorm:"type:uuid;" json:"integration_id"`
+	IsSystem       bool      `gorm:"type:boolean;default:false" json:"is_system"`
+	SettingEntry   string    `gorm:"type:text;" json:"setting_entry"`
 	FormFieldValue string    `gorm:"column:form_field_value; type:varchar(255);" json:"form_field_value"`
 	FormFieldLabel string    `gorm:"column:form_field_label; type:varchar(255);" json:"form_field_label"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
@@ -71,7 +73,7 @@ func (org *Organisation) GetActivatedOrganizations(db *gorm.DB, agent_id string,
 	// Deduplicate org IDs
 	orgIDMap := make(map[string]bool)
 	for _, setting := range intSettings {
-		orgIDMap[setting.OrgID] = true
+		orgIDMap[*setting.OrgID] = true
 	}
 
 	orgIDs := make([]string, 0, len(orgIDMap))

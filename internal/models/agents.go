@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +44,7 @@ type Integrations struct {
 	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
+	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
 }
 
 type UpdateAgent struct {
@@ -50,6 +52,12 @@ type UpdateAgent struct {
 	JSONUrl         string `json:"json_url"`
 	AuthCredential  string `json:"auth_credential"`
 	IntegrationType string `json:"integration_type"`
+}
+
+type AdminUpdateAgent struct {
+	IsActive   bool `json:"is_active"`
+	IsApproved bool `json:"is_approved"`
+	IsSystem   bool `json:"is_system"`
 }
 
 type ChangeAgentStatus struct {
@@ -141,11 +149,22 @@ type OrganisationIntegrations struct {
 	Provider           Provider   `gorm:"type:jsonb" json:"provider"`
 	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
-	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
+	PreSharedKey       string     `gorm:"type:varchar(64)" json:"preshared_key"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 }
 
 type AdminAgentResp struct {
+	Agent      Integrations `json:"agent"`
+	User       User         `json:"user"`
+	CreditUsed float64      `json:"credit_used"`
+}
+
+type CreditAggregate struct {
+	IntegrationID string
+	TotalUsed     float64
+}
+
+type AdminCustomAgentResp struct {
 	Agent      OrganisationIntegrations `json:"agent"`
 	User       User                     `json:"user"`
 	CreditUsed float64                  `json:"credit_used"`
@@ -185,6 +204,26 @@ type IntegrationOutput struct {
 	CreatedAt             time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt             time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	IntegrationChannels   []IntegrationChannel `gorm:"foreignKey:IntegrationOutputID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"integration_channels"`
+}
+
+type PartialOrganisationIntegration struct {
+	ID            string    `json:"id"`
+	IntegrationID *string   `json:"integration_id"`
+	OrgID         *string   `json:"org_id"`
+	IsActive      bool      `json:"is_active"`
+	IsSystem      bool      `json:"is_system"`
+	IsArchived    bool      `json:"is_archived"`
+	JSONUrl       string    `json:"json_url"`
+	AppName       string    `json:"app_name"`
+	Name          string    `json:"name"`
+	AppLogo       string    `json:"app_logo"`
+	AppUrl        string    `json:"app_url"`
+	IsPaid        bool      `json:"is_paid"`
+	IsApproved    bool      `json:"is_approved"`
+	CreatedAt     time.Time `json:"created_at"`
+	Source        string    `json:"source"`
+	Provider      Provider  `json:"provider"`
+	CreditUsed    float64   `json:"credit_used"`
 }
 
 type IntegrationChannel struct {
@@ -313,7 +352,7 @@ func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context
 
 	err := db.Table("integrations AS i").
 		Select(`i.id, i.name, i.app_logo, i.app_url, i.json_url, i.app_description, i.integration_type,
-				i.is_system_integration, 
+				i.is_system, 
 				COALESCE(oi.created_at, i.created_at) AS created_at, 
 				COALESCE(oi.updated_at, i.updated_at) AS updated_at, 
 				COALESCE(oi.is_active, false) AS is_active, 
@@ -610,6 +649,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.Skills = agent.Skills
 		oi.IsPaid = agent.IsPaid
 		oi.IsSystem = true
+		oi.PreSharedKey = agent.PreSharedKey
 		oi.OwnerID = ids["user_id"]
 
 		err := oi.CreateOrganisationIntegration(db)
@@ -1519,30 +1559,207 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 	return agents, nil
 }
 
-func (i *OrganisationIntegrations) GetAllCustomAgent(db *gorm.DB, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
-	var orgIntResp []OrganisationIntegrations
+func (i *PartialOrganisationIntegration) GetAllSystemAgent(
+	db *gorm.DB,
+	c *gin.Context,
+	search string,
+	sortBy string,
+	sortOrder string,
+	active bool,
+) ([]PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
+
+	var results []Integrations
+
 	pagination := postgresql.GetPagination(c)
 
-	subQuery := db.
-		Model(&OrganisationIntegrations{}).
-		Select("MAX(created_at) AS max_created_at, integration_id").
-		Group("integration_id")
+	query := db.Model(&Integrations{}).
+		Where("json_url != ''")
 
-	query := db.
-		Model(&OrganisationIntegrations{}).
-		Joins("JOIN (?) AS latest ON latest.integration_id = organisation_integrations.integration_id AND latest.max_created_at = organisation_integrations.created_at", subQuery)
+	if search != "" {
+		searchValue := "%" + search + "%"
+		query = query.Where("name ILIKE ?", searchValue)
+	}
+
+	if active {
+		query = query.Where("is_active = ?", true)
+	} else {
+		query = query.Where("is_active = ?", false)
+	}
+
+	if sortBy == "" || sortBy == "credit_used" {
+		sortBy = "created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"organisation_integrations.created_at",
-		"desc",
+		sortBy,
+		sortOrder,
 		pagination,
-		&orgIntResp,
+		&results,
 		nil,
 	)
 
+	IntResp := make([]PartialOrganisationIntegration, len(results))
+	for i, int_mp := range results {
+		IntResp[i] = PartialOrganisationIntegration{
+			ID:         int_mp.ID,
+			Name:       int_mp.Name,
+			IsActive:   int_mp.IsActive,
+			IsPaid:     int_mp.IsPaid,
+			Provider:   int_mp.Provider,
+			CreatedAt:  int_mp.CreatedAt,
+			JSONUrl:    int_mp.JSONUrl,
+			Source:     "non-organization",
+			IsSystem:   int_mp.IsSystem,
+			IsApproved: int_mp.IsApproved,
+		}
+	}
+
+	if err != nil {
+		return IntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	agentIDs := make([]string, len(IntResp))
+	for i, agent := range IntResp {
+		agentIDs[i] = agent.ID
+	}
+
+	var creditAggregates []CreditAggregate
+	err = db.Model(&CreditUsage{}).
+		Select("agent_id AS integration_id, COALESCE(SUM(amount), 0) AS total_used").
+		Where("agent_id IN ?", agentIDs).
+		Group("agent_id").
+		Scan(&creditAggregates).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	creditMap := map[string]float64{}
+	for _, ca := range creditAggregates {
+		creditMap[ca.IntegrationID] = ca.TotalUsed
+	}
+
+	for i := range IntResp {
+		if total, ok := creditMap[IntResp[i].ID]; ok {
+			IntResp[i].CreditUsed = total
+		}
+	}
+
+	if sortBy == "credit_used" {
+		sort.SliceStable(IntResp, func(i, j int) bool {
+			if sortOrder == "asc" {
+				return IntResp[i].CreditUsed < IntResp[j].CreditUsed
+			}
+			return IntResp[i].CreditUsed > IntResp[j].CreditUsed
+		})
+	}
+
+	return IntResp, paginationResponse, nil, http.StatusOK
+}
+
+func (i *PartialOrganisationIntegration) GetAllCustomAgent(
+	db *gorm.DB,
+	c *gin.Context,
+	search string,
+	sortBy string,
+	sortOrder string,
+	active bool,
+) ([]PartialOrganisationIntegration, postgresql.PaginationResponse, error, int) {
+
+	var results []OrganisationIntegrations
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&OrganisationIntegrations{}).
+		Where("json_url != ''")
+
+	if search != "" {
+		searchValue := "%" + search + "%"
+		query = query.Where("app_name ILIKE ?", searchValue)
+	}
+
+	if active {
+		query = query.Where("is_active = ?", true)
+	} else {
+		query = query.Where("is_active = ?", false)
+	}
+
+	if sortBy == "" || sortBy == "credit_used" {
+		sortBy = "created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		sortBy,
+		sortOrder,
+		pagination,
+		&results,
+		nil,
+	)
+
+	orgIntResp := make([]PartialOrganisationIntegration, len(results))
+	for i, org := range results {
+		orgIntResp[i] = PartialOrganisationIntegration{
+			ID:            org.ID,
+			AppName:       org.AppName,
+			IntegrationID: &org.IntegrationID,
+			IsActive:      org.IsActive,
+			IsPaid:        org.IsPaid,
+			Provider:      org.Provider,
+			CreatedAt:     org.CreatedAt,
+			JSONUrl:       org.JSONUrl,
+			Source:        "organization",
+			IsSystem:      org.IsSystem,
+			IsApproved:    org.IsApproved,
+			OrgID:         &org.OrgID,
+		}
+	}
+
 	if err != nil {
 		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	agentIDs := make([]string, len(orgIntResp))
+	for i, agent := range orgIntResp {
+		agentIDs[i] = *agent.IntegrationID
+	}
+
+	var creditAggregates []CreditAggregate
+	err = db.Model(&CreditUsage{}).
+		Select("agent_id as integration_id,  COALESCE(SUM(amount), 0) AS total_used").
+		Where("agent_id IN ?", agentIDs).
+		Group("agent_id").
+		Scan(&creditAggregates).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	creditMap := map[string]float64{}
+	for _, ca := range creditAggregates {
+		creditMap[ca.IntegrationID] = ca.TotalUsed
+	}
+
+	for i := range orgIntResp {
+		if total, ok := creditMap[*orgIntResp[i].IntegrationID]; ok {
+			orgIntResp[i].CreditUsed = total
+		}
+	}
+
+	if sortBy == "credit_used" {
+		sort.SliceStable(orgIntResp, func(i, j int) bool {
+			if sortOrder == "asc" {
+				return orgIntResp[i].CreditUsed < orgIntResp[j].CreditUsed
+			}
+			return orgIntResp[i].CreditUsed > orgIntResp[j].CreditUsed
+		})
 	}
 
 	return orgIntResp, paginationResponse, nil, http.StatusOK
@@ -1577,25 +1794,25 @@ func (i *OrganisationIntegrations) GetCustomAgentCountMetrics(db *gorm.DB) (Cust
 	return metrics, nil
 }
 
-func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (AdminAgentResp, error) {
-	var resp AdminAgentResp
+func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID string) (AdminCustomAgentResp, error) {
+	var resp AdminCustomAgentResp
 
 	if err := db.Where("integration_id = ?", agentID).First(&resp.Agent).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return AdminAgentResp{}, errors.New("agent not found")
+			return AdminCustomAgentResp{}, errors.New("agent not found")
 		}
-		return AdminAgentResp{}, err
+		return AdminCustomAgentResp{}, err
 	}
 
 	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
-		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
+		return AdminCustomAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
 	}
 
 	var total float64
 	if err := db.Table("credit_usages").
 		Select("COALESCE(SUM(amount), 0)").
 		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
-		return AdminAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
+		return AdminCustomAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
 	}
 
 	resp.CreditUsed = total
@@ -1679,4 +1896,67 @@ func (i *OrganisationIntegrations) AdminDeleteCustomAgentApp(db *gorm.DB, logger
 	}
 
 	return nil, http.StatusOK
+}
+
+func (i *OrganisationIntegrations) AdminUpdateAgent(db *gorm.DB, agentID string, req AdminUpdateAgent) (OrganisationIntegrations, error) {
+	var agent OrganisationIntegrations
+
+	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", agentID)
+	if !exists {
+		return agent, errors.New("agent app does not exist")
+	}
+
+	agent.IsActive = req.IsActive
+	agent.IsApproved = req.IsApproved
+	agent.IsSystem = req.IsSystem
+
+	if err := db.Save(&agent).Error; err != nil {
+		return agent, err
+	}
+
+	return agent, nil
+}
+
+func (i *Integrations) GetAgentByID(db *gorm.DB, agentID string) (AdminAgentResp, error) {
+	var resp AdminAgentResp
+
+	if err := db.Where("id = ?", agentID).First(&resp.Agent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return AdminAgentResp{}, errors.New("agent not found")
+		}
+		return AdminAgentResp{}, err
+	}
+
+	if err := postgresql.SelectAllFromDb(db, "", &resp.User, "id = ?", resp.Agent.OwnerID); err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get agent owner: %v", err)
+	}
+
+	var total float64
+	if err := db.Table("credit_usages").
+		Select("COALESCE(SUM(amount), 0)").
+		Where("agent_id = ?", agentID).Scan(&total).Error; err != nil {
+		return AdminAgentResp{}, fmt.Errorf("failed to get total credit usage: %v", err)
+	}
+
+	resp.CreditUsed = total
+
+	return resp, nil
+}
+
+func (si *Integrations) CreateSystemIntegration(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, &si)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, &i)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

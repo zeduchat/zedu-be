@@ -31,11 +31,10 @@ type CreditUsage struct {
 	OrganisationID string    `gorm:"type:uuid;not null;index" json:"organisation_id"`
 	Amount         float64   `gorm:"type:decimal(10,2);not null" json:"amount"`
 	AgentID        string    `gorm:"type:uuid;not null;index" json:"agent_id"`
-	UserID         string    `gorm:"type:uuid;not null;index" json:"user_id"`
+	UserID         *string   `gorm:"type:uuid;index" json:"user_id"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 
-	User         User                     `gorm:"foreignKey:UserID;references:ID"`
 	Agent        OrganisationIntegrations `gorm:"foreignKey:AgentID;references:IntegrationID"`
 	Organisation Organisation             `gorm:"foreignKey:OrganisationID;references:ID"`
 }
@@ -340,7 +339,6 @@ func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsage
 
 	query := db.Model(&CreditUsage{}).
 		Where("organisation_id = ?", orgID).
-		Preload("User").
 		Preload("Agent").
 		Order("created_at DESC")
 
@@ -361,7 +359,6 @@ func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsage
 			ID:             usage.ID,
 			OrganisationID: usage.OrganisationID,
 			Amount:         usage.Amount,
-			UserName:       usage.User.Name,
 			AgentName:      usage.Agent.AppName,
 			CreatedAt:      usage.CreatedAt,
 		})
@@ -377,7 +374,6 @@ func GetAllCreditUsage(db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, post
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&CreditUsage{}).
-		Preload("User").
 		Preload("Agent").
 		Preload("Organisation").
 		Order("created_at DESC")
@@ -399,7 +395,6 @@ func GetAllCreditUsage(db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, post
 			ID:             usage.ID,
 			OrganisationID: usage.OrganisationID,
 			Amount:         usage.Amount,
-			UserName:       usage.User.Name,
 			AgentName:      usage.Agent.AppName,
 			OrgName:        usage.Organisation.Name,
 			CreatedAt:      usage.CreatedAt,
