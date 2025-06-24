@@ -1,8 +1,8 @@
 module github.com/hngprojects/telex_be
 
-go 1.22
+go 1.23.0
 
-toolchain go1.22.8
+toolchain go1.23.10
 
 // toolchain go1.22.4
 
@@ -163,7 +163,7 @@ require (
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.25.0 // indirect
+	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
