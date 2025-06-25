@@ -238,7 +238,7 @@ func CheckerValidator(base *storage.Database, Emails []string, ids models.IDS, l
 		return http.StatusBadRequest, "No emails provided", errors.New("no emails provided")
 	}
 
-	if CheckDuplicateEmails(Emails) {
+	if CheckDuplicateEmails(Emails, []models.Invite{}, false) {
 		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
 	}
 
@@ -247,14 +247,63 @@ func CheckerValidator(base *storage.Database, Emails []string, ids models.IDS, l
 		return http.StatusNotFound, "Role does not exist", errors.New("role does not exist")
 	}
 
-	return http.StatusOK, "User validated", nil
+	return http.StatusOK, "User(s) validated", nil
+}
+
+func FewInvitesCheckerValidator(base *storage.Database, ids models.IDS, invitations []models.Invite) (int, string, error) {
+	var (
+		o models.Organisation
+	)
+	_, err := o.CheckOrgExists(ids.OrganisationID, base.Postgresql)
+	if err != nil {
+		return http.StatusNotFound, "Invalid Organisation ID", err
+	}
+
+	if len(invitations) == 0 {
+		return http.StatusBadRequest, "No invitations provided", errors.New("no invitations provided")
+	}
+
+	if CheckDuplicateEmails([]string{}, invitations, true) {
+		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
+	}
+
+	err = ValidateRoles(base.Postgresql, invitations)
+	if err != nil {
+		return http.StatusBadRequest, "invalid role assigned", errors.New("invalid role assigned")
+	}
+
+	return http.StatusOK, "User(s) validated", nil
+}
+
+func ValidateRoles(db *gorm.DB, invitations []models.Invite) error {
+	var role models.OrgRole
+
+	for _, invite := range invitations {
+		exists := postgresql.CheckExists(db, role, "id = ?", invite.Role)
+		if !exists {
+			return fmt.Errorf("invalid role-id assigned to user %s", invite.Email)
+		}
+	}
+
+	return nil
 }
 
 func CheckUserIsAdmin(db *gorm.DB, owner_id string, org models.Organisation) bool {
 	return org.OwnerID == owner_id
 }
 
-func CheckDuplicateEmails(emails []string) bool {
+func CheckDuplicateEmails(emails []string, invitations []models.Invite, checkinvitefew bool) bool {
+	if checkinvitefew {
+		emailsMap := make(map[string]struct{})
+		for _, invite := range invitations {
+			if _, exist := emailsMap[invite.Email]; exist {
+				return true
+			}
+			emailsMap[invite.Email] = struct{}{}
+		}
+		return false
+	}
+
 	emailsMap := make(map[string]bool)
 	for _, email := range emails {
 		if _, ok := emailsMap[email]; ok {
@@ -282,7 +331,7 @@ func GetInvitationDetails(token string, db *gorm.DB) (models.Invitation, error) 
 
 	exists := postgresql.CheckExists(db, &invitation, "token = ?", token)
 	if !exists {
-		return invitation, errors.New("Invitation link does not exist")
+		return invitation, errors.New("invitation link does not exist")
 	}
 	return invitation, nil
 }

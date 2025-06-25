@@ -19,7 +19,8 @@ func Invite(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 
 	inviteUrl := r.Group(fmt.Sprintf("%v/invite", ApiVersion))
 	{
-		inviteUrl.POST("", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
+		inviteUrl.POST("", middleware.Authorize(db.Postgresql), invite.OrganisationInviteMany)
+		inviteUrl.POST("/invite-few", middleware.Authorize(db.Postgresql), invite.OrganisationInviteFew)
 		inviteUrl.POST("/verify", invite.OrganisationVerifyInvite)
 		inviteUrl.POST("/resend", middleware.Authorize(db.Postgresql), invite.ResendInvitation)
 

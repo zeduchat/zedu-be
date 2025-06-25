@@ -27,9 +27,21 @@ type Invitation struct {
 }
 
 type InvitationCreateReq struct {
-	Emails         []string `json:"emails" validate:"required"`
-	OrganisationID string   `json:"org_id" validate:"required,uuid"`
-	RoleID         string   `json:"role_id" validate:"required,uuid"`
+	OrganisationID string `json:"org_id" validate:"required,uuid"`
+
+	Emails []string `json:"emails" validate:"required"`
+	RoleID string   `json:"role_id" validate:"uuid, required"`
+
+}
+
+type InvitationCreateFewRequest struct {
+	OrganisationID string `json:"org_id" validate:"required,uuid"`
+	Invitations []Invite `json:"invitations" validate:"required,dive"`
+}
+
+type Invite struct {
+	Email string `json:"email" validate:"required,email"`
+	Role  string `json:"role" validate:"required,uuid"`
 }
 
 type InvitationResponse struct {

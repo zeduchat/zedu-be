@@ -59,7 +59,7 @@ func (base *Controller) GeneralInvitationCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, rd)
 }
 
-func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
+func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 	var (
 		inviteReq models.InvitationCreateReq
 	)
@@ -150,6 +150,104 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 		"errors": errs,
 	}
 
+	
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)
+	c.JSON(http.StatusCreated, rd)
+}
+
+
+
+func (base *Controller) OrganisationInviteFew(c *gin.Context) {
+	var (
+		inviteReq models.InvitationCreateFewRequest
+	)
+
+	if err := c.ShouldBindJSON(&inviteReq); err != nil {
+		base.Logger.Error("Failed to parse request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	// if !plan.CheckUserOrgPlanThreshold(c, base.Logger, base.Db.Postgresql, inviteReq.OrganisationID) {
+	// 	base.Logger.Error("Maximum number of users for org plan reached!!")
+	// 	rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You have reached the maximum number of users for your organization plan", "Plan Limit Reached", nil)
+	// 	c.JSON(http.StatusForbidden, rd)
+	// 	return
+	// }
+
+	err := base.Validator.Struct(&inviteReq)
+	if err != nil {
+		base.Logger.Error("Request Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := models.IDS{
+		OrganisationID: inviteReq.OrganisationID,
+		UserID:         userId,
+	}
+
+	statusCode, msg, err := invitation.FewInvitesCheckerValidator(base.Db, ids, inviteReq.Invitations)
+	if err != nil {
+		base.Logger.Error("Failed to validate user", err)
+		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	url := c.Request.Header.Get("Referer")
+
+	inviteMap, errs, err := invitation.InviteFewLinkGenerator(base.Db, inviteReq, userId, url)
+	if err != nil {
+		base.Logger.Error("Failed to generate invitation link mapping", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to generate invitation link mapping", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	if len(inviteMap) == 0 {
+		base.Logger.Error("No invitations created. User(s) list is either empty or all invites have pending invitations")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", errs, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = invitation.SaveInvitations(base.Db.Postgresql, inviteMap)
+	if err != nil {
+		base.Logger.Error("Failed to save invitations", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to save invitations", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	mapData := invitation.InviteLinkMapper(url, inviteMap)
+
+	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData)
+	if err != nil {
+		base.Logger.Error("Failed to send invitation email", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	response := gin.H{
+		"errors": errs,
+	}
+
+	
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)
 	c.JSON(http.StatusCreated, rd)
 }
