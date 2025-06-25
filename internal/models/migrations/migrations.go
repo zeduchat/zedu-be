@@ -58,12 +58,12 @@ func AuthMigrationModels() []interface{} {
 		models.Testimonial{},
 		models.UploadedFileResponse{},
 		models.User{},
+		models.Admin{},
 		models.UserChannels{},
 		models.Webhook{},
 		models.CreditUsage{},
 		models.CreditTransaction{},
 		models.CreditPackage{},
-		models.Admin{},
 	} // an array of db models, example: User{}
 }
 

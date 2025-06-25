@@ -82,6 +82,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		adminAgentUrl.GET("/agents/:source/:agent_id", adminAgent.GetCustomAgentByID)
 		adminAgentUrl.GET("/agents/metrics", adminAgent.GetCustomAgentMetrics)
 		adminAgentUrl.DELETE("/agents/:agent_id", agentsCtrl.AdminDeleteCustomAgentApp)
+		adminAgentUrl.DELETE("/agents/system/:agent_id", agentsCtrl.AdminDeleteSystemAgentApp)
 	}
 
 	// Unauthenticated endpoint to fetch agents
