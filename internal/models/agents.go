@@ -1960,7 +1960,6 @@ func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error
 	return nil
 }
 
-<<<<<<< HEAD
 func (i *OrganisationIntegrations) CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
 	var agent OrganisationIntegrations
 	if err := db.Where("integration_id = ?", usage.AgentID).First(&agent).Error; err != nil {
@@ -2182,7 +2181,8 @@ func (i *IntegrationBillsResponse) GetOrgAgentBills(
 	}
 
 	return agentBillResponses, paginationResponse, nil, http.StatusOK
-=======
+}
+
 func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
 	var (
 		integration Integrations
@@ -2259,5 +2259,4 @@ func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Log
 	}
 
 	return nil, http.StatusOK
->>>>>>> e22b5c92d9aa7231920befdc33f8e6019be42453
 }
