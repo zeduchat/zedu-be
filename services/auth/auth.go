@@ -233,33 +233,32 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		},
 		"access_token": tokenData.AccessToken,
 	}
+
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
 
 	return responseData, http.StatusOK, nil
 }
 
-func LogoutUser(access_uuid, owner_id string, db *gorm.DB) (gin.H, int, error) {
+func LogoutUser(access_uuid, user_id string, db *gorm.DB) (int, error) {
 	var (
-		responseData gin.H
-		user         models.User
+		user models.User
 	)
 
-	if err := db.Where("id = ?", owner_id).First(&user).Error; err != nil {
-		return responseData, http.StatusNotFound, fmt.Errorf("user not found: %w", err)
+	if err := db.Where("id = ?", user_id).First(&user).Error; err != nil {
+		return http.StatusNotFound, fmt.Errorf("user not found: %w", err)
 	}
 
 	if err := db.Model(&user).Update("is_active", false).Error; err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error updating user: %w", err)
+		return http.StatusInternalServerError, fmt.Errorf("error updating user: %w", err)
 	}
 
-	access_token := models.AccessToken{ID: access_uuid, OwnerID: owner_id}
+	access_token := models.AccessToken{ID: access_uuid, OwnerID: user_id}
 
 	if err := access_token.RevokeAccessToken(db); err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
+		return http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
 	}
 
-	responseData = gin.H{}
-	return responseData, http.StatusOK, nil
+	return http.StatusOK, nil
 }
 
 func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context) (gin.H, int, error) {

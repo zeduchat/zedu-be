@@ -77,13 +77,12 @@ func GetAUserSessions(userIDStr string, db *gorm.DB, c *gin.Context) (*[]models.
 	return &accessResp, &paginationResponse, http.StatusOK, nil
 }
 
-func RevokeUserAccessToken(userData models.TerminateSessionRequest, db *gorm.DB, c *gin.Context) (int, error) {
+func RevokeUserAccessToken(req models.TerminateSessionRequest, db *gorm.DB, c *gin.Context) (int, error) {
 	var (
 		currentUser models.User
 		accessToken models.AccessToken
 	)
 	userClaims := common.GetAllUserClaims(c)
-
 	currentUserID, ok := userClaims["user_id"].(string)
 	if !ok {
 		return http.StatusBadGateway, fmt.Errorf("error getting user id")
@@ -94,16 +93,16 @@ func RevokeUserAccessToken(userData models.TerminateSessionRequest, db *gorm.DB,
 		return code, err
 	}
 
-	_, code, err = GetUser(*userData.UserID, db)
+	_, code, err = GetUser(*req.UserID, db)
 	if err != nil {
 		return code, err
 	}
 
 	isSuperAdmin := currentUser.CheckUserIsAdmin(db)
-	if currentUserID == *userData.UserID || isSuperAdmin {
-		if userData.AccessToken != nil {
+	if currentUserID == *req.UserID || isSuperAdmin {
+		if req.AccessToken != nil {
 
-			accessToken, err := accessToken.GetAccessTokenByID(db, *userData.AccessToken)
+			accessToken, err := accessToken.GetAccessTokenByID(db, *req.AccessToken)
 			if err != nil {
 				return http.StatusNotFound, err
 			}
@@ -112,7 +111,7 @@ func RevokeUserAccessToken(userData models.TerminateSessionRequest, db *gorm.DB,
 				return http.StatusBadRequest, fmt.Errorf("error revoking user session: %v", err)
 			}
 
-		} else if userData.GlobalTermination {
+		} else if req.GlobalTermination {
 
 			if isSuperAdmin {
 				var access models.AccessToken

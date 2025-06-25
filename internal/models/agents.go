@@ -656,6 +656,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oci          OrganisationChannelsIntegrations
 		channels     []Channels
 		orgchannels  []OrganisationChannelsIntegrations
+		intsettings  CustomIntegrationsSetting
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -666,7 +667,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	agentExists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	ChannelagentExists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
-	// CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 
 	if !(agentExists || orgAgentExists) {
 		return errors.New("integration app does not exist")
@@ -733,79 +734,34 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		}
 	}
 
-	// return nil
-
 	// add settings if not exist
-	// if !CheckIntegrationSettings && agent.JSONUrl != "" {
-	// 	data := map[string]string{"url": agent.JSONUrl}
+	if !CheckIntegrationSettings {
+		var agentSettings CustomIntegrationsSetting
 
-	// 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+		settings_data := map[string]any{"settings": ""}
 
-	// 	if err != nil {
-	// 		return errors.New("failed to save agent default settings, invalid JSON supplied")
-	// 	}
+		auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
+		auth_credentials["agent_api_key"] = agent.PreSharedKey
+		settings_data["auth_credentials"] = auth_credentials
 
-	// 	response_data := response.(map[string]interface{})
-	// 	data_r, ok := response_data["data"].(map[string]interface{})
+		settingJsonData, err := json.Marshal(settings_data)
+		if err != nil {
+			return fmt.Errorf("error serializing to JSON: %v", err)
+		}
 
-	// 	if !ok {
-	// 		return errors.New("Failed to save agent, data field does not exist")
-	// 	}
+		serialized_settings := string(settingJsonData)
 
-	// 	// validate all entries
-	// 	err = ValidateAgentData(data_r)
+		agentSettings.ID = utility.GenerateUUID()
+		agentSettings.SettingEntry = serialized_settings
+		agentSettings.OrgID = ids["org_id"]
+		agentSettings.IsSystem = false
+		agentSettings.IntegrationID = ids["agent_id"]
 
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	settings, ok := data_r["settings"]
-	// 	if !ok {
-	// 		return errors.New("Failed to save agent default settings, settings field does not exist")
-	// 	}
-
-	// 	settings_data := map[string]interface{}{"settings": settings}
-
-	// 	is_auth, ok := data_r["is_oauth"].(bool)
-
-	// 	if ok && is_auth {
-	// 		enc_key := config.Config.Server.EncKey
-
-	// 		auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
-
-	// 		api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
-
-	// 		auth_credentials["agent_api_key"] = api_key
-	// 		settings_data["auth_credentials"] = auth_credentials
-	// 		if err != nil {
-	// 			return errors.New("Failed to create external API key")
-	// 		}
-	// 	}
-
-	// 	// serialize the settings json
-
-	// 	settingJsonData, err := json.Marshal(settings_data)
-	// 	if err != nil {
-	// 		return fmt.Errorf("error serializing to JSON: %v", err)
-	// 	}
-	// 	serialized_settings := string(settingJsonData)
-
-	// 	integrationSettings.ID = utility.GenerateUUID()
-	// 	integrationSettings.SettingEntry = serialized_settings
-	// 	integrationSettings.OrgID = ids["org_id"]
-	// 	integrationSettings.IntegrationID = ids["agent_id"]
-
-	// 	if agentExists {
-	// 		integrationSettings.IsSystem = true
-	// 	} else {
-	// 		integrationSettings.IsSystem = false
-	// 	}
-
-	// 	err = integrationSettings.CreateIntegrationSettings(db)
-	// 	if err != nil {
-	// 		return errors.New("failed to create agent settings")
-	// 	}
-	// }
+		err = agentSettings.CreateIntegrationSettings(db)
+		if err != nil {
+			return errors.New("failed to create agent settings")
+		}
+	}
 
 	// Add the missing channels in a bulk insert without using a for loop @cyberguru
 	err := db.Exec(`
@@ -2004,6 +1960,7 @@ func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error
 	return nil
 }
 
+<<<<<<< HEAD
 func (i *OrganisationIntegrations) CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
 	var agent OrganisationIntegrations
 	if err := db.Where("integration_id = ?", usage.AgentID).First(&agent).Error; err != nil {
@@ -2225,4 +2182,82 @@ func (i *IntegrationBillsResponse) GetOrgAgentBills(
 	}
 
 	return agentBillResponses, paginationResponse, nil, http.StatusOK
+=======
+func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
+	var (
+		integration Integrations
+		dmchannels  []DmChannels
+		channelIDs  []string
+		thread      Threads
+	)
+
+	tx := db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error), http.StatusInternalServerError
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	exists := postgresql.CheckExists(tx, &integration, "id = ?", agentID)
+	if !exists {
+		tx.Rollback()
+		return errors.New("agent app does not exist"), http.StatusBadRequest
+	}
+
+	err := tx.Delete(&Integrations{}, "id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&IntegrationSettings{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&OrganisationIntegrations{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = postgresql.SelectAllFromDb(tx, "", &dmchannels, "chat_type = 'bot' AND participant_id = ?", agentID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch bot DM channels: %w", err), http.StatusInternalServerError
+	}
+
+	if len(dmchannels) > 0 {
+		for _, channel := range dmchannels {
+			channelIDs = append(channelIDs, channel.ChannelId)
+		}
+
+		err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err), http.StatusInternalServerError
+	}
+
+	if len(channelIDs) > 0 {
+		for _, channelID := range channelIDs {
+			thread.ID = channelID
+			_, err := thread.ClearDMThreadsByChannelID(db)
+			if err != nil {
+				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+			}
+		}
+	}
+
+	return nil, http.StatusOK
+>>>>>>> e22b5c92d9aa7231920befdc33f8e6019be42453
 }

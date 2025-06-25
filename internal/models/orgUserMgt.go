@@ -16,6 +16,7 @@ type OrgUserManagement struct {
 	OrganisationID string                 `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
 	Status         string                 `gorm:"type:varchar(255)" json:"status"`
 	RoleID         string                 `gorm:"type:uuid;null" json:"role_id"`
+	IsDeactivated  bool                   `gorm:"column:is_deactivated;type:bool;default:false" json:"is_deactivated"`
 	CreatedAt      time.Time              `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time              `gorm:"index" json:"deleted_at"`
 	Preferences    NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
@@ -85,6 +86,10 @@ type OrgUserRoleInfo struct {
 	RoleID         string `json:"role_id"`
 	RoleName       string `json:"role_name"`
 	OrganisationID string `json:"organisation_id"`
+}
+
+type ChangeMemberActiveStatus struct {
+	Activate bool `gorm:"activate" json:"activate"`
 }
 
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
@@ -233,7 +238,7 @@ func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, use
 	return nil
 }
 
-func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) error {
+func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) (int, error) {
 	var (
 		user User
 		org  Organisation
@@ -241,29 +246,30 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) error {
 
 	user, err := user.GetUserByID(db, o.UserID)
 	if err != nil {
-		return err
+		return 404, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	org, err = org.GetOrgByID(db, o.OrganisationID)
 	if err != nil {
-		return err
+		return 404, fmt.Errorf("failed to get organisation: %w", err)
 	}
 
 	exists := postgresql.CheckExists(db, &o, "organisation_id = ? AND user_id = ?", o.OrganisationID, o.UserID)
 	if exists {
-		return errors.New("user already exists in organisation")
+		return 409, fmt.Errorf("user already exists in organisation")
 	}
+
 	err = postgresql.CreateOneRecord(db, &o)
 	if err != nil {
-		return err
+		return 500, fmt.Errorf("failed to create org user management: %w", err)
 	}
 
 	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
 	if err != nil {
-		return err
+		return 500, fmt.Errorf("failed to add user to organisation: %w", err)
 	}
 
-	return nil
+	return 201, nil
 }
 
 func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, roleID string) error {
@@ -314,4 +320,10 @@ func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID
 	}
 
 	return userRoleInfo, nil
+}
+
+func (o *OrgUserManagement) CheckIsUserDeactivated(db *gorm.DB, ids IDS) bool {
+	var orgUserManagement OrgUserManagement
+
+	return postgresql.CheckExists(db, &orgUserManagement, "organisation_id = ? AND user_id = ? AND is_deactivated = ?", ids.OrganisationID, ids.UserID, true)
 }

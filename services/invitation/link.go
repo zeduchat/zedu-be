@@ -263,7 +263,7 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 
 func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 
-	if err := orgmgt.AddUserToOrganisation(db); err != nil {
+	if _, err := orgmgt.AddUserToOrganisation(db); err != nil {
 		return err
 	}
 

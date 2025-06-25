@@ -1179,6 +1179,17 @@ func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq 
 	return int_resp, nil
 }
 
+func AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
+	var agent models.Integrations
+
+	err, code := agent.AdminDeleteSystemAgentApp(db, logger, agentID)
+	if err != nil {
+		return err, code
+	}
+
+	return nil, code
+}
+
 func GetAgentBills(c *gin.Context, db *gorm.DB) ([]models.IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
 	var (
 		resp             []models.IntegrationBillsResponse

@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
@@ -159,13 +159,24 @@ func (base *Controller) DeactiveUser(ctx *gin.Context) {
 		userID = ctx.Param("user_id")
 	)
 
-	code, err := service.DeactiveUser(userID, base.Db.Postgresql, ctx)
+	userClaims := common.GetAllUserClaims(ctx)
+	loggedUserID, ok := userClaims["user_id"].(string)
+	if !ok {
+		base.Logger.Error("failed to get user id from claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		ctx.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := service.DeactiveUser(base.Db.Postgresql, userID, loggedUserID)
 	if err != nil {
+		base.Logger.Error("failed to deactivate user", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		ctx.JSON(code, rd)
 		return
 	}
 
+	base.Logger.Info("user deactivated successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated successfully", nil)
 	ctx.JSON(http.StatusOK, rd)
 
@@ -178,6 +189,7 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 
 	err := c.ShouldBind(&req)
 	if err != nil {
+		base.Logger.Error("failed to bind request", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -185,6 +197,7 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -192,31 +205,38 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 	}
 
 	if _, err := uuid.Parse(req.CurrentOrg); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	claims, exists := c.Get("userClaims")
-	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", err, nil)
+	userClaims := common.GetAllUserClaims(c)
+	userId, ok := userClaims["user_id"].(string)
+	if !ok {
+		base.Logger.Error("failed to get user id from claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	userClaims := claims.(jwt.MapClaims)
+	accessTokenID, ok := userClaims["access_uuid"].(string)
+	if !ok {
+		base.Logger.Error("failed to get access token id from claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access token id from claims", "failed to get access token id from claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	userId := userClaims["user_id"].(string)
-
-	respData, code, err := service.SwitchUserOrg(req, userId, base.Db.Postgresql, c)
+	respData, code, err := service.SwitchUserOrg(base.Db.Postgresql, c, req, userId, accessTokenID)
 	if err != nil {
+		base.Logger.Error("error switching user organisation", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("user org switched successfully")
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User organisation switched successfully", respData)
 	c.JSON(http.StatusOK, rd)
 

@@ -95,9 +95,9 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		}
 	}()
 
-	err = addToOrg.AddUserToOrganisation(tx)
+	code, err := addToOrg.AddUserToOrganisation(tx)
 	if err != nil {
-		return "", http.StatusBadRequest, fmt.Errorf("unable to add user to organisation: %s", err)
+		return "", code, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
 	generalChannel, err := getGeneralChannel(tx, invite.OrganisationID)

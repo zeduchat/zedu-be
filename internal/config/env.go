@@ -25,6 +25,7 @@ type Configuration struct {
 	MongoDB      MongoDB
 	OpenRouter   OpenRouter
 	Admin        Admin
+	Google       Google
 }
 
 type BaseConfig struct {
@@ -126,6 +127,10 @@ type BaseConfig struct {
 	SUPER_ADMIN_NAME     string `mapstructure:"SUPER_ADMIN_NAME"`
 	SUPER_ADMIN_PASSWORD string `mapstructure:"SUPER_ADMIN_PASSWORD"`
 	SUPER_ADMIN_ROLE     string `mapstructure:"SUPER_ADMIN_ROLE"`
+
+	GOOGLE_CLIENT_ID     string `mapstructure:"GOOGLE_CLIENT_ID"`
+	GOOGLE_CLIENT_SECRET string `mapstructure:"GOOGLE_CLIENT_SECRET"`
+	GOOGLE_REDIRECT_URI  string `mapstructure:"GOOGLE_REDIRECT_URI"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -264,6 +269,11 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			SUPER_ADMIN_NAME:     config.SUPER_ADMIN_NAME,
 			SUPER_ADMIN_PASSWORD: config.SUPER_ADMIN_PASSWORD,
 			SUPER_ADMIN_ROLE:     config.SUPER_ADMIN_ROLE,
+		},
+		Google: Google{
+			CLIENT_ID:     config.GOOGLE_CLIENT_ID,
+			CLIENT_SECRET: config.GOOGLE_CLIENT_SECRET,
+			REDIRECT_URI:  config.GOOGLE_REDIRECT_URI,
 		},
 	}
 }
