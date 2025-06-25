@@ -714,7 +714,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		agentSettings.IsSystem = false
 		agentSettings.IntegrationID = ids["agent_id"]
 
-		err = intsettings.CreateIntegrationSettings(db)
+		err = agentSettings.CreateIntegrationSettings(db)
 		if err != nil {
 			return errors.New("failed to create agent settings")
 		}
