@@ -166,10 +166,18 @@ type CreditAggregate struct {
 	TotalUsed     float64
 }
 
+type AgentBillAggregate struct {
+	IntegrationID     string
+	MakerTotalEarning float64
+	TelexTotalEarning float64
+}
+
 type AdminCustomAgentResp struct {
-	Agent      OrganisationIntegrations `json:"agent"`
-	User       User                     `json:"user"`
-	CreditUsed float64                  `json:"credit_used"`
+	Agent             OrganisationIntegrations `json:"agent"`
+	User              User                     `json:"user"`
+	CreditUsed        float64                  `json:"credit_used"`
+	TelexTotalEarning float64                  `json:"telex_total_earning"`
+	MakerTotalEarning float64                  `json:"maker_total_earning"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -209,23 +217,30 @@ type IntegrationOutput struct {
 }
 
 type PartialOrganisationIntegration struct {
-	ID            string    `json:"id"`
-	IntegrationID *string   `json:"integration_id"`
-	OrgID         *string   `json:"org_id"`
-	IsActive      bool      `json:"is_active"`
-	IsSystem      bool      `json:"is_system"`
-	IsArchived    bool      `json:"is_archived"`
-	JSONUrl       string    `json:"json_url"`
-	AppName       string    `json:"app_name"`
-	Name          string    `json:"name"`
-	AppLogo       string    `json:"app_logo"`
-	AppUrl        string    `json:"app_url"`
-	IsPaid        bool      `json:"is_paid"`
-	IsApproved    bool      `json:"is_approved"`
-	CreatedAt     time.Time `json:"created_at"`
-	Source        string    `json:"source"`
-	Provider      Provider  `json:"provider"`
-	CreditUsed    float64   `json:"credit_used"`
+	ID                string    `json:"id"`
+	IntegrationID     *string   `json:"integration_id"`
+	OrgID             *string   `json:"org_id"`
+	IsActive          bool      `json:"is_active"`
+	IsSystem          bool      `json:"is_system"`
+	IsArchived        bool      `json:"is_archived"`
+	JSONUrl           string    `json:"json_url"`
+	AppName           string    `json:"app_name"`
+	Name              string    `json:"name"`
+	AppLogo           string    `json:"app_logo"`
+	AppUrl            string    `json:"app_url"`
+	IsPaid            bool      `json:"is_paid"`
+	IsApproved        bool      `json:"is_approved"`
+	CreatedAt         time.Time `json:"created_at"`
+	Source            string    `json:"source"`
+	Provider          Provider  `json:"provider"`
+	CreditUsed        float64   `json:"credit_used"`
+	TelexTotalEarning float64   `json:"telex_total_earning"`
+	MakerTotalEarning float64   `json:"maker_total_earning"`
+}
+
+type Earnings struct {
+	MakerTotal float64
+	TelexTotal float64
 }
 
 type IntegrationChannel struct {
@@ -1761,6 +1776,34 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 		})
 	}
 
+	// attach agent credit earned
+	var agentBillAggregates []AgentBillAggregate
+	err = db.Model(&IntegrationBills{}).
+		Select("integration_id as integration_id,  COALESCE(SUM(maker_amount), 0) AS maker_total_earning, COALESCE(SUM(telex_amount), 0) AS telex_total_earning").
+		Where("integration_id IN ?", agentIDs).
+		Group("integration_id").
+		Scan(&agentBillAggregates).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	billMap := map[string]Earnings{}
+	for _, ca := range agentBillAggregates {
+		billMap[ca.IntegrationID] = Earnings{
+			MakerTotal: ca.MakerTotalEarning,
+			TelexTotal: ca.TelexTotalEarning,
+		}
+	}
+
+	for i := range orgIntResp {
+		id := *orgIntResp[i].IntegrationID
+		if earnings, ok := billMap[id]; ok {
+			orgIntResp[i].MakerTotalEarning = earnings.MakerTotal
+			orgIntResp[i].TelexTotalEarning = earnings.TelexTotal
+		}
+	}
+
 	return orgIntResp, paginationResponse, nil, http.StatusOK
 }
 
@@ -1815,6 +1858,20 @@ func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID strin
 	}
 
 	resp.CreditUsed = total
+
+	var agentBills AgentBillAggregate
+	err := db.Model(&IntegrationBills{}).
+		Select("integration_id, COALESCE(SUM(maker_amount), 0) AS maker_total_earning, COALESCE(SUM(telex_amount), 0) AS telex_total_earning").
+		Where("integration_id = ?", agentID).
+		Group("integration_id").
+		Take(&agentBills).Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return AdminCustomAgentResp{}, err
+	}
+
+	resp.MakerTotalEarning = agentBills.MakerTotalEarning
+	resp.TelexTotalEarning = agentBills.TelexTotalEarning
 
 	return resp, nil
 }
