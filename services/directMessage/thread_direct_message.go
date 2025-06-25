@@ -304,7 +304,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		OrganisationID: channel.OrgId,
 		Amount:         creditUsed,
 		AgentID:        *channel.ParticipantId,
-		UserID:         req.UserId,
+		UserID:         nil,
 	}
 
 	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)

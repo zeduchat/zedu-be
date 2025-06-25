@@ -12,10 +12,11 @@ import (
 )
 
 func AddAgentSettings(db *gorm.DB, ids map[string]string, req models.AddIntegrationSettingsRequest) error {
+	orgID := ids["org_id"]
 
 	is := models.IntegrationSettings{
 		ID:             utility.GenerateUUID(),
-		OrgID:          ids["org_id"],
+		OrgID:          &orgID,
 		IntegrationID:  ids["agent_id"],
 		FormFieldValue: req.FormFieldValue,
 		FormFieldLabel: req.FormFieldLabel,

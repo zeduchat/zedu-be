@@ -287,10 +287,10 @@ paths:
             schema:
               type: object
               properties:
-                id_token:
+                grant_code:
                   type: string
               required:
-                - id_token
+                - grant_code
 
       responses:
         "200":

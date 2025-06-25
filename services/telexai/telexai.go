@@ -65,26 +65,26 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 }
 
 func ListAllModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client) (external_models.OpenRouterModelsResponse, error) {
-	cacheDuration := 12 * time.Hour 
+	cacheDuration := 12 * time.Hour
 	redisKey := "telexai:models"
 
 	cachedModels, err := rd.RedisGet(redisClient, redisKey)
-    if err == nil && len(cachedModels) > 0 {
-        logger.Info("Using cached models from Redis")
-        
-        var rawJSON string
-        if err := json.Unmarshal([]byte(cachedModels), &rawJSON); err != nil {
-            logger.Error("Failed to unmarshal outer JSON: ", err)
-            return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal outer JSON: %w", err)
-        }
+	if err == nil && len(cachedModels) > 0 {
+		logger.Info("Using cached models from Redis")
 
-        var cachedModelsList external_models.OpenRouterModelsResponse
-        if err := json.Unmarshal([]byte(rawJSON), &cachedModelsList); err != nil {
-            logger.Error("Failed to unmarshal inner JSON: ", err)
-            return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal inner JSON: %w", err)
-        }
-        return cachedModelsList, nil
-    }
+		var rawJSON string
+		if err := json.Unmarshal([]byte(cachedModels), &rawJSON); err != nil {
+			logger.Error("Failed to unmarshal outer JSON: ", err)
+			return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal outer JSON: %w", err)
+		}
+
+		var cachedModelsList external_models.OpenRouterModelsResponse
+		if err := json.Unmarshal([]byte(rawJSON), &cachedModelsList); err != nil {
+			logger.Error("Failed to unmarshal inner JSON: ", err)
+			return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal inner JSON: %w", err)
+		}
+		return cachedModelsList, nil
+	}
 
 	logger.Info("No cached models found in Redis, fetching from OpenRouter")
 	res, err := extReq.SendExternalRequest(request.GetAllModels, nil)
@@ -142,4 +142,29 @@ func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChat
 
 	// return selectedModel, nil --(credit wastage reasons)
 	return "deepseek/deepseek-r1-0528-qwen3-8b:free", nil
+}
+
+func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength int, logger *utility.Logger) error {
+	var agentPrice float64 = 0.0 // temp value
+
+	creditUsed := models.CalculateCreditCost(inputputLength, agentPrice)
+
+	credit_usage := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: ids.OrganisationID,
+		Amount:         creditUsed,
+		AgentID:        ids.AgentID,
+		UserID:         nil,
+	}
+
+	err := credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
+	if err != nil {
+		logger.Error("failed to create credit usage!!")
+	}
+
+	if err = models.UpdateOrgCreditBalance(db.Postgresql, ids.OrganisationID); err != nil {
+		logger.Error("Organisation credit Recalculation failed")
+	}
+
+	return nil
 }
