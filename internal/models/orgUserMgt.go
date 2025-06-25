@@ -88,6 +88,10 @@ type OrgUserRoleInfo struct {
 	OrganisationID string `json:"organisation_id"`
 }
 
+type ChangeMemberActiveStatus struct {
+	Activate bool `gorm:"activate" json:"activate"`
+}
+
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &o)

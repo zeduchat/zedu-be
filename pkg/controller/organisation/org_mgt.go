@@ -2,6 +2,7 @@ package organisation
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -139,7 +140,7 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 	orgId := c.Param("org_id")
 	invite_status := c.Query("invite_status")
 
-	if invite_status != "" && invite_status != "invited" && invite_status != "accepted" && invite_status != "all"{
+	if invite_status != "" && invite_status != "invited" && invite_status != "accepted" && invite_status != "all" {
 		base.Logger.Error("invalid invite status", nil)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid invite status", "invite_status must be either 'pending', 'invited' or 'all'", nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -377,14 +378,40 @@ func ValidateNotifOption(option string) bool {
 	}
 }
 
-
-func (base *Controller) DeactivateMemberFromOrganisation(c *gin.Context) {
-	user_id := c.Query("user_id")
+func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
+	var (
+		req     models.ChangeMemberActiveStatus
+		user_id = c.Param("user_id")
+		org_id  = c.Param("org_id")
+	)
 
 	if _, err := uuid.Parse(user_id); err != nil {
+		base.Logger.Error("failed to parse user id: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(org_id); err != nil {
 		base.Logger.Error("failed to parse organisation id: %w", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Error("failed to parse request body: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("validation failed: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
@@ -396,16 +423,26 @@ func (base *Controller) DeactivateMemberFromOrganisation(c *gin.Context) {
 		return
 	}
 
-	code, err := organisation.DeactivateMemberFromOrganisation(base.Db.Postgresql, c, user_id, adminUserID.(string))
+	ids := map[string]string{
+		"org_id": org_id,
+		"user_id": user_id,
+		"admin_user_id": adminUserID.(string),
+	}
+
+	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req ,ids)
 	if err != nil {
-		base.Logger.Error("failed to deactivate member from organisation: %w", err)
-		rd := utility.BuildErrorResponse(code, "error", "failed to deactivate member from organisation", err.Error(), nil)
+		base.Logger.Error("failed to change member active status: %w", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to change member active status", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
 
+	status := "deactivated"
+	if req.Activate {
+		status = "activated"
+	}
 
-	base.Logger.Info("user deactivated from organisation successfully")
-	rd := utility.BuildSuccessResponse(code, "user deactivated from organisation successfully", nil)
+	base.Logger.Info("user %s from organisation %s successfully", status, org_id)
+	rd := utility.BuildSuccessResponse(code,"success", fmt.Sprintf("user %s successfully", status))
 	c.JSON(code, rd)
 }

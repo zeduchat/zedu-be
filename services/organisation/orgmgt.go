@@ -123,11 +123,14 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 	return resp, nil
 }
 
-func DeactivateMemberFromOrganisation(db *gorm.DB, c *gin.Context, user_id, adminUserID string) (int, error) {
+func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
 	var (
 		user       models.User
 		adminUser  models.User
 		user_token models.AccessToken
+		user_id    = ids["user_id"]
+		org_id     = ids["org_id"]
+		adminUserID = ids["admin_user_id"]
 	)
 
 	if !user.CheckUserExists(db, user_id) {
@@ -139,22 +142,50 @@ func DeactivateMemberFromOrganisation(db *gorm.DB, c *gin.Context, user_id, admi
 	}
 
 	if user_id == adminUserID {
-		return http.StatusForbidden, errors.New("you cannot deactivate your own account")
+		return http.StatusForbidden, errors.New("you cannot change your own active status")
 	}
 
-	if err := user.DeactivateMemberFromOrganisation(db); err != nil {
+	if req.Activate {
+		return ActivateMember(db, user_id, org_id, user)
+	}
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := user.ChangeMemberActiveStatus(tx, org_id, true); err != nil {
+		tx.Rollback()
 		return http.StatusInternalServerError, err
 	}
 
 	user_token.OwnerID = user_id
-	code, err := user_token.GetMostRecentAccessToken(db)
+	code, err := user_token.GetMostRecentAccessToken(tx)
 	if err != nil {
+		tx.Rollback()
 		return code, fmt.Errorf("failed to get user token: %v", err)
 	}
 
-	_, err = auth.LogoutUser(user_token.ID, user.ID, db)
+	_, err = auth.LogoutUser(user_token.ID, user.ID, tx)
 	if err != nil {
-		return http.StatusBadRequest, errors.New("i")
+		tx.Rollback()
+		return http.StatusBadRequest, errors.New("failed to logout user")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return http.StatusOK, nil
+}
+
+func ActivateMember(db *gorm.DB, userID, orgID string, user models.User) (int, error) {
+	err := user.ChangeMemberActiveStatus(db, orgID, false)
+	if err != nil {
+		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusOK, nil
