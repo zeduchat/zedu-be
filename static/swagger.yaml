@@ -3016,6 +3016,62 @@ paths:
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
 
+  /organisations/{org_id}/users/{user_id}/status:
+    patch:
+      tags:
+        - organisation
+      summary: Activate or deactivate a user in an organisation
+      description: Allows an organisation admin to activate or deactivate a member of the organisation.
+      operationId: updateUserStatus
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Organisation ID
+          schema:
+            type: string
+            example: "019700db-4e22-7f90-a20e-f9116291ef24"
+        - name: user_id
+          in: path
+          required: true
+          description: User ID of the member to be activated or deactivated
+          schema:
+            type: string
+            example: "01972074-9411-7451-979a-fa258433af26"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - activate
+              properties:
+                activate:
+                  type: boolean
+                  description: Set to `true` to activate the user, `false` to deactivate
+                  example: true
+      responses:
+        '200':
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: string
+                    example: user activated successfully
+
   /organisations/{organisation_id}/channels/archived:
     get:
       tags:
