@@ -58,12 +58,12 @@ func AuthMigrationModels() []interface{} {
 		models.Testimonial{},
 		models.UploadedFileResponse{},
 		models.User{},
+		models.Admin{},
 		models.UserChannels{},
 		models.Webhook{},
 		models.CreditUsage{},
 		models.CreditTransaction{},
 		models.CreditPackage{},
-		models.Admin{},
 	} // an array of db models, example: User{}
 }
 
@@ -72,13 +72,8 @@ func AlterColumnModels() []AlterColumn {
 		// {
 		// 	Model: models.OrgUserManagement{},
 		// 	TableName: "org_user_managements",
-		// 	Column: "role_id",
-		// },
-		// {
-		// 	Model: models.OrgUserManagement{},
-		// 	TableName: "org_user_managements",
-		// 	Column: "role_id",
-		// 	Type:  "uuid",
+		// 	Column: "is_deactivated",
+		// 	Type: "bool",
 		// },
 	}
 }

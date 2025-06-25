@@ -12,7 +12,12 @@ func RunAllMigrations(db *storage.Database) {
 
 }
 
-func MigrateModels(db *gorm.DB, models []interface{}, AlterColums []AlterColumn) {
+func MigrateModels(db *gorm.DB, models []any, AlterColums []AlterColumn) {
 	_ = db.AutoMigrate(models...)
 
+	// for _, alter := range AlterColums {
+	// 	if alter.Column != "" {
+	// 		alter.AddColumn(db)
+	// 	}
+	// }
 }

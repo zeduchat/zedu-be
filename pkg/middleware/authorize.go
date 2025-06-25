@@ -21,6 +21,7 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		var (
 			tokenStr     string
 			access_token models.AccessToken
+			oum          models.OrgUserManagement
 		)
 
 		bearerToken := c.GetHeader("Authorization")
@@ -43,7 +44,6 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// access user claims
-
 		claims := token.Claims.(jwt.MapClaims)
 
 		// check if user id exists and fetch it
@@ -53,14 +53,30 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		org_id, ok := claims["org_id"].(string)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
+			return
+		}
+
+		ids := models.IDS{
+			OrganisationID: org_id,
+			UserID:         userID,
+		}
+
+		if oum.CheckIsUserDeactivated(db, ids) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "User is deactivated from organisation", "Unauthorized", nil))
+			return
+		}
+
 		// check if access id exists and fetch it
 		accessID, ok := claims["access_uuid"].(string) //convert the interface to string
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
 			return
 		}
-		// check user session and also if token is valid in stored session
 
+		// check user session and also if token is valid in stored session
 		access_token = models.AccessToken{ID: accessID}
 		if code, err := access_token.GetByID(db); err != nil {
 			c.AbortWithStatusJSON(code, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
@@ -68,7 +84,6 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// check if session is valid
-
 		if access_token.LoginAccessToken != tokenStr || userID != access_token.OwnerID || !access_token.IsLive {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Session is invalid!", "Unauthorized", nil))
 			return

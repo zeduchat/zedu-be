@@ -8,10 +8,13 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -31,12 +34,28 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		responseData gin.H
 	)
 
-	tokenString := req.Token
+	var googleOAuthConfig = &oauth2.Config{
+		ClientID:     config.Config.Google.CLIENT_ID,
+		ClientSecret: config.Config.Google.CLIENT_SECRET,
+		RedirectURL:  config.Config.Google.REDIRECT_URI,
+		Scopes:       []string{"openid", "email", "profile"},
+		Endpoint:     google.Endpoint,
+	}
 
-	resp, err := idtoken.Validate(context.Background(), tokenString, "")
+	token, err := googleOAuthConfig.Exchange(context.Background(), req.Token)
+	if err != nil {
+		return responseData, http.StatusBadRequest, fmt.Errorf("failed to exchange code: %v", err)
+	}
+
+	idToken := token.Extra("id_token")
+	if idToken == nil {
+		return responseData, http.StatusBadRequest, fmt.Errorf("id_token missing from token exchange")
+	}
+
+	resp, err := idtoken.Validate(context.Background(), idToken.(string), googleOAuthConfig.ClientID)
 	userClaims = resp.Claims
 	if err != nil {
-		return responseData, http.StatusBadRequest, fmt.Errorf("token not valid: " + err.Error())
+		return responseData, http.StatusBadRequest, fmt.Errorf("an error occured: %v", err.Error())
 	}
 
 	var (
@@ -61,7 +80,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		user, err = user.GetUserWithProfile(db, user.ID)
 
 		if err != nil {
-			return responseData, http.StatusInternalServerError, fmt.Errorf("error fetching user " + err.Error())
+			return responseData, http.StatusInternalServerError, fmt.Errorf("error fetching user %v", err.Error())
 		}
 
 	} else {
@@ -87,7 +106,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 
 	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
 	}
 
 	tokens := map[string]string{
@@ -100,7 +119,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 	err = access_token.CreateAccessToken(db, tokens)
 
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v" , err.Error())
 	}
 
 	responseData = gin.H{

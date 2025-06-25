@@ -140,7 +140,7 @@ func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
 	err := query.First(&orgRole).Error
 
 	if err != nil {
-		return orgRole, err
+		return orgRole, fmt.Errorf("role with id %s not found: %w", roleID, err)
 	}
 
 	return orgRole, nil
@@ -153,7 +153,7 @@ func (r *OrgRole) GetAOrgRoleByName(db *gorm.DB, roleName string) (OrgRole, erro
 	err := query.First(&orgRole).Error
 
 	if err != nil {
-		return orgRole, err
+		return orgRole, fmt.Errorf("role with name %s not found: %w", roleName, err)
 	}
 
 	return orgRole, nil
