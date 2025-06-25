@@ -61,6 +61,7 @@ func AuthMigrationModels() []interface{} {
 		models.Admin{},
 		models.UserChannels{},
 		models.Webhook{},
+		models.IntegrationBills{},
 		models.CreditUsage{},
 		models.CreditTransaction{},
 		models.CreditPackage{},

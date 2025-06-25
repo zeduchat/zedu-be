@@ -298,26 +298,6 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 	}
 
-	// save organisation credit usage
-	credit_usage := models.CreditUsage{
-		ID:             utility.GenerateUUID(),
-		OrganisationID: channel.OrgId,
-		Amount:         creditUsed,
-		AgentID:        *channel.ParticipantId,
-		UserID:         nil,
-	}
-
-	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
-	if err != nil {
-		logger.Error("failed to create/update credit usage!!")
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update organisation credit usage: %v", err)
-	}
-
-	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
-		logger.Error("Organisation credit Recalculation failed")
-		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
-	}
-
 	logger.Info(fmt.Sprintf("Pushed to RabbitMQ for integration: %s", routing_key))
 
 	return &threadDoc, http.StatusCreated, nil
@@ -413,9 +393,8 @@ func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mo
 
 func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest, rds *redis.Client) (*models.ThreadDocument, int, error) {
 	var (
-		channel    models.DmChannels
-		orgAgent   models.OrganisationIntegrations
-		threadResp models.ThreadDocument
+		channel  models.DmChannels
+		orgAgent models.OrganisationIntegrations
 		// user       models.User
 	)
 
@@ -429,20 +408,15 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
 	}
 
-	agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
-	if err != nil {
-		return &threadResp, http.StatusInternalServerError, err
-	}
-
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
-		Username:      agentDetails["app_name"].(string),
+		Username:      orgAgent.AppName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelID,
 		Type:          "message",
 		MessageCount:  0,
-		AvatarURL:     agentDetails["app_logo"].(string),
-		FullName:      agentDetails["app_name"].(string),
+		AvatarURL:     orgAgent.AppLogo,
+		FullName:      orgAgent.AppName,
 		Email:         "agent",
 		CreatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
@@ -464,14 +438,14 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	feed := models.FeedMessageRequest{
 		ChannelID: req.ChannelID,
-		UserName:  agentDetails["app_name"].(string),
+		UserName:  orgAgent.AppName,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: agentDetails["app_logo"].(string),
+		AvatarURL: orgAgent.AppLogo,
 		Type:      "message",
 		Content:   req.Content,
 		ThreadId:  threadDoc.ID,
 		Email:     "agent",
-		FullName:  agentDetails["app_name"].(string),
+		FullName:  orgAgent.AppName,
 		UserId:    *channel.ParticipantId,
 		Media:     req.Media,
 		UserType:  "bot",
@@ -496,6 +470,41 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
+	}
+
+	creditUsed := models.CalculateCreditCost(len(req.Content), 0)
+
+	if req.OperationPrice != nil && *req.OperationPrice > 0 {
+		creditUsed = creditUsed * (*req.OperationPrice / 100) // apply operation price
+	}
+
+	credit_usage := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: channel.OrgId,
+		Amount:         creditUsed,
+		AgentID:        *channel.ParticipantId,
+		UserID:         nil,
+	}
+
+	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
+	if err != nil {
+		logger.Error("failed to create/update credit usage!!")
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update organisation credit usage: %v", err)
+	}
+
+	// create agent bill to an organization only if special operation was performed
+	if req.OperationPrice != nil && *req.OperationPrice > 0 {
+		err = orgAgent.CreateOrUpdateBillFromUsage(db.Postgresql, &credit_usage)
+		if err != nil {
+			logger.Error("failed to create/update agent bill")
+			return nil, http.StatusBadRequest, fmt.Errorf("failed to create/update agent bill: %v", err)
+		}
+	}
+
+	// update organization credit balance
+	if err = models.UpdateOrgCreditBalance(db.Postgresql, channel.OrgId); err != nil {
+		logger.Error("Organisation credit Recalculation failed")
+		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
 	return &threadDoc, http.StatusCreated, nil

@@ -78,7 +78,9 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	{
 		adminAgentUrl.POST("/agents/system", agentsCtrl.CreateSystemAgent)
 		adminAgentUrl.GET("/agents/all", adminAgent.GetAllCustomAgent)
+		adminAgentUrl.GET("/agents/bills", adminAgent.GetAgentBills)
 		adminAgentUrl.PUT("/agents/:agent_id", agentsCtrl.AdminUpdateAgent)
+		adminAgentUrl.GET("/agents/bills/:org_id", adminAgent.GetOrgAgentBills)
 		adminAgentUrl.GET("/agents/:source/:agent_id", adminAgent.GetCustomAgentByID)
 		adminAgentUrl.GET("/agents/metrics", adminAgent.GetCustomAgentMetrics)
 		adminAgentUrl.DELETE("/agents/:agent_id", agentsCtrl.AdminDeleteCustomAgentApp)
