@@ -277,11 +277,10 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 					"media":                   feed.Media,
 					"mentions":                feed.Mentions,
 				},
-				"channel_id":  feed.ChannelsId,
-				"org_id":      feed.OrgId,
-				"return_url":  feed.ReturnUrl,
-				"agent_id":    channel.ParticipantId,
-				"credit_used": creditUsed,
+				"channel_id": feed.ChannelsId,
+				"org_id":     feed.OrgId,
+				"return_url": feed.ReturnUrl,
+				"agent_id":   channel.ParticipantId,
 			},
 		},
 		"task": "telex_queue_processor.handle_direct_message",
@@ -473,9 +472,10 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
 	}
 
-	var creditUsed float64 = req.CreditUsed
+	creditUsed := models.CalculateCreditCost(len(req.Content), 0)
+
 	if req.OperationPrice != nil && *req.OperationPrice > 0 {
-		creditUsed = req.CreditUsed * (*req.OperationPrice / 100) // apply operation price
+		creditUsed = creditUsed * (*req.OperationPrice / 100) // apply operation price
 	}
 
 	credit_usage := models.CreditUsage{

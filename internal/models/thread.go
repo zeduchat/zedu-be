@@ -212,7 +212,6 @@ type BotReturnRequest struct {
 	Media          []UploadedFileResponse `json:"media"`
 	State          string                 `json:"state"`
 	Mentions       []Mention              `json:"mentions"`
-	CreditUsed     float64                `json:"credit_used"`
 	OperationPrice *float64               `json:"operation_price"`
 }
 
