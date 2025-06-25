@@ -3,12 +3,14 @@ package organisation
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -68,12 +70,17 @@ func UpdateMember(db *gorm.DB, ownerId, orgID, userID string, req models.UpdateM
 	return resp, nil
 }
 
-func GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID string) ([]models.Invitation, postgresql.PaginationResponse, error) {
+func GetOrganisationInvites(c *gin.Context, db *gorm.DB, userID, orgID, invite_status string) ([]models.Invitation, postgresql.PaginationResponse, error) {
 	var (
 		o models.Organisation
 	)
 
-	invitations, paginationResponse, err := o.GetOrganisationInvites(c, db, userID, orgID)
+	ids := models.IDS{
+		UserID:         userID,
+		OrganisationID: orgID,
+	}
+
+	invitations, paginationResponse, err := o.GetOrganisationInvites(c, db, ids, invite_status)
 	if err != nil {
 		return invitations, paginationResponse, err
 	}
@@ -114,4 +121,72 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 	logger.Info("fetched user notification settings successfully")
 
 	return resp, nil
+}
+
+func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
+	var (
+		user       models.User
+		adminUser  models.User
+		user_token models.AccessToken
+		user_id    = ids["user_id"]
+		org_id     = ids["org_id"]
+		adminUserID = ids["admin_user_id"]
+	)
+
+	if !user.CheckUserExists(db, user_id) {
+		return http.StatusUnauthorized, errors.New("user does not exist")
+	}
+
+	if !adminUser.CheckUserExists(db, adminUserID) {
+		return http.StatusUnauthorized, errors.New("user does not exist")
+	}
+
+	if user_id == adminUserID {
+		return http.StatusForbidden, errors.New("you cannot change your own active status")
+	}
+
+	if req.Activate {
+		return ActivateMember(db, user_id, org_id, user)
+	}
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := user.ChangeMemberActiveStatus(tx, org_id, true); err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, err
+	}
+
+	user_token.OwnerID = user_id
+	code, err := user_token.GetMostRecentAccessToken(tx)
+	if err != nil {
+		tx.Rollback()
+		return code, fmt.Errorf("failed to get user token: %v", err)
+	}
+
+	_, err = auth.LogoutUser(user_token.ID, user.ID, tx)
+	if err != nil {
+		tx.Rollback()
+		return http.StatusBadRequest, errors.New("failed to logout user")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return http.StatusOK, nil
+}
+
+func ActivateMember(db *gorm.DB, userID, orgID string, user models.User) (int, error) {
+	err := user.ChangeMemberActiveStatus(db, orgID, false)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }

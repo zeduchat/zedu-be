@@ -36,6 +36,18 @@ func (a *AccessToken) GetAccessTokens(db *gorm.DB) error {
 	return nil
 }
 
+func (a *AccessToken) GetMostRecentAccessToken(db *gorm.DB) (int, error) {
+	err, nilErr := postgresql.SelectLatestFromDb(db, &a, "owner_id = ? and is_live = ?", a.OwnerID, true)
+	if nilErr != nil {
+		return http.StatusBadRequest, fmt.Errorf("failed to retrieve access token: %v", nilErr)
+	}
+
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to retrieve access token: %v", err)
+	}
+	return http.StatusOK, nil
+}
+
 func (a *AccessToken) GetByOwnerID(db *gorm.DB) (int, error) {
 	err, nilErr := postgresql.SelectOneFromDb(db, &a, "owner_id = ? ", a.OwnerID)
 	if nilErr != nil {

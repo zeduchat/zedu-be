@@ -12,21 +12,20 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
-	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
-func GetUser(userIDStr string, db *gorm.DB) (models.User, int, error) {
-	var userResp models.User
+func GetUser(userID string, db *gorm.DB) (models.User, int, error) {
+	var user models.User
 
-	userResp, err := userResp.GetUserByID(db, userIDStr)
+	user, err := user.GetUserByID(db, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return userResp, http.StatusNotFound, errors.New("user not found")
+			return user, http.StatusNotFound, errors.New("user not found")
 		}
-		return userResp, http.StatusBadRequest, err
+		return user, http.StatusBadRequest, err
 	}
-	return userResp, http.StatusOK, nil
+	return user, http.StatusOK, nil
 }
 
 func GetUserByEmail(email string, db *gorm.DB) (models.User, error) {
@@ -101,7 +100,6 @@ func GetAUserOrganisation(db *gorm.DB, c *gin.Context) (*[]models.Organisation, 
 	if err != nil {
 		return nil, http.StatusNotFound, err
 	}
-
 	userID, ok := userId.(string)
 	if !ok {
 		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
@@ -239,20 +237,14 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	return http.StatusOK, nil
 }
 
-func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
+func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 	var user models.User
 
-	userClaims := common.GetAllUserClaims(ctx)
-	userid, ok := userClaims["user_id"].(string)
-	if !ok {
-		return http.StatusBadRequest, errors.New("user_id is not of type string")
+	if userID == loggedInUserID {
+		return http.StatusForbidden, errors.New("you cannot deactivate your own account")
 	}
 
-	if userid == userIDStr {
-		return http.StatusForbidden, errors.New("admin cannot deactivate their self")
-	}
-
-	user, err := user.GetUserByID(db, userIDStr)
+	user, err := user.GetUserByID(db, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return http.StatusNotFound, errors.New("user not found")
@@ -267,8 +259,7 @@ func DeactiveUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	return http.StatusOK, nil
 }
 
-func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
-	db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust, userId, accessTokenID string) (gin.H, int, error) {
 	var (
 		user            models.User
 		org             models.Organisation
@@ -276,27 +267,21 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 		accessToken     models.AccessToken
 		accessTokenData models.AccessToken
 		orgRole         models.OrgRole
-		getOrgRole      models.OrgRole
+		// getOrgRole      models.OrgRole
 	)
-
-	userClaims := common.GetAllUserClaims(c)
-	accessTokenID, ok := userClaims["access_uuid"].(string)
-	if !ok {
-		return gin.H{}, http.StatusBadGateway, fmt.Errorf("error getting access token id")
-	}
 
 	orgMgt, err := orgMgt.GetByIDs(db, userId, req.CurrentOrg)
 	if err != nil {
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
-	getOrgRole, err = getOrgRole.GetAOrgRoleByName(db, "Administrator")
-	if err != nil {
-		return gin.H{}, http.StatusBadRequest, err
-	}
+	// getOrgRole, err = getOrgRole.GetAOrgRoleByName(db, "Administrator")
+	// if err != nil {
+	// 	return gin.H{}, http.StatusBadRequest, err
+	// }
 
-	orgMgt.RoleID = getOrgRole.ID
-	orgMgt.Update(db)
+	// orgMgt.RoleID = getOrgRole.ID
+	// orgMgt.Update(db)
 
 	orgRole, err = orgRole.GetAOrgRoleById(db, orgMgt.RoleID)
 	if err != nil {
@@ -311,7 +296,6 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 	user, err = user.GetUserByID(db, userId)
 	if err != nil {
 		return gin.H{}, http.StatusInternalServerError, err
-
 	}
 
 	exist, err := org.CheckUserIsMemberOfOrg(userId, req.CurrentOrg, db)
@@ -363,5 +347,4 @@ func SwitchUserOrg(req models.SwitchUserOrgReqeust, userId string,
 	}
 
 	return theData, http.StatusOK, nil
-
 }

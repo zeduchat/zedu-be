@@ -9,7 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
-	"github.com/hngprojects/telex_be/services/plan"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -83,12 +82,12 @@ func (base *Controller) OrganisationCreateInvite(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	if !plan.CheckUserOrgPlanThreshold(c, base.Logger, base.Db.Postgresql, inviteReq.OrganisationID) {
-		base.Logger.Error("Maximum number of users for org plan reached!!")
-		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You have reached the maximum number of users for your organization plan", "Plan Limit Reached", nil)
-		c.JSON(http.StatusForbidden, rd)
-		return
-	}
+	// if !plan.CheckUserOrgPlanThreshold(c, base.Logger, base.Db.Postgresql, inviteReq.OrganisationID) {
+	// 	base.Logger.Error("Maximum number of users for org plan reached!!")
+	// 	rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You have reached the maximum number of users for your organization plan", "Plan Limit Reached", nil)
+	// 	c.JSON(http.StatusForbidden, rd)
+	// 	return
+	// }
 
 	err := base.Validator.Struct(&inviteReq)
 	if err != nil {

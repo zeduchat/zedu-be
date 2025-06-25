@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -88,11 +89,9 @@ func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user interface{}, orgs []
 func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
 	var user User
 
-	query := db.Where("id = ?", userID)
-	query = postgresql.PreloadEntities(query, &user, "Profile", "Organisations")
-
-	if err := query.First(&user).Error; err != nil {
-		return user, err
+	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userID)
+	if err != nil {
+		return User{}, fmt.Errorf("user not found: %w", err)
 	}
 
 	return user, nil
@@ -105,7 +104,7 @@ func (u *User) GetUserByEmail(db *gorm.DB, userEmail string) (User, error) {
 	query = postgresql.PreloadEntities(query, &user, "Profile", "Organisations")
 
 	if err := query.First(&user).Error; err != nil {
-		return user, err
+		return user, fmt.Errorf("user with email %s not found: %w", userEmail, err)
 	}
 	return user, nil
 }
@@ -233,7 +232,9 @@ func (user *User) UpdateUserEmail(db *gorm.DB, req UpdateUserProfileRequest, use
 }
 
 func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
-	userUpdates := User{Deactivated: true}
+	userUpdates := map[string]any{
+		"deactivated": true,
+	}
 
 	result, err := postgresql.UpdateFields(db, &user, userUpdates, "id = ?", userId)
 	if err != nil {
@@ -247,8 +248,25 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 	return nil
 }
 
+func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bool) error {
+	var (
+		oum OrgUserManagement
+	)
+
+	update := map[string]any{
+		"is_deactivated": status,
+	}
+
+	_, err := postgresql.UpdateFields(db, &oum, update, "user_id = ? AND organisation_id = ?", user.ID, org_id)
+	if err != nil {
+		return fmt.Errorf("unable to update field: %w", err)
+	}
+
+	return nil
+}
+
 func (user *User) ActivateUser(db *gorm.DB, userId string) error {
-	userUpdates := map[string]interface{}{
+	userUpdates := map[string]any{
 		"deactivated": false,
 	}
 
