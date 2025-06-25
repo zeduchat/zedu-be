@@ -72,13 +72,8 @@ func AlterColumnModels() []AlterColumn {
 		// {
 		// 	Model: models.OrgUserManagement{},
 		// 	TableName: "org_user_managements",
-		// 	Column: "role_id",
-		// },
-		// {
-		// 	Model: models.OrgUserManagement{},
-		// 	TableName: "org_user_managements",
-		// 	Column: "role_id",
-		// 	Type:  "uuid",
+		// 	Column: "is_deactivated",
+		// 	Type: "bool",
 		// },
 	}
 }

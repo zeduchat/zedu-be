@@ -179,16 +179,16 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 
-	var createOGMT models.OrgUserCreateRequest
+	var req models.OrgUserCreateRequest
 
-	if err := c.ShouldBindJSON(&createOGMT); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("failed to bind request", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to bind request", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err := base.Validator.Struct(createOGMT)
+	err := base.Validator.Struct(req)
 	if err != nil {
 		base.Logger.Error("validation error", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "validation error", err.Error(), nil)
@@ -196,7 +196,7 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(createOGMT.RoleID); err != nil {
+	if _, err := uuid.Parse(req.RoleID); err != nil {
 		base.Logger.Error("invalid role id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid role id format", "failed to decode role id", nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -220,18 +220,18 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(createOGMT.UserID); err != nil {
+	if _, err := uuid.Parse(req.UserID); err != nil {
 		base.Logger.Error("invalid user id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "failed to decode user id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err = organisation.AddMemberToOrganisation(ownerId, orgId, createOGMT, base.Db.Postgresql)
+	code, err := organisation.AddMemberToOrganisation(ownerId, orgId, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("failed to add member", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add member", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(code, "error", "failed to add member", err.Error(), nil)
+		c.JSON(code, rd)
 		return
 	}
 

@@ -469,7 +469,7 @@ func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) er
 	return nil
 }
 
-func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequest, db *gorm.DB) error {
+func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequest, db *gorm.DB) (int, error) {
 	var (
 		org    models.Organisation
 		orgmgt models.OrgUserManagement
@@ -477,11 +477,11 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 
 	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
 	if err != nil {
-		return err
+		return http.StatusInternalServerError, err
 	}
 
 	if !isowner {
-		return errors.New("user is not the owner of the organisation")
+		return http.StatusForbidden, errors.New("user is not the owner of the organisation")
 	}
 
 	orgmgt.RoleID = req.RoleID
@@ -489,13 +489,12 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 	orgmgt.OrganisationID = orgId
 	orgmgt.Status = "active"
 
-	err = orgmgt.AddUserToOrganisation(db)
-
+	code, err := orgmgt.AddUserToOrganisation(db)
 	if err != nil {
-		return err
+		return code, err
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
 
 func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
