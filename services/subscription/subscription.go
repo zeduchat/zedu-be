@@ -145,9 +145,14 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 			},
 		},
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		SuccessURL: stripe.String(url + "dashboard/settings/billing?session_id={CHECKOUT_SESSION_ID}"),
-		CancelURL:  stripe.String(url + "dashboard/settings/billing/"),
+		SuccessURL: stripe.String(url + "client/settings/organisation/billing?session_id={CHECKOUT_SESSION_ID}"),
+		CancelURL:  stripe.String(url + "client/settings/organisation/billing/"),
 	}
+
+	params.AddMetadata("flow", "subscription")
+	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("org_id", req.OrgID)
+	params.AddMetadata("customer_id", org.StripeCustomerID)
 
 	session, err := session.New(params)
 	if err != nil {
