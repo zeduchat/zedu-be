@@ -475,7 +475,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	creditUsed := models.CalculateCreditCost(len(req.Content), 0)
 
 	if req.OperationPrice != nil && *req.OperationPrice > 0 {
-		creditUsed = creditUsed * (*req.OperationPrice / 100) // apply operation price
+		creditUsed = creditUsed + (*req.OperationPrice) // apply operation price
 	}
 
 	credit_usage := models.CreditUsage{
