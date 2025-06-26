@@ -203,7 +203,7 @@ func (base *Controller) OrganisationInviteFew(c *gin.Context) {
 	statusCode, msg, err := invitation.FewInvitesCheckerValidator(base.Db, ids, inviteReq.Invitations)
 	if err != nil {
 		base.Logger.Error("Failed to validate user", err)
-		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)
+		rd := utility.BuildErrorResponse(statusCode, "error", msg, err.Error(), nil)
 		c.JSON(statusCode, rd)
 		return
 	}

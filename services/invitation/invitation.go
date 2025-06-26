@@ -269,17 +269,18 @@ func FewInvitesCheckerValidator(base *storage.Database, ids models.IDS, invitati
 
 	err = ValidateRoles(base.Postgresql, invitations)
 	if err != nil {
-		return http.StatusBadRequest, "invalid role assigned", errors.New("invalid role assigned")
+		return http.StatusBadRequest, "invalid role assigned", fmt.Errorf("invalid role assigned: %w", err)
 	}
 
 	return http.StatusOK, "User(s) validated", nil
 }
 
 func ValidateRoles(db *gorm.DB, invitations []models.Invite) error {
-	var role models.OrgRole
 
 	for _, invite := range invitations {
-		exists := postgresql.CheckExists(db, role, "id = ?", invite.Role)
+		var role models.OrgRole
+
+		exists := postgresql.CheckExists(db, &role, "id = ?", invite.Role)
 		if !exists {
 			return fmt.Errorf("invalid role-id assigned to user %s", invite.Email)
 		}

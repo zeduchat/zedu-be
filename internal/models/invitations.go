@@ -30,13 +30,12 @@ type InvitationCreateReq struct {
 	OrganisationID string `json:"org_id" validate:"required,uuid"`
 
 	Emails []string `json:"emails" validate:"required"`
-	RoleID string   `json:"role_id" validate:"uuid, required"`
-
+	RoleID string   `json:"role_id" validate:"uuid,required"`
 }
 
 type InvitationCreateFewRequest struct {
-	OrganisationID string `json:"org_id" validate:"required,uuid"`
-	Invitations []Invite `json:"invitations" validate:"required,dive"`
+	OrganisationID string   `json:"org_id" validate:"required,uuid"`
+	Invitations    []Invite `json:"invitations" validate:"required,dive"`
 }
 
 type Invite struct {
@@ -76,14 +75,39 @@ type VerifyShareableInvitationLink struct {
 }
 
 func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) error {
+	var toCreate []Invitation
 
 	if len(invitations) == 0 {
 		return errors.New("no invitations to save")
 	}
 
-	err := postgresql.CreateMultipleRecords(db, &invitations, len(invitations))
-	if err != nil {
-		return err
+	for _, invitation := range invitations {
+		var existingInvitation Invitation
+
+		exists := postgresql.CheckExists(db, &existingInvitation, "email = ? AND organisation_id = ? AND status = ?", invitation.Email, invitation.OrganisationID, "invited")
+		if exists {
+			update := map[string]any{
+				"expires_at": time.Now().Add(24 * time.Hour).UTC(),
+			}
+
+			res, err := postgresql.UpdateFields(db, &existingInvitation, &update, "email = ? AND organisation_id = ?", invitation.Email, invitation.OrganisationID)
+			if err != nil {
+				continue
+			}
+			if res.RowsAffected == 0 {
+				return errors.New("failed to update existing invitation")
+			}
+		} else {
+			invitation.ExpiresAt = time.Now().Add(24 * time.Hour).UTC() // Set expiration to 24 hours from now
+			toCreate = append(toCreate, invitation)
+		}
+	}
+
+	if len(toCreate) > 0 {
+		err := postgresql.CreateMultipleRecords(db, &toCreate, len(toCreate))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
