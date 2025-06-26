@@ -2,6 +2,7 @@ package organisation
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -136,6 +138,14 @@ func (base *Controller) UpdateMember(c *gin.Context) {
 
 func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 	orgId := c.Param("org_id")
+	invite_status := c.Query("invite_status")
+
+	if invite_status != "" && invite_status != "invited" && invite_status != "accepted" && invite_status != "all" {
+		base.Logger.Error("invalid invite status", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid invite status", "invite_status must be either 'pending', 'invited' or 'all'", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -154,7 +164,7 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
-	invitations, paginationResponse, err := organisation.GetOrganisationInvites(c, base.Db.Postgresql, userId, orgId)
+	invitations, paginationResponse, err := organisation.GetOrganisationInvites(c, base.Db.Postgresql, userId, orgId, invite_status)
 	if err != nil {
 		base.Logger.Error("failed to fetch organisation invites", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch organisation invites", err.Error(), nil)
@@ -162,6 +172,7 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 		return
 	}
 
+	base.Logger.Info("organisation invites fetched successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", invitations, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 }
@@ -169,16 +180,16 @@ func (base *Controller) GetOrganisationInvites(c *gin.Context) {
 func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 
-	var createOGMT models.OrgUserCreateRequest
+	var req models.OrgUserCreateRequest
 
-	if err := c.ShouldBindJSON(&createOGMT); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("failed to bind request", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to bind request", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err := base.Validator.Struct(createOGMT)
+	err := base.Validator.Struct(req)
 	if err != nil {
 		base.Logger.Error("validation error", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "validation error", err.Error(), nil)
@@ -186,7 +197,7 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(createOGMT.RoleID); err != nil {
+	if _, err := uuid.Parse(req.RoleID); err != nil {
 		base.Logger.Error("invalid role id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid role id format", "failed to decode role id", nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -210,18 +221,18 @@ func (base *Controller) AddMemberToOrganisation(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(createOGMT.UserID); err != nil {
+	if _, err := uuid.Parse(req.UserID); err != nil {
 		base.Logger.Error("invalid user id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "failed to decode user id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err = organisation.AddMemberToOrganisation(ownerId, orgId, createOGMT, base.Db.Postgresql)
+	code, err := organisation.AddMemberToOrganisation(ownerId, orgId, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("failed to add member", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add member", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(code, "error", "failed to add member", err.Error(), nil)
+		c.JSON(code, rd)
 		return
 	}
 
@@ -295,6 +306,7 @@ func (base *Controller) GetChannelNotificationPref(c *gin.Context) {
 	orgId := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("failed to parse organisation id: %w", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -364,4 +376,104 @@ func ValidateNotifOption(option string) bool {
 	default:
 		return false
 	}
+}
+
+func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
+	var (
+		req     models.ChangeMemberActiveStatus
+		user_id = c.Param("user_id")
+		org_id  = c.Param("org_id")
+	)
+
+	if _, err := uuid.Parse(user_id); err != nil {
+		base.Logger.Error("failed to parse user id: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("failed to parse organisation id: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Error("failed to parse request body: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("validation failed: %w", err)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	adminUserID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Error("failed to fetch logged in user ID(org admin): %w", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to get user ID", errors.New("failed to get user ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := map[string]string{
+		"org_id": org_id,
+		"user_id": user_id,
+		"admin_user_id": adminUserID.(string),
+	}
+
+	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req ,ids)
+	if err != nil {
+		base.Logger.Error("failed to change member active status: %w", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to change member active status", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	status := "deactivated"
+	if req.Activate {
+		status = "activated"
+	}
+
+	base.Logger.Info("user %s from organisation %s successfully", status, org_id)
+	rd := utility.BuildSuccessResponse(code,"success", fmt.Sprintf("user %s successfully", status))
+	c.JSON(code, rd)
+}
+
+func (base *Controller) SearchUsersInOrganisation(c *gin.Context) {
+	orgId := c.Param("org_id")
+	query := c.Query("query")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if query == "" {
+		base.Logger.Error("search query cannot be empty")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "search query cannot be empty", "failed to search users in organisation", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	users, err := organisation.SearchUsersInOrganisation(base.Db.Postgresql, orgId, query)
+	if err != nil {
+		base.Logger.Error("failed to search users in organisation", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to search users in organisation", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("users searched successfully in organisation")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", users)
+	c.JSON(http.StatusOK, rd)
 }

@@ -59,7 +59,7 @@ func CreateToken(user models.User, c *gin.Context) (*TokenDetailDTO, error) {
 
 func verifyToken(tokenString string) (*jwt.Token, error) {
 	config := config.GetConfig()
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -86,7 +86,7 @@ func TokenValid(bearerToken string) (*jwt.Token, error) {
 	return token, nil
 }
 
-func GetUserClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, error) {
+func GetUserClaims(c *gin.Context, db *gorm.DB, theValue string) (any, error) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -137,7 +137,7 @@ func CreateAdminToken(admin models.Admin, c *gin.Context) (*TokenDetailDTO, erro
 	return tokenData, nil
 }
 
-func GetAdminClaims(c *gin.Context, db *gorm.DB, theValue string) (interface{}, error) {
+func GetAdminClaims(c *gin.Context, db *gorm.DB, theValue string) (any, error) {
 
 	claims, exists := c.Get("adminClaims")
 	if !exists {

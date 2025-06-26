@@ -35,7 +35,9 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
 		userUrl.GET("/users/:user_id/organisations/:org_id/roles", user.GetUserRoleInOrganisation)
 	}
-	adminUrl.GET("/users", user.GetAllUsers)
+	{
+		adminUrl.GET("/users", user.GetAllUsers)
+	}
 
 	return r
 }

@@ -45,6 +45,7 @@ type Integrations struct {
 	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
 	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
+	CommissionRate     float64    `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 }
 
 type UpdateAgent struct {
@@ -151,6 +152,7 @@ type OrganisationIntegrations struct {
 	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string     `gorm:"type:varchar(64)" json:"preshared_key"`
 	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
+	CommissionRate     float64    `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 }
 
 type AdminAgentResp struct {
@@ -164,10 +166,18 @@ type CreditAggregate struct {
 	TotalUsed     float64
 }
 
+type AgentBillAggregate struct {
+	IntegrationID     string
+	MakerTotalEarning float64
+	TelexTotalEarning float64
+}
+
 type AdminCustomAgentResp struct {
-	Agent      OrganisationIntegrations `json:"agent"`
-	User       User                     `json:"user"`
-	CreditUsed float64                  `json:"credit_used"`
+	Agent             OrganisationIntegrations `json:"agent"`
+	User              User                     `json:"user"`
+	CreditUsed        float64                  `json:"credit_used"`
+	TelexTotalEarning float64                  `json:"telex_total_earning"`
+	MakerTotalEarning float64                  `json:"maker_total_earning"`
 }
 
 type OrganisationChannelsIntegrations struct {
@@ -207,23 +217,30 @@ type IntegrationOutput struct {
 }
 
 type PartialOrganisationIntegration struct {
-	ID            string    `json:"id"`
-	IntegrationID *string   `json:"integration_id"`
-	OrgID         *string   `json:"org_id"`
-	IsActive      bool      `json:"is_active"`
-	IsSystem      bool      `json:"is_system"`
-	IsArchived    bool      `json:"is_archived"`
-	JSONUrl       string    `json:"json_url"`
-	AppName       string    `json:"app_name"`
-	Name          string    `json:"name"`
-	AppLogo       string    `json:"app_logo"`
-	AppUrl        string    `json:"app_url"`
-	IsPaid        bool      `json:"is_paid"`
-	IsApproved    bool      `json:"is_approved"`
-	CreatedAt     time.Time `json:"created_at"`
-	Source        string    `json:"source"`
-	Provider      Provider  `json:"provider"`
-	CreditUsed    float64   `json:"credit_used"`
+	ID                string    `json:"id"`
+	IntegrationID     *string   `json:"integration_id"`
+	OrgID             *string   `json:"org_id"`
+	IsActive          bool      `json:"is_active"`
+	IsSystem          bool      `json:"is_system"`
+	IsArchived        bool      `json:"is_archived"`
+	JSONUrl           string    `json:"json_url"`
+	AppName           string    `json:"app_name"`
+	Name              string    `json:"name"`
+	AppLogo           string    `json:"app_logo"`
+	AppUrl            string    `json:"app_url"`
+	IsPaid            bool      `json:"is_paid"`
+	IsApproved        bool      `json:"is_approved"`
+	CreatedAt         time.Time `json:"created_at"`
+	Source            string    `json:"source"`
+	Provider          Provider  `json:"provider"`
+	CreditUsed        float64   `json:"credit_used"`
+	TelexTotalEarning float64   `json:"telex_total_earning"`
+	MakerTotalEarning float64   `json:"maker_total_earning"`
+}
+
+type Earnings struct {
+	MakerTotal float64
+	TelexTotal float64
 }
 
 type IntegrationChannel struct {
@@ -273,6 +290,47 @@ type AgentResp struct {
 	Linked bool `json:"linked"`
 }
 
+type IntegrationBills struct {
+	ID            string `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID         string `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID string `gorm:"type:uuid;" json:"integration_id"`
+	MakerID       string `gorm:"type:uuid;" json:"maker_id"`
+	CreditUsageID string `gorm:"type:uuid;" json:"credit_usage_id"`
+
+	TelexAmount  float64 `gorm:"type:decimal(10,2);not null" json:"telex_amount"`
+	MakerAmount  float64 `gorm:"type:decimal(10,2);not null" json:"maker_amount"`
+	TotalAmount  float64 `gorm:"type:decimal(10,2);not null" json:"total_amount"`
+	PayoutStatus string  `gorm:"type:varchar(20);default:'pending'" json:"payout_status"`
+
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+
+	Organisation Organisation `gorm:"foreignKey:OrgID;references:ID"`
+	User         User         `gorm:"foreignKey:MakerID;references:ID"`
+}
+
+type IntegrationBillsResponse struct {
+	ID            string    `json:"id"`
+	OrgID         string    `json:"org_id"`
+	IntegrationID string    `json:"integration_id"`
+	CreditUsageID string    `json:"credit_usage_id"`
+	TelexAmount   float64   `json:"telex_amount"`
+	MakerAmount   float64   `json:"maker_amount"`
+	TotalAmount   float64   `json:"total_amount"`
+	PayoutStatus  string    `json:"payout_status"`
+	OrgName       string    `json:"org_name"`
+	AppName       string    `json:"app_name"`
+	OrgEmail      string    `json:"org_email"`
+	MakerName     string    `json:"maker_name"`
+	MakerEmail    string    `json:"maker_email"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type IntegrationApp struct {
+	IntegrationID string
+	AppName       string
+}
+
 func (p *JSONPrices) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
@@ -286,7 +344,7 @@ func (p JSONPrices) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-func (p *Provider) Scan(value interface{}) error {
+func (p *Provider) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("Scan failed: expected []byte but got %T", value)
@@ -298,7 +356,7 @@ func (p Provider) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-func (s *JSONSkills) Scan(value interface{}) error {
+func (s *JSONSkills) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("Scan failed: expected []byte but got %T", value)
@@ -308,6 +366,13 @@ func (s *JSONSkills) Scan(value interface{}) error {
 
 func (s JSONSkills) Value() (driver.Value, error) {
 	return json.Marshal(s)
+}
+
+func (s JSONSkills) MarshalJSON() ([]byte, error) {
+    if s == nil {
+        return []byte("[]"), nil
+    }
+    return json.Marshal([]Skill(s))
 }
 
 func GenerateAgentKey() (string, error) {
@@ -613,6 +678,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oci          OrganisationChannelsIntegrations
 		channels     []Channels
 		orgchannels  []OrganisationChannelsIntegrations
+		intsettings  CustomIntegrationsSetting
 	)
 
 	organisationExists := postgresql.CheckExists(db, &organisation, "id = ?", ids["org_id"])
@@ -623,7 +689,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 	orgAgentExists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	agentExists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
 	ChannelagentExists := postgresql.CheckExists(db, &oci, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
-	// CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	CheckIntegrationSettings := postgresql.CheckExists(db, &intsettings, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 
 	if !(agentExists || orgAgentExists) {
 		return errors.New("integration app does not exist")
@@ -690,79 +756,34 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		}
 	}
 
-	// return nil
-
 	// add settings if not exist
-	// if !CheckIntegrationSettings && agent.JSONUrl != "" {
-	// 	data := map[string]string{"url": agent.JSONUrl}
+	if !CheckIntegrationSettings {
+		var agentSettings CustomIntegrationsSetting
 
-	// 	response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
+		settings_data := map[string]any{"settings": ""}
 
-	// 	if err != nil {
-	// 		return errors.New("failed to save agent default settings, invalid JSON supplied")
-	// 	}
+		auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
+		auth_credentials["agent_api_key"] = agent.PreSharedKey
+		settings_data["auth_credentials"] = auth_credentials
 
-	// 	response_data := response.(map[string]interface{})
-	// 	data_r, ok := response_data["data"].(map[string]interface{})
+		settingJsonData, err := json.Marshal(settings_data)
+		if err != nil {
+			return fmt.Errorf("error serializing to JSON: %v", err)
+		}
 
-	// 	if !ok {
-	// 		return errors.New("Failed to save agent, data field does not exist")
-	// 	}
+		serialized_settings := string(settingJsonData)
 
-	// 	// validate all entries
-	// 	err = ValidateAgentData(data_r)
+		agentSettings.ID = utility.GenerateUUID()
+		agentSettings.SettingEntry = serialized_settings
+		agentSettings.OrgID = ids["org_id"]
+		agentSettings.IsSystem = false
+		agentSettings.IntegrationID = ids["agent_id"]
 
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	settings, ok := data_r["settings"]
-	// 	if !ok {
-	// 		return errors.New("Failed to save agent default settings, settings field does not exist")
-	// 	}
-
-	// 	settings_data := map[string]interface{}{"settings": settings}
-
-	// 	is_auth, ok := data_r["is_oauth"].(bool)
-
-	// 	if ok && is_auth {
-	// 		enc_key := config.Config.Server.EncKey
-
-	// 		auth_credentials := map[string]interface{}{"agent_auth_credentials": "Not-Set-Yet"}
-
-	// 		api_key, err := utility.CreateExternalApiKey(ids["org_id"], ids["agent_id"], enc_key)
-
-	// 		auth_credentials["agent_api_key"] = api_key
-	// 		settings_data["auth_credentials"] = auth_credentials
-	// 		if err != nil {
-	// 			return errors.New("Failed to create external API key")
-	// 		}
-	// 	}
-
-	// 	// serialize the settings json
-
-	// 	settingJsonData, err := json.Marshal(settings_data)
-	// 	if err != nil {
-	// 		return fmt.Errorf("error serializing to JSON: %v", err)
-	// 	}
-	// 	serialized_settings := string(settingJsonData)
-
-	// 	integrationSettings.ID = utility.GenerateUUID()
-	// 	integrationSettings.SettingEntry = serialized_settings
-	// 	integrationSettings.OrgID = ids["org_id"]
-	// 	integrationSettings.IntegrationID = ids["agent_id"]
-
-	// 	if agentExists {
-	// 		integrationSettings.IsSystem = true
-	// 	} else {
-	// 		integrationSettings.IsSystem = false
-	// 	}
-
-	// 	err = integrationSettings.CreateIntegrationSettings(db)
-	// 	if err != nil {
-	// 		return errors.New("failed to create agent settings")
-	// 	}
-	// }
+		err = agentSettings.CreateIntegrationSettings(db)
+		if err != nil {
+			return errors.New("failed to create agent settings")
+		}
+	}
 
 	// Add the missing channels in a bulk insert without using a for loop @cyberguru
 	err := db.Exec(`
@@ -1762,6 +1783,34 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 		})
 	}
 
+	// attach agent credit earned
+	var agentBillAggregates []AgentBillAggregate
+	err = db.Model(&IntegrationBills{}).
+		Select("integration_id as integration_id,  COALESCE(SUM(maker_amount), 0) AS maker_total_earning, COALESCE(SUM(telex_amount), 0) AS telex_total_earning").
+		Where("integration_id IN ?", agentIDs).
+		Group("integration_id").
+		Scan(&agentBillAggregates).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	billMap := map[string]Earnings{}
+	for _, ca := range agentBillAggregates {
+		billMap[ca.IntegrationID] = Earnings{
+			MakerTotal: ca.MakerTotalEarning,
+			TelexTotal: ca.TelexTotalEarning,
+		}
+	}
+
+	for i := range orgIntResp {
+		id := *orgIntResp[i].IntegrationID
+		if earnings, ok := billMap[id]; ok {
+			orgIntResp[i].MakerTotalEarning = earnings.MakerTotal
+			orgIntResp[i].TelexTotalEarning = earnings.TelexTotal
+		}
+	}
+
 	return orgIntResp, paginationResponse, nil, http.StatusOK
 }
 
@@ -1816,6 +1865,20 @@ func (i *OrganisationIntegrations) GetCustomAgentByID(db *gorm.DB, agentID strin
 	}
 
 	resp.CreditUsed = total
+
+	var agentBills AgentBillAggregate
+	err := db.Model(&IntegrationBills{}).
+		Select("integration_id, COALESCE(SUM(maker_amount), 0) AS maker_total_earning, COALESCE(SUM(telex_amount), 0) AS telex_total_earning").
+		Where("integration_id = ?", agentID).
+		Group("integration_id").
+		Take(&agentBills).Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return AdminCustomAgentResp{}, err
+	}
+
+	resp.MakerTotalEarning = agentBills.MakerTotalEarning
+	resp.TelexTotalEarning = agentBills.TelexTotalEarning
 
 	return resp, nil
 }
@@ -1959,4 +2022,305 @@ func (i *IntegrationSettings) CreateSystemIntegrationSettings(db *gorm.DB) error
 	}
 
 	return nil
+}
+
+func (i *OrganisationIntegrations) CreateOrUpdateBillFromUsage(db *gorm.DB, usage *CreditUsage) error {
+	var agent OrganisationIntegrations
+	if err := db.Where("integration_id = ?", usage.AgentID).First(&agent).Error; err != nil {
+		return fmt.Errorf("failed to fetch agent: %w", err)
+	}
+
+	commissionRate := agent.CommissionRate
+	creditAmount := usage.Amount
+
+	makerAmount := creditAmount * (commissionRate / 100)
+	telexAmount := creditAmount - makerAmount
+	totalAmount := creditAmount
+
+	var existingBill IntegrationBills
+
+	today := time.Now()
+	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	err := db.Where("integration_id = ? AND org_id = ? AND created_at >= ? AND created_at < ?",
+		usage.AgentID, usage.OrganisationID, startOfDay, endOfDay).
+		First(&existingBill).Error
+
+	if err == gorm.ErrRecordNotFound {
+		newBill := IntegrationBills{
+			ID:            utility.GenerateUUID(),
+			OrgID:         usage.OrganisationID,
+			IntegrationID: usage.AgentID,
+			MakerID:       agent.OwnerID,
+			CreditUsageID: usage.ID,
+			TelexAmount:   telexAmount,
+			MakerAmount:   makerAmount,
+			TotalAmount:   totalAmount,
+		}
+
+		if err := db.Create(&newBill).Error; err != nil {
+			return fmt.Errorf("failed to create new bill: %w", err)
+		}
+	} else if err == nil {
+		existingBill.TelexAmount += telexAmount
+		existingBill.MakerAmount += makerAmount
+		existingBill.TotalAmount += totalAmount
+
+		if err := db.Save(&existingBill).Error; err != nil {
+			return fmt.Errorf("failed to update existing bill: %w", err)
+		}
+	} else {
+		return fmt.Errorf("failed to query bill: %w", err)
+	}
+
+	return nil
+}
+
+func (i *IntegrationBillsResponse) GetAgentBills(
+	db *gorm.DB,
+	c *gin.Context,
+) ([]IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
+	agent_id := c.Query("agent_id")
+	payout_status := c.Query("payout_status")
+
+	var intBills []IntegrationBills
+	var agentBillResponses []IntegrationBillsResponse
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&IntegrationBills{}).
+		Preload("Organisation")
+
+	if agent_id != "" {
+		query = query.Where("integration_id = ?", agent_id)
+	}
+
+	if payout_status != "" {
+		query = query.Where("payout_status = ?", payout_status)
+	}
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&intBills,
+		nil,
+	)
+
+	if err != nil {
+		return agentBillResponses, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	for _, bill := range intBills {
+		agentBillResponses = append(agentBillResponses, IntegrationBillsResponse{
+			ID:            bill.ID,
+			OrgID:         bill.OrgID,
+			IntegrationID: bill.IntegrationID,
+			CreditUsageID: bill.CreditUsageID,
+			TelexAmount:   bill.TelexAmount,
+			MakerAmount:   bill.MakerAmount,
+			TotalAmount:   bill.TotalAmount,
+			PayoutStatus:  bill.PayoutStatus,
+			OrgName:       bill.Organisation.Name,
+			OrgEmail:      bill.Organisation.Email,
+			MakerName:     bill.User.Name,
+			MakerEmail:    bill.User.Email,
+			CreatedAt:     bill.CreatedAt,
+		})
+	}
+
+	agentIDs := make([]string, len(agentBillResponses))
+	for i, agent := range agentBillResponses {
+		agentIDs[i] = *&agent.IntegrationID
+	}
+
+	var integrationApps []IntegrationApp
+
+	err = db.Model(&OrganisationIntegrations{}).
+		Select("integration_id, app_name").
+		Where("integration_id IN ?", agentIDs).
+		Scan(&integrationApps).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	appMap := make(map[string]string)
+	for _, app := range integrationApps {
+		appMap[app.IntegrationID] = app.AppName
+	}
+
+	for i, response := range agentBillResponses {
+		if appName, ok := appMap[response.IntegrationID]; ok {
+			agentBillResponses[i].AppName = appName
+		}
+	}
+
+	return agentBillResponses, paginationResponse, nil, http.StatusOK
+}
+
+func (i *IntegrationBillsResponse) GetOrgAgentBills(
+	db *gorm.DB,
+	c *gin.Context,
+	org_id string,
+) ([]IntegrationBillsResponse, postgresql.PaginationResponse, error, int) {
+	agent_id := c.Query("agent_id")
+	payout_status := c.Query("payout_status")
+
+	var intBills []IntegrationBills
+	var agentBillResponses []IntegrationBillsResponse
+
+	pagination := postgresql.GetPagination(c)
+
+	query := db.Model(&IntegrationBills{}).
+		Where("org_id = ?", org_id).
+		Preload("Organisation")
+
+	if agent_id != "" {
+		query = query.Where("integration_id = ?", agent_id)
+	}
+
+	if payout_status != "" {
+		query = query.Where("payout_status = ?", payout_status)
+	}
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&intBills,
+		nil,
+	)
+
+	if err != nil {
+		return agentBillResponses, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	for _, bill := range intBills {
+		agentBillResponses = append(agentBillResponses, IntegrationBillsResponse{
+			ID:            bill.ID,
+			OrgID:         bill.OrgID,
+			IntegrationID: bill.IntegrationID,
+			CreditUsageID: bill.CreditUsageID,
+			TelexAmount:   bill.TelexAmount,
+			MakerAmount:   bill.MakerAmount,
+			TotalAmount:   bill.TotalAmount,
+			PayoutStatus:  bill.PayoutStatus,
+			OrgName:       bill.Organisation.Name,
+			OrgEmail:      bill.Organisation.Email,
+			MakerName:     bill.User.Name,
+			MakerEmail:    bill.User.Email,
+			CreatedAt:     bill.CreatedAt,
+		})
+	}
+
+	agentIDs := make([]string, len(agentBillResponses))
+	for i, agent := range agentBillResponses {
+		agentIDs[i] = *&agent.IntegrationID
+	}
+
+	var integrationApps []IntegrationApp
+
+	err = db.Model(&OrganisationIntegrations{}).
+		Select("integration_id, app_name").
+		Where("integration_id IN ?", agentIDs).
+		Scan(&integrationApps).Error
+
+	if err != nil {
+		return nil, paginationResponse, err, http.StatusInternalServerError
+	}
+
+	appMap := make(map[string]string)
+	for _, app := range integrationApps {
+		appMap[app.IntegrationID] = app.AppName
+	}
+
+	for i, response := range agentBillResponses {
+		if appName, ok := appMap[response.IntegrationID]; ok {
+			agentBillResponses[i].AppName = appName
+		}
+	}
+
+	return agentBillResponses, paginationResponse, nil, http.StatusOK
+}
+
+func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Logger, agentID string) (error, int) {
+	var (
+		integration Integrations
+		dmchannels  []DmChannels
+		channelIDs  []string
+		thread      Threads
+	)
+
+	tx := db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error), http.StatusInternalServerError
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	exists := postgresql.CheckExists(tx, &integration, "id = ?", agentID)
+	if !exists {
+		tx.Rollback()
+		return errors.New("agent app does not exist"), http.StatusBadRequest
+	}
+
+	err := tx.Delete(&Integrations{}, "id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&IntegrationSettings{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
+	}
+
+	err = tx.Delete(&OrganisationIntegrations{}, "integration_id = ?", agentID).Error
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
+	}
+
+	err = postgresql.SelectAllFromDb(tx, "", &dmchannels, "chat_type = 'bot' AND participant_id = ?", agentID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch bot DM channels: %w", err), http.StatusInternalServerError
+	}
+
+	if len(dmchannels) > 0 {
+		for _, channel := range dmchannels {
+			channelIDs = append(channelIDs, channel.ChannelId)
+		}
+
+		err = postgresql.HardDeleteRecordFromDb(tx, &dmchannels)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to delete bot DM channels: %w", err), http.StatusInternalServerError
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err), http.StatusInternalServerError
+	}
+
+	if len(channelIDs) > 0 {
+		for _, channelID := range channelIDs {
+			thread.ID = channelID
+			_, err := thread.ClearDMThreadsByChannelID(db)
+			if err != nil {
+				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
+			}
+		}
+	}
+
+	return nil, http.StatusOK
 }

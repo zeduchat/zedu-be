@@ -53,11 +53,13 @@ func (base *Controller) GetUserSessions(c *gin.Context) {
 
 	usersData, paginationResponse, code, err := service.GetAUserSessions(userID, base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("error getting user sessions", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
 		return
 	}
 
+	base.Logger.Info("user sessions retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 

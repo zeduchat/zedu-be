@@ -1399,6 +1399,94 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /organisations/{org_id}/invites:
+    get:
+      tags:
+        - organisation
+      summary: Get organisation invites by status
+      description: Retrieves the list of invitations for a given organisation, optionally filtered by their status (`accepted`, `invited`, or `all`).
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation
+          schema:
+            type: string
+        - name: invite_status
+          in: query
+          required: false
+          description: Filter invites by status (`accepted`, `invited`, or `all`)
+          schema:
+            type: string
+            enum: [accepted, invited, all]
+            default: all
+      responses:
+        '200':
+          description: Successfully retrieved invites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01970132-fada-792a-bcbb-544b6589a411
+                        email:
+                          type: string
+                          format: email
+                          example: user4@gmail.com
+                        status:
+                          type: string
+                          example: accepted
+                        role:
+                          type: string
+                          example: Administrator
+                        organisation_id:
+                          type: string
+                          example: 019700db-4e22-7f90-a20e-f9116291ef24
+                        invited_by:
+                          type: string
+                          example: ""
+                        is_telex_user:
+                          type: boolean
+                          example: false
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-05-24T08:30:07.707137+01:00
+                        expires_at:
+                          type: string
+                          format: date-time
+                          example: 2025-05-26T08:30:07.706393+01:00
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_count:
+                          type: integer
+                          example: 20
+                        total_pages_count:
+                          type: integer
+                          example: 1
+
   /organisations/{orgId}/users:
     post:
       tags:
@@ -1535,6 +1623,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+  
+  
 
   /users/organisations/{org_id}:
     get:
@@ -2925,6 +3015,140 @@ paths:
                           type: string
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
+
+  /organisations/{org_id}/users/search:
+    get:
+      tags:
+        - organisation
+      summary: Search for users in an organisation
+      description: Retrieve users in a specific organisation matching the provided search query.
+      operationId: searchOrganisationUsers
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation
+          example: "019700db-4e22-7f90-a20e-f9116291ef24"
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (e.g., email, name, username or phone)
+          example: "user2"
+      responses:
+        '200':
+          description: Search successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
+                        email:
+                          type: string
+                          format: email
+                          example: "user2@gmail.com"
+                        username:
+                          type: string
+                          example: ""
+                        phone_number:
+                          type: string
+                          example: ""
+                        profile_url:
+                          type: string
+                          example: ""
+                        name:
+                          type: string
+                          example: "user2"
+                        role:
+                          type: string
+                          example: "Guest"
+                        status:
+                          type: string
+                          enum: [active, inactive]
+                          example: "active"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-05-24T06:52:24.351066+01:00"
+                        entity_type:
+                          type: string
+                          example: "user"
+
+  /organisations/{org_id}/users/{user_id}/status:
+    patch:
+      tags:
+        - organisation
+      summary: Activate or deactivate a user in an organisation
+      description: Allows an organisation admin to activate or deactivate a member of the organisation.
+      operationId: updateUserStatus
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Organisation ID
+          schema:
+            type: string
+            example: "019700db-4e22-7f90-a20e-f9116291ef24"
+        - name: user_id
+          in: path
+          required: true
+          description: User ID of the member to be activated or deactivated
+          schema:
+            type: string
+            example: "01972074-9411-7451-979a-fa258433af26"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - activate
+              properties:
+                activate:
+                  type: boolean
+                  description: Set to `true` to activate the user, `false` to deactivate
+                  example: true
+      responses:
+        '200':
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: string
+                    example: user activated successfully
 
   /organisations/{organisation_id}/channels/archived:
     get:
@@ -5973,6 +6197,69 @@ paths:
                               description: The expiration timestamp of the invitation.
                               example: "2024-08-26T19:40:26.548423408+01:00"
 
+  /invite/invite-few:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Invite multiple users to an organisation
+      description: Sends invitations to multiple users by email, each with an assigned role.
+      operationId: inviteFewUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - org_id
+                - invitations
+              properties:
+                org_id:
+                  type: string
+                  description: Organisation ID
+                  example: "019700db-4e22-7f90-a20e-f9116291ef24"
+                invitations:
+                  type: array
+                  description: List of users to invite
+                  items:
+                    type: object
+                    required:
+                      - email
+                      - role
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                        example: "user9@gmail.com"
+                      role:
+                        type: string
+                        description: Role ID to assign the invited user
+                        example: "019700d8-9085-7f7b-839a-fcbd08b9e26d"
+      responses:
+        '201':
+          description: Invitations successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Invitations created successfully
+                  data:
+                    type: object
+                    properties:
+                      errors:
+                        type: object
+                        nullable: true
+                        example: null
+
   /invite/verify:
     post:
       tags:
@@ -8190,162 +8477,6 @@ paths:
                         username:
                           type: string
 
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
-
-  /organisations/{org_id}/invites:
-    get:
-      tags:
-        - user-management
-      summary: Retrieve invitations for an organization
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: org_id
-          in: path
-          required: true
-          description: The ID of the organization
-          schema:
-            type: string
-            format: uuid
-        - name: page
-          in: query
-          required: false
-          description: The page number for pagination
-          schema:
-            type: integer
-            default: 1
-        - name: page_size
-          in: query
-          required: false
-          description: The number of items per page for pagination
-          schema:
-            type: integer
-            default: 20
-      responses:
-        "200":
-          description: Invitations retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: success
-                  data:
-                    type: object
-                    properties:
-                      invitations:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                            email:
-                              type: string
-                              format: email
-                            token:
-                              type: string
-                            status:
-                              type: string
-                              example: invited
-                            role:
-                              type: string
-                              example: admin
-                            organisation_id:
-                              type: string
-                              format: uuid
-                            is_telex_user:
-                              type: boolean
-                            Organisation:
-                              type: object
-                              properties:
-                                id:
-                                  type: string
-                                  format: uuid
-                                name:
-                                  type: string
-                                description:
-                                  type: string
-                                email:
-                                  type: string
-                                  format: email
-                                type:
-                                  type: string
-                                location:
-                                  type: string
-                                country:
-                                  type: string
-                                owner_id:
-                                  type: string
-                                  format: uuid
-                                channels_count:
-                                  type: integer
-                                  example: 0
-                                total_messages_count:
-                                  type: integer
-                                  example: 0
-                                org_roles:
-                                  type: array
-                                  items:
-                                    type: string
-                                Users:
-                                  type: array
-                                  items:
-                                    type: string
-                                created_at:
-                                  type: string
-                                  format: date-time
-                                updated_at:
-                                  type: string
-                                  format: date-time
-                            created_at:
-                              type: string
-                              format: date-time
-                            expires_at:
-                              type: string
-                              format: date-time
-                      totalnoguests:
-                        type: integer
-                  pagination:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        current_page:
-                          type: integer
-                          example: 1
-                        page_count:
-                          type: integer
-                          example: 2
-                        total_pages_count:
-                          type: integer
-                          example: 1
         "400":
           description: Bad request
           content:
@@ -15416,6 +15547,7 @@ paths:
                   message:
                     type: string
                     example: Organisation pinned successfully
+  
 
     get:
       tags:
