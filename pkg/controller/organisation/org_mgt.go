@@ -446,3 +446,34 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code,"success", fmt.Sprintf("user %s successfully", status))
 	c.JSON(code, rd)
 }
+
+func (base *Controller) SearchUsersInOrganisation(c *gin.Context) {
+	orgId := c.Param("org_id")
+	query := c.Query("query")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if query == "" {
+		base.Logger.Error("search query cannot be empty")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "search query cannot be empty", "failed to search users in organisation", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	users, err := organisation.SearchUsersInOrganisation(base.Db.Postgresql, orgId, query)
+	if err != nil {
+		base.Logger.Error("failed to search users in organisation", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to search users in organisation", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("users searched successfully in organisation")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "success", users)
+	c.JSON(http.StatusOK, rd)
+}

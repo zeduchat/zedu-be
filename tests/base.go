@@ -208,7 +208,7 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	)
 	inviteUrl := r.Group(fmt.Sprintf("%v", "/api/v1"))
 	{
-		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationCreateInvite)
+		inviteUrl.POST("/invite", middleware.Authorize(db.Postgresql), invite.OrganisationInviteMany)
 	}
 
 	var b bytes.Buffer

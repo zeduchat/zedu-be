@@ -327,3 +327,38 @@ func (o *OrgUserManagement) CheckIsUserDeactivated(db *gorm.DB, ids IDS) bool {
 
 	return postgresql.CheckExists(db, &orgUserManagement, "organisation_id = ? AND user_id = ? AND is_deactivated = ?", ids.OrganisationID, ids.UserID, true)
 }
+
+func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]UserInOrgResponse, error) {
+    var users []UserInOrgResponse
+
+
+    query := db.Table("users").
+        Select(`
+            users.id,
+            users.email,
+            profiles.user_name AS username,
+            profiles.phone AS phone_number,
+            profiles.avatar_url AS profile_url,
+            users.name,
+            org_roles.name AS role,
+            org_user_managements.status,
+            users.created_at,
+            'user' AS entity_type
+        `).
+        Joins("JOIN org_user_managements ON org_user_managements.user_id = users.id").
+        Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
+        Joins("LEFT JOIN profiles ON profiles.userid = users.id").
+        Where("org_user_managements.organisation_id = ?", orgID).
+        Where(`
+            users.name ILIKE ? OR 
+            users.email ILIKE ? OR 
+            profiles.user_name ILIKE ? OR 
+            profiles.phone ILIKE ?
+        `, "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%")
+
+    if err := query.Scan(&users).Error; err != nil {
+        return nil, fmt.Errorf("failed to search users in organisation: %v", err)
+    }
+
+    return users, nil
+}
