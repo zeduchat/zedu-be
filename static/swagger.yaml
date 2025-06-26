@@ -6119,6 +6119,69 @@ paths:
                               description: The expiration timestamp of the invitation.
                               example: "2024-08-26T19:40:26.548423408+01:00"
 
+  /invite/invite-few:
+    post:
+      tags:
+        - Organisation-Invitation
+      summary: Invite multiple users to an organisation
+      description: Sends invitations to multiple users by email, each with an assigned role.
+      operationId: inviteFewUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - org_id
+                - invitations
+              properties:
+                org_id:
+                  type: string
+                  description: Organisation ID
+                  example: "019700db-4e22-7f90-a20e-f9116291ef24"
+                invitations:
+                  type: array
+                  description: List of users to invite
+                  items:
+                    type: object
+                    required:
+                      - email
+                      - role
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                        example: "user9@gmail.com"
+                      role:
+                        type: string
+                        description: Role ID to assign the invited user
+                        example: "019700d8-9085-7f7b-839a-fcbd08b9e26d"
+      responses:
+        '201':
+          description: Invitations successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Invitations created successfully
+                  data:
+                    type: object
+                    properties:
+                      errors:
+                        type: object
+                        nullable: true
+                        example: null
+
   /invite/verify:
     post:
       tags:

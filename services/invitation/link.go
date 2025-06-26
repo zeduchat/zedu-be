@@ -45,12 +45,14 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 	)
 
 	for _, email := range emails {
+		var existingInvite models.Invitation
 		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", email)
 
 		// Check if the user's email has a pending invitation for that organisation with a pending status
-		invitationExists := postgresql.CheckExists(base.Postgresql, &models.Invitation{}, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", email, inviteReq.OrganisationID, time.Now().UTC())
+		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", email, inviteReq.OrganisationID, time.Now().UTC())
 		if invitationExists {
-			errs = append(errs, fmt.Sprintf("%s already has a pending invitation.", email))
+			// errs = append(errs, fmt.Sprintf("%s already has a pending invitation.", email))
+			invitations = append(invitations, existingInvite)
 			continue
 		}
 
@@ -75,6 +77,54 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		}
 
 		invitation := CreateInvitation(email, token, "invited", isTelexUser, ids)
+		invitations = append(invitations, invitation)
+	}
+
+	return invitations, errs, nil
+}
+
+func InviteFewLinkGenerator(base *storage.Database, req models.InvitationCreateFewRequest, userId, url string) ([]models.Invitation, []string, error) {
+	var (
+		inviteReq   = req.Invitations
+		org_id      = req.OrganisationID
+		invitations []models.Invitation
+		errs        []string
+		user        models.User
+	)
+
+	for _, invite := range inviteReq {
+		var existingInvite models.Invitation
+
+		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", invite.Email)
+
+		// Check if the user's email has a pending invitation for that organisation with a pending status
+		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", invite.Email, org_id, time.Now().UTC())
+		if invitationExists {
+			invitations = append(invitations, existingInvite)
+			continue
+		}
+
+		if isTelexUser {
+			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", user.ID, org_id)
+			if alreadyMember {
+				errs = append(errs, fmt.Errorf("%s is already a member of the organisation", invite.Email).Error())
+				continue
+			}
+		}
+
+		token, err := utility.GenerateInvitationToken()
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("could not generate token for %s: %v", invite.Email, err))
+			continue
+		}
+
+		ids := models.IDS{
+			UserID:         userId,
+			OrganisationID: org_id,
+			RoleID:         invite.Role,
+		}
+
+		invitation := CreateInvitation(invite.Email, token, "invited", isTelexUser, ids)
 		invitations = append(invitations, invitation)
 	}
 

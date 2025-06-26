@@ -344,7 +344,7 @@ func (p JSONPrices) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-func (p *Provider) Scan(value interface{}) error {
+func (p *Provider) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("Scan failed: expected []byte but got %T", value)
@@ -356,7 +356,7 @@ func (p Provider) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-func (s *JSONSkills) Scan(value interface{}) error {
+func (s *JSONSkills) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("Scan failed: expected []byte but got %T", value)
@@ -366,6 +366,13 @@ func (s *JSONSkills) Scan(value interface{}) error {
 
 func (s JSONSkills) Value() (driver.Value, error) {
 	return json.Marshal(s)
+}
+
+func (s JSONSkills) MarshalJSON() ([]byte, error) {
+    if s == nil {
+        return []byte("[]"), nil
+    }
+    return json.Marshal([]Skill(s))
 }
 
 func GenerateAgentKey() (string, error) {
