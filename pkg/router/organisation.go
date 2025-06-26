@@ -53,6 +53,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/notification-preference", organisationCtrl.GetChannelNotificationPref)
 		organisationUrl.POST("/:org_id/notification-preference", organisationCtrl.UpdateDeviceNotification)
 		organisationUrl.PATCH("/:org_id/users/:user_id/status", organisationCtrl.ChangeMemberActiveStatus)
+		organisationUrl.GET("/:org_id/users/search", organisationCtrl.SearchUsersInOrganisation)
 
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)

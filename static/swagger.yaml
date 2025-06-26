@@ -3016,6 +3016,84 @@ paths:
                           format: date-time
                           example: 2024-08-29T00:09:29.595066+01:00
 
+  /organisations/{org_id}/users/search:
+    get:
+      tags:
+        - organisation
+      summary: Search for users in an organisation
+      description: Retrieve users in a specific organisation matching the provided search query.
+      operationId: searchOrganisationUsers
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation
+          example: "019700db-4e22-7f90-a20e-f9116291ef24"
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (e.g., email, name, username or phone)
+          example: "user2"
+      responses:
+        '200':
+          description: Search successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
+                        email:
+                          type: string
+                          format: email
+                          example: "user2@gmail.com"
+                        username:
+                          type: string
+                          example: ""
+                        phone_number:
+                          type: string
+                          example: ""
+                        profile_url:
+                          type: string
+                          example: ""
+                        name:
+                          type: string
+                          example: "user2"
+                        role:
+                          type: string
+                          example: "Guest"
+                        status:
+                          type: string
+                          enum: [active, inactive]
+                          example: "active"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-05-24T06:52:24.351066+01:00"
+                        entity_type:
+                          type: string
+                          example: "user"
+
   /organisations/{org_id}/users/{user_id}/status:
     patch:
       tags:

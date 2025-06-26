@@ -190,3 +190,23 @@ func ActivateMember(db *gorm.DB, userID, orgID string, user models.User) (int, e
 
 	return http.StatusOK, nil
 }
+
+func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.UserInOrgResponse, error) {
+	var (
+		o     models.Organisation
+		oum   models.OrgUserManagement
+	)
+
+	_, err := o.CheckOrgExists(orgID, db)	
+	if err != nil {
+		return nil, err
+	}
+
+	users, err := oum.SearchUsersInOrganisation(db, orgID, searchTerm)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
