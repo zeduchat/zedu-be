@@ -57,6 +57,7 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 	)
 
 	if _, err := uuid.Parse(channelID); err != nil {
+		base.Logger.Error(fmt.Sprintf("invalid channel id format: %v", err))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
@@ -65,12 +66,14 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 	usersData, paginationResponse, code, err := service.GetAllChannelThreads(channelID, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		c.JSON(code, rd)
 		return
 	}
 
+	base.Logger.Info("Data retrieved successfully for channel threads")
 	rd := utility.BuildSuccessResponse(code, "Data retrieved successfully", usersData, paginationResponse)
 	c.JSON(code, rd)
 
