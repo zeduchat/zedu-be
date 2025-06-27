@@ -131,7 +131,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			go func() {
 				defer wg.Done()
 				updated := userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-				if updated && accessResp[0].UserId != userID {
+				if updated  {
 					userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 				}
 			}()
@@ -153,7 +153,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			go func() {
 				defer wg.Done()
 				updated := dmChan.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-				if updated && accessResp[0].UserId != userID {
+				if updated {
 					dmChan.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 				}
 			}()
