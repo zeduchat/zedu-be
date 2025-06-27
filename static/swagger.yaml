@@ -8230,6 +8230,13 @@ paths:
           schema:
             type: integer
             default: 20
+        - name: recent_dm
+          in: query
+          required: false
+          description: Sort dm channel by last interacted time to recent 10 channels
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Dm channels retrieved successfully
