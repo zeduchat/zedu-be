@@ -123,6 +123,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	orgId := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("Invalid organisation ID format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -143,6 +144,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 
 	file, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
+		base.Logger.Error("Failed to retrieve saved messages: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
