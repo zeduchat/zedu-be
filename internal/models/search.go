@@ -70,18 +70,18 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		return nil, errors.New(err.Error())
 	}
 
-	hitsData, ok := res["hits"].(map[string]interface{})
+	hitsData, ok := res["hits"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type for hits: %T", res["hits"])
 	}
 
-	hitsArray, ok := hitsData["hits"].([]interface{})
+	hitsArray, ok := hitsData["hits"].([]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type for hits.hits: %T", hitsData["hits"])
 	}
 
 	for _, hitItem := range hitsArray {
-		hit, ok := hitItem.(map[string]interface{})
+		hit, ok := hitItem.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -91,7 +91,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 			continue
 		}
 
-		source, ok := hit["_source"].(map[string]interface{})
+		source, ok := hit["_source"].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -102,9 +102,9 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	return qResults, nil
 }
 
-func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId string, orgId string) (map[string]interface{}, error) {
+func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId string, orgId string) (map[string]any, error) {
 	query := initializeQuery()
-	boolQuery := query["query"].(map[string]interface{})["bool"].(map[string]interface{})
+	boolQuery := query["query"].(map[string]any)["bool"].(map[string]any)
 	channels, err := GetChannelsByOrgIDs(db, orgId, userId)
 	if err != nil {
 		return nil, err
@@ -126,50 +126,50 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 	return query, nil
 }
 
-func initializeQuery() map[string]interface{} {
-	return map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must":   []interface{}{},
-				"filter": []interface{}{},
+func initializeQuery() map[string]any {
+	return map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must":   []any{},
+				"filter": []any{},
 			},
 		},
 	}
 }
-func addOrgOrChannelFilter(boolQuery map[string]interface{}, orgID string, channelIDs []string) {
-	shouldClauses := []interface{}{
-		map[string]interface{}{"term": map[string]interface{}{"org_id.keyword": orgID}},
+func addOrgOrChannelFilter(boolQuery map[string]any, orgID string, channelIDs []string) {
+	shouldClauses := []any{
+		map[string]any{"term": map[string]any{"org_id.keyword": orgID}},
 	}
 
 	if len(channelIDs) > 0 {
-		shouldClauses = append(shouldClauses, map[string]interface{}{
-			"terms": map[string]interface{}{"channels_id.keyword": channelIDs},
+		shouldClauses = append(shouldClauses, map[string]any{
+			"terms": map[string]any{"channels_id.keyword": channelIDs},
 		})
 	}
 
-	orgOrChannelFilter := map[string]interface{}{
-		"bool": map[string]interface{}{
+	orgOrChannelFilter := map[string]any{
+		"bool": map[string]any{
 			"should":               shouldClauses,
 			"minimum_should_match": 1,
 		},
 	}
 
-	if existingFilters, ok := boolQuery["must"].([]interface{}); ok {
+	if existingFilters, ok := boolQuery["must"].([]any); ok {
 		boolQuery["must"] = append(existingFilters, orgOrChannelFilter)
 	} else {
-		boolQuery["must"] = []interface{}{orgOrChannelFilter}
+		boolQuery["must"] = []any{orgOrChannelFilter}
 	}
 }
 
-func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
-	mustClauses := boolQuery["must"].([]interface{})
+func addFullTextSearch(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) {
+	mustClauses := boolQuery["must"].([]any)
 
 	if opts.Exact != "" {
-		mustClauses = append(mustClauses, map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []interface{}{
-					map[string]interface{}{
-						"match_phrase": map[string]interface{}{
+		mustClauses = append(mustClauses, map[string]any{
+			"bool": map[string]any{
+				"must": []any{
+					map[string]any{
+						"match_phrase": map[string]any{
 							"message": opts.Exact,
 						},
 					},
@@ -177,8 +177,8 @@ func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFilter
 			},
 		})
 	} else if opts.Message != "" {
-		mustClauses = append(mustClauses, map[string]interface{}{
-			"multi_match": map[string]interface{}{
+		mustClauses = append(mustClauses, map[string]any{
+			"multi_match": map[string]any{
 				"query": opts.Message,
 				"type":  "best_fields",
 				"fields": []string{
@@ -197,50 +197,50 @@ func addFullTextSearch(boolQuery map[string]interface{}, opts *SearchQueryFilter
 	boolQuery["must"] = mustClauses
 }
 
-func addSenderFilter(query map[string]interface{}, opts *SearchQueryFiltersKeywords) {
-	var boolQuery map[string]interface{}
+func addSenderFilter(query map[string]any, opts *SearchQueryFiltersKeywords) {
+	var boolQuery map[string]any
 
 	if rawQuery, exists := query["query"]; exists {
-		querySection, ok := rawQuery.(map[string]interface{})
+		querySection, ok := rawQuery.(map[string]any)
 		if !ok {
-			querySection = make(map[string]interface{})
+			querySection = make(map[string]any)
 			query["query"] = querySection
 		}
 		if rawBool, exists := querySection["bool"]; exists {
-			if b, ok := rawBool.(map[string]interface{}); ok {
+			if b, ok := rawBool.(map[string]any); ok {
 				boolQuery = b
 			} else {
-				boolQuery = make(map[string]interface{})
+				boolQuery = make(map[string]any)
 				querySection["bool"] = boolQuery
 			}
 		} else {
-			boolQuery = make(map[string]interface{})
+			boolQuery = make(map[string]any)
 			querySection["bool"] = boolQuery
 		}
 	} else {
 		boolQuery = query
 	}
 
-	var shouldClauses []interface{}
+	var shouldClauses []any
 	if rawShould, exists := boolQuery["should"]; exists {
-		if arr, ok := rawShould.([]interface{}); ok {
+		if arr, ok := rawShould.([]any); ok {
 			shouldClauses = arr
 		} else {
-			shouldClauses = []interface{}{}
+			shouldClauses = []any{}
 		}
 	} else {
-		shouldClauses = []interface{}{}
+		shouldClauses = []any{}
 	}
 
 	if opts.From != "" {
 		fromVal := strings.Trim(opts.From, "\"")
-		senderFilters := []interface{}{
-			map[string]interface{}{"match": map[string]interface{}{"user_name": fromVal}},
-			map[string]interface{}{"match": map[string]interface{}{"username": fromVal}},
-			map[string]interface{}{"match": map[string]interface{}{"full_name": fromVal}},
-			map[string]interface{}{"match": map[string]interface{}{"messages.user_name": fromVal}},
-			map[string]interface{}{"match": map[string]interface{}{"messages.username": fromVal}},
-			map[string]interface{}{"match": map[string]interface{}{"messages.full_name": fromVal}},
+		senderFilters := []any{
+			map[string]any{"match": map[string]any{"user_name": fromVal}},
+			map[string]any{"match": map[string]any{"username": fromVal}},
+			map[string]any{"match": map[string]any{"full_name": fromVal}},
+			map[string]any{"match": map[string]any{"messages.user_name": fromVal}},
+			map[string]any{"match": map[string]any{"messages.username": fromVal}},
+			map[string]any{"match": map[string]any{"messages.full_name": fromVal}},
 		}
 
 		shouldClauses = append(shouldClauses, senderFilters...)
@@ -249,18 +249,18 @@ func addSenderFilter(query map[string]interface{}, opts *SearchQueryFiltersKeywo
 	}
 }
 
-func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
+func addChannelFilter(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) {
 	if opts.In != "" {
 		channelName := strings.Trim(opts.In, "\"")
 
 		if _, exists := boolQuery["must"]; !exists {
-			boolQuery["must"] = []interface{}{}
+			boolQuery["must"] = []any{}
 		}
 
-		mustClauses := boolQuery["must"].([]interface{})
+		mustClauses := boolQuery["must"].([]any)
 
-		mustClauses = append(mustClauses, map[string]interface{}{
-			"match_phrase": map[string]interface{}{
+		mustClauses = append(mustClauses, map[string]any{
+			"match_phrase": map[string]any{
 				"channel_name": channelName,
 			},
 		})
@@ -269,23 +269,23 @@ func addChannelFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 	}
 }
 
-func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
-	filterClauses := boolQuery["filter"].([]interface{})
+func addDateFilters(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) {
+	filterClauses := boolQuery["filter"].([]any)
 
 	if !opts.On.IsZero() {
 		startOfDay := opts.On.Truncate(24 * time.Hour)
 		endOfDay := startOfDay.Add(24 * time.Hour).Add(-time.Nanosecond)
-		onFilter := map[string]interface{}{
-			"range": map[string]interface{}{
-				"created_at": map[string]interface{}{
+		onFilter := map[string]any{
+			"range": map[string]any{
+				"created_at": map[string]any{
 					"gte": startOfDay.Format(time.RFC3339),
 					"lte": endOfDay.Format(time.RFC3339),
 				},
 			},
 		}
-		onFilter2 := map[string]interface{}{
-			"range": map[string]interface{}{
-				"messages.created_at": map[string]interface{}{
+		onFilter2 := map[string]any{
+			"range": map[string]any{
+				"messages.created_at": map[string]any{
 					"gte": startOfDay.Format(time.RFC3339),
 					"lte": endOfDay.Format(time.RFC3339),
 				},
@@ -295,16 +295,16 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 	}
 
 	if !opts.Before.IsZero() {
-		beforeFilter := map[string]interface{}{
-			"range": map[string]interface{}{
-				"created_at": map[string]interface{}{
+		beforeFilter := map[string]any{
+			"range": map[string]any{
+				"created_at": map[string]any{
 					"lt": opts.Before.Format(time.RFC3339),
 				},
 			},
 		}
-		beforeFilter2 := map[string]interface{}{
-			"range": map[string]interface{}{
-				"messages.created_at": map[string]interface{}{
+		beforeFilter2 := map[string]any{
+			"range": map[string]any{
+				"messages.created_at": map[string]any{
 					"lt": opts.Before.Format(time.RFC3339),
 				},
 			},
@@ -313,16 +313,16 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 	}
 
 	if !opts.After.IsZero() {
-		afterFilter := map[string]interface{}{
-			"range": map[string]interface{}{
-				"created_at": map[string]interface{}{
+		afterFilter := map[string]any{
+			"range": map[string]any{
+				"created_at": map[string]any{
 					"gt": opts.After.Format(time.RFC3339),
 				},
 			},
 		}
-		afterFilter2 := map[string]interface{}{
-			"range": map[string]interface{}{
-				"messages.created_at": map[string]interface{}{
+		afterFilter2 := map[string]any{
+			"range": map[string]any{
+				"messages.created_at": map[string]any{
 					"gt": opts.After.Format(time.RFC3339),
 				},
 			},
@@ -333,11 +333,11 @@ func addDateFilters(boolQuery map[string]interface{}, opts *SearchQueryFiltersKe
 	boolQuery["filter"] = filterClauses
 }
 
-func addContentFilter(boolQuery map[string]interface{}, opts *SearchQueryFiltersKeywords) {
-	mustClauses := boolQuery["must"].([]interface{})
+func addContentFilter(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) {
+	mustClauses := boolQuery["must"].([]any)
 	if opts.Has != "" {
-		mustClauses = append(mustClauses, map[string]interface{}{
-			"multi_match": map[string]interface{}{
+		mustClauses = append(mustClauses, map[string]any{
+			"multi_match": map[string]any{
 				"query":  opts.Has,
 				"type":   "best_fields",
 				"fields": []string{"message", "messages.message"},
@@ -347,21 +347,21 @@ func addContentFilter(boolQuery map[string]interface{}, opts *SearchQueryFilters
 	boolQuery["must"] = mustClauses
 }
 
-func addSorting(query map[string]interface{}, opts *SearchQueryFiltersKeywords) (map[string]interface{}, error) {
-	var sorting []interface{}
+func addSorting(query map[string]any, opts *SearchQueryFiltersKeywords) (map[string]any, error) {
+	var sorting []any
 	if opts.SortBy == "recency" {
-		sorting = []interface{}{
-			map[string]interface{}{
-				"created_at": map[string]interface{}{
+		sorting = []any{
+			map[string]any{
+				"created_at": map[string]any{
 					"order": "desc",
 				},
 			},
 		}
 	} else {
 		// Default to relevance (_score descending)
-		sorting = []interface{}{
-			map[string]interface{}{
-				"_score": map[string]interface{}{
+		sorting = []any{
+			map[string]any{
+				"_score": map[string]any{
 					"order": "desc",
 				},
 			},

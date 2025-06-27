@@ -57,8 +57,8 @@ type MessageDocument struct {
 	Mentions       []Mention              `json:"mentions,omitempty"`
 }
 
-var MessageMapping = map[string]interface{}{
-	"properties": map[string]interface{}{
+var MessageMapping = map[string]any{
+	"properties": map[string]any{
 		"id":          map[string]string{"type": "keyword"},
 		"channels_id": map[string]string{"type": "keyword"},
 		"user_id":     map[string]string{"type": "keyword"},
@@ -75,11 +75,11 @@ var MessageMapping = map[string]interface{}{
 			"type":   "date",
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 		},
-		"media": map[string]interface{}{
+		"media": map[string]any{
 			"type":       "nested",
 			"properties": MediaMapping,
 		},
-		"mention": map[string]interface{}{
+		"mention": map[string]any{
 			"type":       "nested",
 			"properties": MentionMapping,
 		},
@@ -117,14 +117,14 @@ type EditMessageRequest struct {
 	OrgId      string `json:"org_id"`
 }
 
-func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]interface{}, error) {
+func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]any, error) {
 	var (
 		dmChannels   DmChannels
 		userChannels UserChannels
 		thread       ThreadDocument
 	)
 
-	updateResp := map[string]interface{}{}
+	updateResp := map[string]any{}
 	previewSect := false
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
@@ -134,7 +134,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		return updateResp, errors.New("user not in channel")
 	}
 
-	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, interface{}(&m), logger)
+	err := elastic.AddDocument(db.Elastic, MessageIndexName, m.ID, any(&m), logger)
 	if err != nil {
 		return updateResp, err
 	}
@@ -164,10 +164,10 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		ctx._source.message_count++;
 		ctx._source.last_reply = params.message.created_at;`
 
-		req := map[string]interface{}{
-			"script": map[string]interface{}{
+		req := map[string]any{
+			"script": map[string]any{
 				"source": script,
-				"params": map[string]interface{}{
+				"params": map[string]any{
 					"message": &m,
 				},
 			},
@@ -184,10 +184,10 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		script := `ctx._source.message_count++;
 		ctx._source.last_reply = params.created_at;`
 
-		req := map[string]interface{}{
-			"script": map[string]interface{}{
+		req := map[string]any{
+			"script": map[string]any{
 				"source": script,
-				"params": map[string]interface{}{
+				"params": map[string]any{
 					"created_at": &m.CreatedAt,
 				},
 			},
@@ -218,7 +218,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 	return updateResp, nil
 }
 
-func (m *Message) UpdateMessage(db *gorm.DB, req map[string]interface{}) (*Message, error) {
+func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, error) {
 
 	err := elastic.UpdateDocument(storage.DB.Elastic, MessageIndexName, m.ID, req)
 	if err != nil {
@@ -247,7 +247,7 @@ func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string)
 func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 
 	var (
-		messageData interface{}
+		messageData any
 	)
 
 	err := elastic.SelectByID(storage.DB.Elastic, MessageIndexName, messageID, &messageData)
@@ -256,7 +256,7 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 		return fmt.Errorf("failed to fetch message records, error: %v", err)
 	}
 
-	rawJSON, _ := json.MarshalIndent(messageData.(map[string]interface{}), "", "  ")
+	rawJSON, _ := json.MarshalIndent(messageData.(map[string]any), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &t); err != nil {
 		return fmt.Errorf("failed to decode search response: %v", err)
@@ -266,13 +266,13 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 	return nil
 }
 
-func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]interface{}, error) {
+func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]any, error) {
 
 	var (
 		thread ThreadDocument
 	)
 
-	updateResp := map[string]interface{}{}
+	updateResp := map[string]any{}
 	previewSect := false
 
 	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, m.ID)
@@ -310,10 +310,10 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 			ctx._source.message_count--;
 		}`
 
-		req := map[string]interface{}{
-			"script": map[string]interface{}{
+		req := map[string]any{
+			"script": map[string]any{
 				"source": script,
-				"params": map[string]interface{}{
+				"params": map[string]any{
 					"message_id": m.ID,
 				},
 			},
@@ -330,8 +330,8 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 		script := `if (ctx._source.message_count > 0) {
 			ctx._source.message_count--;
 		}`
-		req := map[string]interface{}{
-			"script": map[string]interface{}{
+		req := map[string]any{
+			"script": map[string]any{
 				"source": script,
 			},
 		}
@@ -409,24 +409,24 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 	from := (page - 1) * limit
 
 	// Build the query
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
 				"thread_id.keyword": ThreadID,
 			},
 		},
 		"from": from,
 		"size": limit,
-		"sort": []map[string]interface{}{
+		"sort": []map[string]any{
 			{
-				"created_at": map[string]interface{}{
+				"created_at": map[string]any{
 					"order": "desc",
 				},
 			},
 		},
 	}
 
-	var messageData interface{}
+	var messageData any
 
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, MessageIndexName, query, &messageData, c)
 
@@ -447,7 +447,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 	return messages, pagR, nil
 }
 
-func UnmarshalMessageResponse(messageData interface{}) (messages []MessageDocument, err error) {
+func UnmarshalMessageResponse(messageData any) (messages []MessageDocument, err error) {
 
 	var searchResult struct {
 		Hits struct {
@@ -457,7 +457,7 @@ func UnmarshalMessageResponse(messageData interface{}) (messages []MessageDocume
 		} `json:"hits"`
 	}
 
-	rawJSON, _ := json.MarshalIndent(messageData.(map[string]interface{}), "", "  ")
+	rawJSON, _ := json.MarshalIndent(messageData.(map[string]any), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &searchResult); errr != nil {
 		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
@@ -477,8 +477,8 @@ func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *s
 	mu.Lock()
 	defer mu.Unlock()
 
-	payload := map[string]interface{}{
-		"script": map[string]interface{}{
+	payload := map[string]any{
+		"script": map[string]any{
 			"source": `
 				if (params.new_username != null && !params.new_username.isEmpty()) {
 					ctx._source.username = params.new_username;
@@ -488,13 +488,13 @@ func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *s
 				}
 			`,
 			"lang": "painless",
-			"params": map[string]interface{}{
+			"params": map[string]any{
 				"new_username":  m.Username,
 				"new_avatarurl": m.AvatarURL,
 			},
 		},
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
+		"query": map[string]any{
+			"term": map[string]any{
 				"user_id.keyword": m.UserID,
 			},
 		},

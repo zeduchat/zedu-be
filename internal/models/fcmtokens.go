@@ -45,7 +45,7 @@ func (ft *FcmTokens) CreateFcmToken(db *gorm.DB) error {
 		return nil
 	}
 
-	req_fields := make(map[string]interface{})
+	req_fields := make(map[string]any)
 	req_fields["fcm_token"] = ft.FcmToken
 
 	result, err := postgresql.UpdateFields(db, &FcmTokens{}, req_fields, "user_id = ?", ft.UserId)
@@ -73,7 +73,7 @@ func (ft *FcmTokens) CreateWnsConfig(db *gorm.DB) error {
 		return nil
 	}
 
-	req_fields := make(map[string]interface{})
+	req_fields := make(map[string]any)
 	req_fields["wns_token"] = ft.WnsToken
 	req_fields["channel_uri"] = ft.ChannelUri
 

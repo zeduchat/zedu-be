@@ -49,7 +49,7 @@ func (b *Blog) GetBlogs(db *gorm.DB, c *gin.Context, categoryID string, searchQu
 	pagination := postgresql.GetPagination(c)
 
 	queryConditions := ""
-	queryArgs := []interface{}{}
+	queryArgs := []any{}
 
 	if categoryID != "" {
 		queryConditions += "category_id = ?"

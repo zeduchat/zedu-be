@@ -34,7 +34,7 @@ func GetUnixString(date, currentISOFormat, newISOFormat string) (string, error) 
 	return strconv.Itoa(int(t.Unix())), nil
 }
 
-func ConvertStringInterfaceToStringFloat(originalMap map[string]interface{}) map[string]float64 {
+func ConvertStringInterfaceToStringFloat(originalMap map[string]any) map[string]float64 {
 	convertedMap := make(map[string]float64)
 	for key, value := range originalMap {
 		if val, ok := value.(float64); ok {
@@ -48,12 +48,12 @@ func ConvertStringInterfaceToStringFloat(originalMap map[string]interface{}) map
 	return convertedMap
 }
 
-func RemoveKey(p interface{}, key string) {
+func RemoveKey(p any, key string) {
 	val := reflect.ValueOf(p).Elem()
 	val.FieldByName(key).Set(reflect.Zero(val.FieldByName(key).Type()))
 }
 
-func CopyStruct(src, dst interface{}) {
+func CopyStruct(src, dst any) {
 	srcValue := reflect.ValueOf(src).Elem()
 	dstValue := reflect.ValueOf(dst).Elem()
 
@@ -67,7 +67,7 @@ func CopyStruct(src, dst interface{}) {
 	}
 }
 
-func FormatInspectionPeriod(t interface{}) string {
+func FormatInspectionPeriod(t any) string {
 	timeStampStr, ok := t.(string)
 	if !ok {
 		return ""
@@ -82,7 +82,7 @@ func FormatInspectionPeriod(t interface{}) string {
 	return inspectionTime.Format("2006-01-02 15:04:05")
 }
 
-func NumberFormat(t interface{}) float64 {
+func NumberFormat(t any) float64 {
 	num, ok := t.(float64)
 	if !ok {
 		numInt, ok := t.(int)
@@ -94,7 +94,7 @@ func NumberFormat(t interface{}) float64 {
 	return num
 }
 
-func Add(num1, num2 interface{}) float64 {
+func Add(num1, num2 any) float64 {
 	first, ok := num1.(float64)
 	if !ok {
 		firstInt, ok := num1.(int)
@@ -112,31 +112,31 @@ func Add(num1, num2 interface{}) float64 {
 	return first + second
 }
 
-func ConvertIntValues(m map[string]interface{}) {
+func ConvertIntValues(m map[string]any) {
 	for key, value := range m {
 		switch v := value.(type) {
 		case float64:
 			if intValue := int(v); float64(intValue) == v {
 				m[key] = intValue
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			ConvertIntValues(v)
 		}
 	}
 }
 
-func StructToMap(obj interface{}) (map[string]interface{}, error) {
+func StructToMap(obj any) (map[string]any, error) {
 
 	jsonBytes, err := json.Marshal(obj)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 
 	err = json.Unmarshal(jsonBytes, &result)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
 	ConvertIntValues(result)

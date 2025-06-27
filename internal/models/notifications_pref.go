@@ -34,11 +34,11 @@ var (
 )
 
 type Content struct {
-	NotificationType   NotificationType       `json:"notification_type"`
-	SectionType        SectionType            `json:"section"`
-	ModifcationDetails ModifcationDetails     `json:"modification_ids,omitempty"`
-	Content            interface{}            `json:"data,omitempty"`
-	UpdateChange       map[string]interface{} `json:"update_change,omitempty"`
+	NotificationType   NotificationType   `json:"notification_type"`
+	SectionType        SectionType        `json:"section"`
+	ModifcationDetails ModifcationDetails `json:"modification_ids,omitempty"`
+	Content            any                `json:"data,omitempty"`
+	UpdateChange       map[string]any     `json:"update_change,omitempty"`
 }
 
 type ModifcationDetails struct {
@@ -122,7 +122,7 @@ type ChannelNotificationInfo struct {
 
 type NotificationPreference map[string]DeviceNotification
 
-func (n *NotificationPreference) Scan(value interface{}) error {
+func (n *NotificationPreference) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")

@@ -13,7 +13,7 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 	var threads models.Threads
 
 	threads.ID = req.ThreadId
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"is_pinned": true,
 	}
 
@@ -42,7 +42,7 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger *utility.Logger) (*models.PinnedMessage, error) {
 	var message models.Message
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"is_pinned": true,
 	}
 
@@ -86,7 +86,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 	var threads models.Threads
 	var pinnedMessage models.PinnedMessage
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"is_pinned": false,
 	}
 
@@ -108,7 +108,7 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 	var message models.Message
 	var pinnedMessage models.PinnedMessage
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"is_pinned": false,
 	}
 

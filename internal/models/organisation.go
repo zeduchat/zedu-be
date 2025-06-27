@@ -136,7 +136,7 @@ func (c *Organisation) Update(db *gorm.DB) (*Organisation, error) {
 
 func (c *Organisation) UpdateFeilds(db *gorm.DB, updateCon UpdateOrgRequestModel) (*Organisation, error) {
 
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 
 	data, _ := json.Marshal(updateCon)
 	json.Unmarshal(data, &update)
@@ -652,27 +652,27 @@ func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, o
 }
 
 func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, error) {
-	query := map[string]interface{}{
+	query := map[string]any{
 		"size": 0,
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"channels_id.keyword": channelID,
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"type.keyword": "thread",
 						},
 					},
 				},
 			},
 		},
-		"aggs": map[string]interface{}{
-			"last_message": map[string]interface{}{
-				"max": map[string]interface{}{
+		"aggs": map[string]any{
+			"last_message": map[string]any{
+				"max": map[string]any{
 					"field": "created_at",
 				},
 			},
@@ -690,7 +690,7 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 		return time.Time{}, fmt.Errorf("failed to parse last message time result")
 	}
 
-	agg := resultMap["aggregations"].(map[string]interface{})["last_message"].(map[string]interface{})
+	agg := resultMap["aggregations"].(map[string]any)["last_message"].(map[string]any)
 	lastMsgEpoch, ok := agg["value"].(float64)
 	if !ok || lastMsgEpoch == 0 {
 		return time.Time{}, nil

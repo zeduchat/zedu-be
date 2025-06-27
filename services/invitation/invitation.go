@@ -372,7 +372,7 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 		return err
 	}
 
-	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
+	err = user.AddUserToOrganisation(db, &user, []any{&org})
 	if err != nil {
 		return err
 	}

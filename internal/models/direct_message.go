@@ -61,9 +61,9 @@ type DmChannelsRequest struct {
 	ChannelId     string `json:"channel_id"`
 }
 
-func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]interface{}, error) {
-	var response interface{}
-	var data_r map[string]interface{}
+func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]any, error) {
+	var response any
+	var data_r map[string]any
 	agentJSONURL := agent.JSONUrl
 	redisKey := fmt.Sprintf("agent_json_%s", agentJSONURL)
 
@@ -71,14 +71,14 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 
 		cachedData, err := rd.RedisGet(redisClient, redisKey)
 		if err == nil && len(cachedData) > 0 {
-			var cachedResult interface{}
+			var cachedResult any
 
 			if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
 				rd.RedisDelete(redisClient, redisKey)
 				return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
 			}
 
-			data_r, ok := cachedResult.(map[string]interface{})
+			data_r, ok := cachedResult.(map[string]any)
 			if !ok {
 				rd.RedisDelete(redisClient, redisKey)
 				return nil, errors.New("cached data is not in the expected format")
@@ -100,13 +100,13 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 			return nil, fmt.Errorf("could not fetch agent json: %v", err)
 		}
 
-		response_data := response.(map[string]interface{})
-		content, ok := response_data["data"].(map[string]interface{})
+		response_data := response.(map[string]any)
+		content, ok := response_data["data"].(map[string]any)
 		if !ok {
 			return nil, errors.New("could not fetch data from agent json")
 		}
 
-		data_r, ok := content["descriptions"].(map[string]interface{})
+		data_r, ok := content["descriptions"].(map[string]any)
 		if !ok {
 			return nil, errors.New("invalid agent details format")
 		}
@@ -119,7 +119,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 		}
 	} else {
 
-		data_r = map[string]interface{}{
+		data_r = map[string]any{
 			"app_name":        agent.AppName,
 			"app_logo":        agent.AppLogo,
 			"app_description": agent.AppDescription,
@@ -622,7 +622,7 @@ func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mu
 				return false
 			}
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"last_thread_id": req.LastThreadId,
 				"last_read_at":   req.LastReadAt,
 				"thread_count":   0,
@@ -651,7 +651,7 @@ func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mu
 				return false
 			}
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"last_thread_id": req.LastThreadId,
 				"last_read_at":   req.LastReadAt,
 				"thread_count":   0,
@@ -683,7 +683,7 @@ func (r *DmChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *util
 		"dm": func() {
 			query := "channel_id = ? AND user_id != ?"
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"thread_count": gorm.Expr("thread_count + 1"),
 			}
 
@@ -701,7 +701,7 @@ func (r *DmChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *util
 		"group_dm": func() {
 			query := "channel_id = ? AND user_id != ?"
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"thread_count": gorm.Expr("thread_count + 1"),
 			}
 

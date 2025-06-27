@@ -5,8 +5,8 @@ import (
 )
 
 // _ = db.AutoMigrate(MigrationModels()...)
-func AuthMigrationModels() []interface{} {
-	return []interface{}{
+func AuthMigrationModels() []any {
+	return []any{
 		models.UserPinnedOrganisations{},
 		models.OrganisationIntegrations{},
 		models.APIStatus{},

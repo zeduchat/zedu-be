@@ -26,7 +26,7 @@ func CreateCollection(client *typesense.Client, collectionName string, fields []
 	return nil
 }
 
-func InsertDocument(client *typesense.Client, collectionName string, document interface{}) error {
+func InsertDocument(client *typesense.Client, collectionName string, document any) error {
 	if client == nil {
 		return nil
 	}

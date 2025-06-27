@@ -31,9 +31,9 @@ func (n NotificationObject) SendLoginAlertMail() error {
 		return fmt.Errorf("error getting user with email %v: %v", notificationData.Email, err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname":         thisOrThatStr(user.Profile.FirstName, user.Email),
-		"business_name":     thisOrThatStr("", ""),
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":          thisOrThatStr(user.Profile.FirstName, user.Email),
+		"business_name":      thisOrThatStr("", ""),
 		"password_reset_url": resetPasswordUrl,
 	})
 	if err != nil {

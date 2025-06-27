@@ -279,7 +279,6 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 	)
 
 	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
-	
 
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users.Profile"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
@@ -848,7 +847,7 @@ func (c *UserChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.
 		return false
 	}
 
-	updateFields := map[string]interface{}{
+	updateFields := map[string]any{
 		"last_thread_id": req.LastThreadId,
 		"last_read_at":   req.LastReadAt,
 		"mention_count":  0,
@@ -876,7 +875,7 @@ func (c *UserChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *ut
 
 	query := "channels_id = ? AND user_id != ?"
 
-	updateFields := map[string]interface{}{
+	updateFields := map[string]any{
 		"thread_count": gorm.Expr("thread_count + 1"),
 	}
 
@@ -916,7 +915,7 @@ func (c *UserChannels) ProcessMentions(db *gorm.DB, req []Mention, mu *sync.Mute
 	}
 
 	query := ""
-	args := []interface{}{}
+	args := []any{}
 
 	if !channelMention {
 

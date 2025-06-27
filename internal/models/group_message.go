@@ -180,7 +180,7 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 	}
 
 	allParticipants, participantHash := utility.GenerateParticipantHash(rcp)
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 	update["participant_hash"] = participantHash
 
 	result, err := postgresql.UpdateFields(db, &existDM, update, "channel_id = ?", dm.ChannelId)

@@ -10,7 +10,7 @@ type RequestObj struct {
 	Path         string
 	Method       string
 	SuccessCode  int
-	RequestData  interface{}
+	RequestData  any
 	DecodeMethod string
 	Logger       *utility.Logger
 	Timeout      bool
@@ -21,6 +21,6 @@ var (
 	PhpSerializerMethod string = "phpserializer"
 )
 
-func (r *RequestObj) getNewSendRequestObject(data interface{}, headers map[string]string, urlprefix string) *external.SendRequestObject {
+func (r *RequestObj) getNewSendRequestObject(data any, headers map[string]string, urlprefix string) *external.SendRequestObject {
 	return external.GetNewSendRequestObject(r.Logger, r.Name, r.Path, r.Method, urlprefix, r.DecodeMethod, headers, r.SuccessCode, data, r.Timeout)
 }

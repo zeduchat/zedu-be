@@ -9,7 +9,7 @@ import (
 	"github.com/typesense/typesense-go/v2/typesense/api/pointer"
 )
 
-func SearchDocuments(client *typesense.Client, collectionName, query, searchField string) ([]map[string]interface{}, error) {
+func SearchDocuments(client *typesense.Client, collectionName, query, searchField string) ([]map[string]any, error) {
 	searchParams := &api.SearchCollectionParams{
 		Q:       pointer.String(query),
 		QueryBy: pointer.String(searchField),
@@ -20,7 +20,7 @@ func SearchDocuments(client *typesense.Client, collectionName, query, searchFiel
 		return nil, err
 	}
 
-	var results []map[string]interface{}
+	var results []map[string]any
 	for _, hit := range *searchResult.Hits {
 		if hit.Document != nil {
 			results = append(results, *hit.Document)

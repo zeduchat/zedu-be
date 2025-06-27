@@ -268,10 +268,10 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		Media:      req.Media,
 	}
 
-	payload := map[string]interface{}{
-		"args": []map[string]interface{}{
+	payload := map[string]any{
+		"args": []map[string]any{
 			{
-				"message_content": map[string]interface{}{
+				"message_content": map[string]any{
 					"channel_id":              feed.ChannelsId,
 					"message":                 feed.Content,
 					"thread_id":               feed.ThreadId,

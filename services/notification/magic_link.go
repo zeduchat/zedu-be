@@ -34,13 +34,13 @@ func (n NotificationObject) SendMagicLink() error {
 		return fmt.Errorf("error getting user with account id %v, %v", notificationData.Email, err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname": thisOrThatStr(user.Profile.FirstName, user.Email),
-		"business_name": thisOrThatStr("", ""),
-		"login_url": loginUrl,
-		"contact_us_url": contactUrl,
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":          thisOrThatStr(user.Profile.FirstName, user.Email),
+		"business_name":      thisOrThatStr("", ""),
+		"login_url":          loginUrl,
+		"contact_us_url":     contactUrl,
 		"privacy_policy_url": policyUrl,
-		})
+	})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}

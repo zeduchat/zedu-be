@@ -269,7 +269,7 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 
 	thread.ID = threadID
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"current_status": req.Status,
 	}
 
@@ -390,7 +390,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 
 	thread.ID = req.ThreadId
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"message": req.Message,
 		"edited":  true,
 	}

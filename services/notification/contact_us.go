@@ -27,7 +27,7 @@ func (n NotificationObject) SendContactUsMail() error {
 	helpCenterUrl := fmt.Sprintf("%v/help", configData.App.FRONTEND_URL)
 	loginUrl := fmt.Sprintf("%v/auth/login", configData.App.FRONTEND_URL)
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
 		"firstname":       thisOrThatStr(notificationData.Name, notificationData.Email),
 		"phone_number":    notificationData.PhoneNumber,
 		"email":           notificationData.Email,

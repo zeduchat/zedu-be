@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateOneRecord(db *gorm.DB, model interface{}) error {
+func CreateOneRecord(db *gorm.DB, model any) error {
 	result := db.Create(model)
 	if result.Error != nil {
 		return result.Error
@@ -17,7 +17,7 @@ func CreateOneRecord(db *gorm.DB, model interface{}) error {
 	return nil
 }
 
-func CreateMultipleRecords(db *gorm.DB, model interface{}, length int) error {
+func CreateMultipleRecords(db *gorm.DB, model any, length int) error {
 	result := db.Create(model)
 	if result.Error != nil {
 		return result.Error

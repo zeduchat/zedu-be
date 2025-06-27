@@ -11,30 +11,30 @@ import (
 )
 
 type Response struct {
-	Status     string      `json:"status,omitempty"`
-	StatusCode int         `json:"status_code,omitempty"`
-	Name       string      `json:"name,omitempty"` //name of the error
-	Message    string      `json:"message,omitempty"`
-	Error      interface{} `json:"error,omitempty"` //for errors that occur even if request is successful
-	Data       interface{} `json:"data,omitempty"`
-	Pagination interface{} `json:"pagination,omitempty"`
-	Extra      interface{} `json:"extra,omitempty"`
+	Status     string `json:"status,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
+	Name       string `json:"name,omitempty"` //name of the error
+	Message    string `json:"message,omitempty"`
+	Error      any    `json:"error,omitempty"` //for errors that occur even if request is successful
+	Data       any    `json:"data,omitempty"`
+	Pagination any    `json:"pagination,omitempty"`
+	Extra      any    `json:"extra,omitempty"`
 }
 
 // BuildResponse method is to inject data value to dynamic success response
-func BuildSuccessResponse(code int, message string, data interface{}, pagination ...interface{}) Response {
+func BuildSuccessResponse(code int, message string, data any, pagination ...any) Response {
 	res := ResponseMessage(code, "success", "", message, nil, data, pagination, nil)
 	return res
 }
 
 // BuildErrorResponse method is to inject data value to dynamic failed response
-func BuildErrorResponse(code int, status string, message string, err interface{}, data interface{}, logger ...bool) Response {
+func BuildErrorResponse(code int, status string, message string, err any, data any, logger ...bool) Response {
 	res := ResponseMessage(code, status, "", message, err, data, nil, nil)
 	return res
 }
 
 // ResponseMessage method for the central response holder
-func ResponseMessage(code int, status string, name string, message string, err interface{}, data interface{}, pagination interface{}, extra interface{}) Response {
+func ResponseMessage(code int, status string, name string, message string, err any, data any, pagination any, extra any) Response {
 	if pagination != nil && reflect.ValueOf(pagination).IsNil() {
 		pagination = nil
 	}
