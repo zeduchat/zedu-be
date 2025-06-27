@@ -106,7 +106,6 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 
 	if check {
 		accessResp, paginationResponse, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
-
 	} else {
 		accessResp, paginationResponse, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
 	}

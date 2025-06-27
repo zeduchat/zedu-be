@@ -39,7 +39,8 @@ type Threads struct {
 	FullName      string                 `json:"full_name"`
 	Email         string                 `json:"email"`
 	Edited        bool                   `json:"edited"`
-	IsPinned      bool                   `json:"is_pinned"`
+	IsPinned      bool                   `json:"is_pinned,omitempty"`
+	IsSaved       bool                   `json:"is_saved,omitempty"`
 	UserType      string                 `json:"user_type"`
 	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
@@ -756,7 +757,6 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 
 	return threads, pagR, nil
 }
-
 
 func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
