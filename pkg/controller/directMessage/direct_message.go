@@ -92,6 +92,7 @@ func (base *Controller) GetDmChannels(c *gin.Context) {
 
 	req.UserId = UserId
 	req.OrgId = c.Param("org_id")
+	req.RecentDM = c.Query("recent_dm")
 
 	if _, err := uuid.Parse(req.OrgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)

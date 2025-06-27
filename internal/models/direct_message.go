@@ -59,7 +59,6 @@ type DmChannelsRequest struct {
 	UserId        string `json:"user_id"`
 	OrgId         string `json:"org_id"`
 	ChannelId     string `json:"channel_id"`
-	RecentDM      string `json:"recent_dm"`
 }
 
 func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]interface{}, error) {
