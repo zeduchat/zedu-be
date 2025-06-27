@@ -217,7 +217,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		if msg.MessageID != nil {
 			err := m.GetMessageById(db, *msg.MessageID)
 			if err != nil {
-				return nil, err
+				continue
 			}
 
 			mr.ID = m.ID
@@ -238,7 +238,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		} else {
 			err := t.GetThreadById(db, msg.ThreadID.String())
 			if err != nil {
-				return nil, err
+				continue
 			}
 
 			mr.ID = t.ID
