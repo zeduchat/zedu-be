@@ -95,18 +95,42 @@ func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMe
 }
 
 func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) error {
-	var savedMessage *models.SavedMessage
+	savedMessage := &models.SavedMessage{}
 
-	_, err := savedMessage.GetSavedMessageByID(db, ids)
+	err := savedMessage.GetSavedMessageByID(db, ids)
 	if err != nil {
 		logger.Error("An error occurred while fetching message from Postgres: %v", err)
 		return err
 	}
 
-	deleteErr := savedMessage.DeleteMessageByID(db, ids)
+	msgType := savedMessage.Type
+
+	deleteErr := savedMessage.DeleteMessageByID(db)
 	if deleteErr != nil {
 		logger.Error("An error occurred while deleting saved message: %v", deleteErr)
 		return deleteErr
+	}
+
+	if msgType == "thread" {
+		var threads models.Threads
+
+		updateKey := map[string]any{
+			"is_saved": false,
+		}
+
+		if _, err := threads.UpdateThread(db, updateKey); err != nil {
+			return err
+		}
+	} else {
+		var message models.Message
+
+		updateKey := map[string]any{
+			"is_saved": false,
+		}
+
+		if _, err := message.UpdateMessage(db, updateKey); err != nil {
+			return err
+		}
 	}
 
 	return nil

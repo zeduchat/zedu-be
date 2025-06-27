@@ -155,9 +155,9 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) DeleteMessageByID(c *gin.Context) {
+func (base *Controller) DeleteSavedMessageByID(c *gin.Context) {
 	orgId := c.Param("org_id")
-	messageId := c.Param("messageId")
+	smId := c.Param("smId")
 
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
@@ -165,7 +165,7 @@ func (base *Controller) DeleteMessageByID(c *gin.Context) {
 		return
 	}
 
-	if _, err := uuid.Parse(messageId); err != nil {
+	if _, err := uuid.Parse(smId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", "unable to parse message id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -180,9 +180,9 @@ func (base *Controller) DeleteMessageByID(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	savedMessageIds := models.SavedMessageIds{
-		MessageID: messageId,
-		UserID:    userId,
-		OrgID:     orgId,
+		SavedMessageID: smId,
+		UserID:         userId,
+		OrgID:          orgId,
 	}
 	err := savedMessages.DeleteSavedMessage(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
