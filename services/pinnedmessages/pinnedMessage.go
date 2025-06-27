@@ -2,7 +2,6 @@ package pinnedmessages
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -18,8 +17,7 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 		"is_pinned": true,
 	}
 
-	if resp, err := threads.UpdateThread(db.Postgresql, updateKey); err != nil {
-		fmt.Printf("Response: %v", resp)
+	if _, err := threads.UpdateThread(db.Postgresql, updateKey); err != nil {
 		return nil, err
 	}
 
@@ -32,7 +30,7 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 		ThreadID:   req.ThreadId,
 	}
 
-	createErr := messageToPin.CreatePinnedMessageRecord(db.Postgresql)
+	createErr := messageToPin.CreatePinnedThreadRecord(db.Postgresql)
 	if createErr != nil {
 		logger.Error("failed to pin thread message: %v", createErr)
 		return nil, errors.New("failed to pin thread message, error: " + createErr.Error())
@@ -63,7 +61,7 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 		MessageID:  &req.MessageID,
 	}
 
-	createErr := messageToPin.CreatePinnedReplyMessageRecord(db.Postgresql)
+	createErr := messageToPin.CreatePinnedMessageRecord(db.Postgresql)
 	if createErr != nil {
 		logger.Error("failed to pin reply-message: %v", createErr)
 		return nil, errors.New("failed to pin reply-message, error: " + createErr.Error())

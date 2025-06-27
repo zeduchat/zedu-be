@@ -30,7 +30,7 @@ type PinMessageRequest struct {
 	UserId     string `json:"user_id"`
 }
 
-func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
+func (m *PinnedMessage) CreatePinnedThreadRecord(db *gorm.DB) error {
 	var (
 		dmChannels    DmChannels
 		userChannels  UserChannels
@@ -65,7 +65,7 @@ func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
 	return nil
 }
 
-func (m *PinnedMessage) CreatePinnedReplyMessageRecord(db *gorm.DB) error {
+func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) error {
 	var (
 		dmChannels    DmChannels
 		userChannels  UserChannels
@@ -192,7 +192,7 @@ func GetPinnedThreadMsgs(db *storage.Database, channelsId string) ([]MessageDocu
 		return nil, err
 	}
 
-	message, err := UnMarsahlMessageResponse(results)
+	message, err := UnmarshalMessageResponse(results)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func GetPinnedReplyMsgs(db *storage.Database, channelsId string) ([]MessageDocum
 		return nil, err
 	}
 
-	message, err := UnMarsahlMessageResponse(results)
+	message, err := UnmarshalMessageResponse(results)
 	if err != nil {
 		return nil, err
 	}

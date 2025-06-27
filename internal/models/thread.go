@@ -77,6 +77,7 @@ type ThreadDocument struct {
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	State         string                 `json:"state,omitempty"`
+	IsSaved       bool                   `json:"is_saved,omitempty"`
 }
 
 var MediaMapping = map[string]interface{}{
@@ -113,6 +114,7 @@ var Thread_mapping = map[string]interface{}{
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
 			"state":       map[string]string{"type": "text"},
+			"is_saved":    map[string]string{"type": "boolean"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -755,6 +757,7 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 	return threads, pagR, nil
 }
 
+
 func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
 		threads []Threads
@@ -941,64 +944,6 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	return threads, pagR, nil
-}
-
-func (t *Threads) GetSingleThreadWithRepliesFull(db *gorm.DB, ChannelID, threadID string) (*Threads, error) {
-	var thread Threads
-
-	err := db.Model(&Threads{}).
-		Where("threads.id = ?", threadID).
-		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at ASC").Preload("Mentions")
-		}).
-		Select("threads.*, COUNT(messages.id) as message_count").
-		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Group("threads.id").
-		First(&thread).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("thread not found")
-		}
-		return nil, err
-	}
-
-	return &thread, nil
-}
-
-func (r *Threads) GetSingleThreadWithReplies(db *gorm.DB, c *gin.Context, userID, channelID, ThreadID string) (MessagesResp, postgresql.PaginationResponse, error) {
-
-	var (
-		userChannels    UserChannels
-		messagesResp    MessagesResp
-		ErrNotInChannel = errors.New("user not in channel")
-	)
-
-	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
-	if !exist {
-		return messagesResp, postgresql.PaginationResponse{}, ErrNotInChannel
-	}
-
-	pagination := postgresql.GetPagination(c)
-	query := db.Table("messages").
-		Select("messages.content AS message, messages.id, messages.username, messages.created_at, messages.updated_at, messages.edited, profiles.full_name, profiles.avatar_url, users.email").
-		Joins("left join profiles on profiles.userid = messages.user_id").
-		Joins("left join users on users.id = messages.user_id").
-		Where("messages.thread_id = ?", ThreadID)
-
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		query,
-		"messages.created_at",
-		"desc",
-		pagination,
-		&messagesResp,
-		nil,
-	)
-	if err != nil {
-		return messagesResp, paginationResponse, err
-	}
-
-	return messagesResp, paginationResponse, nil
 }
 
 func UnmarshalThreadResponse(threadData interface{}) (threads []Threads, err error) {
