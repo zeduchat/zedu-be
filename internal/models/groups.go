@@ -81,17 +81,17 @@ func (g *Group) GetGroups(db *storage.Database, ids map[string]string) ([]Group,
 	}
 
 	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
-		query := map[string]interface{}{
-			"query": map[string]interface{}{
-				"bool": map[string]interface{}{
-					"must": []map[string]interface{}{
+		query := map[string]any{
+			"query": map[string]any{
+				"bool": map[string]any{
+					"must": []map[string]any{
 						{
-							"term": map[string]interface{}{
+							"term": map[string]any{
 								"channels_id.keyword": channelID,
 							},
 						},
 						{
-							"term": map[string]interface{}{
+							"term": map[string]any{
 								"type.keyword": "thread",
 							},
 						},
@@ -99,9 +99,9 @@ func (g *Group) GetGroups(db *storage.Database, ids map[string]string) ([]Group,
 				},
 			},
 			"size": 0,
-			"aggs": map[string]interface{}{
-				"thread_count": map[string]interface{}{
-					"value_count": map[string]interface{}{
+			"aggs": map[string]any{
+				"thread_count": map[string]any{
+					"value_count": map[string]any{
 						"field": "thread_id.keyword",
 					},
 				},
@@ -115,7 +115,7 @@ func (g *Group) GetGroups(db *storage.Database, ids map[string]string) ([]Group,
 			return 0
 		}
 
-		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
+		count := countInfo.(map[string]any)["aggregations"].(map[string]any)["thread_count"].(map[string]any)["value"].(float64)
 
 		return int(count)
 	}
@@ -295,17 +295,17 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 
 	//get the thread count for each channel
 	getThreadCountFromElastic := func(es *elasticsearch.Client, channelID string) int {
-		query := map[string]interface{}{
-			"query": map[string]interface{}{
-				"bool": map[string]interface{}{
-					"must": []map[string]interface{}{
+		query := map[string]any{
+			"query": map[string]any{
+				"bool": map[string]any{
+					"must": []map[string]any{
 						{
-							"term": map[string]interface{}{
+							"term": map[string]any{
 								"channels_id.keyword": channelID,
 							},
 						},
 						{
-							"term": map[string]interface{}{
+							"term": map[string]any{
 								"type.keyword": "thread",
 							},
 						},
@@ -313,9 +313,9 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 				},
 			},
 			"size": 0,
-			"aggs": map[string]interface{}{
-				"thread_count": map[string]interface{}{
-					"value_count": map[string]interface{}{
+			"aggs": map[string]any{
+				"thread_count": map[string]any{
+					"value_count": map[string]any{
 						"field": "thread_id.keyword",
 					},
 				},
@@ -329,7 +329,7 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 			return 0
 		}
 
-		count := countInfo.(map[string]interface{})["aggregations"].(map[string]interface{})["thread_count"].(map[string]interface{})["value"].(float64)
+		count := countInfo.(map[string]any)["aggregations"].(map[string]any)["thread_count"].(map[string]any)["value"].(float64)
 
 		return int(count)
 	}

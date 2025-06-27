@@ -57,9 +57,9 @@ func GetConfig() *Configuration {
 	return Config
 }
 
-func BindKeys(v *viper.Viper, input interface{}) error {
+func BindKeys(v *viper.Viper, input any) error {
 
-	envKeysMap := &map[string]interface{}{}
+	envKeysMap := &map[string]any{}
 	if err := mapstructure.Decode(input, &envKeysMap); err != nil {
 		return err
 	}

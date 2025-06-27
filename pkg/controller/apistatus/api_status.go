@@ -112,7 +112,7 @@ func (base *Controller) GetAPIStatus(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,

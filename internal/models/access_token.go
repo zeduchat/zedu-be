@@ -84,7 +84,7 @@ func (a *AccessToken) GetLatestByOwnerIDAndIsLive(db *gorm.DB) (int, error) {
 	return http.StatusOK, nil
 }
 
-func (a *AccessToken) CreateAccessToken(db *gorm.DB, tokenData interface{}) error {
+func (a *AccessToken) CreateAccessToken(db *gorm.DB, tokenData any) error {
 	if a.OwnerID == "" {
 		return fmt.Errorf("owner id not provided to create access token")
 	}

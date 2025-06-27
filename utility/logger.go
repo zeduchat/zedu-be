@@ -32,16 +32,16 @@ type LogRecord struct {
 
 // AuditLog Audit log
 type AuditLog struct {
-	Date           time.Time   `json:"date"`
-	Username       string      `json:"Username"`
-	RequestHeader  interface{} `json:"request_header"`
-	Request        interface{} `json:"request"`
-	StatusCode     int         `json:"status_code"`
-	ResponseHeader interface{} `json:"response_header"`
-	Response       interface{} `json:"response"`
-	ClientID       string      `json:"client_id"`
-	Route          string      `json:"route"`
-	Duration       float64     `json:"duration (seconds)"`
+	Date           time.Time `json:"date"`
+	Username       string    `json:"Username"`
+	RequestHeader  any       `json:"request_header"`
+	Request        any       `json:"request"`
+	StatusCode     int       `json:"status_code"`
+	ResponseHeader any       `json:"response_header"`
+	Response       any       `json:"response"`
+	ClientID       string    `json:"client_id"`
+	Route          string    `json:"route"`
+	Duration       float64   `json:"duration (seconds)"`
 }
 
 // NewLogger constructs a logger object
@@ -74,7 +74,7 @@ func NewLogger() *Logger {
 }
 
 // Info log information
-func (l *Logger) Info(arg0 interface{}, args ...interface{}) {
+func (l *Logger) Info(arg0 any, args ...any) {
 	//record := LogRecord{
 	//	Level:   "INFO",
 	//	Date: time.Now().Local().String(),
@@ -89,14 +89,14 @@ func (l *Logger) Info(arg0 interface{}, args ...interface{}) {
 	if format, ok := arg0.(string); ok && len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)
 	} else {
-		msg = fmt.Sprint(append([]interface{}{arg0}, args...)...)
+		msg = fmt.Sprint(append([]any{arg0}, args...)...)
 	}
 
 	l.logger.Log(log.INFO, getSource(), msg)
 }
 
 // Debug log debug
-func (l *Logger) Debug(arg0 interface{}, args ...interface{}) {
+func (l *Logger) Debug(arg0 any, args ...any) {
 	//record := LogRecord{
 	//	Level:   "DEBUG",
 	//	Date: time.Now().Local().String(),
@@ -108,7 +108,7 @@ func (l *Logger) Debug(arg0 interface{}, args ...interface{}) {
 }
 
 // Warning log warnings
-func (l *Logger) Warning(arg0 interface{}, args ...interface{}) {
+func (l *Logger) Warning(arg0 any, args ...any) {
 	//record := LogRecord{
 	//	Level:   "WARNING",
 	//	Date: time.Now().Local().String(),
@@ -120,7 +120,7 @@ func (l *Logger) Warning(arg0 interface{}, args ...interface{}) {
 }
 
 // Error log errors
-func (l *Logger) Error(arg0 interface{}, args ...interface{}) {
+func (l *Logger) Error(arg0 any, args ...any) {
 	//record := LogRecord{
 	//	Level:   "ERROR",
 	//	Date: time.Now().Local().String(),
@@ -132,17 +132,17 @@ func (l *Logger) Error(arg0 interface{}, args ...interface{}) {
 }
 
 // Error log errors
-func (l *Logger) mongoError(arg0 interface{}, args ...interface{}) {
+func (l *Logger) mongoError(arg0 any, args ...any) {
 	l.logger.Log(log.ERROR, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 
 // Info log errors
-func (l *Logger) mongoInfo(arg0 interface{}, args ...interface{}) {
+func (l *Logger) mongoInfo(arg0 any, args ...any) {
 	l.logger.Log(log.INFO, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 
 // Fatal log fatal errors
-func (l *Logger) Fatal(arg0 interface{}, args ...interface{}) {
+func (l *Logger) Fatal(arg0 any, args ...any) {
 	//record := LogRecord{
 	//	Level:   "FATAL",
 	//	Date: time.Now().Local().String(),
@@ -161,12 +161,12 @@ func (l *Logger) Audit(record *AuditLog) {
 	l.logger.Log(log.INFO, getSource(), string(js))
 }
 
-func (l *Logger) LogToStdout(arg0 interface{}, args ...interface{}) {
+func (l *Logger) LogToStdout(arg0 any, args ...any) {
 
 }
 
-func Header2Map(header http.Header) map[string]interface{} {
-	head := make(map[string]interface{})
+func Header2Map(header http.Header) map[string]any {
+	head := make(map[string]any)
 	for k, v := range header {
 		head[k] = v
 	}
@@ -180,7 +180,7 @@ func getSource() (source string) {
 	return
 }
 
-func SpewResultForDebugging(description string, v interface{}) {
+func SpewResultForDebugging(description string, v any) {
 	fmt.Println()
 	fmt.Println("**** Start Result ******")
 	fmt.Println(description)

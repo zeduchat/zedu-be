@@ -132,7 +132,7 @@ func TestToken(t *testing.T) {
 				}
 
 			}
-			genToken := data["data"].(map[string]interface{})["token"].(string)
+			genToken := data["data"].(map[string]any)["token"].(string)
 			tst.AssertBool(t, genToken != "", true)
 
 		})

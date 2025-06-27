@@ -12,8 +12,8 @@ func RedisGet(rdb *redis.Client, key string) ([]byte, error) {
 	return serialized, err
 }
 
-func PopFromQueue(rdb *redis.Client) (interface{}, error) {
-	var response interface{}
+func PopFromQueue(rdb *redis.Client) (any, error) {
+	var response any
 
 	jsonValue, err := rdb.RPop(Ctx, KeyName).Result()
 	if err != nil {
@@ -28,8 +28,8 @@ func PopFromQueue(rdb *redis.Client) (interface{}, error) {
 	return response, nil
 }
 
-func PopFromNotificationQueue(rdb *redis.Client) (interface{}, error) {
-	var response interface{}
+func PopFromNotificationQueue(rdb *redis.Client) (any, error) {
+	var response any
 
 	jsonValue, err := rdb.RPop(Ctx, "notification-queue").Result()
 	if err != nil {

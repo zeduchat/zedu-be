@@ -30,7 +30,7 @@ func (n NotificationObject) SendWelcomeMail() error {
 		return fmt.Errorf("error getting user with account id %v, %v", notificationData.Email, err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email),"login_url":   loginUrl,})
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email), "login_url": loginUrl})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v", err)
 	}

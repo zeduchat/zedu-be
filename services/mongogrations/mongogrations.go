@@ -26,7 +26,7 @@ func CreateCollection(db *mongo.Client, collection_name string, ids models.IDS) 
 	return nil
 }
 
-func CreateDocument(db *mongo.Client, collection string, document map[string]interface{}, ids models.IDS) error {
+func CreateDocument(db *mongo.Client, collection string, document map[string]any, ids models.IDS) error {
 	if len(document) == 0 {
 		return fmt.Errorf("document cannot be empty")
 	}
@@ -43,7 +43,7 @@ func CreateDocument(db *mongo.Client, collection string, document map[string]int
 	return nil
 }
 
-func GetAllDocuments(db *mongo.Client, collection string, filter map[string]interface{}, ids models.IDS) ([]bson.M, error) {
+func GetAllDocuments(db *mongo.Client, collection string, filter map[string]any, ids models.IDS) ([]bson.M, error) {
 	if collection == "" {
 		return nil, fmt.Errorf("collection cannot be empty")
 	}
@@ -70,7 +70,7 @@ func GetDocumentByID(db *mongo.Client, collection string, id string) (bson.M, in
 	return document, statusCode, nil
 }
 
-func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
+func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]any) error {
 	if collection == "" {
 		return fmt.Errorf("collection name is required")
 	}

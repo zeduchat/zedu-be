@@ -30,10 +30,10 @@ func TriggerTick(db *storage.Database, logger *utility.Logger, req models.Trigge
 	// 	return "", http.StatusNotFound, errors.New("channel doesnt belong in organisation")
 	// }
 
-	payload := map[string]interface{}{
-		"args": []map[string]interface{}{
+	payload := map[string]any{
+		"args": []map[string]any{
 			{
-				"message_content": map[string]interface{}{
+				"message_content": map[string]any{
 					"channel_id": req.ChannelID,
 					"message":    "",
 					// "thread_id":  feed.ThreadId,

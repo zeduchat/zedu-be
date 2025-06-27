@@ -9,7 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/services/actions/names"
 )
 
-func AddNotificationToQueue(rdb *redis.Client, name names.NotificationName, data interface{}) error {
+func AddNotificationToQueue(rdb *redis.Client, name names.NotificationName, data any) error {
 	dataByte, err := json.Marshal(data)
 	if err != nil {
 		return err

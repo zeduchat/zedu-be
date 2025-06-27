@@ -63,7 +63,7 @@ func GetPagination(c *gin.Context) Pagination {
 	}
 }
 
-func SelectWithPagination(Client *elasticsearch.Client, indexName string, query map[string]interface{}, reciever *interface{}, c *gin.Context) (*PaginationResponse, error) {
+func SelectWithPagination(Client *elasticsearch.Client, indexName string, query map[string]any, reciever *any, c *gin.Context) (*PaginationResponse, error) {
 
 	pag := GetPagination(c)
 
@@ -88,7 +88,7 @@ func SelectWithPagination(Client *elasticsearch.Client, indexName string, query 
 		return nil, fmt.Errorf("error in search response: %s", res.String())
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 
 	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
 		return nil, fmt.Errorf("failed to decode raw response: %v", err)
@@ -122,7 +122,7 @@ func SelectWithPagination(Client *elasticsearch.Client, indexName string, query 
 
 }
 
-func SelectAll(Client *elasticsearch.Client, indexName string, query map[string]interface{}, reciever *interface{}) error {
+func SelectAll(Client *elasticsearch.Client, indexName string, query map[string]any, reciever *any) error {
 
 	body, err := json.Marshal(query)
 	if err != nil {
@@ -145,7 +145,7 @@ func SelectAll(Client *elasticsearch.Client, indexName string, query map[string]
 		return fmt.Errorf("error in search response: %s", res.String())
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 
 	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
 		return fmt.Errorf("failed to decode raw response: %v", err)
@@ -156,7 +156,7 @@ func SelectAll(Client *elasticsearch.Client, indexName string, query map[string]
 	return nil
 }
 
-func SelectByID(Client *elasticsearch.Client, indexName string, docID string, reciever *interface{}) error {
+func SelectByID(Client *elasticsearch.Client, indexName string, docID string, reciever *any) error {
 
 	res, err := Client.Get(indexName, docID)
 
@@ -169,7 +169,7 @@ func SelectByID(Client *elasticsearch.Client, indexName string, docID string, re
 		return fmt.Errorf("error in search response: %s", res.String())
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 
 	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
 		return fmt.Errorf("failed to decode raw response: %v", err)
@@ -180,7 +180,7 @@ func SelectByID(Client *elasticsearch.Client, indexName string, docID string, re
 	return nil
 }
 
-func CheckExists(Client *elasticsearch.Client, indexName string, query map[string]interface{}) (bool, error) {
+func CheckExists(Client *elasticsearch.Client, indexName string, query map[string]any) (bool, error) {
 	body, err := json.Marshal(query)
 	if err != nil {
 		return false, fmt.Errorf("failed to marshal query: %v", err)
@@ -201,19 +201,19 @@ func CheckExists(Client *elasticsearch.Client, indexName string, query map[strin
 		return false, fmt.Errorf("error in search response: %s", res.String())
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
 		return false, fmt.Errorf("failed to decode raw response: %v", err)
 	}
 
 	// Check if any hits exist.
-	hitsObj, ok := raw["hits"].(map[string]interface{})
+	hitsObj, ok := raw["hits"].(map[string]any)
 	if !ok {
 		return false, fmt.Errorf("unexpected response format: missing hits")
 	}
 
 	// Elasticsearch 7.x returns total as a map.
-	if totalObj, ok := hitsObj["total"].(map[string]interface{}); ok {
+	if totalObj, ok := hitsObj["total"].(map[string]any); ok {
 		if value, ok := totalObj["value"].(float64); ok {
 			return value > 0, nil
 		}
@@ -227,7 +227,7 @@ func CheckExists(Client *elasticsearch.Client, indexName string, query map[strin
 	return false, fmt.Errorf("unexpected response format for total")
 }
 
-func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[string]interface{}) (map[string]interface{}, error) {
+func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[string]any) (map[string]any, error) {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("error encoding query: %w", err)
@@ -247,24 +247,24 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 	defer res.Body.Close()
 
 	if res.IsError() {
-		var e map[string]interface{}
+		var e map[string]any
 		if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
 			return nil, fmt.Errorf("error parsing error response: %w", err)
 		}
 		return nil, fmt.Errorf("Elasticsearch error: %v", e)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("error parsing response: %w", err)
 	}
 
-	hits, ok := result["hits"].(map[string]interface{})
+	hits, ok := result["hits"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected response structure, 'hits' field missing")
 	}
 
-	hitsArray, ok := hits["hits"].([]interface{})
+	hitsArray, ok := hits["hits"].([]any)
 	if !ok || len(hitsArray) == 0 {
 		return nil, fmt.Errorf("no search results found")
 	}
@@ -272,11 +272,11 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 	return result, nil
 }
 
-func PerformSearchWithMultipleIndicesPagination[T any](client *elasticsearch.Client, query map[string]interface{}, inter T, result *[]T, c *gin.Context) (*PaginationResponse, error) {
+func PerformSearchWithMultipleIndicesPagination[T any](client *elasticsearch.Client, query map[string]any, inter T, result *[]T, c *gin.Context) (*PaginationResponse, error) {
 	var ESResponse struct {
-		Took     int         `json:"took"`
-		TimedOut bool        `json:"timed_out"`
-		Shards   interface{} `json:"_shards"`
+		Took     int  `json:"took"`
+		TimedOut bool `json:"timed_out"`
+		Shards   any  `json:"_shards"`
 		Hits     struct {
 			Total struct {
 				Value    int    `json:"value"`
@@ -288,7 +288,7 @@ func PerformSearchWithMultipleIndicesPagination[T any](client *elasticsearch.Cli
 				Id     string          `json:"_id,omitempty"`
 				Score  float64         `json:"_score,omitempty"`
 				Source json.RawMessage `json:"_source"`
-				Sort   []interface{}   `json:"sort,omitempty"`
+				Sort   []any           `json:"sort,omitempty"`
 			} `json:"hits"`
 		} `json:"hits"`
 	}
@@ -318,7 +318,7 @@ func PerformSearchWithMultipleIndicesPagination[T any](client *elasticsearch.Cli
 		return nil, fmt.Errorf("error in search response: %s", res.String())
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&ESResponse); err != nil {
 		return nil, fmt.Errorf("error parsing response: %w", err)
 	}

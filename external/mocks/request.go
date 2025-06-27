@@ -19,7 +19,7 @@ type RequestObj struct {
 	Method       string
 	Headers      map[string]string
 	SuccessCode  int
-	RequestData  interface{}
+	RequestData  any
 	DecodeMethod string
 	Logger       *utility.Logger
 }
@@ -29,7 +29,7 @@ var (
 	PhpSerializerMethod string = "phpserializer"
 )
 
-func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
+func (er ExternalRequest) SendExternalRequest(name string, data any) (any, error) {
 	switch name {
 	case "ipinfo_resolve_ip":
 		return ipstack_mocks.IpinfoResolveIp(er.Logger, data)

@@ -10,7 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-var Indexs = map[string]interface{}{
+var Indexs = map[string]any{
 	"threads":  models.Thread_mapping,
 	"messages": models.MessageMapping,
 }
