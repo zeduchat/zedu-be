@@ -37,6 +37,7 @@ type DmChannels struct {
 	ThreadCount     int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
 	LastThreadId    string         `gorm:"column:last_thread_id" json:"last_thread_id"`
 	LastReadAt      time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
+	InteractedAt    time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"-"`
 }
 
 type DmChannelsResponse struct {
@@ -244,10 +245,15 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	var (
 		user     User
 		chanPart []ChannelParticipant
+		orderBy  string
+		order    string
+		args     []interface{}
 	)
 
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
+	recentDm := c.Query("recent_dm") == "true"
+	limit := 10
 
 	pagination := postgresql.GetPagination(c)
 
@@ -268,18 +274,30 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
         )
     `
 
-	// Use SelectAllFromDbOrderByPaginated with the modified query
+	if recentDm {
+		queryString += `
+			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
+		`
+		orderBy = "interacted_at"
+		order = "desc"
+		args = []interface{}{dm.OrgId, "user", dm.UserId, dm.UserId}
+
+		// Override pagination to fetch top 10 most recent only
+		pagination.Limit = limit
+	} else {
+		orderBy = "created_at"
+		order = "desc"
+		args = []interface{}{dm.OrgId, "user", dm.UserId, dm.UserId}
+	}
+
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db, // No JOIN needed since we're using a subquery
-		"created_at",
-		"desc",
+		db,
+		orderBy,
+		order,
 		pagination,
 		&dmchans,
 		queryString,
-		dm.OrgId,
-		"user",
-		dm.UserId,
-		dm.UserId,
+		args...,
 	)
 
 	if err != nil {
@@ -756,4 +774,21 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 	}
 
 	logger.Info("user last read updated successfully")
+}
+
+func (r *DmChannels) UpdateInteractionAt(db *gorm.DB) error {
+
+	result := db.Model(&DmChannels{}).
+		Where("channel_id = ?", r.ChannelId).
+		Update("interacted_at", time.Now())
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no channel found with the given channelId")
+	}
+
+	return nil
 }
