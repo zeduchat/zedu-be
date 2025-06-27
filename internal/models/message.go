@@ -221,7 +221,6 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 func (m *Message) UpdateMessage(db *gorm.DB, req map[string]interface{}) (*Message, error) {
 
 	err := elastic.UpdateDocument(storage.DB.Elastic, MessageIndexName, m.ID, req)
-
 	if err != nil {
 		return nil, fmt.Errorf("message not found")
 	}
@@ -440,7 +439,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 		return nil, pagR, err
 	}
 
-	messages, err = UnMarsahlMessageResponse(messageData)
+	messages, err = UnmarshalMessageResponse(messageData)
 	if err != nil {
 		return nil, pagR, err
 	}
@@ -448,7 +447,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 	return messages, pagR, nil
 }
 
-func UnMarsahlMessageResponse(messageData interface{}) (messages []MessageDocument, err error) {
+func UnmarshalMessageResponse(messageData interface{}) (messages []MessageDocument, err error) {
 
 	var searchResult struct {
 		Hits struct {

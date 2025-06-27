@@ -21,6 +21,14 @@ type SavedMessage struct {
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+type SavedMessagesResp struct {
+	AvatarURL   string    `json:"avatar_url"`
+	Username    string    `json:"username"`
+	Content     string    `json:"content"`
+	ChannelName string    `json:"channel_name"`
+	SavedAt     time.Time `json:"saved_at"`
+}
+
 type SaveThreadRequest struct {
 	ChannelsId string `json:"channels_id" validate:"required"`
 	ThreadId   string `json:"thread_id" validate:"required"`
@@ -171,11 +179,12 @@ func (m *SavedMessage) DeleteMessageByID(db *gorm.DB, ids SavedMessageIds) error
 	return nil
 }
 
-func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessage, error) {
+func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessagesResp, error) {
 	var (
 		org          Organisation
 		organisation *Organisation
 		messages     []SavedMessage
+		messagesResp []SavedMessagesResp
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
@@ -192,7 +201,61 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 	}
 
 	findErr := db.Order("created_at DESC").Find(&messages).Where("org_id = ? AND user_id = ?", ids.OrgID, ids.UserID).Error
-	return messages, findErr
+	if findErr != nil {
+		return nil, findErr
+	}
+
+	for _, msg := range messages {
+		var (
+			t  ThreadDocument
+			m  MessageDocument
+			mr SavedMessagesResp
+			ch Channels
+		)
+
+		if msg.MessageID != nil {
+			err := m.GetMessageById(db, *msg.MessageID)
+			if err != nil {
+				return nil, err
+			}
+
+			mr.AvatarURL = m.AvatarURL
+			mr.Username = m.Username
+			mr.Content = m.Content
+			mr.SavedAt = msg.CreatedAt
+
+			exists := postgresql.CheckExists(db, &ch, "id = ?", m.ChannelsID)
+			if !exists {
+				mr.ChannelName = "Direct Message"
+			}
+
+			mr.ChannelName = ch.Name
+
+			messagesResp = append(messagesResp, mr)
+
+		} else {
+			err := t.GetThreadById(db, msg.ThreadID.String())
+			if err != nil {
+				return nil, err
+			}
+
+			mr.AvatarURL = t.AvatarURL
+			mr.Username = t.Username
+			mr.Content = t.Content
+			mr.SavedAt = msg.CreatedAt
+
+			exists := postgresql.CheckExists(db, &ch, "id = ?", t.ChannelsID)
+			if !exists {
+				mr.ChannelName = "Direct Message"
+			} else {
+				mr.ChannelName = ch.Name
+			}
+
+			messagesResp = append(messagesResp, mr)
+		}
+	}
+
+	return messagesResp, nil
 }
 
 func (m *SavedMessage) DeleteSavedMessageByMessageID(db *gorm.DB, ids SavedMessageIds) error {

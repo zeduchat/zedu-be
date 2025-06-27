@@ -279,10 +279,13 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 	)
 
 	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
+	if !access {
+		return chanResp, errors.New("user does not have access to this channel")
+	}
 
 	err, _ := postgresql.SelectOneFromDb(db.Preload("Users.Profile"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
-		return chanResp, errors.New("channel not found in organisation")
+		return chanResp, fmt.Errorf("could not get channel by id: %v", err)
 	}
 
 	count, err := ur.CountChannelsUsers(db, chanReq.ChannelID)

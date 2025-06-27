@@ -15356,23 +15356,23 @@ paths:
                     example: null
 
 
-  /organisations/{organisationId}/saved/message:
+  /organisations/{org_id}/saved/message:
     get:
       tags:
         - Saved Messages
-      summary: Get all saved messages
-      description: Retrieves all saved messages from the system.
+      summary: Retrieve saved messages
+      description: Fetches all messages saved by a user within a specific organisation.
+      operationId: getSavedMessages
       parameters:
-        - name: organisationId
+        - name: org_id
           in: path
           required: true
           schema:
             type: string
-          description: ID of the organisation to save the message
-      security:
-        - bearerAuth: []
+          description: The ID of the organisation
+          example: "019700db-4e22-7f90-a20e-f9116291ef24"
       responses:
-        "200":
+        '200':
           description: Messages retrieved successfully
           content:
             application/json:
@@ -15387,54 +15387,30 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Messages retrieved successfully"
+                    example: Messages retrieved successfully
                   data:
                     type: array
                     items:
                       type: object
                       properties:
-                        id:
+                        avatar_url:
                           type: string
-                          format: uuid
-                          example: "019747fc-60fb-7ab4-a9a5-7b4cab3edc95"
-                        message:
-                          type: string
-                          example: "My test again for saved messages"
-                        org_id:
-                          type: string
+                          format: uri
                           example: ""
-                        channels_id:
+                        username:
                           type: string
-                          example: "019747e0-fa9d-75c2-af24-b85cdc078840"
-                        user_id:
+                          example: "user1"
+                        content:
                           type: string
-                          example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
-                        created_at:
+                          description: HTML or plain text message content
+                          example: "<p class=\"tracking-wide\">hi mans</p><p class=\"tracking-wide\"></p>"
+                        channel_name:
+                          type: string
+                          example: "general"
+                        saved_at:
                           type: string
                           format: date-time
-                          example: "2025-06-07T01:23:31.7077586Z"
-                        thread_id:
-                          type: string
-                          example: "019744be-4864-7e65-aa9a-959348898754"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 500
-                  message:
-                    type: string
-                    example: "Internal server error"
-                  error:
-                    type: string
-                    example: "Failed to retrieve saved messages"
+                          example: "2025-06-27T04:26:13.947409+01:00"
 
   /organisations/{organisationId}/saved/message/{messageId}:
     delete:

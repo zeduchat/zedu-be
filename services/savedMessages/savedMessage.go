@@ -11,6 +11,7 @@ import (
 )
 
 func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
+	var threads models.Threads
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
@@ -33,10 +34,20 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 		return nil, errors.New("failed to save thread message, error: " + createErr.Error())
 	}
 
+	threads.ID = req.ThreadId
+	updateKey := map[string]any{
+		"is_saved": true,
+	}
+
+	if _, err := threads.UpdateThread(db, updateKey); err != nil {
+		return nil, err
+	}
+
 	return &messageToSave, nil
 }
 
 func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
+	var message models.Message
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
@@ -59,12 +70,21 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 		return nil, errors.New("failed to save message, error: " + createErr.Error())
 	}
 
+	message.ID = req.MessageId
+	updateKey := map[string]any{
+		"is_saved": true,
+	}
+
+	if _, err := message.UpdateMessage(db, updateKey); err != nil {
+		return nil, err
+	}
+
 	return &messageToSave, nil
 }
 
-func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) ([]models.SavedMessage, error) {
+func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) ([]models.SavedMessagesResp, error) {
 	var savedMessage *models.SavedMessage
-	
+
 	messageCollection, err := savedMessage.GetSavedMessages(db, ids)
 	if err != nil {
 		logger.Error("An error occurred while fetching messages from Postgres: %v", err)

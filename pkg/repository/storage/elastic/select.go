@@ -122,8 +122,7 @@ func SelectWithPagination(Client *elasticsearch.Client, indexName string, query 
 
 }
 
-func 
-SelectAll(Client *elasticsearch.Client, indexName string, query map[string]interface{}, reciever *interface{}) error {
+func SelectAll(Client *elasticsearch.Client, indexName string, query map[string]interface{}, reciever *interface{}) error {
 
 	body, err := json.Marshal(query)
 	if err != nil {
