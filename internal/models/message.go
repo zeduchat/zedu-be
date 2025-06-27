@@ -117,6 +117,19 @@ type EditMessageRequest struct {
 	OrgId      string `json:"org_id"`
 }
 
+type ForwardThreadMessageRequest struct {
+	ThreadId   string `json:"thread_id" validate:"required"`
+	UserId     string `json:"user_id"`
+	ChannelsId string `json:"channels_id"`
+}
+
+type ForwardReplyMessageRequest struct {
+	ThreadId   string `json:"thread_id" validate:"required"`
+	MessageId  string `json:"message_id" validate:"required"`
+	UserId     string `json:"user_id"`
+	ChannelsId string `json:"channels_id"`
+}
+
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]interface{}, error) {
 	var (
 		dmChannels   DmChannels
