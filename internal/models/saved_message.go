@@ -22,6 +22,7 @@ type SavedMessage struct {
 }
 
 type SavedMessagesResp struct {
+	ID          string    `json:"id"`
 	AvatarURL   string    `json:"avatar_url"`
 	Username    string    `json:"username"`
 	Content     string    `json:"content"`
@@ -219,6 +220,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 				return nil, err
 			}
 
+			mr.ID = m.ID
 			mr.AvatarURL = m.AvatarURL
 			mr.Username = m.Username
 			mr.Content = m.Content
@@ -239,6 +241,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 				return nil, err
 			}
 
+			mr.ID = t.ID
 			mr.AvatarURL = t.AvatarURL
 			mr.Username = t.Username
 			mr.Content = t.Content
