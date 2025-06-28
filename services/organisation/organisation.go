@@ -366,84 +366,6 @@ func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Con
 	return users, paginationResponse, nil
 }
 
-// func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context, searchTerm string) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
-// 	var (
-// 		users      []models.UserInOrgResponse
-// 		pagination = postgresql.GetPagination(c)
-// 		offset     = (pagination.Page - 1) * pagination.Limit
-// 	)
-
-// 	// Query for both users and agents
-// 	query := db.Table("(?) AS combined",
-// 		db.Raw(`
-//             (SELECT 
-//                 u.id, 
-//                 u.email, 
-//                 p.phone AS phone_number,
-//                 COALESCE(NULLIF(p.user_name, ''),
-//                          NULLIF(p.full_name, ''),
-//                          SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name,
-//                 p.avatar_url AS avatar_url, 
-//                 u.created_at, 
-//                 o.status,
-//                 org.name AS role,
-//                 'user' AS entity_type
-//             FROM org_user_managements o
-//             JOIN users u ON u.id = o.user_id
-//             LEFT JOIN profiles p ON p.userid = u.id
-//             LEFT JOIN org_roles org ON org.id = o.role_id::uuid
-//             WHERE o.organisation_id = ?)
-            
-//             UNION ALL
-            
-//             (SELECT 
-//                 oi.integration_id AS id,
-//                 oi.app_name AS email,
-//                 '' AS phone_number,
-//                 oi.app_name AS name,
-//                 oi.app_logo AS avatar_url,
-//                 oi.created_at,
-//                 CASE 
-//                     WHEN oi.is_active THEN 'active'
-//                     ELSE 'inactive'
-//                 END AS status,
-//                 'bot' AS role,
-//                 'bot' AS entity_type
-//             FROM organisation_integrations oi
-//             WHERE oi.org_id = ? AND oi.is_archived = false)
-//         `, orgId, orgId)).
-// 		Order("created_at DESC").
-// 		Offset(offset).
-// 		Limit(pagination.Limit)
-
-// 	// Execute the combined query
-// 	if err := query.Find(&users).Error; err != nil {
-// 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch users and bots: %w", err)
-// 	}
-
-// 	// Get total count of users and bots
-// 	var totalCount int64
-// 	if err := db.Table("(?) as count_table",
-// 		db.Raw(`
-//             (SELECT user_id FROM org_user_managements WHERE organisation_id = ?)
-//             UNION ALL
-//             (SELECT integration_id FROM organisation_integrations 
-//              WHERE org_id = ? AND is_archived = false)
-//         `, orgId, orgId)).
-// 		Count(&totalCount).Error; err != nil {
-// 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to count users and bots: %w", err)
-// 	}
-
-// 	totalPages := int(math.Ceil(float64(totalCount) / float64(pagination.Limit)))
-// 	paginationResponse := postgresql.PaginationResponse{
-// 		CurrentPage:     pagination.Page,
-// 		PageCount:       pagination.Limit,
-// 		TotalPagesCount: totalPages,
-// 		// TotalItems:      int(totalCount),
-// 	}
-
-// 	return users, paginationResponse, nil
-// }
 
 
 func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context, searchTerm string) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
@@ -508,12 +430,10 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
 		Offset(offset).
 		Limit(pagination.Limit)
 
-	// Execute the query
 	if err := query.Find(&users).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch users and bots: %w", err)
 	}
 
-	// Count total records for pagination
 	var totalCount int64
 	countQuery := db.Table("(?) as count_table",
 		db.Raw(`
@@ -545,7 +465,6 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to count users and bots: %w", err)
 	}
 
-	// Build pagination metadata
 	totalPages := int(math.Ceil(float64(totalCount) / float64(pagination.Limit)))
 	paginationResponse := postgresql.PaginationResponse{
 		CurrentPage:     pagination.Page,
