@@ -72,11 +72,11 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 				continue
 			}
 
-			response_data := response.(map[string]interface{})
+			response_data := response.(map[string]any)
 
-			data_r := response_data["data"].(map[string]interface{})
+			data_r := response_data["data"].(map[string]any)
 
-			description := data_r["descriptions"].(map[string]interface{})
+			description := data_r["descriptions"].(map[string]any)
 			category, ok := data_r["integration_category"].(string)
 
 			if !ok || category == "" {
@@ -279,7 +279,7 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 	var (
 		orgIntegration       models.OrganisationIntegrations
 		ucis                 models.CustomIntegrationsSetting
-		deserialize_settings map[string]interface{}
+		deserialize_settings map[string]any
 		api_key              string
 	)
 
@@ -303,7 +303,7 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 		return fmt.Errorf("error deserializing JSON")
 	}
 
-	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]any)
 
 	if ok {
 		api_key, _ = auth_credentials["agent_api_key"].(string)
@@ -314,7 +314,7 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 	parsedURL, _ := url.Parse(orgIntegration.JSONUrl)
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
 
-	dataPayload := map[string]interface{}{
+	dataPayload := map[string]any{
 		"url": baseURL,
 		"payload": map[string]string{
 			"org_id":  ids["org_id"],
@@ -406,8 +406,8 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 		return int_resp, errors.New("failed to create agent, invalid JSON supplied")
 	}
 
-	data_r, ok := response.(map[string]interface{})
-	// data_r, ok := response_data["data"].(map[string]interface{})
+	data_r, ok := response.(map[string]any)
+	// data_r, ok := response_data["data"].(map[string]any)
 	if !ok {
 		return int_resp, errors.New("failed to create agent, data field does not exist")
 	}
@@ -584,11 +584,11 @@ func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin
 				continue
 			}
 
-			response_data := response.(map[string]interface{})
+			response_data := response.(map[string]any)
 
-			data_r := response_data["data"].(map[string]interface{})
+			data_r := response_data["data"].(map[string]any)
 
-			description := data_r["descriptions"].(map[string]interface{})
+			description := data_r["descriptions"].(map[string]any)
 			category, ok := data_r["integration_category"].(string)
 
 			if !ok || category == "" {
@@ -769,14 +769,14 @@ func UpdateCustomAgentSettings(ids map[string]string, req models.CustomIntegrati
 	return nil
 }
 
-func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]any, int, error) {
 
 	var (
 		orgIntegration models.OrganisationIntegrations
 		ucis           models.CustomIntegrationsSetting
 
-		deserialize_settings map[string]interface{}
-		resp                 map[string]interface{}
+		deserialize_settings map[string]any
+		resp                 map[string]any
 	)
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
@@ -799,7 +799,7 @@ func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.E
 		return resp, http.StatusInternalServerError, fmt.Errorf("Error deserializing JSON: %v", err)
 	}
 
-	resp = make(map[string]interface{})
+	resp = make(map[string]any)
 
 	resp["is_system"] = ucis.IsSystem
 	resp["is_active"] = orgIntegration.IsActive
@@ -808,14 +808,14 @@ func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.E
 	return resp, http.StatusOK, nil
 }
 
-func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]any, int, error) {
 
 	var (
 		orgIntegration       models.OrganisationIntegrations
 		ucis                 models.CustomIntegrationsSetting
-		deserialize_settings map[string]interface{}
+		deserialize_settings map[string]any
 	)
-	status := make(map[string]interface{})
+	status := make(map[string]any)
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
@@ -836,7 +836,7 @@ func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.Ext
 	status["is_system"] = orgIntegration.IsSystem
 	status["is_active"] = orgIntegration.IsActive
 
-	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]any)
 
 	if ok {
 		api_key, ok := auth_credentials["agent_api_key"].(string)
@@ -853,10 +853,10 @@ func GetCustomAgentStatus(ids map[string]string, db *gorm.DB, extReq request.Ext
 
 // Integration External Requests
 
-func GetCustomAgentSettingsExteranl(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]interface{}, int, error) {
+func GetCustomAgentSettingsExteranl(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]any, int, error) {
 	var (
 		ucis                 models.CustomIntegrationsSetting
-		deserialize_settings map[string]interface{}
+		deserialize_settings map[string]any
 	)
 
 	err := db.Where("org_id = ? AND integration_id = ?", ids["porg_id"], ids["pagent_id"]).First(&ucis).Error
@@ -880,7 +880,7 @@ func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomI
 	var (
 		orgIntegration       models.OrganisationIntegrations
 		ucis                 models.CustomIntegrationsSetting
-		deserialize_settings map[string]interface{}
+		deserialize_settings map[string]any
 	)
 
 	err := db.Where("org_id = ? AND integration_id = ?", ids["porg_id"], ids["pagent_id"]).First(&orgIntegration).Error
@@ -908,7 +908,7 @@ func UpdateCustomAgentSettingsExternal(ids map[string]string, req models.CustomI
 	}
 
 	// Check for agent_api_key match
-	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]interface{})
+	auth_credentials, ok := deserialize_settings["auth_credentials"].(map[string]any)
 	if ok {
 		api_key, ok := auth_credentials["agent_api_key"].(string)
 		if ok && api_key != ids["agent_api_key"] {
@@ -1080,7 +1080,7 @@ func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq 
 		return int_resp, errors.New("failed to create agent, invalid JSON supplied")
 	}
 
-	data_r, ok := response.(map[string]interface{})
+	data_r, ok := response.(map[string]any)
 	if !ok {
 		return int_resp, errors.New("failed to create agent, data field does not exist")
 	}

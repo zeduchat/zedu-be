@@ -21,13 +21,13 @@ type SendRequestObject struct {
 	Method       string
 	Headers      map[string]string
 	SuccessCode  int
-	Data         interface{}
+	Data         any
 	DecodeMethod string
 	UrlPrefix    string
 	Timeout      bool
 }
 
-func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPrefix, decodeMethod string, headers map[string]string, successCode int, data interface{}, timeout bool) *SendRequestObject {
+func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPrefix, decodeMethod string, headers map[string]string, successCode int, data any, timeout bool) *SendRequestObject {
 	return &SendRequestObject{
 		Logger:       logger,
 		Name:         name,
@@ -52,7 +52,7 @@ var (
 	PhpSerializerMethod string = "phpserializer"
 )
 
-func (r *SendRequestObject) SendRequest(response interface{}) error {
+func (r *SendRequestObject) SendRequest(response any) error {
 	var (
 		data   = r.Data
 		logger = r.Logger
@@ -152,7 +152,6 @@ func (r *SendRequestObject) SendRequest(response interface{}) error {
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return fmt.Errorf("external requests error for request %v, code %v", name, strconv.Itoa(res.StatusCode))
 	}
-
 
 	return nil
 }

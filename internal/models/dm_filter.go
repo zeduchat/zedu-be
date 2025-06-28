@@ -50,50 +50,50 @@ func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]Dm
 
 	return dmFilter, raw, http.StatusOK, nil
 }
-func queryElasticForDms(chanIds []string, userId, orgId string) map[string]interface{} {
-	query := map[string]interface{}{
+func queryElasticForDms(chanIds []string, userId, orgId string) map[string]any {
+	query := map[string]any{
 		"size": 100,
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []interface{}{
-					map[string]interface{}{
-						"terms": map[string]interface{}{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []any{
+					map[string]any{
+						"terms": map[string]any{
 							"channels_id.keyword": chanIds,
 						},
 					},
 				},
-				"must_not": []interface{}{
-					map[string]interface{}{
-						"term": map[string]interface{}{
+				"must_not": []any{
+					map[string]any{
+						"term": map[string]any{
 							"user_id.keyword": userId,
 						},
 					},
 				},
 			},
 		},
-		"sort": []interface{}{
-			map[string]interface{}{
-				"created_at": map[string]interface{}{
+		"sort": []any{
+			map[string]any{
+				"created_at": map[string]any{
 					"order": "desc",
 				},
 			},
 		},
-		"collapse": map[string]interface{}{
+		"collapse": map[string]any{
 			"field": "user_id.keyword",
 		},
-		"aggs": map[string]interface{}{
-			"unique_users": map[string]interface{}{
-				"terms": map[string]interface{}{
+		"aggs": map[string]any{
+			"unique_users": map[string]any{
+				"terms": map[string]any{
 					"field": "user_id.keyword",
 					"size":  100,
 				},
-				"aggs": map[string]interface{}{
-					"latest_message": map[string]interface{}{
-						"top_hits": map[string]interface{}{
+				"aggs": map[string]any{
+					"latest_message": map[string]any{
+						"top_hits": map[string]any{
 							"size": 1,
-							"sort": []interface{}{
-								map[string]interface{}{
-									"created_at": map[string]interface{}{
+							"sort": []any{
+								map[string]any{
+									"created_at": map[string]any{
 										"order": "desc",
 									},
 								},

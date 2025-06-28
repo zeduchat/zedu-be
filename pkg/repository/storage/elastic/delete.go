@@ -39,7 +39,7 @@ func DeleteDocument(client *elasticsearch.Client, indexName, docID string) error
 	return nil
 }
 
-func DeleteByQuery(client *elasticsearch.Client, indexName string, query map[string]interface{}) error {
+func DeleteByQuery(client *elasticsearch.Client, indexName string, query map[string]any) error {
 	// Perform the delete by query request
 
 	// Convert the query to JSON

@@ -19,7 +19,7 @@ type EmailRequest struct {
 	Attachment     []byte
 }
 
-func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templateFileName, baseTemplateFileName string, templateData map[string]interface{}) (*EmailRequest, error) {
+func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templateFileName, baseTemplateFileName string, templateData map[string]any) (*EmailRequest, error) {
 	body, err := ParseTemplate(extReq, templateFileName, baseTemplateFileName, templateData)
 	if err != nil {
 		return &EmailRequest{}, err
@@ -41,12 +41,11 @@ func NewSimpleEmailRequest(extReq request.ExternalRequest, to []string, subject,
 	}
 }
 
-func SendEmail(extReq request.ExternalRequest, to string, subject, templateFileName, baseTemplateFileName string, data map[string]interface{}) error {
+func SendEmail(extReq request.ExternalRequest, to string, subject, templateFileName, baseTemplateFileName string, data map[string]any) error {
 	mailRequest, err := NewEmailRequest(extReq, []string{to}, subject, templateFileName, baseTemplateFileName, data)
 	if err != nil {
 		return fmt.Errorf("error getting email request, %v", err)
 	}
-
 
 	err = mailRequest.Send()
 	if err != nil {
@@ -81,7 +80,7 @@ func (e EmailRequest) validate() error {
 }
 
 func (e *EmailRequest) Send() error {
-	
+
 	if err := e.validate(); err != nil {
 		return err
 	}

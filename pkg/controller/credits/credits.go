@@ -86,7 +86,7 @@ func (base *Controller) GetOrgCreditTransactions(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
@@ -109,7 +109,7 @@ func (base *Controller) GetOrgCreditUsage(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
@@ -143,7 +143,7 @@ func (base *Controller) GetAllCreditUsage(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,

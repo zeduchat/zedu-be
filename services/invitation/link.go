@@ -374,7 +374,7 @@ func saveAccessToken(tokenData *middleware.TokenDetailDTO, userID string, db *go
 
 func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) gin.H {
 	return gin.H{
-		"user": map[string]interface{}{
+		"user": map[string]any{
 			"id":              user.ID,
 			"email":           user.Email,
 			"username":        user.Name,

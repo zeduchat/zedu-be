@@ -178,7 +178,7 @@ func GetPinnedThreadMsgs(db *storage.Database, channelsId string) ([]MessageDocu
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"is_pinned": true,
 						},
 					},
@@ -187,7 +187,7 @@ func GetPinnedThreadMsgs(db *storage.Database, channelsId string) ([]MessageDocu
 		},
 	}
 
-	var results interface{}
+	var results any
 	if err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &results); err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func GetPinnedReplyMsgs(db *storage.Database, channelsId string) ([]MessageDocum
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"is_pinned": true,
 						},
 					},
@@ -222,7 +222,7 @@ func GetPinnedReplyMsgs(db *storage.Database, channelsId string) ([]MessageDocum
 		},
 	}
 
-	var results interface{}
+	var results any
 	if err := elastic.SelectAll(db.Elastic, MessageIndexName, query, &results); err != nil {
 		return nil, err
 	}

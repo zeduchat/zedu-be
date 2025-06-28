@@ -31,7 +31,7 @@ type PermissionList struct {
 	CanChangeUserOrgRole            bool `json:"can_change_user_org_role"`
 }
 
-func (p *PermissionList) Scan(value interface{}) error {
+func (p *PermissionList) Scan(value any) error {
 	if b, ok := value.([]byte); ok {
 		return json.Unmarshal(b, &p)
 	}

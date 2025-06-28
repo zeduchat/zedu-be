@@ -51,7 +51,7 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	if err != nil {
 		base.Logger.Info("Failed to verify invitation", err.Error())
 		if code == http.StatusConflict {
-			rd := utility.BuildSuccessResponse(http.StatusOK, "User is already a member", map[string]interface{}{
+			rd := utility.BuildSuccessResponse(http.StatusOK, "User is already a member", map[string]any{
 				"isMember": true,
 				"message":  err.Error(),
 			})
@@ -65,7 +65,7 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	}
 
 	base.Logger.Info("user invited successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", map[string]interface{}{
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", map[string]any{
 		"isMember": false,
 		"message":  response,
 	})

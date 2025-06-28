@@ -121,7 +121,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
+	err = user.AddUserToOrganisation(db, &user, []any{&org})
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +330,7 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 		return errors.New("user already added to organisation")
 	}
 
-	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
+	err = user.AddUserToOrganisation(db, &user, []any{&org})
 
 	if err != nil {
 		return err

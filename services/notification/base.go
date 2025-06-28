@@ -25,9 +25,9 @@ func NewNotificationObject(extReq request.ExternalRequest, rdb *redis.Client, db
 	}
 }
 
-func ConvertToMapAndAddExtraData(data interface{}, newData map[string]interface{}) (map[string]interface{}, error) {
+func ConvertToMapAndAddExtraData(data any, newData map[string]any) (map[string]any, error) {
 	var (
-		mapData map[string]interface{}
+		mapData map[string]any
 	)
 
 	mapData, err := utility.StructToMap(data)

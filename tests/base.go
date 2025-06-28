@@ -46,8 +46,8 @@ func Setup() *utility.Logger {
 	return logger
 }
 
-func ParseResponse(w *httptest.ResponseRecorder) map[string]interface{} {
-	res := make(map[string]interface{})
+func ParseResponse(w *httptest.ResponseRecorder) map[string]any {
+	res := make(map[string]any)
 	json.NewDecoder(w.Body).Decode(&res)
 	return res
 }
@@ -69,8 +69,8 @@ func AssertBool(t *testing.T, got, expected bool) {
 	}
 }
 
-func AssertValidationError(t *testing.T, response map[string]interface{}, field string, expectedMessage string) {
-	errors, ok := response["error"].(map[string]interface{})
+func AssertValidationError(t *testing.T, response map[string]any, field string, expectedMessage string) {
+	errors, ok := response["error"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected 'error' field in response")
 	}
@@ -127,7 +127,7 @@ func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData 
 	}
 
 	data := ParseResponse(rr)
-	dataM := data["data"].(map[string]interface{})
+	dataM := data["data"].(map[string]any)
 	token := dataM["access_token"].(string)
 
 	return token
@@ -162,7 +162,7 @@ func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db 
 	}
 
 	data := ParseResponse(rr)
-	dataM := data["data"].(map[string]interface{})
+	dataM := data["data"].(map[string]any)
 	channelID := dataM["channels_id"].(string)
 	channelName := dataM["name"].(string)
 
@@ -193,7 +193,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 
 	//get the response
 	data := ParseResponse(rr)
-	dataM := data["data"].(map[string]interface{})
+	dataM := data["data"].(map[string]any)
 	orgID := dataM["id"].(string)
 	orgName := dataM["name"].(string)
 	ownerID := dataM["owner_id"].(string)
@@ -224,7 +224,7 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	r.ServeHTTP(rr, req)
 
 	data := ParseResponse(rr)
-	dataM := data["data"].(map[string]interface{})
+	dataM := data["data"].(map[string]any)
 	if dataM["errors"] != nil {
 		t.Fatal(dataM["errors"])
 	}

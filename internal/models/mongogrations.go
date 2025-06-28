@@ -17,21 +17,21 @@ type CreateMongoCollectionRequest struct {
 	CollectionName string `json:"collection" validate:"required"`
 }
 type CreateMongoRequest struct {
-	Document map[string]interface{} `json:"document" validate:"required"`
+	Document map[string]any `json:"document" validate:"required"`
 }
 type ReadMongoRequest struct {
-	Filter map[string]interface{} `json:"filter"`
+	Filter map[string]any `json:"filter"`
 }
 
 type UpdateMongoRequest struct {
-	Document map[string]interface{} `json:"document" validate:"required"`
+	Document map[string]any `json:"document" validate:"required"`
 }
 
 type DeleteMongoRequest struct {
 	Collection string `json:"collection" validate:"required"`
 }
 
-func GetAllDocuments(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
+func GetAllDocuments(db *mongo.Client, collection string, filter map[string]any) ([]bson.M, error) {
 
 	// Call the storage layer
 	results, err := mongodb.GetAllDocuments(db, collection, filter)
@@ -61,7 +61,7 @@ func GetDocumentByID(db *mongo.Client, collectionName string, document_id string
 	return result, http.StatusOK, nil
 }
 
-func CreateDocument(db *mongo.Client, collection_name string, document map[string]interface{}) error {
+func CreateDocument(db *mongo.Client, collection_name string, document map[string]any) error {
 	var agentID string = document["agent_id"].(string)
 
 	exists := CheckCollectionExist(db, collection_name, agentID)
@@ -148,7 +148,7 @@ func CreateCollection(db *mongo.Client, collection string, ids IDS) error {
 	return nil
 }
 
-func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]interface{}) error {
+func UpdateDocument(db *mongo.Client, collection string, id string, update map[string]any) error {
 
 	if _, ok := update["agent_id"]; ok {
 		return fmt.Errorf("cannot update agent_id")

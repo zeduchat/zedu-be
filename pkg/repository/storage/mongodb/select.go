@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetAllDocuments(db *mongo.Client, collection string, filter map[string]interface{}) ([]bson.M, error) {
+func GetAllDocuments(db *mongo.Client, collection string, filter map[string]any) ([]bson.M, error) {
 
 	databaseName := config.Config.MongoDB.DB_Name
 	dbCollection := db.Database(databaseName).Collection(collection)

@@ -342,7 +342,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
-		invalidPermissions := map[string]interface{}{
+		invalidPermissions := map[string]any{
 			"permission_list": "invalid_permissions",
 		}
 		permissionsJSON, _ := json.Marshal(invalidPermissions)

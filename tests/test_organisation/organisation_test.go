@@ -251,7 +251,7 @@ func TestGetOrganisation(t *testing.T) {
 				tst.AssertStatusCode(t, rr.Code, test.ExpectedCode)
 			}
 
-			var data map[string]interface{}
+			var data map[string]any
 			if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
 				t.Fatalf("Failed to decode response body: %v", err)
 			}
@@ -392,7 +392,7 @@ func TestOrganisationUpdate(t *testing.T) {
 				tst.AssertStatusCode(t, rr.Code, test.ExpectedCode)
 			}
 
-			var data map[string]interface{}
+			var data map[string]any
 			if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
 				t.Fatalf("Failed to decode response body: %v", err)
 			}
@@ -510,7 +510,7 @@ func TestOrganisationDelete(t *testing.T) {
 				return
 			}
 
-			var data map[string]interface{}
+			var data map[string]any
 			if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
 				t.Fatalf("Failed to decode response body: %v", err)
 			}

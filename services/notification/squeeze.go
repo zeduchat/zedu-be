@@ -27,11 +27,11 @@ func (n NotificationObject) SendSqueeze() error {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname": thisOrThatStr(notificationData.FirstName, notificationData.Email),
-		"sign_up_url": signUpUrl,
-		"faq_url": faqUrl,
-		"contact_us_url": contactUrl,
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":          thisOrThatStr(notificationData.FirstName, notificationData.Email),
+		"sign_up_url":        signUpUrl,
+		"faq_url":            faqUrl,
+		"contact_us_url":     contactUrl,
 		"privacy_policy_url": policyUrl,
 	})
 	if err != nil {

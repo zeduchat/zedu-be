@@ -103,7 +103,7 @@ func TestUpdateThread(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
-		invalidReqBody := map[string]interface{}{
+		invalidReqBody := map[string]any{
 			"status": 12345,
 		}
 		reqBodyJSON, _ := json.Marshal(invalidReqBody)

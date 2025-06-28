@@ -152,7 +152,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		return errors.New("Profile does not exists")
 	}
 
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"pause_notification": req.PauseNotification,
 		"status_timeout":     req.StatusTimeout,
 		"text":               req.Text,

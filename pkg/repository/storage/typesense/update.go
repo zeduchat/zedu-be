@@ -6,7 +6,7 @@ import (
 	"github.com/typesense/typesense-go/v2/typesense"
 )
 
-func UpdateDocument(client *typesense.Client, collectionName string, document interface{}) error {
+func UpdateDocument(client *typesense.Client, collectionName string, document any) error {
 
 	if client == nil {
 		return nil

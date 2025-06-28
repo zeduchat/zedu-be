@@ -120,7 +120,7 @@ func ArchiveValidator(archived bool) error {
 	return nil
 }
 
-func ValidateDocument(doc map[string]interface{}) error {
+func ValidateDocument(doc map[string]any) error {
 	if len(doc) == 0 {
 		return errors.New("document cannot be empty")
 	}
@@ -131,13 +131,13 @@ func ValidateDocument(doc map[string]interface{}) error {
 			if v == "" {
 				return fmt.Errorf("field '%s' cannot be an empty string", key)
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			if err := ValidateDocument(v); err != nil {
 				return fmt.Errorf("field '%s': %v", key, err)
 			}
-		case []interface{}:
+		case []any:
 			for i, item := range v {
-				if nestedMap, ok := item.(map[string]interface{}); ok {
+				if nestedMap, ok := item.(map[string]any); ok {
 					if err := ValidateDocument(nestedMap); err != nil {
 						return fmt.Errorf("field '%s[%d]': %v", key, i, err)
 					}

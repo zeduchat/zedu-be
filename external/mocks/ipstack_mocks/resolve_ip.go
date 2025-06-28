@@ -8,7 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func IpinfoResolveIp(logger *utility.Logger, idata interface{}) (external_models.IPInfoResponse, error) {
+func IpinfoResolveIp(logger *utility.Logger, idata any) (external_models.IPInfoResponse, error) {
 	var (
 		key              = config.GetConfig().IPStack.Key
 		outBoundResponse external_models.IPInfoResponse
