@@ -89,7 +89,7 @@ func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user any, orgs []any) err
 func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
 	var user User
 
-	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Profile"), &user, "id = ?", userID)
 	if err != nil {
 		return User{}, fmt.Errorf("user not found: %w", err)
 	}
