@@ -33,7 +33,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	}
 
 	messageToSave := models.SavedMessage{
-		ID:         utility.GenerateUUID(),
+		ID:         req.ThreadId,
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
@@ -83,7 +83,7 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	}
 
 	messageToSave := models.SavedMessage{
-		ID:         utility.GenerateUUID(),
+		ID:         req.MessageId,
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
