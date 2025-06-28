@@ -327,8 +327,8 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsId,
-		// UserID:    req.ThreadId,
-		UserID: req.UserId,
+		UserID:    req.ThreadId,  //hamza whyyyyyyyyyyyyyyyy???
+		// UserID: req.UserId,
 	}
 
 	channel_info, err := channel.GetChannelByID(db.Postgresql, chanReq)

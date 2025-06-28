@@ -11,11 +11,25 @@ import (
 )
 
 func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
-	var threads models.Threads
+	var (
+		threads     models.Threads
+		checkThread models.ThreadDocument
+	)
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
 		return nil, errors.New("invalid thread ID")
+	}
+
+	checkThread.ChannelsID = req.ChannelsId
+	checkThread.UserId = req.UserId
+
+	exists, _, err := checkThread.CheckExists()
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.New("thread does not exist")
 	}
 
 	messageToSave := models.SavedMessage{
@@ -23,7 +37,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
-		Type:       req.Type,
+		Type:       "thread",
 		CreatedAt:  time.Now().UTC(),
 		ThreadID:   threadId,
 	}
@@ -47,11 +61,25 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 }
 
 func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
-	var message models.Message
+	var (
+		message models.Message
+		checkMessage models.MessageDocument
+	)
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
 		return nil, errors.New("invalid thread ID")
+	}
+
+	checkMessage.ChannelsID = req.ChannelsId
+	checkMessage.UserID = req.UserId
+
+	exists, _, err := checkMessage.CheckExists()
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.New("message does not exist")
 	}
 
 	messageToSave := models.SavedMessage{
@@ -60,6 +88,7 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
 		CreatedAt:  time.Now().UTC(),
+		Type:       "message",
 		MessageID:  &req.MessageId,
 		ThreadID:   threadId,
 	}
@@ -114,6 +143,8 @@ func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMes
 	if msgType == "thread" {
 		var threads models.Threads
 
+		threads.ID = savedMessage.ThreadID.String()
+
 		updateKey := map[string]any{
 			"is_saved": false,
 		}
@@ -127,6 +158,8 @@ func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMes
 		updateKey := map[string]any{
 			"is_saved": false,
 		}
+
+		message.ID = *savedMessage.MessageID
 
 		if _, err := message.UpdateMessage(db, updateKey); err != nil {
 			return err

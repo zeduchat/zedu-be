@@ -160,12 +160,14 @@ func (base *Controller) DeleteSavedMessageByID(c *gin.Context) {
 	smId := c.Param("smId")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("Invalid organisation ID format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if _, err := uuid.Parse(smId); err != nil {
+		base.Logger.Error("Invalid message ID format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", "unable to parse message id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -186,6 +188,7 @@ func (base *Controller) DeleteSavedMessageByID(c *gin.Context) {
 	}
 	err := savedMessages.DeleteSavedMessage(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
+		base.Logger.Error("Failed to delete message: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to delete message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
