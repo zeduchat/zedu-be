@@ -233,11 +233,13 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 
 	for _, msg := range messages {
 		var (
-			t  ThreadDocument
-			m  MessageDocument
-			mr SavedMessagesResp
-			ch Channels
+			t      ThreadDocument
+			m      MessageDocument
+			mr     SavedMessagesResp
+			ch     Channels
+			dmchan DmChannels
 		)
+
 
 		if msg.MessageID != nil {
 			err := m.GetMessageById(db, *msg.MessageID)
@@ -254,12 +256,17 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "message"
 
+
 			exists := postgresql.CheckExists(db, &ch, "id = ?", m.ChannelsID)
-			if !exists {
-				mr.ChannelName = "Direct Message"
+			if exists {
+				mr.ChannelName = ch.Name
 			}
 
-			mr.ChannelName = ch.Name
+			exists = postgresql.CheckExists(db, &dmchan, "channel_id = ?", msg.ChannelsID)
+			if exists {
+				mr.ChannelName = "Direct Message"
+			}else{
+			}
 
 			messagesResp = append(messagesResp, mr)
 
@@ -279,10 +286,13 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Type = "thread"
 
 			exists := postgresql.CheckExists(db, &ch, "id = ?", t.ChannelsID)
-			if !exists {
-				mr.ChannelName = "Direct Message"
-			} else {
+			if exists {
 				mr.ChannelName = ch.Name
+			}
+
+			exists = postgresql.CheckExists(db, &dmchan, "channel_id = ?", t.ChannelsID)
+			if exists {
+				mr.ChannelName = "Direct Message"
 			}
 
 			messagesResp = append(messagesResp, mr)
