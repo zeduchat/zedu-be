@@ -231,20 +231,29 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		return nil, fmt.Errorf("failed to retrieve saved messages: %w", err)
 	}
 
+	resolveChannelName := func(db *gorm.DB, channelID string) string {
+		var dmchan DmChannels
+		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
+			return "Direct Message"
+		}
+		var ch Channels
+		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
+			return ch.Name
+		}
+		return ""
+	}
+
 	for _, msg := range messages {
 		var (
 			t  ThreadDocument
 			m  MessageDocument
 			mr SavedMessagesResp
-			ch Channels
 		)
 
 		if msg.MessageID != nil {
-			err := m.GetMessageById(db, *msg.MessageID)
-			if err != nil {
+			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
 				continue
 			}
-
 			mr.ID = msg.ID
 			mr.ThreadID = msg.ThreadID.String()
 			mr.MessageID = msg.MessageID
@@ -253,22 +262,11 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Content = m.Content
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "message"
-
-			exists := postgresql.CheckExists(db, &ch, "id = ?", m.ChannelsID)
-			if !exists {
-				mr.ChannelName = "Direct Message"
-			}
-
-			mr.ChannelName = ch.Name
-
-			messagesResp = append(messagesResp, mr)
-
+			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
 		} else {
-			err := t.GetThreadById(db, msg.ThreadID.String())
-			if err != nil {
+			if err := t.GetThreadById(db, msg.ThreadID.String()); err != nil {
 				continue
 			}
-
 			mr.ID = msg.ID
 			mr.ThreadID = msg.ThreadID.String()
 			mr.MessageID = nil
@@ -277,16 +275,10 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Content = t.Content
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "thread"
-
-			exists := postgresql.CheckExists(db, &ch, "id = ?", t.ChannelsID)
-			if !exists {
-				mr.ChannelName = "Direct Message"
-			} else {
-				mr.ChannelName = ch.Name
-			}
-
-			messagesResp = append(messagesResp, mr)
+			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
 		}
+
+		messagesResp = append(messagesResp, mr)
 	}
 
 	return messagesResp, nil
