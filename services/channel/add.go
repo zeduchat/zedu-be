@@ -327,7 +327,7 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsId,
-		UserID:    req.ThreadId,  //hamza whyyyyyyyyyyyyyyyy???
+		UserID:    req.ThreadId,  //logicBUG[do not modify]
 		// UserID: req.UserId,
 	}
 
