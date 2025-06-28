@@ -339,7 +339,7 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 	return nil
 }
 
-func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
+func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Context, query string) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var org models.Organisation
 
 	_, err := org.CheckOrgExists(orgId, db)
@@ -358,7 +358,7 @@ func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Con
 		return nil, postgresql.PaginationResponse{}, errors.New("user does not have access to the organisation")
 	}
 
-	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, userId, db, c)
+	users, paginationResponse, err := fetchUsersWithOrgManagement(orgId, userId, db, c, query)
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
@@ -366,71 +366,102 @@ func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Con
 	return users, paginationResponse, nil
 }
 
-func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
+
+
+func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context, searchTerm string) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var (
 		users      []models.UserInOrgResponse
 		pagination = postgresql.GetPagination(c)
 		offset     = (pagination.Page - 1) * pagination.Limit
+		likeTerm   = "%" + searchTerm + "%"
 	)
 
-	// Query for both users and agents
+	// Searchable combined query
 	query := db.Table("(?) AS combined",
 		db.Raw(`
-            (SELECT 
-                u.id, 
-                u.email, 
-                p.phone AS phone_number,
-                COALESCE(NULLIF(p.user_name, ''),
-                         NULLIF(p.full_name, ''),
-                         SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name,
-                p.avatar_url AS avatar_url, 
-                u.created_at, 
-                o.status,
-                org.name AS role,
-                'user' AS entity_type
-            FROM org_user_managements o
-            JOIN users u ON u.id = o.user_id
-            LEFT JOIN profiles p ON p.userid = u.id
-            LEFT JOIN org_roles org ON org.id = o.role_id::uuid
-            WHERE o.organisation_id = ?)
-            
+            (
+                SELECT 
+                    u.id, 
+                    u.email, 
+                    p.phone AS phone_number,
+                    COALESCE(NULLIF(p.user_name, ''),
+                             NULLIF(p.full_name, ''),
+                             SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name,
+                    p.avatar_url AS avatar_url, 
+                    u.created_at, 
+                    o.status,
+                    org.name AS role,
+                    'user' AS entity_type
+                FROM org_user_managements o
+                JOIN users u ON u.id = o.user_id
+                LEFT JOIN profiles p ON p.userid = u.id
+                LEFT JOIN org_roles org ON org.id = o.role_id::uuid
+                WHERE o.organisation_id = ?
+                  AND (
+                      u.name ILIKE ? OR 
+                      u.email ILIKE ? OR 
+                      p.user_name ILIKE ? OR 
+                      p.phone ILIKE ?
+                  )
+            )
             UNION ALL
-            
-            (SELECT 
-                oi.integration_id AS id,
-                oi.app_name AS email,
-                '' AS phone_number,
-                oi.app_name AS name,
-                oi.app_logo AS avatar_url,
-                oi.created_at,
-                CASE 
-                    WHEN oi.is_active THEN 'active'
-                    ELSE 'inactive'
-                END AS status,
-                'bot' AS role,
-                'bot' AS entity_type
-            FROM organisation_integrations oi
-            WHERE oi.org_id = ? AND oi.is_archived = false)
-        `, orgId, orgId)).
+            (
+                SELECT 
+                    oi.integration_id AS id,
+                    oi.app_name AS email,
+                    '' AS phone_number,
+                    oi.app_name AS name,
+                    oi.app_logo AS avatar_url,
+                    oi.created_at,
+                    CASE 
+                        WHEN oi.is_active THEN 'active'
+                        ELSE 'inactive'
+                    END AS status,
+                    'bot' AS role,
+                    'bot' AS entity_type
+                FROM organisation_integrations oi
+                WHERE oi.org_id = ? AND oi.is_archived = false
+                  AND (
+                      oi.app_name ILIKE ?
+                  )
+            )
+        `, orgId, likeTerm, likeTerm, likeTerm, likeTerm, orgId, likeTerm)).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pagination.Limit)
 
-	// Execute the combined query
 	if err := query.Find(&users).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch users and bots: %w", err)
 	}
 
-	// Get total count of users and bots
 	var totalCount int64
-	if err := db.Table("(?) as count_table",
+	countQuery := db.Table("(?) as count_table",
 		db.Raw(`
-            (SELECT user_id FROM org_user_managements WHERE organisation_id = ?)
+            (
+                SELECT u.id
+                FROM org_user_managements o
+                JOIN users u ON u.id = o.user_id
+                LEFT JOIN profiles p ON p.userid = u.id
+                WHERE o.organisation_id = ?
+                  AND (
+                      u.name ILIKE ? OR 
+                      u.email ILIKE ? OR 
+                      p.user_name ILIKE ? OR 
+                      p.phone ILIKE ?
+                  )
+            )
             UNION ALL
-            (SELECT integration_id FROM organisation_integrations 
-             WHERE org_id = ? AND is_archived = false)
-        `, orgId, orgId)).
-		Count(&totalCount).Error; err != nil {
+            (
+                SELECT oi.integration_id
+                FROM organisation_integrations oi
+                WHERE oi.org_id = ? AND oi.is_archived = false
+                  AND (
+                      oi.app_name ILIKE ?
+                  )
+            )
+        `, orgId, likeTerm, likeTerm, likeTerm, likeTerm, orgId, likeTerm))
+
+	if err := countQuery.Count(&totalCount).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to count users and bots: %w", err)
 	}
 
@@ -439,11 +470,11 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
 		CurrentPage:     pagination.Page,
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
-		// TotalItems:      int(totalCount),
 	}
 
 	return users, paginationResponse, nil
 }
+
 
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (

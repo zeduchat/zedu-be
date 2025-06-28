@@ -247,7 +247,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		chanPart []ChannelParticipant
 		orderBy  string
 		order    string
-		args     []interface{}
+		args     []any
 	)
 
 	dmchans := []DmChannels{}
@@ -280,14 +280,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		`
 		orderBy = "interacted_at"
 		order = "desc"
-		args = []interface{}{dm.OrgId, "user", dm.UserId, dm.UserId}
+		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
 
 		// Override pagination to fetch top 10 most recent only
 		pagination.Limit = limit
 	} else {
 		orderBy = "created_at"
 		order = "desc"
-		args = []interface{}{dm.OrgId, "user", dm.UserId, dm.UserId}
+		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
 	}
 
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
