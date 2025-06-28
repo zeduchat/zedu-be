@@ -424,12 +424,12 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id": org_id,
-		"user_id": user_id,
+		"org_id":        org_id,
+		"user_id":       user_id,
 		"admin_user_id": adminUserID.(string),
 	}
 
-	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req ,ids)
+	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req, ids)
 	if err != nil {
 		base.Logger.Error("failed to change member active status: %w", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to change member active status", err.Error(), nil)
@@ -443,7 +443,7 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 	}
 
 	base.Logger.Info("user %s from organisation %s successfully", status, org_id)
-	rd := utility.BuildSuccessResponse(code,"success", fmt.Sprintf("user %s successfully", status))
+	rd := utility.BuildSuccessResponse(code, "success", fmt.Sprintf("user %s successfully", status))
 	c.JSON(code, rd)
 }
 
@@ -513,7 +513,22 @@ func (base *Controller) UpdateMemberRole(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := organisation.UpdateMemberRole(base.Db.Postgresql, orgId, userId, req.RoleID)
+	claims, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Error("failed to get user claims", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to get user claims", "failed to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := models.IDS{
+		OrganisationID: orgId,
+		UserID:         userId,
+		OwnerID:        claims.(string),
+		RoleID:         req.RoleID,
+	}
+
+	code, err := organisation.UpdateMemberRole(base.Db.Postgresql, ids)
 	if err != nil {
 		base.Logger.Error("failed to update role", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to update role", err.Error(), nil)
@@ -522,6 +537,6 @@ func (base *Controller) UpdateMemberRole(c *gin.Context) {
 	}
 
 	base.Logger.Info("member role updated successfully")
-	rd := utility.BuildSuccessResponse(code, "success", resp)
+	rd := utility.BuildSuccessResponse(code, "success", nil)
 	c.JSON(code, rd)
 }

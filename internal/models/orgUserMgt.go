@@ -93,7 +93,7 @@ type ChangeMemberActiveStatus struct {
 }
 
 type UpdateMemberRoleRequest struct {
-
+	RoleID string `json:"role_id" validate:"required"`
 }
 
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
@@ -381,4 +381,13 @@ func (oum *OrgUserManagement) UpdateMemberRole(db *gorm.DB, orgID, userID, roleI
 	}
 
 	return nil
+}
+
+
+func (oum *OrgUserManagement) CheckIsOrganisationAdmin(db *gorm.DB, orgID, userID string) bool {
+	var orgUserManagement OrgUserManagement
+
+	query := "organisation_id = ? AND user_id = ? AND role_id = (SELECT id FROM org_roles WHERE name = 'Administrator')"
+
+	return postgresql.CheckExists(db, &orgUserManagement, query , orgID, userID)
 }

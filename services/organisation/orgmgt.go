@@ -211,25 +211,21 @@ func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.
 	return users, nil
 }
 
-func UpdateMemberRole(db *gorm.DB, orgId, userId, roleid string) (error) {
+func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int,error) {
 	var (
 		oum models.OrgUserManagement
-		o   models.Organisation
 	)
 
-	isOwner, err := o.IsOwnerOfOrganisation(db, userId, orgId)
-	if err != nil {
-		return err
+	is_admin := oum.CheckUserIsOrganisationAdmin(db, orgId, userId)
+	if !is_admin {
+		return http.StatusForbidden, errors.New("user is not an admin in the organisation")
 	}
 
-	if !isOwner {
-		return errors.New("user is not the owner of the organisation")
-	}
 
 	err = oum.UpdateMemberRole(db, orgId, userId, roleid)
 	if err != nil {
-		return fmt.Errorf("failed to update member role: %w", err)
+		return http.StatusInternalServerError, fmt.Errorf("failed to update member role: %w", err)
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
