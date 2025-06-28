@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -22,6 +23,7 @@ var MessageIndexName = "messages"
 type Message struct {
 	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
 	Content    string         `gorm:"column:content; type:text; not null" json:"content"`
+	Msg        string         `gorm:"column:message; type:text; not null" json:"message"`
 	ChannelsID string         `gorm:"type:uuid;not null;index" json:"channels_id"`
 	UserID     string         `gorm:"type:uuid;not null;index" json:"user_id"`
 	Username   string         `gorm:"column:username; type:varchar(100)" json:"username"`
@@ -32,6 +34,7 @@ type Message struct {
 	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
 	IsPinned   bool           `json:"is_pinned"`
+	IsSaved    bool           `gorm:"type:bool;default:false" json:"is_saved"`
 	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
 }
 
@@ -54,6 +57,7 @@ type MessageDocument struct {
 	Email          string                 `json:"email"`
 	Media          []UploadedFileResponse `json:"media,omitempty"`
 	IsPinned       bool                   `json:"is_pinned"`
+	IsSaved        bool                   `json:"is_saved"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
 }
 
@@ -92,6 +96,9 @@ var MessageMapping = map[string]any{
 			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 		},
 		"is_pinned": map[string]string{
+			"type": "boolean",
+		},
+		"is_saved": map[string]string{
 			"type": "boolean",
 		},
 	},
@@ -264,6 +271,35 @@ func (t *MessageDocument) GetMessageById(db *gorm.DB, messageID string) error {
 	}
 
 	return nil
+}
+
+func (t *MessageDocument) CheckExists() (bool, int, error) {
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": t.ChannelsID,
+						},
+					},
+					{
+						"term": map[string]any{
+							"user_id.keyword": t.UserID,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	check, err := elastic.CheckExists(storage.DB.Elastic, MessageIndexName, query)
+	if err != nil {
+		return false, http.StatusInternalServerError, err
+	}
+
+	return check, http.StatusOK, err
 }
 
 func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]any, error) {
