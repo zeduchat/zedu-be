@@ -92,6 +92,10 @@ type ChangeMemberActiveStatus struct {
 	Activate bool `gorm:"activate" json:"activate"`
 }
 
+type UpdateMemberRoleRequest struct {
+
+}
+
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &o)
@@ -360,4 +364,21 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
 	}
 
 	return users, nil
+}
+
+func (oum *OrgUserManagement) UpdateMemberRole(db *gorm.DB, orgID, userID, roleID string) error {
+	var orgUserManagement OrgUserManagement
+
+	exists := postgresql.CheckExists(db, &oum, "organisation_id = ? AND user_id = ?", orgID, userID)
+	if !exists {
+		return errors.New("user not found in organisation")
+	}
+
+	oum.RoleID = roleID
+
+	if _, err := postgresql.SaveAllFields(db, &orgUserManagement); err != nil {
+		return fmt.Errorf("failed to update member role: %v", err)
+	}
+
+	return nil
 }

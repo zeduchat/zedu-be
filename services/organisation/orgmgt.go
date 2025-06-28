@@ -210,3 +210,26 @@ func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.
 
 	return users, nil
 }
+
+func UpdateMemberRole(db *gorm.DB, orgId, userId, roleid string) (error) {
+	var (
+		oum models.OrgUserManagement
+		o   models.Organisation
+	)
+
+	isOwner, err := o.IsOwnerOfOrganisation(db, userId, orgId)
+	if err != nil {
+		return err
+	}
+
+	if !isOwner {
+		return errors.New("user is not the owner of the organisation")
+	}
+
+	err = oum.UpdateMemberRole(db, orgId, userId, roleid)
+	if err != nil {
+		return fmt.Errorf("failed to update member role: %w", err)
+	}
+
+	return nil
+}
