@@ -131,7 +131,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			go func() {
 				defer wg.Done()
 				updated := userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-				if updated  {
+				if updated {
 					userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 				}
 			}()
@@ -329,6 +329,18 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		err := savedMessage.DeleteSavedThreadMsgByMessageID(db, savedMessageIds)
 		if err != nil {
 			return http.StatusBadRequest, err
+		}
+	}
+
+	pinnedThread := models.PinnedMessage{
+		ThreadID:   threadID,
+		ChannelsID: channelID,
+	}
+
+	if exists := pinnedThread.CheckPinnedReplyExists(db); exists {
+		if err := pinnedThread.DeletePinnedThreadMessageRecord(db); err != nil {
+			logger.Error("An error occurred while deleting pinned thread message record: %v", err)
+			return http.StatusInternalServerError, err
 		}
 	}
 
