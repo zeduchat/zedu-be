@@ -286,7 +286,7 @@ func (t *MessageDocument) CheckExists() (bool, int, error) {
 					},
 					{
 						"term": map[string]any{
-							"user_id.keyword": t.UserID,
+							"_id": t.ID,
 						},
 					},
 				},
@@ -545,4 +545,8 @@ func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *s
 
 	logger.Info("Updated username across message index")
 	return nil
+}
+
+func (m MessageDocument) GetCreatedAt() time.Time {
+	return m.CreatedAt
 }
