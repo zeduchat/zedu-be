@@ -1232,7 +1232,3 @@ func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *syn
 
 	logger.Info("Updated username across thread index")
 }
-
-func (t ThreadDocument) GetCreatedAt() time.Time {
-	return t.CreatedAt
-}
