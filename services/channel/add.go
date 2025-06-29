@@ -336,7 +336,6 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	// 	return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
 	// }
 
-	fmt.Println("req.ChannelsId", req.ChannelsId, "req.ThreadId", req.ThreadId, "req.UserId", req.UserId)
 
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsId,
