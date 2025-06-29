@@ -114,23 +114,6 @@ func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) (int, error) {
 	return http.StatusCreated, nil
 }
 
-func (m *PinnedMessage) GetPinnedMessagesForChannel(db *gorm.DB, ids IDS) ([]PinnedMessage, error) {
-	var (
-		messages     []PinnedMessage
-		userChannels UserChannels
-		dmChannels   DmChannels
-	)
-
-	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", ids.ChannelID, ids.UserID)
-	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", ids.ChannelID)
-	if !(dmChanExist || userChanExist) {
-		return nil, errors.New("user not in channel")
-	}
-
-	findErr := db.Order("pinned_at DESC").Find(&messages).Where("pinned = ? AND org_id = ? AND channels_id = ?", true, ids.OrganisationID, ids.ChannelID).Error
-	return messages, findErr
-}
-
 func (m *PinnedMessage) GetAllPinnedMessagesForChannel(db *storage.Database, ids IDS) ([]PinnedMessageResponse, error) {
 	var (
 		userChannels UserChannels
