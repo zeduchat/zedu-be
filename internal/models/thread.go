@@ -39,14 +39,14 @@ type Threads struct {
 	FullName      string                 `json:"full_name"`
 	Email         string                 `json:"email"`
 	Edited        bool                   `json:"edited"`
-	IsPinned      bool                   `json:"is_pinned,omitempty"`
+	IsPinned      bool                   `json:"is_pinned"`
 	IsSaved       bool                   `json:"is_saved,omitempty"`
 	UserType      string                 `json:"user_type"`
 	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
-	Mentions      []Mentions             `json:"mentions,omitempty"`
+	Mentions      []Mention              `json:"mentions,omitempty"`
 	OrgansationID string                 `json:"org_id,omitempty"`
 	State         string                 `json:"state,omitempty"`
 }
@@ -667,7 +667,7 @@ func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
 	return nil
 }
 
-func (t *ThreadDocument) CheckExists() (bool, int, error) {
+func (t *ThreadDocument) CheckUserThreadExists() (bool, int, error) {
 
 	query := map[string]any{
 		"query": map[string]any{
@@ -681,6 +681,35 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 					{
 						"term": map[string]any{
 							"user_id.keyword": t.UserId,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	check, err := elastic.CheckExists(storage.DB.Elastic, ThreadIndexName, query)
+	if err != nil {
+		return false, http.StatusInternalServerError, err
+	}
+
+	return check, http.StatusOK, err
+}
+
+func (t *ThreadDocument) CheckExists() (bool, int, error) {
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": t.ChannelsID,
+						},
+					},
+					{
+						"term": map[string]any{
+							"_id": t.ID,
 						},
 					},
 				},
@@ -1202,4 +1231,8 @@ func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *syn
 	}
 
 	logger.Info("Updated username across thread index")
+}
+
+func (t ThreadDocument) GetCreatedAt() time.Time {
+	return t.CreatedAt
 }
