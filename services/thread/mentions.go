@@ -206,10 +206,10 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	// 	Mentions:   req.Mentions,
 	// }
 
-	// payload := map[string]interface{}{
-	// 	"args": []map[string]interface{}{
+	// payload := map[string]any{
+	// 	"args": []map[string]any{
 	// 		{
-	// 			"message_content": map[string]interface{}{
+	// 			"message_content": map[string]any{
 	// 				"channel_id": feed.ChannelsId,
 	// 				"message":    feed.Content,
 	// 				"thread_id":  feed.ThreadId,
@@ -266,7 +266,7 @@ func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {
 	return nil
 }
 
-func SearchChannel(channelID, searchWords string, db *gorm.DB, c *gin.Context, typesenseDb *typesense.Client) (*[]map[string]interface{}, int, error) {
+func SearchChannel(channelID, searchWords string, db *gorm.DB, c *gin.Context, typesenseDb *typesense.Client) (*[]map[string]any, int, error) {
 	searchField := "username,content,event_name,action_type"
 	documents, err := tydb.SearchDocuments(typesenseDb, channelID, searchWords, searchField)
 	if err != nil {

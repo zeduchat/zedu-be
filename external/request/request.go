@@ -33,7 +33,7 @@ var (
 	SendAgentAPIKey     string = "send_agent_api_key"
 )
 
-func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (interface{}, error) {
+func (er ExternalRequest) SendExternalRequest(name string, data any) (any, error) {
 	var (
 		config = config.GetConfig()
 	)
@@ -116,7 +116,7 @@ func (er ExternalRequest) SendExternalRequest(name string, data interface{}) (in
 			}
 			return obj.RetriveJsonData()
 		case SendAgentAPIKey:
-			data_content := data.(map[string]interface{})
+			data_content := data.(map[string]any)
 			obj := integrations.RequestObj{
 				Name:         name,
 				Path:         data_content["url"].(string),

@@ -8,7 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func RedisSet(rdb *redis.Client, key string, value interface{}, ttl time.Duration) error {
+func RedisSet(rdb *redis.Client, key string, value any, ttl time.Duration) error {
 	serialized, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -16,7 +16,7 @@ func RedisSet(rdb *redis.Client, key string, value interface{}, ttl time.Duratio
 	return rdb.Set(Ctx, key, serialized, ttl).Err()
 }
 
-func RedisSetPerm(rdb *redis.Client, key string, value interface{}) error {
+func RedisSetPerm(rdb *redis.Client, key string, value any) error {
 	serialized, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -24,7 +24,7 @@ func RedisSetPerm(rdb *redis.Client, key string, value interface{}) error {
 	return rdb.Set(Ctx, key, serialized, 1*time.Hour).Err()
 }
 
-func PushToQueue(rdb *redis.Client, value interface{}) error {
+func PushToQueue(rdb *redis.Client, value any) error {
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("could not marshal struct: %v", err)
@@ -38,7 +38,7 @@ func PushToQueue(rdb *redis.Client, value interface{}) error {
 	return nil
 }
 
-func PushToNotificationQueue(rdb *redis.Client, value interface{}) error {
+func PushToNotificationQueue(rdb *redis.Client, value any) error {
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("could not marshal struct: %v", err)

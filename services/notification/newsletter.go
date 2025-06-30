@@ -29,11 +29,11 @@ func (n NotificationObject) SendNewsletterMail() error {
 	contactUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
 	unsubscribeUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname":   thisOrThatStr(notificationData.Email, "there!"),
-		"login_url":   loginUrl,
-		"blog_url":    blogUrl,
-		"contact_us_url": contactUrl,
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":       thisOrThatStr(notificationData.Email, "there!"),
+		"login_url":       loginUrl,
+		"blog_url":        blogUrl,
+		"contact_us_url":  contactUrl,
 		"unsubscribe_url": unsubscribeUrl,
 	})
 

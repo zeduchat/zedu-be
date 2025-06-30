@@ -72,7 +72,7 @@ func (base *Controller) GetCustomAgentApp(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
@@ -731,7 +731,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	auth_credentials, ok := req.SettingEntry["auth_credentials"].(map[string]interface{})
+	auth_credentials, ok := req.SettingEntry["auth_credentials"].(map[string]any)
 
 	if !ok {
 		base.Logger.Error("auth_credentials is missing in request body")
@@ -740,7 +740,7 @@ func (base *Controller) UpdateCustomAgentSettingsExternal(c *gin.Context) {
 		return
 	}
 
-	_, ok = req.SettingEntry["settings"].([]interface{})
+	_, ok = req.SettingEntry["settings"].([]any)
 	if !ok {
 		base.Logger.Error("settings is missing in request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "settings field not returned, consult telex docs", "invalid request body supplied", nil)
@@ -833,7 +833,7 @@ func (base *Controller) GetAllCustomAgent(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
@@ -1020,7 +1020,7 @@ func (base *Controller) GetAgentBills(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
@@ -1050,7 +1050,7 @@ func (base *Controller) GetOrgAgentBills(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,

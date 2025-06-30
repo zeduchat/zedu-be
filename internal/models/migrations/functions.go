@@ -1,7 +1,7 @@
 package migrations
 
 type AlterColumn struct {
-	Model     interface{}
+	Model     any
 	TableName string
 	Column    string
 	Type      string

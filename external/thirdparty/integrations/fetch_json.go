@@ -1,8 +1,8 @@
 package integrations
 
-func (r *RequestObj) RetriveJsonData() (map[string]interface{}, error) {
+func (r *RequestObj) RetriveJsonData() (map[string]any, error) {
 	var (
-		outBoundResponse map[string]interface{}
+		outBoundResponse map[string]any
 		logger           = r.Logger
 	)
 
@@ -17,10 +17,10 @@ func (r *RequestObj) RetriveJsonData() (map[string]interface{}, error) {
 	return outBoundResponse, nil
 }
 
-func (r *RequestObj) SendAgentApiKey() (map[string]interface{}, error) {
+func (r *RequestObj) SendAgentApiKey() (map[string]any, error) {
 	var (
 		logger           = r.Logger
-		outBoundResponse map[string]interface{}
+		outBoundResponse map[string]any
 	)
 
 	headers := map[string]string{

@@ -37,6 +37,7 @@ type DmChannels struct {
 	ThreadCount     int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
 	LastThreadId    string         `gorm:"column:last_thread_id" json:"last_thread_id"`
 	LastReadAt      time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
+	InteractedAt    time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"-"`
 }
 
 type DmChannelsResponse struct {
@@ -60,9 +61,9 @@ type DmChannelsRequest struct {
 	ChannelId     string `json:"channel_id"`
 }
 
-func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]interface{}, error) {
-	var response interface{}
-	var data_r map[string]interface{}
+func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]any, error) {
+	var response any
+	var data_r map[string]any
 	agentJSONURL := agent.JSONUrl
 	redisKey := fmt.Sprintf("agent_json_%s", agentJSONURL)
 
@@ -70,14 +71,14 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 
 		cachedData, err := rd.RedisGet(redisClient, redisKey)
 		if err == nil && len(cachedData) > 0 {
-			var cachedResult interface{}
+			var cachedResult any
 
 			if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
 				rd.RedisDelete(redisClient, redisKey)
 				return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
 			}
 
-			data_r, ok := cachedResult.(map[string]interface{})
+			data_r, ok := cachedResult.(map[string]any)
 			if !ok {
 				rd.RedisDelete(redisClient, redisKey)
 				return nil, errors.New("cached data is not in the expected format")
@@ -99,13 +100,13 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 			return nil, fmt.Errorf("could not fetch agent json: %v", err)
 		}
 
-		response_data := response.(map[string]interface{})
-		content, ok := response_data["data"].(map[string]interface{})
+		response_data := response.(map[string]any)
+		content, ok := response_data["data"].(map[string]any)
 		if !ok {
 			return nil, errors.New("could not fetch data from agent json")
 		}
 
-		data_r, ok := content["descriptions"].(map[string]interface{})
+		data_r, ok := content["descriptions"].(map[string]any)
 		if !ok {
 			return nil, errors.New("invalid agent details format")
 		}
@@ -118,7 +119,7 @@ func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent Organisatio
 		}
 	} else {
 
-		data_r = map[string]interface{}{
+		data_r = map[string]any{
 			"app_name":        agent.AppName,
 			"app_logo":        agent.AppLogo,
 			"app_description": agent.AppDescription,
@@ -244,10 +245,15 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	var (
 		user     User
 		chanPart []ChannelParticipant
+		orderBy  string
+		order    string
+		args     []any
 	)
 
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
+	recentDm := c.Query("recent_dm") == "true"
+	limit := 10
 
 	pagination := postgresql.GetPagination(c)
 
@@ -268,18 +274,30 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
         )
     `
 
-	// Use SelectAllFromDbOrderByPaginated with the modified query
+	if recentDm {
+		queryString += `
+			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
+		`
+		orderBy = "interacted_at"
+		order = "desc"
+		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
+
+		// Override pagination to fetch top 10 most recent only
+		pagination.Limit = limit
+	} else {
+		orderBy = "created_at"
+		order = "desc"
+		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
+	}
+
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db, // No JOIN needed since we're using a subquery
-		"created_at",
-		"desc",
+		db,
+		orderBy,
+		order,
 		pagination,
 		&dmchans,
 		queryString,
-		dm.OrgId,
-		"user",
-		dm.UserId,
-		dm.UserId,
+		args...,
 	)
 
 	if err != nil {
@@ -604,7 +622,7 @@ func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mu
 				return false
 			}
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"last_thread_id": req.LastThreadId,
 				"last_read_at":   req.LastReadAt,
 				"thread_count":   0,
@@ -633,7 +651,7 @@ func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mu
 				return false
 			}
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"last_thread_id": req.LastThreadId,
 				"last_read_at":   req.LastReadAt,
 				"thread_count":   0,
@@ -665,7 +683,7 @@ func (r *DmChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *util
 		"dm": func() {
 			query := "channel_id = ? AND user_id != ?"
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"thread_count": gorm.Expr("thread_count + 1"),
 			}
 
@@ -683,7 +701,7 @@ func (r *DmChannels) UpdateUnReadCount(db *gorm.DB, mu *sync.Mutex, logger *util
 		"group_dm": func() {
 			query := "channel_id = ? AND user_id != ?"
 
-			updateFields := map[string]interface{}{
+			updateFields := map[string]any{
 				"thread_count": gorm.Expr("thread_count + 1"),
 			}
 
@@ -756,4 +774,21 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 	}
 
 	logger.Info("user last read updated successfully")
+}
+
+func (r *DmChannels) UpdateInteractionAt(db *gorm.DB) error {
+
+	result := db.Model(&DmChannels{}).
+		Where("channel_id = ?", r.ChannelId).
+		Update("interacted_at", time.Now())
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("no channel found with the given channelId")
+	}
+
+	return nil
 }

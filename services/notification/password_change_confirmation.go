@@ -31,9 +31,9 @@ func (n NotificationObject) SendPasswordChangeConfirmationMail() error {
 		return fmt.Errorf("error getting user with email %v: %v", notificationData.Email, err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname":         thisOrThatStr(user.Profile.FirstName, user.Email),
-		"business_name":     thisOrThatStr("", ""),
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":           thisOrThatStr(user.Profile.FirstName, user.Email),
+		"business_name":       thisOrThatStr("", ""),
 		"password_change_url": passwordChangeUrl,
 	})
 	if err != nil {

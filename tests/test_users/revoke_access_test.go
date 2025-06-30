@@ -149,7 +149,7 @@ func TestRevokeUserAccessToken(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, router, *authController, loginData)
 
-		invalidReqBody := map[string]interface{}{
+		invalidReqBody := map[string]any{
 			"user_id":            "invalid_user_id",
 			"global_termination": "invalid_value",
 			"access_token_id":    "invalid_access_token_id",

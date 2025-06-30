@@ -186,7 +186,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 
 	message.ID = req.MessageId
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"message": req.Content,
 		"edited":  true,
 	}
@@ -279,6 +279,19 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		}
 	}
 
+	pinnedReply := models.PinnedMessage{
+		MessageID:  &newMsg.ID,
+		ThreadID:   newMsg.ThreadID.String(),
+		ChannelsID: req.ChannelsId,
+	}
+
+	if exists := pinnedReply.CheckPinnedReplyExists(db); exists {
+		if err := pinnedReply.DeletePinnedReplyMessageRecord(db); err != nil {
+			logger.Error("An error occurred while deleting pinned message record: %v", err)
+			return nil, http.StatusInternalServerError, err
+		}
+	}
+
 	updateResp, err := newMsg.DeleteMessage(db, logger)
 
 	if err != nil {
@@ -323,13 +336,14 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	// 	return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
 	// }
 
+
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsId,
-		UserID:    req.ThreadId,
+		UserID:    req.ThreadId, //logicBUG[do not modify]
+		// UserID: req.UserId,
 	}
 
 	channel_info, err := channel.GetChannelByID(db.Postgresql, chanReq)
-
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
 		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching orgid, error: %v", err)
@@ -358,10 +372,10 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		Mentions:   req.Mentions,
 	}
 
-	payload := map[string]interface{}{
-		"args": []map[string]interface{}{
+	payload := map[string]any{
+		"args": []map[string]any{
 			{
-				"message_content": map[string]interface{}{
+				"message_content": map[string]any{
 					"channel_id": feed.ChannelsId,
 					"message":    feed.Content,
 					"thread_id":  feed.ThreadId,

@@ -69,7 +69,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 	}
 
 	responseData = gin.H{
-		"admin": map[string]interface{}{
+		"admin": map[string]any{
 			"id":        admin.ID,
 			"email":     admin.Email,
 			"name":      admin.Name,
@@ -135,7 +135,7 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 	}
 
 	responseData = gin.H{
-		"user": map[string]interface{}{
+		"user": map[string]any{
 			"id":       admin.ID,
 			"email":    admin.Email,
 			"name":     admin.Name,

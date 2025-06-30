@@ -97,7 +97,7 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func GetIdFromToken(c *gin.Context) (string, interface{}) {
+func GetIdFromToken(c *gin.Context) (string, any) {
 	var tokenStr string
 	bearerToken := c.GetHeader("Authorization")
 	strArr := strings.Split(bearerToken, " ")

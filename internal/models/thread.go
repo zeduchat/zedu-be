@@ -40,12 +40,13 @@ type Threads struct {
 	Email         string                 `json:"email"`
 	Edited        bool                   `json:"edited"`
 	IsPinned      bool                   `json:"is_pinned"`
+	IsSaved       bool                   `json:"is_saved,omitempty"`
 	UserType      string                 `json:"user_type"`
 	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
-	Mentions      []Mentions             `json:"mentions,omitempty"`
+	Mentions      []Mention              `json:"mentions,omitempty"`
 	OrgansationID string                 `json:"org_id,omitempty"`
 	State         string                 `json:"state,omitempty"`
 }
@@ -77,11 +78,12 @@ type ThreadDocument struct {
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	State         string                 `json:"state,omitempty"`
+	IsSaved       bool                   `json:"is_saved,omitempty"`
 }
 
-var MediaMapping = map[string]interface{}{
-	"mappings": map[string]interface{}{
-		"properties": map[string]interface{}{
+var MediaMapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": map[string]any{
 			"id":        map[string]string{"type": "text"},
 			"file_name": map[string]string{"type": "keyword"},
 			"file_type": map[string]string{"type": "text"},
@@ -90,18 +92,18 @@ var MediaMapping = map[string]interface{}{
 	},
 }
 
-var MentionMapping = map[string]interface{}{
-	"mappings": map[string]interface{}{
-		"properties": map[string]interface{}{
+var MentionMapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": map[string]any{
 			"id":   map[string]string{"type": "text"},
 			"type": map[string]string{"type": "text"},
 		},
 	},
 }
 
-var Thread_mapping = map[string]interface{}{
-	"mappings": map[string]interface{}{
-		"properties": map[string]interface{}{
+var Thread_mapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": map[string]any{
 			"id":          map[string]string{"type": "keyword"},
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
@@ -113,6 +115,7 @@ var Thread_mapping = map[string]interface{}{
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
 			"state":       map[string]string{"type": "text"},
+			"is_saved":    map[string]string{"type": "boolean"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -130,15 +133,15 @@ var Thread_mapping = map[string]interface{}{
 			"current_status": map[string]string{"type": "text"},
 			"full_name":      map[string]string{"type": "text"},
 			"email":          map[string]string{"type": "text"},
-			"media": map[string]interface{}{
+			"media": map[string]any{
 				"type":       "nested",
 				"properties": MediaMapping,
 			},
-			"mentions": map[string]interface{}{
+			"mentions": map[string]any{
 				"type":       "nested",
 				"properties": MentionMapping,
 			},
-			"messages": map[string]interface{}{
+			"messages": map[string]any{
 				"type":       "nested",
 				"properties": MessageMapping,
 			},
@@ -287,34 +290,34 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 		return CC, nil, fmt.Errorf("no channels found for the organisation")
 	}
 
-	query := map[string]interface{}{
+	query := map[string]any{
 		"size": 0,
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"terms": map[string]interface{}{
+						"terms": map[string]any{
 							"channels_id.keyword": channelIDs,
 						},
 					},
 				},
 			},
 		},
-		"aggs": map[string]interface{}{
-			"total_success_threads": map[string]interface{}{
-				"filter": map[string]interface{}{
-					"bool": map[string]interface{}{
-						"must": []map[string]interface{}{
+		"aggs": map[string]any{
+			"total_success_threads": map[string]any{
+				"filter": map[string]any{
+					"bool": map[string]any{
+						"must": []map[string]any{
 							{
-								"term": map[string]interface{}{
+								"term": map[string]any{
 									"status.keyword": "success",
 								},
 							},
 						},
-						"filter": []map[string]interface{}{
+						"filter": []map[string]any{
 							{
-								"range": map[string]interface{}{
-									"created_at": map[string]interface{}{
+								"range": map[string]any{
+									"created_at": map[string]any{
 										"gte": startTime,
 										"lte": endTime,
 									},
@@ -324,20 +327,20 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 					},
 				},
 			},
-			"total_error_threads": map[string]interface{}{
-				"filter": map[string]interface{}{
-					"bool": map[string]interface{}{
-						"must": []map[string]interface{}{
+			"total_error_threads": map[string]any{
+				"filter": map[string]any{
+					"bool": map[string]any{
+						"must": []map[string]any{
 							{
-								"term": map[string]interface{}{
+								"term": map[string]any{
 									"status.keyword": "error",
 								},
 							},
 						},
-						"filter": []map[string]interface{}{
+						"filter": []map[string]any{
 							{
-								"range": map[string]interface{}{
-									"created_at": map[string]interface{}{
+								"range": map[string]any{
+									"created_at": map[string]any{
 										"gte": "now-4d/d",
 										"lte": "now/d",
 									},
@@ -347,20 +350,20 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 					},
 				},
 			},
-			"total_resolved_threads": map[string]interface{}{
-				"filter": map[string]interface{}{
-					"bool": map[string]interface{}{
-						"must": []map[string]interface{}{
+			"total_resolved_threads": map[string]any{
+				"filter": map[string]any{
+					"bool": map[string]any{
+						"must": []map[string]any{
 							{
-								"term": map[string]interface{}{
+								"term": map[string]any{
 									"current_status.keyword": "completed",
 								},
 							},
 						},
-						"filter": []map[string]interface{}{
+						"filter": []map[string]any{
 							{
-								"range": map[string]interface{}{
-									"created_at": map[string]interface{}{
+								"range": map[string]any{
+									"created_at": map[string]any{
 										"gte": startTime,
 										"lte": endTime,
 									},
@@ -370,20 +373,20 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 					},
 				},
 			},
-			"total_threads": map[string]interface{}{
-				"filter": map[string]interface{}{
-					"bool": map[string]interface{}{
-						"must": []map[string]interface{}{
+			"total_threads": map[string]any{
+				"filter": map[string]any{
+					"bool": map[string]any{
+						"must": []map[string]any{
 							{
-								"term": map[string]interface{}{
+								"term": map[string]any{
 									"type.keyword": "thread",
 								},
 							},
 						},
-						"filter": []map[string]interface{}{
+						"filter": []map[string]any{
 							{
-								"range": map[string]interface{}{
-									"created_at": map[string]interface{}{
+								"range": map[string]any{
+									"created_at": map[string]any{
 										"gte": startTime,
 										"lte": endTime,
 									},
@@ -408,25 +411,25 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 		return CC, nil, fmt.Errorf("failed to extract counts from aggregation buckets")
 	}
 
-	CC.TotalSuccessThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_success_threads"].(map[string]interface{})["doc_count"].(float64))
-	CC.TotalErrorThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_error_threads"].(map[string]interface{})["doc_count"].(float64))
-	CC.TotalResolvedThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_resolved_threads"].(map[string]interface{})["doc_count"].(float64))
-	CC.TotalThreads = int64(InfoCountMap["aggregations"].(map[string]interface{})["total_threads"].(map[string]interface{})["doc_count"].(float64))
+	CC.TotalSuccessThreads = int64(InfoCountMap["aggregations"].(map[string]any)["total_success_threads"].(map[string]any)["doc_count"].(float64))
+	CC.TotalErrorThreads = int64(InfoCountMap["aggregations"].(map[string]any)["total_error_threads"].(map[string]any)["doc_count"].(float64))
+	CC.TotalResolvedThreads = int64(InfoCountMap["aggregations"].(map[string]any)["total_resolved_threads"].(map[string]any)["doc_count"].(float64))
+	CC.TotalThreads = int64(InfoCountMap["aggregations"].(map[string]any)["total_threads"].(map[string]any)["doc_count"].(float64))
 
 	//query for aggregating metrics per channel
-	query = map[string]interface{}{
+	query = map[string]any{
 		"size": 0,
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"terms": map[string]interface{}{
+						"terms": map[string]any{
 							"channels_id.keyword": channelIDs,
 						},
 					},
 					{
-						"range": map[string]interface{}{
-							"created_at": map[string]interface{}{
+						"range": map[string]any{
+							"created_at": map[string]any{
 								"gte": startTime,
 								"lte": endTime,
 							},
@@ -435,28 +438,28 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 				},
 			},
 		},
-		"aggs": map[string]interface{}{
-			"channels": map[string]interface{}{
-				"terms": map[string]interface{}{
+		"aggs": map[string]any{
+			"channels": map[string]any{
+				"terms": map[string]any{
 					"field": "channels_id.keyword",
 				},
-				"aggs": map[string]interface{}{
-					"channel_name": map[string]interface{}{
-						"terms": map[string]interface{}{
+				"aggs": map[string]any{
+					"channel_name": map[string]any{
+						"terms": map[string]any{
 							"field": "channel_name.keyword",
 						},
 					},
-					"thread_count": map[string]interface{}{
-						"value_count": map[string]interface{}{
+					"thread_count": map[string]any{
+						"value_count": map[string]any{
 							"field": "thread_id.keyword",
 						},
 					},
-					"success_count": map[string]interface{}{
-						"filter": map[string]interface{}{
-							"bool": map[string]interface{}{
-								"must": []map[string]interface{}{
+					"success_count": map[string]any{
+						"filter": map[string]any{
+							"bool": map[string]any{
+								"must": []map[string]any{
 									{
-										"term": map[string]interface{}{
+										"term": map[string]any{
 											"status.keyword": "success",
 										},
 									},
@@ -464,12 +467,12 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							},
 						},
 					},
-					"error_count": map[string]interface{}{
-						"filter": map[string]interface{}{
-							"bool": map[string]interface{}{
-								"must": []map[string]interface{}{
+					"error_count": map[string]any{
+						"filter": map[string]any{
+							"bool": map[string]any{
+								"must": []map[string]any{
 									{
-										"term": map[string]interface{}{
+										"term": map[string]any{
 											"status.keyword": "error",
 										},
 									},
@@ -477,12 +480,12 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 							},
 						},
 					},
-					"other_count": map[string]interface{}{
-						"filter": map[string]interface{}{
-							"bool": map[string]interface{}{
-								"must": []map[string]interface{}{
+					"other_count": map[string]any{
+						"filter": map[string]any{
+							"bool": map[string]any{
+								"must": []map[string]any{
 									{
-										"term": map[string]interface{}{
+										"term": map[string]any{
 											"status.keyword": "other",
 										},
 									},
@@ -507,14 +510,14 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 		return CC, nil, fmt.Errorf("failed to extract counts from aggregation buckets")
 	}
 
-	for _, bucket := range ChannelInfoCountMap["aggregations"].(map[string]interface{})["channels"].(map[string]interface{})["buckets"].([]any) {
+	for _, bucket := range ChannelInfoCountMap["aggregations"].(map[string]any)["channels"].(map[string]any)["buckets"].([]any) {
 		bucketMap := bucket.(map[string]any)
 		channelMetrics := ChannelMetrics{
-			ChannelName:  bucketMap["channel_name"].(map[string]interface{})["buckets"].([]any)[0].(map[string]any)["key"].(string),
-			ThreadCount:  int64(bucketMap["thread_count"].(map[string]interface{})["value"].(float64)),
-			SuccessCount: int64(bucketMap["success_count"].(map[string]interface{})["doc_count"].(float64)),
-			ErrorCount:   int64(bucketMap["error_count"].(map[string]interface{})["doc_count"].(float64)),
-			OtherCount:   int64(bucketMap["other_count"].(map[string]interface{})["doc_count"].(float64)),
+			ChannelName:  bucketMap["channel_name"].(map[string]any)["buckets"].([]any)[0].(map[string]any)["key"].(string),
+			ThreadCount:  int64(bucketMap["thread_count"].(map[string]any)["value"].(float64)),
+			SuccessCount: int64(bucketMap["success_count"].(map[string]any)["doc_count"].(float64)),
+			ErrorCount:   int64(bucketMap["error_count"].(map[string]any)["doc_count"].(float64)),
+			OtherCount:   int64(bucketMap["other_count"].(map[string]any)["doc_count"].(float64)),
 		}
 		CTI = append(CTI, channelMetrics)
 	}
@@ -523,7 +526,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 }
 
 func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logger) error {
-	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, interface{}(&t), logger)
+	err := elastic.AddDocument(db.Elastic, ThreadIndexName, t.ID, any(&t), logger)
 
 	if err != nil {
 		return err
@@ -532,7 +535,7 @@ func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logg
 	return nil
 }
 
-func (c *Threads) UpdateThread(db *gorm.DB, req map[string]interface{}) (*Threads, error) {
+func (c *Threads) UpdateThread(db *gorm.DB, req map[string]any) (*Threads, error) {
 
 	err := elastic.UpdateDocument(storage.DB.Elastic, ThreadIndexName, c.ID, req)
 
@@ -586,9 +589,9 @@ func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, me
 }
 
 func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
-	messageQuery := map[string]interface{}{
-		"query": map[string]interface{}{
-			"match": map[string]interface{}{
+	messageQuery := map[string]any{
+		"query": map[string]any{
+			"match": map[string]any{
 				"thread_id": c.ID,
 			},
 		},
@@ -612,9 +615,9 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 
 func (c *Threads) ClearDMThreadsByChannelID(db *gorm.DB) (*Threads, error) {
 
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"match": map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"match": map[string]any{
 				"channels_id": c.ID,
 			},
 		},
@@ -645,7 +648,7 @@ func (m *Mentions) CreateMention(db *gorm.DB) error {
 func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
 
 	var (
-		threadData interface{}
+		threadData any
 	)
 
 	err := elastic.SelectByID(storage.DB.Elastic, ThreadIndexName, threadID, &threadData)
@@ -654,7 +657,7 @@ func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
 		return fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
-	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+	rawJSON, _ := json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &t); err != nil {
 		return fmt.Errorf("failed to decode search response: %v", err)
@@ -664,20 +667,49 @@ func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
 	return nil
 }
 
-func (t *ThreadDocument) CheckExists() (bool, int, error) {
+func (t *ThreadDocument) CheckUserThreadExists() (bool, int, error) {
 
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"channels_id.keyword": t.ChannelsID,
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"user_id.keyword": t.UserId,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	check, err := elastic.CheckExists(storage.DB.Elastic, ThreadIndexName, query)
+	if err != nil {
+		return false, http.StatusInternalServerError, err
+	}
+
+	return check, http.StatusOK, err
+}
+
+func (t *ThreadDocument) CheckExists() (bool, int, error) {
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": t.ChannelsID,
+						},
+					},
+					{
+						"term": map[string]any{
+							"_id": t.ID,
 						},
 					},
 				},
@@ -722,24 +754,24 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 	from := (page - 1) * limit
 
 	// Build the query
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
 				"channels_id.keyword": channelID,
 			},
 		},
 		"from": from,
 		"size": limit,
-		"sort": []map[string]interface{}{
+		"sort": []map[string]any{
 			{
-				"created_at": map[string]interface{}{
+				"created_at": map[string]any{
 					"order": "desc",
 				},
 			},
 		},
 	}
 
-	var threadData interface{}
+	var threadData any
 
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
@@ -766,17 +798,17 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	from := (page - 1) * limit
 
 	// Build the query
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"channels_id.keyword": channelID,
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"type.keyword": "thread",
 						},
 					},
@@ -785,16 +817,16 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 		},
 		"from": from,
 		"size": limit,
-		"sort": []map[string]interface{}{
+		"sort": []map[string]any{
 			{
-				"created_at": map[string]interface{}{
+				"created_at": map[string]any{
 					"order": "desc",
 				},
 			},
 		},
 	}
 
-	var threadData interface{}
+	var threadData any
 
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
@@ -815,7 +847,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	var (
 		threads    []Threads
 		channelIDs []string
-		threadData interface{}
+		threadData any
 		threadIDs  []string
 		org        Organisation
 	)
@@ -841,17 +873,17 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
 
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"terms": map[string]interface{}{
+						"terms": map[string]any{
 							"channels_id.keyword": channelIDs,
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"user_id.keyword": userId,
 						},
 					},
@@ -861,9 +893,9 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		"stored_fields": []string{},
 		"from":          from,
 		"size":          limit,
-		"aggs": map[string]interface{}{
-			"unique_thread_ids": map[string]interface{}{
-				"terms": map[string]interface{}{
+		"aggs": map[string]any{
+			"unique_thread_ids": map[string]any{
+				"terms": map[string]any{
 					"field": "thread_id.keyword",
 					"size":  limit,
 				},
@@ -893,7 +925,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		} `json:"aggregations"`
 	}
 
-	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+	rawJSON, _ := json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
 		return threads, pagR, fmt.Errorf("failed to decode search response: %v", err)
@@ -911,17 +943,17 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	// Build the query
-	query = map[string]interface{}{
-		"query": map[string]interface{}{
-			"terms": map[string]interface{}{
+	query = map[string]any{
+		"query": map[string]any{
+			"terms": map[string]any{
 				"thread_id.keyword": threadIDs,
 			},
 		},
 		"from": from,
 		"size": limit,
-		"sort": []map[string]interface{}{
+		"sort": []map[string]any{
 			{
-				"created_at": map[string]interface{}{
+				"created_at": map[string]any{
 					"order": "desc",
 				},
 			},
@@ -943,65 +975,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	return threads, pagR, nil
 }
 
-func (t *Threads) GetSingleThreadWithRepliesFull(db *gorm.DB, ChannelID, threadID string) (*Threads, error) {
-	var thread Threads
-
-	err := db.Model(&Threads{}).
-		Where("threads.id = ?", threadID).
-		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at ASC").Preload("Mentions")
-		}).
-		Select("threads.*, COUNT(messages.id) as message_count").
-		Joins("LEFT JOIN messages ON messages.thread_id = threads.id").
-		Group("threads.id").
-		First(&thread).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("thread not found")
-		}
-		return nil, err
-	}
-
-	return &thread, nil
-}
-
-func (r *Threads) GetSingleThreadWithReplies(db *gorm.DB, c *gin.Context, userID, channelID, ThreadID string) (MessagesResp, postgresql.PaginationResponse, error) {
-
-	var (
-		userChannels    UserChannels
-		messagesResp    MessagesResp
-		ErrNotInChannel = errors.New("user not in channel")
-	)
-
-	exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID)
-	if !exist {
-		return messagesResp, postgresql.PaginationResponse{}, ErrNotInChannel
-	}
-
-	pagination := postgresql.GetPagination(c)
-	query := db.Table("messages").
-		Select("messages.content AS message, messages.id, messages.username, messages.created_at, messages.updated_at, messages.edited, profiles.full_name, profiles.avatar_url, users.email").
-		Joins("left join profiles on profiles.userid = messages.user_id").
-		Joins("left join users on users.id = messages.user_id").
-		Where("messages.thread_id = ?", ThreadID)
-
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		query,
-		"messages.created_at",
-		"desc",
-		pagination,
-		&messagesResp,
-		nil,
-	)
-	if err != nil {
-		return messagesResp, paginationResponse, err
-	}
-
-	return messagesResp, paginationResponse, nil
-}
-
-func UnmarshalThreadResponse(threadData interface{}) (threads []Threads, err error) {
+func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 
 	var searchResult struct {
 		Hits struct {
@@ -1011,7 +985,7 @@ func UnmarshalThreadResponse(threadData interface{}) (threads []Threads, err err
 		} `json:"hits"`
 	}
 
-	rawJSON, _ := json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+	rawJSON, _ := json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &searchResult); errr != nil {
 		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
@@ -1043,42 +1017,42 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	}
 
 	// Build the query
-	cardinality_query := map[string]interface{}{
+	cardinality_query := map[string]any{
 		"size": 0,
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"range": map[string]interface{}{
-							"created_at": map[string]interface{}{
+						"range": map[string]any{
+							"created_at": map[string]any{
 								"gte": timeRange.Format(time.RFC3339),
 								"lte": time.Now().Format(time.RFC3339),
 							},
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"type.keyword": "thread",
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"channels_id.keyword": channelID,
 						},
 					},
 				},
 			},
 		},
-		"aggs": map[string]interface{}{
-			"unique_threads": map[string]interface{}{
-				"cardinality": map[string]interface{}{
+		"aggs": map[string]any{
+			"unique_threads": map[string]any{
+				"cardinality": map[string]any{
 					"field": "message.keyword",
 				},
 			},
 		},
 	}
 
-	var cardData interface{}
+	var cardData any
 
 	err := elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, cardinality_query, &cardData)
 	if err != nil {
@@ -1093,7 +1067,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 		} `json:"aggregations"`
 	}
 
-	rawJSON, _ := json.MarshalIndent(cardData.(map[string]interface{}), "", "  ")
+	rawJSON, _ := json.MarshalIndent(cardData.(map[string]any), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &cardinalityResult); errr != nil {
 		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
@@ -1111,43 +1085,43 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	pagR.TotalPagesCount = numPartitions
 	pagR.SummaryCount = totalThreads
 
-	paginatedQuery := map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
+	paginatedQuery := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
 					{
-						"range": map[string]interface{}{
-							"created_at": map[string]interface{}{
+						"range": map[string]any{
+							"created_at": map[string]any{
 								"gte": timeRange.Format(time.RFC3339),
 								"lte": time.Now().Format(time.RFC3339),
 							},
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"type.keyword": "thread",
 						},
 					},
 					{
-						"term": map[string]interface{}{
+						"term": map[string]any{
 							"channels_id.keyword": channelID,
 						},
 					},
 				},
 			},
 		},
-		"aggs": map[string]interface{}{
-			"partitioned_threads": map[string]interface{}{
-				"terms": map[string]interface{}{
+		"aggs": map[string]any{
+			"partitioned_threads": map[string]any{
+				"terms": map[string]any{
 					"field": "message.keyword",
 					"size":  page * limit,
-					"order": map[string]interface{}{
+					"order": map[string]any{
 						"_count": "desc",
 					},
 				},
-				"aggs": map[string]interface{}{
-					"top_thread_hits": map[string]interface{}{
-						"top_hits": map[string]interface{}{
+				"aggs": map[string]any{
+					"top_thread_hits": map[string]any{
+						"top_hits": map[string]any{
 							"size": 1,
 						},
 					},
@@ -1156,7 +1130,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 		},
 	}
 
-	var threadData interface{}
+	var threadData any
 
 	err = elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, paginatedQuery, &threadData)
 
@@ -1182,7 +1156,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 		} `json:"aggregations"`
 	}
 
-	rawJSON, _ = json.MarshalIndent(threadData.(map[string]interface{}), "", "  ")
+	rawJSON, _ = json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if errr := json.Unmarshal(rawJSON, &paginatedResult); errr != nil {
 		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
@@ -1233,18 +1207,18 @@ func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *syn
 	}
 	`
 
-	req := map[string]interface{}{
-		"script": map[string]interface{}{
+	req := map[string]any{
+		"script": map[string]any{
 			"source": script,
 			"lang":   "painless",
-			"params": map[string]interface{}{
+			"params": map[string]any{
 				"user_id":       t.UserId,
 				"new_username":  t.Username,
 				"new_avatarurl": t.AvatarURL,
 			},
 		},
-		"query": map[string]interface{}{
-			"term": map[string]interface{}{
+		"query": map[string]any{
+			"term": map[string]any{
 				"user_id.keyword": t.UserId,
 			},
 		},

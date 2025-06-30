@@ -106,7 +106,6 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 
 	if check {
 		accessResp, paginationResponse, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
-
 	} else {
 		accessResp, paginationResponse, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
 	}
@@ -132,7 +131,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			go func() {
 				defer wg.Done()
 				updated := userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-				if updated && accessResp[0].UserId != userID {
+				if updated {
 					userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 				}
 			}()
@@ -154,7 +153,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			go func() {
 				defer wg.Done()
 				updated := dmChan.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-				if updated && accessResp[0].UserId != userID {
+				if updated {
 					dmChan.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 				}
 			}()
@@ -270,7 +269,7 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 
 	thread.ID = threadID
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"current_status": req.Status,
 	}
 
@@ -333,6 +332,18 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		}
 	}
 
+	pinnedThread := models.PinnedMessage{
+		ThreadID:   threadID,
+		ChannelsID: channelID,
+	}
+
+	if exists := pinnedThread.CheckPinnedReplyExists(db); exists {
+		if err := pinnedThread.DeletePinnedThreadMessageRecord(db); err != nil {
+			logger.Error("An error occurred while deleting pinned thread message record: %v", err)
+			return http.StatusInternalServerError, err
+		}
+	}
+
 	if _, err := thread.DeleteThread(db); err != nil {
 		return http.StatusBadRequest, err
 	}
@@ -391,7 +402,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 
 	thread.ID = req.ThreadId
 
-	updateKey := map[string]interface{}{
+	updateKey := map[string]any{
 		"message": req.Message,
 		"edited":  true,
 	}

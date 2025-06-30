@@ -27,10 +27,9 @@ func (n NotificationObject) SendInvitationLink() error {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-
-	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]interface{}{
-		"firstname": notificationData.Email,
-		"contact_us_url": contactUrl,
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":          notificationData.Email,
+		"contact_us_url":     contactUrl,
 		"privacy_policy_url": policyUrl,
 	})
 	if err != nil {

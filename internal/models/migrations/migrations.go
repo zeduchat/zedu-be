@@ -5,8 +5,8 @@ import (
 )
 
 // _ = db.AutoMigrate(MigrationModels()...)
-func AuthMigrationModels() []interface{} {
-	return []interface{}{
+func AuthMigrationModels() []any {
+	return []any{
 		models.UserPinnedOrganisations{},
 		models.OrganisationIntegrations{},
 		models.APIStatus{},
@@ -34,7 +34,6 @@ func AuthMigrationModels() []interface{} {
 		models.LoginActivity{},
 		models.MagicLink{},
 		models.Mentions{},
-		models.Message{},
 		models.NewsLetter{},
 		models.NotificationPreferences{},
 		models.OptIn{},

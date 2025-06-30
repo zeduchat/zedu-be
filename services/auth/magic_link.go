@@ -126,7 +126,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 	}
 
 	responseData = gin.H{
-		"user": map[string]interface{}{
+		"user": map[string]any{
 			"id":              userData.ID,
 			"email":           userData.Email,
 			"username":        userData.Name,

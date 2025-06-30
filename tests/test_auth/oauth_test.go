@@ -188,7 +188,7 @@ func TestOauthLogout(t *testing.T) {
 	err = Logout(res, req)
 	a.NoError(err)
 	session, _ = Store.Get(req, SessionName)
-	a.Equal(session.Values, make(map[interface{}]interface{}))
+	a.Equal(session.Values, make(map[any]any))
 	a.Equal(session.Options.MaxAge, -1)
 }
 
