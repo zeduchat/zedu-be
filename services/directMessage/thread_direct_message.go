@@ -326,7 +326,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 		ChannelsID: req.ChannelsID,
 	}
 
-	pairRoom, code, err := thread.CheckExists()
+	pairRoom, code, err := thread.CheckUserThreadExists()
 	if err != nil {
 		return &thread, code, err
 	}

@@ -286,7 +286,7 @@ func (t *MessageDocument) CheckExists() (bool, int, error) {
 					},
 					{
 						"term": map[string]any{
-							"user_id.keyword": t.UserID,
+							"_id": t.ID,
 						},
 					},
 				},
