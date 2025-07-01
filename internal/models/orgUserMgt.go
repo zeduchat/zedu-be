@@ -92,6 +92,10 @@ type ChangeMemberActiveStatus struct {
 	Activate bool `gorm:"activate" json:"activate"`
 }
 
+type UpdateMemberRoleRequest struct {
+	RoleID string `json:"role_id" validate:"required"`
+}
+
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &o)
@@ -360,4 +364,36 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
 	}
 
 	return users, nil
+}
+
+func (oum *OrgUserManagement) UpdateMemberRole(db *gorm.DB, ids IDS) error {
+	var oumCheck OrgUserManagement
+
+	exists := postgresql.CheckExists(db, &oumCheck, "organisation_id = ? AND user_id = ?", ids.OrganisationID, ids.UserID)
+	if !exists {
+		return errors.New("user not found in organisation")
+	}
+
+	update := map[string]any{
+		"role_id": ids.RoleID,
+	}
+
+	res, err := postgresql.UpdateFields(db, &oumCheck, update, "organisation_id = ? AND user_id = ?", ids.OrganisationID, ids.UserID)
+	if err != nil {
+		return fmt.Errorf("unable to update user role: %w", err)
+	}
+
+	if res.RowsAffected == 0 {
+		return errors.New("no record updated")
+	}
+
+	return nil
+}
+
+func (oum *OrgUserManagement) CheckIsOrganisationAdmin(db *gorm.DB, ids IDS) bool {
+	var orgUserManagement OrgUserManagement
+
+	query := "organisation_id = ? AND user_id = ? AND role_id = (SELECT id FROM org_roles WHERE name = 'Administrator')"
+
+	return postgresql.CheckExists(db, &orgUserManagement, query, ids.OrganisationID, ids.OwnerID)
 }

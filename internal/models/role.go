@@ -99,6 +99,11 @@ func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
 	return err
 }
 
+func (og *OrgRole) CheckExists(db *gorm.DB, roleID string) bool {
+	var o OrgRole
+	return postgresql.CheckExists(db, &o, "id = ?", roleID)
+}
+
 func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 	var orgRoles []OrgRole
 
