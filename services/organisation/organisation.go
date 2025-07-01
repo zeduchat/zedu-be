@@ -389,8 +389,12 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
                              SUBSTRING(u.email FROM 1 FOR POSITION('@' IN u.email) - 1)) AS name,
                     p.avatar_url AS avatar_url, 
                     u.created_at, 
-                    o.status,
+                    CASE 
+						WHEN o.is_deactivated THEN 'inactive'
+						ELSE 'active'
+					END AS status,
                     org.name AS role,
+					o.is_deactivated,
                     'user' AS entity_type
                 FROM org_user_managements o
                 JOIN users u ON u.id = o.user_id
@@ -418,6 +422,7 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
                         ELSE 'inactive'
                     END AS status,
                     'bot' AS role,
+					false AS is_deactivated,
                     'bot' AS entity_type
                 FROM organisation_integrations oi
                 WHERE oi.org_id = ? AND oi.is_archived = false
