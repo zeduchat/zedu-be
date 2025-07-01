@@ -39,7 +39,7 @@ func (a *AccessToken) GetAccessTokens(db *gorm.DB) error {
 func (a *AccessToken) GetMostRecentAccessToken(db *gorm.DB) (int, error) {
 	err, nilErr := postgresql.SelectLatestFromDb(db, &a, "owner_id = ? and is_live = ?", a.OwnerID, true)
 	if nilErr != nil {
-		return http.StatusBadRequest, fmt.Errorf("failed to retrieve access token: %v", nilErr)
+		return http.StatusBadRequest, nilErr
 	}
 
 	if err != nil {

@@ -63,16 +63,16 @@ type UpdateOrgRequestModel struct {
 }
 
 type UserInOrgResponse struct {
-	ID          string    `json:"id"`
-	Email       string    `json:"email"`
-	UserName    string    `json:"username"`
-	PhoneNumber string    `json:"phone_number"`
-	AvatarURL   string    `json:"profile_url"`
-	Name        string    `json:"name"`
-	Role        string    `json:"role"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	EntityType  string    `json:"entity_type"` // "user" or "bot"
+	ID            string    `json:"id"`
+	Email         string    `json:"email"`
+	UserName      string    `json:"username"`
+	PhoneNumber   string    `json:"phone_number"`
+	AvatarURL     string    `json:"profile_url"`
+	Name          string    `json:"name"`
+	Role          string    `json:"role"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	EntityType    string    `json:"entity_type"` // "user" or "bot"
 }
 
 type OrgMetricsResponse struct {
