@@ -49,6 +49,7 @@ type Threads struct {
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	OrgansationID string                 `json:"org_id,omitempty"`
 	State         string                 `json:"state,omitempty"`
+	PinnedDetails PinnedDetails         `json:"pinned_details,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -79,6 +80,7 @@ type ThreadDocument struct {
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	State         string                 `json:"state,omitempty"`
 	IsSaved       bool                   `json:"is_saved,omitempty"`
+	PinnedDetails PinnedDetails         `json:"pinned_details,omitempty"`
 }
 
 var MediaMapping = map[string]any{
@@ -97,6 +99,15 @@ var MentionMapping = map[string]any{
 		"properties": map[string]any{
 			"id":   map[string]string{"type": "text"},
 			"type": map[string]string{"type": "text"},
+		},
+	},
+}
+
+var PinnedDetailsMapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": map[string]any{
+			"username": map[string]string{"type": "keyword"},
+			"email":    map[string]string{"type": "keyword"},
 		},
 	},
 }
@@ -147,6 +158,10 @@ var Thread_mapping = map[string]any{
 			},
 			"is_pinned": map[string]string{
 				"type": "boolean",
+			},
+			"pinned_details": map[string]any{
+				"type":       "nested",
+				"properties": PinnedDetailsMapping,
 			},
 		},
 	},
@@ -538,6 +553,17 @@ func (t *ThreadDocument) CreateThread(db *storage.Database, logger *utility.Logg
 func (c *Threads) UpdateThread(db *gorm.DB, req map[string]any) (*Threads, error) {
 
 	err := elastic.UpdateDocument(storage.DB.Elastic, ThreadIndexName, c.ID, req)
+
+	if err != nil {
+		return nil, fmt.Errorf("thread not found")
+	}
+
+	return c, nil
+}
+
+func (c *Threads) UpdateThreadWithScript(db *gorm.DB, req map[string]any) (*Threads, error) {
+
+	err := elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, c.ID, req)
 
 	if err != nil {
 		return nil, fmt.Errorf("thread not found")
