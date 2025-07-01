@@ -125,11 +125,11 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 
 func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
 	var (
-		user       models.User
-		adminUser  models.User
-		user_token models.AccessToken
-		user_id    = ids["user_id"]
-		org_id     = ids["org_id"]
+		user        models.User
+		adminUser   models.User
+		user_token  models.AccessToken
+		user_id     = ids["user_id"]
+		org_id      = ids["org_id"]
 		adminUserID = ids["admin_user_id"]
 	)
 
@@ -138,7 +138,7 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	}
 
 	if !adminUser.CheckUserExists(db, adminUserID) {
-		return http.StatusUnauthorized, errors.New("user does not exist")
+		return http.StatusUnauthorized, errors.New("admin user does not exist")
 	}
 
 	if user_id == adminUserID {
@@ -193,11 +193,11 @@ func ActivateMember(db *gorm.DB, userID, orgID string, user models.User) (int, e
 
 func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.UserInOrgResponse, error) {
 	var (
-		o     models.Organisation
-		oum   models.OrgUserManagement
+		o   models.Organisation
+		oum models.OrgUserManagement
 	)
 
-	_, err := o.CheckOrgExists(orgID, db)	
+	_, err := o.CheckOrgExists(orgID, db)
 	if err != nil {
 		return nil, err
 	}
@@ -211,18 +211,23 @@ func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.
 	return users, nil
 }
 
-func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int,error) {
+func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int, error) {
 	var (
 		oum models.OrgUserManagement
+		r   models.OrgRole
 	)
 
-	is_admin := oum.CheckUserIsOrganisationAdmin(db, orgId, userId)
+	is_admin := oum.CheckIsOrganisationAdmin(db, ids)
 	if !is_admin {
-		return http.StatusForbidden, errors.New("user is not an admin in the organisation")
+		return http.StatusForbidden, errors.New("user is not authorized to modify role")
 	}
 
+	exists := r.CheckExists(db, ids.RoleID)
+	if !exists {
+		return http.StatusNotFound, errors.New("provided role does not exist")
+	}
 
-	err = oum.UpdateMemberRole(db, orgId, userId, roleid)
+	err := oum.UpdateMemberRole(db, ids)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to update member role: %w", err)
 	}

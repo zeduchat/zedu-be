@@ -1650,7 +1650,58 @@ paths:
                         total_pages:
                           type: integer
                           example: 1
-  
+  /organisations/{org_id}/users/{user_id}/role:
+    patch:
+      tags:
+        - organisation
+      summary: Update user's role in an organisation
+      description: Allows an admin to change the role of a user within a specific organisation.
+      operationId: updateUserRole
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation
+          schema:
+            type: string
+            example: "019700db-4e22-7f90-a20e-f9116291ef24"
+        - name: user_id
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+            example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_id:
+                  type: string
+                  description: The new role ID to assign to the user
+                  example: "019700d8-9085-7f7b-839a-fcbd08b9e26d"
+              required:
+                - role_id
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
 
   /users/organisations/{org_id}:
     get:
