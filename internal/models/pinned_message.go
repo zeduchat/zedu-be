@@ -45,6 +45,11 @@ type PinMessageRequest struct {
 	UserId     string `json:"user_id"`
 }
 
+type PinnedDetails struct {
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
+}
+
 func (m *PinnedMessage) CreatePinnedThreadRecord(db *gorm.DB) (int, error) {
 	var (
 		dmChannels    DmChannels
