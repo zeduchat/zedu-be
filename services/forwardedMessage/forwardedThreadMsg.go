@@ -49,9 +49,9 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		ForwardThreadMessageToChannel(db, req, logger, originalMsg, profile, user, channels)
 	}
 
-	if req.ForwardedToDMId != nil {
-		ForwardThreadMessageToDM(db, req, logger, userID)
-	}
+	// if req.ForwardedToDMId != nil {
+	// 	ForwardThreadMessageToDM(db, req, logger, userID)
+	// }
 
 	return &threadDoc, nil
 }

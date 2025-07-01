@@ -46,7 +46,7 @@ type Threads struct {
 	Count                    int                      `json:"frequency,omitempty"`
 	UserId                   string                   `json:"user_id"`
 	Media                    []UploadedFileResponse   `json:"media,omitempty"`
-	Mentions                 []Mentions               `json:"mentions,omitempty"`
+	Mentions                 []Mention               `json:"mentions,omitempty"`
 	OrgansationID            string                   `json:"org_id,omitempty"`
 	State                    string                   `json:"state,omitempty"`
 	IsForwarded              bool                     `json:"is_forwarded,omitempty"`
@@ -54,33 +54,48 @@ type Threads struct {
 }
 
 type ThreadDocument struct {
-	ID            string                 `json:"thread_id"`
-	ChannelsID    string                 `json:"channels_id"`
-	OrgansationID string                 `json:"org_id"`
-	EventName     string                 `json:"event_name,omitempty"`
-	Username      string                 `json:"username"`
-	ActionType    string                 `json:"action_type,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-	CreatedAt     time.Time              `json:"created_at"`
-	MessageCount  int64                  `json:"message_count"`
-	LastReply     time.Time              `json:"last_reply"`
-	AvatarURL     string                 `json:"avatar_url"`
-	UserType      string                 `json:"user_type"`
-	Type          string                 `json:"type"`
-	Content       string                 `json:"message"`
-	ChannelName   string                 `json:"channel_name,omitempty"`
-	CurrentStatus string                 `json:"current_status"`
-	FullName      string                 `json:"full_name"`
-	Email         string                 `json:"email"`
-	UserId        string                 `json:"user_id"`
-	Edited        bool                   `json:"edited"`
-	IsPinned      bool                   `json:"is_pinned"`
-	Messages      []MessageDocument      `json:"messages,omitempty"`
-	Count         int                    `json:"frequency,omitempty"`
-	Media         []UploadedFileResponse `json:"media,omitempty"`
-	Mentions      []Mention              `json:"mentions,omitempty"`
-	State         string                 `json:"state,omitempty"`
-	IsSaved       bool                   `json:"is_saved,omitempty"`
+	ID                       string                   `json:"thread_id"`
+	ChannelsID               string                   `json:"channels_id"`
+	OrgansationID            string                   `json:"org_id"`
+	EventName                string                   `json:"event_name,omitempty"`
+	Username                 string                   `json:"username"`
+	ActionType               string                   `json:"action_type,omitempty"`
+	Status                   string                   `json:"status,omitempty"`
+	CreatedAt                time.Time                `json:"created_at"`
+	MessageCount             int64                    `json:"message_count"`
+	LastReply                time.Time                `json:"last_reply"`
+	AvatarURL                string                   `json:"avatar_url"`
+	UserType                 string                   `json:"user_type"`
+	Type                     string                   `json:"type"`
+	Content                  string                   `json:"message"`
+	ChannelName              string                   `json:"channel_name,omitempty"`
+	CurrentStatus            string                   `json:"current_status"`
+	FullName                 string                   `json:"full_name"`
+	Email                    string                   `json:"email"`
+	UserId                   string                   `json:"user_id"`
+	Edited                   bool                     `json:"edited"`
+	IsPinned                 bool                     `json:"is_pinned"`
+	Messages                 []MessageDocument        `json:"messages,omitempty"`
+	Count                    int                      `json:"frequency,omitempty"`
+	Media                    []UploadedFileResponse   `json:"media,omitempty"`
+	Mentions                 []Mention                `json:"mentions,omitempty"`
+	State                    string                   `json:"state,omitempty"`
+	IsSaved                  bool                     `json:"is_saved,omitempty"`
+	IsForwarded              bool                     `json:"is_forwarded,omitempty"`
+	ForwardedMessageMetadata ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+}
+
+type ForwardedMessageMetadata struct {
+	OriginalMessageID       string    `json:"original_message_id"`
+	OriginalSenderID        string    `json:"original_sender_id"`
+	OriginalSenderName      string    `json:"original_sender_name"`
+	OriginalSenderUsername  string    `json:"original_sender_username"`
+	OriginalSenderAvatarURL string    `json:"original_sender_avatar_url"`
+	OriginalChannelID       string    `json:"original_channel_id"`
+	OriginalChannelName     string    `json:"original_channel_name"`
+	OriginalCreatedAt       time.Time `json:"original_created_at"`
+	OriginalChannelType     string    `json:"original_channel_type"` // public, private, or DM
+	IsThread                bool      `json:"is_thread"`
 }
 
 var MediaMapping = map[string]any{
