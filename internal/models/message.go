@@ -59,6 +59,7 @@ type MessageDocument struct {
 	IsPinned       bool                   `json:"is_pinned"`
 	IsSaved        bool                   `json:"is_saved"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
+	PinnedDetails  PinnedDetails          `json:"pinned_details,omitempty"`
 }
 
 var MessageMapping = map[string]any{
@@ -100,6 +101,10 @@ var MessageMapping = map[string]any{
 		},
 		"is_saved": map[string]string{
 			"type": "boolean",
+		},
+		"pinned_details": map[string]any{
+			"type":       "nested",
+			"properties": PinnedDetailsMapping,
 		},
 	},
 }
@@ -228,6 +233,16 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, error) {
 
 	err := elastic.UpdateDocument(storage.DB.Elastic, MessageIndexName, m.ID, req)
+	if err != nil {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	return m, nil
+}
+
+func (m *Message) UpdateMessageWithScript(db *gorm.DB, req map[string]any) (*Message, error) {
+
+	err := elastic.UpdateDocWithScript(storage.DB.Elastic, MessageIndexName, m.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("message not found")
 	}
