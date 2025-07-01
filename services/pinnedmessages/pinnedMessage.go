@@ -35,14 +35,15 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 	}
 
 	ud, _ := user.GetUserByID(db.Postgresql, req.UserId)
+	pinnedDetails := models.PinnedDetails{
+		Username: ud.Profile.UserName,
+		Email:    ud.Email,
+	}
 
 	threads.ID = req.ThreadId
 	updateKey := map[string]any{
-		"is_pinned": true,
-		"pinned_details": models.PinnedDetails{
-			Username: ud.Profile.UserName,
-			Email:    ud.Email,
-		},
+		"is_pinned":      true,
+		"pinned_details": pinnedDetails,
 	}
 
 	if _, err := threads.UpdateThread(db.Postgresql, updateKey); err != nil {
@@ -51,7 +52,8 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 
 	notification := models.Notification[models.PinnedMessageEvent]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.PinnedDetails = &pinnedDetails
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 	}
@@ -89,12 +91,15 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 	}
 
 	ud, _ := user.GetUserByID(db.Postgresql, req.UserId)
+
+	pinnedDetails := models.PinnedDetails{
+		Username: ud.Profile.UserName,
+		Email:    ud.Email,
+	}
+
 	updateKey := map[string]any{
-		"is_pinned": true,
-		"pinned_details": models.PinnedDetails{
-			Username: ud.Profile.UserName,
-			Email:    ud.Email,
-		},
+		"is_pinned":      true,
+		"pinned_details": pinnedDetails,
 	}
 
 	message.ID = req.MessageID
@@ -104,7 +109,8 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 
 	notification := models.Notification[models.PinnedMessageEvent]
 	notification.SectionType = models.ReplySection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.PinnedDetails = &pinnedDetails
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageID,
@@ -164,7 +170,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 
 	notification := models.Notification[models.UnPinnedMessageEvent]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  pinnedMessage.ThreadID,
 		ChannelId: pinnedMessage.ChannelsID,
 	}
@@ -212,7 +218,7 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 
 	notification := models.Notification[models.UnPinnedMessageEvent]
 	notification.SectionType = models.ReplySection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  pinnedMessage.ThreadID,
 		ChannelId: pinnedMessage.ChannelsID,
 		MessageId: *pinnedMessage.MessageID,
