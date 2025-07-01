@@ -57,39 +57,40 @@ type SavedMessageIds struct {
 	SavedMessageID string
 }
 
-func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
+func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) (bool,error) {
 	var (
 		org          Organisation
 		dmChannels   DmChannels
 		userChannels UserChannels
 		savedMessage SavedMessage
+		threads      Threads
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", m.OrgId)
 	if !exists {
-		return errors.New("organisation not found")
+		return true, errors.New("organisation not found")
 	}
 
 	isMember, err := new(Organisation).CheckUserIsMemberOfOrg(m.UserID, m.OrgId, db)
 	if err != nil {
-		return err
+		return true, err
 	}
 	if !isMember {
-		return errors.New("user is not a member of organisation")
+		return true, errors.New("user is not a member of organisation")
 	}
 
 	chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
 	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
 
 	if !(dmChanExist || chanExist) {
-		return errors.New("user not in channel")
+		return true, errors.New("user not in channel")
 	}
 
 	if chanExist {
 		var channels Channels
 		exists := postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", m.ChannelsID, m.OrgId)
 		if !exists {
-			return errors.New("channel not found in organisation")
+			return true, errors.New("channel not found in organisation")
 		}
 	}
 
@@ -97,21 +98,47 @@ func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) error {
 		var dmChannel DmChannels
 		exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ? AND organisation_id = ?", m.ChannelsID, m.OrgId)
 		if !exists {
-			return errors.New("direct message channel not found in organisation")
+			return true, errors.New("direct message channel not found in organisation")
 		}
 	}
 
 	threadExists := postgresql.CheckExists(db, &savedMessage, "org_id = ? AND user_id = ? AND thread_id = ?", m.OrgId, m.UserID, m.ThreadID)
 	if threadExists {
-		return errors.New("message to save already exists")
+		var threads Threads
+
+		threads.ID = savedMessage.ThreadID.String()
+
+		err := savedMessage.DeleteMessageByID(db)
+		if err != nil {
+			return false, err
+		}
+
+		updateKey := map[string]any{
+			"is_saved": false,
+		}
+
+		if _, err := threads.UpdateThread(db, updateKey); err != nil {
+			return false, err
+		}
+
+		return false,nil //unsaved
 	}
 
 	createErr := postgresql.CreateOneRecord(db, &m)
 	if createErr != nil {
-		return createErr
+		return false, createErr
 	}
 
-	return nil
+	threads.ID = m.ThreadID.String()
+	updateKey := map[string]any{
+		"is_saved": true,
+	}
+
+	if _, err := threads.UpdateThread(db, updateKey); err != nil {
+		return false, err
+	}
+
+	return true, nil //saved
 }
 
 func (m *SavedMessage) CreateReplyMessageRecord(db *gorm.DB) error {
@@ -160,7 +187,24 @@ func (m *SavedMessage) CreateReplyMessageRecord(db *gorm.DB) error {
 
 	msgExists := postgresql.CheckExists(db, &savedMessage, "org_id = ? AND user_id = ? AND thread_id = ? AND message_id = ?", m.OrgId, m.UserID, m.ThreadID, m.MessageID)
 	if msgExists {
-		return errors.New("message to save already exists")
+		var msg Message
+
+		msg.ID = *savedMessage.MessageID
+
+		err := savedMessage.DeleteMessageByID(db)
+		if err != nil {
+			return err
+		}
+
+		updateKey := map[string]any{
+			"is_saved": false,
+		}
+
+		if _, err := msg.UpdateMessage(db, updateKey); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	createErr := postgresql.CreateOneRecord(db, &m)

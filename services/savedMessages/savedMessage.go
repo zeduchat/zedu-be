@@ -12,7 +12,6 @@ import (
 
 func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
 	var (
-		threads     models.Threads
 		checkThread models.ThreadDocument
 	)
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -42,19 +41,15 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 		ThreadID:   threadId,
 	}
 
-	createErr := messageToSave.CreateMessageRecord(db)
+	saved, createErr := messageToSave.CreateMessageRecord(db)
 	if createErr != nil {
 		logger.Error("failed to save thread message: %v", createErr)
 		return nil, errors.New("failed to save thread message, error: " + createErr.Error())
 	}
 
-	threads.ID = req.ThreadId
-	updateKey := map[string]any{
-		"is_saved": true,
-	}
-
-	if _, err := threads.UpdateThread(db, updateKey); err != nil {
-		return nil, err
+	if !saved {
+		logger.Error("thread message already saved")
+		return nil, nil
 	}
 
 	return &messageToSave, nil
@@ -62,7 +57,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 
 func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
 	var (
-		message models.Message
+		message      models.Message
 		checkMessage models.MessageDocument
 	)
 	threadId, err := uuid.FromString(req.ThreadId)
