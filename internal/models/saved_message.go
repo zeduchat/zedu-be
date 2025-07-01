@@ -210,7 +210,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		org          Organisation
 		organisation *Organisation
 		messages     []SavedMessage
-		messagesResp []SavedMessagesResp
+		messagesResp = make([]SavedMessagesResp, 0)
 	)
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)

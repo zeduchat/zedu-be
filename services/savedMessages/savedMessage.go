@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
@@ -22,7 +23,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	}
 
 	checkThread.ChannelsID = req.ChannelsId
-	checkThread.UserId = req.UserId
+	checkThread.ID = req.ThreadId
 
 	exists, _, err := checkThread.CheckExists()
 	if err != nil {
@@ -33,7 +34,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	}
 
 	messageToSave := models.SavedMessage{
-		ID:         utility.GenerateUUID(),
+		ID:         req.ThreadId,
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
@@ -62,7 +63,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 
 func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
 	var (
-		message models.Message
+		message      models.Message
 		checkMessage models.MessageDocument
 	)
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -72,7 +73,7 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	}
 
 	checkMessage.ChannelsID = req.ChannelsId
-	checkMessage.UserID = req.UserId
+	checkMessage.ID = req.MessageId
 
 	exists, _, err := checkMessage.CheckExists()
 	if err != nil {
@@ -83,7 +84,7 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	}
 
 	messageToSave := models.SavedMessage{
-		ID:         utility.GenerateUUID(),
+		ID:         req.MessageId,
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
