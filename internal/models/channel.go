@@ -732,7 +732,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		}
 
 		membersLeft := int(totalMembers) - len(avatars)
-		if membersLeft < 0 {
+		if membersLeft <= 0 {
 			membersLeft = int(totalMembers)
 		}
 
