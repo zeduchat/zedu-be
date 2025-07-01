@@ -23,7 +23,6 @@ type PaginationResponse struct {
 	CurrentPage     int `json:"current_page"`
 	PageCount       int `json:"page_count"`
 	TotalPagesCount int `json:"total_pages_count"`
-	
 }
 
 func GetPagination(c *gin.Context) Pagination {
@@ -55,7 +54,7 @@ func GetPagination(c *gin.Context) Pagination {
 	}
 }
 
-func SelectAllFromDb(db *gorm.DB, order string, receiver interface{}, query interface{}, args ...interface{}) error {
+func SelectAllFromDb(db *gorm.DB, order string, receiver any, query any, args ...any) error {
 	if order == "" {
 		order = "desc"
 	}
@@ -63,7 +62,7 @@ func SelectAllFromDb(db *gorm.DB, order string, receiver interface{}, query inte
 	return tx.Error
 }
 
-func SelectAllFromDbWithLimit(db *gorm.DB, order string, limit int, receiver interface{}, query interface{}, args ...interface{}) error {
+func SelectAllFromDbWithLimit(db *gorm.DB, order string, limit int, receiver any, query any, args ...any) error {
 	if order == "" {
 		order = "desc"
 	}
@@ -71,7 +70,7 @@ func SelectAllFromDbWithLimit(db *gorm.DB, order string, limit int, receiver int
 	return tx.Error
 }
 
-func SelectAllFromDbOrderBy(db *gorm.DB, orderBy, order string, receiver interface{}, query interface{}, args ...interface{}) error {
+func SelectAllFromDbOrderBy(db *gorm.DB, orderBy, order string, receiver any, query any, args ...any) error {
 	if order == "" {
 		order = "desc"
 	}
@@ -82,7 +81,7 @@ func SelectAllFromDbOrderBy(db *gorm.DB, orderBy, order string, receiver interfa
 	return tx.Error
 }
 
-func SelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagination, receiver interface{}, query interface{}, groupColumn string, args ...interface{}) (PaginationResponse, error) {
+func SelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagination, receiver any, query any, groupColumn string, args ...any) (PaginationResponse, error) {
 
 	if order == "" {
 		order = "desc"
@@ -116,7 +115,7 @@ func SelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagina
 	}, tx.Error
 }
 
-func RawSelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagination, model interface{}, receiver interface{}, groupColumn string, selectQuery string, query string, args ...interface{}) (PaginationResponse, error) {
+func RawSelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagination, model any, receiver any, groupColumn string, selectQuery string, query string, args ...any) (PaginationResponse, error) {
 
 	if order == "" {
 		order = "desc"
@@ -150,7 +149,7 @@ func RawSelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pag
 	}, tx.Error
 }
 
-func SelectAllFromDbOrderByPaginated(db *gorm.DB, orderBy, order string, pagination Pagination, receiver interface{}, query interface{}, args ...interface{}) (PaginationResponse, error) {
+func SelectAllFromDbOrderByPaginated(db *gorm.DB, orderBy, order string, pagination Pagination, receiver any, query any, args ...any) (PaginationResponse, error) {
 
 	if order == "" {
 		order = "desc"
@@ -185,7 +184,7 @@ func SelectAllFromDbOrderByPaginated(db *gorm.DB, orderBy, order string, paginat
 	}, tx.Error
 }
 
-func SelectOneFromDb(db *gorm.DB, receiver interface{}, query interface{}, args ...interface{}) (error, error) {
+func SelectOneFromDb(db *gorm.DB, receiver any, query any, args ...any) (error, error) {
 
 	tx := db.Where(query, args...).First(receiver)
 	if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
@@ -193,7 +192,7 @@ func SelectOneFromDb(db *gorm.DB, receiver interface{}, query interface{}, args 
 	}
 	return tx.Error, nil
 }
-func SelectLatestFromDb(db *gorm.DB, receiver interface{}, query interface{}, args ...interface{}) (error, error) {
+func SelectLatestFromDb(db *gorm.DB, receiver any, query any, args ...any) (error, error) {
 
 	tx := db.Order("id desc").Where(query, args...).First(receiver)
 	if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
@@ -202,7 +201,7 @@ func SelectLatestFromDb(db *gorm.DB, receiver interface{}, query interface{}, ar
 	return tx.Error, nil
 }
 
-func SelectRandomFromDb(db *gorm.DB, receiver interface{}, query interface{}, args ...interface{}) (error, error) {
+func SelectRandomFromDb(db *gorm.DB, receiver any, query any, args ...any) (error, error) {
 
 	tx := db.Order("rand()").Where(query, args...).First(receiver)
 	if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
@@ -211,19 +210,19 @@ func SelectRandomFromDb(db *gorm.DB, receiver interface{}, query interface{}, ar
 	return tx.Error, nil
 }
 
-func SelectFirstFromDb(db *gorm.DB, receiver interface{}) error {
+func SelectFirstFromDb(db *gorm.DB, receiver any) error {
 	tx := db.First(receiver)
 	return tx.Error
 }
 
-func CheckExists(db *gorm.DB, receiver interface{}, query interface{}, args ...interface{}) bool {
+func CheckExists(db *gorm.DB, receiver any, query any, args ...any) bool {
 
 	tx := db.Where(query, args...).First(receiver)
 	return !errors.Is(tx.Error, gorm.ErrRecordNotFound)
 }
 
-func CheckExistsInTable1(db *gorm.DB, table string, query interface{}, args ...interface{}) bool {
-	var result interface{}
+func CheckExistsInTable1(db *gorm.DB, table string, query any, args ...any) bool {
+	var result any
 	tx := db.Table(table).Where(query, args...).Take(&result)
 	if tx.Error != nil {
 		if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
@@ -236,20 +235,20 @@ func CheckExistsInTable1(db *gorm.DB, table string, query interface{}, args ...i
 	return true
 }
 
-func CheckExistsInTable(db *gorm.DB, table string, query interface{}, args ...interface{}) bool {
-	var result map[string]interface{}
+func CheckExistsInTable(db *gorm.DB, table string, query any, args ...any) bool {
+	var result map[string]any
 	tx := db.Table(table).Where(query, args...).Take(&result)
 	return tx.RowsAffected != 0
 }
 
-func PreloadEntities(db *gorm.DB, model interface{}, preloads ...string) *gorm.DB {
+func PreloadEntities(db *gorm.DB, model any, preloads ...string) *gorm.DB {
 	for _, preload := range preloads {
 		db = db.Preload(preload)
 	}
 	return db
 }
 
-func SelectUsersFromDb(db *gorm.DB, order string, receiver interface{}, query interface{}, args ...interface{}) error {
+func SelectUsersFromDb(db *gorm.DB, order string, receiver any, query any, args ...any) error {
 	if order == "" {
 		order = "desc"
 	}

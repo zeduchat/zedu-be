@@ -21,7 +21,7 @@ func SavedMessages(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		savedMessagesUrl.POST("/:org_id/thread/save", savedMessages.SaveThreadMessageForLater)
 		savedMessagesUrl.POST("/:org_id/message/save", savedMessages.SaveReplyMessageForLater)
 		savedMessagesUrl.GET("/:org_id/saved/message", savedMessages.GetAllSavedMessages)
-		savedMessagesUrl.DELETE("/:org_id/saved/message/:messageId", savedMessages.DeleteMessageByID)
+		savedMessagesUrl.DELETE("/:org_id/saved/message/:smId", savedMessages.DeleteSavedMessageByID)
 	}
 
 	return r

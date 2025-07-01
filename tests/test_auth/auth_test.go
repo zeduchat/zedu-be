@@ -394,7 +394,7 @@ func TestLogout(t *testing.T) {
 	tests := []struct {
 		Name         string
 		ExpectedCode int
-		RequestBody  interface{}
+		RequestBody  any
 		Message      string
 		Headers      map[string]string
 	}{

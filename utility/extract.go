@@ -58,7 +58,7 @@ func ExtractWordsBeforeKeywords(input string) string {
 }
 
 // processMessageHit processes a message or thread and returns a SearchQueryResult
-func ProcessMessageHit(index string, source map[string]interface{}) SearchQueryResult {
+func ProcessMessageHit(index string, source map[string]any) SearchQueryResult {
 	result := SearchQueryResult{
 		User: extractUserInfo(source),
 		Messages: []MessageQuery{
@@ -71,7 +71,7 @@ func ProcessMessageHit(index string, source map[string]interface{}) SearchQueryR
 }
 
 // extractUserInfo extracts user-related data
-func extractUserInfo(source map[string]interface{}) UserQuery {
+func extractUserInfo(source map[string]any) UserQuery {
 	return UserQuery{
 		UserID:    getString(source, "user_id"),
 		UserName:  getString(source, "username"),
@@ -80,7 +80,7 @@ func extractUserInfo(source map[string]interface{}) UserQuery {
 }
 
 // extractMessageInfo extracts message-related data
-func extractMessageInfo(source map[string]interface{}) MessageQuery {
+func extractMessageInfo(source map[string]any) MessageQuery {
 	return MessageQuery{
 		MessageID: getString(source, "id"),
 		Message:   getString(source, "message"),
@@ -89,7 +89,7 @@ func extractMessageInfo(source map[string]interface{}) MessageQuery {
 }
 
 // extractChannelInfo extracts channel-related data and sets channel_name for threads
-func extractChannelInfo(source map[string]interface{}, index string) Channel {
+func extractChannelInfo(source map[string]any, index string) Channel {
 	channel := Channel{
 		ChannelID: getString(source, "channels_id"),
 	}
@@ -100,14 +100,14 @@ func extractChannelInfo(source map[string]interface{}, index string) Channel {
 }
 
 // extractThreadInfo extracts thread-related data
-func extractThreadInfo(source map[string]interface{}) Thread {
+func extractThreadInfo(source map[string]any) Thread {
 	return Thread{
 		ID: getString(source, "thread_id"),
 	}
 }
 
 // getString safely retrieves a string from a map
-func getString(source map[string]interface{}, key string) string {
+func getString(source map[string]any, key string) string {
 	if val, ok := source[key].(string); ok {
 		return val
 	}
@@ -115,7 +115,7 @@ func getString(source map[string]interface{}, key string) string {
 }
 
 // getTime safely retrieves a time.Time value from a map
-func getTime(source map[string]interface{}, key string) time.Time {
+func getTime(source map[string]any, key string) time.Time {
 	if val, ok := source[key].(string); ok {
 		parsedTime, err := time.Parse(time.RFC3339, val)
 		if err == nil {
@@ -126,8 +126,8 @@ func getTime(source map[string]interface{}, key string) time.Time {
 }
 
 func ExtractCollectionName(fullName string) string {
-    if len(fullName) > 84 {
-        return fullName[84:]
-    }
-    return fullName 
+	if len(fullName) > 84 {
+		return fullName[84:]
+	}
+	return fullName
 }

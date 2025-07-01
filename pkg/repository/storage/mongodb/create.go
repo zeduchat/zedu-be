@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateDocument(db *mongo.Client, collection_name string, document interface{}) error {
+func CreateDocument(db *mongo.Client, collection_name string, document any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 

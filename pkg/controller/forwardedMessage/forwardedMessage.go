@@ -67,6 +67,13 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 
 	req.ChannelsId = channelID
 
+	if (req.ForwardedToChannelId == nil && req.ForwardedToDMId == nil) || (req.ForwardedToChannelId != nil && req.ForwardedToDMId != nil) {
+		base.Logger.Error("Invalid request body: must provide either a channel or DM to forward to")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", errors.New("must provide either a channel or DM to forward to"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	threadData, err := forwardedMessage.ForwardThreadMessage(base.Db, req, base.Logger, userId)
 	if err != nil {
 		base.Logger.Error(fmt.Sprintf("An error occurred while forwarding thread message: %v", err))
@@ -76,7 +83,6 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 	}
 
 	base.Logger.Info("Thread message forwarded successfully")
-
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread message forwarded successfully", threadData)
 	c.JSON(http.StatusOK, rd)
 }

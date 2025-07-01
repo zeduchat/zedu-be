@@ -4,7 +4,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SaveAllFields(db *gorm.DB, model interface{}) (*gorm.DB, error) {
+func SaveAllFields(db *gorm.DB, model any) (*gorm.DB, error) {
 	result := db.Save(model)
 	if result.Error != nil {
 		return result, result.Error
@@ -12,7 +12,7 @@ func SaveAllFields(db *gorm.DB, model interface{}) (*gorm.DB, error) {
 	return result, nil
 }
 
-func SaveAllModelsFields(db *gorm.DB, models []interface{}) (*gorm.DB, error) {
+func SaveAllModelsFields(db *gorm.DB, models []any) (*gorm.DB, error) {
 	// Use a transaction to ensure atomicity of updates
 	tx := db.Begin()
 	if tx.Error != nil {
@@ -37,7 +37,7 @@ func SaveAllModelsFields(db *gorm.DB, models []interface{}) (*gorm.DB, error) {
 	return tx, nil
 }
 
-func UpdateFields(db *gorm.DB, model interface{}, updates interface{}, query interface{}, args ...interface{}) (*gorm.DB, error) {
+func UpdateFields(db *gorm.DB, model any, updates any, query any, args ...any) (*gorm.DB, error) {
 	result := db.Model(model).Where(query, args...).Updates(updates)
 	if result.Error != nil {
 		return result, result.Error
@@ -59,8 +59,8 @@ func UpdateFieldsInTransaction(db *gorm.DB, updates []ModelUpdate) error {
 }
 
 type ModelUpdate struct {
-	Model   interface{}
-	Updates interface{}
+	Model   any
+	Updates any
 	Where   string
-	Args    []interface{}
+	Args    []any
 }

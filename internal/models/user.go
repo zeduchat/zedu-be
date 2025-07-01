@@ -66,7 +66,7 @@ type SwitchUserRoleRequest struct {
 	RoleId string `json:"role_id" validate:"required,uuid"`
 }
 
-func (u *User) AddUserToOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
+func (u *User) AddUserToOrganisation(db *gorm.DB, user any, orgs []any) error {
 
 	err := db.Model(user).Association("Organisations").Append(orgs...)
 	if err != nil {
@@ -76,7 +76,7 @@ func (u *User) AddUserToOrganisation(db *gorm.DB, user interface{}, orgs []inter
 	return nil
 }
 
-func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user interface{}, orgs []interface{}) error {
+func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user any, orgs []any) error {
 
 	err := db.Model(user).Association("Organisations").Delete(orgs...)
 	if err != nil {
@@ -89,7 +89,7 @@ func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user interface{}, orgs []
 func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
 	var user User
 
-	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Profile"), &user, "id = ?", userID)
 	if err != nil {
 		return User{}, fmt.Errorf("user not found: %w", err)
 	}

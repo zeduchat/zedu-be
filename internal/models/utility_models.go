@@ -10,4 +10,5 @@ type IDS struct {
 	OrgRoleID      string `json:"org_role_id"`
 	MessageID      string `json:"message_id"`
 	ThreadID       string `json:"thread_id"`
+	OwnerID        string `json:"owner_id"`
 }

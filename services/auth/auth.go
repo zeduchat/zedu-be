@@ -147,7 +147,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 	}
 
 	responseData = gin.H{
-		"user": map[string]interface{}{
+		"user": map[string]any{
 			"id":              userData.ID,
 			"email":           userData.Email,
 			"username":        userData.Name,
@@ -213,7 +213,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	}
 
 	responseData = gin.H{
-		"user": map[string]interface{}{
+		"user": map[string]any{
 			"id":              userData.ID,
 			"email":           userData.Email,
 			"username":        userData.Name,

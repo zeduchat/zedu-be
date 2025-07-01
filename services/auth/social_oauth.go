@@ -28,7 +28,7 @@ import (
 func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
 
 	var (
-		userClaims   map[string]interface{}
+		userClaims   map[string]any
 		reqUser      models.CreateUserRequestModel
 		sendWelcome  bool
 		responseData gin.H
@@ -119,11 +119,11 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 	err = access_token.CreateAccessToken(db, tokens)
 
 	if err != nil {
-		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v" , err.Error())
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
 	}
 
 	responseData = gin.H{
-		"user": map[string]interface{}{
+		"user": map[string]any{
 			"id":              user.ID,
 			"email":           user.Email,
 			"username":        user.Name,

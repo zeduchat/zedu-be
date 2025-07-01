@@ -92,6 +92,10 @@ type ChangeMemberActiveStatus struct {
 	Activate bool `gorm:"activate" json:"activate"`
 }
 
+type UpdateMemberRoleRequest struct {
+	RoleID string `json:"role_id" validate:"required"`
+}
+
 func (o *OrgUserManagement) CreateOrgUserManagement(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &o)
@@ -230,7 +234,7 @@ func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, use
 		return errors.New("organisation not found")
 	}
 
-	err = u.RemoveUserFromOrganisation(db, &u, []interface{}{&og})
+	err = u.RemoveUserFromOrganisation(db, &u, []any{&og})
 	if err != nil {
 		return errors.New("failed to remove user from organisation")
 	}
@@ -264,7 +268,7 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) (int, error) {
 		return 500, fmt.Errorf("failed to create org user management: %w", err)
 	}
 
-	err = user.AddUserToOrganisation(db, &user, []interface{}{&org})
+	err = user.AddUserToOrganisation(db, &user, []any{&org})
 	if err != nil {
 		return 500, fmt.Errorf("failed to add user to organisation: %w", err)
 	}
@@ -281,9 +285,9 @@ func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, rol
 
 	orgUserManagementUpdate := postgresql.ModelUpdate{
 		Model:   &OrgUserManagement{},
-		Updates: map[string]interface{}{"role_id": defaultRole.ID},
+		Updates: map[string]any{"role_id": defaultRole.ID},
 		Where:   "organisation_id = ? AND role_id = ?",
-		Args:    []interface{}{orgID, roleID},
+		Args:    []any{orgID, roleID},
 	}
 
 	defaultRoleID, err := uuid.FromString(defaultRole.ID)
@@ -293,9 +297,9 @@ func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, rol
 
 	userUpdate := postgresql.ModelUpdate{
 		Model:   &User{},
-		Updates: map[string]interface{}{"org_role_id": defaultRoleID},
+		Updates: map[string]any{"org_role_id": defaultRoleID},
 		Where:   "users.id IN (SELECT o.user_id FROM org_user_managements AS o WHERE o.organisation_id = ? AND o.role_id = ?)",
-		Args:    []interface{}{orgID, roleID},
+		Args:    []any{orgID, roleID},
 	}
 
 	return postgresql.UpdateFieldsInTransaction(db, []postgresql.ModelUpdate{orgUserManagementUpdate, userUpdate})
@@ -329,11 +333,10 @@ func (o *OrgUserManagement) CheckIsUserDeactivated(db *gorm.DB, ids IDS) bool {
 }
 
 func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]UserInOrgResponse, error) {
-    var users []UserInOrgResponse
+	var users []UserInOrgResponse
 
-
-    query := db.Table("users").
-        Select(`
+	query := db.Table("users").
+		Select(`
             users.id,
             users.email,
             profiles.user_name AS username,
@@ -345,20 +348,52 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
             users.created_at,
             'user' AS entity_type
         `).
-        Joins("JOIN org_user_managements ON org_user_managements.user_id = users.id").
-        Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
-        Joins("LEFT JOIN profiles ON profiles.userid = users.id").
-        Where("org_user_managements.organisation_id = ?", orgID).
-        Where(`
+		Joins("JOIN org_user_managements ON org_user_managements.user_id = users.id").
+		Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id").
+		Where("org_user_managements.organisation_id = ?", orgID).
+		Where(`
             users.name ILIKE ? OR 
             users.email ILIKE ? OR 
             profiles.user_name ILIKE ? OR 
             profiles.phone ILIKE ?
         `, "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%")
 
-    if err := query.Scan(&users).Error; err != nil {
-        return nil, fmt.Errorf("failed to search users in organisation: %v", err)
-    }
+	if err := query.Scan(&users).Error; err != nil {
+		return nil, fmt.Errorf("failed to search users in organisation: %v", err)
+	}
 
-    return users, nil
+	return users, nil
+}
+
+func (oum *OrgUserManagement) UpdateMemberRole(db *gorm.DB, ids IDS) error {
+	var oumCheck OrgUserManagement
+
+	exists := postgresql.CheckExists(db, &oumCheck, "organisation_id = ? AND user_id = ?", ids.OrganisationID, ids.UserID)
+	if !exists {
+		return errors.New("user not found in organisation")
+	}
+
+	update := map[string]any{
+		"role_id": ids.RoleID,
+	}
+
+	res, err := postgresql.UpdateFields(db, &oumCheck, update, "organisation_id = ? AND user_id = ?", ids.OrganisationID, ids.UserID)
+	if err != nil {
+		return fmt.Errorf("unable to update user role: %w", err)
+	}
+
+	if res.RowsAffected == 0 {
+		return errors.New("no record updated")
+	}
+
+	return nil
+}
+
+func (oum *OrgUserManagement) CheckIsOrganisationAdmin(db *gorm.DB, ids IDS) bool {
+	var orgUserManagement OrgUserManagement
+
+	query := "organisation_id = ? AND user_id = ? AND role_id = (SELECT id FROM org_roles WHERE name = 'Administrator')"
+
+	return postgresql.CheckExists(db, &orgUserManagement, query, ids.OrganisationID, ids.OwnerID)
 }

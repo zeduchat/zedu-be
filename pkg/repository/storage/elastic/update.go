@@ -9,8 +9,8 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-func UpdateDocument(client *elasticsearch.Client, indexName, docID string, updates map[string]interface{}) error {
-	data, err := json.Marshal(map[string]interface{}{"doc": updates})
+func UpdateDocument(client *elasticsearch.Client, indexName, docID string, updates map[string]any) error {
+	data, err := json.Marshal(map[string]any{"doc": updates})
 	if err != nil {
 		return fmt.Errorf("error marshalling update: %w", err)
 	}
@@ -26,7 +26,7 @@ func UpdateDocument(client *elasticsearch.Client, indexName, docID string, updat
 	return nil
 }
 
-func UpdateDocWithScript(client *elasticsearch.Client, indexName, docID string, req map[string]interface{}) error {
+func UpdateDocWithScript(client *elasticsearch.Client, indexName, docID string, req map[string]any) error {
 
 	// Convert payload req to JSON
 	var buf bytes.Buffer
@@ -50,7 +50,7 @@ func UpdateDocWithScript(client *elasticsearch.Client, indexName, docID string, 
 	return nil
 }
 
-func UpdateByQueryWithScript(client *elasticsearch.Client, script map[string]interface{}, indexName string) error {
+func UpdateByQueryWithScript(client *elasticsearch.Client, script map[string]any, indexName string) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(script); err != nil {

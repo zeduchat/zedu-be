@@ -78,7 +78,7 @@ func TestChannelsEndpoints(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		RequestBody  interface{}
+		RequestBody  any
 		ExpectedCode int
 		Message      string
 		Method       string

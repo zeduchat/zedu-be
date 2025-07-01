@@ -45,15 +45,18 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		// User management routes
 		organisationUrl.GET("/:org_id/users", organisationCtrl.GetUsersAndBotsInOrganisation)
-		organisationUrl.GET("/:org_id/metrics", organisationCtrl.GetOrganisationCountMetrics)
-		organisationUrl.DELETE("/:org_id/users/:user_id", organisationCtrl.RemoveMemberFromOrganisation)
-		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)
-		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
+		organisationUrl.GET("/:org_id/users/search", organisationCtrl.SearchUsersInOrganisation)
 		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
+		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)
+		organisationUrl.PATCH("/:org_id/users/:user_id/status", organisationCtrl.ChangeMemberActiveStatus)
+		organisationUrl.DELETE("/:org_id/users/:user_id", organisationCtrl.RemoveMemberFromOrganisation)
+		organisationUrl.PATCH("/:org_id/users/:user_id/role", organisationCtrl.UpdateMemberRole)
+
+		organisationUrl.GET("/:org_id/metrics", organisationCtrl.GetOrganisationCountMetrics)
+		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
+
 		organisationUrl.GET("/:org_id/notification-preference", organisationCtrl.GetChannelNotificationPref)
 		organisationUrl.POST("/:org_id/notification-preference", organisationCtrl.UpdateDeviceNotification)
-		organisationUrl.PATCH("/:org_id/users/:user_id/status", organisationCtrl.ChangeMemberActiveStatus)
-		organisationUrl.GET("/:org_id/users/search", organisationCtrl.SearchUsersInOrganisation)
 
 		//bots
 		organisationUrl.GET("/:org_id/fetch-bots", integrationsCtrl.FetchOrganisationBots)

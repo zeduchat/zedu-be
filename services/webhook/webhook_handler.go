@@ -183,7 +183,7 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 		},
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"args": []models.QueueFeed{feed},
 		"task": "telex_queue_processor.handle_new_message",
 	}

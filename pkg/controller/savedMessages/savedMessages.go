@@ -123,6 +123,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	orgId := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("Invalid organisation ID format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -143,6 +144,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 
 	file, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
+		base.Logger.Error("Failed to retrieve saved messages: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
@@ -153,17 +155,19 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) DeleteMessageByID(c *gin.Context) {
+func (base *Controller) DeleteSavedMessageByID(c *gin.Context) {
 	orgId := c.Param("org_id")
-	messageId := c.Param("messageId")
+	smId := c.Param("smId")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("Invalid organisation ID format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if _, err := uuid.Parse(messageId); err != nil {
+	if _, err := uuid.Parse(smId); err != nil {
+		base.Logger.Error("Invalid message ID format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid message id format", "unable to parse message id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -178,12 +182,13 @@ func (base *Controller) DeleteMessageByID(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	savedMessageIds := models.SavedMessageIds{
-		MessageID: messageId,
-		UserID:    userId,
-		OrgID:     orgId,
+		SavedMessageID: smId,
+		UserID:         userId,
+		OrgID:          orgId,
 	}
 	err := savedMessages.DeleteSavedMessage(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
+		base.Logger.Error("Failed to delete message: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Unable to delete message", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return

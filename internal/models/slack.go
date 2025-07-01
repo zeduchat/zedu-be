@@ -13,7 +13,7 @@ type OAuth struct {
 	OrganisationID string `json:"organisation_id"`
 }
 
-type JSONB map[string]interface{}
+type JSONB map[string]any
 
 type SlackTelex struct {
 	ID               string    `gorm:"type:uuid;primary_key" json:"id"`
@@ -123,10 +123,10 @@ func (s *SlackToken) GetToken(db *gorm.DB, userId, orgId string) (SlackToken, er
 }
 
 func (s *SlackToken) UpdateToken(db *gorm.DB, userId, orgId string, accessToken, refreshToken string) error {
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-		"expiry_time":   time.Now().Add(time.Hour * 11), 
+		"expiry_time":   time.Now().Add(time.Hour * 11),
 	}
 
 	err := db.Model(&s).Where("user_id = ? AND organisation_id = ?", userId, orgId).Updates(updates)

@@ -9,7 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateIndex(client *elasticsearch.Client, indexName string, mapping interface{}, logger *utility.Logger) error {
+func CreateIndex(client *elasticsearch.Client, indexName string, mapping any, logger *utility.Logger) error {
 
 	// Check if index exists
 
@@ -35,7 +35,7 @@ func CreateIndex(client *elasticsearch.Client, indexName string, mapping interfa
 	return nil
 }
 
-func AddDocument(client *elasticsearch.Client, indexName, docID string, doc interface{}, logger *utility.Logger) error {
+func AddDocument(client *elasticsearch.Client, indexName, docID string, doc any, logger *utility.Logger) error {
 	data, err := json.Marshal(doc)
 	if err != nil {
 		return fmt.Errorf("error marshalling document: %w", err)

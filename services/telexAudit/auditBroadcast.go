@@ -19,7 +19,7 @@ func SignupAudit(db *storage.Database, logger *utility.Logger, data gin.H) error
 		req models.CreateWebhookHistoryRequest
 	)
 
-	email := data["user"].(map[string]interface{})["email"]
+	email := data["user"].(map[string]any)["email"]
 
 	channelID := config.Config.Channels.Signup
 
@@ -49,7 +49,7 @@ func LoginAudit(db *storage.Database, logger *utility.Logger, data gin.H) error 
 		req models.CreateWebhookHistoryRequest
 	)
 
-	email := data["user"].(map[string]interface{})["email"]
+	email := data["user"].(map[string]any)["email"]
 
 	channelID := config.Config.Channels.Login
 

@@ -86,8 +86,8 @@ type CustomIntegrationRequest struct {
 }
 
 type CustomIntegrationSettingRequest struct {
-	SettingEntry    map[string]interface{} `json:"setting_entry" validate:"required"`
-	SerializedEntry string                 `json:"serialized_entry"`
+	SettingEntry    map[string]any `json:"setting_entry" validate:"required"`
+	SerializedEntry string         `json:"serialized_entry"`
 }
 
 type ActivateChannelAgent struct {
@@ -331,7 +331,7 @@ type IntegrationApp struct {
 	AppName       string
 }
 
-func (p *JSONPrices) Scan(value interface{}) error {
+func (p *JSONPrices) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("failed to unmarshal JSONPrices: value is not []byte")
@@ -369,10 +369,10 @@ func (s JSONSkills) Value() (driver.Value, error) {
 }
 
 func (s JSONSkills) MarshalJSON() ([]byte, error) {
-    if s == nil {
-        return []byte("[]"), nil
-    }
-    return json.Marshal([]Skill(s))
+	if s == nil {
+		return []byte("[]"), nil
+	}
+	return json.Marshal([]Skill(s))
 }
 
 func GenerateAgentKey() (string, error) {
@@ -635,7 +635,7 @@ func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility
 
 func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSONSchemaRequest, ids map[string]string) error {
 
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 	update["json_schema"] = req.JSONSchema
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
@@ -652,7 +652,7 @@ func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSON
 
 func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req CustomIntegrationRequest, ids map[string]string) error {
 
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 	update["json_url"] = req.JSONUrl
 	update["app_name"] = req.AppName
 	update["app_description"] = req.AppDescription
@@ -810,7 +810,7 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		}
 	}
 
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 	update["is_active"] = req.Status
 	update["json_schema"] = req.JSONSchema
 
@@ -861,7 +861,7 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 		return errors.New("organisation not found or not active")
 	}
 
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 	update["send_back"] = req.Status
 
 	result, err := postgresql.UpdateFields(db, &oci, update, "org_id = ? AND integration_id = ? AND channel_id = ?", oci.OrgID, oci.IntegrationID, oci.ChannelID)
@@ -918,7 +918,7 @@ func (oci *OrganisationChannelsIntegrations) ActivateChannelAgent(db *gorm.DB, r
 
 	if exists {
 
-		update := make(map[string]interface{})
+		update := make(map[string]any)
 		update["is_active"] = req.Status
 
 		result, err := postgresql.UpdateFields(db, &oci, update, "channel_id = ? AND org_id = ? AND integration_id = ?", ids["channel_id"], ids["organisation_id"], ids["agent_id"])
@@ -1220,9 +1220,9 @@ func (i *CustomIntegrationsSetting) CreateIntegrationSettings(db *gorm.DB) error
 
 func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB, req CustomIntegrationSettingRequest, ids map[string]string) error {
 
-	update := make(map[string]interface{})
+	update := make(map[string]any)
 
-	deserialize_settings := make(map[string]interface{})
+	deserialize_settings := make(map[string]any)
 
 	var ucis CustomIntegrationsSetting
 
@@ -1246,7 +1246,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	if ok {
 		deserialize_settings["auth_credentials"] = auth_creds
 
-		encoded_auth_cred, ok := auth_creds.(map[string]interface{})["integration_auth_credentials"].(string)
+		encoded_auth_cred, ok := auth_creds.(map[string]any)["integration_auth_credentials"].(string)
 
 		if ok {
 
@@ -1282,7 +1282,7 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 	return nil
 }
 
-func ValidateAgentData(data_r map[string]interface{}) error {
+func ValidateAgentData(data_r map[string]any) error {
 
 	var categories = map[string]bool{
 		"Monitoring & Logging":           true,
@@ -1348,7 +1348,7 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 		return errors.New("Failed to save agent, defaultInputModes field does not exist or is empty")
 	}
 
-	_, ok = defaultInputModes.([]interface{})
+	_, ok = defaultInputModes.([]any)
 	if !ok {
 		return errors.New("Failed to save agent, defaultInputModes field is not an array")
 	}
@@ -1357,12 +1357,12 @@ func ValidateAgentData(data_r map[string]interface{}) error {
 	if !ok {
 		return errors.New("Failed to save agent, defaultOutputModes field does not exist or is empty")
 	}
-	_, ok = defaultOutputModes.([]interface{})
+	_, ok = defaultOutputModes.([]any)
 	if !ok {
 		return errors.New("Failed to save agent, defaultOutputModes field is not an array")
 	}
 
-	providerMap, ok := data_r["provider"].(map[string]interface{})
+	providerMap, ok := data_r["provider"].(map[string]any)
 	if !ok {
 		return errors.New("Failed to save agent, invalid agent card: provider does not exist or is empty")
 	}
@@ -1409,7 +1409,7 @@ func (cis *CustomIntegrationsSetting) FetchAPIKey(db *gorm.DB, ids IDS) (string,
 	return cis.SettingEntry, http.StatusOK, nil
 }
 
-func ValidateAgentVersionAndUpdate(data_r map[string]interface{}, agentID, db *gorm.DB) error {
+func ValidateAgentVersionAndUpdate(data_r map[string]any, agentID, db *gorm.DB) error {
 	var agent OrganisationIntegrations
 
 	version, ok := data_r["version"].(string)
@@ -1488,7 +1488,7 @@ func UpdateCustomAgent(db *gorm.DB, ids map[string]string) error {
 	data := map[string]string{"url": agent.JSONUrl}
 	response, _ := extReq.SendExternalRequest(request.AgentJsonContent, data)
 
-	data_r, _ := response.(map[string]interface{})
+	data_r, _ := response.(map[string]any)
 
 	// Only generate new pre-shared key if agent does not it yet
 	if agent.PreSharedKey == "" {
@@ -1532,8 +1532,8 @@ func UpdateCustomAgent(db *gorm.DB, ids map[string]string) error {
 	}
 
 	// Update SettingEntry field with new serialized {agent api key}
-	settingsData := map[string]interface{}{"settings": ""}
-	authCredentials := map[string]interface{}{
+	settingsData := map[string]any{"settings": ""}
+	authCredentials := map[string]any{
 		"agent_auth_credentials": "Not-Set-Yet",
 		"agent_api_key":          agent.PreSharedKey,
 	}

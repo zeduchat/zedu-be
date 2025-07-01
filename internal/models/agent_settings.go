@@ -106,7 +106,7 @@ func (is *IntegrationSettings) GetIntegrationSetting(db *gorm.DB, ids map[string
 func (is *CustomIntegrationsSetting) GetIntegrationApiKey(db *gorm.DB, ids map[string]string) (string, int, error) {
 	var (
 		ucis                 CustomIntegrationsSetting
-		deserialize_settings map[string]interface{}
+		deserialize_settings map[string]any
 	)
 
 	exists := postgresql.CheckExists(db, &ucis, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])

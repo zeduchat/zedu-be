@@ -269,8 +269,10 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 
 func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
+	query := c.Query("query")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("error parsing org id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -278,6 +280,7 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to retrieve users", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -286,7 +289,8 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	users, paginationResponse, err := service.GetUsersAndBotsInOrganisation(orgId, userId, base.Db.Postgresql, c)
+
+	users, paginationResponse, err := service.GetUsersAndBotsInOrganisation(orgId, userId, base.Db.Postgresql, c, query)
 	if err != nil {
 		switch err.Error() {
 		case "organisation not found":
@@ -302,7 +306,7 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
@@ -381,7 +385,7 @@ func (base *Controller) GetAllOrganisations(c *gin.Context) {
 		return
 	}
 
-	paginationData := map[string]interface{}{
+	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,

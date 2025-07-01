@@ -23,7 +23,7 @@ var (
 	}
 )
 
-func ParseTemplate(extReq request.ExternalRequest, templateFileName, baseTemplateFileName string, templateData map[string]interface{}) (string, error) {
+func ParseTemplate(extReq request.ExternalRequest, templateFileName, baseTemplateFileName string, templateData map[string]any) (string, error) {
 	var (
 		outputBuffer bytes.Buffer
 		t            *template.Template
@@ -76,7 +76,7 @@ func ParseTemplate(extReq request.ExternalRequest, templateFileName, baseTemplat
 	return body, nil
 }
 
-func AddMoreMailTemplateData(extReq request.ExternalRequest, data map[string]interface{}) map[string]interface{} {
+func AddMoreMailTemplateData(extReq request.ExternalRequest, data map[string]any) map[string]any {
 	appConfig := config.GetConfig()
 	accountID, ok := data["account_id"].(int)
 	if !ok {
