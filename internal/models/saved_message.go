@@ -30,6 +30,7 @@ type SavedMessagesResp struct {
 	Username    string    `json:"username"`
 	Content     string    `json:"content"`
 	ChannelName string    `json:"channel_name"`
+	ChannelType string    `json:"channel_type"`
 	Type        string    `json:"type"` // thread or message(thread-reply)
 	SavedAt     time.Time `json:"saved_at"`
 }
@@ -231,16 +232,20 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		return nil, fmt.Errorf("failed to retrieve saved messages: %w", err)
 	}
 
-	resolveChannelName := func(db *gorm.DB, channelID string) string {
+	resolveChannelInfo := func(db *gorm.DB, channelID string) (string, string) {
+
 		var dmchan DmChannels
 		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
-			return "Direct Message"
+			return "public", "Direct Message"
 		}
 		var ch Channels
-		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
-			return ch.Name
+		if exists := postgresql.CheckExists(db, &ch, "id = ?", channelID); !exists {
+			return "public", "Unknown Channel"
 		}
-		return ""
+		if ch.IsPrivate {
+			return "private", ch.Name
+		}
+		return "public", ch.Name
 	}
 
 	for _, msg := range messages {
@@ -254,6 +259,8 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
 				continue
 			}
+			isPriv, chanName := resolveChannelInfo(db, m.ChannelsID)
+
 			mr.ID = msg.ID
 			mr.ThreadID = msg.ThreadID.String()
 			mr.MessageID = msg.MessageID
@@ -262,11 +269,14 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Content = m.Content
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "message"
-			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
+			mr.ChannelType = isPriv
+			mr.ChannelName = chanName
 		} else {
 			if err := t.GetThreadById(db, msg.ThreadID.String()); err != nil {
 				continue
 			}
+			isPriv, chanName := resolveChannelInfo(db, t.ChannelsID)
+
 			mr.ID = msg.ID
 			mr.ThreadID = msg.ThreadID.String()
 			mr.MessageID = nil
@@ -275,7 +285,8 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Content = t.Content
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "thread"
-			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
+			mr.ChannelType = isPriv
+			mr.ChannelName = chanName
 		}
 
 		messagesResp = append(messagesResp, mr)
