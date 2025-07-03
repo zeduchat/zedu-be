@@ -29,6 +29,7 @@ type SavedMessagesResp struct {
 	AvatarURL   string    `json:"avatar_url"`
 	Username    string    `json:"username"`
 	Content     string    `json:"content"`
+	ChannelID   string    `json:"channel_id"`
 	ChannelName string    `json:"channel_name"`
 	Type        string    `json:"type"`         // thread or message(thread-reply)
 	ChannelType string    `json:"channel_type"` // dm, groupDM, public, private
@@ -354,6 +355,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Content = m.Content
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "message"
+			mr.ChannelID = m.ChannelsID
 			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
 			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
 		} else {
@@ -369,6 +371,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.Content = t.Content
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "thread"
+			mr.ChannelID = t.ChannelsID
 			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
 			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
 		}
