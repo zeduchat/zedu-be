@@ -23,6 +23,7 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		profile     models.Profile
 		channels    models.Channels
 		dmChannel   models.DmChannels
+		threadDoc   models.ThreadDocument
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
@@ -63,7 +64,8 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		messageType          = "message"
 		userType             = "user"
 		orgId                = current_channel.OrganisationID
-		channelType string
+		channelType          string
+		userChan			 models.UserChannels
 	)
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, channelToForwardToID)
@@ -73,6 +75,8 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 
 	if channel.IsPrivate {
 		channelType = "private"
+	}else{
+		channelType = "public"
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -91,10 +95,11 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   channel.Name,
+		ChannelType:   channelType,
 		Status:        "success",
 		Edited:        false,
 		IsForwarded:   true,
-		ForwardedMessageMetadata: models.ForwardedMessageMetadata{
+		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
 			OriginalMessageID:       originalMsg.ID,
 			OriginalSenderID:        originalMsg.UserId,
 			OriginalSenderName:      originalMsg.FullName,
@@ -103,8 +108,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalChannelID:       originalMsg.ChannelsID,
 			OriginalChannelName:     originalMsg.ChannelName,
 			OriginalCreatedAt:       time.Now().UTC(),
-
-			IsThread:                true,
+			IsThread: true,
 		},
 		OrgansationID: orgId,
 	}
@@ -127,11 +131,23 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		UserId:      req.UserId,
 		OrgId:       channel.OrganisationID,
 		ChannelName: channel.Name,
+		IsForwarded: true,
+		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
+			OriginalMessageID:       originalMsg.ID,
+			OriginalSenderID:        originalMsg.UserId,
+			OriginalSenderName:      originalMsg.FullName,
+			OriginalSenderUsername:  originalMsg.Username,
+			OriginalSenderAvatarURL: originalMsg.AvatarURL,
+			OriginalChannelID:       originalMsg.ChannelsID,
+			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalCreatedAt:       time.Now().UTC(),
+			IsThread: true,
+		},
 	}
 
-	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
+	err = centrifuge.PublishChannel(logger, channelToForwardToID, feed)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelsID, err.Error()))
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", channelToForwardToID, err.Error()))
 		return nil, fmt.Errorf("failed to publish thread data")
 	}
 
@@ -141,7 +157,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		ChannelType: models.Channel,
 		Data:        string(dataByte),
 		Sent:        false,
-		ChannelId:   req.ChannelsID,
+		ChannelId:   channelToForwardToID,
 		Section:     models.ThreadSection,
 		Type:        models.NewMessage,
 	}
@@ -149,13 +165,13 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
 
 	if err != nil {
-		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error())
+		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", channelToForwardToID, orgId, err.Error())
 	}
 
-	logger.Info("added notification to queue for channel %s", req.ChannelsID)
+	logger.Info("added notification to queue for channel %s", channelToForwardToID)
 
 	// increase unread count for channel users
-	userChan.ChannelsID = req.ChannelsID
+	userChan.ChannelsID = channelToForwardToID
 	userChan.UserID = req.UserId
 	userChan.OrgId = channel.OrganisationID
 	var wg sync.WaitGroup

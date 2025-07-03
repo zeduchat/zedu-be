@@ -23,7 +23,7 @@ type Channels struct {
 	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
 	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
 	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
-	Topic          string    `gorm:"column:topic; type:text; not null; default:'present'" json:"topic"`
+	Topic          string    `gorm:"column:topic; type:text; not null;default:'present'" json:"topic"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
 	OwnerName      string    `gorm:"-" json:"owner_name"`

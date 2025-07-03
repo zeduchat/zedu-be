@@ -35,6 +35,7 @@ type Threads struct {
 	Type                     string                   `gorm:"default:thread" json:"type"`
 	Content                  string                   `gorm:"type:text;index" json:"message"`
 	ChannelName              string                   `json:"channel_name,omitempty"`
+	ChannelType              string                   `gorm:"type:varchar(50);index" json:"channel_type,omitempty"` // public, private, or DM
 	CurrentStatus            string                   `json:"current_status"`
 	FullName                 string                   `json:"full_name"`
 	Email                    string                   `json:"email"`
@@ -46,11 +47,11 @@ type Threads struct {
 	Count                    int                      `json:"frequency,omitempty"`
 	UserId                   string                   `json:"user_id"`
 	Media                    []UploadedFileResponse   `json:"media,omitempty"`
-	Mentions                 []Mention               `json:"mentions,omitempty"`
+	Mentions                 []Mention                `json:"mentions,omitempty"`
 	OrgansationID            string                   `json:"org_id,omitempty"`
 	State                    string                   `json:"state,omitempty"`
 	IsForwarded              bool                     `json:"is_forwarded,omitempty"`
-	ForwardedMessageMetadata ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -69,6 +70,7 @@ type ThreadDocument struct {
 	Type                     string                   `json:"type"`
 	Content                  string                   `json:"message"`
 	ChannelName              string                   `json:"channel_name,omitempty"`
+	ChannelType              string                   `json:"channel_type,omitempty"` // public, private, or DM
 	CurrentStatus            string                   `json:"current_status"`
 	FullName                 string                   `json:"full_name"`
 	Email                    string                   `json:"email"`
@@ -82,7 +84,7 @@ type ThreadDocument struct {
 	State                    string                   `json:"state,omitempty"`
 	IsSaved                  bool                     `json:"is_saved,omitempty"`
 	IsForwarded              bool                     `json:"is_forwarded,omitempty"`
-	ForwardedMessageMetadata ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
 }
 
 type ForwardedMessageMetadata struct {
@@ -96,6 +98,29 @@ type ForwardedMessageMetadata struct {
 	OriginalCreatedAt       time.Time `json:"original_created_at"`
 	OriginalChannelType     string    `json:"original_channel_type"` // public, private, or DM
 	IsThread                bool      `json:"is_thread"`
+}
+
+type FeedMessageRequest struct {
+	ChannelID                string                   `json:"channel_id"`
+	FullName                 string                   `json:"full_name"`
+	UserName                 string                   `json:"username"`
+	CreatedAt                string                   `json:"created_at"`
+	UpdatedAt                string                   `json:"updated_at"`
+	Email                    string                   `json:"email"`
+	AvatarURL                string                   `json:"avatar_url,omitempty"`
+	MessageId                string                   `json:"message_id,omitempty"`
+	Type                     string                   `json:"type"`
+	Content                  string                   `json:"message"`
+	ThreadId                 string                   `json:"thread_id"`
+	OrgId                    string                   `json:"org_id"`
+	UserId                   string                   `json:"user_id"`
+	Media                    []UploadedFileResponse   `json:"media"`
+	UserType                 string                   `json:"user_type"`
+	Id                       string                   `json:"id,omitempty"`
+	State                    string                   `json:"state"`
+	ChannelName              string                   `json:"channel_name,omitempty"`
+	IsForwarded              bool                     `json:"is_forwarded,omitempty"`
+	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
 }
 
 var MediaMapping = map[string]any{
@@ -257,27 +282,6 @@ type BotReturnRequest struct {
 	State          string                 `json:"state"`
 	Mentions       []Mention              `json:"mentions"`
 	OperationPrice *float64               `json:"operation_price"`
-}
-
-type FeedMessageRequest struct {
-	ChannelID   string                 `json:"channel_id"`
-	FullName    string                 `json:"full_name"`
-	UserName    string                 `json:"username"`
-	CreatedAt   string                 `json:"created_at"`
-	UpdatedAt   string                 `json:"updated_at"`
-	Email       string                 `json:"email"`
-	AvatarURL   string                 `json:"avatar_url,omitempty"`
-	MessageId   string                 `json:"message_id,omitempty"`
-	Type        string                 `json:"type"`
-	Content     string                 `json:"message"`
-	ThreadId    string                 `json:"thread_id"`
-	OrgId       string                 `json:"org_id"`
-	UserId      string                 `json:"user_id"`
-	Media       []UploadedFileResponse `json:"media"`
-	UserType    string                 `json:"user_type"`
-	Id          string                 `json:"id,omitempty"`
-	State       string                 `json:"state"`
-	ChannelName string                 `json:"channel_name,omitempty"`
 }
 
 type Mentions struct {
