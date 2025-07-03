@@ -30,7 +30,8 @@ type SavedMessagesResp struct {
 	Username    string    `json:"username"`
 	Content     string    `json:"content"`
 	ChannelName string    `json:"channel_name"`
-	Type        string    `json:"type"` // thread or message(thread-reply)
+	Type        string    `json:"type"`         // thread or message(thread-reply)
+	ChannelType string    `json:"channel_type"` // dm, groupDM, public, private
 	SavedAt     time.Time `json:"saved_at"`
 }
 
@@ -57,7 +58,7 @@ type SavedMessageIds struct {
 	SavedMessageID string
 }
 
-func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) (bool,error) {
+func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) (bool, error) {
 	var (
 		org          Organisation
 		dmChannels   DmChannels
@@ -121,7 +122,7 @@ func (m *SavedMessage) CreateMessageRecord(db *gorm.DB) (bool,error) {
 			return false, err
 		}
 
-		return false,nil //unsaved
+		return false, nil //unsaved
 	}
 
 	createErr := postgresql.CreateOneRecord(db, &m)
@@ -287,6 +288,52 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		return ""
 	}
 
+	resolveChannelType := func(db *gorm.DB, channelID, user_id, org_id string) string {
+		var (
+			dmChannels   DmChannels
+			userChannels UserChannels
+		)
+		chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user_id)
+		dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
+
+		if !(dmChanExist || chanExist) {
+			return "unknown"
+		}
+
+		if dmChanExist {
+			var dmChannel DmChannels
+			exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ? AND organisation_id = ?", channelID, org_id)
+			if !exists {
+				return "unknown"
+			}
+
+			if dmChannel.ChatType == "bot" {
+				return "Bot"
+			} else {
+				if dmChannel.ChannelType == "dm" {
+					return "Direct Message"
+				} else {
+					return "Group Direct Message"
+				}
+			}
+		}
+
+		if chanExist {
+			var channels Channels
+			exists := postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", channelID, org_id)
+			if !exists {
+				return "unknown"
+			}
+
+			if channels.IsPrivate {
+				return "Private Channel"
+			} else {
+				return "Public"
+			}
+		}
+		return "unknown"
+	}
+
 	for _, msg := range messages {
 		var (
 			t  ThreadDocument
@@ -307,6 +354,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "message"
 			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
+			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
 		} else {
 			if err := t.GetThreadById(db, msg.ThreadID.String()); err != nil {
 				continue
@@ -320,6 +368,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.SavedAt = msg.CreatedAt
 			mr.Type = "thread"
 			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
+			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
 		}
 
 		messagesResp = append(messagesResp, mr)
