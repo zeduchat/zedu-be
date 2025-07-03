@@ -89,7 +89,7 @@ func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user any, orgs []any) err
 func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
 	var user User
 
-	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userID)
+	err, _ := postgresql.SelectOneFromDb(db.Preload("Profile"), &user, "id = ?", userID)
 	if err != nil {
 		return User{}, fmt.Errorf("user not found: %w", err)
 	}
@@ -251,7 +251,17 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bool) error {
 	var (
 		oum OrgUserManagement
+		oumCheck OrgUserManagement
 	)
+
+	exists := postgresql.CheckExists(db, &oumCheck, "user_id = ? AND organisation_id = ?", user.ID, org_id)
+	if !exists {
+		return errors.New("user does not exist in organisation")
+	}
+
+	if status == oumCheck.IsDeactivated {
+		return nil
+	}
 
 	update := map[string]any{
 		"is_deactivated": status,

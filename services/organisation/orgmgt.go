@@ -125,11 +125,11 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 
 func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
 	var (
-		user       models.User
-		adminUser  models.User
-		user_token models.AccessToken
-		user_id    = ids["user_id"]
-		org_id     = ids["org_id"]
+		user        models.User
+		adminUser   models.User
+		user_token  models.AccessToken
+		user_id     = ids["user_id"]
+		org_id      = ids["org_id"]
 		adminUserID = ids["admin_user_id"]
 	)
 
@@ -138,7 +138,7 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	}
 
 	if !adminUser.CheckUserExists(db, adminUserID) {
-		return http.StatusUnauthorized, errors.New("user does not exist")
+		return http.StatusUnauthorized, errors.New("admin user does not exist")
 	}
 
 	if user_id == adminUserID {
@@ -156,6 +156,8 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 		}
 	}()
 
+
+
 	if err := user.ChangeMemberActiveStatus(tx, org_id, true); err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
@@ -163,16 +165,19 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 
 	user_token.OwnerID = user_id
 	code, err := user_token.GetMostRecentAccessToken(tx)
-	if err != nil {
-		tx.Rollback()
-		return code, fmt.Errorf("failed to get user token: %v", err)
-	}
-
-	_, err = auth.LogoutUser(user_token.ID, user.ID, tx)
-	if err != nil {
-		tx.Rollback()
-		return http.StatusBadRequest, errors.New("failed to logout user")
-	}
+    if err != nil {
+        if !errors.Is(err, gorm.ErrRecordNotFound) {
+            tx.Rollback()
+            return code, fmt.Errorf("failed to get user token: %v", err)
+        }
+    } else {
+		fmt.Println("logging out user")
+        _, err = auth.LogoutUser(user_token.ID, user.ID, tx)
+        if err != nil {
+            tx.Rollback()
+            return http.StatusBadRequest, errors.New("failed to logout user")
+        }
+    }
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -193,11 +198,11 @@ func ActivateMember(db *gorm.DB, userID, orgID string, user models.User) (int, e
 
 func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.UserInOrgResponse, error) {
 	var (
-		o     models.Organisation
-		oum   models.OrgUserManagement
+		o   models.Organisation
+		oum models.OrgUserManagement
 	)
 
-	_, err := o.CheckOrgExists(orgID, db)	
+	_, err := o.CheckOrgExists(orgID, db)
 	if err != nil {
 		return nil, err
 	}
@@ -209,4 +214,28 @@ func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.
 	}
 
 	return users, nil
+}
+
+func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int, error) {
+	var (
+		oum models.OrgUserManagement
+		r   models.OrgRole
+	)
+
+	is_admin := oum.CheckIsOrganisationAdmin(db, ids)
+	if !is_admin {
+		return http.StatusForbidden, errors.New("user is not authorized to modify role")
+	}
+
+	exists := r.CheckExists(db, ids.RoleID)
+	if !exists {
+		return http.StatusNotFound, errors.New("provided role does not exist")
+	}
+
+	err := oum.UpdateMemberRole(db, ids)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update member role: %w", err)
+	}
+
+	return http.StatusOK, nil
 }

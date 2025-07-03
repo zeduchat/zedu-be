@@ -18,27 +18,30 @@ type SectionType string
 type ChannelType string
 
 var (
-	Updated            NotificationType = "updated"
-	Deleted            NotificationType = "deleted"
-	NewMessage         NotificationType = "new_message"
-	StatusUpdate       NotificationType = "status_update"
-	UnReadThreadChange NotificationType = "unread_thread_change"
-	ReplyCountChange   NotificationType = "reply_count_change"
-	ThreadSection      SectionType      = "thread_message"
-	ReplySection       SectionType      = "reply_message"
-	ChannelsSection    SectionType      = "channels_section"
-	DmChannelsSection  SectionType      = "dm_channels_section"
-	Channel            ChannelType      = "channel"
-	DMChannel          ChannelType      = "dm_channel"
-	GroupDMChannel     ChannelType      = "group_dm_channel"
+	Updated              NotificationType = "updated"
+	Deleted              NotificationType = "deleted"
+	NewMessage           NotificationType = "new_message"
+	StatusUpdate         NotificationType = "status_update"
+	UnReadThreadChange   NotificationType = "unread_thread_change"
+	ReplyCountChange     NotificationType = "reply_count_change"
+	PinnedMessageEvent   NotificationType = "pinned_message_event"
+	UnPinnedMessageEvent NotificationType = "unpinned_message_event"
+	ThreadSection        SectionType      = "thread_message"
+	ReplySection         SectionType      = "reply_message"
+	ChannelsSection      SectionType      = "channels_section"
+	DmChannelsSection    SectionType      = "dm_channels_section"
+	Channel              ChannelType      = "channel"
+	DMChannel            ChannelType      = "dm_channel"
+	GroupDMChannel       ChannelType      = "group_dm_channel"
 )
 
 type Content struct {
-	NotificationType   NotificationType   `json:"notification_type"`
-	SectionType        SectionType        `json:"section"`
-	ModifcationDetails ModifcationDetails `json:"modification_ids,omitempty"`
-	Content            any                `json:"data,omitempty"`
-	UpdateChange       map[string]any     `json:"update_change,omitempty"`
+	NotificationType   NotificationType    `json:"notification_type"`
+	SectionType        SectionType         `json:"section"`
+	ModifcationDetails *ModifcationDetails `json:"modification_ids,omitempty"`
+	Content            any                 `json:"data,omitempty"`
+	UpdateChange       map[string]any      `json:"update_change,omitempty"`
+	PinnedDetails      *PinnedDetails      `json:"pinned_details,omitempty"`
 }
 
 type ModifcationDetails struct {
@@ -70,24 +73,15 @@ var Notification = map[NotificationType]Content{
 	ReplyCountChange: Content{
 		NotificationType: ReplyCountChange,
 	},
+	PinnedMessageEvent: Content{
+		NotificationType: PinnedMessageEvent,
+		Content:          ModifcationDetails{},
+	},
+	UnPinnedMessageEvent: Content{
+		NotificationType: UnPinnedMessageEvent,
+		Content:          ModifcationDetails{},
+	},
 }
-
-// Device notifications settings
-
-// example:
-
-// {
-// 	"mobile": {
-// 	  "muted": false,
-// 	  "at_mentions": true,
-// 	  "at_channel": true
-// 	},
-// 	"web": {
-// 	  "muted": true,
-// 	  "at_mentions": false,
-// 	  "at_channel": true
-// 	}
-//   }
 
 type DeviceNotificationSettings struct {
 	DeviceNotification

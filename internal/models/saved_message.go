@@ -276,14 +276,18 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		return nil, fmt.Errorf("failed to retrieve saved messages: %w", err)
 	}
 
-	resolveChannelName := func(db *gorm.DB, channelID string) string {
+	resolveChannelInfo := func(db *gorm.DB, channelID string) (string, string) {
+
 		var dmchan DmChannels
 		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
-			return "Direct Message"
+			return "public", "Direct Message"
 		}
 		var ch Channels
-		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
-			return ch.Name
+		if exists := postgresql.CheckExists(db, &ch, "id = ?", channelID); !exists {
+			return "public", "Unknown Channel"
+		}
+		if ch.IsPrivate {
+			return "private", ch.Name
 		}
 		return ""
 	}
@@ -345,6 +349,8 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
 				continue
 			}
+			isPriv, chanName := resolveChannelInfo(db, m.ChannelsID)
+
 			mr.ID = msg.ID
 			mr.ThreadID = msg.ThreadID.String()
 			mr.MessageID = msg.MessageID
@@ -359,6 +365,8 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			if err := t.GetThreadById(db, msg.ThreadID.String()); err != nil {
 				continue
 			}
+			isPriv, chanName := resolveChannelInfo(db, t.ChannelsID)
+
 			mr.ID = msg.ID
 			mr.ThreadID = msg.ThreadID.String()
 			mr.MessageID = nil

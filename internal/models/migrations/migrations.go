@@ -34,7 +34,6 @@ func AuthMigrationModels() []any {
 		models.LoginActivity{},
 		models.MagicLink{},
 		models.Mentions{},
-		models.Message{},
 		models.NewsLetter{},
 		models.NotificationPreferences{},
 		models.OptIn{},

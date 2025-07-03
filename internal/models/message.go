@@ -59,6 +59,7 @@ type MessageDocument struct {
 	IsPinned       bool                   `json:"is_pinned"`
 	IsSaved        bool                   `json:"is_saved"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
+	PinnedDetails  PinnedDetails          `json:"pinned_details,omitempty"`
 }
 
 var MessageMapping = map[string]any{
@@ -100,6 +101,10 @@ var MessageMapping = map[string]any{
 		},
 		"is_saved": map[string]string{
 			"type": "boolean",
+		},
+		"pinned_details": map[string]any{
+			"type":       "nested",
+			"properties": PinnedDetailsMapping,
 		},
 	},
 }
@@ -235,6 +240,16 @@ func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, erro
 	return m, nil
 }
 
+func (m *Message) UpdateMessageWithScript(db *gorm.DB, req map[string]any) (*Message, error) {
+
+	err := elastic.UpdateDocWithScript(storage.DB.Elastic, MessageIndexName, m.ID, req)
+	if err != nil {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	return m, nil
+}
+
 func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string) ([]Message, error) {
 	var messages []Message
 	var userChannels UserChannels
@@ -286,7 +301,7 @@ func (t *MessageDocument) CheckExists() (bool, int, error) {
 					},
 					{
 						"term": map[string]any{
-							"user_id.keyword": t.UserID,
+							"_id": t.ID,
 						},
 					},
 				},

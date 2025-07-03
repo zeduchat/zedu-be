@@ -131,7 +131,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			go func() {
 				defer wg.Done()
 				updated := userChannel.UpdateLastRead(db, updateLastRead, &sync.Mutex{}, logger)
-				if updated  {
+				if updated {
 					userChannel.SendChannelUnReadUpdate(&sync.Mutex{}, logger, models.Read)
 				}
 			}()
@@ -332,6 +332,18 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		}
 	}
 
+	pinnedThread := models.PinnedMessage{
+		ThreadID:   threadID,
+		ChannelsID: channelID,
+	}
+
+	if exists := pinnedThread.CheckPinnedReplyExists(db); exists {
+		if err := pinnedThread.DeletePinnedThreadMessageRecord(db); err != nil {
+			logger.Error("An error occurred while deleting pinned thread message record: %v", err)
+			return http.StatusInternalServerError, err
+		}
+	}
+
 	if _, err := thread.DeleteThread(db); err != nil {
 		return http.StatusBadRequest, err
 	}
@@ -342,7 +354,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  threadID,
 		ChannelId: channelID,
 	}
@@ -424,7 +436,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelId,
 	}

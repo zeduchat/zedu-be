@@ -1555,19 +1555,28 @@ paths:
     get:
       tags:
         - organisation
-      summary: Get users in an organization
-      security:
-        - bearerAuth: []
+      summary: Retrieve users and bots in an organisation
+      description: Returns all users and bots belonging to an organisation. Supports query-based search by name or email.
+      operationId: searchOrganisationUsers
       parameters:
-        - in: path
-          name: orgId
+        - name: org_id
+          in: path
+          required: true
           schema:
             type: string
-            format: uuid
-          required: true
+          description: ID of the organisation
+          example: "019700db-4e22-7f90-a20e-f9116291ef24"
+
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term for name or email
+          example: "user"
 
       responses:
-        "200":
+        '200':
           description: Users retrieved successfully
           content:
             application/json:
@@ -1582,49 +1591,117 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: Users retrieved successfully
+                    example: users retrieved successfully
                   data:
                     type: array
                     items:
+                      type: object
                       properties:
                         id:
                           type: string
                           format: uuid
+                          example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
                         email:
                           type: string
-                          example: user@gmail.com
+                          format: email
+                          example: "user2@gmail.com"
+                        username:
+                          type: string
+                          example: ""
                         phone_number:
                           type: string
-                          example: 09055667788
+                          example: ""
+                        profile_url:
+                          type: string
+                          format: uri
+                          example: ""
                         name:
                           type: string
-                          example: Iretoms
-        "400":
-          description: Bad request
+                          example: "user2"
+                        role:
+                          type: string
+                          example: "Administrator"
+                        status:
+                          type: string
+                          enum: [active, inactive]
+                          example: "active"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-05-24T06:52:24.351066+01:00"
+                        entity_type:
+                          type: string
+                          enum: [user, bot]
+                          example: "user"
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_size:
+                          type: integer
+                          example: 20
+                        total_items:
+                          type: integer
+                          example: 2
+                        total_pages:
+                          type: integer
+                          example: 1
+  /organisations/{org_id}/users/{user_id}/role:
+    patch:
+      tags:
+        - organisation
+      summary: Update user's role in an organisation
+      description: Allows an admin to change the role of a user within a specific organisation.
+      operationId: updateUserRole
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation
+          schema:
+            type: string
+            example: "019700db-4e22-7f90-a20e-f9116291ef24"
+        - name: user_id
+          in: path
+          required: true
+          description: ID of the user
+          schema:
+            type: string
+            example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_id:
+                  type: string
+                  description: The new role ID to assign to the user
+                  example: "019700d8-9085-7f7b-839a-fcbd08b9e26d"
+              required:
+                - role_id
+      responses:
+        '200':
+          description: Role updated successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NotFoundErrorSchema"
-        "500":
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-  
-  
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
 
   /users/organisations/{org_id}:
     get:
@@ -7809,34 +7886,29 @@ paths:
   /organisations/{org_id}/users:
     get:
       tags:
-        - user-management
-      summary: Retrieve users of an organization
-      security:
-        - bearerAuth: []
+        - organisation
+      summary: Retrieve users and bots in an organisation
+      description: Returns all users and bots belonging to an organisation. Supports query-based search by name or email.
+      operationId: searchOrganisationUsers
       parameters:
         - name: org_id
           in: path
           required: true
-          description: The ID of the organization
           schema:
             type: string
-            format: uuid
-        - name: page
+          description: ID of the organisation
+          example: "019700db-4e22-7f90-a20e-f9116291ef24"
+
+        - name: query
           in: query
           required: false
-          description: The page number for pagination
           schema:
-            type: integer
-            default: 1
-        - name: page_size
-          in: query
-          required: false
-          description: The number of items per page for pagination
-          schema:
-            type: integer
-            default: 20
+            type: string
+          description: Search term for name or email
+          example: "user"
+
       responses:
-        "200":
+        '200':
           description: Users retrieved successfully
           content:
             application/json:
@@ -7860,20 +7932,39 @@ paths:
                         id:
                           type: string
                           format: uuid
+                          example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
                         email:
                           type: string
                           format: email
+                          example: "user2@gmail.com"
+                        username:
+                          type: string
+                          example: ""
                         phone_number:
                           type: string
+                          example: ""
+                        profile_url:
+                          type: string
+                          format: uri
+                          example: ""
                         name:
                           type: string
+                          example: "user2"
                         role:
                           type: string
-                          format: uuid
-                          description: The role of the user in the organization
+                          example: "Administrator"
                         status:
                           type: string
-                          description: The status of the user (e.g., active, inactive)
+                          enum: [active, inactive]
+                          example: "active"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2025-05-24T06:52:24.351066+01:00"
+                        entity_type:
+                          type: string
+                          enum: [user, bot]
+                          example: "user"
                   pagination:
                     type: array
                     items:
@@ -7881,30 +7972,16 @@ paths:
                       properties:
                         current_page:
                           type: integer
+                          example: 1
                         page_size:
                           type: integer
+                          example: 20
                         total_items:
                           type: integer
+                          example: 2
                         total_pages:
                           type: integer
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
+                          example: 1
   /organisations/{org_id}/get-started:
     get:
       tags:
@@ -15611,19 +15688,13 @@ paths:
                     type: string
                     example: Organisation unpinned successfully
 
-  /organisations/{organisationId}/channels/{channelId}/pin:
+  /channels/pin/{channelId}/thread:
     post:
       tags:
         - Pinned Messages
       summary: Pin a thread message to a channel or DM
-      description: Pins a specific message in a given channel or DM thread.
+      description: Pins a specific thread in a given channel or DM thread.
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
@@ -15727,19 +15798,13 @@ paths:
                     nullable: true
                     example: null
 
-  /organisations/{organisationId}/channels/{channelId}/pin/thread/{threadId}:
+  /channels/pin/{channelId}/thread/{threadId}:
      delete:
       tags:
         - Pinned Messages
       summary: Unpin a thread message from a channel or DM
       description: Removes a thread message from the pinned list in the specified channel.
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
@@ -15814,31 +15879,19 @@ paths:
                     nullable: true
                     example: null
 
-  /organisations/{organisationId}/channels/{channelId}/pin/{messageId}:
+  /channels/pin/{channelId}/message:
     post:
       tags:
         - Pinned Messages
       summary: Pin a reply message to a channel or DM
       description: Pins a specific message in a given channel or DM thread.
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
           schema:
             type: string
           description: ID of the channel or DM to pin the message in
-        - name: messageId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the message to pin
       requestBody:
         required: true
         content:
@@ -15847,6 +15900,9 @@ paths:
               type: object
               properties:
                 thread_id:
+                  type: string
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+                message_id:
                   type: string
                   example: "019744be-4864-7e65-bb9a-959348898754"
       security:
@@ -15936,19 +15992,13 @@ paths:
                     nullable: true
                     example: null
   
-  /organisations/{organisationId}/channels/{channelId}/pin/message/{messageId}:
+  /channels/pin/{channelId}/message/{messageId}:
     delete:
       tags:
         - Pinned Messages
       summary: Unpin a reply message from a channel or DM
       description: Removes a reply message from the pinned list in the specified channel.
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true
@@ -16023,19 +16073,13 @@ paths:
                     nullable: true
                     example: null
 
-  /organisations/{organisationId}/channels/{channelId}/pinned-messages:
+  /channels/pin/{channelId}:
     get:
       tags:
         - Pinned Messages
       summary: Retrieve pinned messages
       description: Fetches all pinned messages in the specified channel or DM, sorted by pin time.
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the organisation to pin the message in
         - name: channelId
           in: path
           required: true

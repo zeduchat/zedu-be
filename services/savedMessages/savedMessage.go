@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
@@ -21,7 +22,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	}
 
 	checkThread.ChannelsID = req.ChannelsId
-	checkThread.UserId = req.UserId
+	checkThread.ID = req.ThreadId
 
 	exists, _, err := checkThread.CheckExists()
 	if err != nil {
@@ -67,7 +68,7 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	}
 
 	checkMessage.ChannelsID = req.ChannelsId
-	checkMessage.UserID = req.UserId
+	checkMessage.ID = req.MessageId
 
 	exists, _, err := checkMessage.CheckExists()
 	if err != nil {
