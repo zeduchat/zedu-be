@@ -42,14 +42,14 @@ type Threads struct {
 	IsPinned      bool                   `json:"is_pinned"`
 	IsSaved       bool                   `json:"is_saved,omitempty"`
 	UserType      string                 `json:"user_type"`
-	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	OrgansationID string                 `json:"org_id,omitempty"`
 	State         string                 `json:"state,omitempty"`
-	PinnedDetails PinnedDetails         `json:"pinned_details,omitempty"`
+	PinnedDetails PinnedDetails          `json:"pinned_details,omitempty"`
+	Reactions     []ReactionDetails      `json:"reactions"`
 }
 
 type ThreadDocument struct {
@@ -80,7 +80,8 @@ type ThreadDocument struct {
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	State         string                 `json:"state,omitempty"`
 	IsSaved       bool                   `json:"is_saved,omitempty"`
-	PinnedDetails PinnedDetails         `json:"pinned_details,omitempty"`
+	PinnedDetails PinnedDetails          `json:"pinned_details,omitempty"`
+	Reactions     []ReactionDetails      `json:"reactions"`
 }
 
 var MediaMapping = map[string]any{
@@ -163,16 +164,12 @@ var Thread_mapping = map[string]any{
 				"type":       "nested",
 				"properties": PinnedDetailsMapping,
 			},
+			"reactions": map[string]any{
+				"type":       "nested",
+				"properties": ReactionMapping,
+			},
 		},
 	},
-}
-
-type Reaction struct {
-	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
-	ThreadID  string    `gorm:"type:uuid;index" json:"thread_id"`
-	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
-	Reaction  string    `gorm:"type:varchar(50);index" json:"reaction"`
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
 type ChannelDocument struct {
