@@ -30,7 +30,7 @@ type ReactionRequest struct {
 	ThreadID   string `json:"thread_id" validate:"required"`
 	MessageID  string `json:"message_id"`
 	ReactionID string `json:"reaction_id"`
-	Type       string `json:"type"`
+	Type       string `json:"type" validate:"required,oneof=thread reply"`
 	Expression int    `json:"int"` // +1 for increment, -1 for decrement
 }
 
@@ -132,24 +132,48 @@ func (m *Reaction) DeleteReplyReaction(db *gorm.DB) error {
 
 func (m *Reaction) GetReactionUsernameByID(db *gorm.DB) (int, []string, error) {
 	var (
-		checkThread ThreadDocument
-		users       []string
+		users []string
 	)
 
-	checkThread.ID = m.ThreadID
-	checkThread.ChannelsID = m.ChannelsID
+	var (
+		query   string
+		queryId string
+	)
 
-	exist, _, _ := checkThread.CheckExists()
+	if m.Type == "reply" {
+		query = "reactions.type = ? AND reactions.message_id = ? AND reactions.reaction_id = ?"
+		queryId = m.MessageID
 
-	if !exist {
-		return http.StatusBadRequest, users, errors.New("thread does not exist")
+		var checkMessage MessageDocument
+		checkMessage.ID = m.MessageID
+
+		exist, _, err := checkMessage.CheckExists()
+		if err != nil {
+			return http.StatusInternalServerError, users, err
+		}
+		if !exist {
+			return http.StatusBadRequest, users, errors.New("thread does not exist")
+		}
+
+	} else {
+		query = "reactions.type = ? AND reactions.thread_id = ? AND reactions.reaction_id = ?"
+		queryId = m.ThreadID
+
+		var checkThread ThreadDocument
+		checkThread.ID = m.ThreadID
+		exist, _, err := checkThread.CheckExists()
+		if err != nil {
+			return http.StatusInternalServerError, users, err
+		}
+		if !exist {
+			return http.StatusBadRequest, users, errors.New("reply message does not exist")
+		}
 	}
 
 	if err := db.Table("reactions").
-		Select("reactions.*").
 		Joins("JOIN profiles ON profiles.userid = reactions.user_id").
-		Where("reactions.thread_id = ? AND reactions.reaction_id = ?", m.ThreadID, m.ReactionID).
-		Pluck("profile.username", &users).Error; err != nil {
+		Where(query, m.Type, queryId, m.ReactionID).
+		Pluck("profiles.username", &users).Error; err != nil {
 		return http.StatusInternalServerError, users, err
 	}
 

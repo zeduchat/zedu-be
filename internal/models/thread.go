@@ -727,11 +727,6 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": t.ChannelsID,
-						},
-					},
-					{
-						"term": map[string]any{
 							"_id": t.ID,
 						},
 					},

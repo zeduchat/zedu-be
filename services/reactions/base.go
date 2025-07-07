@@ -81,7 +81,6 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 			)
 
 			checkThread.ID = ids.ThreadID
-			checkThread.ChannelsID = ids.ChannelID
 
 			exist, _, _ := checkThread.CheckExists()
 
@@ -89,7 +88,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				return reactionReq, errors.New("thread does not exist")
 			}
 
-			exists := postgresql.CheckExists(db.Postgresql, &react, "type = ? AND reaction_id = ? AND thread_id = ? AND user_id = ?", "thread", ids.ReactionID, ids.ThreadID, ids.UserID)
+			exists := postgresql.CheckExists(db.Postgresql, &react, "type = ? AND reaction_id = ? AND thread_id = ? AND user_id = ?", ids.Type, ids.ReactionID, ids.ThreadID, ids.UserID)
 			if !exists {
 				return reactionReq, errors.New("reaction does not exists")
 			}
@@ -98,7 +97,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ReactionID: react.ReactionID,
 				ThreadID:   react.ThreadID,
 				Expression: -1,
-				Type:       "thread",
+				Type:       ids.Type,
 			}
 
 			if err := react.DeleteThreadReaction(db.Postgresql); err != nil {
@@ -117,7 +116,6 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 			)
 
 			checkMessage.ID = ids.MessageID
-			checkMessage.ChannelsID = ids.ChannelID
 
 			exist, _, _ := checkMessage.CheckExists()
 
@@ -125,7 +123,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				return reactionReq, errors.New("reply does not exist")
 			}
 
-			exists := postgresql.CheckExists(db.Postgresql, &react, "type = ? AND reaction_id = ? AND message_id = ? AND user_id = ?", "reply", ids.ReactionID, ids.MessageID, ids.UserID)
+			exists := postgresql.CheckExists(db.Postgresql, &react, "type = ? AND reaction_id = ? AND message_id = ? AND user_id = ?", ids.Type, ids.ReactionID, ids.MessageID, ids.UserID)
 			if !exists {
 				return reactionReq, errors.New("reaction does not exists")
 			}
@@ -135,7 +133,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				MessageID:  react.MessageID,
 				ThreadID:   react.ThreadID,
 				Expression: -1,
-				Type:       "reply",
+				Type:       ids.Type,
 			}
 
 			if err := react.DeleteReplyReaction(db.Postgresql); err != nil {
@@ -159,7 +157,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 	notification.Reactions = &updatedReact
 	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadID,
-		ChannelId: ids.ChannelID,
+		ChannelId: react.ChannelsID,
 	}
 
 	if req.Type == "reply" {
@@ -167,9 +165,9 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 		notification.ModifcationDetails.MessageId = req.MessageID
 	}
 
-	err = centrifuge.PublishChannel(logger, req.ChannelsID, notification)
+	err = centrifuge.PublishChannel(logger, react.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", req.ChannelsID, err.Error())
+		logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", react.ChannelsID, err.Error())
 		return http.StatusInternalServerError, errors.New("failed to publish data: " + err.Error())
 	}
 
