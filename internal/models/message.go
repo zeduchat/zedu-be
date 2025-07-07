@@ -60,6 +60,7 @@ type MessageDocument struct {
 	IsSaved        bool                   `json:"is_saved"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
 	PinnedDetails  PinnedDetails          `json:"pinned_details,omitempty"`
+	Reactions      []ReactionDetails      `json:"reactions"`
 }
 
 var MessageMapping = map[string]any{
@@ -105,6 +106,10 @@ var MessageMapping = map[string]any{
 		"pinned_details": map[string]any{
 			"type":       "nested",
 			"properties": PinnedDetailsMapping,
+		},
+		"reactions": map[string]any{
+			"type":       "nested",
+			"properties": ReactionMapping,
 		},
 	},
 }
@@ -294,11 +299,6 @@ func (t *MessageDocument) CheckExists() (bool, int, error) {
 		"query": map[string]any{
 			"bool": map[string]any{
 				"must": []map[string]any{
-					{
-						"term": map[string]any{
-							"channels_id.keyword": t.ChannelsID,
-						},
-					},
 					{
 						"term": map[string]any{
 							"_id": t.ID,

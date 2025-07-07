@@ -26,6 +26,7 @@ var (
 	ReplyCountChange     NotificationType = "reply_count_change"
 	PinnedMessageEvent   NotificationType = "pinned_message_event"
 	UnPinnedMessageEvent NotificationType = "unpinned_message_event"
+	ReactionEvent        NotificationType = "reaction_event"
 	ThreadSection        SectionType      = "thread_message"
 	ReplySection         SectionType      = "reply_message"
 	ChannelsSection      SectionType      = "channels_section"
@@ -42,6 +43,7 @@ type Content struct {
 	Content            any                 `json:"data,omitempty"`
 	UpdateChange       map[string]any      `json:"update_change,omitempty"`
 	PinnedDetails      *PinnedDetails      `json:"pinned_details,omitempty"`
+	Reactions          *[]ReactionDetails  `json:"reactions,omitempty"`
 }
 
 type ModifcationDetails struct {
