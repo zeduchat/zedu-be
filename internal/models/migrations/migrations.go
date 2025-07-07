@@ -45,6 +45,7 @@ func AuthMigrationModels() []any {
 		models.PasswordReset{},
 		models.Permission{},
 		models.PinnedMessage{},
+		models.Reaction{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},

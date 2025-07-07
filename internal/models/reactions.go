@@ -13,7 +13,7 @@ import (
 type Reaction struct {
 	ID         string    `gorm:"type:uuid;primary_key" json:"id"`
 	ThreadID   string    `gorm:"type:uuid" json:"thread_id"`
-	MessageID  string    `gorm:"type:uuid" json:"message_id,omitempty"`
+	MessageID  *string   `gorm:"type:uuid;null;index" json:"message_id,omitempty"`
 	UserID     string    `gorm:"type:uuid;index" json:"user_id"`
 	ChannelsID string    `gorm:"type:uuid;index" json:"channels_id"`
 	Reaction   string    `gorm:"type:text" json:"reaction"`
@@ -37,7 +37,7 @@ type ReactionRequest struct {
 type ReactionDetails struct {
 	Reaction      string `json:"reaction"`
 	ReactionId    string `json:"reaction_id"`
-	ReactionCount string `json:"reaction_count"`
+	ReactionCount int    `json:"reaction_count"`
 }
 
 var ReactionMapping = map[string]any{
@@ -67,9 +67,9 @@ func (m *Reaction) CreateThreadReaction(db *gorm.DB) (int, bool, error) {
 	exists := postgresql.CheckExists(db, &reactionEntry, "reaction_id = ? AND thread_id = ? AND user_id = ?", m.ReactionID, m.ThreadID, m.UserID)
 	if !exists {
 		if err := postgresql.CreateOneRecord(db, &m); err != nil {
-			new = true
 			return http.StatusInternalServerError, new, err
 		}
+		new = true
 	}
 
 	return http.StatusCreated, new, nil
@@ -82,7 +82,7 @@ func (m *Reaction) CreateReplyReaction(db *gorm.DB) (int, bool, error) {
 		new           bool
 	)
 
-	checkMessage.ID = m.MessageID
+	checkMessage.ID = *m.MessageID
 	checkMessage.ChannelsID = m.ChannelsID
 
 	exist, _, _ := checkMessage.CheckExists()
@@ -94,9 +94,9 @@ func (m *Reaction) CreateReplyReaction(db *gorm.DB) (int, bool, error) {
 	exists := postgresql.CheckExists(db, &reactionEntry, "reaction_id = ? AND message_id = ? AND user_id = ?", m.ReactionID, m.MessageID, m.UserID)
 	if !exists {
 		if err := postgresql.CreateOneRecord(db, &m); err != nil {
-			new = true
 			return http.StatusInternalServerError, new, err
 		}
+		new = true
 	}
 
 	return http.StatusCreated, new, nil
@@ -142,10 +142,10 @@ func (m *Reaction) GetReactionUsernameByID(db *gorm.DB) (int, []string, error) {
 
 	if m.Type == "reply" {
 		query = "reactions.type = ? AND reactions.message_id = ? AND reactions.reaction_id = ?"
-		queryId = m.MessageID
+		queryId = *m.MessageID
 
 		var checkMessage MessageDocument
-		checkMessage.ID = m.MessageID
+		checkMessage.ID = *m.MessageID
 
 		exist, _, err := checkMessage.CheckExists()
 		if err != nil {
@@ -173,7 +173,7 @@ func (m *Reaction) GetReactionUsernameByID(db *gorm.DB) (int, []string, error) {
 	if err := db.Table("reactions").
 		Joins("JOIN profiles ON profiles.userid = reactions.user_id").
 		Where(query, m.Type, queryId, m.ReactionID).
-		Pluck("profiles.username", &users).Error; err != nil {
+		Pluck("profiles.user_name", &users).Error; err != nil {
 		return http.StatusInternalServerError, users, err
 	}
 

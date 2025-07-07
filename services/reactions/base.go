@@ -24,8 +24,11 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 		ThreadID:   req.ThreadID,
 		ReactionID: utility.GenerateUUIDFromSeed(req.Reaction),
 		Reaction:   req.Reaction,
-		MessageID:  req.MessageID,
 		Type:       req.Type,
+	}
+
+	if req.Type == "reply" {
+		react.MessageID = &req.MessageID
 	}
 
 	createEntry := map[string]func(db *gorm.DB) (int, bool, error){
@@ -62,6 +65,7 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 			logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", req.ChannelsID, err.Error())
 			return http.StatusInternalServerError, errors.New("failed to publish data: " + err.Error())
 		}
+		logger.Info("Published reactions to channel successfully")
 	}
 
 	return code, nil
@@ -130,7 +134,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 
 			reactionReq = models.ReactionRequest{
 				ReactionID: react.ReactionID,
-				MessageID:  react.MessageID,
+				MessageID:  *react.MessageID,
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
@@ -178,7 +182,7 @@ func GetReactionUsernames(db *storage.Database, logger *utility.Logger, ids mode
 	var react models.Reaction
 
 	react.ThreadID = ids.ThreadID
-	react.MessageID = ids.MessageID
+	react.MessageID = &ids.MessageID
 	react.ReactionID = ids.ReactionID
 	react.Type = ids.Type
 
@@ -217,7 +221,7 @@ func UpdateReaction(db *storage.Database, logger *utility.Logger, req models.Rea
 					def newReaction = [
 						'reaction': params.reaction.reaction,
 						'reaction_id': params.reaction.reaction_id,
-						'reaction_count': 1,
+						'reaction_count': 1
 					];
 					ctx._source.reactions.add(newReaction);
 				}`
@@ -274,7 +278,7 @@ func UpdateReaction(db *storage.Database, logger *utility.Logger, req models.Rea
 					def newReaction = [
 						'reaction': params.reaction.reaction,
 						'reaction_id': params.reaction.reaction_id,
-						'reaction_count': 1,
+						'reaction_count': 1
 					];
 					ctx._source.reactions.add(newReaction);
 				}`
