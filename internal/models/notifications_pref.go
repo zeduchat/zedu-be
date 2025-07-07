@@ -83,6 +83,10 @@ var Notification = map[NotificationType]Content{
 		NotificationType: UnPinnedMessageEvent,
 		Content:          ModifcationDetails{},
 	},
+	ReactionEvent: Content{
+		NotificationType: ReactionEvent,
+		Content:          ModifcationDetails{},
+	},
 }
 
 type DeviceNotificationSettings struct {
