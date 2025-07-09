@@ -42,13 +42,14 @@ type Threads struct {
 	IsPinned      bool                   `json:"is_pinned"`
 	IsSaved       bool                   `json:"is_saved,omitempty"`
 	UserType      string                 `json:"user_type"`
-	Reactions     []Reaction             `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"reactions"`
 	Count         int                    `json:"frequency,omitempty"`
 	UserId        string                 `json:"user_id"`
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	OrgansationID string                 `json:"org_id,omitempty"`
 	State         string                 `json:"state,omitempty"`
+	PinnedDetails PinnedDetails          `json:"pinned_details,omitempty"`
+	Reactions     []ReactionDetails      `json:"reactions"`
 }
 
 type ThreadDocument struct {
@@ -79,6 +80,8 @@ type ThreadDocument struct {
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	State         string                 `json:"state,omitempty"`
 	IsSaved       bool                   `json:"is_saved,omitempty"`
+	PinnedDetails PinnedDetails          `json:"pinned_details,omitempty"`
+	Reactions     []ReactionDetails      `json:"reactions"`
 }
 
 var MediaMapping = map[string]any{
@@ -97,6 +100,15 @@ var MentionMapping = map[string]any{
 		"properties": map[string]any{
 			"id":   map[string]string{"type": "text"},
 			"type": map[string]string{"type": "text"},
+		},
+	},
+}
+
+var PinnedDetailsMapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": map[string]any{
+			"username": map[string]string{"type": "keyword"},
+			"email":    map[string]string{"type": "keyword"},
 		},
 	},
 }
@@ -148,16 +160,16 @@ var Thread_mapping = map[string]any{
 			"is_pinned": map[string]string{
 				"type": "boolean",
 			},
+			"pinned_details": map[string]any{
+				"type":       "nested",
+				"properties": PinnedDetailsMapping,
+			},
+			"reactions": map[string]any{
+				"type":       "nested",
+				"properties": ReactionMapping,
+			},
 		},
 	},
-}
-
-type Reaction struct {
-	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
-	ThreadID  string    `gorm:"type:uuid;index" json:"thread_id"`
-	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
-	Reaction  string    `gorm:"type:varchar(50);index" json:"reaction"`
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 }
 
 type ChannelDocument struct {
@@ -546,6 +558,17 @@ func (c *Threads) UpdateThread(db *gorm.DB, req map[string]any) (*Threads, error
 	return c, nil
 }
 
+func (c *Threads) UpdateThreadWithScript(db *gorm.DB, req map[string]any) (*Threads, error) {
+
+	err := elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, c.ID, req)
+
+	if err != nil {
+		return nil, fmt.Errorf("thread not found")
+	}
+
+	return c, nil
+}
+
 func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
 	var (
 		fileModel UploadedFileResponse
@@ -702,11 +725,6 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 		"query": map[string]any{
 			"bool": map[string]any{
 				"must": []map[string]any{
-					{
-						"term": map[string]any{
-							"channels_id.keyword": t.ChannelsID,
-						},
-					},
 					{
 						"term": map[string]any{
 							"_id": t.ID,

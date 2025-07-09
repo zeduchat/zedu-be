@@ -226,7 +226,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageId,
@@ -305,7 +305,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
 	notification.UpdateChange = updateResp
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageId,

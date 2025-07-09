@@ -13,7 +13,10 @@ import (
 )
 
 func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger *utility.Logger) (*models.PinnedMessage, int, error) {
-	var threads models.Threads
+	var (
+		threads models.Threads
+		user    models.User
+	)
 
 	messageToPin := models.PinnedMessage{
 		ID:         utility.GenerateUUID(),
@@ -31,9 +34,16 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 		return nil, code, errors.New("failed to pin thread message, error: " + createErr.Error())
 	}
 
+	ud, _ := user.GetUserByID(db.Postgresql, req.UserId)
+	pinnedDetails := models.PinnedDetails{
+		Username: ud.Profile.UserName,
+		Email:    ud.Email,
+	}
+
 	threads.ID = req.ThreadId
 	updateKey := map[string]any{
-		"is_pinned": true,
+		"is_pinned":      true,
+		"pinned_details": pinnedDetails,
 	}
 
 	if _, err := threads.UpdateThread(db.Postgresql, updateKey); err != nil {
@@ -42,7 +52,8 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 
 	notification := models.Notification[models.PinnedMessageEvent]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.PinnedDetails = &pinnedDetails
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 	}
@@ -57,7 +68,10 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 }
 
 func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger *utility.Logger) (*models.PinnedMessage, int, error) {
-	var message models.Message
+	var (
+		message models.Message
+		user    models.User
+	)
 
 	messageToPin := models.PinnedMessage{
 		ID:         utility.GenerateUUID(),
@@ -76,8 +90,16 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 		return nil, code, errors.New("failed to pin reply-message, error: " + createErr.Error())
 	}
 
+	ud, _ := user.GetUserByID(db.Postgresql, req.UserId)
+
+	pinnedDetails := models.PinnedDetails{
+		Username: ud.Profile.UserName,
+		Email:    ud.Email,
+	}
+
 	updateKey := map[string]any{
-		"is_pinned": true,
+		"is_pinned":      true,
+		"pinned_details": pinnedDetails,
 	}
 
 	message.ID = req.MessageID
@@ -87,7 +109,8 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 
 	notification := models.Notification[models.PinnedMessageEvent]
 	notification.SectionType = models.ReplySection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.PinnedDetails = &pinnedDetails
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageID,
@@ -117,7 +140,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 	var threads models.Threads
 	var pinnedMessage models.PinnedMessage
 
-	exists := postgresql.CheckExists(db.Postgresql, &pinnedMessage, "type = ? AND channels_id = ? thread_id = ?", "thread", ids.ChannelID, ids.ThreadID)
+	exists := postgresql.CheckExists(db.Postgresql, &pinnedMessage, "type = ? AND channels_id = ? AND thread_id = ?", "thread", ids.ChannelID, ids.ThreadID)
 	if !exists {
 		return errors.New("thread not pinned")
 	}
@@ -130,19 +153,24 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 		return err
 	}
 
-	updateKey := map[string]any{
-		"is_pinned": false,
+	script := map[string]any{
+		"script": map[string]any{
+			"source": `
+				ctx._source.is_pinned = false;
+				ctx._source.pinned_details = [:];
+			`,
+		},
 	}
 
 	threads.ID = ids.ThreadID
-	_, err := threads.UpdateThread(db.Postgresql, updateKey)
+	_, err := threads.UpdateThreadWithScript(db.Postgresql, script)
 	if err != nil {
 		return err
 	}
 
 	notification := models.Notification[models.UnPinnedMessageEvent]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  pinnedMessage.ThreadID,
 		ChannelId: pinnedMessage.ChannelsID,
 	}
@@ -173,19 +201,24 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 		return err
 	}
 
-	updateKey := map[string]any{
-		"is_pinned": false,
+	script := map[string]any{
+		"script": map[string]any{
+			"source": `
+				ctx._source.is_pinned = false;
+				ctx._source.pinned_details = [:];
+			`,
+		},
 	}
 
 	message.ID = ids.MessageID
-	_, err := message.UpdateMessage(db.Postgresql, updateKey)
+	_, err := message.UpdateMessageWithScript(db.Postgresql, script)
 	if err != nil {
 		return err
 	}
 
 	notification := models.Notification[models.UnPinnedMessageEvent]
 	notification.SectionType = models.ReplySection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  pinnedMessage.ThreadID,
 		ChannelId: pinnedMessage.ChannelsID,
 		MessageId: *pinnedMessage.MessageID,

@@ -354,7 +354,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  threadID,
 		ChannelId: channelID,
 	}
@@ -436,7 +436,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
-	notification.ModifcationDetails = models.ModifcationDetails{
+	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelId,
 	}

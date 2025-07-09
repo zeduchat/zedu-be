@@ -424,12 +424,12 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 	}
 
 	ids := map[string]string{
-		"org_id": org_id,
-		"user_id": user_id,
+		"org_id":        org_id,
+		"user_id":       user_id,
 		"admin_user_id": adminUserID.(string),
 	}
 
-	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req ,ids)
+	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req, ids)
 	if err != nil {
 		base.Logger.Error("failed to change member active status: %w", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to change member active status", err.Error(), nil)
@@ -443,7 +443,7 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 	}
 
 	base.Logger.Info("user %s from organisation %s successfully", status, org_id)
-	rd := utility.BuildSuccessResponse(code,"success", fmt.Sprintf("user %s successfully", status))
+	rd := utility.BuildSuccessResponse(code, "success", fmt.Sprintf("user %s successfully", status))
 	c.JSON(code, rd)
 }
 
@@ -476,4 +476,67 @@ func (base *Controller) SearchUsersInOrganisation(c *gin.Context) {
 	base.Logger.Info("users searched successfully in organisation")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", users)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateMemberRole(c *gin.Context) {
+	orgId := c.Param("org_id")
+	userId := c.Param("user_id")
+
+	var req models.UpdateMemberRoleRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("failed to bind request", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to bind request", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(userId); err != nil {
+		base.Logger.Error("invalid user id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "failed to decode user id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(req)
+	if err != nil {
+		base.Logger.Error("validation error", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "validation error", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Error("failed to get user claims", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to get user claims", "failed to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := models.IDS{
+		OrganisationID: orgId,
+		UserID:         userId,
+		OwnerID:        claims.(string),
+		RoleID:         req.RoleID,
+	}
+
+	code, err := organisation.UpdateMemberRole(base.Db.Postgresql, ids)
+	if err != nil {
+		base.Logger.Error("failed to update role", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to update role", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("member role updated successfully")
+	rd := utility.BuildSuccessResponse(code, "success", nil)
+	c.JSON(code, rd)
 }
