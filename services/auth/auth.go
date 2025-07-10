@@ -120,7 +120,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		return nil, http.StatusInternalServerError, err
 	}
 
-	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	exists = postgresql.CheckExists(db, &user, "email = ?", req.Email)
 	if !exists {
 		return responseData, 400, fmt.Errorf("invalid credentials")
 	}
