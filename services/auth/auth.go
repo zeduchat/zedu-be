@@ -23,7 +23,6 @@ import (
 
 func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (models.CreateUserRequestModel, error) {
 
-	user := models.User{}
 	profile := models.Profile{}
 
 	if req.Email != "" {
@@ -33,10 +32,6 @@ func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (
 			return req, fmt.Errorf("email address is invalid")
 		}
 		req.Email = formattedMail
-		exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
-		if exists {
-			return req, errors.New("user already exists with the given email")
-		}
 	}
 
 	if req.PhoneNumber != "" {
@@ -71,7 +66,18 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		phoneNumber  = req.PhoneNumber
 		password     = req.Password
 		responseData gin.H
+		userChk      = models.User{}
 	)
+
+	exists := postgresql.CheckExists(db, &userChk, "email = ?", req.Email)
+	if exists {
+		loginUser := models.LoginRequestModel{
+			Email:    email,
+			Password: req.Password,
+		}
+
+		return LoginUser(loginUser, db, c, extReq)
+	}
 
 	password, err := utility.HashPassword(req.Password)
 	if err != nil {
