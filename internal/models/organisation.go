@@ -211,13 +211,13 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 	query := db.Postgresql.Table("channels").
 		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.id NOT IN (SELECT user_channels.channels_id FROM user_channels WHERE channels.is_private = ? AND user_channels.user_id != ?)", "true", ids.UserID).
+		Where("channels.id NOT IN (SELECT sc.channels_id FROM user_channels AS sc WHERE channels.is_private = ? AND sc.user_id != ?)", "true", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
-	if err := query.Scan(&chanResp); err != nil {
+	if err := query.Scan(&chanResp).Error; err != nil {
 		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("error fetching channels")
 	}
 
@@ -225,7 +225,6 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		var (
 			avatars      []string
 			totalMembers int64
-			lastReadAt   time.Time
 		)
 		if err := db.Postgresql.Table("user_channels").
 			Select("profiles.avatar_url").
@@ -247,22 +246,15 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 			membersLeft = int(totalMembers)
 		}
 
-		err := db.Postgresql.Table("user_channels").
-			Where("channels_id = ? AND user_id = ?", chanResp[i].ID, ids.UserID).
-			Pluck("last_read_at", &lastReadAt).Error
-		if err != nil {
-			lastReadAt = time.Time{}
-			return nil, paginationResponse, http.StatusInternalServerError, fmt.Errorf("error fetching last read at: %w", err)
-		}
+		var lastPostTime time.Time
 
-		unreadCount, err := GetChannelUnreadCount(db, chanResp[i].ID, ids.UserID, lastReadAt)
-		if err != nil {
-			chanResp[i].UnreadCount = 0
-		} else {
-			chanResp[i].UnreadCount = unreadCount
-		}
+		err := db.Postgresql.
+			Table("user_channels").
+			Where("channels_id = ?", chanResp[i].ID).
+			Order("last_read_at DESC").
+			Limit(1).
+			Pluck("last_read_at", &lastPostTime).Error
 
-		lastPostTime, err := FetchLastMessageTime(db, chanResp[i].ID)
 		if err != nil {
 			chanResp[i].LastPostTime = "Last post unavailable"
 		} else if lastPostTime.IsZero() {
@@ -302,6 +294,14 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		chanResp[i].MemberAvatars = avatars
 		chanResp[i].MembersCount = membersLeft
 	}
+	query = db.Postgresql.Table("channels").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
+		Where("channels.id NOT IN (SELECT sc.channels_id FROM user_channels AS sc WHERE channels.is_private = ? AND sc.user_id != ?)", "true", ids.UserID).
+		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Order("channels.created_at").
+		Offset((pagination.Page - 1) * pagination.Limit).
+		Limit(pagination.Limit)
 
 	var totalRes int64
 	if err := query.Count(&totalRes).Error; err != nil {
@@ -766,9 +766,19 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 			},
 		},
 		"aggs": map[string]any{
-			"last_message": map[string]any{
-				"max": map[string]any{
-					"field": "created_at",
+			"latest_message": map[string]any{
+				"top_hits": map[string]any{
+					"size": 1,
+					"sort": []any{
+						map[string]any{
+							"created_at": map[string]any{
+								"order": "desc",
+							},
+						},
+					},
+					"_source": map[string]any{
+						"includes": []string{"created_at"},
+					},
 				},
 			},
 		},
@@ -780,20 +790,51 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 		return time.Time{}, fmt.Errorf("failed to fetch last message time: %w", err)
 	}
 
+	fmt.Println(lastMsgResult)
+
 	resultMap, ok := lastMsgResult.(map[string]any)
+
+	aggs, ok := resultMap["aggregations"].(map[string]any)
 	if !ok {
-		return time.Time{}, fmt.Errorf("failed to parse last message time result")
+		return time.Time{}, fmt.Errorf("missing aggregations")
 	}
 
-	agg := resultMap["aggregations"].(map[string]any)["last_message"].(map[string]any)
-	lastMsgEpoch, ok := agg["value"].(float64)
-	if !ok || lastMsgEpoch == 0 {
-		return time.Time{}, nil
+	latest, ok := aggs["latest_message"].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing latest_message")
 	}
 
-	lastMsgTime := time.UnixMilli(int64(lastMsgEpoch))
+	hitsBlock, ok := latest["hits"].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing hits in aggregation")
+	}
 
-	return lastMsgTime, nil
+	hits, ok := hitsBlock["hits"].([]any)
+	if !ok || len(hits) == 0 {
+		return time.Time{}, nil // No messages found
+	}
+
+	firstHit, ok := hits[0].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("invalid hit format")
+	}
+
+	source, ok := firstHit["_source"].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing _source in hit")
+	}
+
+	createdAtStr, ok := source["created_at"].(string)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing or invalid created_at")
+	}
+
+	parsedTime, err := time.Parse(time.RFC3339, createdAtStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid time format: %w", err)
+	}
+
+	return parsedTime, nil
 }
 
 func (o *Organisation) GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]Organisation, postgresql.PaginationResponse, error) {

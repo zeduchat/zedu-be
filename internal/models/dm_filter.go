@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"gorm.io/gorm"
 )
 
 type DmFilter struct {
@@ -50,6 +51,7 @@ func FilterDms(db *storage.Database, userId, orgId string, c *gin.Context) ([]Dm
 
 	return dmFilter, raw, http.StatusOK, nil
 }
+
 func queryElasticForDms(chanIds []string, userId, orgId string) map[string]any {
 	query := map[string]any{
 		"size": 100,
