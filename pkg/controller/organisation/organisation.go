@@ -116,21 +116,39 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 		return
 	}
 
-	respData, err := organisation.GetAllChannelssInTeam(base.Db.Postgresql, orgID)
-	if err != nil {
-		base.Logger.Info("error fetching channels")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to update organisation", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	response := gin.H{
-		"channels": respData,
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	ids := models.IDS{
+		UserID:         userId,
+		OrganisationID: orgID,
+	}
+
+	respData, paginationResponse, code, err := organisation.GetAllChannelssInTeam(base.Db, c, ids)
+	if err != nil {
+		base.Logger.Info("error fetching channels")
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(respData),
 	}
 
 	base.Logger.Info("channels fetched successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "channels fetched successfully", response)
-	c.JSON(http.StatusOK, rd)
+	rd := utility.BuildSuccessResponse(code, "channels fetched successfully", respData, paginationData)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) UpdateOrganisation(c *gin.Context) {
@@ -288,7 +306,6 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
 
 	users, paginationResponse, err := service.GetUsersAndBotsInOrganisation(orgId, userId, base.Db.Postgresql, c, query)
 	if err != nil {
