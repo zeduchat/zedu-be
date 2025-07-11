@@ -714,7 +714,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		var (
 			avatars      []string
 			totalMembers int64
-			lastReadAt   time.Time
+			lastReadAt   *time.Time
 		)
 		if err := db.Table("user_channels").
 			Select("profiles.avatar_url").
@@ -740,11 +740,11 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			Where("channels_id = ? AND user_id = ?", chanResp[i].ID, ids.UserID).
 			Pluck("last_read_at", &lastReadAt).Error
 		if err != nil {
-			lastReadAt = time.Time{}
+			lastReadAt = &time.Time{}
 			return nil, fmt.Errorf("error fetching last read at: %w", err)
 		}
 
-		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, lastReadAt)
+		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, *lastReadAt)
 		if err != nil {
 			chanResp[i].UnreadCount = 0
 		} else {
