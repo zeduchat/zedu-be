@@ -205,15 +205,15 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	return &org, nil
 }
 
-func GetAllChannelssInTeam(db *gorm.DB, orgID string) (models.ChannelResp, error) {
+func GetAllChannelssInTeam(db *storage.Database, c *gin.Context, ids models.IDS) (models.GetUserChannelResp, postgresql.PaginationResponse, int, error) {
 	var o models.Organisation
 
-	channels, err := o.GetAllChannelssInOrganisation(db, orgID)
+	channels, pag, code, err := o.GetAllChannelssInOrganisation(db, c, ids)
 	if err != nil {
-		return channels, err
+		return channels, pag, code, err
 	}
 
-	return channels, nil
+	return channels, pag, code, nil
 }
 
 func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgRequestModel, db *gorm.DB, logger *utility.Logger) (*models.Organisation, int, error) {
@@ -366,8 +366,6 @@ func GetUsersAndBotsInOrganisation(orgId, userId string, db *gorm.DB, c *gin.Con
 	return users, paginationResponse, nil
 }
 
-
-
 func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Context, searchTerm string) ([]models.UserInOrgResponse, postgresql.PaginationResponse, error) {
 	var (
 		users      []models.UserInOrgResponse
@@ -479,7 +477,6 @@ func fetchUsersWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.Conte
 
 	return users, paginationResponse, nil
 }
-
 
 func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
 	var (
