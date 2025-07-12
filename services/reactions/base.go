@@ -36,13 +36,13 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 		"reply":  func(db *gorm.DB) (int, bool, error) { return react.CreateReplyReaction(db) },
 	}
 
-	code, updateElastic, createErr := createEntry[req.Type](db.Postgresql)
+	code, addOrRemove, createErr := createEntry[req.Type](db.Postgresql)
 	if createErr != nil {
 		logger.Error("failed to save reaction: %v", createErr)
 		return code, errors.New("failed to save reaction , error: " + createErr.Error())
 	}
 
-	if updateElastic {
+	if addOrRemove {
 		req.Expression = 1
 		req.ReactionID = react.ReactionID
 		updatedReact, err := UpdateReaction(db, logger, req)
@@ -66,6 +66,15 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 			return http.StatusInternalServerError, errors.New("failed to publish data: " + err.Error())
 		}
 		logger.Info("Published reactions to channel successfully")
+	} else {
+		ids := models.IDS{
+			Type:       req.Type,
+			ReactionID: req.ReactionID,
+			UserID:     req.UserID,
+			ThreadID:   req.ThreadID,
+			MessageID:  req.MessageID,
+		}
+		return DeleteReaction(db, logger, ids)
 	}
 
 	return code, nil
