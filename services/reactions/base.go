@@ -69,7 +69,7 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 	} else {
 		ids := models.IDS{
 			Type:       req.Type,
-			ReactionID: req.ReactionID,
+			ReactionID: react.ReactionID,
 			UserID:     req.UserID,
 			ThreadID:   req.ThreadID,
 			MessageID:  req.MessageID,
