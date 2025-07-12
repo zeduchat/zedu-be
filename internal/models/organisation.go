@@ -209,11 +209,13 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 	paginationResponse := postgresql.PaginationResponse{}
 
 	query := db.Postgresql.Table("channels").
-		Select("DISTINCT ON (channels.id) channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.last_thread_id, 'true' AS access").
-		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.id NOT IN (SELECT sc.channels_id FROM user_channels AS sc WHERE channels.is_private = ? AND sc.user_id != ?)", "true", ids.UserID).
+		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
+			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
+			channels.created_at, uc.last_thread_id, 'true' AS access`).
+		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
-		Order("channels.id, channels.created_at").
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
+		Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
@@ -295,10 +297,12 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		chanResp[i].MembersCount = membersLeft
 	}
 	query = db.Postgresql.Table("channels").
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
-		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.id NOT IN (SELECT sc.channels_id FROM user_channels AS sc WHERE channels.is_private = ? AND sc.user_id != ?)", "true", ids.UserID).
+		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
+			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
+			channels.created_at, uc.last_thread_id, 'true' AS access`).
+		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
 		Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
