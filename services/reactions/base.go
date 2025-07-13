@@ -36,13 +36,13 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 		"reply":  func(db *gorm.DB) (int, bool, error) { return react.CreateReplyReaction(db) },
 	}
 
-	code, updateElastic, createErr := createEntry[req.Type](db.Postgresql)
+	code, addOrRemove, createErr := createEntry[req.Type](db.Postgresql)
 	if createErr != nil {
 		logger.Error("failed to save reaction: %v", createErr)
 		return code, errors.New("failed to save reaction , error: " + createErr.Error())
 	}
 
-	if updateElastic {
+	if addOrRemove {
 		req.Expression = 1
 		req.ReactionID = react.ReactionID
 		updatedReact, err := UpdateReaction(db, logger, req)
@@ -66,6 +66,16 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 			return http.StatusInternalServerError, errors.New("failed to publish data: " + err.Error())
 		}
 		logger.Info("Published reactions to channel successfully")
+	} else {
+		ids := models.IDS{
+			Type:       req.Type,
+			ReactionID: react.ReactionID,
+			UserID:     req.UserID,
+			ThreadID:   req.ThreadID,
+			MessageID:  req.MessageID,
+			ChannelID:  req.ChannelsID,
+		}
+		return DeleteReaction(db, logger, ids)
 	}
 
 	return code, nil
@@ -102,6 +112,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
+				ChannelsID: ids.ChannelID,
 			}
 
 			if err := react.DeleteThreadReaction(db.Postgresql); err != nil {
@@ -138,6 +149,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
+				ChannelsID: ids.ChannelID,
 			}
 
 			if err := react.DeleteReplyReaction(db.Postgresql); err != nil {
@@ -161,7 +173,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 	notification.Reactions = &updatedReact
 	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadID,
-		ChannelId: react.ChannelsID,
+		ChannelId: req.ChannelsID,
 	}
 
 	if req.Type == "reply" {
@@ -169,9 +181,9 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 		notification.ModifcationDetails.MessageId = req.MessageID
 	}
 
-	err = centrifuge.PublishChannel(logger, react.ChannelsID, notification)
+	err = centrifuge.PublishChannel(logger, req.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", react.ChannelsID, err.Error())
+		logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", req.ChannelsID, err.Error())
 		return http.StatusInternalServerError, errors.New("failed to publish data: " + err.Error())
 	}
 
