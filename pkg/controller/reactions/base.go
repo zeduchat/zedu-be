@@ -75,7 +75,7 @@ func (base *Controller) CreateReaction(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(code, "Reaction created successfully", nil)
+	rd := utility.BuildSuccessResponse(code, "Reaction updated successfully", nil)
 	c.JSON(code, rd)
 }
 

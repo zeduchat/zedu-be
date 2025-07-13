@@ -73,6 +73,7 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 			UserID:     req.UserID,
 			ThreadID:   req.ThreadID,
 			MessageID:  req.MessageID,
+			ChannelID:  req.ChannelsID,
 		}
 		return DeleteReaction(db, logger, ids)
 	}
@@ -111,6 +112,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
+				ChannelsID: ids.ChannelID,
 			}
 
 			if err := react.DeleteThreadReaction(db.Postgresql); err != nil {
@@ -147,6 +149,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
+				ChannelsID: ids.ChannelID,
 			}
 
 			if err := react.DeleteReplyReaction(db.Postgresql); err != nil {
@@ -170,7 +173,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 	notification.Reactions = &updatedReact
 	notification.ModifcationDetails = &models.ModifcationDetails{
 		ThreadId:  req.ThreadID,
-		ChannelId: react.ChannelsID,
+		ChannelId: req.ChannelsID,
 	}
 
 	if req.Type == "reply" {
@@ -178,9 +181,9 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 		notification.ModifcationDetails.MessageId = req.MessageID
 	}
 
-	err = centrifuge.PublishChannel(logger, react.ChannelsID, notification)
+	err = centrifuge.PublishChannel(logger, req.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", react.ChannelsID, err.Error())
+		logger.Error("Error Publishing pinned message event to with destination id: %s error: %v", req.ChannelsID, err.Error())
 		return http.StatusInternalServerError, errors.New("failed to publish data: " + err.Error())
 	}
 
