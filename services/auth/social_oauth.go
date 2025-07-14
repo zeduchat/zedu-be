@@ -71,12 +71,9 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 	reqUser = models.CreateUserRequestModel{
 		Email: email,
 	}
-	_, err = ValidateCreateUserRequest(reqUser, db)
-	if err != nil {
-		exists := postgresql.CheckExists(db, &user, "email = ?", email)
-		if !exists {
-			return responseData, http.StatusNotFound, fmt.Errorf("user not found")
-		}
+	formattedReq, err := ValidateCreateUserRequest(reqUser, db)
+	exists := postgresql.CheckExists(db, &user, "email = ?", formattedReq.Email)
+	if exists {
 		user, err = user.GetUserWithProfile(db, user.ID)
 
 		if err != nil {
@@ -87,7 +84,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		user = models.User{
 			ID:             utility.GenerateUUID(),
 			Name:           username,
-			Email:          email,
+			Email:          formattedReq.Email,
 			IsVerified:     true,
 			ProfileUpdated: true,
 			Profile: models.Profile{
