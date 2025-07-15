@@ -325,17 +325,9 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	var (
 		routing_key = "new_message"
-		// oci         models.OrganisationChannelsIntegrations
-		channel models.Channels
+		oci         models.OrganisationChannelsIntegrations
+		channel     models.Channels
 	)
-
-	// res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsId)
-
-	// if err != nil {
-	// 	logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
-	// 	return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
-	// }
-
 
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsId,
@@ -351,60 +343,67 @@ func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	req.OrgId = channel_info.OrganisationID
 
-	// sending reply message to agent would be implemented later
+	replyResp, code, err := SaveChannelsMsg(req, db, logger)
+	if err != nil {
+		return replyResp, code, err
+	}
 
-	res := true
+	res, err := oci.CheckHasFilterIntegrations(db.Postgresql, req.ChannelsId)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error checking for integration filter status: %v", err.Error()))
+		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching filter status, error: %v", err)
+	}
+
 	if res {
-		return SaveChannelsMsg(req, db, logger)
-	}
+		returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
 
-	returnUrl := fmt.Sprintf("%s/api/v1/channels/backend-queue", config.Config.App.Url)
+		feed := models.FeedQueue{
+			ChannelsId: req.ChannelsId,
+			Content:    req.Content,
+			ThreadId:   req.ThreadId,
+			ReturnUrl:  returnUrl,
+			Type:       "message",
+			UserId:     req.UserId,
+			OrgId:      req.OrgId,
+			Media:      req.Media,
+			Mentions:   req.Mentions,
+		}
 
-	feed := models.FeedQueue{
-		ChannelsId: req.ChannelsId,
-		Content:    req.Content,
-		ThreadId:   req.ThreadId,
-		ReturnUrl:  returnUrl,
-		Type:       "message",
-		UserId:     req.UserId,
-		OrgId:      req.OrgId,
-		Media:      req.Media,
-		Mentions:   req.Mentions,
-	}
-
-	payload := map[string]any{
-		"args": []map[string]any{
-			{
-				"message_content": map[string]any{
+		payload := map[string]any{
+			"args": []map[string]any{
+				{
+					"message_content": map[string]any{
+						"channel_id": feed.ChannelsId,
+						"message":    feed.Content,
+						"thread_id":  feed.ThreadId,
+						"type":       feed.Type,
+						"user_id":    feed.UserId,
+						"org_id":     feed.OrgId,
+						"media":      feed.Media,
+						"mentions":   feed.Mentions,
+					},
 					"channel_id": feed.ChannelsId,
-					"message":    feed.Content,
-					"thread_id":  feed.ThreadId,
-					"type":       feed.Type,
-					"user_id":    feed.UserId,
-					"org_id":     feed.OrgId,
-					"media":      feed.Media,
-					"mentions":   feed.Mentions,
+					"return_url": feed.ReturnUrl,
 				},
-				"channel_id": feed.ChannelsId,
-				"return_url": feed.ReturnUrl,
 			},
-		},
-		"task": "telex_queue_processor.handle_new_message",
+			"task": "telex_queue_processor.handle_new_message",
+		}
+
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
+			return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed to marshal payload, error: %v", err)
+		}
+
+		err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
+			return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+		}
 	}
 
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
-		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed to marshal payload, error: %v", err)
-	}
-
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
-		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
-	}
-
-	return &models.MessageDocument{}, http.StatusOK, nil
+	return replyResp, code, nil
 }
 
 func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
