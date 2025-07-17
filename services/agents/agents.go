@@ -452,6 +452,7 @@ func CreateCustomAgent(org_id string, req models.CustomIntegrationRequest, db *g
 	orgIntegration.IsPaid = payload.IsPaid
 	orgIntegration.PreSharedKey = psk
 	orgIntegration.OwnerID = user_id
+	orgIntegration.Capabilities = payload.Capabilities
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
