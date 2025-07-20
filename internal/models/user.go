@@ -251,7 +251,17 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bool) error {
 	var (
 		oum OrgUserManagement
+		oumCheck OrgUserManagement
 	)
+
+	exists := postgresql.CheckExists(db, &oumCheck, "user_id = ? AND organisation_id = ?", user.ID, org_id)
+	if !exists {
+		return errors.New("user does not exist in organisation")
+	}
+
+	if status == oumCheck.IsDeactivated {
+		return nil
+	}
 
 	update := map[string]any{
 		"is_deactivated": status,

@@ -98,8 +98,6 @@ tags:
     description: API endpoints for managing pinned organisations
   - name: Pinned Messages
     description: API endpoints for pinning a specific message
-  - name: Message Forwarding
-    description: API endpoints for handling message forwarding
 
 paths:
   # Auth paths
@@ -4413,6 +4411,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  
   /subscriptions/plans:
     get:
       summary: Fetch all available subscription plans
@@ -4432,6 +4431,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  
+  
   /subscriptions/current/{orgId}:
     get:
       summary: Current subscription for an organization
@@ -5966,6 +5967,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -6009,6 +6011,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
 
   /credits/top-up:
     post:
@@ -6120,7 +6123,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
+ 
   /credits/usage/{org_id}:
     get:
       tags:
@@ -6164,6 +6167,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+ 
 
   /invite:
     post:
@@ -7992,7 +7996,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Get-started info retrieved successfully
           content:
             application/json:
@@ -11611,6 +11615,8 @@ paths:
         404:
           description: Organisation not found.
 
+
+
   /agents:
     get:
       summary: Get system integrations for telex
@@ -15187,6 +15193,9 @@ paths:
                   error:
                     type: string
                     example: "file not found or inaccessible"
+  
+
+
 
   /organisations/{organisationId}/thread/save:
     post:
@@ -15582,7 +15591,7 @@ paths:
                   type: string
                   example: 01977eb2-bcf1-71a1-b0a4-5211e584df99
       responses:
-        "200":
+        '200':
           description: Organisation pinned successfully
           content:
             application/json:
@@ -15606,7 +15615,7 @@ paths:
       summary: Fetch user's pinned organisations
       description: Retrieves all organisations that the current user has pinned.
       responses:
-        "200":
+        '200':
           description: List of pinned organisations
           content:
             application/json:
@@ -15662,7 +15671,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Organisation unpinned successfully
           content:
             application/json:
@@ -16151,19 +16160,19 @@ paths:
                     nullable: true
                     example: null
 
-  /channels/{channelId}/thread/forward:
+  /reactions/{channelId}:
     post:
       tags:
-        - Message Forwarding
-      summary: Forward a thread message
-      description: Forwards a thread message and links it to the original message.
+        - Reactions
+      summary: React to a reply or thread message to a channel or DM
+      description: React to a reply or thread message to a channel or DM
       parameters:
         - name: channelId
           in: path
           required: true
           schema:
             type: string
-          description: ID of the channel where thread message should be forwarded to
+          description: ID of the channel or DM to react the message in
       requestBody:
         required: true
         content:
@@ -16173,13 +16182,23 @@ paths:
               properties:
                 thread_id:
                   type: string
-              required:
-                - thread_id
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+                message_id:
+                  type: string
+                  description: message_id supplied if reply messages
+                  example: "019744be-4864-7e65-bb9a-959348898754"
+                type:
+                  type: string
+                  enum: [thread, reply]
+                  example: "thread"
+                reaction:
+                  type: string
+                  example: ":smile:"
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Thread message forwarded successfully
+          description: Message pinned successfully
           content:
             application/json:
               schema:
@@ -16193,11 +16212,34 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Thread message forwarded successfully"
+                    example: Message pinned successfully
                   data:
-                    $ref: "#/components/schemas/ThreadDocument"
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "01975a9b-4e40-7cf9-a719-4cfc2681812b"
+                      channels_id:
+                        type: string
+                        example: "019747e0-fa9d-75c2-af24-b85cdc078840"
+                      org_id:
+                        type: string
+                        example: "019747dd-ee52-75c2-92d0-9d1a4b11c638"
+                      user_id:
+                        type: string
+                        example: "0197474f-56ae-78c1-bb3d-5112e4e7bbad"
+                      pinned:
+                        type: boolean
+                        example: true
+                      pinned_at:
+                        type: string
+                        format: date-time
+                        example: "2025-06-10T16:10:17.0247925Z"
+                      thread_id:
+                        type: string
+                        example: "019744be-4864-7e65-bb9a-959348898754"
         "400":
-          description: Invalid request
+          description: Invalid input or message already pinned
           content:
             application/json:
               schema:
@@ -16211,12 +16253,12 @@ paths:
                     example: 400
                   message:
                     type: string
-                    example: "Invalid input"
+                    example: "Message already pinned or input invalid"
                   error:
                     type: string
-                    example: "Missing required field"
+                    example: "Duplicate entry"
         "500":
-          description: Internal server error
+          description: Server error
           content:
             application/json:
               schema:
@@ -16233,44 +16275,37 @@ paths:
                     example: "Internal server error"
                   error:
                     type: string
-                    example: "Unexpected failure"
+                    example: "Unexpected database error"
                   data:
                     type: object
                     nullable: true
                     example: null
 
-  /channels/{channelId}/message/forward:
-    post:
+
+  /reactions/{reactionId}/thread/{threadId}:
+    get:
       tags:
-        - Message Forwarding
-      summary: Forward a reply message
-      description: Forwards a reply message and links it to the original message.
+        - Reactions
+      summary: Fetch reactions usernames for a thread message in a channel or DM
+      description: Fetch reactions usernames for a thread message in a channel or DM
       parameters:
-        - name: channelId
+        - name: reactionId
           in: path
           required: true
           schema:
             type: string
-          description: ID of the channel where reply message should be forwarded to
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                thread_id:
-                  type: string
-                message_id:
-                  type: string
-              required:
-                - thread_id
-                - message_id
+          description: ID of the reaction
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the thread
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Reply message forwarded successfully
+          description: Reaction usernames fetched successfully
           content:
             application/json:
               schema:
@@ -16284,11 +16319,18 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Reply message forwarded successfully"
+                    example: Reaction username fetched successfully
                   data:
-                    $ref: "#/components/schemas/MessageDocument"
+                    type: object
+                    properties:
+                      usernames:
+                        type: array
+                        items:
+                          type: string
+                        nullable: true
+
         "400":
-          description: Invalid request
+          description: Invalid input or reactions does not exist
           content:
             application/json:
               schema:
@@ -16302,12 +16344,12 @@ paths:
                     example: 400
                   message:
                     type: string
-                    example: "Invalid input"
+                    example: "input invalid"
                   error:
                     type: string
-                    example: "Missing required field"
+                    example: "Duplicate entry"
         "500":
-          description: Internal server error
+          description: Server error
           content:
             application/json:
               schema:
@@ -16324,11 +16366,262 @@ paths:
                     example: "Internal server error"
                   error:
                     type: string
-                    example: "Unexpected failure"
+                    example: "Unexpected database error"
                   data:
                     type: object
                     nullable: true
                     example: null
+    delete:
+      tags:
+        - Reactions
+      summary: Delete reactions usernames for a thread message in a channel or DM
+      description: Delete reactions usernames for a thread message in a channel or DM
+      parameters:
+        - name: reactionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reaction
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the thread
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reaction deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Reaction deleted successfully
+
+        "400":
+          description: Invalid input or reactions does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /reactions/{reactionId}/reply/{messageId}:
+    get:
+      tags:
+        - Reactions
+      summary: Fetch reactions usernames for a reply message in a channel or DM
+      description: Fetch reactions usernames for a reply message in a channel or DM
+      parameters:
+        - name: reactionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reaction
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reply message
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reaction usernames fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Reaction username fetched successfully
+                  data:
+                    type: object
+                    properties:
+                      usernames:
+                        type: array
+                        items:
+                          type: string
+                        nullable: true
+
+        "400":
+          description: Invalid input or reactions does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+    delete:
+      tags:
+        - Reactions
+      summary: delete reaction for a reply message in a channel or DM
+      description: delete reaction for a reply message in a channel or DM
+      parameters:
+        - name: reactionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reaction
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the reply message
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reaction deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Reaction deleted successfully
+
+        "400":
+          description: Invalid input or reactions does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "input invalid"
+                  error:
+                    type: string
+                    example: "Duplicate entry"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database error"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
 
 components:
   schemas:

@@ -91,17 +91,6 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 		Media:                  originalMsg.Media,
 		OrgansationID:          utility.ThisOrThat(channels.OrganisationID, dmChannels.OrgId),
 		IsForwarded:            true,
-		// ForwardedMessageMetadata: models.ForwardedMessageMetadata{
-		// 	OriginalMessageID:       originalMsg.ID,
-		// 	OriginalSenderID:        originalMsg.UserId,
-		// 	OriginalSenderName:      originalMsg.FullName,
-		// 	OriginalSenderUsername:  originalMsg.Username,
-		// 	OriginalSenderAvatarURL: originalMsg.AvatarURL,
-		// 	OriginalChannelID:       originalMsg.ChannelsID,
-		// 	OriginalChannelName:     originalMsg.ChannelName,
-		// 	OriginalCreatedAt:       time.Now().UTC(),
-		// 	IsThread: true,
-		// },
 	}
 
 	if err := threadDoc.CreateThread(db, logger); err != nil {

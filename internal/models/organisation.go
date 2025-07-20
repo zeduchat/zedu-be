@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -196,31 +197,129 @@ func (o *Organisation) GetOrgByEmail(db *gorm.DB, orgEmail string) (Organisation
 	return org, nil
 }
 
-func (o *Organisation) GetAllChannelssInOrganisation(db *gorm.DB, orgID string) (ChannelResp, error) {
-	var (
-		channels Channels
-		thread   Threads
-		chanResp ChannelResp
-	)
+func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gin.Context, ids IDS) (GetUserChannelResp, postgresql.PaginationResponse, int, error) {
 
-	exists := postgresql.CheckExists(db, &o, "id = ?", orgID)
+	chanResp := make(GetUserChannelResp, 0)
+	exists := postgresql.CheckExists(db.Postgresql, &o, "id = ?", ids.OrganisationID)
 	if !exists {
-		return chanResp, errors.New("organisation does not exist")
+		return chanResp, postgresql.PaginationResponse{}, http.StatusNotFound, errors.New("organisation does not exist")
 	}
 
-	threadCountSubquery := db.Model(&thread).Select("count(*)").
-		Where("threads.channels_id = channels.id").
-		Where("threads.type = 'thread'")
+	pagination := postgresql.GetPagination(c)
+	paginationResponse := postgresql.PaginationResponse{}
 
-	if err := db.Model(&channels).
-		Select("channels.id, channels.name, channels.organisation_id, (?) AS thread_count",
-			threadCountSubquery).
-		Where("channels.organisation_id = ?", orgID).
-		Scan(&chanResp).Error; err != nil {
-		return nil, errors.New("error fetching channels")
+	query := db.Postgresql.Table("channels").
+		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
+			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
+			channels.created_at, uc.last_thread_id, 'true' AS access`).
+		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
+		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
+		Order("channels.created_at").
+		Offset((pagination.Page - 1) * pagination.Limit).
+		Limit(pagination.Limit)
+
+	if err := query.Scan(&chanResp).Error; err != nil {
+		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("error fetching channels")
 	}
 
-	return chanResp, nil
+	for i := range chanResp {
+		var (
+			avatars      []string
+			totalMembers int64
+		)
+		if err := db.Postgresql.Table("user_channels").
+			Select("profiles.avatar_url").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", chanResp[i].ID).
+			Limit(8).
+			Pluck("profiles.avatar_url", &avatars).Error; err != nil {
+			return nil, paginationResponse, http.StatusInternalServerError, fmt.Errorf("error fetching member avatars: %w", err)
+		}
+
+		if err := db.Postgresql.Table("user_channels").
+			Where("channels_id = ?", chanResp[i].ID).
+			Count(&totalMembers).Error; err != nil {
+			return nil, paginationResponse, http.StatusInternalServerError, fmt.Errorf("error counting members: %w", err)
+		}
+
+		membersLeft := int(totalMembers) - len(avatars)
+		if membersLeft <= 0 {
+			membersLeft = int(totalMembers)
+		}
+
+		var lastPostTime time.Time
+
+		err := db.Postgresql.
+			Table("user_channels").
+			Where("channels_id = ?", chanResp[i].ID).
+			Order("last_read_at DESC").
+			Limit(1).
+			Pluck("last_read_at", &lastPostTime).Error
+
+		if err != nil {
+			chanResp[i].LastPostTime = "Last post unavailable"
+		} else if lastPostTime.IsZero() {
+			chanResp[i].LastPostTime = "No posts yet"
+		} else {
+			duration := time.Since(lastPostTime)
+
+			switch {
+			case duration < time.Minute:
+				chanResp[i].LastPostTime = "Just now"
+			case duration < time.Hour:
+				minutes := int(duration.Minutes())
+				if minutes == 1 {
+					chanResp[i].LastPostTime = "1 minute ago"
+				} else {
+					chanResp[i].LastPostTime = fmt.Sprintf("%d minutes ago", minutes)
+				}
+			case duration < 24*time.Hour:
+				hours := int(duration.Hours())
+				if hours == 1 {
+					chanResp[i].LastPostTime = "1 hour ago"
+				} else {
+					chanResp[i].LastPostTime = fmt.Sprintf("%d hourrs ago", hours)
+				}
+			case duration < 7*24*time.Hour:
+				days := int(duration.Hours() / 24)
+				if days == 1 {
+					chanResp[i].LastPostTime = "1 day ago"
+				} else {
+					chanResp[i].LastPostTime = fmt.Sprintf("%d days ago", days)
+				}
+			default:
+				chanResp[i].LastPostTime = "Long time ago"
+			}
+		}
+
+		chanResp[i].MemberAvatars = avatars
+		chanResp[i].MembersCount = membersLeft
+	}
+	query = db.Postgresql.Table("channels").
+		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
+			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
+			channels.created_at, uc.last_thread_id, 'true' AS access`).
+		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
+		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
+		Order("channels.created_at").
+		Offset((pagination.Page - 1) * pagination.Limit).
+		Limit(pagination.Limit)
+
+	var totalRes int64
+	if err := query.Count(&totalRes).Error; err != nil {
+		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("an error occured while counting")
+	}
+
+	totalPages := int(math.Ceil(float64(totalRes) / float64(pagination.Limit)))
+	paginationResponse = postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       pagination.Limit,
+		TotalPagesCount: totalPages,
+	}
+
+	return chanResp, paginationResponse, http.StatusOK, nil
 }
 
 func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]Organisation, error) {
@@ -671,9 +770,19 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 			},
 		},
 		"aggs": map[string]any{
-			"last_message": map[string]any{
-				"max": map[string]any{
-					"field": "created_at",
+			"latest_message": map[string]any{
+				"top_hits": map[string]any{
+					"size": 1,
+					"sort": []any{
+						map[string]any{
+							"created_at": map[string]any{
+								"order": "desc",
+							},
+						},
+					},
+					"_source": map[string]any{
+						"includes": []string{"created_at"},
+					},
 				},
 			},
 		},
@@ -685,20 +794,51 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 		return time.Time{}, fmt.Errorf("failed to fetch last message time: %w", err)
 	}
 
+	fmt.Println(lastMsgResult)
+
 	resultMap, ok := lastMsgResult.(map[string]any)
+
+	aggs, ok := resultMap["aggregations"].(map[string]any)
 	if !ok {
-		return time.Time{}, fmt.Errorf("failed to parse last message time result")
+		return time.Time{}, fmt.Errorf("missing aggregations")
 	}
 
-	agg := resultMap["aggregations"].(map[string]any)["last_message"].(map[string]any)
-	lastMsgEpoch, ok := agg["value"].(float64)
-	if !ok || lastMsgEpoch == 0 {
-		return time.Time{}, nil
+	latest, ok := aggs["latest_message"].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing latest_message")
 	}
 
-	lastMsgTime := time.UnixMilli(int64(lastMsgEpoch))
+	hitsBlock, ok := latest["hits"].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing hits in aggregation")
+	}
 
-	return lastMsgTime, nil
+	hits, ok := hitsBlock["hits"].([]any)
+	if !ok || len(hits) == 0 {
+		return time.Time{}, nil // No messages found
+	}
+
+	firstHit, ok := hits[0].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("invalid hit format")
+	}
+
+	source, ok := firstHit["_source"].(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing _source in hit")
+	}
+
+	createdAtStr, ok := source["created_at"].(string)
+	if !ok {
+		return time.Time{}, fmt.Errorf("missing or invalid created_at")
+	}
+
+	parsedTime, err := time.Parse(time.RFC3339, createdAtStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid time format: %w", err)
+	}
+
+	return parsedTime, nil
 }
 
 func (o *Organisation) GetAllOrganisations(db *gorm.DB, c *gin.Context) ([]Organisation, postgresql.PaginationResponse, error) {

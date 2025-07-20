@@ -81,14 +81,14 @@ type GetChannelResp struct {
 type GetUserChannelResp []struct {
 	Channels
 	WebhookUrl    string   `json:"webhook_url,omitempty"`
-	ThreadCount   int64    `json:"thread_count"`
-	Access        bool     `json:"access"`
-	MentionCount  int64    `json:"mention_count"`
-	LastThreadId  string   `json:"last_thread_id"`
-	MemberAvatars []string `json:"member_avatars"`
-	MembersCount  int      `json:"members_count"`
-	LastPostTime  string   `json:"last_post_time"`
-	UnreadCount   int64    `json:"unread_count"`
+	ThreadCount   int64    `json:"thread_count,omitempty"`
+	Access        bool     `json:"access,omitempty"`
+	MentionCount  int64    `json:"mention_count,omitempty"`
+	LastThreadId  string   `json:"last_thread_id,omitempty"`
+	MemberAvatars []string `json:"member_avatars,omitempty"`
+	MembersCount  int      `json:"members_count,omitempty"`
+	LastPostTime  string   `json:"last_post_time,omitempty"`
+	UnreadCount   int64    `json:"unread_count,omitempty"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -714,7 +714,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		var (
 			avatars      []string
 			totalMembers int64
-			lastReadAt   time.Time
+			lastReadAt   *time.Time
 		)
 		if err := db.Table("user_channels").
 			Select("profiles.avatar_url").
@@ -732,7 +732,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		}
 
 		membersLeft := int(totalMembers) - len(avatars)
-		if membersLeft < 0 {
+		if membersLeft <= 0 {
 			membersLeft = int(totalMembers)
 		}
 
@@ -740,11 +740,11 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			Where("channels_id = ? AND user_id = ?", chanResp[i].ID, ids.UserID).
 			Pluck("last_read_at", &lastReadAt).Error
 		if err != nil {
-			lastReadAt = time.Time{}
+			lastReadAt = &time.Time{}
 			return nil, fmt.Errorf("error fetching last read at: %w", err)
 		}
 
-		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, lastReadAt)
+		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, *lastReadAt)
 		if err != nil {
 			chanResp[i].UnreadCount = 0
 		} else {

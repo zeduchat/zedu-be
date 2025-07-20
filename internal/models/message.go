@@ -59,6 +59,8 @@ type MessageDocument struct {
 	IsPinned       bool                   `json:"is_pinned"`
 	IsSaved        bool                   `json:"is_saved"`
 	Mentions       []Mention              `json:"mentions,omitempty"`
+	PinnedDetails  PinnedDetails          `json:"pinned_details,omitempty"`
+	Reactions      []ReactionDetails      `json:"reactions"`
 }
 
 var MessageMapping = map[string]any{
@@ -101,6 +103,14 @@ var MessageMapping = map[string]any{
 		"is_saved": map[string]string{
 			"type": "boolean",
 		},
+		"pinned_details": map[string]any{
+			"type":       "nested",
+			"properties": PinnedDetailsMapping,
+		},
+		"reactions": map[string]any{
+			"type":       "nested",
+			"properties": ReactionMapping,
+		},
 	},
 }
 
@@ -122,28 +132,6 @@ type EditMessageRequest struct {
 	ThreadId   string `json:"thread_id" validate:"required"`
 	MessageId  string `json:"message_id" validate:"required"`
 	OrgId      string `json:"org_id"`
-}
-
-type ForwardThreadMessageRequest struct {
-	ThreadId             string                 `json:"thread_id" validate:"required"` //thread id of the message to forward
-	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id"`       //channel to forward to
-	ForwardedToDMId      *uuid.UUID             `json:"forwarded_to_dm_id"`            //DM to forward to
-	Content              string                 `json:"content"`
-	Media                []UploadedFileResponse `json:"media"`
-	Mentions             []Mention              `json:"mentions"`
-
-	UserId     string `json:"user_id"`
-	ChannelsId string `json:"channels_id"` //current channels or DM
-}
-
-type ForwardReplyMessageRequest struct {
-	ThreadId   string                 `json:"thread_id" validate:"required"`
-	MessageId  string                 `json:"message_id" validate:"required"`
-	UserId     string                 `json:"user_id"`
-	ChannelsId string                 `json:"channels_id"`
-	Content    string                 `json:"content"`
-	Media      []UploadedFileResponse `json:"media"`
-	Mentions   []Mention              `json:"mentions"`
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]any, error) {
@@ -257,6 +245,16 @@ func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, erro
 	return m, nil
 }
 
+func (m *Message) UpdateMessageWithScript(db *gorm.DB, req map[string]any) (*Message, error) {
+
+	err := elastic.UpdateDocWithScript(storage.DB.Elastic, MessageIndexName, m.ID, req)
+	if err != nil {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	return m, nil
+}
+
 func (m *Message) GetMessagesByChannelsID(db *gorm.DB, userId, channelID string) ([]Message, error) {
 	var messages []Message
 	var userChannels UserChannels
@@ -301,11 +299,6 @@ func (t *MessageDocument) CheckExists() (bool, int, error) {
 		"query": map[string]any{
 			"bool": map[string]any{
 				"must": []map[string]any{
-					{
-						"term": map[string]any{
-							"channels_id.keyword": t.ChannelsID,
-						},
-					},
 					{
 						"term": map[string]any{
 							"_id": t.ID,

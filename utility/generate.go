@@ -93,3 +93,11 @@ func GenerateUUIDFromString(strSeed string) (string, error) {
 
 	return id.String(), nil
 }
+
+func GenerateUUIDFromSeed(strSeed string) string {
+
+	namespace := uuid.NamespaceURL
+	id := uuid.NewV5(namespace, strSeed)
+
+	return id.String()
+}
