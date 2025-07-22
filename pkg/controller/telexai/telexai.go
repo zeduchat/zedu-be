@@ -81,7 +81,7 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 		}
 
 		// perfom credit charge
-		inputputLength := len(response.Messages.Content)
+		inputputLength := len(*response.Messages.Content)
 
 		err = telexai.ChargeAICreditUsage(base.Db, ids, inputputLength, base.Logger)
 		if err != nil {

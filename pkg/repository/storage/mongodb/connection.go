@@ -60,8 +60,8 @@ func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB, store *M
 		fmt.Println("🔄🔄🔄 Attempting to connect to MongoDB...")
 		client, err := mongo.Connect(ctx, clientOptions)
 		if err != nil {
-			logger.Error("❌❌❌ Failed to initialize MongoDB client: %v ❌❌❌", err)
-			fmt.Printf("❌❌❌ Failed to initialize MongoDB client: %v ❌❌❌\n", err)
+			// logger.Error("❌❌❌ Failed to initialize MongoDB client: %v ❌❌❌", err)
+			// fmt.Printf("❌❌❌ Failed to initialize MongoDB client: %v ❌❌❌\n", err)
 		} else {
 			err = client.Ping(ctx, nil)
 			if err != nil {

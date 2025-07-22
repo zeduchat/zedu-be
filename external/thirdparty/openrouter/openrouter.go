@@ -46,12 +46,12 @@ func (r *RequestObj) GetChatCompletions() (external_models.OpenRouterResp, error
 	return openRouterResponse, nil
 }
 
-
 func (r *RequestObj) GetAllModels() (external_models.OpenRouterModelsResponse, error) {
 	var (
 		openRouterModelsResponse external_models.OpenRouterModelsResponse
 		logger                   = r.Logger
 		config                   = config.GetConfig()
+		reqData                  = r.RequestData
 	)
 
 	apiKey := config.App.OpenRouterApiKey
@@ -64,6 +64,16 @@ func (r *RequestObj) GetAllModels() (external_models.OpenRouterModelsResponse, e
 		"Authorization": "Bearer " + apiKey,
 		"Content-Type":  "application/json",
 	}
+
+	queryTools := reqData.(bool)
+	if queryTools {
+		err := r.getNewSendRequestObject(nil, headers, "/models?supported_parameters=tools").SendRequest(&openRouterModelsResponse)
+		if err != nil {
+			logger.Error("open router get all models", openRouterModelsResponse, err.Error())
+			return openRouterModelsResponse, err
+		}
+	}
+
 	err := r.getNewSendRequestObject(nil, headers, "/models").SendRequest(&openRouterModelsResponse)
 	if err != nil {
 		logger.Error("open router get all models", openRouterModelsResponse, err.Error())

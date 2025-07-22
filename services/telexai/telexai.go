@@ -31,6 +31,7 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 				Include: true,
 			},
 		},
+		Tools: ConvertTools(req.Tools),
 	}
 
 	logger.Info(fmt.Sprintf("Making request to model: %s for org: %s", req.GetModel(), ids.OrganisationID))
@@ -63,6 +64,60 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 	}
 	return resp, http.StatusOK, nil
 }
+
+func ListAllToolsModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client) (external_models.OpenRouterModelsResponse, error) {
+	cacheDuration := 12 * time.Hour
+	redisKey := "telexai:tools_models"
+
+	cachedModels, err := rd.RedisGet(redisClient, redisKey)
+	if err == nil && len(cachedModels) > 0 {
+		logger.Info("Using cached models from Redis")
+
+		var rawJSON string
+		if err := json.Unmarshal([]byte(cachedModels), &rawJSON); err != nil {
+			logger.Error("Failed to unmarshal outer JSON: ", err)
+			return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal outer JSON: %w", err)
+		}
+
+		var cachedModelsList external_models.OpenRouterModelsResponse
+		if err := json.Unmarshal([]byte(rawJSON), &cachedModelsList); err != nil {
+			logger.Error("Failed to unmarshal inner JSON: ", err)
+			return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal inner JSON: %w", err)
+		}
+		return cachedModelsList, nil
+	}
+
+	logger.Info("No cached models found in Redis, fetching from OpenRouter")
+
+	data := map[string]any{
+		"query_tools_models": true,
+	}
+
+	res, err := extReq.SendExternalRequest(request.GetAllModels, data)
+	if err != nil {
+		logger.Error("Failed to fetch models: ", err)
+		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to fetch models: %w", err)
+	}
+	modelsList, ok := res.(external_models.OpenRouterModelsResponse)
+	if !ok {
+		logger.Error("Invalid response format for models")
+		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("invalid response format for models")
+	}
+
+	modelsJSON, err := json.Marshal(modelsList)
+	if err != nil {
+		logger.Error("Failed to marshal models for caching: ", err)
+	} else {
+		if err := rd.RedisSet(redisClient, redisKey, string(modelsJSON), cacheDuration); err != nil {
+			logger.Error("Failed to cache models in Redis: ", err)
+		} else {
+			logger.Info("Successfully cached models in Redis")
+		}
+	}
+
+	return modelsList, nil
+}
+
 
 func ListAllModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client) (external_models.OpenRouterModelsResponse, error) {
 	cacheDuration := 12 * time.Hour
@@ -113,7 +168,14 @@ func ListAllModels(logger *utility.Logger, extReq request.ExternalRequest, redis
 }
 
 func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, redis *redis.Client) (string, error) {
-	availableModels, _ := ListAllModels(logger, extReq, redis)
+	var availableModels external_models.OpenRouterModelsResponse
+
+	if req.Tools != nil {
+		availableModels, _ = ListAllToolsModels(logger, extReq, redis)
+	}else{
+		availableModels, _ = ListAllModels(logger, extReq, redis)
+	}
+	
 	models := availableModels.Data
 	modelMap := make(map[string]bool)
 	for _, model := range models {
@@ -140,8 +202,8 @@ func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChat
 		return "deepseek/deepseek-r1-0528-qwen3-8b:free", fmt.Errorf("invalid model selected: %s", selectedModel)
 	}
 
-	// return selectedModel, nil --(credit wastage reasons)
-	return "deepseek/deepseek-r1-0528-qwen3-8b:free", nil
+	return selectedModel, nil
+	// return "deepseek/deepseek-r1-0528-qwen3-8b:free", nil
 }
 
 func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength int, logger *utility.Logger) error {
