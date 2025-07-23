@@ -383,6 +383,19 @@ func (s JSONSkills) MarshalJSON() ([]byte, error) {
 	return json.Marshal([]Skill(s))
 }
 
+func (p *CapabilitiesObject) Scan(value any) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal JSONPrices: value is not []byte")
+	}
+
+	return json.Unmarshal(bytes, p)
+}
+
+func (p CapabilitiesObject) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
 func GenerateAgentKey() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {

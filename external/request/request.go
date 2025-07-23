@@ -103,7 +103,6 @@ func (er ExternalRequest) SendExternalRequest(name string, data any) (any, error
 		case AgentJsonContent:
 
 			data_content := data.(map[string]string)
-
 			obj := integrations.RequestObj{
 				Name:         name,
 				Path:         data_content["url"],
@@ -141,13 +140,14 @@ func (er ExternalRequest) SendExternalRequest(name string, data any) (any, error
 			}
 			return obj.GetChatCompletions()
 		case GetAllModels:
+			data_content := data.(bool)
 			obj := openrouter.RequestObj{
 				Name:         name,
 				Path:         config.OpenRouter.BaseUrl,
 				Method:       http.MethodGet,
 				SuccessCode:  http.StatusOK,
 				DecodeMethod: JsonDecodeMethod,
-				RequestData:  data,
+				RequestData:  data_content,
 				Logger:       er.Logger,
 				Timeout:      true,
 			}

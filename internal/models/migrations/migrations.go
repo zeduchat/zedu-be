@@ -7,8 +7,15 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
-		models.UserPinnedOrganisations{},
+		models.CreditUsage{},
+		models.CreditTransaction{},
 		models.OrganisationIntegrations{},
+		models.IntegrationOutput{},
+		models.Integrations{},
+		models.CreditPackage{},
+		models.Webhook{},
+		models.Plan{},
+		models.UserPinnedOrganisations{},
 		models.APIStatus{},
 		models.AccessToken{},
 		models.Blog{},
@@ -16,8 +23,6 @@ func AuthMigrationModels() []any {
 		models.BlogFeedback{},
 		models.ChannelIntegrationSettings{},
 		models.ChannelParticipant{},
-		models.Group{},
-		models.Channels{},
 		models.ContactUs{},
 		models.CustomIntegrationsSetting{},
 		models.DmChannels{},
@@ -30,7 +35,6 @@ func AuthMigrationModels() []any {
 		models.IntegrationOutput{},
 		models.IntegrationChannel{},
 		models.IntegrationSettings{},
-		models.Integrations{},
 		models.Invitation{},
 		models.LoginActivity{},
 		models.MagicLink{},
@@ -47,6 +51,7 @@ func AuthMigrationModels() []any {
 		models.Permission{},
 		models.PinnedMessage{},
 		models.Reaction{},
+		models.Workflow{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},
@@ -62,9 +67,7 @@ func AuthMigrationModels() []any {
 		models.Admin{},
 		models.UserChannels{},
 		models.IntegrationBills{},
-		models.CreditPackage{},
-		models.CreditTransaction{},
-		models.CreditUsage{},
+		models.Channels{},
 	} // an array of db models, example: User{}
 }
 

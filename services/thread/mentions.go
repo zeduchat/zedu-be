@@ -63,7 +63,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
+		ID:            req.ThreadId,
 		Username:      utility.ThisOrThat(profile.UserName, req.AgentName),
 		Content:       req.Content,
 		ChannelsID:    req.ChannelsID,

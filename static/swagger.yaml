@@ -854,7 +854,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
         "422":
-          description: Validation error
           content:
             application/json:
               schema:
@@ -1423,7 +1422,7 @@ paths:
             enum: [accepted, invited, all]
             default: all
       responses:
-        "200":
+        '200':
           description: Successfully retrieved invites
           content:
             application/json:
@@ -1578,7 +1577,7 @@ paths:
           example: "user"
 
       responses:
-        "200":
+        '200':
           description: Users retrieved successfully
           content:
             application/json:
@@ -1688,7 +1687,7 @@ paths:
               required:
                 - role_id
       responses:
-        "200":
+        '200':
           description: Role updated successfully
           content:
             application/json:
@@ -3118,7 +3117,7 @@ paths:
           description: Search query (e.g., email, name, username or phone)
           example: "user2"
       responses:
-        "200":
+        '200':
           description: Search successful
           content:
             application/json:
@@ -3209,7 +3208,7 @@ paths:
                   description: Set to `true` to activate the user, `false` to deactivate
                   example: true
       responses:
-        "200":
+        '200':
           description: User status updated successfully
           content:
             application/json:
@@ -4413,6 +4412,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  
   /subscriptions/plans:
     get:
       summary: Fetch all available subscription plans
@@ -4432,6 +4432,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  
+  
   /subscriptions/current/{orgId}:
     get:
       summary: Current subscription for an organization
@@ -5966,6 +5968,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -6009,6 +6012,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
 
   /credits/top-up:
     post:
@@ -6120,7 +6124,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
+ 
   /credits/usage/{org_id}:
     get:
       tags:
@@ -6164,6 +6168,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+ 
 
   /invite:
     post:
@@ -6309,7 +6314,7 @@ paths:
                         description: Role ID to assign the invited user
                         example: "019700d8-9085-7f7b-839a-fcbd08b9e26d"
       responses:
-        "201":
+        '201':
           description: Invitations successfully created
           content:
             application/json:
@@ -7904,7 +7909,7 @@ paths:
           example: "user"
 
       responses:
-        "200":
+        '200':
           description: Users retrieved successfully
           content:
             application/json:
@@ -7992,7 +7997,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Get-started info retrieved successfully
           content:
             application/json:
@@ -11611,6 +11616,8 @@ paths:
         404:
           description: Organisation not found.
 
+
+
   /agents:
     get:
       summary: Get system integrations for telex
@@ -15013,20 +15020,9 @@ paths:
     post:
       tags:
         - TelexAI
-      summary: Send a chat message to a TelexAI model
-      parameters:
-        - in: header
-          name: X-AGENT-API-KEY
-          schema:
-            type: string
-          required: true
-          example: tlx-TXFh-VN/rfeCdKmeEOPh1J4gXs14Mc568JCGkbzLDcof2JL4qZKqxmjJmrz5G12taqfhlQUFsmZvjPOtEC1n/Q
-        - in: header
-          name: X-Model
-          schema:
-            type: string
-          required: true
-          example: deepseek/deepseek-r1-0528:free
+      summary: Chat completions with optional tool calling
+      description: Chat with TelexAI using supported models and optional tool/function calling.
+      operationId: chatWithTools
       requestBody:
         required: true
         content:
@@ -15034,28 +15030,55 @@ paths:
             schema:
               type: object
               properties:
-                organisation_id:
-                  type: string
-                model:
-                  type: string
                 messages:
                   type: array
+                  description: Conversation history, ending with the user message.
                   items:
                     type: object
                     properties:
                       role:
                         type: string
+                        enum: [user, assistant, system]
+                        example: user
                       content:
                         type: string
-                stream:
-                  type: boolean
-              required:
-                - organisation_id
-                - model
-                - messages
+                        example: What are the titles of some James Joyce books?
+                tools:
+                  type: array
+                  description: Optional list of tools/functions the model can call.
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [function]
+                        example: function
+                      function:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: search_gutenberg_books
+                          description:
+                            type: string
+                            example: Search for books in the Project Gutenberg library
+                          parameters:
+                            type: object
+                            properties:
+                              type:
+                                type: string
+                                example: object
+                              properties:
+                                type: object
+                                additionalProperties:
+                                  type: object
+                              required:
+                                type: array
+                                items:
+                                  type: string
       responses:
-        "200":
-          description: Chat response from model
+        '200':
+          description: Chat completed with tool call if needed
           content:
             application/json:
               schema:
@@ -15063,20 +15086,94 @@ paths:
                 properties:
                   status:
                     type: string
+                    example: success
                   status_code:
                     type: integer
+                    example: 200
                   message:
                     type: string
+                    example: chat completed successfully
                   data:
                     type: object
                     properties:
-                      Messages:
+                      id:
+                        type: string
+                        example: gen-1753241913-m8xLa6wfv7biDCfam7Mg
+                      model:
+                        type: string
+                        example: moonshotai/kimi-k2
+                      provider:
+                        type: string
+                        example: Chutes
+                      object:
+                        type: string
+                        example: chat.completion
+                      created:
+                        type: integer
+                      usage:
                         type: object
                         properties:
-                          role:
-                            type: string
-                          content:
-                            type: string
+                          prompt_tokens:
+                            type: integer
+                          completion_tokens:
+                            type: integer
+                          total_tokens:
+                            type: integer
+                      choices:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            index:
+                              type: integer
+                              example: 0
+                            finish_reason:
+                              type: string
+                              example: tool_calls
+                            native_finish_reason:
+                              type: string
+                              example: tool_calls
+                            logprobs:
+                              type: object
+                              nullable: true
+                            message:
+                              type: object
+                              properties:
+                                role:
+                                  type: string
+                                  example: assistant
+                                content:
+                                  type: string
+                                  example: I'll search for James Joyce books in Project Gutenberg for you.
+                                reasoning:
+                                  type: string
+                                  nullable: true
+                                refusal:
+                                  type: string
+                                  nullable: true
+                                tool_calls:
+                                  type: array
+                                  items:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
+                                        example: function
+                                      index:
+                                        type: integer
+                                        example: 0
+                                      id:
+                                        type: string
+                                        example: functions.search_gutenberg_books:0
+                                      function:
+                                        type: object
+                                        properties:
+                                          name:
+                                            type: string
+                                            example: search_gutenberg_books
+                                          arguments:
+                                            type: string
+                                            example: '{"search_terms": ["James Joyce"]}'
   /telexai/models:
     get:
       tags:
@@ -15140,6 +15237,112 @@ paths:
                               type: array
                               items:
                                 type: string
+  /telexai/models/tools:
+    get:
+      tags:
+        - TelexAI
+      summary: Get models that support tool calling
+      description: Returns a list of TelexAI models that support function/tool calling capabilities.
+      operationId: listToolModels
+      responses:
+        '200':
+          description: Successfully retrieved tool-supported models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: all tools models listed successfully
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: qwen/qwen3-235b-a22b-07-25:free
+                            hugging_face_id:
+                              type: string
+                              example: Qwen/Qwen3-235B-A22B-Instruct-2507
+                            name:
+                              type: string
+                              example: Qwen/Qwen3 235B A22B 2507 (free)
+                            created:
+                              type: integer
+                              example: 1753119555
+                            description:
+                              type: string
+                            context_length:
+                              type: integer
+                              example: 262144
+                            architecture:
+                              type: object
+                              properties:
+                                modality:
+                                  type: string
+                                  example: text->text
+                                input_modalities:
+                                  type: array
+                                  items:
+                                    type: string
+                                output_modalities:
+                                  type: array
+                                  items:
+                                    type: string
+                                tokenizer:
+                                  type: string
+                                instruct_type:
+                                  type: string
+                                  nullable: true
+                            pricing:
+                              type: object
+                              properties:
+                                prompt:
+                                  type: string
+                                  example: "0"
+                                completion:
+                                  type: string
+                                  example: "0"
+                                request:
+                                  type: string
+                                  example: "0"
+                                image:
+                                  type: string
+                                  example: "0"
+                                web_search:
+                                  type: string
+                                  example: "0"
+                                internal_reasoning:
+                                  type: string
+                                  example: "0"
+                            top_provider:
+                              type: object
+                              properties:
+                                context_length:
+                                  type: integer
+                                max_completion_tokens:
+                                  type: integer
+                                  nullable: true
+                                is_moderated:
+                                  type: boolean
+                            per_request_limits:
+                              type: object
+                              nullable: true
+                            supported_parameters:
+                              type: array
+                              items:
+                                type: string
 
   /logs:
     get:
@@ -15187,6 +15390,9 @@ paths:
                   error:
                     type: string
                     example: "file not found or inaccessible"
+  
+
+
 
   /organisations/{organisationId}/thread/save:
     post:
@@ -15430,6 +15636,7 @@ paths:
                     nullable: true
                     example: null
 
+
   /organisations/{org_id}/saved/message:
     get:
       tags:
@@ -15446,7 +15653,7 @@ paths:
           description: The ID of the organisation
           example: "019700db-4e22-7f90-a20e-f9116291ef24"
       responses:
-        "200":
+        '200':
           description: Messages retrieved successfully
           content:
             application/json:
@@ -15477,7 +15684,7 @@ paths:
                         content:
                           type: string
                           description: HTML or plain text message content
-                          example: '<p class="tracking-wide">hi mans</p><p class="tracking-wide"></p>'
+                          example: "<p class=\"tracking-wide\">hi mans</p><p class=\"tracking-wide\"></p>"
                         channel_name:
                           type: string
                           example: "general"
@@ -15581,7 +15788,7 @@ paths:
                   type: string
                   example: 01977eb2-bcf1-71a1-b0a4-5211e584df99
       responses:
-        "200":
+        '200':
           description: Organisation pinned successfully
           content:
             application/json:
@@ -15597,6 +15804,7 @@ paths:
                   message:
                     type: string
                     example: Organisation pinned successfully
+  
 
     get:
       tags:
@@ -15604,7 +15812,7 @@ paths:
       summary: Fetch user's pinned organisations
       description: Retrieves all organisations that the current user has pinned.
       responses:
-        "200":
+        '200':
           description: List of pinned organisations
           content:
             application/json:
@@ -15660,7 +15868,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Organisation unpinned successfully
           content:
             application/json:
@@ -15788,7 +15996,7 @@ paths:
                     example: null
 
   /channels/pin/{channelId}/thread/{threadId}:
-    delete:
+     delete:
       tags:
         - Pinned Messages
       summary: Unpin a thread message from a channel or DM
@@ -15980,7 +16188,7 @@ paths:
                     type: object
                     nullable: true
                     example: null
-
+  
   /channels/pin/{channelId}/message/{messageId}:
     delete:
       tags:
@@ -16269,6 +16477,7 @@ paths:
                     type: object
                     nullable: true
                     example: null
+
 
   /reactions/{reactionId}/thread/{threadId}:
     get:
@@ -16609,6 +16818,394 @@ paths:
                     type: object
                     nullable: true
                     example: null
+
+  /organisations/{org_id}/workflows:
+    post:
+      tags:
+        - Workflow
+      summary: Create a workflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - tags
+                - meta
+                - agents_id
+                - connections
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                meta:
+                  type: object
+                  additionalProperties: true
+                agents_id:
+                  type: array
+                  items:
+                    type: string
+                connections:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      from:
+                        type: string
+                      to:
+                        type: string
+                      condition:
+                        type: string
+      responses:
+        "201":
+          description: Workflow created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Workflow created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      org_id:
+                        type: string
+                        format: uuid
+                      created_at:
+                        type: string
+                        format: date-time
+                      modified_at:
+                        type: string
+                        format: date-time
+
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+  
+    get:
+      tags:
+        - Workflow
+      summary: List all workflows for an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Workflows retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflows retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        org_id:
+                          type: string
+                          format: uuid
+                        created_at:
+                          type: string
+                          format: date-time
+                        modified_at:
+                          type: string
+                          format: date-time
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /organisations/{org_id}/workflows/{workflow_id}:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Workflow retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflow retrieved successfully
+                  data:
+                    $ref: "#/components/schemas/Workflow"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+  
+    put:
+      tags:
+        - Workflow
+      summary: Update a workflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - tags
+                - meta
+                - agents_id
+                - connections
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                meta:
+                  type: object
+                  additionalProperties: true
+                agents_id:
+                  type: array
+                  items:
+                    type: string
+                connections:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      from:
+                        type: string
+                      to:
+                        type: string
+                      condition:
+                        type: string
+      responses:
+        "200":
+          description: Workflow updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflow updated successfully
+                  data:
+                    $ref: "#/components/schemas/Workflow"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+  
+    delete:
+      tags:
+        - Workflow
+      summary: Delete a workflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Workflow deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflow deleted successfully
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /channels/{channelId}/thread/forward:
     post:
