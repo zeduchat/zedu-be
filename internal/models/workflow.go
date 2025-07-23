@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -35,6 +36,21 @@ type WorkFlowRequest struct {
 	Agents          []string              `json:"agents"`
 	FlowConnections Connections           `json:"connections"`
 	Settings        WorkflowSettingsEntry `json:"settings"`
+}
+
+type AgentsDetails struct {
+	ID           string `json:"id"`
+	Type         string `json:"type"`
+	URL          string `json:"url"`
+	Name         string `json:"name"`
+	ResponseMode string `json:"responseMode"`
+	MaxRetries   int    `json:"maxRetries"`
+	Timeout      int    `json:"timeout"`
+}
+
+type WorkFlowResponse struct {
+	WorkFlow
+	Agents []AgentsDetails `json:"agents_details"`
 }
 
 type WorkflowSummary struct {
@@ -82,6 +98,10 @@ func (s *WorkflowSettingsEntry) Scan(value interface{}) error {
 }
 
 func (wf *WorkFlow) CreateWorkflow(db *gorm.DB) error {
+
+	if err := ValidateAgentIDs(db, wf.OrgId, wf.Agents); err != nil {
+		return err
+	}
 	var existing WorkFlow
 	err := db.First(&existing, "id = ? AND user_id = ? AND org_id = ?", wf.ID, wf.UserId, wf.OrgId).Error
 
@@ -97,6 +117,11 @@ func (wf *WorkFlow) CreateWorkflow(db *gorm.DB) error {
 }
 
 func (wf *WorkFlow) UpdateWorkflow(db *gorm.DB) error {
+
+	if err := ValidateAgentIDs(db, wf.OrgId, wf.Agents); err != nil {
+		return err
+	}
+
 	return db.Model(&WorkFlow{}).
 		Where("id = ? AND user_id = ? AND org_id = ?", wf.ID, wf.UserId, wf.OrgId).
 		Updates(map[string]interface{}{
@@ -120,8 +145,78 @@ func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) 
 	return wfs, err
 }
 
-func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlow, error) {
+func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error) {
 	var wf WorkFlow
 	err := db.Where("id = ?  AND org_id = ?", req.Id, req.UserId, req.OrgId).First(&wf).Error
-	return wf, err
+	agentDetails, err := FetchAgentsFromIntegration(db, wf.Agents)
+
+	resp := WorkFlowResponse{
+		wf,
+		agentDetails,
+	}
+	return resp, err
+}
+
+func ValidateAgentIDs(db *gorm.DB, orgID string, agentIDs []string) error {
+	var validIDs []string
+
+	// Fetch all matching OrganisationIntegrations for the org and the given agent IDs
+	if err := db.Model(&OrganisationIntegrations{}).
+		Where("org_id = ? AND id IN ?", orgID, agentIDs).
+		Pluck("id", &validIDs).Error; err != nil {
+		return fmt.Errorf("error validating agents: %w", err)
+	}
+
+	// Map for quick lookup
+	validMap := make(map[string]bool)
+	for _, id := range validIDs {
+		validMap[id] = true
+	}
+
+	var invalid []string
+	for _, id := range agentIDs {
+		if !validMap[id] {
+			invalid = append(invalid, id)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("invalid agent IDs: %v", invalid)
+	}
+
+	return nil
+}
+
+func FetchAgentsFromIntegration(db *gorm.DB, agentIDs []string) ([]AgentsDetails, error) {
+	var integrations []OrganisationIntegrations
+
+	if err := db.
+		Where("id IN ?", agentIDs).
+		Find(&integrations).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch agents: %w", err)
+	}
+
+	// Create a map for quick lookup to preserve order
+	integrationMap := make(map[string]OrganisationIntegrations)
+	for _, integration := range integrations {
+		integrationMap[integration.ID] = integration
+	}
+
+	var agents []AgentsDetails
+	for _, id := range agentIDs {
+		if integ, ok := integrationMap[id]; ok {
+			agent := AgentsDetails{
+				ID:           integ.ID,
+				Type:         "agent",
+				URL:          integ.AppUrl,
+				Name:         integ.AppName,
+				ResponseMode: "stream",
+				MaxRetries:   3,
+				Timeout:      60,
+			}
+			agents = append(agents, agent)
+		}
+	}
+
+	return agents, nil
 }

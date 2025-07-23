@@ -34,7 +34,7 @@ func CreateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (*models.Wor
 	return &wf, http.StatusCreated, nil
 }
 
-func GetWorkflowByIDService(req models.WorkFlowRequest, db *gorm.DB) (*models.WorkFlow, int, error) {
+func GetWorkflowByIDService(req models.WorkFlowRequest, db *gorm.DB) (*models.WorkFlowResponse, int, error) {
 	wf, err := models.GetWorkflowByID(db, req)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
