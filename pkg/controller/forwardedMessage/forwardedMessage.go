@@ -66,13 +66,7 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	req.ChannelsId = channelID
-
-	if (req.ForwardedToChannelId == nil && req.ForwardedToDMId == nil) || (req.ForwardedToChannelId != nil && req.ForwardedToDMId != nil) {
-		base.Logger.Error("Invalid request body: must provide either a channel or DM to forward to")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", errors.New("must provide either a channel or DM to forward to"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
+	req.UserId = userId
 
 	threadData, err := forwardedMessage.ForwardThreadMessage(base.Db, req, base.Logger, userId)
 	if err != nil {
@@ -127,6 +121,7 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	req.UserId = userId
 
 	response, err := forwardedMessage.ForwardReplyMessage(base.Db, req, base.Logger, userId)
 	if err != nil {

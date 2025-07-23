@@ -18,17 +18,17 @@ import (
 
 func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, userID string) (*models.ThreadDocument, error) {
 	var (
-		originalMsg models.ThreadDocument
-		user        models.User
-		profile     models.Profile
-		channels    models.Channels
-		dmChannel   models.DmChannels
-		threadDoc   models.ThreadDocument
+		originalMsg          models.ThreadDocument
+		user                 models.User
+		profile              models.Profile
+		channels             models.Channels
+		fwdChannels          models.Channels
+		dmChannels           models.DmChannels
+		channelToForwardToID = req.ForwardedToChannelId.String()
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
-	dmChanExists, _ := dmChannel.CheckChannelExists(db.Postgresql, req.ChannelsId, req.UserId)
-
+	dmChanExists, _ := dmChannels.CheckChannelExists(db.Postgresql, req.ChannelsId, userID)
 	if !(chanExist || dmChanExists) {
 		return nil, errors.New("channel does not exist")
 	}
@@ -46,32 +46,40 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		return nil, err
 	}
 
-	if req.ForwardedToChannelId != nil {
-		ForwardThreadMessageToChannel(db, req, logger, originalMsg, profile, user, channels)
+	fwdChanExist := postgresql.CheckExists(db.Postgresql, &fwdChannels, "id = ?", channelToForwardToID)
+	fwdDmChanExist, _ := dmChannels.CheckChannelExists(db.Postgresql, channelToForwardToID, userID)
+	if !(fwdChanExist || fwdDmChanExist) {
+		return nil, errors.New("forwarded channel does not exist")
 	}
 
-	return &threadDoc, nil
+	if fwdChanExist {
+		threadDoc, err := ForwardThreadMessageToChannel(db, req, logger, originalMsg, profile, user, fwdChannels)
+		if err != nil {
+			return nil, err
+		}
+		return threadDoc, nil
+	} else {
+		threadDoc, err := ForwardThreadMessageToDM(db, req, logger, originalMsg, profile, user, dmChannels)
+		if err != nil {
+			return nil, err
+		}
+		return threadDoc, nil
+	}
 }
 
-func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, current_channel models.Channels) (*models.ThreadDocument, error) {
+func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, channel models.Channels) (*models.ThreadDocument, error) {
 	var (
-		channel              models.Channels
 		channelToForwardToID = req.ForwardedToChannelId.String()
 		messageType          = "message"
 		userType             = "user"
-		orgId                = current_channel.OrganisationID
+		orgId                = channel.OrganisationID
 		channelType          string
-		userChan			 models.UserChannels
+		userChan             models.UserChannels
 	)
-
-	exists, err := channel.CheckChannelExists(db.Postgresql, channelToForwardToID)
-	if !exists || err != nil {
-		return nil, err
-	}
 
 	if channel.IsPrivate {
 		channelType = "private"
-	}else{
+	} else {
 		channelType = "public"
 	}
 
@@ -93,6 +101,8 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		ChannelName:   channel.Name,
 		ChannelType:   channelType,
 		Status:        "success",
+		Mentions:      req.Mentions,
+		Media:         req.Media,
 		Edited:        false,
 		IsForwarded:   true,
 		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
@@ -104,11 +114,11 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalChannelID:       originalMsg.ChannelsID,
 			OriginalChannelName:     originalMsg.ChannelName,
 			OriginalCreatedAt:       time.Now().UTC(),
-			IsThread: true,
+			IsThread:                true,
 		},
 		OrgansationID: orgId,
 	}
-	err = threadDoc.CreateThread(db, logger)
+	err := threadDoc.CreateThread(db, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +128,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		UserName:    utility.ThisOrThat(profile.UserName, "a-user"),
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 		AvatarURL:   profile.AvatarURL,
-		Type:        "message",
+		Type:        messageType,
 		Content:     req.Content,
 		ThreadId:    threadDoc.ID,
 		Email:       user.Email,
@@ -128,6 +138,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		OrgId:       channel.OrganisationID,
 		ChannelName: channel.Name,
 		IsForwarded: true,
+		Media:       req.Media,
 		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
 			OriginalMessageID:       originalMsg.ID,
 			OriginalSenderID:        originalMsg.UserId,
@@ -137,7 +148,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalChannelID:       originalMsg.ChannelsID,
 			OriginalChannelName:     originalMsg.ChannelName,
 			OriginalCreatedAt:       time.Now().UTC(),
-			IsThread: true,
+			IsThread:                true,
 		},
 	}
 
@@ -195,5 +206,158 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 	}()
 
 	return &threadDoc, nil
+}
 
+func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, dmChannel models.DmChannels) (*models.ThreadDocument, error) {
+	var (
+		channelToForwardToID = req.ForwardedToChannelId.String()
+		messageType          = "message"
+		userType             = "user"
+	)
+
+	// Create pair room if first message and not a bot
+	thread := models.ThreadDocument{
+		UserId:     req.UserId,
+		ChannelsID: channelToForwardToID,
+	}
+
+	pairRoom, _, _ := thread.CheckExists()
+	if !pairRoom && dmChannel.ChatType != "bot" && dmChannel.ChannelType == "dm" {
+		pairRoomChan := models.DmChannels{}
+
+		pairRoomChan.ChatType = dmChannel.ChatType
+		pairRoomChan.ChannelType = "dm"
+		pairRoomChan.UserId = *dmChannel.ParticipantId
+		pairRoomChan.ParticipantId = &dmChannel.UserId
+		pairRoomChan.ID = utility.GenerateUUID()
+		pairRoomChan.ChannelId = dmChannel.ChannelId
+		pairRoomChan.OrgId = dmChannel.OrgId
+
+		_, err := pairRoomChan.CreateDmChannel(db.Postgresql)
+		if err != nil {
+			return &thread, err
+		}
+	}
+
+	threadDoc := models.ThreadDocument{
+		ID:            utility.GenerateUUID(),
+		Username:      utility.ThisOrThat(profile.UserName, "a-user"),
+		Content:       req.Content,
+		ChannelsID:    channelToForwardToID,
+		Type:          messageType,
+		MessageCount:  0,
+		Mentions:      req.Mentions,
+		Media:         req.Media,
+		AvatarURL:     profile.AvatarURL,
+		FullName:      utility.ThisOrThat(profile.FullName, "a-user"),
+		Email:         user.Email,
+		CreatedAt:     time.Now().UTC(),
+		CurrentStatus: "pending",
+		UserType:      userType,
+		UserId:        req.UserId,
+		Messages:      []models.MessageDocument{},
+		ChannelName:   profile.FullName,
+		Status:        "success",
+		Edited:        false,
+		IsForwarded:   true,
+		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
+			OriginalMessageID:       originalMsg.ID,
+			OriginalSenderID:        originalMsg.UserId,
+			OriginalSenderName:      originalMsg.FullName,
+			OriginalSenderUsername:  originalMsg.Username,
+			OriginalSenderAvatarURL: originalMsg.AvatarURL,
+			OriginalChannelID:       originalMsg.ChannelsID,
+			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalCreatedAt:       time.Now().UTC(),
+			IsThread:                true,
+		},
+		OrgansationID: dmChannel.OrgId,
+	}
+
+	if err := threadDoc.CreateThread(db, logger); err != nil {
+		return nil, err
+	}
+
+	feed := models.FeedMessageRequest{
+		ChannelID:   channelToForwardToID,
+		UserName:    profile.UserName,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:   profile.AvatarURL,
+		Type:        messageType,
+		Content:     req.Content,
+		ThreadId:    threadDoc.ID,
+		Email:       user.Email,
+		UserType:    userType,
+		FullName:    profile.FullName,
+		Media:       req.Media,
+		UserId:      req.UserId,
+		OrgId:       dmChannel.OrgId,
+		ChannelName: profile.FullName,
+		IsForwarded: true,
+		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
+			OriginalMessageID:       originalMsg.ID,
+			OriginalSenderID:        originalMsg.UserId,
+			OriginalSenderName:      originalMsg.FullName,
+			OriginalSenderUsername:  originalMsg.Username,
+			OriginalSenderAvatarURL: originalMsg.AvatarURL,
+			OriginalChannelID:       originalMsg.ChannelsID,
+			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalCreatedAt:       time.Now().UTC(),
+			IsThread:                true,
+		},
+	}
+
+	if err := centrifuge.PublishChannel(logger, channelToForwardToID, feed); err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", channelToForwardToID, err.Error()))
+		return nil, fmt.Errorf("failed to publish thread data")
+	}
+
+	dataByte, _ := json.Marshal(feed)
+	typeChannelId := channelToForwardToID
+	channelType := models.Channel
+
+	if dmChannel.ChannelType == "dm" {
+		typeChannelId = *dmChannel.ParticipantId
+		channelType = models.DMChannel
+	}
+
+	notifRec := models.PushNotificationRecord{
+		ChannelType: channelType,
+		Data:        string(dataByte),
+		Sent:        false,
+		ChannelId:   typeChannelId,
+		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
+	}
+
+	if err := actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec); err != nil {
+		logger.Error("Error adding notification to channel Id: %s, with orgid: %s error: %v", channelToForwardToID, dmChannel.OrgId, err.Error())
+	}
+
+	logger.Info("added notification to queue for channel %s", channelToForwardToID)
+
+	dmChan := models.DmChannels{}
+	dmChan.ChannelId = channelToForwardToID
+	dmChan.UserId = req.UserId
+	dmChan.ChannelType = dmChannel.ChannelType
+	dmChan.OrgId = dmChannel.OrgId
+
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	// Add to the wait group for each goroutine that must complete first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Updating unread thread count")
+		dmChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	// Run this after the other finish
+	go func() {
+		wg.Wait()
+		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
+
+	return &threadDoc, nil
 }
