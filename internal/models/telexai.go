@@ -9,13 +9,24 @@ import (
 // AIProxyChatRequest holds fields for making
 // post request to the chat completions endpoint
 type TelexAIChatCompletionsReq struct {
-	Messages []external_models.TelexAIOpenRouterMessage `json:"messages" validate:"required"`
-	Model    string                                     `json:"model"`
-	Stream   bool                                       `json:"stream"`
-	Tools    *[]Tool                                    `json:"tools"`
+	Messages         []external_models.TelexAIOpenRouterMessage `json:"messages" validate:"required"`
+	Model            string                                     `json:"model"`
+	Stream           bool                                       `json:"stream"`
+	Tools            *[]Tool                                    `json:"tools"`
+	Plugins          []WebPlugin                                `json:"plugins,omitempty"`
+	WebSearchOptions WebSearchOptions                           `json:"web_search_options,omitempty"`
 	// MaxTokens   *int                       `json:"max_tokens,omitempty"`
 	// Temperature *float64                   `json:"temperature,omitempty"`
+}
 
+type WebPlugin struct {
+	ID           string `json:"id"`
+	MaxResults   int    `json:"max_results,omitempty"`
+	SearchPrompt string `json:"search_prompt,omitempty"`
+}
+
+type WebSearchOptions struct {
+	SearchContextSize string `json:"search_context_size"`
 }
 
 type ToolFunctionParameter struct {
