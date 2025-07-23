@@ -32,7 +32,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Error("Validation failed", err)
