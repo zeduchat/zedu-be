@@ -46,7 +46,7 @@ func AuthMigrationModels() []any {
 		models.Permission{},
 		models.PinnedMessage{},
 		models.Reaction{},
-		models.WorkFlow{},
+		models.Workflow{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},

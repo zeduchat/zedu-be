@@ -16647,7 +16647,7 @@ paths:
                 - description
                 - tags
                 - meta
-                - agents
+                - agents_id
                 - connections
               properties:
                 name:
@@ -16661,7 +16661,7 @@ paths:
                 meta:
                   type: object
                   additionalProperties: true
-                agents:
+                agents_id:
                   type: array
                   items:
                     type: string
@@ -16710,11 +16710,7 @@ paths:
                       modified_at:
                         type: string
                         format: date-time
-                      steps:
-                        type: array
-                        items:
-                          type: object
-                          additionalProperties: true
+
         "400":
           description: Bad request
           content:
@@ -16891,7 +16887,7 @@ paths:
                 - description
                 - tags
                 - meta
-                - agents
+                - agents_id
                 - connections
               properties:
                 name:
@@ -16905,7 +16901,7 @@ paths:
                 meta:
                   type: object
                   additionalProperties: true
-                agents:
+                agents_id:
                   type: array
                   items:
                     type: string

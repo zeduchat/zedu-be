@@ -10,15 +10,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type WorkFlow struct {
+type Workflow struct {
 	ID              string                `gorm:"type:uuid;primaryKey" json:"id"`
 	UserId          string                `gorm:"type:uuid" json:"-"`
 	OrgId           string                `gorm:"type:uuid" json:"-"`
 	Name            string                `gorm:"type:text" json:"name"`
 	Description     string                `gorm:"type:text" json:"description"`
-	Tags            []string              `gorm:"type:text[]" json:"tags"`
-	Meta            json.RawMessage       `gorm:"type:jsonb" json:"meta"`
-	Agents          []string              `gorm:"type:text[]" json:"agents"`
+	Tags            StringSlice           `gorm:"type:jsonb" json:"tags"`
+	Meta            JSONBMap              `gorm:"type:jsonb" json:"meta"`
+	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
@@ -29,11 +29,11 @@ type WorkFlowRequest struct {
 	UserId          string                `json:"-"`
 	OrgId           string                `json:"-"`
 	Id              string                `json:"id"`
-	Name            string                `json:"name"`
-	Description     string                `json:"description"`
-	Tags            []string              `json:"tags"`
-	Meta            json.RawMessage       `json:"meta"`
-	Agents          []string              `json:"agents"`
+	Name            string                `json:"name" validate:"required"`
+	Description     string                `json:"description" validate:"required"`
+	Tags            StringSlice           `json:"tags"`
+	Meta            JSONBMap              `json:"meta"`
+	Agents          StringSlice           `json:"agents_id" validate:"required,dive,uuid"`
 	FlowConnections Connections           `json:"connections"`
 	Settings        WorkflowSettingsEntry `json:"settings"`
 }
@@ -49,7 +49,7 @@ type AgentsDetails struct {
 }
 
 type WorkFlowResponse struct {
-	WorkFlow
+	Workflow
 	Agents []AgentsDetails `json:"agents_details"`
 }
 
@@ -65,13 +65,39 @@ type Connection struct {
 }
 
 type WorkflowSettings struct {
-	MaxExecutionTime int    `json:"maxExecutionTime"`
-	RetryPolicy      string `json:"retryPolicy"`
-	ErrorHandling    string `json:"errorHandling"`
+	MaxExecutionTime int    `json:"max_execution_time"`
+	RetryPolicy      string `json:"retry_policy"`
+	ErrorHandling    string `json:"error_handling"`
 }
 
-type Connections []Connections
+type Connections []Connection
 type WorkflowSettingsEntry []WorkflowSettings
+type StringSlice []string
+type JSONBMap map[string]interface{}
+
+func (s StringSlice) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
+func (s *StringSlice) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("StringSlice: Scan source is not []byte")
+	}
+	return json.Unmarshal(bytes, s)
+}
+
+func (j *JSONBMap) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, j)
+}
+
+func (j JSONBMap) Value() (driver.Value, error) {
+	return json.Marshal(j)
+}
 
 func (c Connections) Value() (driver.Value, error) {
 	return json.Marshal(c)
@@ -97,33 +123,24 @@ func (s *WorkflowSettingsEntry) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, s)
 }
 
-func (wf *WorkFlow) CreateWorkflow(db *gorm.DB) error {
+func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 
 	if err := ValidateAgentIDs(db, wf.OrgId, wf.Agents); err != nil {
 		return err
 	}
-	var existing WorkFlow
-	err := db.First(&existing, "id = ? AND user_id = ? AND org_id = ?", wf.ID, wf.UserId, wf.OrgId).Error
 
-	if err == nil {
-		return nil
-	}
+	return db.Create(&wf).Error
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return db.Create(&wf).Error
-	}
-
-	return err
 }
 
-func (wf *WorkFlow) UpdateWorkflow(db *gorm.DB) error {
+func (wf *Workflow) UpdateWorkflow(db *gorm.DB) error {
 
 	if err := ValidateAgentIDs(db, wf.OrgId, wf.Agents); err != nil {
 		return err
 	}
 
-	return db.Model(&WorkFlow{}).
-		Where("id = ? AND user_id = ? AND org_id = ?", wf.ID, wf.UserId, wf.OrgId).
+	return db.Model(&Workflow{}).
+		Where("id = ? AND org_id = ?", wf.ID, wf.OrgId).
 		Updates(map[string]interface{}{
 			"name":             wf.Name,
 			"description":      wf.Description,
@@ -136,19 +153,22 @@ func (wf *WorkFlow) UpdateWorkflow(db *gorm.DB) error {
 }
 
 func DeleteWorkflow(db *gorm.DB, req WorkFlowRequest) error {
-	return db.Where("id = ? AND user_id = ?", req.Id, req.UserId).Delete(&WorkFlow{}).Error
+	return db.Where("id = ?", req.Id).Delete(&Workflow{}).Error
 }
 
 func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) {
 	var wfs []WorkflowSummary
-	err := db.Where("org_id = ?", req.OrgId).Find(&wfs).Error
+	err := db.Table("workflows").Where("org_id = ?", req.OrgId).Scan(&wfs).Error
 	return wfs, err
 }
 
 func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error) {
-	var wf WorkFlow
-	err := db.Where("id = ?  AND org_id = ?", req.Id, req.UserId, req.OrgId).First(&wf).Error
+	var wf Workflow
+	err := db.Where("id = ? AND org_id = ?", req.Id, req.OrgId).First(&wf).Error
 	agentDetails, err := FetchAgentsFromIntegration(db, wf.Agents)
+	if err != nil {
+		return WorkFlowResponse{}, err
+	}
 
 	resp := WorkFlowResponse{
 		wf,
@@ -160,14 +180,12 @@ func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error)
 func ValidateAgentIDs(db *gorm.DB, orgID string, agentIDs []string) error {
 	var validIDs []string
 
-	// Fetch all matching OrganisationIntegrations for the org and the given agent IDs
 	if err := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ? AND id IN ?", orgID, agentIDs).
-		Pluck("id", &validIDs).Error; err != nil {
+		Where("org_id = ? AND integration_id IN ?", orgID, agentIDs).
+		Pluck("integration_id", &validIDs).Error; err != nil {
 		return fmt.Errorf("error validating agents: %w", err)
 	}
 
-	// Map for quick lookup
 	validMap := make(map[string]bool)
 	for _, id := range validIDs {
 		validMap[id] = true
@@ -191,7 +209,7 @@ func FetchAgentsFromIntegration(db *gorm.DB, agentIDs []string) ([]AgentsDetails
 	var integrations []OrganisationIntegrations
 
 	if err := db.
-		Where("id IN ?", agentIDs).
+		Where("integration_id IN ?", agentIDs).
 		Find(&integrations).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch agents: %w", err)
 	}
@@ -199,7 +217,7 @@ func FetchAgentsFromIntegration(db *gorm.DB, agentIDs []string) ([]AgentsDetails
 	// Create a map for quick lookup to preserve order
 	integrationMap := make(map[string]OrganisationIntegrations)
 	for _, integration := range integrations {
-		integrationMap[integration.ID] = integration
+		integrationMap[integration.IntegrationID] = integration
 	}
 
 	var agents []AgentsDetails

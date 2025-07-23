@@ -2,33 +2,32 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (*models.WorkFlow, int, error) {
-	var wf models.WorkFlow
+func CreateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (*models.Workflow, int, error) {
+	var wf models.Workflow
 
-	exists := postgresql.CheckExists(db, &wf, "id = ? AND user_id = ? AND org_id = ?", req.Id, req.UserId, req.OrgId)
-	if !exists {
-		wf.ID = req.Id
-		wf.Name = req.Name
-		wf.Description = req.Description
-		wf.Tags = req.Tags
-		wf.Meta = req.Meta
-		wf.Agents = req.Agents
-		wf.FlowConnections = req.FlowConnections
-		wf.Settings = req.Settings
-		wf.UserId = req.UserId
-		wf.OrgId = req.OrgId
+	wf.ID = utility.GenerateUUID()
+	wf.Name = req.Name
+	wf.Description = req.Description
+	wf.Tags = req.Tags
+	wf.Meta = req.Meta
+	wf.Agents = req.Agents
+	wf.FlowConnections = req.FlowConnections
+	wf.Settings = req.Settings
+	wf.UserId = req.UserId
+	wf.OrgId = req.OrgId
 
-		if err := wf.CreateWorkflow(db); err != nil {
-			return nil, http.StatusInternalServerError, err
-		}
+	if err := wf.CreateWorkflow(db); err != nil {
+		fmt.Println(err)
+		return nil, http.StatusInternalServerError, err
 	}
 
 	return &wf, http.StatusCreated, nil
@@ -62,7 +61,7 @@ func DeleteWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (int, error)
 }
 
 func UpdateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (int, error) {
-	wf := models.WorkFlow{
+	wf := models.Workflow{
 		ID:              req.Id,
 		Name:            req.Name,
 		Description:     req.Description,
