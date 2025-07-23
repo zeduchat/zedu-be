@@ -794,9 +794,10 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 		return time.Time{}, fmt.Errorf("failed to fetch last message time: %w", err)
 	}
 
-	fmt.Println(lastMsgResult)
-
 	resultMap, ok := lastMsgResult.(map[string]any)
+	if !ok {
+		return time.Time{}, fmt.Errorf("invalid response format")
+	}
 
 	aggs, ok := resultMap["aggregations"].(map[string]any)
 	if !ok {

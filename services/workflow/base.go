@@ -26,7 +26,6 @@ func CreateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (*models.Wor
 	wf.OrgId = req.OrgId
 
 	if err := wf.CreateWorkflow(db); err != nil {
-		fmt.Println(err)
 		return nil, http.StatusInternalServerError, err
 	}
 
