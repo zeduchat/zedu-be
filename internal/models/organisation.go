@@ -828,36 +828,6 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 		return time.Time{}, fmt.Errorf("invalid response format")
 	}
 
-	aggs, ok := resultMap["aggregations"].(map[string]any)
-	if !ok {
-		return time.Time{}, fmt.Errorf("missing aggregations")
-	}
-
-	latest, ok := aggs["latest_message"].(map[string]any)
-	if !ok {
-		return time.Time{}, fmt.Errorf("missing latest_message")
-	}
-
-	hitsBlock, ok := latest["hits"].(map[string]any)
-	if !ok {
-		return time.Time{}, fmt.Errorf("missing hits in aggregation")
-	}
-
-	hits, ok := hitsBlock["hits"].([]any)
-	if !ok || len(hits) == 0 {
-		return time.Time{}, nil // No messages found
-	}
-
-	firstHit, ok := hits[0].(map[string]any)
-	if !ok {
-		return time.Time{}, fmt.Errorf("invalid hit format")
-	}
-
-	source, ok := firstHit["_source"].(map[string]any)
-	if !ok {
-		return time.Time{}, fmt.Errorf("missing _source in hit")
-	}
-
 	createdAtStr, ok := source["created_at"].(string)
 	if !ok {
 		return time.Time{}, fmt.Errorf("missing or invalid created_at")
