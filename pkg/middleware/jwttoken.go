@@ -65,7 +65,6 @@ func verifyToken(tokenString string) (*jwt.Token, error) {
 		return []byte(config.Server.Secret), nil
 	})
 	if err != nil {
-		fmt.Println("===================", err)
 		return token, fmt.Errorf("Unauthorized")
 	}
 	return token, nil

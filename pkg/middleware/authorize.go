@@ -38,7 +38,6 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 
 		token, err := TokenValid(tokenStr)
 		if err != nil {
-			fmt.Println("====================================================",err)
 			r := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, r)
 			return
