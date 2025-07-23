@@ -99,6 +99,7 @@ func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisCli
 		logger.Error("Failed to fetch models: ", err)
 		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to fetch models: %w", err)
 	}
+
 	modelsList, ok := res.(external_models.OpenRouterModelsResponse)
 	if !ok {
 		logger.Error("Invalid response format for models")
@@ -120,12 +121,16 @@ func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisCli
 }
 
 func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, redis *redis.Client) (string, error) {
-	var availableModels external_models.OpenRouterModelsResponse
+	var (
+		availableModels external_models.OpenRouterModelsResponse
+	)
 
-	if req.Tools != nil {
-		availableModels, _ = ListModels(logger, extReq, redis, true)
+	checkWebSearchModel := func(modelName string) bool {
+		return strings.HasSuffix(modelName, ":online")
 	}
-	availableModels, _ = ListModels(logger, extReq, redis, false)
+
+	withTools := req.Tools != nil
+	availableModels, _ = ListModels(logger, extReq, redis, withTools)
 
 	models := availableModels.Data
 	modelMap := make(map[string]bool)
@@ -148,12 +153,17 @@ func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChat
 		selectedModel = "deepseek/deepseek-r1-0528-qwen3-8b:free"
 	}
 
-	if _, exists := modelMap[selectedModel]; !exists {
-		logger.Error("Invalid model selected: ", selectedModel)
-		return "deepseek/deepseek-r1-0528-qwen3-8b:free", fmt.Errorf("invalid model selected: %s", selectedModel)
+	if !checkWebSearchModel(req.Model) {
+		if _, exists := modelMap[selectedModel]; !exists {
+			logger.Error("Invalid model selected: ", selectedModel)
+			return "deepseek/deepseek-r1-0528-qwen3-8b:free", fmt.Errorf("invalid model selected: %s", selectedModel)
+		}
+
+		return selectedModel, nil
 	}
 
-	return selectedModel, nil
+	selectedModel = strings.TrimSuffix(selectedModel, ":online")
+	return strings.Join([]string{selectedModel, "online"}, ":"), nil
 	// return "deepseek/deepseek-r1-0528-qwen3-8b:free", nil
 }
 
