@@ -35,33 +35,6 @@ type Tool struct {
 	Function ToolFunction `json:"function"`
 }
 
-// type OpenRouterResp struct {
-// 	ID      string             `json:"id"`
-// 	Choices []OpenRouterChoice `json:"choices"`
-// 	Model   string             `json:"model,omitempty"`
-// 	Usage   OpenRouterUsage    `json:"usage"`
-// }
-
-// type OpenRouterUsage struct {
-// 	PromptTokens     int `json:"prompt_tokens"`
-// 	CompletionTokens int `json:"completion_tokens"`
-// 	TotalTokens      int `json:"total_tokens"`
-// 	Cost             int `json:"cost"`
-// }
-
-// type OpenRouterChoice struct {
-// 	Message            TelexAIOpenRouterMessage `json:"message" validate:"required"`
-// 	FinishReason       string                   `json:"finish_reason,omitempty"`
-// 	NativeFinishReason string                   `json:"native_finish_reason,omitempty"`
-// }
-// type TelexAIOpenRouterMessage struct {
-// 	Role       string  `json:"role" validate:"required,oneof=system developer user assistant tool"`
-// 	Content    *string `json:"content" validate:"required"`
-// 	ToolCalls  []Tool  `json:"tool_calls,omitempty"`
-// 	ToolCallID string  `json:"tool_call_id,omitempty"`
-// 	Name       string  `json:"name,omitempty"`
-// }
-
 func (treq *TelexAIChatCompletionsReq) GetModel() string {
 	if treq.Model == "" {
 		return "qwen/qwen3-30b-a3b:free"
