@@ -30,7 +30,6 @@ var (
 	AgentJsonContent    string = "fetch_agent_json_content"
 	GetChatCompletions  string = "get_open_router_chat_completions"
 	GetAllModels        string = "get_all_models"
-	GetAllToolModels    string = "get_all_tools_models"
 	SendAgentAPIKey     string = "send_agent_api_key"
 )
 
@@ -141,14 +140,14 @@ func (er ExternalRequest) SendExternalRequest(name string, data any) (any, error
 			}
 			return obj.GetChatCompletions()
 		case GetAllModels:
-			data_content := data.(map[string]any)
+			data_content := data.(bool)
 			obj := openrouter.RequestObj{
 				Name:         name,
 				Path:         config.OpenRouter.BaseUrl,
 				Method:       http.MethodGet,
 				SuccessCode:  http.StatusOK,
 				DecodeMethod: JsonDecodeMethod,
-				RequestData:  data_content["query_tools_models"],
+				RequestData:  data_content,
 				Logger:       er.Logger,
 				Timeout:      true,
 			}

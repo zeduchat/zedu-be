@@ -12,7 +12,7 @@ type TelexAIChatCompletionsReq struct {
 	Messages []external_models.TelexAIOpenRouterMessage `json:"messages" validate:"required"`
 	Model    string                                     `json:"model"`
 	Stream   bool                                       `json:"stream"`
-	Tools    *Tools                                     `json:"tools"`
+	Tools    *[]Tool                                    `json:"tools"`
 	// MaxTokens   *int                       `json:"max_tokens,omitempty"`
 	// Temperature *float64                   `json:"temperature,omitempty"`
 
@@ -35,14 +35,32 @@ type Tool struct {
 	Function ToolFunction `json:"function"`
 }
 
-type Tools struct {
-	Tools []Tool `json:"tools"`
-}
+// type OpenRouterResp struct {
+// 	ID      string             `json:"id"`
+// 	Choices []OpenRouterChoice `json:"choices"`
+// 	Model   string             `json:"model,omitempty"`
+// 	Usage   OpenRouterUsage    `json:"usage"`
+// }
 
-// AIProxyChatCompletionsResp holds fields for response for openRouter requests
-type TelexAIChatCompletionsResp struct {
-	Messages external_models.TelexAIOpenRouterMessage
-}
+// type OpenRouterUsage struct {
+// 	PromptTokens     int `json:"prompt_tokens"`
+// 	CompletionTokens int `json:"completion_tokens"`
+// 	TotalTokens      int `json:"total_tokens"`
+// 	Cost             int `json:"cost"`
+// }
+
+// type OpenRouterChoice struct {
+// 	Message            TelexAIOpenRouterMessage `json:"message" validate:"required"`
+// 	FinishReason       string                   `json:"finish_reason,omitempty"`
+// 	NativeFinishReason string                   `json:"native_finish_reason,omitempty"`
+// }
+// type TelexAIOpenRouterMessage struct {
+// 	Role       string  `json:"role" validate:"required,oneof=system developer user assistant tool"`
+// 	Content    *string `json:"content" validate:"required"`
+// 	ToolCalls  []Tool  `json:"tool_calls,omitempty"`
+// 	ToolCallID string  `json:"tool_call_id,omitempty"`
+// 	Name       string  `json:"name,omitempty"`
+// }
 
 func (treq *TelexAIChatCompletionsReq) GetModel() string {
 	if treq.Model == "" {

@@ -5,13 +5,13 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 )
 
-func ConvertTools(src *models.Tools) *external_models.Tools {
+func ConvertTools(src *[]models.Tool) *[]external_models.Tool {
 	if src == nil {
 		return nil
 	}
 
-	tools := make([]external_models.Tool, len(src.Tools))
-	for i, t := range src.Tools{
+	tools := make([]external_models.Tool, len(*src))
+	for i, t := range *src{
 		tools[i] = external_models.Tool{
 			Type: t.Type,
 			Function: external_models.Function{
@@ -20,11 +20,10 @@ func ConvertTools(src *models.Tools) *external_models.Tools {
 				Parameters: external_models.ToolFunctionParameter{
 					Type: t.Function.Parameters.Type,
 					Properties: t.Function.Parameters.Properties,
-					Required: t.Function.Parameters.Required,
 				},
 			},
 		}
 	}
 
-	return &external_models.Tools{Tools: tools}
+	return &tools
 }

@@ -5,7 +5,7 @@ type OpenRouterReq struct {
 	Messages  []TelexAIOpenRouterMessage `json:"messages" validate:"required"`
 	ExtraBody OpenRouterExtraBody        `json:"extra_body,omitempty"`
 	Stream    bool                       `json:"stream" validate:"required,oneof=true false" default:"false"` // Whether to stream the response or not
-	Tools     *Tools                      `json:"tools,omitempty" validate:"omitempty,dive"`                   
+	Tools     *[]Tool                    `json:"tools,omitempty" validate:"omitempty,dive"`
 }
 
 type OpenRouterExtraBody struct {
@@ -15,16 +15,6 @@ type OpenRouterUsageToggle struct {
 	Include bool `json:"include"`
 }
 
-type OpenRouterChoice struct {
-	Message TelexAIOpenRouterMessage `json:"message" validate:"required"`
-}
-
-type OpenRouterUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-	Cost             int `json:"cost"`
-}
 
 type TelexAIOpenRouterMessage struct {
 	Role       string     `json:"role" validate:"required,oneof=system developer user assistant tool"`
@@ -37,7 +27,6 @@ type TelexAIOpenRouterMessage struct {
 type ToolFunctionParameter struct {
 	Type       string         `json:"type"`
 	Properties map[string]any `json:"properties"`
-	Required   []string       `json:"required"`
 }
 
 type Function struct {
@@ -49,10 +38,6 @@ type Function struct {
 type Tool struct {
 	Type     string   `json:"type"`
 	Function Function `json:"function"`
-}
-
-type Tools struct {
-	Tools []Tool `json:"tools"`
 }
 
 type ToolCall struct {
@@ -69,7 +54,20 @@ type ToolFunction struct {
 type OpenRouterResp struct {
 	ID      string             `json:"id"`
 	Choices []OpenRouterChoice `json:"choices"`
+	Model   string             `json:"model,omitempty"`
 	Usage   OpenRouterUsage    `json:"usage"`
+}
+
+type OpenRouterUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+	Cost             int `json:"cost"`
+}
+type OpenRouterChoice struct {
+	Message            TelexAIOpenRouterMessage `json:"message" validate:"required"`
+	FinishReason       string                   `json:"finish_reason,omitempty"`
+	NativeFinishReason string                   `json:"native_finish_reason,omitempty"`
 }
 
 type OpenRouterModelsResponse struct {

@@ -2,6 +2,7 @@ package telexai
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,7 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (models.TelexAIChatCompletionsResp, int, error) {
+func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (map[string]any, int, error) {
 	var (
 		telexlogs models.TelexAIUsageLog
 	)
@@ -39,35 +40,40 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 	if err != nil {
 		if strings.Contains(err.Error(), "429") {
 			logger.Error("OpenRouter API call failed with 429: ", err)
-			return models.TelexAIChatCompletionsResp{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
+			return map[string]any{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
 		}
 		logger.Error("OpenRouter API call failed: ", err)
-		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, err
+		return map[string]any{}, http.StatusBadRequest, err
 	}
-	result, ok := res.(external_models.OpenRouterResp)
+
+	result, ok := res.(map[string]any)
 	if !ok {
-		logger.Error("failed to get chat completions: ", err)
-		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, err
+		logger.Error("failed to get chat completions: ", res)
+		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("failed to get chat completions: %v", res)
 	}
 
-	if len(result.Choices) == 0 {
-		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, fmt.Errorf("empty response")
+	if choices, exists := result["choices"].([]any); !exists || len(choices) == 0 {
+		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("no choices found in response")
 	}
 
-	if err := telexlogs.CreateUsageLog(db.Postgresql, logger, ids, req, result.Usage); err != nil {
-		logger.Error("failed to create usage log: ", err)
-		return models.TelexAIChatCompletionsResp{}, http.StatusBadRequest, fmt.Errorf("failed to create usage log: %w", err)
+	if usage, exists := result["usage"].(external_models.OpenRouterUsage); exists {
+		if err := telexlogs.CreateUsageLog(db.Postgresql, logger, ids, req, usage); err != nil {
+			logger.Error("failed to create usage log: ", err)
+			return map[string]any{}, http.StatusBadRequest, fmt.Errorf("failed to create usage log: %w", err)
+		}
 	}
 
-	resp := models.TelexAIChatCompletionsResp{
-		Messages: result.Choices[0].Message,
-	}
-	return resp, http.StatusOK, nil
+	return result, http.StatusOK, nil
 }
 
-func ListAllToolsModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client) (external_models.OpenRouterModelsResponse, error) {
+func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client, fetchTools bool) (external_models.OpenRouterModelsResponse, error) {
+	var redisKey string
+
 	cacheDuration := 12 * time.Hour
-	redisKey := "telexai:tools_models"
+	if fetchTools {
+		redisKey = "telexai:tools_models"
+	}
+	redisKey = "telexai:models"
 
 	cachedModels, err := rd.RedisGet(redisClient, redisKey)
 	if err == nil && len(cachedModels) > 0 {
@@ -88,61 +94,7 @@ func ListAllToolsModels(logger *utility.Logger, extReq request.ExternalRequest, 
 	}
 
 	logger.Info("No cached models found in Redis, fetching from OpenRouter")
-
-	data := map[string]any{
-		"query_tools_models": true,
-	}
-
-	res, err := extReq.SendExternalRequest(request.GetAllModels, data)
-	if err != nil {
-		logger.Error("Failed to fetch models: ", err)
-		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to fetch models: %w", err)
-	}
-	modelsList, ok := res.(external_models.OpenRouterModelsResponse)
-	if !ok {
-		logger.Error("Invalid response format for models")
-		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("invalid response format for models")
-	}
-
-	modelsJSON, err := json.Marshal(modelsList)
-	if err != nil {
-		logger.Error("Failed to marshal models for caching: ", err)
-	} else {
-		if err := rd.RedisSet(redisClient, redisKey, string(modelsJSON), cacheDuration); err != nil {
-			logger.Error("Failed to cache models in Redis: ", err)
-		} else {
-			logger.Info("Successfully cached models in Redis")
-		}
-	}
-
-	return modelsList, nil
-}
-
-
-func ListAllModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client) (external_models.OpenRouterModelsResponse, error) {
-	cacheDuration := 12 * time.Hour
-	redisKey := "telexai:models"
-
-	cachedModels, err := rd.RedisGet(redisClient, redisKey)
-	if err == nil && len(cachedModels) > 0 {
-		logger.Info("Using cached models from Redis")
-
-		var rawJSON string
-		if err := json.Unmarshal([]byte(cachedModels), &rawJSON); err != nil {
-			logger.Error("Failed to unmarshal outer JSON: ", err)
-			return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal outer JSON: %w", err)
-		}
-
-		var cachedModelsList external_models.OpenRouterModelsResponse
-		if err := json.Unmarshal([]byte(rawJSON), &cachedModelsList); err != nil {
-			logger.Error("Failed to unmarshal inner JSON: ", err)
-			return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to unmarshal inner JSON: %w", err)
-		}
-		return cachedModelsList, nil
-	}
-
-	logger.Info("No cached models found in Redis, fetching from OpenRouter")
-	res, err := extReq.SendExternalRequest(request.GetAllModels, nil)
+	res, err := extReq.SendExternalRequest(request.GetAllModels, fetchTools)
 	if err != nil {
 		logger.Error("Failed to fetch models: ", err)
 		return external_models.OpenRouterModelsResponse{}, fmt.Errorf("failed to fetch models: %w", err)
@@ -171,11 +123,10 @@ func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChat
 	var availableModels external_models.OpenRouterModelsResponse
 
 	if req.Tools != nil {
-		availableModels, _ = ListAllToolsModels(logger, extReq, redis)
-	}else{
-		availableModels, _ = ListAllModels(logger, extReq, redis)
+		availableModels, _ = ListModels(logger, extReq, redis, true)
 	}
-	
+	availableModels, _ = ListModels(logger, extReq, redis, false)
+
 	models := availableModels.Data
 	modelMap := make(map[string]bool)
 	for _, model := range models {
@@ -229,4 +180,28 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 	}
 
 	return nil
+}
+
+func ExtractChatContent(response map[string]any) (string, error) {
+	choices, ok := response["choices"].([]any)
+	if !ok {
+		return "", errors.New("invalid or empty choices")
+	}
+
+	firstChoice, ok := choices[0].(map[string]any)
+	if !ok {
+		return "", errors.New("invalid choice format")
+	}
+
+	message, ok := firstChoice["message"].(map[string]any)
+	if !ok {
+		return "", errors.New("invalid message format")
+	}
+
+	content, ok := message["content"].(string)
+	if !ok {
+		return "", errors.New("content not found or not a string")
+	}
+
+	return content, nil
 }

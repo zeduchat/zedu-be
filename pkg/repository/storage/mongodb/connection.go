@@ -108,7 +108,7 @@ func MonitorMongoConnection(logger *utility.Logger, MongoConfig config.MongoDB, 
 			store.SetClient(nil)
 			ConnectMongoDB(logger, MongoConfig, store)
 		} else {
-			fmt.Println("✅✅✅ MongoDB connection is healthy ✅✅✅")
+			// fmt.Println("✅✅✅ MongoDB connection is healthy ✅✅✅")
 		}
 	}
 }

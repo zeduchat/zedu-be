@@ -9,9 +9,9 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 )
 
-func (r *RequestObj) GetChatCompletions() (external_models.OpenRouterResp, error) {
+func (r *RequestObj) GetChatCompletions() (map[string]any, error) {
 	var (
-		openRouterResponse external_models.OpenRouterResp
+		openRouterResponse map[string]any
 		logger             = r.Logger
 		reqData            = r.RequestData
 		config             = config.GetConfig()
@@ -65,8 +65,8 @@ func (r *RequestObj) GetAllModels() (external_models.OpenRouterModelsResponse, e
 		"Content-Type":  "application/json",
 	}
 
-	queryTools := reqData.(bool)
-	if queryTools {
+	fetchTools := reqData.(bool)
+	if fetchTools {
 		err := r.getNewSendRequestObject(nil, headers, "/models?supported_parameters=tools").SendRequest(&openRouterModelsResponse)
 		if err != nil {
 			logger.Error("open router get all models", openRouterModelsResponse, err.Error())
