@@ -40,6 +40,15 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	if req.AgentName != "" && req.UserId == "" {
 		agent_message = true
 		userType = "bot"
+		if req.AgentId == "" {
+			return nil, http.StatusUnprocessableEntity, fmt.Errorf("missing agent_id")
+		}
+
+		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
+			return nil, http.StatusNotFound, err
+		}
+
+		req.UserId = req.AgentId
 	}
 
 	threadId, err := uuid.FromString(req.ThreadId)

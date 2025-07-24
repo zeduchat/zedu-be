@@ -215,6 +215,7 @@ type CreateThreadMsgReq struct {
 	ChannelsID string                 `json:"channels_id"`
 	Message    string                 `json:"message"`
 	UserId     string                 `json:"user_id"`
+	AgentId    string                 `json:"agent_id"`
 	ThreadId   string                 `json:"thread_id"`
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`

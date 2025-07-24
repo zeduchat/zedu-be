@@ -37,6 +37,14 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	if req.AgentName != "" && req.UserId == "" {
 		agent_message = true
 		userType = "bot"
+		if req.AgentId == "" {
+			return nil, fmt.Errorf("missing agent_id")
+		}
+
+		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
+			return nil, err
+		}
+		req.UserId = req.AgentId
 	}
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
