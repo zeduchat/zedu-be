@@ -200,7 +200,7 @@ func ValidateAgentIDs(db *gorm.DB, orgID string, agentIDs []string) error {
 	}
 
 	if len(invalid) > 0 {
-		return fmt.Errorf("invalid agent IDs: %v", invalid)
+		return fmt.Errorf("invalid agent IDs: %v, agents does not exist in Org", invalid)
 	}
 
 	return nil
