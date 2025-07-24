@@ -50,14 +50,14 @@ func CreateReaction(req models.ReactionRequest, db *storage.Database, logger *ut
 		notification := models.Notification[models.ReactionEvent]
 		notification.SectionType = models.ThreadSection
 		notification.Reactions = &updatedReact
-		notification.ModifcationDetails = &models.ModifcationDetails{
+		notification.ModificationDetails = &models.ModificationDetails{
 			ThreadId:  req.ThreadID,
 			ChannelId: req.ChannelsID,
 		}
 
 		if req.Type == "reply" {
 			notification.SectionType = models.ReplySection
-			notification.ModifcationDetails.MessageId = req.MessageID
+			notification.ModificationDetails.MessageId = req.MessageID
 		}
 
 		err = centrifuge.PublishChannel(logger, req.ChannelsID, notification)
@@ -171,14 +171,14 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 	notification := models.Notification[models.ReactionEvent]
 	notification.SectionType = models.ThreadSection
 	notification.Reactions = &updatedReact
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  req.ThreadID,
 		ChannelId: req.ChannelsID,
 	}
 
 	if req.Type == "reply" {
 		notification.SectionType = models.ReplySection
-		notification.ModifcationDetails.MessageId = req.MessageID
+		notification.ModificationDetails.MessageId = req.MessageID
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, notification)
