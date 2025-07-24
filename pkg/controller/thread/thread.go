@@ -193,12 +193,14 @@ func (base *Controller) DeleteAThread(c *gin.Context) {
 	)
 
 	if _, err := uuid.Parse(channelID); err != nil {
+		base.Logger.Error(fmt.Sprintf("invalid channel id format: %v", err))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if _, err := uuid.Parse(threadID); err != nil {
+		base.Logger.Error(fmt.Sprintf("invalid thread id format: %v", err))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", errors.New("failed to parse thread id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -206,12 +208,14 @@ func (base *Controller) DeleteAThread(c *gin.Context) {
 
 	code, err := service.DeleteAThread(threadID, channelID, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
 
+	base.Logger.Info("Thread deleted successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Thread deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 

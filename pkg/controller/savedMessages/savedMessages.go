@@ -59,7 +59,7 @@ func (base *Controller) SaveThreadMessageForLater(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = orgId
 
-	messageDocument, err := savedMessages.SaveThreadMessageForLater(req, base.Db.Postgresql, base.Logger)
+	messageDocument, saveStatus, err := savedMessages.SaveThreadMessageForLater(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to save message: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)
@@ -67,8 +67,20 @@ func (base *Controller) SaveThreadMessageForLater(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Message saved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Message saved successfully", messageDocument)
+	var (
+		statusMsg string
+		rd        utility.Response
+	)
+	if saveStatus {
+		statusMsg = "Thread saved successfully"
+		base.Logger.Info(statusMsg)
+		rd = utility.BuildSuccessResponse(http.StatusOK, statusMsg, messageDocument)
+	} else {
+		statusMsg = "Thread unsaved successfully"
+		base.Logger.Info(statusMsg)
+		rd = utility.BuildSuccessResponse(http.StatusOK, statusMsg, nil)
+	}
+
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -77,6 +89,7 @@ func (base *Controller) SaveReplyMessageForLater(c *gin.Context) {
 	orgId := c.Param("org_id")
 
 	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("invalid organisation id format: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -84,6 +97,7 @@ func (base *Controller) SaveReplyMessageForLater(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -91,6 +105,7 @@ func (base *Controller) SaveReplyMessageForLater(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation Failed: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
@@ -107,14 +122,28 @@ func (base *Controller) SaveReplyMessageForLater(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = orgId
 
-	messageDocument, err := savedMessages.SaveReplyMessageForLater(req, base.Db.Postgresql, base.Logger)
+	messageDocument, saveStatus, err := savedMessages.SaveReplyMessageForLater(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
+		base.Logger.Error("Failed to save message: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Message saved successfully", messageDocument)
+	var (
+		statusMsg string
+		rd        utility.Response
+	)
+	if saveStatus {
+		statusMsg = "Message saved successfully"
+		base.Logger.Info(statusMsg)
+		rd = utility.BuildSuccessResponse(http.StatusOK, statusMsg, messageDocument)
+	} else {
+		statusMsg = "Message unsaved successfully"
+		base.Logger.Info(statusMsg)
+		rd = utility.BuildSuccessResponse(http.StatusOK, statusMsg, nil)
+	}
+
 	c.JSON(http.StatusOK, rd)
 }
 

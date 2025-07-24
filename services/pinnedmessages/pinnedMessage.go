@@ -177,7 +177,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 
 	err = centrifuge.PublishChannel(logger, pinnedMessage.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", *&pinnedMessage.ChannelsID, err.Error())
+		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", pinnedMessage.ChannelsID, err.Error())
 		return errors.New("failed to publish data: " + err.Error())
 	}
 
@@ -226,7 +226,7 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 
 	err = centrifuge.PublishChannel(logger, pinnedMessage.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", *&pinnedMessage.ChannelsID, err.Error())
+		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", pinnedMessage.ChannelsID, err.Error())
 		return errors.New("failed to publish data: " + err.Error())
 	}
 

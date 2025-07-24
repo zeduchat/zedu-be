@@ -7,8 +7,8 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
+	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -30,8 +30,8 @@ func Threads(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		threadUrl.DELETE("/:thread_id/channels/:channel_id", thread.DeleteAThread)
 
 		// main channel thread
-		threadUrl.POST("/:channel_id", thread.AddAThread) //add thread message
-		channelUrl.POST("/:channelId/messages", channel.AddChannelsMsg) //reply thread message
+		threadUrl.POST("/:channel_id", thread.AddAThread)                   //add thread message
+		channelUrl.POST("/:channelId/messages", channel.ReplyThreadMessage) //reply thread message
 
 		threadUrl.GET("/channels/:channel_id/:searching", thread.SearchChannel)
 		threadUrl.GET("/organisations/:org_id/metrics", thread.GetChannelCountInfo)

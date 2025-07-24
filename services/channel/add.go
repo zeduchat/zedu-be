@@ -226,7 +226,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	notification := models.Notification[models.Updated]
 	notification.SectionType = models.ReplySection
 	notification.Content = feed
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageId,
@@ -251,30 +251,40 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		savedMessage models.SavedMessage
 	)
 
-	chanExist, _ := channel.CheckChannelExists(db, req.ChannelsId)
-	dmChanExist, _ := dmChannel.CheckChannelExists(db, req.ChannelsId, req.UserId)
+	tx := db.Begin()
+	if tx.Error != nil {
+		logger.Error("Failed to begin transaction: %v", tx.Error)
+		return nil, http.StatusInternalServerError, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
+	chanExist, _ := channel.CheckChannelExists(tx, req.ChannelsId)
+	dmChanExist, _ := dmChannel.CheckChannelExists(tx, req.ChannelsId, req.UserId)
 	if !(dmChanExist || chanExist) {
+		tx.Rollback()
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-	err := newMsg.GetMessageById(db, req.MessageId)
-	if err != nil {
+	if err := newMsg.GetMessageById(tx, req.MessageId); err != nil {
+		tx.Rollback()
 		return nil, http.StatusBadRequest, errors.New("message not found")
 	}
 
 	req.ThreadId = newMsg.ThreadID.String()
-
 	savedMessageIds := models.SavedMessageIds{
 		MessageID: newMsg.ID,
 		UserID:    req.UserId,
 		OrgID:     newMsg.OrganisationID,
 		ThreadID:  newMsg.ThreadID.String(),
 	}
-	exists := savedMessage.SavedReplyMsgExists(db, savedMessageIds)
-	if exists {
-		err := savedMessage.DeleteSavedMessageByMessageID(db, savedMessageIds)
-		if err != nil {
+
+	if exists := savedMessage.SavedReplyMsgExists(tx, savedMessageIds); exists {
+		if err := savedMessage.DeleteSavedMessageByMessageID(tx, savedMessageIds); err != nil {
+			tx.Rollback()
 			return nil, http.StatusBadRequest, err
 		}
 	}
@@ -285,34 +295,41 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		ChannelsID: req.ChannelsId,
 	}
 
-	if exists := pinnedReply.CheckPinnedReplyExists(db); exists {
-		if err := pinnedReply.DeletePinnedReplyMessageRecord(db); err != nil {
+	if exists := pinnedReply.CheckPinnedReplyExists(tx); exists {
+		if err := pinnedReply.DeletePinnedReplyMessageRecord(tx); err != nil {
+			tx.Rollback()
 			logger.Error("An error occurred while deleting pinned message record: %v", err)
 			return nil, http.StatusInternalServerError, err
 		}
 	}
 
-	updateResp, err := newMsg.DeleteMessage(db, logger)
-
+	updateResp, err := newMsg.DeleteMessage(tx, logger)
 	if err != nil {
+		tx.Rollback()
 		return nil, http.StatusInternalServerError, err
 	}
 
-	if _, err := message.DeleteMessageMediaFiles(logger, db, newMsg.Media); err != nil {
+	if _, err := message.DeleteMessageMediaFiles(logger, tx, newMsg.Media); err != nil {
+		tx.Rollback()
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
 		return nil, http.StatusInternalServerError, err
 	}
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
 	notification.UpdateChange = updateResp
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageId,
 	}
-	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
-	if err != nil {
-		logger.Error("Error Publishing to with destination id: %s error: %v", req.ChannelsId, err.Error())
+
+	if err = centrifuge.PublishChannel(logger, req.ChannelsId, notification); err != nil {
+		logger.Error("Error Publishing to with destination id: %s error: %v", req.ChannelsId, err)
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
 	}
 
@@ -320,7 +337,7 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 }
 
 // Reply message fn
-func AddChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
+func ReplyThreadMessage(req models.CreateMessageRequest, db *storage.Database,
 	logger *utility.Logger) (*models.MessageDocument, int, error) {
 
 	var (
