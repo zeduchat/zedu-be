@@ -429,6 +429,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 		AgentName:  req.AgentName,
 		Media:      req.Media,
 		Mentions:   req.Mentions,
+		AgentId:    req.AgentId,
 	}
 
 	if req.Type == "message" {
@@ -447,6 +448,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 			Media:      req.Media,
 			Mentions:   req.Mentions,
 			AgentName:  req.AgentName,
+			AgentId:    req.AgentId,
 		}
 
 		logger.Info("saving and publishing recieved thread message")
