@@ -41,6 +41,10 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 			return nil, fmt.Errorf("missing agent_id")
 		}
 
+		if req.OrgId == "" {
+			return nil, fmt.Errorf("missing org_id")
+		}
+
 		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
 			return nil, err
 		}

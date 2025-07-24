@@ -44,6 +44,10 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 			return nil, http.StatusUnprocessableEntity, fmt.Errorf("missing agent_id")
 		}
 
+		if req.OrgId == "" {
+			return nil, http.StatusUnprocessableEntity, fmt.Errorf("missing org_id")
+		}
+
 		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
 			return nil, http.StatusNotFound, err
 		}
