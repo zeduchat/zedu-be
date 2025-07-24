@@ -40,6 +40,19 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	if req.AgentName != "" && req.UserId == "" {
 		agent_message = true
 		userType = "bot"
+		if req.AgentId == "" {
+			return nil, http.StatusUnprocessableEntity, fmt.Errorf("missing agent_id")
+		}
+
+		if req.OrgId == "" {
+			return nil, http.StatusUnprocessableEntity, fmt.Errorf("missing org_id")
+		}
+
+		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
+			return nil, http.StatusNotFound, err
+		}
+
+		req.UserId = req.AgentId
 	}
 
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -437,6 +450,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 		AgentName:  req.AgentName,
 		Media:      req.Media,
 		Mentions:   req.Mentions,
+		AgentId:    req.AgentId,
 	}
 
 	if req.Type == "message" {
@@ -455,6 +469,7 @@ func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 			Media:      req.Media,
 			Mentions:   req.Mentions,
 			AgentName:  req.AgentName,
+			AgentId:    req.AgentId,
 		}
 
 		logger.Info("saving and publishing recieved thread message")

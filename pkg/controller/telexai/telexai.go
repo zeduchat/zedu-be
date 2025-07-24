@@ -80,10 +80,17 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 			return
 		}
 
-		// perfom credit charge
-		inputputLength := len(response.Messages.Content)
+		content, err := telexai.ExtractChatContent(response)
+		if err != nil {
+			base.Logger.Error("failed to extract chat content", err)
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to extract chat content", err.Error(), nil)
+			c.JSON(http.StatusInternalServerError, rd)
+			return
+		}
 
-		err = telexai.ChargeAICreditUsage(base.Db, ids, inputputLength, base.Logger)
+		inputLength := len(content)
+
+		err = telexai.ChargeAICreditUsage(base.Db, ids, inputLength, base.Logger)
 		if err != nil {
 			base.Logger.Error("failed to charge organization for AI credit usage!!")
 			rd := utility.BuildErrorResponse(400, "error", "failed to charge organization for AI organisation credit usage", err.Error(), nil)
@@ -97,8 +104,9 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 	}
 }
 
-func (base *Controller) ListAllModels(c *gin.Context) {
-	models, err := telexai.ListAllModels(base.Logger, base.ExtReq, base.Db.Redis)
+func (base *Controller) ListModels(c *gin.Context) {
+
+	models, err := telexai.ListModels(base.Logger, base.ExtReq, base.Db.Redis, false)
 	if err != nil {
 		base.Logger.Error("Failed to list all models", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to list all models", err.Error(), nil)
@@ -108,5 +116,20 @@ func (base *Controller) ListAllModels(c *gin.Context) {
 
 	base.Logger.Info("all models listed successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "all models listed successfully", models)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) ListToolsModels(c *gin.Context) {
+
+	models, err := telexai.ListModels(base.Logger, base.ExtReq, base.Db.Redis, true)
+	if err != nil {
+		base.Logger.Error("Failed to list all tools models", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to list all tools models", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("all models listed successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "all tools models listed successfully", models)
 	c.JSON(http.StatusOK, rd)
 }
