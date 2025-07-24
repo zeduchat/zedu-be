@@ -78,7 +78,7 @@ type PushNotificationRecord struct {
 	Sent               bool               `json:"sent"`
 	UpdateChange       map[string]any     `json:"update_change"`
 	Type               NotificationType   `json:"type"`
-	ModifcationDetails ModifcationDetails `json:"modificaion_details"`
+	ModifcationDetails ModificationDetails `json:"modificaion_details"`
 }
 
 type NotificationProcessPayload struct {

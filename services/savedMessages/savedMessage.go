@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -15,6 +16,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	var (
 		checkThread models.ThreadDocument
 	)
+
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
@@ -22,7 +24,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	}
 
 	checkThread.ChannelsID = req.ChannelsId
-	checkThread.ID = req.ThreadId
+	checkThread.ID = threadId.String()
 
 	exists, _, err := checkThread.CheckExists()
 	if err != nil {
@@ -33,7 +35,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 	}
 
 	messageToSave := models.SavedMessage{
-		ID:         req.ThreadId,
+		ID:         utility.GenerateUUID(),
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
@@ -42,15 +44,24 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 		ThreadID:   threadId,
 	}
 
-	saved, createErr := messageToSave.CreateMessageRecord(db)
-	if createErr != nil {
-		logger.Error("failed to save thread message: %v", createErr)
-		return nil, errors.New("failed to save thread message, error: " + createErr.Error())
+	err = messageToSave.CreateThreadMessageRecord(db)
+	if err != nil {
+		logger.Error("failed to save thread message: %v", err)
+		return nil, errors.New("failed to save thread message, error: " + err.Error())
 	}
 
-	if !saved {
-		logger.Error("thread message already saved")
-		return nil, nil
+
+	notification := models.Notification[models.SavedMessageEvent]
+	notification.SectionType = models.ThreadSection
+	notification.ModificationDetails = &models.ModificationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelsId,
+	}
+
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
+	if err != nil {
+		logger.Error("Error Publishing saved message event to with destination id: %s error: %v", req.ChannelsId, err.Error())
+		return nil, errors.New("failed to publish data: " + err.Error())
 	}
 
 	return &messageToSave, nil
@@ -58,9 +69,9 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 
 func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, error) {
 	var (
-		message      models.Message
 		checkMessage models.MessageDocument
 	)
+
 	threadId, err := uuid.FromString(req.ThreadId)
 	if err != nil {
 		logger.Error("invalid thread ID")
@@ -68,7 +79,7 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	}
 
 	checkMessage.ChannelsID = req.ChannelsId
-	checkMessage.ID = req.MessageId
+	checkMessage.ID = threadId.String()
 
 	exists, _, err := checkMessage.CheckExists()
 	if err != nil {
@@ -79,12 +90,12 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 	}
 
 	messageToSave := models.SavedMessage{
-		ID:         req.MessageId,
+		ID:         utility.GenerateUUID(),
 		ChannelsID: req.ChannelsId,
 		OrgId:      req.OrgId,
 		UserID:     req.UserId,
 		CreatedAt:  time.Now().UTC(),
-		Type:       "message",
+		Type:       "reply",
 		MessageID:  &req.MessageId,
 		ThreadID:   threadId,
 	}
@@ -95,13 +106,17 @@ func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger
 		return nil, errors.New("failed to save message, error: " + createErr.Error())
 	}
 
-	message.ID = req.MessageId
-	updateKey := map[string]any{
-		"is_saved": true,
+	notification := models.Notification[models.SavedMessageEvent]
+	notification.SectionType = models.ThreadSection
+	notification.ModificationDetails = &models.ModificationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelsId,
 	}
 
-	if _, err := message.UpdateMessage(db, updateKey); err != nil {
-		return nil, err
+	err = centrifuge.PublishChannel(logger, req.ChannelsId, notification)
+	if err != nil {
+		logger.Error("Error Publishing saved message event to with destination id: %s error: %v", req.ChannelsId, err.Error())
+		return nil, errors.New("failed to publish data: " + err.Error())
 	}
 
 	return &messageToSave, nil
@@ -128,38 +143,10 @@ func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMes
 		return err
 	}
 
-	msgType := savedMessage.Type
-
-	deleteErr := savedMessage.DeleteMessageByID(db)
+	deleteErr := savedMessage.DeleteSavedMessageByID(db)
 	if deleteErr != nil {
 		logger.Error("An error occurred while deleting saved message: %v", deleteErr)
 		return deleteErr
-	}
-
-	if msgType == "thread" {
-		var threads models.Threads
-
-		threads.ID = savedMessage.ThreadID.String()
-
-		updateKey := map[string]any{
-			"is_saved": false,
-		}
-
-		if _, err := threads.UpdateThread(db, updateKey); err != nil {
-			return err
-		}
-	} else {
-		var message models.Message
-
-		updateKey := map[string]any{
-			"is_saved": false,
-		}
-
-		message.ID = *savedMessage.MessageID
-
-		if _, err := message.UpdateMessage(db, updateKey); err != nil {
-			return err
-		}
 	}
 
 	return nil

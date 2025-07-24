@@ -79,7 +79,6 @@ type ThreadDocument struct {
 	Media         []UploadedFileResponse `json:"media,omitempty"`
 	Mentions      []Mention              `json:"mentions,omitempty"`
 	State         string                 `json:"state,omitempty"`
-	IsSaved       bool                   `json:"is_saved,omitempty"`
 	PinnedDetails PinnedDetails          `json:"pinned_details,omitempty"`
 	Reactions     []ReactionDetails      `json:"reactions"`
 }
@@ -127,7 +126,6 @@ var Thread_mapping = map[string]any{
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
 			"state":       map[string]string{"type": "text"},
-			"is_saved":    map[string]string{"type": "boolean"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",

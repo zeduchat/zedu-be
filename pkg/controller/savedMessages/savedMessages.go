@@ -53,7 +53,6 @@ func (base *Controller) SaveThreadMessageForLater(c *gin.Context) {
 	if !exists {
 		return
 	}
-
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
@@ -142,7 +141,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 		OrgID:  orgId,
 	}
 
-	file, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds)
+	response, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds)
 	if err != nil {
 		base.Logger.Error("Failed to retrieve saved messages: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
@@ -151,7 +150,7 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	}
 
 	base.Logger.Info("Messages retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Messages retrieved successfully", file)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Messages retrieved successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
 
