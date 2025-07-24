@@ -179,7 +179,6 @@ func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error)
 
 func ValidateAgentIDs(db *gorm.DB, orgID string, agentIDs []string) error {
 	var validIDs []string
-	fmt.Println(agentIDs)
 
 	if err := db.Model(&OrganisationIntegrations{}).
 		Where("org_id = ? AND integration_id IN ?", orgID, agentIDs).
