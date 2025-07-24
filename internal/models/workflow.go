@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type Workflow struct {
@@ -36,6 +39,19 @@ type WorkFlowRequest struct {
 	Agents          StringSlice           `json:"agents_id" validate:"required,dive,uuid"`
 	FlowConnections Connections           `json:"connections"`
 	Settings        WorkflowSettingsEntry `json:"settings"`
+}
+
+type ChannelWorkflow struct {
+	ID         string    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ChannelID  string    `json:"channel_id" gorm:"type:uuid;not null"`
+	WorkflowID string    `json:"workflow_id" gorm:"type:uuid;not null"`
+	CreatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+}
+
+type ChannelWorkflowRequest struct {
+	ChannelID  string `json:"channel_id"`
+	WorkflowID string `json:"workflow_id"`
 }
 
 type AgentsDetails struct {
@@ -237,4 +253,63 @@ func FetchAgentsFromIntegration(db *gorm.DB, agentIDs []string) ([]AgentsDetails
 	}
 
 	return agents, nil
+}
+
+func (w *Workflow) CheckWorkflowExists(db *gorm.DB, workflowID string) (bool, error) {
+	exists := postgresql.CheckExists(db, &w, "id = ?", workflowID)
+	if !exists {
+		return exists, errors.New("workflow does not exist")
+	}
+	return exists, nil
+}
+
+func (wc *ChannelWorkflow) CheckChannelWorkflowExists(db *gorm.DB) (bool, error) {
+	exists := postgresql.CheckExists(db, &wc, "channel_id = ? AND workflow_id = ?", wc.ChannelID, wc.WorkflowID)
+	if !exists {
+		return exists, errors.New("channel workflow does not exist")
+	}
+	return exists, nil
+}
+
+func (cw *ChannelWorkflow) Add(db *gorm.DB) (int, error) {
+
+	var channel Channels
+	channelExists, err := channel.CheckChannelExists(db, cw.ChannelID)
+	if err != nil || !channelExists {
+		return http.StatusUnprocessableEntity, fmt.Errorf("channel does not exist: %v", err)
+	}
+
+	var workflow Workflow
+	workflowExists, err := workflow.CheckWorkflowExists(db, cw.WorkflowID)
+	if err != nil || !workflowExists {
+		return http.StatusUnprocessableEntity, fmt.Errorf("workflow does not exist: %v", err)
+	}
+
+	if err := db.Create(cw).Error; err != nil {
+		return http.StatusInternalServerError, err
+	}
+	return http.StatusCreated, nil
+}
+
+func (cw *ChannelWorkflow) RemoveChannelWorkflow(db *gorm.DB) (int, error) {
+
+	exist, err := cw.CheckChannelWorkflowExists(db)
+	if err != nil || !exist {
+		return http.StatusUnprocessableEntity, fmt.Errorf("channel workflow does not exist: %v", err)
+	}
+
+	if err := db.Delete(&cw).Error; err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to remove workflow from channel: %v", err)
+	}
+
+	return http.StatusOK, nil
+}
+
+func (cw *ChannelWorkflow) GetWorkflowsByChannel(db *gorm.DB) ([]Workflow, error) {
+	var workflows []Workflow
+	err := db.Table("workflows").
+		Joins("JOIN channel_workflows ON workflows.id = channel_workflows.workflow_id").
+		Where("channel_workflows.channel_id = ?", cw.ChannelID).
+		Scan(&workflows).Error
+	return workflows, err
 }

@@ -231,3 +231,104 @@ func (base *Controller) UpdateWorkflow(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Workflow updated successfully", nil)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) AddWorkflowToChannel(c *gin.Context) {
+	var req models.ChannelWorkflowRequest
+
+	_, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := workflow.AddWorkflowToChannel(base.Db.Postgresql, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Workflow added successfully")
+	rd := utility.BuildSuccessResponse(code, "Workflow added successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) RemoveWorkflowFromChannel(c *gin.Context) {
+	var req models.ChannelWorkflowRequest
+
+	req.WorkflowID = c.Param("workflow_id")
+	req.ChannelID = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.ChannelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel ID format", errors.New("failed to parse channel ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	if _, err := uuid.Parse(req.WorkflowID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid workflow ID format", errors.New("failed to parse oworkflow ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	_, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := workflow.RemoveWorkflowFromChannel(base.Db.Postgresql, req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Workflow removed successfully")
+	rd := utility.BuildSuccessResponse(code, "Workflow removed successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetChannelWorkflows(c *gin.Context) {
+	var req models.ChannelWorkflowRequest
+
+	req.ChannelID = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.ChannelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel ID format", errors.New("failed to parse channel ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	_, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, code, err := workflow.GetChannelWorkflows(base.Db.Postgresql, req.ChannelID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Workflow fetched successfully")
+	rd := utility.BuildSuccessResponse(code, "Workflow fetched successfully", resp)
+	c.JSON(code, rd)
+}
