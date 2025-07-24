@@ -17208,7 +17208,7 @@ paths:
   /channel-workflows:
     post:
       tags:
-        - Channel Workflows
+        - Workflow
       summary: Attach a workflow to a channel
       description: Adds a workflow to the specified channel within an organization.
       security:
@@ -17260,7 +17260,7 @@ paths:
   /channel-workflows/{workflow_id}/channels/{channel_id}:
     delete:
       tags:
-        - Channel Workflows
+        - Workflow
       summary: Remove a workflow from a channel
       description: Deletes the association between a workflow and a channel.
       security:
@@ -17305,7 +17305,7 @@ paths:
   /channel-workflows/{channel_id}:
     get:
       tags:
-        - Channel Workflows
+        - Workflow
       summary: Get workflows linked to a channel
       description: Retrieves all workflows currently associated with a specific channel.
       security:
