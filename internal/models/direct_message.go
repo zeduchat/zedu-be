@@ -220,7 +220,10 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 
 func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 
-	var user User
+	var (
+		user         User
+		savedMessage SavedMessage
+	)
 
 	_, err := user.GetUserByID(db, dm.UserId)
 	if err != nil {
@@ -235,6 +238,10 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 		dm.UserId,
 	)
 	if err != nil {
+		return err
+	}
+
+	if err := savedMessage.DeleteSavedMessagesByChannelID(db, dm.ID, dm.UserId); err != nil {
 		return err
 	}
 
@@ -412,7 +419,6 @@ func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID, userId string) (
 func (r *DmChannels) FetchChannelParticipant(db *gorm.DB, req DmChannelsRequest) (bool, error) {
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId)
-
 	if !exists {
 		exists = postgresql.CheckExists(db, &r, "channel_id = ? AND channel_type = ?", req.ChannelId, "group_dm")
 	}

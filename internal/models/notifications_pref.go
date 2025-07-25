@@ -26,6 +26,8 @@ var (
 	ReplyCountChange     NotificationType = "reply_count_change"
 	PinnedMessageEvent   NotificationType = "pinned_message_event"
 	UnPinnedMessageEvent NotificationType = "unpinned_message_event"
+	SavedMessageEvent    NotificationType = "saved_message_event"
+	UnSavedMessageEvent  NotificationType = "unsaved_message_event"
 	ReactionEvent        NotificationType = "reaction_event"
 	ThreadSection        SectionType      = "thread_message"
 	ReplySection         SectionType      = "reply_message"
@@ -39,14 +41,14 @@ var (
 type Content struct {
 	NotificationType   NotificationType    `json:"notification_type"`
 	SectionType        SectionType         `json:"section"`
-	ModifcationDetails *ModifcationDetails `json:"modification_ids,omitempty"`
+	ModificationDetails *ModificationDetails `json:"modification_ids,omitempty"`
 	Content            any                 `json:"data,omitempty"`
 	UpdateChange       map[string]any      `json:"update_change,omitempty"`
 	PinnedDetails      *PinnedDetails      `json:"pinned_details,omitempty"`
 	Reactions          *[]ReactionDetails  `json:"reactions,omitempty"`
 }
 
-type ModifcationDetails struct {
+type ModificationDetails struct {
 	ThreadId  string `json:"thread_id,omitempty"`
 	MessageId string `json:"message_id,omitempty"`
 	ChannelId string `json:"channel_id,omitempty"`
@@ -58,12 +60,12 @@ var Notification = map[NotificationType]Content{
 
 	Updated: Content{
 		NotificationType: Updated,
-		Content:          ModifcationDetails{},
+		Content:          ModificationDetails{},
 	},
 
 	Deleted: Content{
 		NotificationType: Deleted,
-		Content:          ModifcationDetails{},
+		Content:          ModificationDetails{},
 	},
 
 	NewMessage: Content{
@@ -77,15 +79,23 @@ var Notification = map[NotificationType]Content{
 	},
 	PinnedMessageEvent: Content{
 		NotificationType: PinnedMessageEvent,
-		Content:          ModifcationDetails{},
+		Content:          ModificationDetails{},
 	},
 	UnPinnedMessageEvent: Content{
 		NotificationType: UnPinnedMessageEvent,
-		Content:          ModifcationDetails{},
+		Content:          ModificationDetails{},
+	},
+	SavedMessageEvent: Content{
+		NotificationType: SavedMessageEvent,
+		Content:          ModificationDetails{},
+	},
+	UnSavedMessageEvent: Content{
+		NotificationType: UnSavedMessageEvent,
+		Content:          ModificationDetails{},
 	},
 	ReactionEvent: Content{
 		NotificationType: ReactionEvent,
-		Content:          ModifcationDetails{},
+		Content:          ModificationDetails{},
 	},
 }
 

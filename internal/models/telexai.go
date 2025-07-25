@@ -9,16 +9,41 @@ import (
 // AIProxyChatRequest holds fields for making
 // post request to the chat completions endpoint
 type TelexAIChatCompletionsReq struct {
-	Messages       []external_models.TelexAIOpenRouterMessage `json:"messages" validate:"required"`
-	Model          string                                     `json:"model"` // Model to use for the chat completion
-	Stream         bool                                       `json:"stream"`                    // Whether to stream the response or not
+	Messages         []external_models.TelexAIOpenRouterMessage `json:"messages" validate:"required"`
+	Model            string                                     `json:"model"`
+	Stream           bool                                       `json:"stream"`
+	Tools            *[]Tool                                    `json:"tools"`
+	Plugins          []WebPlugin                                `json:"plugins,omitempty"`
+	WebSearchOptions WebSearchOptions                           `json:"web_search_options,omitempty"`
 	// MaxTokens   *int                       `json:"max_tokens,omitempty"`
 	// Temperature *float64                   `json:"temperature,omitempty"`
 }
 
-// AIProxyChatCompletionsResp holds fields for response for openRouter requests
-type TelexAIChatCompletionsResp struct {
-	Messages external_models.TelexAIOpenRouterMessage
+type WebPlugin struct {
+	ID           string `json:"id"`
+	MaxResults   int    `json:"max_results,omitempty"`
+	SearchPrompt string `json:"search_prompt,omitempty"`
+}
+
+type WebSearchOptions struct {
+	SearchContextSize string `json:"search_context_size"`
+}
+
+type ToolFunctionParameter struct {
+	Type       string         `json:"type"`
+	Properties map[string]any `json:"properties"`
+	Required   []string       `json:"required"`
+}
+
+type ToolFunction struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Parameters  ToolFunctionParameter `json:"parameters"`
+}
+
+type Tool struct {
+	Type     string       `json:"type"`
+	Function ToolFunction `json:"function"`
 }
 
 func (treq *TelexAIChatCompletionsReq) GetModel() string {
@@ -41,21 +66,21 @@ type TelexAIUsageLog struct {
 	UpdatedAt        int64  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
-  type TelexAIModels struct {
-    ID                   string   `json:"id"`
-    Name                 string   `json:"name"`
-    Provider             string   `json:"provider"`
-    Pricing              string   `json:"pricing"`
-    Context              int      `json:"context"`
-    CreatedAt            string   `json:"created_at"`
-    InputCostPerMillion  float64  `json:"input_cost_per_million"`
-    OutputCostPerMillion float64  `json:"output_cost_per_million"`
-    Type                 string   `json:"type"`
-    Description          string   `json:"description"`
-    Capabilities         []string `json:"capabilities"`
-    Tags                 []string `json:"tags"`
-    // URL                  string   `json:"url"`
-  }
+type TelexAIModels struct {
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Provider             string   `json:"provider"`
+	Pricing              string   `json:"pricing"`
+	Context              int      `json:"context"`
+	CreatedAt            string   `json:"created_at"`
+	InputCostPerMillion  float64  `json:"input_cost_per_million"`
+	OutputCostPerMillion float64  `json:"output_cost_per_million"`
+	Type                 string   `json:"type"`
+	Description          string   `json:"description"`
+	Capabilities         []string `json:"capabilities"`
+	Tags                 []string `json:"tags"`
+	// URL                  string   `json:"url"`
+}
 
 func (t *TelexAIUsageLog) CreateUsageLog(db *gorm.DB, logger *utility.Logger, ids IDS, req TelexAIChatCompletionsReq, usage external_models.OpenRouterUsage) error {
 	t.ID = utility.GenerateUUID()

@@ -171,7 +171,6 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
             return code, fmt.Errorf("failed to get user token: %v", err)
         }
     } else {
-		fmt.Println("logging out user")
         _, err = auth.LogoutUser(user_token.ID, user.ID, tx)
         if err != nil {
             tx.Rollback()

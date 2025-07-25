@@ -21,31 +21,32 @@ import (
 )
 
 type Integrations struct {
-	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
-	Name               string     `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
-	JSONUrl            string     `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
-	AppUrl             string     `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
-	AppLogo            string     `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
-	OwnerID            string     `gorm:"type:uuid;" json:"owner_id"`
-	AppDescription     string     `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
-	IntegrationType    string     `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
-	Info               string     `gorm:"colummn:info; type:varchar(255);" json:"info"`
-	IsActive           bool       `gorm:"type:boolean;default:false" json:"is_active"`
-	Category           string     `json:"category"`
-	Status             string     `json:"status"`
-	IsPaid             bool       `gorm:"type:boolean;default:false" json:"is_paid"`
-	IsApproved         bool       `gorm:"type:boolean;default:false" json:"is_approved"`
-	Prices             JSONPrices `gorm:"type:jsonb" json:"prices"`
-	Version            string     `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
-	Provider           Provider   `gorm:"type:jsonb" json:"provider"`
-	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
-	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
-	PreSharedKey       string     `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
-	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
-	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
-	CommissionRate     float64    `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
+	ID                 string             `gorm:"type:uuid;primary_key" json:"id"`
+	Name               string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
+	JSONUrl            string             `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
+	AppUrl             string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
+	AppLogo            string             `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
+	OwnerID            string             `gorm:"type:uuid;" json:"owner_id"`
+	AppDescription     string             `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
+	IntegrationType    string             `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
+	Info               string             `gorm:"colummn:info; type:varchar(255);" json:"info"`
+	IsActive           bool               `gorm:"type:boolean;default:false" json:"is_active"`
+	Category           string             `json:"category"`
+	Status             string             `json:"status"`
+	IsPaid             bool               `gorm:"type:boolean;default:false" json:"is_paid"`
+	IsApproved         bool               `gorm:"type:boolean;default:false" json:"is_approved"`
+	Prices             JSONPrices         `gorm:"type:jsonb" json:"prices"`
+	Version            string             `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
+	Provider           Provider           `gorm:"type:jsonb" json:"provider"`
+	DefaultInputModes  []string           `gorm:"type:jsonb" json:"default_input_modes"`
+	DefaultOutputModes []string           `gorm:"type:jsonb" json:"default_output_modes"`
+	PreSharedKey       string             `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
+	CreatedAt          time.Time          `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time          `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Skills             JSONSkills         `gorm:"type:jsonb" json:"skills"`
+	IsSystem           bool               `gorm:"type:boolean;default:false" json:"is_system"`
+	CommissionRate     float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
+	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
 }
 
 type UpdateAgent struct {
@@ -123,36 +124,43 @@ type Skill struct {
 	Tags        []string `json:"tags"`
 }
 
+type CapabilitiesObject struct {
+	Streaming              bool `json:"streaming"`
+	PushNotifications      bool `json:"pushNotifications"`
+	StateTransitionHistory bool `json:"stateTransitionHistory"`
+}
+
 type JSONPrices []Price
 type JSONSkills []Skill
 
 type OrganisationIntegrations struct {
-	ID                 string     `gorm:"type:uuid;primary_key" json:"id"`
-	OrgID              string     `gorm:"type:uuid;" json:"org_id"`
-	IntegrationID      string     `gorm:"type:uuid;" json:"integration_id"`
-	OwnerID            string     `gorm:"type:uuid;" json:"owner_id"`
-	IsActive           bool       `gorm:"type:boolean;default:false" json:"is_active"`
-	IsSystem           bool       `gorm:"type:boolean;default:false" json:"is_system"`
-	IsArchived         bool       `gorm:"type:boolean;default:false" json:"is_archived"`
-	ArchivedAt         time.Time  `gorm:"index" json:"-"`
-	JSONSchema         JSONB      `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
-	JSONUrl            string     `gorm:"type:text; column:json_url;" json:"json_url"`
-	CreatedAt          time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt          time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	AppDescription     string     `gorm:"column:app_description;type:text;" json:"app_description"`
-	AppName            string     `gorm:"column:app_name;type:text;" json:"app_name"`
-	AppLogo            string     `gorm:"column:app_logo;type:text;" json:"app_logo"`
-	AppUrl             string     `gorm:"column:app_url; type:text;" json:"app_url"`
-	IsPaid             bool       `gorm:"type:boolean;default:false" json:"is_paid"`
-	IsApproved         bool       `gorm:"type:boolean;default:false" json:"is_approved"`
-	Prices             JSONPrices `gorm:"type:jsonb" json:"prices"`
-	Version            string     `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
-	Provider           Provider   `gorm:"type:jsonb" json:"provider"`
-	DefaultInputModes  []string   `gorm:"type:jsonb" json:"default_input_modes"`
-	DefaultOutputModes []string   `gorm:"type:jsonb" json:"default_output_modes"`
-	PreSharedKey       string     `gorm:"type:varchar(64)" json:"preshared_key"`
-	Skills             JSONSkills `gorm:"type:jsonb" json:"skills"`
-	CommissionRate     float64    `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
+	ID                 string             `gorm:"type:uuid;primary_key" json:"id"`
+	OrgID              string             `gorm:"type:uuid;" json:"org_id"`
+	IntegrationID      string             `gorm:"type:uuid;" json:"integration_id"`
+	OwnerID            string             `gorm:"type:uuid;" json:"owner_id"`
+	IsActive           bool               `gorm:"type:boolean;default:false" json:"is_active"`
+	IsSystem           bool               `gorm:"type:boolean;default:false" json:"is_system"`
+	IsArchived         bool               `gorm:"type:boolean;default:false" json:"is_archived"`
+	ArchivedAt         time.Time          `gorm:"index" json:"-"`
+	JSONSchema         JSONB              `gorm:"column:json_schema; type:jsonb;serializer:json" json:"-"`
+	JSONUrl            string             `gorm:"type:text; column:json_url;" json:"json_url"`
+	CreatedAt          time.Time          `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time          `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	AppDescription     string             `gorm:"column:app_description;type:text;" json:"app_description"`
+	AppName            string             `gorm:"column:app_name;type:text;" json:"app_name"`
+	AppLogo            string             `gorm:"column:app_logo;type:text;" json:"app_logo"`
+	AppUrl             string             `gorm:"column:app_url; type:text;" json:"app_url"`
+	IsPaid             bool               `gorm:"type:boolean;default:false" json:"is_paid"`
+	IsApproved         bool               `gorm:"type:boolean;default:false" json:"is_approved"`
+	Prices             JSONPrices         `gorm:"type:jsonb" json:"prices"`
+	Version            string             `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
+	Provider           Provider           `gorm:"type:jsonb" json:"provider"`
+	DefaultInputModes  []string           `gorm:"type:jsonb" json:"default_input_modes"`
+	DefaultOutputModes []string           `gorm:"type:jsonb" json:"default_output_modes"`
+	PreSharedKey       string             `gorm:"type:varchar(64)" json:"preshared_key"`
+	Skills             JSONSkills         `gorm:"type:jsonb" json:"skills"`
+	CommissionRate     float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
+	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
 }
 
 type AdminAgentResp struct {
@@ -373,6 +381,19 @@ func (s JSONSkills) MarshalJSON() ([]byte, error) {
 		return []byte("[]"), nil
 	}
 	return json.Marshal([]Skill(s))
+}
+
+func (p *CapabilitiesObject) Scan(value any) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal JSONPrices: value is not []byte")
+	}
+
+	return json.Unmarshal(bytes, p)
+}
+
+func (p CapabilitiesObject) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }
 
 func GenerateAgentKey() (string, error) {

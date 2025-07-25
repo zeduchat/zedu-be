@@ -117,6 +117,7 @@ var MessageMapping = map[string]any{
 type CreateMessageRequest struct {
 	Content    string                 `json:"content" validate:"required"`
 	UserId     string                 `json:"user_id"`
+	AgentId    string                 `json:"agent_id"`
 	ChannelsId string                 `json:"channels_id"`
 	ThreadId   string                 `json:"thread_id" validate:"required"`
 	OrgId      string                 `json:"org_id"`
