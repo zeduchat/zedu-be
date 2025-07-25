@@ -7,7 +7,6 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
-		models.CreditUsage{},
 		models.CreditTransaction{},
 		models.OrganisationIntegrations{},
 		models.IntegrationOutput{},
@@ -68,6 +67,7 @@ func AuthMigrationModels() []any {
 		models.UserChannels{},
 		models.IntegrationBills{},
 		models.Channels{},
+		models.CreditUsage{},
 	} // an array of db models, example: User{}
 }
 
