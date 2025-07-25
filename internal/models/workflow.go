@@ -173,13 +173,13 @@ func DeleteWorkflow(db *gorm.DB, req WorkFlowRequest) error {
 }
 
 func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) {
-	var wfs []WorkflowSummary
+	wfs := []WorkflowSummary{}
 	err := db.Table("workflows").Where("org_id = ?", req.OrgId).Scan(&wfs).Error
 	return wfs, err
 }
 
 func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error) {
-	var wf Workflow
+	wf := Workflow{}
 	err := db.Where("id = ? AND org_id = ?", req.Id, req.OrgId).First(&wf).Error
 	agentDetails, err := FetchAgentsFromIntegration(db, wf.Agents)
 	if err != nil {
@@ -306,7 +306,7 @@ func (cw *ChannelWorkflow) RemoveChannelWorkflow(db *gorm.DB) (int, error) {
 }
 
 func (cw *ChannelWorkflow) GetWorkflowsByChannel(db *gorm.DB) ([]Workflow, error) {
-	var workflows []Workflow
+	workflows := []Workflow{}
 	err := db.Table("workflows").
 		Joins("JOIN channel_workflows ON workflows.id = channel_workflows.workflow_id").
 		Where("channel_workflows.channel_id = ?", cw.ChannelID).
