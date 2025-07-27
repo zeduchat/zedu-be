@@ -17207,6 +17207,157 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /channel-workflows:
+    post:
+      tags:
+        - Workflow
+      summary: Attach a workflow to a channel
+      description: Adds a workflow to the specified channel within an organization.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - workflow_id
+                - channel_id
+              properties:
+                workflow_id:
+                  type: string
+                  description: ID of the workflow to add
+                  example: "wf_123456"
+                channel_id:
+                  type: string
+                  description: ID of the channel to attach the workflow to
+                  example: "chn_7890"
+      responses:
+        '201':
+          description: Workflow successfully attached to the channel
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        '404':
+          description: Channel or workflow not found
+        '500':
+          description: Internal server error
+
+  /channel-workflows/{workflow_id}/channels/{channel_id}:
+    delete:
+      tags:
+        - Workflow
+      summary: Remove a workflow from a channel
+      description: Deletes the association between a workflow and a channel.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow successfully removed from the channel
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        '404':
+          description: Workflow or channel not found
+        '500':
+          description: Internal server error
+
+  /channel-workflows/{channel_id}:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflows linked to a channel
+      description: Retrieves all workflows currently associated with a specific channel.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of workflows associated with the channel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflow retrieved successfully
+                  data:
+                    $ref: "#/components/schemas/Workflow"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        '500':
+          description: Internal server error
+
   /channels/{channelId}/thread/forward:
     post:
       tags:

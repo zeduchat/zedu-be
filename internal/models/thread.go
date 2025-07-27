@@ -163,7 +163,6 @@ var Thread_mapping = map[string]any{
 			"action_type": map[string]string{"type": "text"},
 			"status":      map[string]string{"type": "text"},
 			"state":       map[string]string{"type": "text"},
-			"is_saved":    map[string]string{"type": "boolean"},
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
@@ -258,6 +257,7 @@ type CreateThreadMsgReq struct {
 	ChannelsID string                 `json:"channels_id"`
 	Message    string                 `json:"message"`
 	UserId     string                 `json:"user_id"`
+	AgentId    string                 `json:"agent_id"`
 	ThreadId   string                 `json:"thread_id"`
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`

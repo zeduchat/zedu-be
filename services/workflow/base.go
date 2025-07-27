@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"gorm.io/gorm"
@@ -77,4 +78,40 @@ func UpdateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (int, error)
 		return http.StatusInternalServerError, err
 	}
 	return http.StatusOK, nil
+}
+
+func AddWorkflowToChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+
+	cw := models.ChannelWorkflow{
+		ID:         utility.GenerateUUID(),
+		ChannelID:  req.ChannelID,
+		WorkflowID: req.WorkflowID,
+	}
+	status, err := cw.Add(db)
+	if err != nil {
+		return status, fmt.Errorf("failed to add workflow to channel: %v", err)
+	}
+	return status, nil
+}
+
+func RemoveWorkflowFromChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+	cw := models.ChannelWorkflow{
+		ChannelID:  req.ChannelID,
+		WorkflowID: req.WorkflowID,
+	}
+
+	status, err := cw.RemoveChannelWorkflow(db)
+	if err != nil {
+		return status, fmt.Errorf("failed to remove workflow from channel: %v", err)
+	}
+	return status, nil
+}
+
+func GetChannelWorkflows(db *gorm.DB, channelID string) ([]models.Workflow, int, error) {
+	cw := &models.ChannelWorkflow{ChannelID: channelID}
+	workflows, err := cw.GetWorkflowsByChannel(db)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve workflows: %v", err)
+	}
+	return workflows, http.StatusOK, nil
 }
