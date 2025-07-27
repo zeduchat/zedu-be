@@ -99,6 +99,7 @@ type ForwardedMessageMetadata struct {
 	OriginalChannelID       string    `json:"original_channel_id"`
 	OriginalChannelName     string    `json:"original_channel_name"`
 	OriginalCreatedAt       time.Time `json:"original_created_at"`
+	OriginalContent         string    `json:"original_content"`
 	OriginalChannelType     string    `json:"original_channel_type"` // public, private, or DM
 	IsThread                bool      `json:"is_thread"`
 }
@@ -132,9 +133,9 @@ var PinnedDetailsMapping = map[string]any{
 	},
 }
 
-var ForwardedMessageMetadataMapping = map[string]interface{}{
-	"mappings": map[string]interface{}{
-		"properties": map[string]interface{}{
+var ForwardedMessageMetadataMapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": map[string]any{
 			"original_message_id":        map[string]string{"type": "text"},
 			"original_sender_id":         map[string]string{"type": "text"},
 			"original_sender_name":       map[string]string{"type": "text"},
@@ -142,6 +143,7 @@ var ForwardedMessageMetadataMapping = map[string]interface{}{
 			"original_sender_avatar_url": map[string]string{"type": "text"},
 			"original_channel_id":        map[string]string{"type": "text"},
 			"original_channel_name":      map[string]string{"type": "text"},
+			"original_content":           map[string]string{"type": "text"},
 			"original_created_at":        map[string]string{"type": "date"},
 			"original_channel_type":      map[string]string{"type": "keyword"}, // Indicates if the original channel is a public channel, private channel, or DM
 			"is_thread":                  map[string]string{"type": "boolean"},
@@ -206,7 +208,7 @@ var Thread_mapping = map[string]any{
 			"is_forwarded": map[string]string{
 				"type": "boolean",
 			},
-			"forwarded_message_metadata": map[string]interface{}{
+			"forwarded_message_metadata": map[string]any{
 				"type":       "nested",
 				"properties": ForwardedMessageMetadataMapping,
 			},
