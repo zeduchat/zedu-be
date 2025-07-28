@@ -41,12 +41,14 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 			return nil, fmt.Errorf("missing agent_id")
 		}
 
-		if req.OrgId == "" {
+		if req.OrgId == "" && req.AgentId != "WEBHOOK" {
 			return nil, fmt.Errorf("missing org_id")
 		}
 
-		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
-			return nil, err
+		if req.AgentId != "WEBHOOK" {
+			if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
+				return nil, err
+			}
 		}
 		req.UserId = req.AgentId
 	}
