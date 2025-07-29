@@ -64,11 +64,11 @@ func AuthMigrationModels() []any {
 		models.Testimonial{},
 		models.UploadedFileResponse{},
 		models.User{},
-		models.Admin{},
-		models.UserChannels{},
-		models.IntegrationBills{},
 		models.Channels{},
+		models.UserChannels{},
 		models.CreditUsage{},
+		models.Admin{},
+		models.IntegrationBills{},
 	} // an array of db models, example: User{}
 }
 

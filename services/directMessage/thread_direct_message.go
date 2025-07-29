@@ -53,6 +53,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	if req.Type != "" {
 		messageType = req.Type
 	}
+	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
 
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
@@ -69,6 +70,8 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		Status:        "success",
+		ChannelName:   username,
+		ChannelType:   "DM",
 		Edited:        false,
 		UserType:      "user",
 		Mentions:      req.Mentions,
@@ -80,8 +83,6 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
-
-	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
 
 	feed := models.FeedMessageRequest{
 		ChannelID:   req.ChannelsID,
@@ -97,6 +98,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserType:    "user",
 		Media:       req.Media,
 		ChannelName: username,
+		ChannelType: "DM",
 		OrgId:       channel.OrgId,
 	}
 

@@ -18,19 +18,28 @@ import (
 
 func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, userID string) (*models.ThreadDocument, error) {
 	var (
-		originalMsg          models.ThreadDocument
-		user                 models.User
-		profile              models.Profile
-		channels             models.Channels
-		fwdChannels          models.Channels
-		dmChannels           models.DmChannels
-		channelToForwardToID = req.ForwardedToChannelId.String()
+		originalMsg            models.ThreadDocument
+		user                   models.User
+		profile                models.Profile
+		channels               models.Channels
+		fwdChannels            models.Channels
+		dmChannels             models.DmChannels
+		channelToForwardToID   = req.ForwardedToChannelId.String()
+		originalMsgChannelType string
 	)
 
 	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
 	dmChanExists, _ := dmChannels.CheckChannelExists(db.Postgresql, req.ChannelsId, userID)
 	if !(chanExist || dmChanExists) {
 		return nil, errors.New("channel does not exist")
+	}
+
+	if dmChanExists {
+		originalMsgChannelType = "DM"
+	} else if channels.IsPrivate {
+		originalMsgChannelType = "private"
+	} else {
+		originalMsgChannelType = "public"
 	}
 
 	if err := profile.GetProfileByUserId(db.Postgresql, userID); err != nil {
@@ -53,13 +62,13 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 	}
 
 	if fwdChanExist {
-		threadDoc, err := ForwardThreadMessageToChannel(db, req, logger, originalMsg, profile, user, fwdChannels)
+		threadDoc, err := ForwardThreadMessageToChannel(db, req, logger, originalMsg, profile, user, fwdChannels, originalMsgChannelType)
 		if err != nil {
 			return nil, err
 		}
 		return threadDoc, nil
 	} else {
-		threadDoc, err := ForwardThreadMessageToDM(db, req, logger, originalMsg, profile, user, dmChannels)
+		threadDoc, err := ForwardThreadMessageToDM(db, req, logger, originalMsg, profile, user, dmChannels, originalMsgChannelType)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +76,7 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 	}
 }
 
-func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, channel models.Channels) (*models.ThreadDocument, error) {
+func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, channel models.Channels, originalMsgChannelType string) (*models.ThreadDocument, error) {
 	var (
 		channelToForwardToID = req.ForwardedToChannelId.String()
 		messageType          = "message"
@@ -113,6 +122,8 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalSenderAvatarURL: originalMsg.AvatarURL,
 			OriginalChannelID:       originalMsg.ChannelsID,
 			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalContent:         originalMsg.Content,
+			OriginalChannelType:     originalMsgChannelType,
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
@@ -137,6 +148,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		UserId:      req.UserId,
 		OrgId:       channel.OrganisationID,
 		ChannelName: channel.Name,
+		ChannelType: channelType,
 		IsForwarded: true,
 		Media:       req.Media,
 		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
@@ -146,7 +158,9 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalSenderUsername:  originalMsg.Username,
 			OriginalSenderAvatarURL: originalMsg.AvatarURL,
 			OriginalChannelID:       originalMsg.ChannelsID,
+			OriginalContent:         originalMsg.Content,
 			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalChannelType:     originalMsgChannelType,
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
@@ -208,11 +222,12 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 	return &threadDoc, nil
 }
 
-func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, dmChannel models.DmChannels) (*models.ThreadDocument, error) {
+func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, originalMsg models.ThreadDocument, profile models.Profile, user models.User, dmChannel models.DmChannels, originalMsgChannelType string) (*models.ThreadDocument, error) {
 	var (
 		channelToForwardToID = req.ForwardedToChannelId.String()
 		messageType          = "message"
 		userType             = "user"
+		channelsType         = "DM"
 	)
 
 	// Create pair room if first message and not a bot
@@ -257,6 +272,7 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   profile.FullName,
+		ChannelType:   channelsType,
 		Status:        "success",
 		Edited:        false,
 		IsForwarded:   true,
@@ -265,9 +281,11 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 			OriginalSenderID:        originalMsg.UserId,
 			OriginalSenderName:      originalMsg.FullName,
 			OriginalSenderUsername:  originalMsg.Username,
+			OriginalContent:         originalMsg.Content,
 			OriginalSenderAvatarURL: originalMsg.AvatarURL,
 			OriginalChannelID:       originalMsg.ChannelsID,
 			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalChannelType:     originalMsgChannelType,
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
@@ -293,6 +311,7 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 		UserId:      req.UserId,
 		OrgId:       dmChannel.OrgId,
 		ChannelName: profile.FullName,
+		ChannelType: channelsType,
 		IsForwarded: true,
 		ForwardedMessageMetadata: &models.ForwardedMessageMetadata{
 			OriginalMessageID:       originalMsg.ID,
@@ -302,6 +321,8 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 			OriginalSenderAvatarURL: originalMsg.AvatarURL,
 			OriginalChannelID:       originalMsg.ChannelsID,
 			OriginalChannelName:     originalMsg.ChannelName,
+			OriginalChannelType:     originalMsgChannelType,
+			OriginalContent:         originalMsg.Content,
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},

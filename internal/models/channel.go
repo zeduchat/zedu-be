@@ -43,7 +43,7 @@ type UserChannels struct {
 	Username     string                 `gorm:"column:username; type:varchar(100)" json:"username"`
 	CreatedAt    time.Time              `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	ThreadCount  int64                  `gorm:"column:thread_count;default:0" json:"thread_count"`
-	LastThreadId string                 `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
+	LastThreadId string                 `gorm:"column:last_thread_id" json:"last_thread_id"`
 	LastReadAt   time.Time              `gorm:"column:last_read_at" json:"last_read_at"`
 	MentionCount int64                  `gorm:"column:mention_count;default:0" json:"mention_count"`
 	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`

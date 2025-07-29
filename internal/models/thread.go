@@ -98,8 +98,9 @@ type ForwardedMessageMetadata struct {
 	OriginalSenderAvatarURL string    `json:"original_sender_avatar_url"`
 	OriginalChannelID       string    `json:"original_channel_id"`
 	OriginalChannelName     string    `json:"original_channel_name"`
-	OriginalCreatedAt       time.Time `json:"original_created_at"`
 	OriginalChannelType     string    `json:"original_channel_type"` // public, private, or DM
+	OriginalCreatedAt       time.Time `json:"original_created_at"`
+	OriginalContent         string    `json:"original_content"`
 	IsThread                bool      `json:"is_thread"`
 }
 
@@ -138,6 +139,7 @@ var ForwardedMessageMetadataMapping = map[string]interface{}{
 			"original_message_id":        map[string]string{"type": "text"},
 			"original_sender_id":         map[string]string{"type": "text"},
 			"original_sender_name":       map[string]string{"type": "text"},
+			"original_content":           map[string]string{"type": "text"},
 			"original_sender_username":   map[string]string{"type": "text"},
 			"original_sender_avatar_url": map[string]string{"type": "text"},
 			"original_channel_id":        map[string]string{"type": "text"},
@@ -177,6 +179,7 @@ var Thread_mapping = map[string]any{
 			"type":           map[string]string{"type": "keyword"},
 			"message":        map[string]string{"type": "text"},
 			"channel_name":   map[string]string{"type": "keyword"},
+			"channel_type":   map[string]string{"type": "text"},
 			"current_status": map[string]string{"type": "text"},
 			"full_name":      map[string]string{"type": "text"},
 			"email":          map[string]string{"type": "text"},
@@ -292,6 +295,7 @@ type FeedMessageRequest struct {
 	Id                       string                    `json:"id,omitempty"`
 	State                    string                    `json:"state"`
 	ChannelName              string                    `json:"channel_name,omitempty"`
+	ChannelType              string                    `json:"channel_type,omitempty"` // public, private, or DM
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
 }

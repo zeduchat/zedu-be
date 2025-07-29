@@ -115,6 +115,7 @@ func ForwardReplyMessageToDmChannel(db *storage.Database, originalMsg models.Mes
 		UserType:      userType,
 		UserId:        req.UserId,
 		ChannelName:   profile.FullName,
+		ChannelType:   "DM",
 		Status:        "success",
 		Mentions:      req.Mentions,
 		Media:         req.Media,
@@ -141,6 +142,7 @@ func ForwardReplyMessageToDmChannel(db *storage.Database, originalMsg models.Mes
 		OrgId:       dmChannels.OrgId,
 		Media:       req.Media,
 		ChannelName: profile.FullName,
+		ChannelType: "DM",
 	}
 
 	if err := centrifuge.PublishChannel(logger, channelToForwardToID, feed); err != nil {
@@ -196,10 +198,17 @@ func ForwardReplyMessageToDmChannel(db *storage.Database, originalMsg models.Mes
 func ForwardReplyMessageToChannel(db *storage.Database, originalMsg models.MessageDocument, req models.ForwardReplyMessageRequest, logger *utility.Logger, user models.User, profile models.Profile, channels models.Channels) (*models.ThreadDocument, error) {
 	var (
 		userChan             models.UserChannels
+		channelsType         string
 		channelToForwardToID = req.ForwardedToChannelId.String()
 		messageType          = "message"
 		userType             = "user"
 	)
+
+	if channels.IsPrivate {
+		channelsType = "private"
+	} else {
+		channelsType = "public"
+	}
 
 	threadDoc := models.ThreadDocument{
 		ID:            utility.GenerateUUID(),
@@ -216,6 +225,7 @@ func ForwardReplyMessageToChannel(db *storage.Database, originalMsg models.Messa
 		UserType:      userType,
 		UserId:        req.UserId,
 		ChannelName:   channels.Name,
+		ChannelType:   channelsType,
 		Status:        "success",
 		Edited:        originalMsg.Edited,
 		Mentions:      req.Mentions,
@@ -243,6 +253,7 @@ func ForwardReplyMessageToChannel(db *storage.Database, originalMsg models.Messa
 		OrgId:       channels.OrganisationID,
 		Media:       req.Media,
 		ChannelName: channels.Name,
+		ChannelType: channelsType,
 	}
 
 	if err := centrifuge.PublishChannel(logger, channelToForwardToID, feed); err != nil {
