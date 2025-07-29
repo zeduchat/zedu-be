@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) AddChannelsMsg(c *gin.Context) {
+func (base *Controller) ReplyThreadMessage(c *gin.Context) {
 	var (
 		req models.CreateMessageRequest
 	)
@@ -51,7 +51,7 @@ func (base *Controller) AddChannelsMsg(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	response, code, err := channel.AddChannelsMsg(req, base.Db, base.Logger)
+	response, code, err := channel.ReplyThreadMessage(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -133,7 +133,6 @@ func (base *Controller) DeleteChannelsMsg(c *gin.Context) {
 	}
 
 	claims, exists := c.Get("userClaims")
-
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)

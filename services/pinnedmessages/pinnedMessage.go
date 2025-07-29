@@ -53,7 +53,7 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 	notification := models.Notification[models.PinnedMessageEvent]
 	notification.SectionType = models.ThreadSection
 	notification.PinnedDetails = &pinnedDetails
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 	}
@@ -110,7 +110,7 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 	notification := models.Notification[models.PinnedMessageEvent]
 	notification.SectionType = models.ReplySection
 	notification.PinnedDetails = &pinnedDetails
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  req.ThreadId,
 		ChannelId: req.ChannelsId,
 		MessageId: req.MessageID,
@@ -170,14 +170,14 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 
 	notification := models.Notification[models.UnPinnedMessageEvent]
 	notification.SectionType = models.ThreadSection
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  pinnedMessage.ThreadID,
 		ChannelId: pinnedMessage.ChannelsID,
 	}
 
 	err = centrifuge.PublishChannel(logger, pinnedMessage.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", *&pinnedMessage.ChannelsID, err.Error())
+		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", pinnedMessage.ChannelsID, err.Error())
 		return errors.New("failed to publish data: " + err.Error())
 	}
 
@@ -218,7 +218,7 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 
 	notification := models.Notification[models.UnPinnedMessageEvent]
 	notification.SectionType = models.ReplySection
-	notification.ModifcationDetails = &models.ModifcationDetails{
+	notification.ModificationDetails = &models.ModificationDetails{
 		ThreadId:  pinnedMessage.ThreadID,
 		ChannelId: pinnedMessage.ChannelsID,
 		MessageId: *pinnedMessage.MessageID,
@@ -226,7 +226,7 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 
 	err = centrifuge.PublishChannel(logger, pinnedMessage.ChannelsID, notification)
 	if err != nil {
-		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", *&pinnedMessage.ChannelsID, err.Error())
+		logger.Error("Error Publishing unpinned message event to with destination id: %s error: %v", pinnedMessage.ChannelsID, err.Error())
 		return errors.New("failed to publish data: " + err.Error())
 	}
 

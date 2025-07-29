@@ -24,6 +24,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		// POST routes
 		channelUrl.POST("", channel.CreateChannel)
 		channelQueueUrl.POST("/backend-queue", channel.SaveIncomingQueueMsg)
+		// channelUrl.POST("/:channelId/messages", channel.ReplyThreadMessage)
 		channelUrl.POST("/:channelId/join", channel.JoinChannels)
 		channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
 		channelUrl.POST("/add", channel.AddMembersToChannel)

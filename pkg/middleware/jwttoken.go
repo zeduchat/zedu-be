@@ -56,7 +56,6 @@ func CreateToken(user models.User, c *gin.Context) (*TokenDetailDTO, error) {
 }
 
 // verify token
-
 func verifyToken(tokenString string) (*jwt.Token, error) {
 	config := config.GetConfig()
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
@@ -83,6 +82,7 @@ func TokenValid(bearerToken string) (*jwt.Token, error) {
 	if !token.Valid {
 		return nil, fmt.Errorf("Unauthorized")
 	}
+
 	return token, nil
 }
 

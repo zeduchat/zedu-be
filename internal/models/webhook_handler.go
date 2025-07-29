@@ -32,6 +32,7 @@ type FeedQueue struct {
 	ThreadId   string                 `json:"thread_id"`
 	AgentName  string                 `json:"agent_name"`
 	UserId     string                 `json:"user_id"`
+	AgentId    string                 `json:"agent_id"`
 	ReturnUrl  string                 `json:"return_url"`
 	Content    string                 `json:"message"`
 	Type       string                 `json:"type"`
