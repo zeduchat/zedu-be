@@ -44,7 +44,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PUT("/:org_id/archive-channel", channelCtrl.ArchiveChannel)
 
 		// User management routes
-		organisationUrl.GET("/:org_id/users", organisationCtrl.GetUsersAndBotsInOrganisation)
+		organisationUrl.GET("/:org_id/users", organisationCtrl.GetUsersBotsInOrganisation)
 		organisationUrl.GET("/:org_id/users/search", organisationCtrl.SearchUsersInOrganisation)
 		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
 		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)

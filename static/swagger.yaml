@@ -1556,29 +1556,33 @@ paths:
     get:
       tags:
         - organisation
-      summary: Retrieve users and bots in an organisation
-      description: Returns all users and bots belonging to an organisation. Supports query-based search by name or email.
-      operationId: searchOrganisationUsers
+      summary: Retrieve users and bots in an organisationssssssssssssssss
+      description: |
+        Retrieves all users and optionally bots in an organisation. Supports search filtering and bot inclusion/exclusion.
+      operationId: getOrganisationUsersAndBots
       parameters:
-        - name: org_id
-          in: path
+        - in: path
+          name: org_id
           required: true
           schema:
             type: string
           description: ID of the organisation
-          example: "019700db-4e22-7f90-a20e-f9116291ef24"
-
-        - name: query
-          in: query
+        - in: query
+          name: query
           required: false
           schema:
             type: string
-          description: Search term for name or email
-          example: "user"
-
+          description: Optional search term to filter users/bots by name, email, or username
+        - in: query
+          name: include_bots
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include bots in the response (default is true)
       responses:
         '200':
-          description: Users retrieved successfully
+          description: List of users and optionally bots retrieved successfully
           content:
             application/json:
               schema:
@@ -1592,7 +1596,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: users retrieved successfully
+                    example: users and bots retrieved successfully
                   data:
                     type: array
                     items:
@@ -1600,12 +1604,10 @@ paths:
                       properties:
                         id:
                           type: string
-                          format: uuid
-                          example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
+                          example: 01983bb2-5ba6-7f28-afce-65ebd336a64f
                         email:
                           type: string
-                          format: email
-                          example: "user2@gmail.com"
+                          example: user3@gmail.com
                         username:
                           type: string
                           example: ""
@@ -1614,26 +1616,24 @@ paths:
                           example: ""
                         profile_url:
                           type: string
-                          format: uri
                           example: ""
                         name:
                           type: string
-                          example: "user2"
+                          example: user3
                         role:
                           type: string
-                          example: "Administrator"
+                          example: Guest
                         status:
                           type: string
-                          enum: [active, inactive]
-                          example: "active"
+                          example: active
                         created_at:
                           type: string
                           format: date-time
-                          example: "2025-05-24T06:52:24.351066+01:00"
+                          example: 2025-07-24T10:10:01.382952+01:00
                         entity_type:
                           type: string
                           enum: [user, bot]
-                          example: "user"
+                          example: user
                   pagination:
                     type: array
                     items:
@@ -1647,7 +1647,7 @@ paths:
                           example: 20
                         total_items:
                           type: integer
-                          example: 2
+                          example: 1
                         total_pages:
                           type: integer
                           example: 1
@@ -3357,6 +3357,106 @@ paths:
                         type: array
                         items:
                           type: string
+
+  /organisations/{org_id}/users:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve users and bots in an organisation
+      description: |
+        Retrieves all users and optionally bots in an organisation. Supports search filtering and bot inclusion/exclusion.
+      operationId: getOrganisationUsersAndBots
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation
+        - in: query
+          name: query
+          required: false
+          schema:
+            type: string
+          description: Optional search term to filter users/bots by name, email, or username
+        - in: query
+          name: include_bots
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include bots in the response (default is true)
+      responses:
+        '200':
+          description: List of users and optionally bots retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: users and bots retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01983bb2-5ba6-7f28-afce-65ebd336a64f
+                        email:
+                          type: string
+                          example: user3@gmail.com
+                        username:
+                          type: string
+                          example: ""
+                        phone_number:
+                          type: string
+                          example: ""
+                        profile_url:
+                          type: string
+                          example: ""
+                        name:
+                          type: string
+                          example: user3
+                        role:
+                          type: string
+                          example: Guest
+                        status:
+                          type: string
+                          example: active
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-07-24T10:10:01.382952+01:00
+                        entity_type:
+                          type: string
+                          enum: [user, bot]
+                          example: user
+                  pagination:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        current_page:
+                          type: integer
+                          example: 1
+                        page_size:
+                          type: integer
+                          example: 20
+                        total_items:
+                          type: integer
+                          example: 1
+                        total_pages:
+                          type: integer
+                          example: 1
 
   /channels/add-multiple:
     post:
@@ -7884,105 +7984,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
-  /organisations/{org_id}/users:
-    get:
-      tags:
-        - organisation
-      summary: Retrieve users and bots in an organisation
-      description: Returns all users and bots belonging to an organisation. Supports query-based search by name or email.
-      operationId: searchOrganisationUsers
-      parameters:
-        - name: org_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the organisation
-          example: "019700db-4e22-7f90-a20e-f9116291ef24"
-
-        - name: query
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Search term for name or email
-          example: "user"
-
-      responses:
-        '200':
-          description: Users retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: users retrieved successfully
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          format: uuid
-                          example: "019700d9-6965-7f8d-a78c-3641d1f8d8b2"
-                        email:
-                          type: string
-                          format: email
-                          example: "user2@gmail.com"
-                        username:
-                          type: string
-                          example: ""
-                        phone_number:
-                          type: string
-                          example: ""
-                        profile_url:
-                          type: string
-                          format: uri
-                          example: ""
-                        name:
-                          type: string
-                          example: "user2"
-                        role:
-                          type: string
-                          example: "Administrator"
-                        status:
-                          type: string
-                          enum: [active, inactive]
-                          example: "active"
-                        created_at:
-                          type: string
-                          format: date-time
-                          example: "2025-05-24T06:52:24.351066+01:00"
-                        entity_type:
-                          type: string
-                          enum: [user, bot]
-                          example: "user"
-                  pagination:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        current_page:
-                          type: integer
-                          example: 1
-                        page_size:
-                          type: integer
-                          example: 20
-                        total_items:
-                          type: integer
-                          example: 2
-                        total_pages:
-                          type: integer
-                          example: 1
+  
   /organisations/{org_id}/get-started:
     get:
       tags:

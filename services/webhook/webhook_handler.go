@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,9 +22,10 @@ import (
 func PostWebhook(db *storage.Database, logger *utility.Logger, req models.CreateWebhookHistoryRequest) (gin.H, int, error) {
 
 	var (
-		resp    gin.H
-		webhook models.Webhook
-		channel models.Channels
+		resp     gin.H
+		webhook  models.Webhook
+		userChan models.UserChannels
+		channel  models.Channels
 	)
 
 	webhook, err := webhook.CheckExistBySlug(db.Postgresql, req.WebhookSlug)
@@ -88,6 +90,26 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		utility.LogAndPrint(logger, fmt.Sprintf("Error Publishing to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
+
+	// increase unread count for channel users
+	userChan.ChannelsID = webhook.ChannelId
+	userChan.UserID = "00000000-0000-0000-0000-000000000000"
+	userChan.OrgId = channel.OrganisationID
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	// Add to the wait group for each goroutine that must complete first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		userChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	// Run this after the others finish
+	go func() {
+		wg.Wait()
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
 
 	return resp, http.StatusOK, nil
 }
