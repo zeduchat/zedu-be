@@ -285,13 +285,17 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
+func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 	query := c.Query("query")
+	includeBots := true
+	if c.Query("include_bots") == "false" {
+		includeBots = false
+	}
 
 	if _, err := uuid.Parse(orgId); err != nil {
 		base.Logger.Error("error parsing org id")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users and bots", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -299,7 +303,7 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		base.Logger.Error("unable to get user claims")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to retrieve users", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "failed to retrieve users and bots", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -307,17 +311,22 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	users, paginationResponse, err := service.GetUsersAndBotsInOrganisation(orgId, userId, base.Db.Postgresql, c, query)
+	queryParams := map[string]any{
+		"query":        query,
+		"include_bots": includeBots,
+	}
+
+	users, paginationResponse, err := service.GetUsersBotsInOrganisation(orgId, userId, base.Db.Postgresql, c, queryParams)
 	if err != nil {
 		switch err.Error() {
 		case "organisation not found":
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to retrieve users", nil)
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to retrieve users and bots", nil)
 			c.JSON(http.StatusNotFound, rd)
 		case "user does not have access to the organisation":
-			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to retrieve users", nil)
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to retrieve users and bots", nil)
 			c.JSON(http.StatusNotFound, rd)
 		default:
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve users", err.Error(), nil)
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve users and bots", err.Error(), nil)
 			c.JSON(http.StatusInternalServerError, rd)
 		}
 		return
@@ -330,8 +339,8 @@ func (base *Controller) GetUsersAndBotsInOrganisation(c *gin.Context) {
 		"total_items":  len(users),
 	}
 
-	base.Logger.Info("users retrieved successfully")
-	response := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationData)
+	base.Logger.Info("users and bots retrieved successfully")
+	response := utility.BuildSuccessResponse(http.StatusOK, "users and bots retrieved successfully", users, paginationData)
 	c.JSON(http.StatusOK, response)
 }
 
