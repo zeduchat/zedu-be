@@ -65,7 +65,7 @@ func (w Worker) Start() {
 
 				err := ProcessNotification(job, w.Logger)
 				if err != nil {
-					w.Logger.Info("Worker %d: error sending notification: %v\n", w.ID, err)
+					w.Logger.Error("<<<<<<<<<<<<Worker %d: error sending notification: %v\n>>>>>>>>>>>>>>>>", w.ID, err)
 					atomic.AddInt64(&w.Metrics.FailedJobs, 1)
 				} else {
 					atomic.AddInt64(&w.Metrics.SuccessfulJobs, 1)
