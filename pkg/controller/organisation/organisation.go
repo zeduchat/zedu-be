@@ -193,7 +193,7 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "organisation updated successfully", updatedOrg)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation updated successfully", updatedOrg)
 	c.JSON(http.StatusOK, rd)
 }
 
