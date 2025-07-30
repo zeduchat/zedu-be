@@ -138,7 +138,7 @@ func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, inviteMap)
 
-	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData)
+	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData, url)
 	if err != nil {
 		base.Logger.Error("Failed to send invitation email", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)
@@ -235,7 +235,7 @@ func (base *Controller) OrganisationInviteFew(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, inviteMap)
 
-	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData)
+	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData, url)
 	if err != nil {
 		base.Logger.Error("Failed to send invitation email", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation email", err, nil)

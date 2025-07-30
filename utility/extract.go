@@ -1,9 +1,12 @@
 package utility
 
 import (
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 type Thread struct {
@@ -130,4 +133,22 @@ func ExtractCollectionName(fullName string) string {
 		return fullName[84:]
 	}
 	return fullName
+}
+
+func ExtractBaseURL(raw string) (string, error) {
+	if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
+		raw = "http://" + raw
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+
+	host := u.Hostname()
+	domain, err := publicsuffix.EffectiveTLDPlusOne(host)
+	if err != nil {
+		return host, nil 
+	}
+	return domain, nil
 }

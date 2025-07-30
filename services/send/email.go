@@ -17,7 +17,7 @@ type EmailRequest struct {
 	Body           string   `json:"body"`
 	AttachmentName string
 	Attachment     []byte
-	SenderEmail    string `json:"sender_email"`
+	BaseURL        string `json:"base_url"`
 }
 
 func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templateFileName, baseTemplateFileName string, templateData map[string]any) (*EmailRequest, error) {
@@ -26,11 +26,11 @@ func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templ
 		return &EmailRequest{}, err
 	}
 	return &EmailRequest{
-		ExtReq:      extReq,
-		To:          to,
-		Subject:     subject,
-		Body:        body, //or parsed template
-		SenderEmail: templateData["inviter_email"].(string),
+		ExtReq:  extReq,
+		To:      to,
+		Subject: subject,
+		Body:    body, //or parsed template
+		BaseURL: templateData["base_url"].(string),
 	}, nil
 }
 
@@ -115,7 +115,7 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 	sender := mailConfig.Username
 	subject := e.Subject
 	// From := "notifications@telex.im"
-	From := e.SenderEmail
+	From := e.BaseURL
 	recipients := e.To
 	mime := "\nMIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	body := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\n%s%s%s", From, recipients[0], subject, mime, e.Body))

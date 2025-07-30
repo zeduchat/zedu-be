@@ -99,7 +99,7 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 
 	mapData := invitation.InviteLinkMapper(url, []models.Invitation{response})
 
-	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData)
+	err = invitation.SendInvitationsEmail(base.Db.Postgresql, base.Logger, mapData, url)
 	if err != nil {
 		base.Logger.Error("Failed to send invitation", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send invitation", err.Error(), nil)
