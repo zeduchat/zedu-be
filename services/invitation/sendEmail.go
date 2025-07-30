@@ -33,7 +33,7 @@ func SendInvitationsEmail(db *gorm.DB, logger *utility.Logger, invitationRespons
 	}
 
 	for _, invite := range invitationResponseMap {
-		err := SendEmail(invite.Email, invite.InvitationLink, org.Name, user.Name)
+		err := SendEmail(invite.Email, invite.InvitationLink, org.Name, user.Name, user.Email)
 		if err != nil {
 			logger.Error("Failed to send invitation email", err)
 			continue
@@ -42,12 +42,13 @@ func SendInvitationsEmail(db *gorm.DB, logger *utility.Logger, invitationRespons
 	return nil
 }
 
-func SendEmail(email, link, org_name, inviter_name string) error {
+func SendEmail(email, link, org_name, inviter_name, inviter_email string) error {
 	reqData := models.SendInvitationLink{
 		Email:            email,
 		InvitationLink:   link,
 		OrganisationName: org_name,
 		InviterName:      inviter_name,
+		InviterEmail:     inviter_email,
 	}
 
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)
