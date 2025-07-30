@@ -21,8 +21,8 @@ func TestResetPassword(t *testing.T) {
 	someData, _ := utility.HashPassword(currUUID)
 
 	adminData := models.User{
-		ID:       utility.GenerateUUID(),
-		Name:     "admin jane doe2",
+		ID:   utility.GenerateUUID(),
+		Name: "admin jane doe2",
 		Email:    fmt.Sprintf("testadmin%v@qa.team", currUUID),
 		Password: someData,
 	}
