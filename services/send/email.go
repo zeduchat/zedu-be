@@ -17,7 +17,7 @@ type EmailRequest struct {
 	Body           string   `json:"body"`
 	AttachmentName string
 	Attachment     []byte
-	SenderEmail    string `json:"sender_email"`
+	BaseURL        string `json:"base_url"`
 }
 
 func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templateFileName, baseTemplateFileName string, templateData map[string]any) (*EmailRequest, error) {
