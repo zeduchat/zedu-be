@@ -16,13 +16,18 @@ type InvitationDetail struct {
 	Link  string
 }
 
-func SendInvitationsEmail(db *gorm.DB, logger *utility.Logger, invitationResponseMap []models.InvitationResponse) error {
+func SendInvitationsEmail(db *gorm.DB, logger *utility.Logger, invitationResponseMap []models.InvitationResponse, url string) error {
 	var (
 		user models.User
 		org  models.Organisation
 	)
 
-	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", invitationResponseMap[0].InvitedBy)
+	base_url, err := utility.ExtractBaseURL(url)
+	if err != nil {
+		return err
+	}
+
+	err, _ = postgresql.SelectOneFromDb(db, &user, "id = ?", invitationResponseMap[0].InvitedBy)
 	if err != nil {
 		logger.Error("Failed to get user details", err)
 	}
@@ -33,7 +38,7 @@ func SendInvitationsEmail(db *gorm.DB, logger *utility.Logger, invitationRespons
 	}
 
 	for _, invite := range invitationResponseMap {
-		err := SendEmail(invite.Email, invite.InvitationLink, org.Name, user.Name)
+		err := SendEmail(invite.Email, invite.InvitationLink, org.Name, user.Name, base_url)
 		if err != nil {
 			logger.Error("Failed to send invitation email", err)
 			continue
@@ -42,12 +47,13 @@ func SendInvitationsEmail(db *gorm.DB, logger *utility.Logger, invitationRespons
 	return nil
 }
 
-func SendEmail(email, link, org_name, inviter_name string) error {
+func SendEmail(email, link, org_name, inviter_name, base_url string) error {
 	reqData := models.SendInvitationLink{
 		Email:            email,
 		InvitationLink:   link,
 		OrganisationName: org_name,
 		InviterName:      inviter_name,
+		BaseUrl:          base_url,
 	}
 
 	err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendInvitationLink, reqData)

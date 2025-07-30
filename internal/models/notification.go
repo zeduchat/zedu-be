@@ -39,6 +39,7 @@ type SendInvitationLink struct {
 	Email            string `json:"email" validate:"required"`
 	InvitationLink   string `json:"invitation_link" validate:"required"`
 	InviterName      string `json:"inviter_name" validate:"required"`
+	BaseUrl          string `json:"base_url" validate:"required"`
 	OrganisationName string `json:"organisation_name" validate:"required"`
 }
 

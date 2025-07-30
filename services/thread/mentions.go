@@ -41,12 +41,14 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 			return nil, fmt.Errorf("missing agent_id")
 		}
 
-		if req.OrgId == "" {
+		if req.OrgId == "" && req.AgentId != "WEBHOOK" {
 			return nil, fmt.Errorf("missing org_id")
 		}
 
-		if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
-			return nil, err
+		if req.AgentId != "WEBHOOK" {
+			if err := models.ValidateAgentIDs(db.Postgresql, req.OrgId, []string{req.AgentId}); err != nil {
+				return nil, err
+			}
 		}
 		req.UserId = req.AgentId
 	}
@@ -146,6 +148,9 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsID
 	userChan.UserID = req.UserId
+	if req.UserId == "WEBHOOK" {
+		userChan.UserID = "00000000-0000-0000-0000-000000000000"
+	}
 	userChan.OrgId = channel.OrganisationID
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}

@@ -201,7 +201,7 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 	for _, invite := range invites {
 		invitation_link := utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token)
 
-		err := SendEmail(invite.Email, invitation_link, org.Name, user.Name)
+		err := SendEmail(invite.Email, invitation_link, org.Name, user.Name, user.Email)
 		if err != nil {
 			continue
 		}

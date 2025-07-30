@@ -215,6 +215,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
+		Where("channels.archived = FALSE").
 		Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
