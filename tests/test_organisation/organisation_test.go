@@ -314,7 +314,7 @@ func TestOrganisationUpdate(t *testing.T) {
 				Country:     "wakanda",
 			},
 			ExpectedCode: http.StatusOK,
-			Message:      "organisation updated successfully",
+			Message:      "Organisation updated successfully",
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
