@@ -30,7 +30,7 @@ func WorkflowRoutes(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	{
 		wGroup.POST("", wfCtrl.AddWorkflowToChannel)
 		wGroup.DELETE("/:workflow_id/channels/:channel_id", wfCtrl.RemoveWorkflowFromChannel)
-		wGroup.GET("/:channel_id", wfCtrl.GetChannelWorkflows)
+		wGroup.GET("/:channel_id/organisations/:org_id", wfCtrl.GetChannelWorkflows)
 	}
 
 	return r

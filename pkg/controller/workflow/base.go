@@ -255,15 +255,15 @@ func (base *Controller) AddWorkflowToChannel(c *gin.Context) {
 		return
 	}
 
-	code, err := workflow.AddWorkflowToChannel(base.Db.Postgresql, req)
+	code, err := workflow.UpdateWorkflowStatus(base.Db.Postgresql, req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("Workflow added successfully")
-	rd := utility.BuildSuccessResponse(code, "Workflow added successfully", nil)
+	base.Logger.Info("Channel workflow updated successfully")
+	rd := utility.BuildSuccessResponse(code, "Channel workflow updated successfully", nil)
 	c.JSON(code, rd)
 }
 
@@ -304,11 +304,16 @@ func (base *Controller) RemoveWorkflowFromChannel(c *gin.Context) {
 }
 
 func (base *Controller) GetChannelWorkflows(c *gin.Context) {
-	var req models.ChannelWorkflowRequest
 
-	req.ChannelID = c.Param("channel_id")
+	ChannelID := c.Param("channel_id")
+	OrgId := c.Param("org_id")
+	if _, err := uuid.Parse(OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation ID format", errors.New("invalid org ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	if _, err := uuid.Parse(req.ChannelID); err != nil {
+	if _, err := uuid.Parse(ChannelID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel ID format", errors.New("failed to parse channel ID"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -321,7 +326,7 @@ func (base *Controller) GetChannelWorkflows(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := workflow.GetChannelWorkflows(base.Db.Postgresql, req.ChannelID)
+	resp, code, err := workflow.GetChannelWorkflows(base.Db.Postgresql, &ChannelID, &OrgId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
