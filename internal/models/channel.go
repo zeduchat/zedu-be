@@ -23,7 +23,7 @@ type Channels struct {
 	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
 	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
 	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
-	Topic          string    `gorm:"column:topic; type:text; not null; default:'present'" json:"topic"`
+	Topic          string    `gorm:"column:topic; type:text; not null;default:'present'" json:"topic"`
 	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
 	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
 	OwnerName      string    `gorm:"-" json:"owner_name"`
@@ -43,7 +43,7 @@ type UserChannels struct {
 	Username     string                 `gorm:"column:username; type:varchar(100)" json:"username"`
 	CreatedAt    time.Time              `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 	ThreadCount  int64                  `gorm:"column:thread_count;default:0" json:"thread_count"`
-	LastThreadId string                 `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
+	LastThreadId string                 `gorm:"column:last_thread_id" json:"last_thread_id"`
 	LastReadAt   time.Time              `gorm:"column:last_read_at" json:"last_read_at"`
 	MentionCount int64                  `gorm:"column:mention_count;default:0" json:"mention_count"`
 	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`

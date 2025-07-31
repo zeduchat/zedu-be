@@ -31,7 +31,7 @@ type Message struct {
 	UpdatedAt  time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
-	Mentions   []Mentions     `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
+	Mentions   []Mention      `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
 	IsPinned   bool           `json:"is_pinned"`
 	IsSaved    bool           `gorm:"type:bool;default:false" json:"is_saved"`
@@ -133,6 +133,29 @@ type EditMessageRequest struct {
 	ThreadId   string `json:"thread_id" validate:"required"`
 	MessageId  string `json:"message_id" validate:"required"`
 	OrgId      string `json:"org_id"`
+}
+
+type ForwardThreadMessageRequest struct {
+	ThreadId             string                 `json:"thread_id" validate:"required"` //thread id of the message to forward
+	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"`       //channel to forward to
+	Content              string                 `json:"content"`
+	Media                []UploadedFileResponse `json:"media"`
+	Mentions             []Mention              `json:"mentions"`
+
+	UserId     string `json:"user_id"`
+	ChannelsId string `json:"channels_id"` //current channels or DM
+}
+
+type ForwardReplyMessageRequest struct {
+	ThreadId             string                 `json:"thread_id" validate:"required"`
+	MessageId            string                 `json:"message_id" validate:"required"`
+	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
+	Content              string                 `json:"content"`
+	Media                []UploadedFileResponse `json:"media"`
+	Mentions             []Mention              `json:"mentions"`
+
+	UserId     string `json:"user_id"`
+	ChannelsId string `json:"channels_id"`
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]any, error) {

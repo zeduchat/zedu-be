@@ -98,6 +98,8 @@ tags:
     description: API endpoints for managing pinned organisations
   - name: Pinned Messages
     description: API endpoints for pinning a specific message
+  - name: Message Forwarding
+    description: API endpoints for handling message forwarding
 
 paths:
   # Auth paths
@@ -17357,6 +17359,259 @@ paths:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
         '500':
           description: Internal server error
+
+  /channels/{channelId}/thread/forward:
+    post:
+      tags:
+        - Message Forwarding
+      summary: Forward a thread message
+      description: Forwards a thread message and links it to the original message.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel where thread message should be forwarded to
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                forwarded_to_channel_id:
+                  type: string
+                  format: uuid
+                  description: Channel ID/DM ID to forward to
+                content:
+                  type: string
+                  description: Optional message content with the forwarded message
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      required:
+                        - thread_id
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Thread message forwarded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Thread message forwarded successfully"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+                  error:
+                    type: string
+                    example: "Missing required field"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+
+  /channels/{channelId}/message/forward:
+    post:
+      tags:
+        - Message Forwarding
+      summary: Forward a reply message
+      description: Forwards a reply message and links it to the original message.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the channel where reply message should be forwarded to
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thread_id:
+                  type: string
+                message_id:
+                  type: string
+                content:
+                  type: string
+                  description: Optional message content with the forwarded message
+                forwarded_to_channel_id:
+                  type: string
+                  format: uuid
+                  description: Channel ID/DM ID to forward to
+                media:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_name:
+                        type: string
+                        example: "slsslsl"
+                      file_type:
+                        type: string
+                        example: "png"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://example.com/file.png"
+                mentions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [bot, user]
+                        example: "bot"
+                      id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+              required:
+                - thread_id
+                - message_id
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Reply message forwarded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Reply message forwarded successfully"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid input"
+                  error:
+                    type: string
+                    example: "Missing required field"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected failure"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
 
 components:
   schemas:

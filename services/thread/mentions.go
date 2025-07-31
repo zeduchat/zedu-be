@@ -30,6 +30,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		channel       models.Channels
 		userChan      models.UserChannels
 		agent_message = false
+		channelType   string
 	)
 
 	userType := "user"
@@ -71,6 +72,12 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, fmt.Errorf("channel does not exist: %v", err)
 	}
 
+	if channel.IsPrivate {
+		channelType = "private"
+	} else {
+		channelType = "public"
+	}
+
 	messageType := "message"
 	if req.Type != "" {
 		messageType = req.Type
@@ -92,6 +99,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   channel.Name,
+		ChannelType:   channelType,
 		Status:        "success",
 		Edited:        false,
 		Mentions:      req.Mentions,
@@ -118,6 +126,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		OrgId:       channel.OrganisationID,
 		Media:       req.Media,
 		ChannelName: channel.Name,
+		ChannelType:   channelType,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)

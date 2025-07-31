@@ -27,10 +27,11 @@ func AuthMigrationModels() []any {
 		models.DmChannels{},
 		models.FcmTokens{},
 		models.GeneralInvitation{},
-		models.Group{},
 		models.HelpCenterArticle{},
 		models.HelpCenterCategory{},
+		models.Webhook{},
 		models.HistoryWebhook{},
+		models.IntegrationOutput{},
 		models.IntegrationChannel{},
 		models.IntegrationSettings{},
 		models.Invitation{},
@@ -63,11 +64,11 @@ func AuthMigrationModels() []any {
 		models.Testimonial{},
 		models.UploadedFileResponse{},
 		models.User{},
-		models.Admin{},
-		models.UserChannels{},
-		models.IntegrationBills{},
 		models.Channels{},
+		models.UserChannels{},
 		models.CreditUsage{},
+		models.Admin{},
+		models.IntegrationBills{},
 	} // an array of db models, example: User{}
 }
 
