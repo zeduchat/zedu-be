@@ -107,11 +107,26 @@ func RemoveWorkflowFromChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (
 	return status, nil
 }
 
-func GetChannelWorkflows(db *gorm.DB, channelID string) ([]models.Workflow, int, error) {
-	cw := &models.ChannelWorkflow{ChannelID: channelID}
-	workflows, err := cw.GetWorkflowsByChannel(db)
+func GetChannelWorkflows(db *gorm.DB, channelID, orgId *string) ([]models.WorkflowSummary, int, error) {
+	cw := &models.ChannelWorkflow{ChannelID: *channelID}
+	workflows, err := cw.GetWorkflowsWithChannelStatus(db, orgId)
 	if err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve workflows: %v", err)
 	}
 	return workflows, http.StatusOK, nil
+}
+
+func UpdateWorkflowStatus(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+	wc := models.ChannelWorkflow{
+		ChannelID:  req.ChannelID,
+		WorkflowID: req.WorkflowID,
+	}
+
+	exists, _ := wc.CheckChannelWorkflowExists(db)
+
+	if exists {
+		return RemoveWorkflowFromChannel(db, req)
+	}
+
+	return AddWorkflowToChannel(db, req)
 }
