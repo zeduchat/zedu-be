@@ -17129,8 +17129,6 @@ paths:
                   message:
                     type: string
                     example: Workflow updated successfully
-                  data:
-                    $ref: "#/components/schemas/Workflow"
         "400":
           description: Bad request
           content:
@@ -17209,10 +17207,10 @@ paths:
     post:
       tags:
         - Workflow
-      summary: Attach a workflow to a channel
-      description: Adds a workflow to the specified channel within an organization.
+      summary: Update a workflow to a channel
+      description: Updates a workflow to the specified channel within an organization.
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -17264,7 +17262,7 @@ paths:
       summary: Remove a workflow from a channel
       description: Deletes the association between a workflow and a channel.
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       parameters:
         - name: workflow_id
           in: path
@@ -17302,23 +17300,28 @@ paths:
         '500':
           description: Internal server error
 
-  /channel-workflows/{channel_id}:
+  /channel-workflows/organisations/{org_id}/channels/{channel_id}:
     get:
       tags:
         - Workflow
-      summary: Get workflows linked to a channel
-      description: Retrieves all workflows currently associated with a specific channel.
+      summary: Get workflows linked and unlinked to a channel
+      description: Retrieves all workflows with those associated with a specific channel.
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       parameters:
         - name: channel_id
           in: path
           required: true
           schema:
             type: string
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
-          description: List of workflows associated with the channel
+          description: List of workflows inculding those associated with the channel
           content:
             application/json:
               schema:
@@ -17333,8 +17336,6 @@ paths:
                   message:
                     type: string
                     example: Workflow retrieved successfully
-                  data:
-                    $ref: "#/components/schemas/Workflow"
         "400":
           description: Bad request
           content:

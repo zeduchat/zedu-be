@@ -70,9 +70,9 @@ type WorkFlowResponse struct {
 }
 
 type WorkflowSummary struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Active bool   `json:"active,omitempty"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	ISActive bool   `json:"is_active"`
 }
 
 type Connection struct {
@@ -324,7 +324,7 @@ func (cw *ChannelWorkflow) GetWorkflowsWithChannelStatus(db *gorm.DB, orgId *str
 		Where("channel_workflows.channel_id = ?", cw.ChannelID)
 
 	err := db.Model(&Workflow{}).
-		Select("workflows.id, workflows.name, EXISTS (?) AS active", subQuery).
+		Select("workflows.id, workflows.name, EXISTS (?) AS is_active", subQuery).
 		Where("workflows.org_id = ?", *orgId).
 		Scan(&results).Error
 
