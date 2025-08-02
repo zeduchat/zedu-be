@@ -14,7 +14,7 @@ func (n NotificationObject) SendContactUsMail() error {
 	var (
 		notificationData     = models.SendContactUsMail{}
 		ccHeader             = fmt.Sprintf("Cc: %s\r\n", "markessien@gmail.com")
-		subject              = fmt.Sprintf("%s%s", "Subject: Thank You for Contacting Us", ccHeader)
+		subject              = fmt.Sprintf("%s%s", ccHeader, "Subject: Thank You for Contacting Us")
 		templateFileName     = "contact_us.html"
 		baseTemplateFileName = ""
 		configData           = config.GetConfig()
