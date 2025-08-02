@@ -13,7 +13,8 @@ import (
 func (n NotificationObject) SendContactUsMail() error {
 	var (
 		notificationData     = models.SendContactUsMail{}
-		subject              = "Subject: Thank You for Contacting Us😇"
+		ccHeader             = fmt.Sprintf("Cc: %s\r\n", "markessien@gmail.com")
+		subject              = fmt.Sprintf("%s%s", "Subject: Thank You for Contacting Us", ccHeader)
 		templateFileName     = "contact_us.html"
 		baseTemplateFileName = ""
 		configData           = config.GetConfig()
