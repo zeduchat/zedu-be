@@ -61,6 +61,7 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+	
 	req.UserId = userId
 
 	// if !plan.CheckChannelPlanThreshold(c, base.Logger, base.Db.Postgresql, req.OrganisationID) {

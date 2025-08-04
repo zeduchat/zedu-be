@@ -25,16 +25,31 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				Name:                    "Free",
 				Fee:                     0,
 				MaxChannels:             -1,
-				MaxUsers:                -1,
+				MaxUsers:                100, 
+				CanUpgradeNotifications: true,
+				CanAddUnlimitedChannels: true,
+				CanAddUnlimitedUsers:    false, // limited to 100 users
+				IsForIndividuals:        true,
+				IsForSmallBusiness:      false,
+				IsForLargeEnterprise:    false,
+				Credits:                 0, // No free credits, credits are purchasable
+			},
+			{
+				ID:                      utility.GenerateUUID(),
+				Name:                    "Business",
+				Fee:                     50,
+				MaxChannels:             -1,
+				MaxUsers:                500, // Up to 500 human users
 				MaxNotifications:        -1,
 				CanUpgradeNotifications: true,
 				CanAddUnlimitedChannels: true,
-				CanAddUnlimitedUsers:    true,
+				CanAddUnlimitedUsers:    false, // limited to 500 users
 				IsForIndividuals:        false,
-				IsForSmallBusiness:      false,
-				IsForLargeEnterprise:    true,
-				Credits:                 50,
+				IsForSmallBusiness:      true,
+				IsForLargeEnterprise:    false,
+				Credits:                 100, // 100 free AI credits monthly + more purchasable
 			},
+
 			{
 				ID:                      utility.GenerateUUID(),
 				Name:                    "Starter",
@@ -49,21 +64,6 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForSmallBusiness:      false,
 				IsForLargeEnterprise:    false,
 				Credits:                 1000,
-			},
-			{
-				ID:                      utility.GenerateUUID(),
-				Name:                    "Business",
-				Fee:                     50,
-				MaxChannels:             10,
-				MaxUsers:                10,
-				MaxNotifications:        100000,
-				CanUpgradeNotifications: true,
-				CanAddUnlimitedChannels: false,
-				CanAddUnlimitedUsers:    false,
-				IsForIndividuals:        false,
-				IsForSmallBusiness:      true,
-				IsForLargeEnterprise:    false,
-				Credits:                 5000,
 			},
 			{
 				ID:                      utility.GenerateUUID(),
