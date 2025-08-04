@@ -281,12 +281,14 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	err := c.ShouldBind(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if _, err := uuid.Parse(channelID); err != nil {
+		base.Logger.Error("Invalid channel id format: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -294,6 +296,7 @@ func (base *Controller) AddAThread(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation failed: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
 			utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -303,8 +306,8 @@ func (base *Controller) AddAThread(c *gin.Context) {
 	req.ChannelsID = channelID
 
 	claims, exists := c.Get("userClaims")
-
 	if !exists {
+		base.Logger.Error("Unable to get user claims: user not authorized")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -323,7 +326,6 @@ func (base *Controller) AddAThread(c *gin.Context) {
 	}
 
 	base.Logger.Info("thread message added successfully")
-
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Thread message added successfully", ThreadData)
 	c.JSON(http.StatusCreated, rd)
 }

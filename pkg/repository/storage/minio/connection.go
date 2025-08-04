@@ -1,7 +1,6 @@
 package minio
 
 import (
-	// "context"
 	"context"
 	"fmt"
 

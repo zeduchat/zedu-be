@@ -30,6 +30,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		channel       models.Channels
 		userChan      models.UserChannels
 		agent_message = false
+		channelType   string
 	)
 
 	userType := "user"
@@ -56,19 +57,25 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
 
 	if err != nil && !agent_message {
-		return nil, fmt.Errorf("failed to get profile: %v", err)
+		return nil, fmt.Errorf("failed to get profile: invalid webhook payload")
 	}
 
 	user, err = user.GetUserByID(db.Postgresql, req.UserId)
 
 	if err != nil && !agent_message {
-		return nil, fmt.Errorf("failed to get user: %v", err)
+		return nil, fmt.Errorf("failed to get user: invalid webhook payload")
 	}
 
 	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsID)
 
 	if !ch || err != nil {
-		return nil, fmt.Errorf("channel does not exist: %v", err)
+		return nil, fmt.Errorf("channel does not exist: invalid channel Id")
+	}
+
+	if channel.IsPrivate {
+		channelType = "private"
+	} else {
+		channelType = "public"
 	}
 
 	messageType := "message"
@@ -92,6 +99,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		UserId:        req.UserId,
 		Messages:      []models.MessageDocument{},
 		ChannelName:   channel.Name,
+		ChannelType:   channelType,
 		Status:        "success",
 		Edited:        false,
 		Mentions:      req.Mentions,
@@ -118,6 +126,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		OrgId:       channel.OrganisationID,
 		Media:       req.Media,
 		ChannelName: channel.Name,
+		ChannelType:   channelType,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
