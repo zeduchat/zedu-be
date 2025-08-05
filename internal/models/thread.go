@@ -685,7 +685,7 @@ func (c *Threads) DeleteThread(db *gorm.DB) (*Threads, error) {
 	return c, nil
 }
 
-func (c *Threads) ClearDMThreadsByChannelID(db *gorm.DB) (*Threads, error) {
+func (c *Threads) ClearThreadsByChannelID(db *gorm.DB) (*Threads, error) {
 
 	query := map[string]any{
 		"query": map[string]any{

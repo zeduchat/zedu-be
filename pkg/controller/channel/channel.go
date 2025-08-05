@@ -61,6 +61,7 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+	
 	req.UserId = userId
 
 	// if !plan.CheckChannelPlanThreshold(c, base.Logger, base.Db.Postgresql, req.OrganisationID) {
@@ -304,7 +305,6 @@ func (base *Controller) UpdateUsername(c *gin.Context) {
 func (base *Controller) DeleteChannel(c *gin.Context) {
 
 	ChannelsId := c.Param("channelId")
-
 	if _, err := uuid.Parse(ChannelsId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -317,8 +317,8 @@ func (base *Controller) DeleteChannel(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	userClaims := claims.(jwt.MapClaims)
 
+	userClaims := claims.(jwt.MapClaims)
 	UserId := userClaims["user_id"].(string)
 
 	code, err := channel.DeleteChannel(base.Db.Postgresql, ChannelsId, UserId)
