@@ -44,22 +44,25 @@ type CompleteSubscriptionRequest struct {
 }
 
 type Plan struct {
-	ID                      string         `gorm:"primaryKey;type:uuid" json:"id"`
-	Name                    string         `gorm:"uniqueIndex;" json:"name"`
-	Fee                     int            `gorm:"not null" json:"fee"`
-	MaxChannels             int            `gorm:"not null" json:"max_channels"`
-	MaxUsers                int            `gorm:"not null" json:"max_users"`
-	MaxNotifications        int            `gorm:"not null" json:"max_notifications"`
-	CanUpgradeNotifications bool           `gorm:"not null" json:"can_upgrade_notifications"`
-	CanAddUnlimitedChannels bool           `gorm:"not null" json:"can_add_unlimited_channels"`
-	CanAddUnlimitedUsers    bool           `gorm:"not null" json:"can_add_unlimited_users"`
-	IsForIndividuals        bool           `gorm:"not null" json:"is_for_individuals"`
-	IsForSmallBusiness      bool           `gorm:"not null" json:"is_for_small_business"`
-	IsForLargeEnterprise    bool           `gorm:"not null" json:"is_for_large_enterprise"`
-	CreatedAt               time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Credits                 int            `gorm:"not null;default:0" json:"credits"`
-	UpdatedAt               time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt               gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                       string         `gorm:"primaryKey;type:uuid" json:"id"`
+	Name                     string         `gorm:"uniqueIndex;" json:"name"`
+	Fee                      int            `gorm:"not null" json:"fee"`
+	MaxChannels              int            `gorm:"not null" json:"max_channels"`
+	MaxUsers                 int            `gorm:"not null" json:"max_users"`
+	MaxNotifications         int            `gorm:"not null" json:"max_notifications"`
+	CanUpgradeNotifications  bool           `gorm:"not null" json:"can_upgrade_notifications"`
+	CanAddUnlimitedChannels  bool           `gorm:"not null" json:"can_add_unlimited_channels"`
+	CanAddUnlimitedUsers     bool           `gorm:"not null" json:"can_add_unlimited_users"`
+	IsForIndividuals         bool           `gorm:"not null" json:"is_for_individuals"`
+	IsForSmallBusiness       bool           `gorm:"not null" json:"is_for_small_business"`
+	IsForLargeEnterprise     bool           `gorm:"not null" json:"is_for_large_enterprise"`
+	UnlimitedAICoWorkers     bool           `gorm:"not null;default:false" json:"unlimited_ai_co_workers"`
+	CreateYourOwnAICoWorkers bool           `gorm:"not null;default:false" json:"create_your_own_ai_co_workers"`
+	AICreditsPurchasable     bool           `gorm:"not null;default:false" json:"ai_credits_purchasable"`
+	CreatedAt                time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Credits                  int            `gorm:"not null;default:0" json:"credits"`
+	UpdatedAt                time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt                gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type OrganisationPlan struct {

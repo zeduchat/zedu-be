@@ -875,3 +875,34 @@ func (o *Organisation) IsOwner(db *gorm.DB, userId string) bool {
 
 	return org.OwnerID == userId
 }
+
+func (o *Organisation) ClearOrganisationResources(db *gorm.DB) error {
+	var (
+		ch    Channels
+		oi    OrganisationIntegrations
+		allCH []Channels
+	)
+
+	err := postgresql.SelectAllFromDb(db, "", &allCH, "organisation_id = ?", o.ID)
+	if err != nil {
+		return errors.New("unable to fetch organisation channels")
+	}
+
+	for _, channel := range allCH {
+		_ = channel.RemoveChannelResources(db)
+	}
+
+	//remove all organisation-integrations mapping
+	err = postgresql.DeleteSpecificRecord(db, &oi, "org_id = ?", o.ID)
+	if err != nil {
+		return errors.New("unable to remove organisation integrations")
+	}
+
+	//remove all channels in that organisation
+	err = postgresql.DeleteSpecificRecord(db, &ch, "organisation_id = ?", o.ID)
+	if err != nil {
+		return errors.New("unable to delete organisation channels")
+	}
+
+	return nil
+}

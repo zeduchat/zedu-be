@@ -206,7 +206,7 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 
 		thread.ID = dm.ChannelId
 
-		if _, err := thread.ClearDMThreadsByChannelID(db); err != nil {
+		if _, err := thread.ClearThreadsByChannelID(db); err != nil {
 			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel threads: %v", err)
 		}
 

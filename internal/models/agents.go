@@ -644,7 +644,7 @@ func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility
 	if len(channelIDs) > 0 {
 		for _, channelID := range channelIDs {
 			thread.ID = channelID
-			_, err := thread.ClearDMThreadsByChannelID(db)
+			_, err := thread.ClearThreadsByChannelID(db)
 			if err != nil {
 				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
 			}
@@ -1972,7 +1972,7 @@ func (i *OrganisationIntegrations) AdminDeleteCustomAgentApp(db *gorm.DB, logger
 	if len(channelIDs) > 0 {
 		for _, channelID := range channelIDs {
 			thread.ID = channelID
-			_, err := thread.ClearDMThreadsByChannelID(db)
+			_, err := thread.ClearThreadsByChannelID(db)
 			if err != nil {
 				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
 			}
@@ -2336,7 +2336,7 @@ func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Log
 	if len(channelIDs) > 0 {
 		for _, channelID := range channelIDs {
 			thread.ID = channelID
-			_, err := thread.ClearDMThreadsByChannelID(db)
+			_, err := thread.ClearThreadsByChannelID(db)
 			if err != nil {
 				logger.Error("Warning: Failed to clear threads for channel %s: %v", channelID, err)
 			}

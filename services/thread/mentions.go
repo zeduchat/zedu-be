@@ -245,7 +245,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 						"channel_id": feed.ChannelsId,
 						"message":    feed.Content,
 						"thread_id":  feed.ThreadId,
-						// "is_channel_conversation": true,
 						"type":     feed.Type,
 						"user_id":  feed.UserId,
 						"org_id":   feed.OrgId,
