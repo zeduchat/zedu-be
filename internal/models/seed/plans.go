@@ -25,31 +25,30 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				Name:                    "Free",
 				Fee:                     0,
 				MaxChannels:             -1,
-				MaxUsers:                100, 
+				MaxUsers:                100,
 				CanUpgradeNotifications: true,
 				CanAddUnlimitedChannels: true,
-				CanAddUnlimitedUsers:    false, // limited to 100 users
+				CanAddUnlimitedUsers:    false,
 				IsForIndividuals:        true,
 				IsForSmallBusiness:      false,
 				IsForLargeEnterprise:    false,
-				Credits:                 0, // No free credits, credits are purchasable
+				Credits:                 0,
 			},
 			{
 				ID:                      utility.GenerateUUID(),
 				Name:                    "Business",
 				Fee:                     50,
 				MaxChannels:             -1,
-				MaxUsers:                500, // Up to 500 human users
+				MaxUsers:                500,
 				MaxNotifications:        -1,
 				CanUpgradeNotifications: true,
 				CanAddUnlimitedChannels: true,
-				CanAddUnlimitedUsers:    false, // limited to 500 users
+				CanAddUnlimitedUsers:    false,
 				IsForIndividuals:        false,
 				IsForSmallBusiness:      true,
 				IsForLargeEnterprise:    false,
-				Credits:                 100, // 100 free AI credits monthly + more purchasable
+				Credits:                 100,
 			},
-
 			{
 				ID:                      utility.GenerateUUID(),
 				Name:                    "Starter",

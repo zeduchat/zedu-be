@@ -553,15 +553,10 @@ func (r *UserChannels) UpdateUsername(db *gorm.DB, req UpdateChannelsUserNameReq
 }
 
 func (c *Channels) Delete(db *gorm.DB) error {
-	var (
-		userChannels UserChannels
-		orgChanInt   OrganisationChannelsIntegrations
-		thread       Threads
-	)
 
-	err := db.Model(&userChannels).Where("channels_id = ?", c.ID).Delete(&userChannels).Error
+	err := c.RemoveChannelResources(db)
 	if err != nil {
-		return errors.New("error removing users in channel")
+		return fmt.Errorf("error removing channel resources: %v", err)
 	}
 
 	err = postgresql.DeleteRecordFromDb(db, &c)
@@ -569,15 +564,43 @@ func (c *Channels) Delete(db *gorm.DB) error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *Channels) RemoveChannelResources(db *gorm.DB) error {
+	var (
+		userChannels UserChannels
+		orgChanInt   OrganisationChannelsIntegrations
+		thread       Threads
+		webhook      Webhook
+		chanworkflow ChannelWorkflow
+	)
+
+	err := db.Model(&userChannels).Where("channels_id = ?", c.ID).Delete(&userChannels).Error
+	if err != nil {
+		return errors.New("error removing users in channel")
+	}
+
 	err = postgresql.DeleteSpecificRecord(db, &orgChanInt, "channel_id = ?", c.ID)
 	if err != nil {
 		return errors.New("error removing channel from organisation channels integration")
 	}
 
-	thread.ID = c.ID
-
-	if _, err := thread.DeleteThread(db); err != nil {
+	//removing all associated threads tied to the channel
+	thread.ChannelsID = c.ID
+	if _, err := thread.ClearThreadsByChannelID(db); err != nil {
 		return fmt.Errorf("failed to delete group DM channel threads: %v", err)
+	}
+
+	//remove all webhooks associated with the channel
+	if err := webhook.DeleteChannelWebhook(db, c.ID); err != nil {
+		return fmt.Errorf("failed to delete channel webhook: %v", err)
+	}
+
+	//remove all workflows associated with the channel
+	chanworkflow.ChannelID = c.ID
+	if err := chanworkflow.DeleteChannelWorkflows(db); err != nil {
+		return fmt.Errorf("failed to delete channel workflows: %v", err)
 	}
 
 	return nil

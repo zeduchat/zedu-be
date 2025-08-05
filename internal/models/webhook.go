@@ -115,6 +115,23 @@ func (w *Webhook) DeleteWebhook(db *gorm.DB) error {
 	return nil
 }
 
+func (w *Webhook) DeleteChannelWebhook(db *gorm.DB, channelId string) error {
+	var (
+		webhook Webhook
+	)
+
+	exist := postgresql.CheckExists(db, &webhook, "channel_id = ?", channelId)
+	if !exist {
+		return errors.New("webhook does not exist")
+	}
+
+	err := postgresql.DeleteRecordFromDb(db, &webhook)
+	if err != nil {
+		return errors.New("Failed to delete webhook: " + err.Error())
+	}
+	return nil
+}
+
 func (w *Webhook) UpdateWebhook(db *gorm.DB, req UpdateWebhookRequest) (Webhook, error) {
 	var (
 		userChannel UserChannels

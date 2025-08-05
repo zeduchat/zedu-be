@@ -172,6 +172,8 @@ func DeleteWorkflow(db *gorm.DB, req WorkFlowRequest) error {
 	return db.Where("id = ?", req.Id).Delete(&Workflow{}).Error
 }
 
+
+
 func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) {
 	wfs := []WorkflowSummary{}
 	err := db.Table("workflows").Where("org_id = ?", req.OrgId).Scan(&wfs).Error
@@ -312,4 +314,8 @@ func (cw *ChannelWorkflow) GetWorkflowsByChannel(db *gorm.DB) ([]Workflow, error
 		Where("channel_workflows.channel_id = ?", cw.ChannelID).
 		Scan(&workflows).Error
 	return workflows, err
+}
+
+func (w *ChannelWorkflow) DeleteChannelWorkflows(db *gorm.DB) error {
+	return postgresql.DeleteSpecificRecord(db, &ChannelWorkflow{}, "channel_id = ?", w.ChannelID)
 }
