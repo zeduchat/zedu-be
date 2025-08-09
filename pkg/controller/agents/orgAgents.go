@@ -364,7 +364,7 @@ func (base *Controller) UpdateJSONSchema(c *gin.Context) {
 
 func (base *Controller) UpdateCustomAgent(c *gin.Context) {
 	var (
-		req models.CustomIntegrationRequest
+		req models.CreateAgentRequest
 	)
 
 	org_id := c.Param("org_id")
@@ -391,22 +391,31 @@ func (base *Controller) UpdateCustomAgent(c *gin.Context) {
 		return
 	}
 
-	ids := map[string]string{
-		"org_id":   org_id,
-		"agent_id": agent_id,
-	}
-
-	err := agents.UpdateCustomAgent(ids, req, base.Db.Postgresql, base.ExtReq)
-	if err != nil {
-		base.Logger.Error("Failed to update JSON schema", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom agent", nil)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("JSON schema updated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Custom agent updated successfully", nil)
-	c.JSON(http.StatusOK, rd)
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = org_id
+
+	req.OrgId = org_id
+	req.AgentId = agent_id
+
+	code, err := agents.UpdateCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to update agent", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent updated successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent updated successfully", nil)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) GetActivatedOrganizations(c *gin.Context) {
@@ -489,7 +498,7 @@ func (base *Controller) GetAgentsByOwner(c *gin.Context) {
 // Create custom agent
 func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	var (
-		req models.CustomIntegrationRequest
+		req models.CreateAgentRequest
 	)
 
 	org_id := c.Param("org_id")
@@ -522,19 +531,20 @@ func (base *Controller) CreateCustomAgent(c *gin.Context) {
 	}
 
 	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = org_id
 
-	resp, err := agents.CreateCustomAgent(org_id, req, base.Db.Postgresql, base.ExtReq, userId)
+	resp, code, err := agents.CreateCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)
 	if err != nil {
-		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
-		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Error("Failed to Create Custom Agent  %v ", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to create agent", nil)
+		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("Custom agent created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", resp)
-	c.JSON(http.StatusCreated, rd)
+	rd := utility.BuildSuccessResponse(code, "Agent created successfully", resp)
+	c.JSON(code, rd)
 }
 
 // Agent Settings

@@ -11149,12 +11149,36 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - name
+                - tone
+                - visibility
               properties:
-                json_url:
+                name:
                   type: string
-                  description: "The URL that provides JSON metadata for the integration"
-                  example: "https://www.bananaisland.com/banana.json"
-
+                  description: "The name of the agent"
+                  example: "Banana Agent"
+                tone:
+                  type: string
+                  description: "The communication tone of the agent"
+                  example: "Friendly"
+                avatar:
+                  type: string
+                  description: "The avatar image URL/base64 blob for the agent"
+                  example: "https://www.example.com/avatar.png"
+                title:
+                  type: string
+                  description: "The title of the agent"
+                  example: "AI Support Assistant"
+                description:
+                  type: string
+                  description: "A short description of the agent"
+                  example: "Helps users with fruit-related queries."
+                visibility:
+                  type: string
+                  description: "The visibility level of the agent"
+                  enum: [private, public, me]
+                  example: "public"
       responses:
         "201":
           description: "Agent app created successfully"
@@ -11210,50 +11234,45 @@ paths:
                     type: string
                     example: integrations retrieved successfully.
                     description: A message describing the result.
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          format: uuid
-                          description: The unique identifier of the integration.
-                          example: 0192202e-b6f3-7d23-8025-3f60675cc031
-                        app_name:
-                          type: string
-                          description: Name of the integrated application.
-                          example: Slack
-                        json_url:
-                          type: string
-                          description: URL where the integration's JSON schema is located.
-                          example: https://system-integration.telex.im/slack.json
-                        app_url:
-                          type: string
-                          description: The URL to the app's official website.
-                          example: https://slack.com
-                        app_logo:
-                          type: string
-                          description: URL to the app's logo.
-                          example: https://media.tifi.tv/telexbucket/public/logos/slack.png
-                        app_description:
-                          type: string
-                          description: A brief description of the application.
-                          example: Slack is a cloud-based team business and communication platform.
-                        is_active:
-                          type: boolean
-                          description: Status of the agent for the organization.
-                          example: false
-                        created_at:
-                          type: string
-                          format: date-time
-                          description: Timestamp when the agent was added.
-                          example: 2024-09-23T19:59:46.166781+01:00
-                        updated_at:
-                          type: string
-                          format: date-time
-                          description: Timestamp when the agent was last updated.
-                          example: 2024-09-23T20:00:08.086829+01:00
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: The unique identifier of the agent.
+                        example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                      is_active:
+                        type: boolean
+                        description: Status of the agent.
+                        example: true
+                      name:
+                        type: string
+                        description: The name of the agent.
+                        example: Banana Agent
+                      tone:
+                        type: string
+                        description: The communication tone of the agent.
+                        example: Friendly
+                      avatar:
+                        type: string
+                        description: URL of the agent's avatar image.
+                        example: https://www.example.com/avatar.png
+                      title:
+                        type: string
+                        description: The title or role of the agent.
+                        example: AI Support Assistant
+                      description:
+                        type: string
+                        description: A brief description of the agent.
+                        example: Helps users with fruit-related queries.
+                      visibility:
+                        type: string
+                        description: The visibility level of the agent.
+                        enum: [private, public, me]
+                        example: public
         400:
           description: Invalid organisation_id or request.
         404:
@@ -11286,9 +11305,31 @@ paths:
             schema:
               type: object
               properties:
-                json_url:
+                name:
                   type: string
-                  example: "https://www.bananaisland.com/banana.json"
+                  description: "The name of the agent"
+                  example: "Banana Agent"
+                tone:
+                  type: string
+                  description: "The communication tone of the agent"
+                  example: "Friendly"
+                avatar:
+                  type: string
+                  description: "The avatar image URL/base64 blob for the agent"
+                  example: "https://www.example.com/avatar.png"
+                title:
+                  type: string
+                  description: "The title of the agent"
+                  example: "AI Support Assistant"
+                description:
+                  type: string
+                  description: "A short description of the agent"
+                  example: "Helps users with fruit-related queries."
+                visibility:
+                  type: string
+                  description: "The visibility level of the agent"
+                  enum: [private, public, me]
+                  example: "public"
       responses:
         "200":
           description: Agent updated successfully
