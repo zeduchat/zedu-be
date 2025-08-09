@@ -22,3 +22,4 @@ type CreateAgentSkillRequest struct {
 	JSONUrl     string      `json:"json_url" binding:"required,url"`
 }
 
+type AgentSkillResponse struct {}

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/services/agents"
 )
 
 func (base *Controller) CreateAgentSkill(c *gin.Context) {
@@ -47,7 +48,7 @@ func (base *Controller) CreateAgentSkill(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	resp, err := agents.CreateAgentSkill(org_id, req, base.Db.Postgresql, base.ExtReq, userId)
+	resp, err := agents.CreateAgentSkill(org_id, req, base.Db, base.ExtReq, userId)
 	if err != nil {
 		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
