@@ -442,6 +442,8 @@ func UpdateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 
 	if picUrl != "" {
 		req.Avatar = picUrl
+	} else {
+		req.Avatar = ""
 	}
 
 	code, err := orgIntegration.UpdateCustomAgent(db, req)

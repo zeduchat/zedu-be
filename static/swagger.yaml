@@ -11200,7 +11200,7 @@ paths:
           description: Invalid JSON url supplied.
 
     get:
-      summary: Get integrations for an organization
+      summary: Get Agents for an organization
       description: Retrieve a list of integrations for a specific organization.
       tags:
         - Agents
@@ -11294,7 +11294,14 @@ paths:
           schema:
             type: string
             format: uuid
+            example: "01914aa1-dfef-769e-b8b2-0571ca8b42b1"
           description: The UUID of the organization.
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "01988fcf-10c8-799d-a3f5-28327cd12fae"
       responses:
         200:
           description: Successfully retrieved the list of agentss.
