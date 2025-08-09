@@ -43,7 +43,6 @@ func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 // 	return r
 // }
 
-
 func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
@@ -59,7 +58,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 
 		// Organization Custom Agents
 		organisationUrl.POST("/:org_id/agents", agentsCtrl.CreateCustomAgent)
-		organisationUrl.GET("/:org_id/agents", agentsCtrl.FetchOrganisationBots)
+		organisationUrl.GET("/:org_id/agents", agentsCtrl.FetchOrganisationAgents)
 		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
 
@@ -135,4 +134,3 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 
 	return r
 }
-

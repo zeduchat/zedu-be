@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func FetchOrganisationBots(db *gorm.DB, logger *utility.Logger, org_id string, c *gin.Context, extReq request.ExternalRequest, redisClient *redis.Client) ([]models.AgentResp, postgresql.PaginationResponse, int, error) {
+func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, org_id string, c *gin.Context, extReq request.ExternalRequest, redisClient *redis.Client) ([]models.AgentResp, postgresql.PaginationResponse, int, error) {
 	var (
 		orgInt  models.OrganisationIntegrations
 		botResp []models.AgentResp = make([]models.AgentResp, 0)

@@ -176,7 +176,7 @@ type OrganisationIntegrations struct {
 	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
 	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
 	Title              string             `gorm:"column:title;type:text;" json:"title"`
-	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
+	Visibility         string             `gorm:"column:visibility;type:varchar(255);default:public;" json:"visibility"`
 }
 
 type AdminAgentResp struct {

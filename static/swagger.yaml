@@ -1556,9 +1556,9 @@ paths:
     get:
       tags:
         - organisation
-      summary: Retrieve users and bots in an organisationssssssssssssssss
+      summary: Retrieve users and Agents in an organisationssssssssssssssss
       description: |
-        Retrieves all users and optionally bots in an organisation. Supports search filtering and bot inclusion/exclusion.
+        Retrieves all users and optionally Agents in an organisation. Supports search filtering and bot inclusion/exclusion.
       operationId: getOrganisationUsersAndBots
       parameters:
         - in: path
@@ -1579,7 +1579,7 @@ paths:
           schema:
             type: boolean
             default: true
-          description: Whether to include bots in the response (default is true)
+          description: Whether to include Agents in the response (default is true)
       responses:
         '200':
           description: List of users and optionally bots retrieved successfully
@@ -3362,9 +3362,9 @@ paths:
     get:
       tags:
         - organisation
-      summary: Retrieve users and bots in an organisation
+      summary: Retrieve users and Agents in an organisation
       description: |
-        Retrieves all users and optionally bots in an organisation. Supports search filtering and bot inclusion/exclusion.
+        Retrieves all users and optionally Agents in an organisation. Supports search filtering and bot inclusion/exclusion.
       operationId: getOrganisationUsersAndBots
       parameters:
         - in: path
@@ -3385,7 +3385,7 @@ paths:
           schema:
             type: boolean
             default: true
-          description: Whether to include bots in the response (default is true)
+          description: Whether to include Agents in the response (default is true)
       responses:
         '200':
           description: List of users and optionally bots retrieved successfully
@@ -12695,7 +12695,7 @@ paths:
           description: The unique identifier of the organisation.
       responses:
         "200":
-          description: Bots in the organisation fetched successfully.
+          description: Agents in the organisation fetched successfully.
           content:
             application/json:
               schema:
@@ -12774,7 +12774,7 @@ paths:
                 example:
                   status: "success"
                   status_code: 200
-                  message: "Bots in organisation fetched successfully"
+                  message: "Agents in organisation fetched successfully"
                   data:
                     - id: "01958fe4-0106-71c9-b09f-3ac489a45f38"
                       app_name: "Profanity Checker"
