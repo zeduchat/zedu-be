@@ -22,19 +22,17 @@ import (
 
 type Integrations struct {
 	ID                 string             `gorm:"type:uuid;primary_key" json:"id"`
-	Name               string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"app_name"`
-	JSONUrl            string             `gorm:"column:json_url; type:varchar(255);" json:"json_url"`
+	Name               string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
+	JSONUrl            string             `gorm:"column:json_url; type:varchar(255);" json:"-"`
 	AppUrl             string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
-	AppLogo            string             `gorm:"column:app_logo; type:varchar(255);" json:"app_logo"`
+	AppLogo            string             `gorm:"column:app_logo; type:varchar(255);" json:"avatar"`
 	OwnerID            string             `gorm:"type:uuid;" json:"owner_id"`
-	AppDescription     string             `gorm:"column:app_description; type:varchar(255);" json:"app_description"`
-	IntegrationType    string             `gorm:"column:integration_type; type:varchar(255);" json:"integration_type,omitempty"`
-	Info               string             `gorm:"colummn:info; type:varchar(255);" json:"info"`
+	AppDescription     string             `gorm:"column:app_description; type:varchar(255);" json:"description"`
+	IntegrationType    string             `gorm:"column:integration_type; type:varchar(255);" json:"-"`
+	Info               string             `gorm:"colummn:info; type:varchar(255);" json:"-"`
 	IsActive           bool               `gorm:"type:boolean;default:false" json:"is_active"`
-	Category           string             `json:"category"`
-	Status             string             `json:"status"`
-	IsPaid             bool               `gorm:"type:boolean;default:false" json:"is_paid"`
-	IsApproved         bool               `gorm:"type:boolean;default:false" json:"is_approved"`
+	IsPaid             bool               `gorm:"type:boolean;default:false" json:"-"`
+	IsApproved         bool               `gorm:"type:boolean;default:false" json:"-"`
 	Prices             JSONPrices         `gorm:"type:jsonb" json:"prices"`
 	Version            string             `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
 	Provider           Provider           `gorm:"type:jsonb" json:"provider"`
@@ -47,6 +45,21 @@ type Integrations struct {
 	IsSystem           bool               `gorm:"type:boolean;default:false" json:"is_system"`
 	CommissionRate     float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
+	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
+	Title              string             `gorm:"column:title;type:text;" json:"title"`
+	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
+}
+
+type CreateAgentRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Tone        string `json:"tone" validate:"required"`
+	Avatar      string `json:"avatar"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Visibility  string `json:"visibility" validate:"required,oneof=private public me"`
+	UserId      string
+	OrgId       string
+	AgentId     string
 }
 
 type UpdateAgent struct {
@@ -161,6 +174,9 @@ type OrganisationIntegrations struct {
 	Skills             JSONSkills         `gorm:"type:jsonb" json:"skills"`
 	CommissionRate     float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
+	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
+	Title              string             `gorm:"column:title;type:text;" json:"title"`
+	Visibility         string             `gorm:"column:visibility;type:varchar(255);default:public;" json:"visibility"`
 }
 
 type AdminAgentResp struct {
@@ -294,8 +310,14 @@ type AgentsResp []struct {
 }
 
 type AgentResp struct {
-	Integrations
-	Linked bool `json:"linked"`
+	ID          string `json:"id"`
+	IsActive    bool   `json:"is_active"`
+	Name        string `json:"name"`
+	Tone        string `json:"tone"`
+	Avatar      string `json:"avatar"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Visibility  string `json:"visibility"`
 }
 
 type IntegrationBills struct {
@@ -460,7 +482,7 @@ func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context
 }
 
 // Get custom integrations
-func (i *OrganisationIntegrations) GetCustomAgentApp(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
 
 	var (
 		org        Organisation
@@ -475,7 +497,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApp(db *gorm.DB, org_id string,
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ? AND json_url != '' ", org_id)
+		Where("org_id = ?", org_id)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -671,25 +693,26 @@ func (oi *OrganisationIntegrations) UpdateJSONSchema(db *gorm.DB, req UpdateJSON
 	return nil
 }
 
-func (oi *OrganisationIntegrations) UpdateCustomIntegration(db *gorm.DB, req CustomIntegrationRequest, ids map[string]string) error {
+func (oi *OrganisationIntegrations) UpdateCustomAgent(db *gorm.DB, req CreateAgentRequest) (int, error) {
 
 	update := make(map[string]any)
-	update["json_url"] = req.JSONUrl
-	update["app_name"] = req.AppName
-	update["app_description"] = req.AppDescription
-	update["app_url"] = req.AppUrl
-	update["app_logo"] = req.AppLogo
+	update["title"] = req.Title
+	update["app_name"] = req.Name
+	update["app_description"] = req.Description
+	update["visibility"] = req.Visibility
+	update["app_logo"] = req.Avatar
+	update["tone"] = req.Tone
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", ids["agent_id"])
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", req.AgentId)
 	if err != nil {
-		return err
+		return http.StatusInternalServerError, err
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("no record updated")
+		return http.StatusOK, errors.New("no record updated")
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
 
 func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string, extReq request.ExternalRequest) error {

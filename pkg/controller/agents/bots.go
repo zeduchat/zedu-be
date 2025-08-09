@@ -9,7 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) FetchOrganisationBots(c *gin.Context) {
+func (base *Controller) FetchOrganisationAgents(c *gin.Context) {
 	var org_id string = c.Param("org_id")
 
 	if _, err := uuid.Parse(org_id); err != nil {
@@ -19,10 +19,10 @@ func (base *Controller) FetchOrganisationBots(c *gin.Context) {
 		return
 	}
 
-	response, paginationResponse, code, err := agents.FetchOrganisationBots(base.Db.Postgresql, base.Logger, org_id, c, base.ExtReq, base.Db.Redis)
+	response, paginationResponse, code, err := agents.FetchOrganisationAgents(base.Db.Postgresql, base.Logger, org_id, c, base.ExtReq, base.Db.Redis)
 	if err != nil {
-		base.Logger.Error("failed to fetch bots in organisation", err)
-		rd := utility.BuildErrorResponse(code, "error", "failed to fetch bots in organisation", err.Error(), nil)
+		base.Logger.Error("failed to fetch Agents in organisation", err)
+		rd := utility.BuildErrorResponse(code, "error", "failed to fetch Agents in organisation", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -34,7 +34,7 @@ func (base *Controller) FetchOrganisationBots(c *gin.Context) {
 		"total_items":  len(response),
 	}
 
-	base.Logger.Info("Bots in organisation fetched successfully")
-	rd := utility.BuildSuccessResponse(code, "Bots in organisation fetched successfully", response, paginationData)
+	base.Logger.Info("Agents in organisation fetched successfully")
+	rd := utility.BuildSuccessResponse(code, "Agents in organisation fetched successfully", response, paginationData)
 	c.JSON(code, rd)
 }
