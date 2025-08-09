@@ -60,6 +60,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.POST("/:org_id/agents", agentsCtrl.CreateCustomAgent)
 		organisationUrl.GET("/:org_id/agents", agentsCtrl.FetchOrganisationAgents)
 		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
+		organisationUrl.GET("/:org_id/agents/:agent_id", agentsCtrl.FetchCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
 
 		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)

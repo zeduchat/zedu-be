@@ -453,6 +453,30 @@ func UpdateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	return code, nil
 }
 
+// Update CustomIntegration
+func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (models.AgentResp, int, error) {
+
+	var org_agents models.OrganisationIntegrations
+
+	exists := postgresql.CheckExists(db, &org_agents, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
+	if !exists {
+		return models.AgentResp{}, http.StatusNotFound, errors.New("organisation does not have that agent")
+	}
+
+	resp := models.AgentResp{
+		ID:          org_agents.IntegrationID,
+		Name:        org_agents.AppName,
+		Title:       org_agents.Title,
+		Tone:        org_agents.Tone,
+		Visibility:  org_agents.Visibility,
+		Avatar:      org_agents.AppLogo,
+		Description: org_agents.AppDescription,
+		IsActive:    org_agents.IsActive,
+	}
+
+	return resp, http.StatusOK, nil
+}
+
 func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin.Context, extReq request.ExternalRequest) ([]models.AgentResp, postgresql.PaginationResponse, int, error) {
 	var (
 		ocIntegrations models.OrganisationChannelsIntegrations
