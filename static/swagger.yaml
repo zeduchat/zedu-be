@@ -11743,6 +11743,119 @@ paths:
         404:
           description: Organisation not found.
 
+/agents/{agent_id}/prompt:
+  get:
+    summary: Fetch a custom agent's prompt
+    description: Retrieve the system prompts for a specific agent.
+    security:
+      - bearerAuth: []
+    tags:
+      - Agents
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+    responses:
+      200:
+        description: Successfully retrieved the agent's prompts.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                  description: Status of the response.
+                status_code:
+                  type: integer
+                  example: 200
+                  description: HTTP status code.
+                message:
+                  type: string
+                  example: prompts retrieved successfully.
+                  description: A message describing the result.
+                data:
+                  type: object
+                  properties:
+                    system_prompts:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: Greeting Prompt
+                            description: Name of the system prompt.
+                          prompt:
+                            type: string
+                            example: Hello! How can I assist you today?
+                            description: The content of the system prompt.
+      400:
+        description: Invalid agent_id or request.
+      404:
+        description: Agent not found.
+
+  put:
+    summary: Update a custom agent's prompt
+    description: Update the system prompts for a specific agent.
+    security:
+      - bearerAuth: []
+    tags:
+      - Agents
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - system_prompts
+            properties:
+              system_prompts:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      example: Greeting Prompt
+                      description: Name of the system prompt.
+                    prompt:
+                      type: string
+                      example: Hello! How can I assist you today?
+                      description: The content of the system prompt.
+    responses:
+      200:
+        description: Successfully updated the agent's prompts.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                status_code:
+                  type: integer
+                  example: 200
+                message:
+                  type: string
+                  example: prompts updated successfully.
+      400:
+        description: Invalid agent_id or request body.
+      404:
+        description: Agent not found.
 
 
   /agents:

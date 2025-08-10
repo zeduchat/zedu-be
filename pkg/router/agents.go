@@ -98,6 +98,8 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	agentUrl := r.Group(fmt.Sprintf("%v/agents", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		agentUrl.GET("/:agent_id/settings", agent.GetAgentSettingsAllOrgs)
+		agentUrl.GET("/:agent_id/prompt", agentsCtrl.FetchCustomAgentPrompt)
+		agentUrl.PUT("/:agent_id/prompt", agentsCtrl.UpdateAgentPrompt)
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)

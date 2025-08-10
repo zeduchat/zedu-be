@@ -64,6 +64,12 @@ type CreateAgentRequest struct {
 	AgentId       string
 }
 
+type UpdateAgentPromptRequest struct {
+	SystemPrompts JSONSystemPrompts `json:"system_prompts" validate:"required"`
+	AgentId       string
+	UserId        string
+}
+
 type UpdateAgent struct {
 	Name            string `json:"name"`
 	JSONUrl         string `json:"json_url"`
@@ -725,6 +731,23 @@ func (oi *OrganisationIntegrations) UpdateCustomAgent(db *gorm.DB, req CreateAge
 	update["visibility"] = req.Visibility
 	update["app_logo"] = req.Avatar
 	update["tone"] = req.Tone
+	update["system_prompts"] = req.SystemPrompts
+
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", req.AgentId)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	if result.RowsAffected == 0 {
+		return http.StatusOK, errors.New("no record updated")
+	}
+
+	return http.StatusOK, nil
+}
+
+func (oi *OrganisationIntegrations) UpdateCustomAgentPrompt(db *gorm.DB, req UpdateAgentPromptRequest) (int, error) {
+
+	update := make(map[string]any)
 	update["system_prompts"] = req.SystemPrompts
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", req.AgentId)
