@@ -400,12 +400,56 @@ func (base *Controller) UpdateCustomAgent(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
-	req.OrgId = org_id
 
 	req.OrgId = org_id
 	req.AgentId = agent_id
 
 	code, err := agents.UpdateCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to update agent", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent updated successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent updated successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
+	var (
+		req models.UpdateAgentPromptRequest
+	)
+
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
+
+	code, err := agents.UpdateCustomAgentPrompt(req, base.Db.Postgresql, base.ExtReq, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to update agent", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
@@ -464,6 +508,55 @@ func (base *Controller) FetchCustomAgent(c *gin.Context) {
 
 	base.Logger.Info("Agent fetched successfully")
 	rd := utility.BuildSuccessResponse(code, "Agent fetched successfully", resp)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) FetchCustomAgentPrompt(c *gin.Context) {
+	var (
+		req models.CreateAgentRequest
+	)
+
+	org_id := c.Param("org_id")
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = org_id
+
+	req.OrgId = org_id
+	req.AgentId = agent_id
+
+	resp, code, err := agents.FetchCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to update agent", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent fetched successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent fetched successfully", resp.SystemPrompts)
 	c.JSON(code, rd)
 }
 

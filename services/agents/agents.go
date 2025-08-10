@@ -374,6 +374,7 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	orgIntegration.AppDescription = req.Description
 	orgIntegration.OwnerID = req.UserId
 	orgIntegration.IntegrationID = utility.GenerateUUID()
+	orgIntegration.SystemPrompts = req.SystemPrompts
 
 	file, ext, err := utility.ValidatePicture(req.Avatar)
 
@@ -455,28 +456,42 @@ func UpdateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	return code, nil
 }
 
+func UpdateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (int, error) {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	code, err := orgIntegration.UpdateCustomAgentPrompt(db, req)
+
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
+}
+
 // Update CustomIntegration
-func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (models.AgentResp, int, error) {
+func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (*models.AgentResp, int, error) {
 
 	var org_agents models.OrganisationIntegrations
 
 	exists := postgresql.CheckExists(db, &org_agents, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
 	if !exists {
-		return models.AgentResp{}, http.StatusNotFound, errors.New("organisation does not have that agent")
+		return &models.AgentResp{}, http.StatusNotFound, errors.New("organisation does not have that agent")
 	}
 
 	resp := models.AgentResp{
-		ID:          org_agents.IntegrationID,
-		Name:        org_agents.AppName,
-		Title:       org_agents.Title,
-		Tone:        org_agents.Tone,
-		Visibility:  org_agents.Visibility,
-		Avatar:      org_agents.AppLogo,
-		Description: org_agents.AppDescription,
-		IsActive:    org_agents.IsActive,
+		ID:            org_agents.IntegrationID,
+		Name:          org_agents.AppName,
+		Title:         org_agents.Title,
+		Tone:          org_agents.Tone,
+		Visibility:    org_agents.Visibility,
+		Avatar:        org_agents.AppLogo,
+		Description:   org_agents.AppDescription,
+		IsActive:      org_agents.IsActive,
+		SystemPrompts: org_agents.SystemPrompts,
 	}
 
-	return resp, http.StatusOK, nil
+	return &resp, http.StatusOK, nil
 }
 
 func GetOrganisationChannelAgents(db *gorm.DB, channel_id, org_id string, c *gin.Context, extReq request.ExternalRequest) ([]models.AgentResp, postgresql.PaginationResponse, int, error) {
