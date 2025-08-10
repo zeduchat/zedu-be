@@ -4,70 +4,97 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/services/agents"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func (base *Controller) CreateAgentSkill(c *gin.Context) {
-	var (
-		req models.CreateAgentSkillRequest
-	)
+	var req models.CreateAgentSkillRequest
 
-	org_id := c.Param("org_id")
+	agentID := c.Param("agents_id")
 
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+	if _, err := uuid.Parse(agentID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		base.Logger.Error("Invalid request body")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if err := base.Validator.Struct(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	claims, exists := c.Get("userClaims")
-	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
+	req.AgentId = agentID
 
-	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
-
-	resp, err := agents.CreateAgentSkill(org_id, req, base.Db, base.ExtReq, userId)
+	resp, code, err := agents.CreateAgentSkill(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
-		base.Logger.Error("Failed to Create Custom Agent, invalid url:  "+req.JSONUrl, err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to create agent", nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "failed to create agent skill", nil)
+		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("Custom agent created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent created successfully", resp)
-	c.JSON(http.StatusCreated, rd)
+	base.Logger.Info("Custom agent skill added successfully")
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skill created", resp))
 }
 
 func (base *Controller) GetAgentSkill(c *gin.Context) {
-	// Implementation for getting an agent skill
+	agent_id := c.Param("agents_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	skills, pagination, err, code := agents.GetAgentSkills(agent_id, base.Db.Postgresql, c)
+	if err != nil {
+		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
+		return
+	}
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skills retrieved", gin.H{"data": skills, "pagination": pagination}))
 }
+
 func (base *Controller) UpdateAgentSkill(c *gin.Context) {
-	// Implementation for updating an agent skill
+	skill_id := c.Param("integration_id")
+	var updateData map[string]interface{}
+
+	if _, err := uuid.Parse(skill_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integraion id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
+		return
+	}
+	updated, err := agents.UpdateAgentSkill(skill_id, updateData, base.Db.Postgresql)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update agent skill", nil))
+		return
+	}
+	c.JSON(http.StatusOK, utility.BuildSuccessResponse(http.StatusOK, "Agent skill updated", updated))
 }
 
 func (base *Controller) DeleteAgentSkill(c *gin.Context) {
-	// Implementation for deleting an agent skill
+	skillID := c.Param("integration_id")
+	if err := agents.DeleteAgentSkill(skillID, base.Db.Postgresql); err != nil {
+		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete agent skill", nil))
+		return
+	}
+	c.JSON(http.StatusOK, utility.BuildSuccessResponse(http.StatusOK, "Agent skill deleted", nil))
 }
