@@ -48,18 +48,20 @@ type Integrations struct {
 	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
 	Title              string             `gorm:"column:title;type:text;" json:"title"`
 	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
+	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
 }
 
 type CreateAgentRequest struct {
-	Name        string `json:"name" validate:"required"`
-	Tone        string `json:"tone" validate:"required"`
-	Avatar      string `json:"avatar"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Visibility  string `json:"visibility" validate:"required,oneof=private public me"`
-	UserId      string
-	OrgId       string
-	AgentId     string
+	Name          string            `json:"name" validate:"required"`
+	Tone          string            `json:"tone" validate:"required"`
+	Avatar        string            `json:"avatar"`
+	Title         string            `json:"title"`
+	Description   string            `json:"description"`
+	Visibility    string            `json:"visibility" validate:"required,oneof=private public me"`
+	SystemPrompts JSONSystemPrompts `json:"system_prompts"`
+	UserId        string
+	OrgId         string
+	AgentId       string
 }
 
 type UpdateAgent struct {
@@ -137,6 +139,11 @@ type Skill struct {
 	Tags        []string `json:"tags"`
 }
 
+type SystemPrompts struct {
+	Name   string `json:"name"`
+	Prompt string `json:"prompt"`
+}
+
 type CapabilitiesObject struct {
 	Streaming              bool `json:"streaming"`
 	PushNotifications      bool `json:"pushNotifications"`
@@ -145,6 +152,7 @@ type CapabilitiesObject struct {
 
 type JSONPrices []Price
 type JSONSkills []Skill
+type JSONSystemPrompts []SystemPrompts
 
 type OrganisationIntegrations struct {
 	ID                 string             `gorm:"type:uuid;primary_key" json:"id"`
@@ -177,6 +185,7 @@ type OrganisationIntegrations struct {
 	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
 	Title              string             `gorm:"column:title;type:text;" json:"title"`
 	Visibility         string             `gorm:"column:visibility;type:varchar(255);default:public;" json:"visibility"`
+	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
 }
 
 type AdminAgentResp struct {
@@ -310,14 +319,15 @@ type AgentsResp []struct {
 }
 
 type AgentResp struct {
-	ID          string `json:"id"`
-	IsActive    bool   `json:"is_active"`
-	Name        string `json:"name"`
-	Tone        string `json:"tone"`
-	Avatar      string `json:"avatar"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Visibility  string `json:"visibility"`
+	ID            string            `json:"id"`
+	IsActive      bool              `json:"is_active"`
+	Name          string            `json:"name"`
+	Tone          string            `json:"tone"`
+	Avatar        string            `json:"avatar"`
+	Title         string            `json:"title"`
+	Description   string            `json:"description"`
+	Visibility    string            `json:"visibility"`
+	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
 }
 
 type IntegrationBills struct {
@@ -371,6 +381,19 @@ func (p *JSONPrices) Scan(value any) error {
 }
 
 func (p JSONPrices) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+func (p *JSONSystemPrompts) Scan(value any) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal JSONSystem: value is not []byte")
+	}
+
+	return json.Unmarshal(bytes, p)
+}
+
+func (p JSONSystemPrompts) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
@@ -702,6 +725,7 @@ func (oi *OrganisationIntegrations) UpdateCustomAgent(db *gorm.DB, req CreateAge
 	update["visibility"] = req.Visibility
 	update["app_logo"] = req.Avatar
 	update["tone"] = req.Tone
+	update["system_prompts"] = req.SystemPrompts
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", req.AgentId)
 	if err != nil {

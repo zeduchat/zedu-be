@@ -374,6 +374,7 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	orgIntegration.AppDescription = req.Description
 	orgIntegration.OwnerID = req.UserId
 	orgIntegration.IntegrationID = utility.GenerateUUID()
+	orgIntegration.SystemPrompts = req.SystemPrompts
 
 	file, ext, err := utility.ValidatePicture(req.Avatar)
 
@@ -466,14 +467,15 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 	}
 
 	resp := models.AgentResp{
-		ID:          org_agents.IntegrationID,
-		Name:        org_agents.AppName,
-		Title:       org_agents.Title,
-		Tone:        org_agents.Tone,
-		Visibility:  org_agents.Visibility,
-		Avatar:      org_agents.AppLogo,
-		Description: org_agents.AppDescription,
-		IsActive:    org_agents.IsActive,
+		ID:            org_agents.IntegrationID,
+		Name:          org_agents.AppName,
+		Title:         org_agents.Title,
+		Tone:          org_agents.Tone,
+		Visibility:    org_agents.Visibility,
+		Avatar:        org_agents.AppLogo,
+		Description:   org_agents.AppDescription,
+		IsActive:      org_agents.IsActive,
+		SystemPrompts: org_agents.SystemPrompts,
 	}
 
 	return resp, http.StatusOK, nil
