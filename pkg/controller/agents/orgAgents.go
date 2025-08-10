@@ -391,6 +391,14 @@ func (base *Controller) UpdateCustomAgent(c *gin.Context) {
 		return
 	}
 
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
@@ -435,6 +443,14 @@ func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
 		base.Logger.Error("Invalid request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
@@ -493,7 +509,6 @@ func (base *Controller) FetchCustomAgent(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
-	req.OrgId = org_id
 
 	req.OrgId = org_id
 	req.AgentId = agent_id
