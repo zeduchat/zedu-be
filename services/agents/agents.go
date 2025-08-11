@@ -143,66 +143,62 @@ func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq reques
 	return int_resp, paginationResult, nil, code
 }
 
-func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, error, int) {
-	var agents models.Integrations
-
-	var int_resp = models.AgentsResp{}
+func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest) (*[]models.AgentResp, postgresql.PaginationResponse, error, int) {
+	var (
+		agents  models.Integrations
+		botResp []models.AgentResp = make([]models.AgentResp, 0)
+	)
 
 	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c)
 
 	if err != nil {
-		return nil, postgresql.PaginationResponse{}, err, code
+		return &[]models.AgentResp{}, postgresql.PaginationResponse{}, err, code
 	}
 
-	for _, org_agents := range resp {
+	for _, agents := range resp {
 
-		agent := models.Integrations{
-			ID:             org_agents.ID,
-			Name:           org_agents.Name,
-			JSONUrl:        org_agents.JSONUrl,
-			AppUrl:         org_agents.AppUrl,
-			AppLogo:        org_agents.AppLogo,
-			AppDescription: org_agents.AppDescription,
-			Info:           org_agents.Info,
-			IsActive:       org_agents.IsActive,
-			CreatedAt:      org_agents.CreatedAt,
-			UpdatedAt:      org_agents.UpdatedAt,
+		agent := models.AgentResp{
+
+			ID:          agents.ID,
+			Name:        agents.Name,
+			Title:       agents.Title,
+			Tone:        agents.Tone,
+			Visibility:  agents.Visibility,
+			Avatar:      agents.AppLogo,
+			Description: agents.AppDescription,
+			IsActive:    agents.IsActive,
+			Category:    agents.Category,
 		}
 
-		int_resp = append(int_resp, struct {
-			models.Integrations
-			Linked bool "json:\"linked\""
-		}{
-			Integrations: agent,
-			Linked:       true,
-		})
+		botResp = append(botResp, agent)
+
 	}
 
-	return int_resp, paginationResult, nil, code
+	return &botResp, paginationResult, nil, code
 }
 
-func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq request.ExternalRequest) (models.Integrations, error, int) {
+func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq request.ExternalRequest) (*models.AgentResp, error, int) {
 	var agents models.Integrations
 
-	resp, err, code := agents.GetSystemAgentApp(db, int_id, c)
+	agent, err, code := agents.GetSystemAgentApp(db, int_id, c)
 
 	if err != nil {
-		return models.Integrations{}, err, code
+		return &models.AgentResp{}, err, code
 	}
 
-	agent := models.Integrations{
-		ID:             resp.ID,
-		Name:           resp.Name,
-		JSONUrl:        resp.JSONUrl,
-		AppLogo:        resp.AppLogo,
-		AppDescription: resp.AppDescription,
-		Info:           resp.Info,
-		IsActive:       resp.IsActive,
-		CreatedAt:      resp.CreatedAt,
-		UpdatedAt:      resp.UpdatedAt,
-	}
+	resp := models.AgentResp{
 
-	return agent, nil, code
+		ID:          agent.ID,
+		Name:        agent.Name,
+		Title:       agent.Title,
+		Tone:        agent.Tone,
+		Visibility:  agent.Visibility,
+		Avatar:      agent.AppLogo,
+		Description: agent.AppDescription,
+		IsActive:    agent.IsActive,
+		Category:    agent.Category,
+	}
+	return &resp, nil, code
 }
 
 func UpdateAgentApp(req models.UpdateAgent, ids map[string]string, db *gorm.DB) (models.Integrations, error) {
