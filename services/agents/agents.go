@@ -371,22 +371,7 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	orgIntegration.OwnerID = req.UserId
 	orgIntegration.IntegrationID = utility.GenerateUUID()
 	orgIntegration.SystemPrompts = req.SystemPrompts
-
-	file, ext, err := utility.ValidatePicture(req.Avatar)
-
-	if err != nil {
-		return int_resp, http.StatusBadRequest, errors.New("failed to validate logo")
-	}
-
-	picUrl, err := UploadAgentAvatar(logger, orgIntegration.IntegrationID, file, ext)
-
-	if err != nil {
-		return int_resp, http.StatusBadRequest, errors.New("failed to upload logo")
-	}
-
-	if picUrl != "" {
-		orgIntegration.AppLogo = picUrl
-	}
+	orgIntegration.AppLogo = req.Avatar
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
@@ -423,24 +408,6 @@ func UpdateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
 	if !exists {
 		return http.StatusNotFound, errors.New("organisation does not have that agent")
-	}
-
-	file, ext, err := utility.ValidatePicture(req.Avatar)
-
-	if err != nil {
-		return http.StatusBadRequest, errors.New("failed to validate logo")
-	}
-
-	picUrl, err := UploadAgentAvatar(logger, orgIntegration.IntegrationID, file, ext)
-
-	if err != nil {
-		return http.StatusBadRequest, errors.New("failed to upload logo")
-	}
-
-	if picUrl != "" {
-		req.Avatar = picUrl
-	} else {
-		req.Avatar = ""
 	}
 
 	code, err := orgIntegration.UpdateCustomAgent(db, req)
