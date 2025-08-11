@@ -11790,9 +11790,13 @@ paths:
                               type: string
                               example: Greeting Prompt
                               description: Name of the system prompt.
-                            prompt:
+                            content:
                               type: string
                               example: Hello! How can I assist you today?
+                              description: The content of the system prompt.
+                            type:
+                              type: string
+                              example: tagged prompt
                               description: The content of the system prompt.
         400:
           description: Invalid agent_id or request.
@@ -11831,9 +11835,13 @@ paths:
                         type: string
                         example: Greeting Prompt
                         description: Name of the system prompt.
-                      prompt:
+                      content:
                         type: string
                         example: Hello! How can I assist you today?
+                        description: The content of the system prompt.
+                      type:
+                        type: string
+                        example: tagged prompt
                         description: The content of the system prompt.
       responses:
         200:

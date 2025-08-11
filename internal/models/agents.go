@@ -49,6 +49,7 @@ type Integrations struct {
 	Title              string             `gorm:"column:title;type:text;" json:"title"`
 	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
 	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
+	Category           string             `gorm:"type:text" json:"category"`
 }
 
 type CreateAgentRequest struct {
@@ -146,8 +147,9 @@ type Skill struct {
 }
 
 type SystemPrompts struct {
-	Name   string `json:"name"`
-	Prompt string `json:"prompt"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	Type    string `json:"type"`
 }
 
 type CapabilitiesObject struct {
@@ -334,6 +336,7 @@ type AgentResp struct {
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility"`
 	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
+	Category      string            `json:"category,omitempty"`
 }
 
 type IntegrationBills struct {
@@ -551,8 +554,7 @@ func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integr
 
 	pagination := postgresql.GetPagination(c)
 
-	query := db.Model(&Integrations{}).
-		Where("json_url != ''")
+	query := db.Model(&Integrations{})
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -575,9 +577,9 @@ func (i *Integrations) GetSystemAgentApp(db *gorm.DB, int_id string, c *gin.Cont
 		IntResp Integrations
 	)
 
-	exists := postgresql.CheckExists(db, &IntResp, "json_url != '' AND id = ?", int_id)
+	exists := postgresql.CheckExists(db, &IntResp, "id = ?", int_id)
 	if !exists {
-		return IntResp, errors.New("integration app does not exist"), http.StatusNotFound
+		return IntResp, errors.New("Agent does not exist"), http.StatusNotFound
 	}
 
 	return IntResp, nil, http.StatusOK
