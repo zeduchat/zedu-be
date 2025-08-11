@@ -146,8 +146,9 @@ type Skill struct {
 }
 
 type SystemPrompts struct {
-	Name   string `json:"name"`
-	Prompt string `json:"prompt"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	Type    string `json:"type"`
 }
 
 type CapabilitiesObject struct {
