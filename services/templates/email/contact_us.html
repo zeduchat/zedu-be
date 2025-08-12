@@ -1,92 +1,64 @@
 <!DOCTYPE html>
 <html>
-  <body
-    style="
-      background-color: #7c50f8;
-      padding: 20px;
-      font-size: 14px;
-      line-height: 1.43;
-      font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
-    "
-  >
-    <div
-      style="
-        max-width: 600px;
-        margin: 10px auto 20px;
-        font-size: 12px;
-        color: #ffffff;
-        text-align: center;
-      "
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact Us Confirmation</title>
+  </head>
+  <body style="background-color: #f5f5f5; font-family: Arial, sans-serif; margin: 0; padding: 0">
+    <table
+      width="100%"
+      bgcolor="#f5f5f5"
+      cellpadding="0"
+      cellspacing="0"
+      style="max-width: 600px; margin: auto; background: #ffffff;"
     >
-      If you are unable to see this message,
-      <a href="#" style="color: #ffffff; text-decoration: underline"
-        >click here to view in browser</a
-      >
-    </div>
-    <div
-      style="
-        max-width: 600px;
-        margin: 0px auto;
-        background-color: #fff;
-        box-shadow: 0px 20px 50px rgba(0, 0, 0, 0.05);
-      "
-    >
-      <table style="width: 100%">
-        <tr>
-          <td
-            style="padding-left: 50px; text-align: right; padding-right: 20px"
-          >
-            <a
-              href="
-              {{ .login_url }}"
-              style="
-                color: #261d1d;
-                text-decoration: underline;
-                font-size: 14px;
-                letter-spacing: 1px;
-              "
-              >Sign In</a
-            >
-          </td>
-        </tr>
-      </table>
-      <div
-        style="padding: 20px 10px; border-top: 1px solid rgba(0, 0, 0, 0.05)"
-      >
-        <div style="color: #000000; font-size: 14px">
-          <p>Hi {{.firstname}},</p>
-          <p>
-            We've received your message and will get back to you within 24
-            hours. Here's a summary of what you submitted:
+      <tr>
+        <td align="center" style="padding: 50px 10px 30px 10px">
+          <img src="https://media.tifi.tv/telexbucket/public/logos/otp.png" alt="Telex Logo" width="250" style="display: block;" />
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding: 0px 30px;">
+          <h2 style="color: #000000; margin-bottom: 30px; font-size: 20px; text-align: center">
+            Thank you for contacting us!
+          </h2>
+          <h4 style="color: #666666; font-size: 15px;">Hi {{.firstname}},</h4>
+          <p style="color: #666666; font-size: 14px; line-height: 1.5;">
+            We've received your message and will get back to you within 24 hours. Here's a summary of what you submitted:
           </p>
-          <p>
+
+          <p style="color: #333333; font-size: 14px; line-height: 1.6;">
             <strong>Email:</strong> {{ .email }}<br />
             <strong>Phone Number:</strong> {{ .phone_number }}<br />
-            <strong>Message:</strong> {{ .message }}
+            <strong>Message:</strong><br />
+            {{ .message }}
           </p>
-          <p>
+
+          <p style="color: #666666; font-size: 14px; line-height: 1.5;">
             If you need immediate assistance, please visit our
-            <a href="{{.help_center_url}}">Help Center</a>.
+            <a href="{{.help_center_url}}" style="color: #7c50f8; text-decoration: underline;">Help Center</a>.
           </p>
-        </div>
-        <p>Sincerely, <br />Telex Inc. .</p>
-      </div>
-      <div style="background-color: #f5f5f5; padding: 40px; text-align: center">
-        <div
-          style="
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
-          "
-        >
-          <div style="color: #080707; font-size: 10px; margin-bottom: 5px">
-            Lagos Nigeria.
-          </div>
-          <div style="color: #342e2e; font-size: 10px">
-            © Copyright {{.year}}, All rights reserved.
-          </div>
-        </div>
-      </div>
-    </div>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding: 40px 30px; font-size: 14px; color: #333333;">
+          Regards,<br /><br />
+          The Telex Team.
+        </td>
+      </tr>
+
+      <tr>
+        <td align="center" style="font-size: 12px; color: #999999; padding: 50px 30px; background-color: #F9FAFB">
+          Thank you for choosing Telex.com. Need help? <a href="#" style="color: #7c50f8;">Contact our customer support</a>.
+          <br /><br />
+          You are receiving this email because you signed up at Telex.com. Want to change how you receive these emails?
+          <br /><br />
+          You can <a href="#" style="color: #7c50f8;">update your preferences</a> or <a href="#" style="color: #7c50f8;">unsubscribe</a> from this list.
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
