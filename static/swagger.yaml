@@ -100,6 +100,8 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
+  - name: Translator
+    description: API endpoints for telex markdown to json formatting engine
 
 paths:
   # Auth paths
@@ -17613,6 +17615,220 @@ paths:
                     type: object
                     nullable: true
                     example: null
+  /prompts:
+    post:
+      tags:
+        - Translator
+      summary: Create a new prompt
+      description: Creates a new prompt template for use in translation workflows.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - template
+              properties:
+                name:
+                  type: string
+                  example: Skill Matching
+                template:
+                  type: string
+                  example: |
+                    <system_prompt>
+                    YOU ARE A SKILL MATCHER AGENT.
+
+                    ### INPUTS ###
+                    - Agent skills: {{agent_skills}}
+                    - Global skills (fallback): {{global_skills}}
+      responses:
+        '200':
+          description: Prompt created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Prompt created successfully
+
+    get:
+      tags:
+        - Translator
+      summary: Fetch all prompts
+      description: Retrieves all saved prompts.
+      responses:
+        '200':
+          description: Prompts fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Prompts fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01989c6d-a14c-7545-bcf1-70690c8dc586
+                        name:
+                          type: string
+                          example: Workflow Translation
+                        template:
+                          type: string
+                        version:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-08-12T04:58:07.1813+01:00
+
+  /prompts/steps:
+    get:
+      tags:
+        - Translator
+      summary: Fetch most recent version of unique prompts/steps
+      description: Returns the latest version of unique prompt steps for use in workflows.
+      responses:
+        '200':
+          description: Unique steps fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Unique Steps fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01989c6d-a14c-7545-bcf1-70690c8dc586
+                        name:
+                          type: string
+                          example: Workflow Translation
+                        template:
+                          type: string
+                        version:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-08-12T04:58:07.1813+01:00
+
+  /translator:
+    post:
+      tags:
+        - Translator
+      summary: Execute translation workflow
+      description: Runs a multi-step translation process based on the provided task list and available skills.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_list
+                - agent_skills
+                - global_skills
+              properties:
+                task_list:
+                  type: string
+                  example: |
+                    - Review 45-min Zoom webinar on Q4 financials, find CFO strategy sections...
+                    - Extract audio from these segments, transcribe via speech-to-text...
+                agent_skills:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - skill_video_transcription
+                    - skill_text_summarization
+                    - skill_copywriting
+                global_skills:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - skill_translate_en_es
+                    - skill_translate_en_fr
+                    - skill_generate_social_post
+      responses:
+        '201':
+          description: Translation generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Translation generated successfully
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: success
+                      process_step:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            step:
+                              type: string
+                              example: Task Cleanup
+                            input:
+                              type: string
+                            output:
+                              type: string
+                            status:
+                              type: string
+                              example: completed
+                            prompt:
+                              type: string
+                            llm_call:
+                              type: boolean
+                              example: true
 
 components:
   schemas:
