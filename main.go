@@ -30,8 +30,9 @@ import (
 )
 
 func main() {
+
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the apps
-	
+
 	configuration := config.Setup(logger, "./app")
 	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
@@ -71,8 +72,8 @@ func main() {
 		seed.SeedIntegrations(logger, db.Postgresql)
 		seed.SeedIndex(logger, db.Elastic)
 		seed.SeedCreditPackages(logger, db.Postgresql)
+		seed.SeedTranslatorPrompt(logger, db.Postgresql)
 	}
-
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
 

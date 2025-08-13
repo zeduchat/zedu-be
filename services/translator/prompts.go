@@ -1,0 +1,61 @@
+package translator
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/hngprojects/telex_be/internal/models"
+	"gorm.io/gorm"
+)
+
+func CreatePrompt(db *gorm.DB, req models.Prompts) (int, error) {
+	var p models.Prompts
+
+	// exists := postgresql.CheckExists(db, &p, "name = ?", req.Name)
+	// if exists {
+	// 	return http.StatusBadRequest, errors.New("prompt with name already exist")
+	// }
+
+	p.Name = req.Name
+	p.Template = req.Template
+
+	err := p.CreatePrompt(db)
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("unable to create prompt: %v", err)
+	}
+
+	return http.StatusOK, nil
+}
+
+func GetPrompts(db *gorm.DB) ([]models.Prompts, int, error) {
+	var p models.Prompts
+
+	resp, code, err := p.GetAllPrompts(db)
+	if err != nil {
+		return resp, code, err
+	}
+
+	return resp, code, nil
+}
+
+func GetPrompt(db *gorm.DB, prompt_id string) (models.Prompts, int, error) {
+	var p models.Prompts
+
+	code, err := p.GetPrompt(db, prompt_id)
+	if err != nil {
+		return p, code, err
+	}
+
+	return p, code, nil
+}
+
+func FetchUniqueSteps(db *gorm.DB) ([]models.Prompts, int, error) {
+	var prompt models.Prompts 
+
+	prompts, err := prompt.FetchUniquePrompts(db)
+	if err != nil {
+		return []models.Prompts{}, http.StatusInternalServerError, err
+	}
+
+	return prompts, http.StatusOK, nil
+}
