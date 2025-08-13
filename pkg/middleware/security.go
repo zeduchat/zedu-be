@@ -63,7 +63,13 @@ func Security() gin.HandlerFunc {
 		c.Writer.Header().Add("X-Content-Type-Options", "nosniff")
 
 		// Content Security Policy
-		c.Writer.Header().Add("Content-Security-Policy", "default-src 'self';")
+		// c.Writer.Header().Add("Content-Security-Policy", "default-src 'self';")
+		c.Writer.Header().Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"style-src 'self' 'unsafe-inline'; "+
+				"script-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data:; "+
+				"font-src 'self';")
 
 		// X-Permitted-Cross-Domain-Policies
 		c.Writer.Header().Add("X-Permitted-Cross-Domain-Policies", "none")
