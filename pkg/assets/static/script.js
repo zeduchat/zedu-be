@@ -7,7 +7,7 @@ let selectedSteps = [];
 let lastTranslationResponse = null;
 
 // Base URL - modify this to match your API
-const BASE_URL = 'http://localhost:8019/api/v1'; // Change this to your API URL
+const BASE_URL = '/api/v1'; 
 
 // Tab functionality
 document.addEventListener('DOMContentLoaded', function() {
