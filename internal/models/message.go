@@ -33,6 +33,7 @@ type Message struct {
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
 	Mentions   []Mention      `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
 	AvatarURL  string         `json:"avatar_url,omitempty"`
+	UserType   string         `json:"user_type"`
 	IsPinned   bool           `json:"is_pinned"`
 	IsSaved    bool           `gorm:"type:bool;default:false" json:"is_saved"`
 	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
@@ -136,8 +137,8 @@ type EditMessageRequest struct {
 }
 
 type ForwardThreadMessageRequest struct {
-	ThreadId             string                 `json:"thread_id" validate:"required"` //thread id of the message to forward
-	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"`       //channel to forward to
+	ThreadId             string                 `json:"thread_id" validate:"required"`               //thread id of the message to forward
+	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
 	Content              string                 `json:"content"`
 	Media                []UploadedFileResponse `json:"media"`
 	Mentions             []Mention              `json:"mentions"`
