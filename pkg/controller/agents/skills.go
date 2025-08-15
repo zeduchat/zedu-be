@@ -49,7 +49,7 @@ func (base *Controller) CreateAgentSkill(c *gin.Context) {
 	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skill created", resp))
 }
 
-func (base *Controller) GetAgentSkill(c *gin.Context) {
+func (base *Controller) GetAgentSkills(c *gin.Context) {
 	agent_id := c.Param("agents_id")
 
 	if _, err := uuid.Parse(agent_id); err != nil {
@@ -67,6 +67,35 @@ func (base *Controller) GetAgentSkill(c *gin.Context) {
 	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skills retrieved", skills, pagination))
 }
 
+func (base *Controller) GetAgentSkillByID(c *gin.Context) {
+	agent_id := c.Param("agents_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	skill_id := c.Param("integration_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid integration_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	skills, err := agents.GetAgentSkillByID(agent_id, skill_id, base.Db.Postgresql)
+	if err != nil {
+		code := http.StatusInternalServerError
+		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
+		return
+	}
+	code := http.StatusOK
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skill retrieved", skills))
+}
+
 func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 	skill_id := c.Param("integration_id")
 	var updateData map[string]interface{}
@@ -78,11 +107,20 @@ func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 		return
 	}
 
+	agent_id := c.Param("agents_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
 		return
 	}
-	updated, err := agents.UpdateAgentSkill(skill_id, updateData, base.Db.Postgresql)
+	updated, err := agents.UpdateAgentSkill(skill_id, agent_id, updateData, base.Db.Postgresql)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update agent skill", nil))
 		return
@@ -92,9 +130,55 @@ func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 
 func (base *Controller) DeleteAgentSkill(c *gin.Context) {
 	skillID := c.Param("integration_id")
-	if err := agents.DeleteAgentSkill(skillID, base.Db.Postgresql); err != nil {
+
+	if _, err := uuid.Parse(skillID); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integraion id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	agentID := c.Param("agents_id")
+	if _, err := uuid.Parse(agentID); err != nil {
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := agents.DeleteAgentSkill(skillID, agentID, base.Db.Postgresql); err != nil {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete agent skill", nil))
 		return
 	}
 	c.JSON(http.StatusOK, utility.BuildSuccessResponse(http.StatusOK, "Agent skill deleted", nil))
+}
+
+func (base *Controller) GetGeneralAgentSkill(c *gin.Context) {
+
+	skills, pagination, err, code := agents.GetGeneralAgentSkills(base.Db.Postgresql, c)
+	if err != nil {
+		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
+		return
+	}
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skills retrieved", skills, pagination))
+}
+
+func (base *Controller) GetGeneralAgentSkillByID(c *gin.Context) {
+	agent_id := c.Param("skill_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	skills, err := agents.GetGeneralAgentSkillByID(agent_id, base.Db.Postgresql)
+	if err != nil {
+		code := http.StatusInternalServerError
+		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
+		return
+	}
+	code := http.StatusOK
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skill retrieved", skills))
 }
