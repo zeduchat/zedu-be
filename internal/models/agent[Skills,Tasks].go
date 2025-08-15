@@ -23,6 +23,17 @@ type AgentSkill struct {
 	Tags         []string `json:"tags"`
 }
 
+type GeneralAgentSkill struct {
+	ID           string   `gorm:"column:id;type:uuid" json:"id"`
+	Name         string   `gorm:"column:name;type:text" json:"name"`
+	Description  string   `gorm:"type:text" json:"description"`
+	Type         string   `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
+	IsActive     bool     `gorm:"type:boolean" json:"is_active"`
+	IsConfigured bool     `gorm:"type:boolean" json:"is_configured"`
+	Avatar       string   `gorm:"type:text" json:"avatar"`
+	Config       JSONBMap `json:"agent_config"`
+	Tags         []string `json:"tags"`
+}
 type CreateAgentSkillRequest struct {
 	Name        string   `json:"name" validate:"required"`
 	Description string   `json:"description" validate:"required"`

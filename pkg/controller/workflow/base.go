@@ -337,3 +337,50 @@ func (base *Controller) GetChannelWorkflows(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Workflow fetched successfully", resp)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) GetGeneralMarketPlaceWorkflowByID(c *gin.Context) {
+	var req models.WorkFlowRequest
+
+	req.Id = c.Param("workflow_id")
+
+	if _, err := uuid.Parse(req.Id); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid workflow ID format", errors.New("failed to parse workflow ID"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId = userClaims["user_id"].(string)
+
+	resp, code, err := workflow.GetGeneralMarketPlaceWorkflowId(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Workflow retrieved successfully")
+	rd := utility.BuildSuccessResponse(code, "Workflow retrieved successfully", resp)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetGeneralMarketWorkflows(c *gin.Context) {
+
+	resp, pag, code, err := workflow.ListGeneralMarketPlaceWorkflows(base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Workflow fetched successfully")
+	rd := utility.BuildSuccessResponse(code, "Workflow fetched successfully", resp, pag)
+	c.JSON(code, rd)
+}

@@ -51,6 +51,7 @@ func AuthMigrationModels() []any {
 		models.PinnedMessage{},
 		models.Reaction{},
 		models.Workflow{},
+		models.GeneralInvitation{},
 		models.ChannelWorkflow{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},

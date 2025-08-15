@@ -64,7 +64,7 @@ func (base *Controller) GetAgentSkill(c *gin.Context) {
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
-	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skills retrieved", gin.H{"data": skills, "pagination": pagination}))
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skills retrieved", skills, pagination))
 }
 
 func (base *Controller) UpdateAgentSkill(c *gin.Context) {
