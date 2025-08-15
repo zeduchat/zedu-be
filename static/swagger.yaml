@@ -17267,8 +17267,6 @@ paths:
                   message:
                     type: string
                     example: Workflow retrieved successfully
-                  data:
-                    $ref: "#/components/schemas/Workflow"
         "400":
           description: Bad request
           content:
@@ -17623,8 +17621,6 @@ paths:
                   message:
                     type: string
                     example: Workflow retrieved successfully
-                  data:
-                    $ref: "#/components/schemas/Workflow"
         "400":
           description: Bad request
           content:
@@ -17668,10 +17664,6 @@ paths:
                   message:
                     type: string
                     example: Workflows retrieved successfully
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Workflow"
         "400":
           description: Bad request
           content:
@@ -18142,7 +18134,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-
 
   /channels/{channelId}/thread/forward:
     post:
@@ -21345,6 +21336,80 @@ components:
           type: string
           format: date-time
           description: Timestamp when the webhook was last updated
+
+    AgentSkillResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Sales Assistant Bot"
+        description:
+          type: string
+          example: "Helps automate the sales process and customer engagement"
+        type:
+          type: string
+          example: "MCP"
+        is_active:
+          type: boolean
+          example: true
+        is_configured:
+          type: boolean
+          example: true
+        avatar:
+          type: string
+          example: "https://example.com/images/sales-bot.png"
+        agent_config:
+          type: object
+          additionalProperties: true
+          example:
+            language: "en"
+            max_conversations: 5
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["sales", "automation", "crm"]
+
+    GeneralAgentSkill:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Customer Support Bot"
+        description:
+          type: string
+          example: "Handles common customer support inquiries"
+        type:
+          type: string
+          example: "MCP"
+        is_active:
+          type: boolean
+          example: true
+        is_configured:
+          type: boolean
+          example: true
+        avatar:
+          type: string
+          example: "https://example.com/images/agent-avatar.png"
+        agent_config:
+          type: object
+          additionalProperties: true
+          example:
+            setting1: value1
+            setting2: value2
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["support", "chatbot"]
 
     UserUpdateSchema:
       type: object
