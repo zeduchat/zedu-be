@@ -19,6 +19,36 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
+	openRouterPayload := external_models.OpenRouterReq{
+		Model:    "openai/gpt-4o-mini",
+		Messages: req.Messages,
+	}
+
+	logger.Info(fmt.Sprintf("Making request to model: %s for translator completions", req.GetModel()))
+	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
+	if err != nil {
+		if strings.Contains(err.Error(), "429") {
+			logger.Error("OpenRouter API call failed with 429: ", err)
+			return map[string]any{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
+		}
+		logger.Error("OpenRouter API call failed: ", err)
+		return map[string]any{}, http.StatusBadRequest, err
+	}
+
+	result, ok := res.(map[string]any)
+	if !ok {
+		logger.Error("failed to get chat completions: ", res)
+		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("failed to get chat completions: %v", res)
+	}
+
+	if choices, exists := result["choices"].([]any); !exists || len(choices) == 0 {
+		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("no choices found in response")
+	}
+
+	return result, http.StatusOK, nil
+}
+
 func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (map[string]any, int, error) {
 	var (
 		telexlogs models.TelexAIUsageLog
