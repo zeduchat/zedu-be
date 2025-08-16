@@ -72,6 +72,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Reactions(r, ApiVersion, validator, db, logger)
 	WorkflowRoutes(r, ApiVersion, validator, db, logger)
 	ForwardMessage(r, ApiVersion, validator, db, logger)
+	AgentSkill(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
