@@ -13318,6 +13318,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
+  /webpush:
+    post:
+      tags:
+        - WebPush Subscription
+      security:
+        - bearerAuth: []
+      summary: Save user WebPush subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+                  description: The push service endpoint URL
+                  example: "https://fcm.googleapis.com/fcm/send/fz_lgDpzpIQ:APA91bGW3..."
+                keys:
+                  type: object
+                  properties:
+                    p256dh:
+                      type: string
+                      description: Base64-encoded user public key
+                      example: "BFXRH5I2qKuCOhCLnWAPzS0Bo3Xfg9NNrK4LH3..."
+                    auth:
+                      type: string
+                      description: Base64-encoded authentication secret
+                      example: "LFbe76x1NTS5mMxwVtU90w"
+              required:
+                - endpoint
+                - keys
+      responses:
+        "200":
+          description: WebPush subscription updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: success response
+                    example: success
+                  message:
+                    type: string
+                    example: "WebPush subscription updated successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
   # file management
   /files/upload-files:
     post:
