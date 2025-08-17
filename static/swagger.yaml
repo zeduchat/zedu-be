@@ -13336,20 +13336,18 @@ paths:
                   type: string
                   description: The push service endpoint URL
                   example: "https://fcm.googleapis.com/fcm/send/fz_lgDpzpIQ:APA91bGW3..."
-                keys:
-                  type: object
-                  properties:
-                    p256dh:
-                      type: string
-                      description: Base64-encoded user public key
-                      example: "BFXRH5I2qKuCOhCLnWAPzS0Bo3Xfg9NNrK4LH3..."
-                    auth:
-                      type: string
-                      description: Base64-encoded authentication secret
-                      example: "LFbe76x1NTS5mMxwVtU90w"
+                p256dh:
+                  type: string
+                  description: Base64-encoded user public key
+                  example: "BFXRH5I2qKuCOhCLnWAPzS0Bo3Xfg9NNrK4LH3..."
+                auth:
+                  type: string
+                  description: Base64-encoded authentication secret
+                  example: "LFbe76x1NTS5mMxwVtU90w"
               required:
                 - endpoint
-                - keys
+                - p256dh
+                - auth
       responses:
         "200":
           description: WebPush subscription updated successfully

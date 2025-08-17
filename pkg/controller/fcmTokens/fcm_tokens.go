@@ -102,8 +102,8 @@ func (base *Controller) CreateWnsToken(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("WNS config created for user successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "WNS config created for user successfully", nil)
+	base.Logger.Info("WNS config updated for user successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "WNS config updated for user successfully", nil)
 	c.JSON(code, rd)
 }
 
@@ -117,9 +117,6 @@ func (base *Controller) CreateWebPushToken(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
-	req.UserId = userId
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -137,6 +134,10 @@ func (base *Controller) CreateWebPushToken(c *gin.Context) {
 		return
 	}
 
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+	req.UserId = userId
+
 	code, err := fcmtokens.CreateWebPushToken(req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("error creating webpush config for user", err)
@@ -145,7 +146,7 @@ func (base *Controller) CreateWebPushToken(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("webpush config created for user successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "webpush config created for user successfully", nil)
+	base.Logger.Info("webpush config updated for user successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "webpush config updated for user successfully", nil)
 	c.JSON(code, rd)
 }

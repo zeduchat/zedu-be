@@ -103,9 +103,16 @@ func CreateWebPushToken(req models.CreateWebPushTokenRequest, db *gorm.DB) (int,
 
 	var ft models.FcmTokens
 
-	ft.SubsPayload = req.SubsPayload
+	ft.SubsPayload = models.SubsPayload{
+		Endpoint: req.Endpoint,
+		Keys: models.Keys{
+			Auth:   req.Auth,
+			P256dh: req.P256dh,
+		},
+	}
 	ft.IsLive = true
 	ft.ID = utility.GenerateUUID()
+	ft.UserId = req.UserId
 
 	err := ft.CreateWebPushConfig(db)
 

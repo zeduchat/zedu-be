@@ -31,8 +31,10 @@ type CreateFcmTokenRequest struct {
 }
 
 type CreateWebPushTokenRequest struct {
-	UserId      string      `json:"user_id"`
-	SubsPayload SubsPayload `json:"keys" validate:"required,dive"`
+	UserId   string `json:"user_id"`
+	Endpoint string `json:"endpoint" validate:"required"`
+	P256dh   string `json:"p256dh" validate:"required"`
+	Auth     string `json:"auth" validate:"required"`
 }
 
 type CreateWnsTokenRequest struct {
@@ -43,7 +45,7 @@ type CreateWnsTokenRequest struct {
 
 type SubsPayload struct {
 	Endpoint string `json:"endpoint" validate:"required"`
-	Keys     Keys   `json:"keys" validate:"required,dive"`
+	Keys     Keys   `json:"keys" validate:"required"`
 }
 type Keys struct {
 	P256dh string `json:"p256dh" validate:"required"`
@@ -154,7 +156,7 @@ func (ft *FcmTokens) CreateWebPushConfig(db *gorm.DB) error {
 	}
 
 	req_fields := make(map[string]any)
-	req_fields["web_sub_payload"] = ft.SubsPayload
+	req_fields["subs_payload"] = ft.SubsPayload
 
 	result, err := postgresql.UpdateFields(db, &FcmTokens{}, req_fields, "user_id = ?", ft.UserId)
 	if err != nil {
