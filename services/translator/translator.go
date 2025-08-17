@@ -32,7 +32,7 @@ import (
 func GenerateTranslation(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, req models.TranslationRequest) (models.TranslationResponse, int, error) {
 	// stepIds := []string{"Task Cleanup", "Skill Matching"}
 
-	stepProcess, err := runTranslationPipeline(db, logger, extReq, req.Steps, req.TaskList, req)
+	stepProcess, err := runTranslationPipeline(db, logger, extReq, req.TaskList, req)
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusBadRequest, err
 	}
@@ -45,7 +45,7 @@ func GenerateTranslation(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 	return resp, http.StatusOK, nil
 }
 
-func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, steps []string, tasklist string, req models.TranslationRequest) ([]models.ProcessStep, error) {
+func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, tasklist string, req models.TranslationRequest) ([]models.ProcessStep, error) {
 	stepProcess := []models.ProcessStep{}
 	placeholders := map[string]string{
 		"agent_skills":  strings.Join(req.AgentSkills, ", "),
@@ -54,15 +54,15 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 
 	var previousOutput string = tasklist
 
-	for i, step := range steps {
+	for i, step := range req.Steps {
 		var prompt models.Prompts
 
-		if _, err := prompt.GetLatestPrompt(db, step); err != nil {
+		if _, err := prompt.GetPromptByVersion(db, step); err != nil {
 			return stepProcess, err
 		}
 
 		pStep := models.ProcessStep{
-			Step:    step,
+			Step:    step.Name,
 			Input:   previousOutput,
 			Status:  "in_progress",
 			LLMCall: true,
@@ -83,13 +83,6 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 				pStep.Output,
 			)
 
-			// missErr, found := checkMissingSkills(pStep.Output)
-			// if found {
-			// 	pStep.Status = "failed_missing_skills"
-			// 	pStep.Output = missErr
-			// 	stepProcess = append(stepProcess, pStep)
-			// 	return stepProcess, missErr
-			// }
 		} else {
 			pStep.Output = pStep.Input
 		}
@@ -135,7 +128,7 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	if err != nil {
 		logger.Error("Error Generating Translator Completions: %v\n", err)
 		// return "", code, errors.New("error generating translation: telex-ai error")
-		return "", code, fmt.Errorf("error Generating Translator Completions: %v", err)
+		return "", code, fmt.Errorf("error generating translator completions: %v", err)
 	}
 
 	response, err := telexai.ExtractChatContent(ai_response)
