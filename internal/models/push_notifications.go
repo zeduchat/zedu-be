@@ -1,6 +1,6 @@
 package models
 
-type PushFCMRequest struct {
+type PushRequest struct {
 	ChannelId   string `json:"channel_id"`
 	UserId      string `json:"user_id"`
 	Message     string `json:"message"`
@@ -9,4 +9,5 @@ type PushFCMRequest struct {
 	AvatarUrl   string `json:"avatar_url"`
 	Username    string `json:"username"`
 	UserIds     []string
+	Payload     any
 }

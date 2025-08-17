@@ -31,13 +31,14 @@ func NewPushClient(logger *utility.Logger, webPush config.WebPush) *PushClient {
 }
 
 // SendPush sends a push notification to a given subscription
-func SendPush(subscription webpush.Subscription, payload any) error {
+func SendPush(payload any, subscription *webpush.Subscription) error {
+
 	message, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	resp, err := webpush.SendNotification(message, &subscription, &webpush.Options{
+	resp, err := webpush.SendNotification(message, subscription, &webpush.Options{
 		Subscriber:      "mailto:alayosingers@gmail.com",
 		VAPIDPublicKey:  Client.C.vapidPublicKey,
 		VAPIDPrivateKey: Client.C.vapidPrivateKey,
