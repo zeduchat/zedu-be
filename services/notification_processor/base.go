@@ -94,7 +94,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 
 	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
 
-	pushReq := models.PushFCMRequest{
+	pushReq := models.PushRequest{
 		ChannelId:   channelId,
 		ChannelName: feed.ChannelName,
 		UserIds:     userIDs,
@@ -109,6 +109,16 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	}
 
 	logger.Info("sent fcm push notification to channel users")
+
+	pushReq.Payload = notifPayload.Notification
+
+	err = push_notifications.SendWebPushToUsers(pushReq, logger, db)
+	if err != nil {
+		logger.Error("failed to send web push notifcation to channel users, Err: %v", err.Error())
+	}
+
+	logger.Info("sent web push notification to channel users")
+
 	return nil
 }
 
@@ -132,7 +142,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 			logger.Info("published new_message notification to %d users in dm", 1)
 
-			pushReq := models.PushFCMRequest{
+			pushReq := models.PushRequest{
 				ChannelName: feed.ChannelName,
 				UserId:      channelId,
 				Message:     feed.Content,
@@ -144,6 +154,14 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			if err != nil {
 				logger.Error("Failed to send push notification to user %s: %v", channelId, err)
 				return fmt.Errorf("failed to send push notification to user %s: %v", channelId, err)
+			}
+
+			pushReq.Payload = notifPayload.Notification
+
+			err = push_notifications.SendWebPush(pushReq, logger, db)
+			if err != nil {
+				logger.Error("Failed to send webpush notification to user %s: %v", channelId, err)
+				return fmt.Errorf("failed to send webpush notification to user %s: %v", channelId, err)
 			}
 
 			return nil
@@ -181,7 +199,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 			logger.Info("published new_message notification to %d users in group_dm", len(userIDs))
 
-			pushReq := models.PushFCMRequest{
+			pushReq := models.PushRequest{
 				UserIds:     userIDs,
 				ChannelName: feed.ChannelName,
 				Message:     feed.Content,
@@ -193,6 +211,17 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			if err != nil {
 				logger.Error("failed to send push notification to users %s: %v", userIDs, err)
 			}
+
+			logger.Info("sent fcm push notification to channel users")
+
+			pushReq.Payload = notifPayload.Notification
+
+			err = push_notifications.SendWebPushToUsers(pushReq, logger, db)
+			if err != nil {
+				logger.Error("failed to send web push notifcation to channel users, Err: %v", err.Error())
+			}
+
+			logger.Info("sent web push notification to channel users")
 
 			return nil
 		},

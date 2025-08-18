@@ -24,14 +24,16 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
+	"github.com/hngprojects/telex_be/pkg/repository/webpush"
 	"github.com/hngprojects/telex_be/pkg/router"
 	np "github.com/hngprojects/telex_be/services/notification_processor"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func main() {
+
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the apps
-	
+
 	configuration := config.Setup(logger, "./app")
 	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
@@ -46,6 +48,7 @@ func main() {
 	elastic.ConnectToElastic(logger, configuration.Elastic)
 	firebase.ConnectFirebase(logger, configuration.Firebase)
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
+	webpush.NewPushClient(logger, configuration.WebPush)
 
 	validatorRef := validator.New()
 	validatorRef.RegisterTagNameFunc(func(fld reflect.StructField) string {
@@ -71,8 +74,8 @@ func main() {
 		seed.SeedIntegrations(logger, db.Postgresql)
 		seed.SeedIndex(logger, db.Elastic)
 		seed.SeedCreditPackages(logger, db.Postgresql)
+		seed.SeedTranslatorPrompt(logger, db.Postgresql)
 	}
-
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
 

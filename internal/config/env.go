@@ -26,6 +26,7 @@ type Configuration struct {
 	OpenRouter   OpenRouter
 	Admin        Admin
 	Google       Google
+	WebPush      WebPush
 }
 
 type BaseConfig struct {
@@ -131,6 +132,8 @@ type BaseConfig struct {
 	GOOGLE_CLIENT_ID     string `mapstructure:"GOOGLE_CLIENT_ID"`
 	GOOGLE_CLIENT_SECRET string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 	GOOGLE_REDIRECT_URI  string `mapstructure:"GOOGLE_REDIRECT_URI"`
+	PubKey               string `mapstructure:"NEXT_PUBLIC_VAPID_PUBLIC_KEY"`
+	PrivKey              string `mapstructure:"NEXT_PUBLIC_VAPID_PRIVATE_KEY"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -274,6 +277,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			CLIENT_ID:     config.GOOGLE_CLIENT_ID,
 			CLIENT_SECRET: config.GOOGLE_CLIENT_SECRET,
 			REDIRECT_URI:  config.GOOGLE_REDIRECT_URI,
+		},
+		WebPush: WebPush{
+			PubKey:  config.PubKey,
+			PrivKey: config.PrivKey,
 		},
 	}
 }

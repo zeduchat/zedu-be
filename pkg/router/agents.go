@@ -16,13 +16,21 @@ import (
 func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
+	organisationUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		organisationUrl.POST("/:org_id/agents/:agents_id/integration", agentsCtrl.CreateAgentSkill)
-		organisationUrl.GET("/:org_id/agents/:agents_id/integration", agentsCtrl.GetAgentSkill)
-		organisationUrl.PUT("/:org_id/agents/:agents_id/integration/:integration_id", agentsCtrl.UpdateAgentSkill)
-		organisationUrl.DELETE("/:org_id/agents/:agents_id/integration/:integration_id", agentsCtrl.DeleteAgentSkill)
+		organisationUrl.POST("/:agents_id", agentsCtrl.CreateAgentSkill)
+		organisationUrl.GET("/:agents_id", agentsCtrl.GetAgentSkills)
+		organisationUrl.GET("/:agents_id/integration/:integration_id", agentsCtrl.GetAgentSkillByID)
+		organisationUrl.PUT("/:agents_id/integration/:integration_id", agentsCtrl.UpdateAgentSkill)
+		organisationUrl.DELETE("/:agents_id/integration/:integration_id", agentsCtrl.DeleteAgentSkill)
+	}
+
+	skillUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion))
+
+	{
+		skillUrl.GET("", agentsCtrl.GetGeneralAgentSkill)
+		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
 	}
 
 	return r

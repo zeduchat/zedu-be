@@ -58,17 +58,33 @@ func GetAgentSkills(agentID string, db *gorm.DB, c *gin.Context) ([]models.Agent
 	return skill.GetAgentSkills(db, agentID, c)
 }
 
-func GetAgentSkillByID(skillID string, db *gorm.DB) (models.AgentSkill, error) {
+func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkill, error) {
 	var skill models.AgentSkill
-	return skill.GetAgentSkillByID(db, skillID)
+	skill.AgentId = agentId
+	skill.ID = skillID
+	return skill.GetAgentSkillByID(db)
 }
 
-func UpdateAgentSkill(skillID string, updateData map[string]interface{}, db *gorm.DB) (models.AgentSkill, error) {
-	var skill models.AgentSkill
-	return skill.UpdateAgentSkill(db, skillID, updateData)
+func GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]models.GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
+	var skill models.GeneralAgentSkill
+	return skill.GetGeneralAgentSkills(db, c)
 }
 
-func DeleteAgentSkill(skillID string, db *gorm.DB) error {
+func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentSkill, error) {
+	var skill models.GeneralAgentSkill
+	return skill.GetGeneralAgentSkillByID(db, skillID)
+}
+
+func UpdateAgentSkill(skillID, agentId string, updateData map[string]interface{}, db *gorm.DB) (models.AgentSkill, error) {
 	var skill models.AgentSkill
-	return skill.DeleteAgentSkill(db, skillID)
+	skill.ID = skillID
+	skill.AgentId = agentId
+	return skill.UpdateAgentSkill(db, updateData)
+}
+
+func DeleteAgentSkill(skillID, agentId string, db *gorm.DB) error {
+	var skill models.AgentSkill
+	skill.ID = skillID
+	skill.AgentId = agentId
+	return skill.DeleteAgentSkill(db)
 }

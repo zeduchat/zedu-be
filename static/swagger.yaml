@@ -64,8 +64,6 @@ tags:
     description: API for newsletter related operations
   - name: squeeze
     description: API for squeeze optin related operations
-  - name: agentslashCommands
-    description: API for Agent Slash Commands
   - name: Channel Agent Settings
     description: API for channel agent settings
   - name: Channel Grouping
@@ -100,6 +98,10 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
+  - name: Skills
+    description: API endpoints for agents skills
+  - name: Translator
+    description: API endpoints for telex markdown to json formatting engine
 
 paths:
   # Auth paths
@@ -1422,7 +1424,7 @@ paths:
             enum: [accepted, invited, all]
             default: all
       responses:
-        '200':
+        "200":
           description: Successfully retrieved invites
           content:
             application/json:
@@ -1581,7 +1583,7 @@ paths:
             default: true
           description: Whether to include Agents in the response (default is true)
       responses:
-        '200':
+        "200":
           description: List of users and optionally bots retrieved successfully
           content:
             application/json:
@@ -1687,7 +1689,7 @@ paths:
               required:
                 - role_id
       responses:
-        '200':
+        "200":
           description: Role updated successfully
           content:
             application/json:
@@ -3117,7 +3119,7 @@ paths:
           description: Search query (e.g., email, name, username or phone)
           example: "user2"
       responses:
-        '200':
+        "200":
           description: Search successful
           content:
             application/json:
@@ -3208,7 +3210,7 @@ paths:
                   description: Set to `true` to activate the user, `false` to deactivate
                   example: true
       responses:
-        '200':
+        "200":
           description: User status updated successfully
           content:
             application/json:
@@ -3387,7 +3389,7 @@ paths:
             default: true
           description: Whether to include Agents in the response (default is true)
       responses:
-        '200':
+        "200":
           description: List of users and optionally bots retrieved successfully
           content:
             application/json:
@@ -4512,7 +4514,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  
   /subscriptions/plans:
     get:
       summary: Fetch all available subscription plans
@@ -4532,8 +4533,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  
-  
   /subscriptions/current/{orgId}:
     get:
       summary: Current subscription for an organization
@@ -6068,7 +6067,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /credits/usage-report/{org_id}:
     get:
       tags:
@@ -6112,7 +6110,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /credits/top-up:
     post:
@@ -6224,7 +6221,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
+
   /credits/usage/{org_id}:
     get:
       tags:
@@ -6268,7 +6265,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
- 
 
   /invite:
     post:
@@ -6414,7 +6410,7 @@ paths:
                         description: Role ID to assign the invited user
                         example: "019700d8-9085-7f7b-839a-fcbd08b9e26d"
       responses:
-        '201':
+        "201":
           description: Invitations successfully created
           content:
             application/json:
@@ -7984,7 +7980,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
-  
   /organisations/{org_id}/get-started:
     get:
       tags:
@@ -7999,7 +7994,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Get-started info retrieved successfully
           content:
             application/json:
@@ -11279,7 +11274,6 @@ paths:
           description: Organisation not found.
 
   /organisations/{organisationId}/agents/{agentId}:
-
     get:
       summary: Get agent details for an organization
       description: Retrieve a details for an agent in a specific organization.
@@ -11802,7 +11796,7 @@ paths:
           description: Invalid agent_id or request.
         404:
           description: Agent not found.
-  
+
     put:
       summary: Update a custom agent's prompt
       description: Update the system prompts for a specific agent.
@@ -11864,7 +11858,6 @@ paths:
           description: Invalid agent_id or request body.
         404:
           description: Agent not found.
-  
 
   /agents:
     get:
@@ -13301,6 +13294,69 @@ paths:
                   status_code:
                     type: integer
                     example: 201
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /webpush:
+    post:
+      tags:
+        - WebPush Subscription
+      security:
+        - bearerAuth: []
+      summary: Save user WebPush subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+                  description: The push service endpoint URL
+                  example: "https://fcm.googleapis.com/fcm/send/fz_lgDpzpIQ:APA91bGW3..."
+                p256dh:
+                  type: string
+                  description: Base64-encoded user public key
+                  example: "BFXRH5I2qKuCOhCLnWAPzS0Bo3Xfg9NNrK4LH3..."
+                auth:
+                  type: string
+                  description: Base64-encoded authentication secret
+                  example: "LFbe76x1NTS5mMxwVtU90w"
+              required:
+                - endpoint
+                - p256dh
+                - auth
+      responses:
+        "200":
+          description: WebPush subscription updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: success response
+                    example: success
+                  message:
+                    type: string
+                    example: "WebPush subscription updated successfully"
+                  status_code:
+                    type: integer
+                    example: 200
 
         "400":
           description: Invalid input
@@ -15325,7 +15381,7 @@ paths:
                                 items:
                                   type: string
       responses:
-        '200':
+        "200":
           description: Chat completed with tool call if needed
           content:
             application/json:
@@ -15493,7 +15549,7 @@ paths:
       description: Returns a list of TelexAI models that support function/tool calling capabilities.
       operationId: listToolModels
       responses:
-        '200':
+        "200":
           description: Successfully retrieved tool-supported models
           content:
             application/json:
@@ -15638,9 +15694,6 @@ paths:
                   error:
                     type: string
                     example: "file not found or inaccessible"
-  
-
-
 
   /organisations/{organisationId}/thread/save:
     post:
@@ -15884,7 +15937,6 @@ paths:
                     nullable: true
                     example: null
 
-
   /organisations/{org_id}/saved/message:
     get:
       tags:
@@ -15901,7 +15953,7 @@ paths:
           description: The ID of the organisation
           example: "019700db-4e22-7f90-a20e-f9116291ef24"
       responses:
-        '200':
+        "200":
           description: Messages retrieved successfully
           content:
             application/json:
@@ -15932,7 +15984,7 @@ paths:
                         content:
                           type: string
                           description: HTML or plain text message content
-                          example: "<p class=\"tracking-wide\">hi mans</p><p class=\"tracking-wide\"></p>"
+                          example: '<p class="tracking-wide">hi mans</p><p class="tracking-wide"></p>'
                         channel_name:
                           type: string
                           example: "general"
@@ -16036,7 +16088,7 @@ paths:
                   type: string
                   example: 01977eb2-bcf1-71a1-b0a4-5211e584df99
       responses:
-        '200':
+        "200":
           description: Organisation pinned successfully
           content:
             application/json:
@@ -16052,7 +16104,6 @@ paths:
                   message:
                     type: string
                     example: Organisation pinned successfully
-  
 
     get:
       tags:
@@ -16060,7 +16111,7 @@ paths:
       summary: Fetch user's pinned organisations
       description: Retrieves all organisations that the current user has pinned.
       responses:
-        '200':
+        "200":
           description: List of pinned organisations
           content:
             application/json:
@@ -16116,7 +16167,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Organisation unpinned successfully
           content:
             application/json:
@@ -16244,7 +16295,7 @@ paths:
                     example: null
 
   /channels/pin/{channelId}/thread/{threadId}:
-     delete:
+    delete:
       tags:
         - Pinned Messages
       summary: Unpin a thread message from a channel or DM
@@ -16436,7 +16487,7 @@ paths:
                     type: object
                     nullable: true
                     example: null
-  
+
   /channels/pin/{channelId}/message/{messageId}:
     delete:
       tags:
@@ -16725,7 +16776,6 @@ paths:
                     type: object
                     nullable: true
                     example: null
-
 
   /reactions/{reactionId}/thread/{threadId}:
     get:
@@ -17175,7 +17225,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-  
+
     get:
       tags:
         - Workflow
@@ -17282,8 +17332,6 @@ paths:
                   message:
                     type: string
                     example: Workflow retrieved successfully
-                  data:
-                    $ref: "#/components/schemas/Workflow"
         "400":
           description: Bad request
           content:
@@ -17302,7 +17350,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-  
+
     put:
       tags:
         - Workflow
@@ -17397,7 +17445,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-  
+
     delete:
       tags:
         - Workflow
@@ -17480,7 +17528,7 @@ paths:
                   description: ID of the channel to attach the workflow to
                   example: "chn_7890"
       responses:
-        '201':
+        "201":
           description: Workflow successfully attached to the channel
         "400":
           description: Bad request
@@ -17500,9 +17548,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-        '404':
+        "404":
           description: Channel or workflow not found
-        '500':
+        "500":
           description: Internal server error
 
   /channel-workflows/{workflow_id}/channels/{channel_id}:
@@ -17525,7 +17573,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Workflow successfully removed from the channel
         "400":
           description: Bad request
@@ -17545,9 +17593,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-        '404':
+        "404":
           description: Workflow or channel not found
-        '500':
+        "500":
           description: Internal server error
 
   /channel-workflows/organisations/{org_id}/channels/{channel_id}:
@@ -17570,7 +17618,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: List of workflows inculding those associated with the channel
           content:
             application/json:
@@ -17604,8 +17652,553 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-        '500':
+        "500":
           description: Internal server error
+
+  /workflows/{workflow_id}:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Workflow retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflow retrieved successfully
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /workflows:
+    get:
+      tags:
+        - Workflow
+      summary: Get all workflows
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Workflows retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Workflows retrieved successfully
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /skills:
+    get:
+      tags:
+        - Skills
+      summary: Get all agent skills
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Agent skills retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skills retrieved
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GeneralAgentSkill"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /skills/general/{skill_id}:
+    get:
+      tags:
+        - Skills
+      summary: Get agent skill by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: skill_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent skill retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill retrieved
+                  data:
+                    $ref: "#/components/schemas/GeneralAgentSkill"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /skills/{agents_id}:
+    get:
+      tags:
+        - Skills
+      summary: Get agent skill by Agent ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent skill retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill retrieved
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+    post:
+      tags:
+        - Skills
+      summary: Create a new agent skill
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                name:
+                  type: string
+                  example: "Sales Assistant Bot"
+                description:
+                  type: string
+                  example: "Helps automate the sales process and customer engagement"
+                type:
+                  type: string
+                  example: "MCP"
+                is_active:
+                  type: boolean
+                  example: true
+                is_configured:
+                  type: boolean
+                  example: true
+                avatar:
+                  type: string
+                  example: "https://example.com/images/sales-bot.png"
+                agent_config:
+                  type: object
+                  additionalProperties: true
+                  example:
+                    language: "en"
+                    max_conversations: 5
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["sales", "automation", "crm"]
+      responses:
+        "201":
+          description: Agent skill created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Agent skill created
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /skills/{agents_id}/integration/{integration_id}:
+    get:
+      tags:
+        - Skills
+      summary: Get agent skill integration by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent skill retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill retrieved
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+    put:
+      tags:
+        - Skills
+      summary: Update agent skill integration
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                name:
+                  type: string
+                  example: "Sales Assistant Bot"
+                description:
+                  type: string
+                  example: "Helps automate the sales process and customer engagement"
+                type:
+                  type: string
+                  example: "MCP"
+                is_active:
+                  type: boolean
+                  example: true
+                is_configured:
+                  type: boolean
+                  example: true
+                avatar:
+                  type: string
+                  example: "https://example.com/images/sales-bot.png"
+                agent_config:
+                  type: object
+                  additionalProperties: true
+                  example:
+                    language: "en"
+                    max_conversations: 5
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["sales", "automation", "crm"]
+      responses:
+        "200":
+          description: Agent skill updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill updated
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+    delete:
+      tags:
+        - Skills
+      summary: Delete agent skill integration
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent skill deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill deleted
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /channels/{channelId}/thread/forward:
     post:
@@ -17859,6 +18452,245 @@ paths:
                     type: object
                     nullable: true
                     example: null
+  /prompts:
+    post:
+      tags:
+        - Translator
+      summary: Create a new prompt
+      description: Creates a new prompt template for use in translation workflows.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - template
+              properties:
+                name:
+                  type: string
+                  example: Skill Matching
+                template:
+                  type: string
+                  example: |
+                    <system_prompt>
+                    YOU ARE A SKILL MATCHER AGENT.
+
+                    ### INPUTS ###
+                    - Agent skills: {{agent_skills}}
+                    - Global skills (fallback): {{global_skills}}
+      responses:
+        '200':
+          description: Prompt created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Prompt created successfully
+
+    get:
+      tags:
+        - Translator
+      summary: Fetch all prompts
+      description: Retrieves all saved prompts.
+      responses:
+        '200':
+          description: Prompts fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Prompts fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01989c6d-a14c-7545-bcf1-70690c8dc586
+                        name:
+                          type: string
+                          example: Workflow Translation
+                        template:
+                          type: string
+                        version:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-08-12T04:58:07.1813+01:00
+
+  /prompts/steps:
+    get:
+      tags:
+        - Translator
+      summary: Fetch most recent version of unique prompts/steps
+      description: Returns the latest version of unique prompt steps for use in workflows.
+      responses:
+        '200':
+          description: Unique steps fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Unique Steps fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 01989c6d-a14c-7545-bcf1-70690c8dc586
+                        name:
+                          type: string
+                          example: Workflow Translation
+                        template:
+                          type: string
+                        version:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: 2025-08-12T04:58:07.1813+01:00
+
+  /translator/tester:
+      get:
+        tags:
+        - Translator
+        summary: Runs an interavtive user interface for generating json for workflows 
+        description: Runs an interavtive user interface for generating json for workflows 
+        responses:
+          '201':
+            description: Translation prompt fetched successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: success
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: Translation prompt fetched successfully
+                           
+
+  /translator:
+    post:
+      tags:
+        - Translator
+      summary: Execute translation workflow
+      description: Runs a multi-step translation process based on the provided task list and available skills.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_list
+                - agent_skills
+                - global_skills
+              properties:
+                task_list:
+                  type: string
+                  example: |
+                    - Review 45-min Zoom webinar on Q4 financials, find CFO strategy sections...
+                    - Extract audio from these segments, transcribe via speech-to-text...
+                agent_skills:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - skill_video_transcription
+                    - skill_text_summarization
+                    - skill_copywriting
+                global_skills:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - skill_translate_en_es
+                    - skill_translate_en_fr
+                    - skill_generate_social_post
+      responses:
+        '201':
+          description: Translation generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Translation generated successfully
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: success
+                      process_step:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            step:
+                              type: string
+                              example: Task Cleanup
+                            input:
+                              type: string
+                            output:
+                              type: string
+                            status:
+                              type: string
+                              example: completed
+                            prompt:
+                              type: string
+                            llm_call:
+                              type: boolean
+                              example: true
 
 components:
   schemas:
@@ -20808,6 +21640,80 @@ components:
           type: string
           format: date-time
           description: Timestamp when the webhook was last updated
+
+    AgentSkillResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Sales Assistant Bot"
+        description:
+          type: string
+          example: "Helps automate the sales process and customer engagement"
+        type:
+          type: string
+          example: "MCP"
+        is_active:
+          type: boolean
+          example: true
+        is_configured:
+          type: boolean
+          example: true
+        avatar:
+          type: string
+          example: "https://example.com/images/sales-bot.png"
+        agent_config:
+          type: object
+          additionalProperties: true
+          example:
+            language: "en"
+            max_conversations: 5
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["sales", "automation", "crm"]
+
+    GeneralAgentSkill:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Customer Support Bot"
+        description:
+          type: string
+          example: "Handles common customer support inquiries"
+        type:
+          type: string
+          example: "MCP"
+        is_active:
+          type: boolean
+          example: true
+        is_configured:
+          type: boolean
+          example: true
+        avatar:
+          type: string
+          example: "https://example.com/images/agent-avatar.png"
+        agent_config:
+          type: object
+          additionalProperties: true
+          example:
+            setting1: value1
+            setting2: value2
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["support", "chatbot"]
 
     UserUpdateSchema:
       type: object

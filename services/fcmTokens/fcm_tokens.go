@@ -65,7 +65,23 @@ func GetFcmTokenByUserId(userId string, db *gorm.DB) (string, bool, error) {
 
 }
 
-func GetFcmTokenByUserIds(userIds []string, db *gorm.DB) ([]string, error) {
+func GetWebPushTokenByUserId(userId string, db *gorm.DB) (*models.SubsPayload, bool, error) {
+
+	var ft models.FcmTokens
+
+	ft.UserId = userId
+
+	exists, err := ft.GetValidWebPushTokenByUserId(db)
+
+	if err != nil {
+		return &ft.SubsPayload, exists, err
+	}
+
+	return &ft.SubsPayload, exists, nil
+
+}
+
+func GetFcmTokenByUserIds(userIds []string, db *gorm.DB) (*[]string, error) {
 
 	var ft models.FcmTokens
 	fcmtokens := []string{}
@@ -73,12 +89,55 @@ func GetFcmTokenByUserIds(userIds []string, db *gorm.DB) ([]string, error) {
 	resp, err := ft.GetFcmTokenByUserIds(db, userIds)
 
 	if err != nil {
-		return fcmtokens, err
+		return &fcmtokens, err
 	}
 
-	for _, ft := range resp {
+	for _, ft := range *resp {
 		fcmtokens = append(fcmtokens, ft.FcmToken)
 	}
 
-	return fcmtokens, nil
+	return &fcmtokens, nil
+}
+
+func CreateWebPushToken(req models.CreateWebPushTokenRequest, db *gorm.DB) (int, error) {
+
+	var ft models.FcmTokens
+
+	ft.SubsPayload = models.SubsPayload{
+		Endpoint: req.Endpoint,
+		Keys: models.Keys{
+			Auth:   req.Auth,
+			P256dh: req.P256dh,
+		},
+	}
+	ft.IsLive = true
+	ft.ID = utility.GenerateUUID()
+	ft.UserId = req.UserId
+
+	err := ft.CreateWebPushConfig(db)
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusCreated, nil
+
+}
+
+func GetWebPushTokenByUserIds(userIds []string, db *gorm.DB) (*[]models.SubsPayload, error) {
+
+	var ft models.FcmTokens
+	webptokens := []models.SubsPayload{}
+
+	resp, err := ft.GetValidWebPushTokenByUserIds(db, userIds)
+
+	if err != nil {
+		return &webptokens, err
+	}
+
+	for _, ft := range *resp {
+		webptokens = append(webptokens, ft.SubsPayload)
+	}
+
+	return &webptokens, nil
 }
