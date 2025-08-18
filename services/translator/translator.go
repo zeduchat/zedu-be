@@ -13,24 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// func checkMissingSkills(output string) (*models.MissingSkillsResponse, bool) {
-// 	var missResp struct {
-// 		MissingSkills []string `json:"missing_skills"`
-// 		Suggestion    string   `json:"suggestion"`
-// 	}
-// 	if err := json.Unmarshal([]byte(output), &missResp); err == nil {
-// 		if len(missResp.MissingSkills) > 0 {
-// 			return &models.MissingSkillsResponse{
-// 				MissingSkills: missResp.MissingSkills,
-// 				Suggestion:    missResp.Suggestion,
-// 			}, true
-// 		}
-// 	}
-// 	return nil, false
-// }
-
 func GenerateTranslation(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, req models.TranslationRequest) (models.TranslationResponse, int, error) {
-	// stepIds := []string{"Task Cleanup", "Skill Matching"}
 
 	stepProcess, err := runTranslationPipeline(db, logger, extReq, req.TaskList, req)
 	if err != nil {
@@ -54,7 +37,7 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 
 	var previousOutput string = tasklist
 
-	for i, step := range req.Steps {
+	for _, step := range req.Steps {
 		var prompt models.Prompts
 
 		if _, err := prompt.GetPromptByVersion(db, step); err != nil {
@@ -76,12 +59,6 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 				return stepProcess, err
 			}
 			pStep.Output = aiOutput
-			fmt.Printf(
-				"\n\n===== Step %d =====\n\nInput:\n%v\n\nOutput:\n%v\n==============================\n\n",
-				i+1,
-				pStep.Input,
-				pStep.Output,
-			)
 
 		} else {
 			pStep.Output = pStep.Input
@@ -127,7 +104,6 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	ai_response, code, err := telexai.TranslatorCompletions(logger, extReq, req)
 	if err != nil {
 		logger.Error("Error Generating Translator Completions: %v\n", err)
-		// return "", code, errors.New("error generating translation: telex-ai error")
 		return "", code, fmt.Errorf("error generating translator completions: %v", err)
 	}
 
