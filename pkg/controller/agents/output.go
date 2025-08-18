@@ -48,7 +48,7 @@ func (base *Controller) GetSystemAgentApps(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agents),
+		"total_items":  len(*agents),
 	}
 
 	base.Logger.Info("agents retrieved successfully.")

@@ -28,6 +28,13 @@ func FcmToken(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	{
 		wnsConfigUrl.POST("", fcm.CreateWnsToken)
 	}
+
+	webPushConfigUrl := r.Group(fmt.Sprintf("%v/webpush", ApiVersion), middleware.Authorize(db.Postgresql))
+
+	{
+		webPushConfigUrl.POST("", fcm.CreateWebPushToken)
+	}
+
 	return r
 }
 

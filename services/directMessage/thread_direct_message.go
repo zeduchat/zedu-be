@@ -466,7 +466,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	}
 	logger.Info(fmt.Sprintf("Publishing to channel id: %s", req.ChannelID))
 
-	pushReq := models.PushFCMRequest{
+	pushReq := models.PushRequest{
 		ChannelName: feed.UserName,
 		UserId:      *channel.ParticipantId,
 		Message:     req.Content,
