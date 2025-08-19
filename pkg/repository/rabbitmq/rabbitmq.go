@@ -8,10 +8,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/rabbitmq/amqp091-go"
 )
+
+type CeleryHeaders struct {
+	ID           string        `json:"id"`
+	Task         string        `json:"task"`
+	RootID       string        `json:"root_id"`
+	ParentID     *string       `json:"parent_id"`
+	ETA          *string       `json:"eta"`
+	Retry        int           `json:"retries"`
+	Group        *string       `json:"group"`
+	IgnoreResult bool          `json:"ignore_result"`
+	ArgsRepr     string        `json:"argsrepr,omitempty"`
+	KWArgsRepr   string        `json:"kwargsrepr,omitempty"`
+	TimeLimit    [2]int        `json:"timelimit"`
+}
 
 func NewQueueManager(config config.RabbitMQ) *QueueManager {
 	return &QueueManager{
@@ -170,14 +185,45 @@ func (qm *QueueManager) Close() error {
 	return nil
 }
 
-func (qm *QueueManager) Publish(payload, routingKey string) error {
 
+
+func (qm *QueueManager) PublishCelery(argPayload map[string]any, routingKey string) error {
 	qm.mu.Lock()
 	if !qm.isReady {
 		qm.mu.Unlock()
 		return errNotConnected
 	}
 	qm.mu.Unlock()
+
+	// Celery body = [args, kwargs, options]
+	body := []any{
+		[]any{argPayload}, // args
+		map[string]any{},  // kwargs
+		map[string]any{    // options
+			"chain": nil,
+		},
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal body: %w", err)
+	}
+
+	// Generate task UUID
+	taskID := uuid.NewString()
+
+	headers := amqp091.Table{
+		"id":           taskID,
+		"task":         "telex_queue_processor.handle_direct_message",
+		"root_id":      taskID,
+		"parent_id":    nil,
+		"eta":          nil,
+		"retries":      int32(0),
+		"group":        nil,
+		"ignore_result": true,
+		"timelimit":    []int32{60},
+		"kwargsrepr":   "{}",
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -189,9 +235,11 @@ func (qm *QueueManager) Publish(payload, routingKey string) error {
 		false,              // Mandatory
 		false,              // Immediate
 		amqp091.Publishing{
-			ContentType:  "application/json",
-			Body:         []byte(payload),
-			DeliveryMode: amqp091.Persistent,
+			ContentType:     "application/json",
+			ContentEncoding: "utf-8",
+			DeliveryMode:    amqp091.Persistent,
+			Headers:         headers,
+			Body:            bodyBytes,
 		},
 	)
 }
