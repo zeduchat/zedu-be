@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
