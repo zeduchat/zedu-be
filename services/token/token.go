@@ -1,7 +1,9 @@
 package token
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,10 +40,27 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 
 	var (
 		channelName = req.Channel
+		org         = models.Organisation{}
+		orgId       string
+		cUserId     string
 	)
 
-	userClaims := jwt.MapClaims{}
+	parts := strings.Split(req.Channel, "/")
+	if len(parts) == 2 {
+		orgId = parts[0]
+		cUserId = parts[1]
 
+		exist, _ := org.CheckUserIsMemberOfOrg(userId, orgId, db)
+
+		if !exist || cUserId != userId {
+			return gin.H{}, http.StatusBadRequest, errors.New("invalid channel subscription")
+		}
+
+	} else {
+
+	}
+
+	userClaims := jwt.MapClaims{}
 	userClaims["sub"] = userId
 	userClaims["channel"] = channelName
 	userClaims["exp"] = time.Now().Unix() + int64(3600)
