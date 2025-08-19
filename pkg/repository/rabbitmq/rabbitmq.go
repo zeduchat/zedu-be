@@ -188,7 +188,7 @@ func (qm *QueueManager) Close() error {
 
 
 
-func (qm *QueueManager) PublishCelery(argPayload map[string]any, routingKey string) error {
+func (qm *QueueManager) Publish(argPayload map[string]any, routingKey string) error {
 	qm.mu.Lock()
 	if !qm.isReady {
 		qm.mu.Unlock()
