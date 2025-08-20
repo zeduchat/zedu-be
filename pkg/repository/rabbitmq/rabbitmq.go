@@ -7,9 +7,7 @@ import (
 	"os"
 	"sync"
 	"time"
-	"encoding/json"
 
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/rabbitmq/amqp091-go"
