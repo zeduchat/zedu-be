@@ -41,6 +41,7 @@ require (
 	github.com/stripe/stripe-go/v72 v72.122.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
+	github.com/thanhpk/randstr v1.0.6
 	github.com/typesense/typesense-go/v2 v2.0.0
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/crypto v0.33.0

@@ -215,6 +215,14 @@ paths:
                       access_token:
                         type: string
                         example: "access_token"
+                      access_token_expires_in":
+                        type: string
+                        format: date-time
+                      notification_token:
+                        type: string
+                        format: token
+                        example: KADFKIEWKJADFIOAIJE080
+
         "401":
           description: Unauthorized
           content:
@@ -235,6 +243,13 @@ paths:
       summary: logout a user
       security:
         - bearerAuth: []
+      parameters:
+          - in: header
+            name: X-Platform
+            schema:
+              type: string
+            required: true
+            description: device platform (desktop, mobile or web).
       responses:
         "200":
           description: User logout successfully
@@ -3637,6 +3652,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+  
+  /centrifugo/connection:
+    get:
+      tags:
+        - tokens
+      summary: Generate connection token
+      description: Retrieve a connection token for establishing a connection to the server.
+      security:
+        - NotificationTokenHeader: []
+      responses:
+        "200":
+          description: Connection token retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTokenResponseSchema"
+        "400":
+          description: Bad request (missing or invalid `X-Notification-Token` header)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized (expired or invalid notification token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /centrifugo/subscription:
+    post:
+      tags:
+        - tokens
+      summary: Generate subscription token
+      description: Generate a token for subscribing to a specific channel.
+      security:
+        - NotificationTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionTokenRequestSchema"
+      responses:
+        "200":
+          description: Subscription token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionTokenResponseSchema"
+        "400":
+          description: Bad request (missing or invalid `X-Notification-Token` header)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized (expired or invalid notification token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
 
   /blogs:
     post:
@@ -11737,7 +11815,7 @@ paths:
         404:
           description: Organisation not found.
 
-  /agents/{agent_id}/prompt:
+  /organisations/{organisationId}/agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt
       description: Retrieve the system prompts for a specific agent.
@@ -11746,6 +11824,12 @@ paths:
       tags:
         - Agents Colleague
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -11805,6 +11889,12 @@ paths:
       tags:
         - Agents Colleague
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -21951,3 +22041,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+    NotificationTokenHeader:
+      type: apiKey
+      in: header
+      name: X-Notification-Token
+      description: |
+        Notification token required to access these endpoints.  
+        This replaces the Bearer authentication for unauthenticated connection/subscription tokens.

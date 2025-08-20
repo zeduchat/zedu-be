@@ -430,6 +430,15 @@ func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
 		req models.UpdateAgentPromptRequest
 	)
 
+	org_id := c.Param("org_id")
+
+	if _, err := uuid.Parse(org_id); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	agent_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(agent_id); err != nil {
@@ -464,6 +473,7 @@ func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
 	req.AgentId = agent_id
+	req.OrgId = org_id
 
 	code, err := agents.UpdateCustomAgentPrompt(req, base.Db.Postgresql, base.ExtReq, base.Logger)
 	if err != nil {
@@ -564,10 +574,14 @@ func (base *Controller) FetchCustomAgentPrompt(c *gin.Context) {
 
 	resp, code, err := agents.FetchCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)
 	if err != nil {
-		base.Logger.Error("Failed to update agent", err)
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
+		base.Logger.Error("Failed to fetch agent", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to fetch agent", nil)
 		c.JSON(code, rd)
 		return
+	}
+
+	if resp.SystemPrompts == nil {
+		resp.SystemPrompts = models.JSONSystemPrompts{}
 	}
 
 	base.Logger.Info("Agent fetched successfully")
