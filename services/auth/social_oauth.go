@@ -135,6 +135,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			"updated_at":      strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
+		"access_token_expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 		"notification_token": access_token.SubAccessToken,
 	}
 	if sendWelcome {

@@ -240,6 +240,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		},
 		"access_token":       tokenData.AccessToken,
 		"notification_token": access_token.SubAccessToken,
+		"access_token_expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
