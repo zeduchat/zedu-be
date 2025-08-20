@@ -77,11 +77,11 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 		return
 	}
 
-	skill_id := c.Param("integration_id")
+	skill_id := c.Param("skill_id")
 
 	if _, err := uuid.Parse(agent_id); err != nil {
-		base.Logger.Error("invalid integration_id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration_id format", "failed to decode agent id", nil)
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill_id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -97,12 +97,12 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 }
 
 func (base *Controller) UpdateAgentSkill(c *gin.Context) {
-	skill_id := c.Param("integration_id")
+	skill_id := c.Param("skill_id")
 	var updateData map[string]interface{}
 
 	if _, err := uuid.Parse(skill_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integraion id", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill id format", "failed to decode skill id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -129,11 +129,11 @@ func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 }
 
 func (base *Controller) DeleteAgentSkill(c *gin.Context) {
-	skillID := c.Param("integration_id")
+	skillID := c.Param("skill_id")
 
 	if _, err := uuid.Parse(skillID); err != nil {
 		base.Logger.Error("invalid agent id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid integration id format", "failed to decode integraion id", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill id format", "failed to decode skill id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

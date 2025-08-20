@@ -17937,7 +17937,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-  /skills/{agents_id}:
+  /skills/agents/{agents_id}:
     get:
       tags:
         - Skills
@@ -18080,11 +18080,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-  /skills/{agents_id}/integration/{integration_id}:
+  /skills/{skill_id}/agents/{agents_id}:
     get:
       tags:
         - Skills
-      summary: Get agent skill integration by ID
+      summary: Get agent skill by ID
       security:
         - bearerAuth: []
       parameters:
@@ -18094,7 +18094,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: integration_id
+        - name: skill_id
           in: path
           required: true
           schema:
@@ -18141,7 +18141,7 @@ paths:
     put:
       tags:
         - Skills
-      summary: Update agent skill integration
+      summary: Update agent skill
       security:
         - bearerAuth: []
       parameters:
@@ -18151,7 +18151,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: integration_id
+        - name: skill_id
           in: path
           required: true
           schema:
@@ -18238,7 +18238,7 @@ paths:
     delete:
       tags:
         - Skills
-      summary: Delete agent skill integration
+      summary: Delete agent skill
       security:
         - bearerAuth: []
       parameters:
@@ -18248,7 +18248,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: integration_id
+        - name: skill_id
           in: path
           required: true
           schema:
