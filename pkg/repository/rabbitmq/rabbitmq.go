@@ -13,6 +13,20 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
+type CeleryHeaders struct {
+	ID           string        `json:"id"`
+	Task         string        `json:"task"`
+	RootID       string        `json:"root_id"`
+	ParentID     *string       `json:"parent_id"`
+	ETA          *string       `json:"eta"`
+	Retry        int           `json:"retries"`
+	Group        *string       `json:"group"`
+	IgnoreResult bool          `json:"ignore_result"`
+	ArgsRepr     string        `json:"argsrepr,omitempty"`
+	KWArgsRepr   string        `json:"kwargsrepr,omitempty"`
+	TimeLimit    [2]int        `json:"timelimit"`
+}
+
 func NewQueueManager(config config.RabbitMQ) *QueueManager {
 	return &QueueManager{
 		mu:      &sync.Mutex{},
@@ -169,6 +183,7 @@ func (qm *QueueManager) Close() error {
 	qm.isReady = false
 	return nil
 }
+
 
 func (qm *QueueManager) Publish(payload, routingKey string) error {
 

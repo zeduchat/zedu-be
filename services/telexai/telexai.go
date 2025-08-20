@@ -21,7 +21,7 @@ import (
 
 func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
 	openRouterPayload := external_models.OpenRouterReq{
-		Model:    "openai/gpt-4o-mini",
+		Model:    "google/gemini-2.0-flash-001",
 		Messages: req.Messages,
 	}
 

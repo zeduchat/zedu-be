@@ -30,7 +30,7 @@ func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 
 	{
 		skillUrl.GET("", agentsCtrl.GetGeneralAgentSkill)
-		skillUrl.GET("/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
+		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
 	}
 
 	return r
