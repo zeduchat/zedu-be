@@ -186,7 +186,9 @@ func (qm *QueueManager) Close() error {
 	return nil
 }
 
-func (qm *QueueManager) Publish(payload string, routingKey string) error {
+
+func (qm *QueueManager) Publish(payload, routingKey string) error {
+
 	qm.mu.Lock()
 	if !qm.isReady {
 		qm.mu.Unlock()
@@ -194,54 +196,19 @@ func (qm *QueueManager) Publish(payload string, routingKey string) error {
 	}
 	qm.mu.Unlock()
 
-	var argPayload map[string]any
-	if err := json.Unmarshal([]byte(payload), &argPayload); err != nil {
-		return fmt.Errorf("invalid JSON payload: %w", err)
-	}
-
-	body := []any{
-		[]any{argPayload},
-		map[string]any{},
-		map[string]any{
-			"chain": nil,
-		},
-	}
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("failed to marshal body: %w", err)
-	}
-
-	taskID := uuid.NewString()
-
-	headers := amqp091.Table{
-		"id":            taskID,
-		"task":          "telex_queue_processor.handle_direct_message",
-		"root_id":       taskID,
-		"parent_id":     nil,
-		"eta":           nil,
-		"retries":       int32(0),
-		"group":         nil,
-		"ignore_result": true,
-		"timelimit":     []int32{60},
-		"kwargsrepr":    "{}",
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	return qm.channel.PublishWithContext(
 		ctx,
-		qm.config.Exchange,
-		routingKey,
-		false,
-		false,
+		qm.config.Exchange, // Exchange
+		routingKey,         // Routing key
+		false,              // Mandatory
+		false,              // Immediate
 		amqp091.Publishing{
-			ContentType:     "application/json",
-			ContentEncoding: "utf-8",
-			DeliveryMode:    amqp091.Persistent,
-			Headers:         headers,
-			Body:            bodyBytes,
+			ContentType:  "application/json",
+			Body:         []byte(payload),
+			DeliveryMode: amqp091.Persistent,
 		},
 	)
 }
