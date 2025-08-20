@@ -215,7 +215,7 @@ paths:
                       access_token:
                         type: string
                         example: "access_token"
-                      access_token_expires_in":
+                      access_token_expires_in:
                         type: string
                         format: date-time
                       notification_token:
