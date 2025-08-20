@@ -56,6 +56,12 @@ type LoginRequestModel struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type LogoutReqModel struct {
+	AccessUuid string
+	Platform   string
+	UserId     string
+}
+
 type SwitchUserOrgReqeust struct {
 	CurrentOrg string `json:"current_org" validate:"required"`
 }
@@ -250,7 +256,7 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 
 func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bool) error {
 	var (
-		oum OrgUserManagement
+		oum      OrgUserManagement
 		oumCheck OrgUserManagement
 	)
 

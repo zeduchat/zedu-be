@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -49,6 +50,10 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 	if len(parts) == 2 {
 		orgId = parts[0]
 		cUserId = parts[1]
+
+		if _, err := uuid.Parse(orgId); err != nil {
+			return gin.H{}, http.StatusBadRequest, errors.New("invalid channel id format")
+		}
 
 		exist, _ := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 

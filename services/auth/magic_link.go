@@ -145,6 +145,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
+		"notification_token": access_token.SubAccessToken,
 	}
 
 	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)

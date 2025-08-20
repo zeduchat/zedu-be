@@ -171,7 +171,8 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
-		"access_token": tokenData.AccessToken,
+		"access_token":       tokenData.AccessToken,
+		"notification_token": access_token.SubAccessToken,
 	}
 	return responseData, http.StatusCreated, nil
 }
@@ -237,7 +238,8 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
-		"access_token": tokenData.AccessToken,
+		"access_token":       tokenData.AccessToken,
+		"notification_token": access_token.SubAccessToken,
 	}
 
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
@@ -245,12 +247,12 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	return responseData, http.StatusOK, nil
 }
 
-func LogoutUser(access_uuid, user_id string, db *gorm.DB) (int, error) {
+func LogoutUser(req models.LogoutReqModel, db *gorm.DB) (int, error) {
 	var (
 		user models.User
 	)
 
-	if err := db.Where("id = ?", user_id).First(&user).Error; err != nil {
+	if err := db.Where("id = ?", req.UserId).First(&user).Error; err != nil {
 		return http.StatusNotFound, fmt.Errorf("user not found: %w", err)
 	}
 
@@ -258,7 +260,11 @@ func LogoutUser(access_uuid, user_id string, db *gorm.DB) (int, error) {
 		return http.StatusInternalServerError, fmt.Errorf("error updating user: %w", err)
 	}
 
-	access_token := models.AccessToken{ID: access_uuid, OwnerID: user_id}
+	access_token := models.AccessToken{ID: req.AccessUuid, OwnerID: req.UserId}
+
+	if req.Platform == "desktop" {
+		access_token.IsLiveNotificaionToken = false
+	}
 
 	if err := access_token.RevokeAccessToken(db); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("error revoking user session: %w", err)
