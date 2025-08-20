@@ -70,6 +70,8 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
 		organisationUrl.GET("/:org_id/agents/:agent_id", agentsCtrl.FetchCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
+		organisationUrl.GET("/:org_id/agents/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
+		organisationUrl.PUT("/:org_id/agents/:agent_id/prompts", agentsCtrl.UpdateAgentPrompt)
 
 		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
 		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
@@ -106,8 +108,6 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	agentUrl := r.Group(fmt.Sprintf("%v/agents", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		agentUrl.GET("/:agent_id/settings", agent.GetAgentSettingsAllOrgs)
-		agentUrl.GET("/:agent_id/prompt", agentsCtrl.FetchCustomAgentPrompt)
-		agentUrl.PUT("/:agent_id/prompt", agentsCtrl.UpdateAgentPrompt)
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)

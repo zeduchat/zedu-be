@@ -243,6 +243,13 @@ paths:
       summary: logout a user
       security:
         - bearerAuth: []
+      parameters:
+          - in: header
+            name: X-Platform
+            schema:
+              type: string
+            required: true
+            description: device platform (desktop, mobile or web).
       responses:
         "200":
           description: User logout successfully
@@ -11816,7 +11823,7 @@ paths:
         404:
           description: Organisation not found.
 
-  /agents/{agent_id}/prompt:
+  /organisations/{organisationId}/agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt
       description: Retrieve the system prompts for a specific agent.
@@ -11825,6 +11832,12 @@ paths:
       tags:
         - Agents Colleague
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -11884,6 +11897,12 @@ paths:
       tags:
         - Agents Colleague
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
