@@ -88,7 +88,7 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 
 	skills, err := agents.GetAgentSkillByID(agent_id, skill_id, base.Db.Postgresql)
 	if err != nil {
-		code := http.StatusInternalServerError
+		code := http.StatusBadRequest
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
@@ -98,7 +98,7 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 
 func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 	skill_id := c.Param("skill_id")
-	var updateData map[string]interface{}
+	var updateData models.UpdateAgentSkillRequest
 
 	if _, err := uuid.Parse(skill_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
@@ -175,10 +175,40 @@ func (base *Controller) GetGeneralAgentSkillByID(c *gin.Context) {
 
 	skills, err := agents.GetGeneralAgentSkillByID(agent_id, base.Db.Postgresql)
 	if err != nil {
-		code := http.StatusInternalServerError
+		code := http.StatusBadRequest
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
 	code := http.StatusOK
 	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skill retrieved", skills))
+}
+
+func (base *Controller) AddSkillsToAgent(c *gin.Context) {
+	var req models.CreateAgentSkillsRequest
+	agent_id := c.Param("agents_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid Request body")
+		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
+		return
+	}
+	req.AgentId = agent_id
+
+	code, err := agents.AddSkillToAgent(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to add agent skills", err)
+		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to add skill to agent", nil))
+		return
+	}
+
+	base.Logger.Info("Agent skill added successfully")
+	rd := utility.BuildSuccessResponse(code, "Skill added to agent successfully", nil)
+	c.JSON(code, rd)
 }
