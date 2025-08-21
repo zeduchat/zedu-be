@@ -19,10 +19,10 @@ func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 	organisationUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		organisationUrl.POST("/agents/:agents_id", agentsCtrl.CreateAgentSkill)
 		organisationUrl.GET("/agents/:agents_id", agentsCtrl.GetAgentSkills)
 		organisationUrl.GET("/:skill_id/agents/:agents_id", agentsCtrl.GetAgentSkillByID)
 		organisationUrl.PUT("/:skill_id/agents/:agents_id", agentsCtrl.UpdateAgentSkill)
+		organisationUrl.POST("/agents/:agents_id", agentsCtrl.AddSkillsToAgent)
 		organisationUrl.DELETE("/:skill_id/agents/:agents_id", agentsCtrl.DeleteAgentSkill)
 	}
 
