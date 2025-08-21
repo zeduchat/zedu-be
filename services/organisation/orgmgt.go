@@ -156,8 +156,6 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 		}
 	}()
 
-
-
 	if err := user.ChangeMemberActiveStatus(tx, org_id, true); err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, err
@@ -165,18 +163,24 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 
 	user_token.OwnerID = user_id
 	code, err := user_token.GetMostRecentAccessToken(tx)
-    if err != nil {
-        if !errors.Is(err, gorm.ErrRecordNotFound) {
-            tx.Rollback()
-            return code, fmt.Errorf("failed to get user token: %v", err)
-        }
-    } else {
-        _, err = auth.LogoutUser(user_token.ID, user.ID, tx)
-        if err != nil {
-            tx.Rollback()
-            return http.StatusBadRequest, errors.New("failed to logout user")
-        }
-    }
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			tx.Rollback()
+			return code, fmt.Errorf("failed to get user token: %v", err)
+		}
+	} else {
+
+		req := models.LogoutReqModel{
+			UserId:     user.ID,
+			AccessUuid: user_token.ID,
+		}
+
+		_, err = auth.LogoutUser(req, tx)
+		if err != nil {
+			tx.Rollback()
+			return http.StatusBadRequest, errors.New("failed to logout user")
+		}
+	}
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

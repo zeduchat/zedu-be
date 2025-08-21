@@ -22,5 +22,11 @@ func TokenGen(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		tokenUrl.GET("/connection", token.GetConnToken)
 		tokenUrl.POST("/subscription", token.GetSubToken)
 	}
+
+	subTokenUrl := r.Group(fmt.Sprintf("%v/centrifugo", ApiVersion))
+	{
+		subTokenUrl.GET("/connection", token.GetConnTokenUnAuth)
+		subTokenUrl.POST("/subscription", token.GetSubTokenUnAuth)
+	}
 	return r
 }

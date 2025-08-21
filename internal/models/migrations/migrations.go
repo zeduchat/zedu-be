@@ -8,6 +8,7 @@ import (
 func AuthMigrationModels() []any {
 	return []any{
 		models.Prompts{},
+		models.FcmTokens{},
 		models.CreditTransaction{},
 		models.OrganisationIntegrations{},
 		models.IntegrationOutput{},
@@ -26,7 +27,6 @@ func AuthMigrationModels() []any {
 		models.ContactUs{},
 		models.CustomIntegrationsSetting{},
 		models.DmChannels{},
-		models.FcmTokens{},
 		models.GeneralInvitation{},
 		models.HelpCenterArticle{},
 		models.HelpCenterCategory{},
@@ -52,6 +52,9 @@ func AuthMigrationModels() []any {
 		models.PinnedMessage{},
 		models.Reaction{},
 		models.Workflow{},
+		models.AgentSkill{},
+		models.GeneralAgentSkill{},
+		models.GeneralWorkflow{},
 		models.ChannelWorkflow{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},

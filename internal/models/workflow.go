@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -21,6 +22,21 @@ type Workflow struct {
 	Description     string                `gorm:"type:text" json:"description"`
 	Tags            StringSlice           `gorm:"type:jsonb" json:"tags"`
 	Meta            JSONBMap              `gorm:"type:jsonb" json:"meta"`
+	RawEntry        JSONBMap              `gorm:"type:jsonb" json:"raw_entry"`
+	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
+	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
+	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
+	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+}
+
+type GeneralWorkflow struct {
+	ID              string                `gorm:"type:uuid;primaryKey" json:"id"`
+	Name            string                `gorm:"type:text" json:"name"`
+	Description     string                `gorm:"type:text" json:"description"`
+	Tags            StringSlice           `gorm:"type:jsonb" json:"tags"`
+	Meta            JSONBMap              `gorm:"type:jsonb" json:"meta"`
+	RawEntry        JSONBMap              `gorm:"type:jsonb" json:"raw_entry"`
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
@@ -173,8 +189,6 @@ func DeleteWorkflow(db *gorm.DB, req WorkFlowRequest) error {
 	return db.Where("id = ?", req.Id).Delete(&Workflow{}).Error
 }
 
-
-
 func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) {
 	wfs := []WorkflowSummary{}
 	err := db.Table("workflows").Where("org_id = ?", req.OrgId).Scan(&wfs).Error
@@ -266,6 +280,14 @@ func (w *Workflow) CheckWorkflowExists(db *gorm.DB, workflowID string) (bool, er
 	return exists, nil
 }
 
+func (w *GeneralWorkflow) CheckWorkflowExists(db *gorm.DB, workflowID string) (bool, error) {
+	exists := postgresql.CheckExists(db, &w, "id = ?", workflowID)
+	if !exists {
+		return exists, errors.New("workflow does not exist")
+	}
+	return exists, nil
+}
+
 func (wc *ChannelWorkflow) CheckChannelWorkflowExists(db *gorm.DB) (bool, error) {
 	exists := postgresql.CheckExists(db, &wc, "channel_id = ? AND workflow_id = ?", wc.ChannelID, wc.WorkflowID)
 	if !exists {
@@ -315,6 +337,31 @@ func (cw *ChannelWorkflow) GetWorkflowsByChannel(db *gorm.DB) ([]Workflow, error
 		Where("channel_workflows.channel_id = ?", cw.ChannelID).
 		Scan(&workflows).Error
 	return workflows, err
+}
+
+func (cw *GeneralWorkflow) GetMarketPlaceWorkflowById(db *gorm.DB) (*[]GeneralWorkflow, error) {
+	workflows := []GeneralWorkflow{}
+	err := db.Table("general_workflows").
+		Where("general_workflow.id = ?", cw.ID).
+		Scan(&workflows).Error
+	return &workflows, err
+}
+
+func (cw *GeneralWorkflow) GetMarketPlaceWorkflows(db *gorm.DB, c *gin.Context) (*[]GeneralWorkflow, postgresql.PaginationResponse, error) {
+	workflows := []GeneralWorkflow{}
+	pagination := postgresql.GetPagination(c)
+	query := db.Table("general_workflows")
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&workflows,
+		nil,
+	)
+
+	return &workflows, paginationResponse, err
 }
 
 func (cw *ChannelWorkflow) GetWorkflowsWithChannelStatus(db *gorm.DB, orgId *string) ([]WorkflowSummary, error) {

@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/translator"
 	"github.com/hngprojects/telex_be/utility"
@@ -58,18 +57,19 @@ func (base *Controller) GetPrompts(c *gin.Context) {
 }
 
 func (base *Controller) GetPrompt(c *gin.Context) {
-	prompt_id := c.Param("prompt_id")
+	prompt_name := c.Param("prompt_name")
 
-	if _, err := uuid.Parse(prompt_id); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid prompt id format", "", nil)
+	if prompt_name == "" {
+		base.Logger.Info("Provide prompt name")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Provide prompt name", "Provide prompt name", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	response, statusCode, err := translator.GetPrompt(base.Db.Postgresql, prompt_id)
+	response, statusCode, err := translator.GetPrompt(base.Db.Postgresql, prompt_name)
 	if err != nil {
 		base.Logger.Info("Error fetching prompts")
-		rd := utility.BuildErrorResponse(statusCode, "error", "Error fetching prompts", err, nil)
+		rd := utility.BuildErrorResponse(statusCode, "error", "Error fetching prompts", err.Error(), nil)
 		c.JSON(statusCode, rd)
 		return
 	}

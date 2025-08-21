@@ -38,15 +38,14 @@ func GetPrompts(db *gorm.DB) ([]models.Prompts, int, error) {
 	return resp, code, nil
 }
 
-func GetPrompt(db *gorm.DB, prompt_id string) (models.Prompts, int, error) {
-	var p models.Prompts
+func GetPrompt(db *gorm.DB, prompt_name string) (models.GetPromptResponse, int, error) {
 
-	code, err := p.GetPrompt(db, prompt_id)
+	gpr, code, err := (&models.Prompts{}).GetPrompt(db, prompt_name)
 	if err != nil {
-		return p, code, err
+		return gpr, code, err
 	}
 
-	return p, code, nil
+	return gpr, code, nil
 }
 
 func FetchUniqueSteps(db *gorm.DB) ([]models.Prompts, int, error) {

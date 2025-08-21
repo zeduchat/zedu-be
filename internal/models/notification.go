@@ -80,6 +80,7 @@ type PushNotificationRecord struct {
 	UpdateChange        map[string]any      `json:"update_change"`
 	Type                NotificationType    `json:"type"`
 	ModificationDetails ModificationDetails `json:"modificaion_details"`
+	NotificationId      string              `json:"notification_id"`
 }
 
 type NotificationProcessPayload struct {

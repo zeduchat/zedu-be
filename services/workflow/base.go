@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -129,4 +131,22 @@ func UpdateWorkflowStatus(db *gorm.DB, req models.ChannelWorkflowRequest) (int, 
 	}
 
 	return AddWorkflowToChannel(db, req)
+}
+
+func ListGeneralMarketPlaceWorkflows(db *gorm.DB, c *gin.Context) (*[]models.GeneralWorkflow, postgresql.PaginationResponse, int, error) {
+	gw := models.GeneralWorkflow{}
+	wfs, pag, err := gw.GetMarketPlaceWorkflows(db, c)
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, http.StatusInternalServerError, err
+	}
+	return wfs, pag, http.StatusOK, nil
+}
+
+func GetGeneralMarketPlaceWorkflowId(req models.WorkFlowRequest, db *gorm.DB) (*[]models.GeneralWorkflow, int, error) {
+	gw := models.GeneralWorkflow{ID: req.Id}
+	wfs, err := gw.GetMarketPlaceWorkflowById(db)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return wfs, http.StatusOK, nil
 }

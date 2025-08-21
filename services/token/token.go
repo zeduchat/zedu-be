@@ -1,11 +1,14 @@
 package token
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -38,10 +41,31 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 
 	var (
 		channelName = req.Channel
+		org         = models.Organisation{}
+		orgId       string
+		cUserId     string
 	)
 
-	userClaims := jwt.MapClaims{}
+	parts := strings.Split(req.Channel, "/")
+	if len(parts) == 2 {
+		orgId = parts[0]
+		cUserId = parts[1]
 
+		if _, err := uuid.Parse(orgId); err != nil {
+			return gin.H{}, http.StatusBadRequest, errors.New("invalid channel id format")
+		}
+
+		exist, _ := org.CheckUserIsMemberOfOrg(userId, orgId, db)
+
+		if !exist || cUserId != userId {
+			return gin.H{}, http.StatusBadRequest, errors.New("invalid channel subscription")
+		}
+
+	} else {
+
+	}
+
+	userClaims := jwt.MapClaims{}
 	userClaims["sub"] = userId
 	userClaims["channel"] = channelName
 	userClaims["exp"] = time.Now().Unix() + int64(3600)

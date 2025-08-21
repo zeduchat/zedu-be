@@ -69,6 +69,7 @@ type UpdateAgentPromptRequest struct {
 	SystemPrompts JSONSystemPrompts `json:"system_prompts" validate:"required"`
 	AgentId       string
 	UserId        string
+	OrgId         string
 }
 
 type UpdateAgent struct {
@@ -335,7 +336,7 @@ type AgentResp struct {
 	Title         string            `json:"title"`
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility"`
-	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
+	SystemPrompts JSONSystemPrompts `json:"system_prompts"`
 	Category      string            `json:"category,omitempty"`
 }
 
@@ -752,7 +753,7 @@ func (oi *OrganisationIntegrations) UpdateCustomAgentPrompt(db *gorm.DB, req Upd
 	update := make(map[string]any)
 	update["system_prompts"] = req.SystemPrompts
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", req.AgentId)
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ? AND org_id = ?", req.AgentId, req.OrgId)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

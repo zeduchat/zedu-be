@@ -31,7 +31,7 @@ func Translator(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 	{
 		promptURL.POST("/", transCtrl.CreatePrompt)
 		promptURL.GET("/", transCtrl.GetPrompts)
-		promptURL.GET("/:prompt_id", transCtrl.GetPrompt)
+		promptURL.GET("/:prompt_name", transCtrl.GetPrompt)
 		promptURL.GET("/steps", transCtrl.FetchUniqueSteps)
 	}
 
