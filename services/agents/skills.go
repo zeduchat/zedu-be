@@ -66,7 +66,7 @@ func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkillR
 	return skill.GetAgentSkillByID(db)
 }
 
-func GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]models.AgentSkillResponse, postgresql.PaginationResponse, error, int) {
+func GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]models.GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
 	var skill models.GeneralAgentSkill
 	return skill.GetGeneralAgentSkills(db, c)
 }
