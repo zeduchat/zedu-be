@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -34,9 +35,11 @@ type GeneralAgentSkill struct {
 	IsConfigured bool      `gorm:"type:boolean" json:"is_configured"`
 	Avatar       string    `gorm:"type:text" json:"avatar"`
 	Tags         []string  `gorm:"type:text[]" json:"tags"`
+	Link         string    `gorm:"type:text" json:"link"`
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	Config       JSONBMap  `json:"agent_config"`
 }
+
 type CreateAgentSkillRequest struct {
 	Name        string   `json:"name" validate:"required"`
 	Description string   `json:"description" validate:"required"`
@@ -46,6 +49,19 @@ type CreateAgentSkillRequest struct {
 	AgentId     string   `json:"agent_id" validate:"required"`
 	IsActive    bool     `json:"is_acive"`
 	Tags        []string `json:"tags"`
+	SkillIds    []string `json:"skill_ids" validate:"dive,uuid"`
+}
+
+type UpdateAgentSkillRequest struct {
+	Config   JSONBMap `json:"agent_config"`
+	SkillId  string   `json:"skill_id"`
+	AgentId  string   `json:"agent_id"`
+	IsActive bool     `json:"is_acive"`
+}
+
+type CreateAgentSkillsRequest struct {
+	AgentId  string   `json:"agent_id"`
+	SkillIds []string `json:"skill_ids" validate:"required,dive,uuid"`
 }
 
 type AgentSkillResponse struct {
@@ -118,7 +134,7 @@ func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) (Ge
 	return skill, err
 }
 
-func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData map[string]interface{}) (AgentSkill, error) {
+func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRequest) (AgentSkill, error) {
 	var skill AgentSkill
 	exists := postgresql.CheckExists(db, &skill, "id = ? AND agent_id = ?", a.ID, a.AgentId)
 	if !exists {
@@ -144,4 +160,42 @@ func (a *AgentSkill) DeleteAgentSkill(db *gorm.DB) error {
 		return errors.New("agent skill not found")
 	}
 	return db.Delete(&skill, "id = ? AND agent_id = ?", a.ID, a.AgentId).Error
+}
+
+func (a *AgentSkill) ValidateSkills(db *gorm.DB, req *CreateAgentSkillsRequest) error {
+	invalidSkill := []string{}
+
+	if len(req.SkillIds) == 0 {
+		return fmt.Errorf("Invalid skills supplied, empty skills")
+	}
+
+	for _, skillId := range req.SkillIds {
+		exists := postgresql.CheckExists(db, &GeneralAgentSkill{}, "id = ?", req.SkillIds)
+		if !exists {
+			invalidSkill = append(invalidSkill, skillId)
+		}
+	}
+
+	return fmt.Errorf("Invalid Skills supplied: %v", invalidSkill)
+}
+
+func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest) error {
+
+	skills := []AgentSkill{}
+
+	for _, skillId := range req.SkillIds {
+		skills = append(skills, AgentSkill{
+			ID:       skillId,
+			AgentId:  req.AgentId,
+			IsActive: true,
+		})
+	}
+
+	err := postgresql.CreateMultipleRecords(db, &skills, len(skills))
+
+	if err != nil {
+		return errors.New("An error occurred adding skills to agent")
+	}
+
+	return nil
 }

@@ -17941,7 +17941,7 @@ paths:
     get:
       tags:
         - Skills
-      summary: Get agent skill by Agent ID
+      summary: Get agent skills by Agent ID
       security:
         - bearerAuth: []
       parameters:
@@ -17992,7 +17992,7 @@ paths:
     post:
       tags:
         - Skills
-      summary: Create a new agent skill
+      summary: Add skills to an agent
       security:
         - bearerAuth: []
       parameters:
@@ -18009,39 +18009,11 @@ paths:
             schema:
               type: object
               properties:
-                id:
-                  type: string
-                  format: uuid
-                  example: "123e4567-e89b-12d3-a456-426614174000"
-                name:
-                  type: string
-                  example: "Sales Assistant Bot"
-                description:
-                  type: string
-                  example: "Helps automate the sales process and customer engagement"
-                type:
-                  type: string
-                  example: "MCP"
-                is_active:
-                  type: boolean
-                  example: true
-                is_configured:
-                  type: boolean
-                  example: true
-                avatar:
-                  type: string
-                  example: "https://example.com/images/sales-bot.png"
-                agent_config:
-                  type: object
-                  additionalProperties: true
-                  example:
-                    language: "en"
-                    max_conversations: 5
-                tags:
+                skill_ids:
                   type: array
                   items:
-                    type: string
-                  example: ["sales", "automation", "crm"]
+                    type: uuid
+                  example: ["123e4567-e89b-12d3-a456-426614174001", "123e4567-e89b-12d3-a456-426614174002"]
       responses:
         "201":
           description: Agent skill created successfully
@@ -18157,6 +18129,22 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_active:
+                  type: boolean
+                  example: true
+                agent_config:
+                  type: object
+                  additionalProperties: true
+                  example:
+                    language: "en"
+                    max_conversations: 5
       responses:
         "200":
           description: Agent skill updated successfully

@@ -75,7 +75,7 @@ func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentS
 	return skill.GetGeneralAgentSkillByID(db, skillID)
 }
 
-func UpdateAgentSkill(skillID, agentId string, updateData map[string]interface{}, db *gorm.DB) (models.AgentSkill, error) {
+func UpdateAgentSkill(skillID, agentId string, updateData models.UpdateAgentSkillRequest, db *gorm.DB) (models.AgentSkill, error) {
 	var skill models.AgentSkill
 	skill.ID = skillID
 	skill.AgentId = agentId
@@ -87,4 +87,22 @@ func DeleteAgentSkill(skillID, agentId string, db *gorm.DB) error {
 	skill.ID = skillID
 	skill.AgentId = agentId
 	return skill.DeleteAgentSkill(db)
+}
+
+func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB) (int, error) {
+	var skill models.AgentSkill
+
+	// all or nothing validation
+	err := skill.ValidateSkills(db, &req)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	err = skill.AddSkilltoAgent(db, &req)
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }
