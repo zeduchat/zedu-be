@@ -34,7 +34,7 @@ type GeneralAgentSkill struct {
 	IsConfigured bool      `gorm:"type:boolean" json:"is_configured"`
 	Avatar       string    `gorm:"type:text" json:"avatar"`
 	Tags         []string  `gorm:"type:text[]" json:"tags"`
-	Link         string    `gorm:"type:text" json:"link"`
+	Link         string    `gorm:"type:text" json:"-"`
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	Config       JSONBMap  `json:"agent_config"`
 }
@@ -116,8 +116,8 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkillResponse, postgresql.PaginationResponse, error, int) {
-	var skills []AgentSkillResponse
+func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
+	var skills []GeneralAgentSkill
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&GeneralAgentSkill{})
