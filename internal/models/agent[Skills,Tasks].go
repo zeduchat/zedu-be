@@ -21,7 +21,6 @@ type AgentSkill struct {
 	IsActive     bool      `gorm:"type:boolean" json:"is_active"`
 	IsConfigured bool      `gorm:"type:boolean" json:"is_configured"`
 	Avatar       string    `gorm:"type:text" json:"avatar"`
-	Tags         []string  `gorm:"type:text[]" json:"tags"`
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	Config       JSONBMap  `json:"agent_config"`
 }
@@ -56,7 +55,7 @@ type UpdateAgentSkillRequest struct {
 	Config   JSONBMap `json:"agent_config"`
 	SkillId  string   `json:"skill_id"`
 	AgentId  string   `json:"agent_id"`
-	IsActive bool     `json:"is_acive"`
+	IsActive bool     `json:"is_active"`
 }
 
 type CreateAgentSkillsRequest struct {
@@ -65,7 +64,7 @@ type CreateAgentSkillsRequest struct {
 }
 
 type AgentSkillResponse struct {
-	ID           string   `json:"id"`
+	ID           string   `json:"skill_id"`
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
 	Type         string   `json:"type"`
@@ -73,18 +72,34 @@ type AgentSkillResponse struct {
 	IsConfigured bool     `json:"is_configured"`
 	Avatar       string   `json:"avatar"`
 	Config       JSONBMap `json:"agent_config"`
-	Tags         []string `json:"tags"`
+	// Tags         []string `json:"tags"`
 }
 
 func (a *AgentSkill) CreateAgentSkill(db *gorm.DB) error {
 	return postgresql.CreateOneRecord(db, a)
 }
 
-func (a *AgentSkill) GetAgentSkills(db *gorm.DB, agentID string, c *gin.Context) ([]AgentSkill, postgresql.PaginationResponse, error, int) {
+func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skills []AgentSkill
 
 	pagination := postgresql.GetPagination(c)
-	query := db.Model(&AgentSkill{}).Where("agent_id = ?", agentID)
+	query := db.Model(&AgentSkill{}).
+		Select(`
+		agent_skills.id, 
+		agent_skills.agent_id, 
+		agent_skills.config,
+		agent_skills.is_configured,
+		agent_skills.created_at,
+		agent_skills.is_active,
+		general_agent_skills.id AS general_id, 
+		general_agent_skills.name, 
+		general_agent_skills.tags, 
+		general_agent_skills.type, 
+		general_agent_skills.description, 
+		general_agent_skills.avatar
+	`).
+		Joins("JOIN general_agent_skills ON general_agent_skills.id = agent_skills.id").
+		Where("agent_skills.agent_id = ?", a.AgentId)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -101,8 +116,8 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, agentID string, c *gin.Context)
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
-	var skills []GeneralAgentSkill
+func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkillResponse, postgresql.PaginationResponse, error, int) {
+	var skills []AgentSkillResponse
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&GeneralAgentSkill{})
@@ -122,16 +137,37 @@ func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) (
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkill, error) {
-	var skill AgentSkill
-	err := db.Where("id = ? AND agent_id = ?", a.ID, a.AgentId).First(&skill).Error
-	return skill, err
+func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) {
+	var skill AgentSkillResponse
+
+	err := db.Model(&AgentSkill{}).
+		Select(`
+		agent_skills.id, 
+		agent_skills.agent_id, 
+		agent_skills.config,
+		agent_skills.is_configured,
+		agent_skills.is_active,
+		general_agent_skills.id AS general_id, 
+		general_agent_skills.name, 
+		general_agent_skills.tags, 
+		general_agent_skills.type, 
+		general_agent_skills.description, 
+		general_agent_skills.avatar
+	`).
+		Joins("JOIN general_agent_skills ON general_agent_skills.id = agent_skills.id").
+		Where("agent_skills.agent_id = ? AND agent_skills.id = ?", a.AgentId, a.ID).
+		First(&skill).Error
+
+	if err != nil {
+		return skill, errors.New("Skill not binded to agent")
+	}
+
+	return skill, nil
 }
 
-func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) (GeneralAgentSkill, error) {
-	var skill GeneralAgentSkill
-	err := db.Where("id = ?", id).First(&skill).Error
-	return skill, err
+func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) error {
+	err := db.Where("id = ?", id).First(&a).Error
+	return err
 }
 
 func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRequest) (AgentSkill, error) {
@@ -141,7 +177,12 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 		return skill, errors.New("agent skill not found")
 	}
 
-	result, err := postgresql.UpdateFields(db, &skill, updateData, "id = ? AND agent_id = ?", a.ID, a.AgentId)
+	updates := map[string]any{
+		"is_active": updateData.IsActive,
+		"config":    updateData.Config,
+	}
+
+	result, err := postgresql.UpdateFields(db, &skill, updates, "id = ? AND agent_id = ?", a.ID, a.AgentId)
 	if err != nil {
 		return skill, errors.New("failed to update agent skill")
 	}
@@ -149,7 +190,6 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 		return skill, errors.New("no record updated")
 	}
 
-	_ = db.Where("id = ? AND agent_id = ?", a.ID, a.AgentId).First(&skill).Error
 	return skill, nil
 }
 
@@ -164,24 +204,43 @@ func (a *AgentSkill) DeleteAgentSkill(db *gorm.DB) error {
 
 func (a *AgentSkill) ValidateSkills(db *gorm.DB, req *CreateAgentSkillsRequest) error {
 	invalidSkill := []string{}
+	validSkillIds := []string{}
 
 	if len(req.SkillIds) == 0 {
-		return fmt.Errorf("Invalid skills supplied, empty skills")
+		return fmt.Errorf("invalid skills supplied, empty skills")
 	}
 
 	for _, skillId := range req.SkillIds {
-		exists := postgresql.CheckExists(db, &GeneralAgentSkill{}, "id = ?", req.SkillIds)
+
+		exists := postgresql.CheckExists(db, &GeneralAgentSkill{}, "id = ?", skillId)
 		if !exists {
 			invalidSkill = append(invalidSkill, skillId)
+			continue
 		}
+		exists = postgresql.CheckExists(db, &AgentSkill{}, "id = ? AND agent_id = ?", skillId, req.AgentId)
+		if exists {
+			continue
+		}
+
+		validSkillIds = append(validSkillIds, skillId)
 	}
 
-	return fmt.Errorf("Invalid Skills supplied: %v", invalidSkill)
+	req.SkillIds = validSkillIds
+
+	if len(invalidSkill) > 0 {
+		return fmt.Errorf("invalid skills supplied: %v", invalidSkill)
+	}
+
+	return nil
 }
 
 func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest) error {
 
 	skills := []AgentSkill{}
+
+	if len(req.SkillIds) == 0 {
+		return nil
+	}
 
 	for _, skillId := range req.SkillIds {
 		skills = append(skills, AgentSkill{

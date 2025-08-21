@@ -31,7 +31,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		IsConfigured: false, // default
 		Avatar:       "",    // can be updated later
 		Config:       req.Config,
-		Tags:         req.Tags,
+		// Tags:         req.Tags,
 	}
 
 	if err := agentSkill.CreateAgentSkill(db); err != nil {
@@ -47,7 +47,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		IsConfigured: agentSkill.IsConfigured,
 		Avatar:       agentSkill.Avatar,
 		Config:       agentSkill.Config,
-		Tags:         agentSkill.Tags,
+		// Tags:         agentSkill.Tags,
 	}
 
 	return resp, http.StatusCreated, nil
@@ -55,24 +55,31 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 
 func GetAgentSkills(agentID string, db *gorm.DB, c *gin.Context) ([]models.AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skill models.AgentSkill
-	return skill.GetAgentSkills(db, agentID, c)
+	skill.AgentId = agentID
+	return skill.GetAgentSkills(db, c)
 }
 
-func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkill, error) {
+func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkillResponse, error) {
 	var skill models.AgentSkill
 	skill.AgentId = agentId
 	skill.ID = skillID
 	return skill.GetAgentSkillByID(db)
 }
 
-func GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]models.GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
+func GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]models.AgentSkillResponse, postgresql.PaginationResponse, error, int) {
 	var skill models.GeneralAgentSkill
 	return skill.GetGeneralAgentSkills(db, c)
 }
 
 func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentSkill, error) {
 	var skill models.GeneralAgentSkill
-	return skill.GetGeneralAgentSkillByID(db, skillID)
+	err := skill.GetGeneralAgentSkillByID(db, skillID)
+
+	if err != nil {
+		return skill, errors.New("Skill does not exists")
+	}
+
+	return skill, nil
 }
 
 func UpdateAgentSkill(skillID, agentId string, updateData models.UpdateAgentSkillRequest, db *gorm.DB) (models.AgentSkill, error) {

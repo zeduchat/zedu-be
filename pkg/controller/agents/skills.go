@@ -88,7 +88,7 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 
 	skills, err := agents.GetAgentSkillByID(agent_id, skill_id, base.Db.Postgresql)
 	if err != nil {
-		code := http.StatusInternalServerError
+		code := http.StatusBadRequest
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
@@ -175,7 +175,7 @@ func (base *Controller) GetGeneralAgentSkillByID(c *gin.Context) {
 
 	skills, err := agents.GetGeneralAgentSkillByID(agent_id, base.Db.Postgresql)
 	if err != nil {
-		code := http.StatusInternalServerError
+		code := http.StatusBadRequest
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
