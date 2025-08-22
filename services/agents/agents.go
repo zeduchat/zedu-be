@@ -158,7 +158,6 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 	for _, agents := range resp {
 
 		agent := models.AgentResp{
-
 			ID:          agents.ID,
 			Name:        agents.Name,
 			Title:       agents.Title,

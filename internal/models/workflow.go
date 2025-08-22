@@ -44,6 +44,14 @@ type GeneralWorkflow struct {
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
 
+type WorkflowSkills struct {
+	ID         string `json:"id" gorm:"type:uuid;primaryKey"`
+	WorkflowID string `json:"workflow_id" gorm:"type:uuid;index"`
+	SkillID    string `json:"skill_id" gorm:"type:uuid;index"`
+	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 type WorkFlowRequest struct {
 	UserId          string                `json:"-"`
 	OrgId           string                `json:"-"`
@@ -383,3 +391,13 @@ func (cw *ChannelWorkflow) GetWorkflowsWithChannelStatus(db *gorm.DB, orgId *str
 func (w *ChannelWorkflow) DeleteChannelWorkflows(db *gorm.DB) error {
 	return postgresql.DeleteSpecificRecord(db, &ChannelWorkflow{}, "channel_id = ?", w.ChannelID)
 }
+
+func (w *WorkflowSkills) GetWorkflowSkills(db *gorm.DB, workflowID string) ([]WorkflowSkills, error) {
+	var skills []WorkflowSkills
+	err := db.Where("workflow_id = ?", workflowID).Find(&skills).Error
+	if err != nil {
+		return nil, fmt.Errorf("error fetching workflow skills: %w", err)
+	}
+	return skills, nil
+}
+

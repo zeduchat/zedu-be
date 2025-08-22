@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Task struct {
@@ -14,10 +16,9 @@ type Task struct {
 }
 
 type TaskSkill struct {
-	ID         string `gorm:"primaryKey"`
-	TaskID     string
-	SkillID    string
-	Confidence float64
+	ID      string `json:"id" gorm:"type:uuid;primaryKey"`
+	TaskID  string `json:"task_id"`
+	SkillID string `json:"skill_id"`
 }
 
 type UpdateWorkflowTasksRequest struct {
@@ -27,4 +28,13 @@ type UpdateWorkflowTasksRequest struct {
 		Text     string  `json:"text"`
 		Position int     `json:"position"`
 	} `json:"tasks"`
+}
+
+func (t *Task) GetWorkflowTasks(db *gorm.DB, workflowID string) ([]Task, error) {
+	var tasks []Task
+	err := db.Where("workflow_id = ?", workflowID).Order("position").Find(&tasks).Error
+	if err != nil {
+		return nil, err
+	}
+	return tasks, nil
 }

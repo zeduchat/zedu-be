@@ -8,6 +8,8 @@ import (
 func AuthMigrationModels() []any {
 	return []any{
 		models.Task{},
+		models.TaskSkill{},
+		models.WorkflowSkills{},
 		models.Prompts{},
 		models.FcmTokens{},
 		models.CreditTransaction{},
