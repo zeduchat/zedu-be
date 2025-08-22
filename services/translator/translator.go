@@ -8,7 +8,6 @@ import (
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/telexai"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
@@ -115,29 +114,28 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	return response, code, nil
 }
 
-func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, workflowID string) (models.TranslationResponse, int, error) {
-
+func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.TranslationResponse, int, error) {
 	//fetch tasks and workflow skills from db
 	var (
-		workflow    models.Workflow
+		agents      models.OrganisationIntegrations
 		task        models.Task
-		skillsModel models.WorkflowSkills
+		skillsModel models.AgentWorkflowSkills
 	)
 
-	exists, err := workflow.CheckWorkflowExists(db, workflowID)
+	exists, err := agents.CheckAgentExists(db, agentID)
 	if !exists {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("workflow with id %s not found", workflowID)
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
 	}
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusInternalServerError, err
 	}
 
-	tasks, err := task.GetWorkflowTasks(db, workflowID)
+	tasks, err := (task).GetAgentTasks(db, agentID)
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusInternalServerError, err
 	}
 	if len(tasks) == 0 {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no tasks found for workflow id %s", workflowID)
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no tasks found for agent id %s", agentID)
 	}
 
 	var taskList strings.Builder
@@ -145,22 +143,17 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		taskList.WriteString(fmt.Sprintf("%s\n", t.Text))
 	}
 
-	skillIDs, err := skillsModel.GetWorkflowSkills(db, workflowID)
+	skills, err := skillsModel.GetAgentWorkflowSkills(db, agentID)
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusInternalServerError, err
 	}
-	if len(skillIDs) == 0 {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no skills found for workflow id %s", workflowID)
+	if len(skills) == 0 {
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no workflow skills found for agent id %s", agentID)
 	}
 
-	skillsList := make([]string, len(skillIDs))
-	for i, skill := range skillIDs {
-		var gas models.GeneralAgentSkill
-		_, err := postgresql.SelectOneFromDb(db, &gas, "id = ?", skill.SkillID)
-		if err != nil {
-			return models.TranslationResponse{}, http.StatusInternalServerError, err
-		}
-		skillsList[i] = gas.Name
+	skillsList := make([]string, len(skills))
+	for i, skill := range skills {
+		skillsList[i] = skill.Name
 	}
 
 	promptSteps := []string{"Task Cleanup", "Skill Matching", "Workflow Translation"}

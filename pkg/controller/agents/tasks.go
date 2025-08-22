@@ -1,4 +1,4 @@
-package workflow
+package agents
 
 import (
 	"net/http"
@@ -6,18 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/services/workflow"
+	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) UpdateWorkflowTasks(c *gin.Context) {
-	var req models.UpdateWorkflowTasksRequest
+func (base *Controller) UpdateAgentTasks(c *gin.Context) {
+	var req models.UpdateAgentTasksRequest
 
-	workflowID := c.Param("workflow_id")
+	agentID := c.Param("agent_id")
 
-	if _, err := uuid.Parse(workflowID); err != nil {
-		base.Logger.Info("invalid workflow id format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid workflow id format", err, nil)
+	if _, err := uuid.Parse(agentID); err != nil {
+		base.Logger.Info("invalid agent id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid agent id format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -37,8 +37,8 @@ func (base *Controller) UpdateWorkflowTasks(c *gin.Context) {
 		return
 	}
 
-	req.WorkflowID = workflowID
-	code,tasks, _ , err := workflow.UpdateWorkflowTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, req)
+	req.AgentID = agentID
+	code, tasks, err := agents.UpdateAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, req)
 	if err != nil {
 		base.Logger.Error("error creating tasks", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -46,24 +46,22 @@ func (base *Controller) UpdateWorkflowTasks(c *gin.Context) {
 		return
 	}
 
-
 	base.Logger.Info("Tasks created successfully")
 	rd := utility.BuildSuccessResponse(code, "Tasks created successfully", tasks)
 	c.JSON(code, rd)
 }
 
+func (base *Controller) GetAgentTasks(c *gin.Context) {
+	agentID := c.Param("agent_id")
 
-func (base *Controller) GetWorkflowTasks(c *gin.Context) {
-	workflowID := c.Param("workflow_id")
-
-	if _, err := uuid.Parse(workflowID); err != nil {
-		base.Logger.Info("invalid workflow id format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid workflow id format", err, nil)
+	if _, err := uuid.Parse(agentID); err != nil {
+		base.Logger.Info("invalid agent workflow id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid agent workflow id format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	resp, code, err := workflow.GetWorkflowTasks(c, base.Db.Postgresql, base.Logger, workflowID)
+	resp, code, err := agents.GetAgentTasks(c, base.Db.Postgresql, base.Logger, agentID)
 	if err != nil {
 		base.Logger.Error("error fetching tasks", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -75,24 +73,24 @@ func (base *Controller) GetWorkflowTasks(c *gin.Context) {
 	c.JSON(code, utility.BuildSuccessResponse(code, "Tasks fetched successfully", resp))
 }
 
-func (base *Controller) GetWorkflowSkills (c *gin.Context) {
-	workflowID := c.Param("workflow_id")
+func (base *Controller) GetAgentWorkflowSkills(c *gin.Context) {
+	agentID := c.Param("agent_id")
 
-	if _, err := uuid.Parse(workflowID); err != nil {
-		base.Logger.Info("invalid workflow id format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid workflow id format", err, nil)
+	if _, err := uuid.Parse(agentID); err != nil {
+		base.Logger.Info("invalid agent id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid agent id format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	resp, code, err := workflow.GetWorkflowSkills(c, base.Db.Postgresql, base.Logger, workflowID)
+	resp, code, err := agents.GetAgentWorkflowSkills(c, base.Db.Postgresql, base.Logger, agentID)
 	if err != nil {
-		base.Logger.Error("error fetching workflow skills", err)
+		base.Logger.Error("error fetching agent workflow skills", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("Workflow skills fetched successfully")
-	c.JSON(code, utility.BuildSuccessResponse(code, "Workflow skills fetched successfully", resp))
+	base.Logger.Info("Agent workflow skills fetched successfully")
+	c.JSON(code, utility.BuildSuccessResponse(code, "Agent workflow skills fetched successfully", resp))
 }

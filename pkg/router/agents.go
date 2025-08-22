@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
+func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	organisationUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion), middleware.Authorize(db.Postgresql))
@@ -33,9 +33,16 @@ func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
 	}
 
+	//workflowtasks
+	agentURL := r.Group(fmt.Sprintf("%v/tasks", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		agentURL.PUT("/:agent_id/", agentsCtrl.UpdateAgentTasks)
+		agentURL.GET("/:agent_id/", agentsCtrl.GetAgentTasks)
+		agentURL.GET("/:agent_id/skills", agentsCtrl.GetAgentWorkflowSkills)
+	}
+
 	return r
 }
-
 
 func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}

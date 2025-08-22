@@ -100,6 +100,8 @@ tags:
     description: API endpoints for handling message forwarding
   - name: Skills
     description: API endpoints for agents skills
+  - name: Tasks
+    description: API endpoints for agents tasks
   - name: Translator
     description: API endpoints for telex markdown to json formatting engine
 
@@ -17839,93 +17841,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-  /workflow/{workflow_id}/tasks:
-    get:
-      tags:
-        - Workflow
-      summary: Get tasks for a workflow
-      parameters:
-        - in: path
-          name: workflow_id
-          required: true
-          schema:
-            type: string
-          description: Workflow ID
-      responses:
-        "200":
-          description: Tasks fetched successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  status_code:
-                    type: integer
-                  message:
-                    type: string
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id: { type: string }
-                        workflow_id: { type: string }
-                        text: { type: string }
-                        position: { type: integer }
-                        created_at: { type: string, format: date-time }
-                        updated_at: { type: string, format: date-time }
-
-    put:
-      tags:
-        - Workflow
-      summary: Update workflow tasks
-      parameters:
-        - in: path
-          name: workflow_id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                tasks:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id: { type: string }
-                      text: { type: string }
-                      position: { type: integer }
-                      skill: { type: string }
-      responses:
-        "200":
-          description: Tasks updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  status_code: { type: integer }
-                  message: { type: string }
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id: { type: string }
-                        workflow_id: { type: string }
-                        text: { type: string }
-                        position: { type: integer }
-                        created_at: { type: string, format: date-time }
-                        updated_at: { type: string, format: date-time }
-
   /workflow/{workflow_id}/skills:
     get:
       tags:
@@ -18613,20 +18528,21 @@ paths:
                     nullable: true
                     example: null
 
-  /translator/{workflow_id}:
+  /translator/{agent_id}:
     get:
       tags:
         - Translator
-      summary: Get translated workflow by ID
+      summary: Generate translation for an agent
+      description: Returns a translated workflow definition for the given agent.
       parameters:
-        - in: path
-          name: workflow_id
+        - name: agent_id
+          in: path
           required: true
           schema:
             type: string
-          description: The ID of the workflow
+          description: Unique identifier of the agent
       responses:
-        "201":
+        '201':
           description: Translation generated successfully
           content:
             application/json:
@@ -18635,13 +18551,18 @@ paths:
                 properties:
                   status:
                     type: string
+                    example: success
                   status_code:
                     type: integer
+                    example: 201
                   message:
                     type: string
+                    example: Translation generated successfully
                   data:
                     type: string
-                    description: Workflow JSON output
+                    description: JSON string containing translated workflow
+                    example: "{ \"name\": \"Q4 Financial Data Analysis and Reporting\", \"nodes\": [...] }"
+
   /prompts:
     post:
       tags:
@@ -18814,15 +18735,15 @@ paths:
               type: object
               required:
                 - task_list
-                - agent_skills
-                - global_skills
+                - skills
+                - steps
               properties:
                 task_list:
                   type: string
                   example: |
                     - Review 45-min Zoom webinar on Q4 financials, find CFO strategy sections...
                     - Extract audio from these segments, transcribe via speech-to-text...
-                agent_skills:
+                skills:
                   type: array
                   items:
                     type: string
@@ -18830,14 +18751,16 @@ paths:
                     - skill_video_transcription
                     - skill_text_summarization
                     - skill_copywriting
-                global_skills:
+                steps:
                   type: array
                   items:
-                    type: string
-                  example:
-                    - skill_translate_en_es
-                    - skill_translate_en_fr
-                    - skill_generate_social_post
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: Skill Matching
+                      version:
+                        type: int32
       responses:
         '201':
           description: Translation generated successfully
@@ -18881,6 +18804,136 @@ paths:
                             llm_call:
                               type: boolean
                               example: true
+
+  /tasks/{agent_id}:
+    put:
+      tags:
+        - Tasks
+      summary: Update tasks for an agent
+      description: Creates or updates tasks in an agent’s workflow.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tasks:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: 0198d2cf-b8ac-7a80-ad45-25f7863c514f
+                      text:
+                        type: string
+                        example: Analyze Q4 financial data for trends and anomalies
+                      position:
+                        type: integer
+                        example: 1
+      responses:
+        '200':
+          description: Tasks created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Tasks created successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        agent_id:
+                          type: string
+                        text:
+                          type: string
+                        position:
+                          type: integer
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+
+  /tasks/{agent_id}/skills:
+    get:
+      tags:
+        - Tasks
+      summary: Get skills for an agent
+      description: Fetches workflow skills associated with a specific agent.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the agent
+      responses:
+        '200':
+          description: Agent workflow skills fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent workflow skills fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        type:
+                          type: string
+                        is_active:
+                          type: boolean
+                        is_configured:
+                          type: boolean
+                        avatar:
+                          type: string
+                        tags:
+                          type: array
+                          items:
+                            type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        agent_config:
+                          type: object
 
 components:
   schemas:
