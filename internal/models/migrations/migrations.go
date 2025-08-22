@@ -9,7 +9,7 @@ func AuthMigrationModels() []any {
 	return []any{
 		models.Task{},
 		models.TaskSkill{},
-		models.WorkflowSkills{},
+		models.AgentWorkflowSkills{},
 		models.Prompts{},
 		models.FcmTokens{},
 		models.CreditTransaction{},

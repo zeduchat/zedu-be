@@ -55,15 +55,15 @@ func (base *Controller) GenerateTranslation(c *gin.Context) {
 }
 
 func (base *Controller) GenerateWorkflowJSON(c *gin.Context) {
-	workflowID := c.Param("workflow_id")
-	if _, err := uuid.Parse(workflowID); err != nil {
-		base.Logger.Error("invalid workflow id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid workflow id format", "failed to decode workflow id", nil)
+	agentID := c.Param("agent_id")
+	if _, err := uuid.Parse(agentID); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	response, statusCode, err := translator.GenerateWorkflowJSON(base.Db.Postgresql, base.Logger, base.ExtReq, workflowID)
+	response, statusCode, err := translator.GenerateWorkflowJSON(base.Db.Postgresql, base.Logger, base.ExtReq, agentID)
 	if err != nil {
 		base.Logger.Error("error generating translation", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)

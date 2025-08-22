@@ -40,14 +40,6 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 		return
 	}
 
-	// agent_id := c.Param("agent_id")
-	// if agent_id == "" {
-	// 	base.Logger.Info("agent_id is required")
-	// 	rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "agent_id is required", "agent_id is required", nil)
-	// 	c.JSON(http.StatusBadRequest, rd)
-	// 	return
-	// }
-
 	ids, err := actions.FetchAPIKeyCredentials(c)
 	if err != nil {
 		base.Logger.Error("failed to fetch api key credentials", err)
@@ -55,8 +47,6 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
-	// ids.AgentID = agent_id
 
 	//see if the user has enough credits to make the request
 	// if !actions.HasEnoughCredits(base.Db, ids.UserID, req.Model, req.Messages) {
