@@ -44,7 +44,6 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 		org         = models.Organisation{}
 		orgId       string
 		cUserId     string
-		channel     = models.UserChannels{}
 	)
 
 	parts := strings.Split(req.Channel, "/")
