@@ -8,23 +8,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/rabbitmq/amqp091-go"
 )
 
 type CeleryHeaders struct {
-	ID           string        `json:"id"`
-	Task         string        `json:"task"`
-	RootID       string        `json:"root_id"`
-	ParentID     *string       `json:"parent_id"`
-	ETA          *string       `json:"eta"`
-	Retry        int           `json:"retries"`
-	Group        *string       `json:"group"`
-	IgnoreResult bool          `json:"ignore_result"`
-	ArgsRepr     string        `json:"argsrepr,omitempty"`
-	KWArgsRepr   string        `json:"kwargsrepr,omitempty"`
-	TimeLimit    [2]int        `json:"timelimit"`
+	ID           string  `json:"id"`
+	Task         string  `json:"task"`
+	RootID       string  `json:"root_id"`
+	ParentID     *string `json:"parent_id"`
+	ETA          *string `json:"eta"`
+	Retry        int     `json:"retries"`
+	Group        *string `json:"group"`
+	IgnoreResult bool    `json:"ignore_result"`
+	ArgsRepr     string  `json:"argsrepr,omitempty"`
+	KWArgsRepr   string  `json:"kwargsrepr,omitempty"`
+	TimeLimit    [2]int  `json:"timelimit"`
 }
 
 func NewQueueManager(config config.RabbitMQ) *QueueManager {
@@ -184,8 +185,7 @@ func (qm *QueueManager) Close() error {
 	return nil
 }
 
-
-func (qm *QueueManager) Publish(payload, routingKey string) error {
+func (qm *QueueManager) Publish(payload, routingKey, task string) error {
 
 	qm.mu.Lock()
 	if !qm.isReady {
@@ -197,6 +197,20 @@ func (qm *QueueManager) Publish(payload, routingKey string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	taskID := uuid.NewString()
+	headers := amqp091.Table{
+		"id":            taskID,
+		"task":          task,
+		"root_id":       taskID,
+		"parent_id":     nil,
+		"eta":           nil,
+		"retries":       int32(0),
+		"group":         nil,
+		"ignore_result": true,
+		"timelimit":     []interface{}{60, 0},
+		"kwargsrepr":    "{}",
+	}
+
 	return qm.channel.PublishWithContext(
 		ctx,
 		qm.config.Exchange, // Exchange
@@ -207,6 +221,7 @@ func (qm *QueueManager) Publish(payload, routingKey string) error {
 			ContentType:  "application/json",
 			Body:         []byte(payload),
 			DeliveryMode: amqp091.Persistent,
+			Headers:      headers,
 		},
 	)
 }

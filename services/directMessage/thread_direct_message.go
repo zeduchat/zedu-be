@@ -299,7 +299,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, payload["task"].(string))
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)

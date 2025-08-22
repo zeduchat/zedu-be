@@ -54,7 +54,7 @@ func TriggerTick(db *storage.Database, logger *utility.Logger, req models.Trigge
 		return "", http.StatusBadRequest, fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, payload["task"].(string))
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for ticktest: %v", err.Error()))
 		return "", http.StatusBadRequest, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
