@@ -30,10 +30,9 @@ type ProcessStep struct {
 }
 
 type TranslationRequest struct {
-	TaskList     string    `json:"task_list" binding:"required"`
-	AgentSkills  []string  `json:"agent_skills" binding:"required"`
-	GlobalSkills []string  `json:"global_skills" binding:"required"`
-	Steps        []StepReq `json:"steps" binding:"required"`
+	TaskList string    `json:"task_list" binding:"required"`
+	Skills   []string  `json:"skills" binding:"required"`
+	Steps    []StepReq `json:"steps" binding:"required"`
 }
 
 type StepReq struct {
@@ -152,6 +151,19 @@ func (p *Prompts) GetPromptByVersion(db *gorm.DB, req StepReq) (int, error) {
 	}
 
 	return http.StatusOK, nil
+}
+
+func (p *Prompts) GetLatestPromptVersionByName(db *gorm.DB, name string) error {
+	err := db.
+		Where("name = ?", name).
+		Order("version DESC").
+		First(&p).Error
+
+	if err != nil {
+		return fmt.Errorf("unable to fetch latest prompt version: %v", err)
+	}
+
+	return nil
 }
 
 func (p *Prompts) FetchUniquePrompts(db *gorm.DB) ([]Prompts, error) {

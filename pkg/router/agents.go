@@ -36,20 +36,6 @@ func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 	return r
 }
 
-// func AgentTasks(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
-// 	extReq := request.ExternalRequest{Logger: logger, Test: false}
-// 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-// 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
-
-// 	{
-// 		organisationUrl.POST("/:org_id/agents/:agents_id/task", agentsCtrl.CreateAgentTask)
-// 		organisationUrl.GET("/:org_id/agents/:agents_id/task", agentsCtrl.GetAgentTasks)
-// 		organisationUrl.PUT("/:org_id/agents/:agents_id/task/:task_id", agentsCtrl.UpdateAgentTask)
-// 		organisationUrl.DELETE("/:org_id/agents/:agents_id/task/:task_id", agentsCtrl.DeleteAgentTask)
-// 	}
-
-// 	return r
-// }
 
 func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}

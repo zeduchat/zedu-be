@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -26,17 +27,17 @@ type AgentSkill struct {
 }
 
 type GeneralAgentSkill struct {
-	ID           string    `gorm:"column:id;type:uuid" json:"id"`
-	Name         string    `gorm:"column:name;type:text" json:"name"`
-	Description  string    `gorm:"type:text" json:"description"`
-	Type         string    `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
-	IsActive     bool      `gorm:"type:boolean" json:"is_active"`
-	IsConfigured bool      `gorm:"type:boolean" json:"is_configured"`
-	Avatar       string    `gorm:"type:text" json:"avatar"`
-	Tags         []string  `gorm:"type:text[]" json:"tags"`
-	Link         string    `gorm:"type:text" json:"-"`
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMap  `json:"agent_config"`
+	ID           string         `gorm:"column:id;type:uuid" json:"id"`
+	Name         string         `gorm:"column:name;type:text" json:"name"`
+	Description  string         `gorm:"type:text" json:"description"`
+	Type         string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
+	IsActive     bool           `gorm:"type:boolean" json:"is_active"`
+	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
+	Avatar       string         `gorm:"type:text" json:"avatar"`
+	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
+	Link         string         `gorm:"type:text" json:"-"`
+	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	Config       JSONBMap       `json:"agent_config"`
 }
 
 type CreateAgentSkillRequest struct {
@@ -135,6 +136,24 @@ func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) (
 	}
 
 	return skills, paginationResponse, nil, http.StatusOK
+}
+
+func (a *GeneralAgentSkill) FetchGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]GeneralAgentSkill, error, int) {
+	var skills []GeneralAgentSkill
+
+	query := db.Model(&GeneralAgentSkill{})
+
+	err := postgresql.SelectAllFromDb(
+		query,
+		"desc",
+		&skills,
+		nil,
+	)
+	if err != nil {
+		return skills, errors.New("failed to fetch general skills"), http.StatusInternalServerError
+	}
+
+	return skills, nil, http.StatusOK
 }
 
 func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) {

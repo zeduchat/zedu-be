@@ -24,6 +24,7 @@ func Translator(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 	translatorURL := r.Group(fmt.Sprintf("%v/translator", ApiVersion))
 	{
 		translatorURL.POST("/", transCtrl.GenerateTranslation)
+		translatorURL.GET("/:workflow_id/", transCtrl.GenerateWorkflowJSON)
 		translatorURL.GET("/tester", transCtrl.TranslationTester)
 	}
 

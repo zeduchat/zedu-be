@@ -40,5 +40,15 @@ func WorkflowRoutes(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		wGMPGroup.GET("/", wfCtrl.GetGeneralMarketWorkflows)
 	}
 
+	//workflowtasks
+	workflowsCtrl := workflow.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+	workflowURL := r.Group(fmt.Sprintf("%v/workflow", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		workflowURL.PUT("/:workflow_id/tasks", workflowsCtrl.UpdateWorkflowTasks)
+		workflowURL.GET("/:workflow_id/tasks", workflowsCtrl.GetWorkflowTasks)
+		workflowURL.GET("/:workflow_id/skills", workflowsCtrl.GetWorkflowSkills)
+	}
+
+
 	return r
 }

@@ -27,7 +27,6 @@ func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, org_id string,
 	for _, org_agents := range resp {
 
 		agent := models.AgentResp{
-
 			ID:          org_agents.IntegrationID,
 			Name:        org_agents.AppName,
 			Title:       org_agents.Title,
@@ -39,7 +38,6 @@ func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, org_id string,
 		}
 
 		botResp = append(botResp, agent)
-
 	}
 
 	return botResp, paginatedResponse, http.StatusOK, nil
