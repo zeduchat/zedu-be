@@ -44,6 +44,7 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 		org         = models.Organisation{}
 		orgId       string
 		cUserId     string
+		channel     = models.UserChannels{}
 	)
 
 	parts := strings.Split(req.Channel, "/")
@@ -62,6 +63,9 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 		}
 
 	} else {
+		if _, err := uuid.Parse(channelName); err != nil {
+			return gin.H{}, http.StatusBadRequest, errors.New("invalid channel id supplied")
+		}
 
 	}
 
