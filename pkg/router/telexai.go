@@ -8,6 +8,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/telexai"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -16,8 +17,8 @@ func TelexAI(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	aiProxyCtrl := telexai.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	// aiProxyUrl := r.Group(fmt.Sprintf("%v/telexai", ApiVersion), middleware.APIKeyAuthMiddleware(db.Postgresql, logger, false))
-	aiProxyUrl := r.Group(fmt.Sprintf("%v/telexai", ApiVersion))
+	aiProxyUrl := r.Group(fmt.Sprintf("%v/telexai", ApiVersion), middleware.APIKeyAuthMiddleware(db.Postgresql, logger, false))
+	// aiProxyUrl := r.Group(fmt.Sprintf("%v/telexai", ApiVersion))
 
 	{
 		aiProxyUrl.POST("/chat", aiProxyCtrl.RespondToChat)
