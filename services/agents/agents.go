@@ -341,6 +341,7 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	var (
 		orgIntegration models.OrganisationIntegrations
 		organisation   models.Organisation
+		agentSettings  models.CustomIntegrationsSetting
 		int_resp       models.AgentResp
 		org            models.Organisation
 	)
@@ -358,6 +359,11 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 		return int_resp, http.StatusNotFound, errors.New("organisation does not exist")
 	}
 
+	psk, err := models.GenerateAgentKey()
+	if err != nil {
+		return int_resp, http.StatusInternalServerError, err
+	}
+
 	orgIntegration.OrgID = req.OrgId
 	orgIntegration.IsActive = true
 	orgIntegration.IsSystem = false
@@ -371,8 +377,30 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	orgIntegration.IntegrationID = utility.GenerateUUID()
 	orgIntegration.SystemPrompts = req.SystemPrompts
 	orgIntegration.AppLogo = req.Avatar
+	orgIntegration.PreSharedKey = psk
 
 	err = orgIntegration.CreateOrganisationIntegration(db)
+	if err != nil {
+		return int_resp, http.StatusInternalServerError, err
+	}
+
+	auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
+	settings_data := map[string]any{"settings": ""}
+
+	auth_credentials["agent_api_key"] = psk
+	settings_data["auth_credentials"] = auth_credentials
+	settingJsonData, err := json.Marshal(settings_data)
+	if err != nil {
+		return int_resp, http.StatusInternalServerError, fmt.Errorf("error serializing to JSON: %v", err)
+	}
+	serialized_settings := string(settingJsonData)
+	agentSettings.SettingEntry = serialized_settings
+	agentSettings.OrgID = req.OrgId
+	agentSettings.IntegrationID = orgIntegration.IntegrationID
+	agentSettings.IsSystem = false
+	agentSettings.ID = utility.GenerateUUID()
+
+	err = agentSettings.CreateIntegrationSettings(db)
 	if err != nil {
 		return int_resp, http.StatusInternalServerError, err
 	}
