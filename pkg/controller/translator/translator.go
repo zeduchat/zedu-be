@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -50,6 +51,28 @@ func (base *Controller) GenerateTranslation(c *gin.Context) {
 
 	base.Logger.Info("Translation generated successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Translation generated successfully", response)
+	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) GenerateWorkflowJSON(c *gin.Context) {
+	workflowID := c.Param("workflow_id")
+	if _, err := uuid.Parse(workflowID); err != nil {
+		base.Logger.Error("invalid workflow id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid workflow id format", "failed to decode workflow id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	response, statusCode, err := translator.GenerateWorkflowJSON(base.Db.Postgresql, base.Logger, base.ExtReq, workflowID)
+	if err != nil {
+		base.Logger.Error("error generating translation", err)
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("Translation generated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Translation generated successfully", response.ProcessStep[len(response.ProcessStep)-1].Output)
 	c.JSON(http.StatusCreated, rd)
 }
 

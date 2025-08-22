@@ -17207,6 +17207,7 @@ paths:
                     nullable: true
                     example: null
 
+
   /organisations/{org_id}/workflows:
     post:
       tags:
@@ -17837,6 +17838,127 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /workflow/{workflow_id}/tasks:
+    get:
+      tags:
+        - Workflow
+      summary: Get tasks for a workflow
+      parameters:
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Tasks fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        workflow_id: { type: string }
+                        text: { type: string }
+                        position: { type: integer }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+
+    put:
+      tags:
+        - Workflow
+      summary: Update workflow tasks
+      parameters:
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tasks:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      text: { type: string }
+                      position: { type: integer }
+                      skill: { type: string }
+      responses:
+        "200":
+          description: Tasks updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        workflow_id: { type: string }
+                        text: { type: string }
+                        position: { type: integer }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+
+  /workflow/{workflow_id}/skills:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow skills
+      parameters:
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Workflow skills fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        workflow_id: { type: string }
+                        skill_id: { type: string }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
 
   /skills:
     get:
@@ -18490,6 +18612,36 @@ paths:
                     type: object
                     nullable: true
                     example: null
+
+  /translator/{workflow_id}:
+    get:
+      tags:
+        - Translator
+      summary: Get translated workflow by ID
+      parameters:
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the workflow
+      responses:
+        "201":
+          description: Translation generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: string
+                    description: Workflow JSON output
   /prompts:
     post:
       tags:
@@ -18497,7 +18649,7 @@ paths:
       summary: Create a new prompt
       description: Creates a new prompt template for use in translation workflows.
       requestBody:
-        required: true
+        required: trueans
         content:
           application/json:
             schema:
