@@ -12,10 +12,10 @@ import (
 func FetchAPIKeyCredentials(c *gin.Context) (models.IDS, error) {
 	var idmodel models.IDS
 
-	agentID, ok := c.Get("agent_id")
-	if !ok {
-		return idmodel, errors.New("agent_id is required")
-	}
+	// agentID, ok := c.Get("agent_id")
+	// if !ok {
+	// 	return idmodel, errors.New("agent_id is required")
+	// }
 
 	organisationID, ok := c.Get("org_id")
 	if !ok {
@@ -23,7 +23,6 @@ func FetchAPIKeyCredentials(c *gin.Context) (models.IDS, error) {
 	}
 
 	ids := models.IDS{
-		AgentID:        agentID.(string),
 		OrganisationID: organisationID.(string),
 	}
 
