@@ -119,7 +119,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	var (
 		agents      models.OrganisationIntegrations
 		task        models.Task
-		skillsModel models.AgentWorkflowSkills
+		skillsModel models.AgentSkill
 	)
 
 	exists, err := agents.CheckAgentExists(db, agentID)
@@ -143,12 +143,12 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		taskList.WriteString(fmt.Sprintf("%s\n", t.Text))
 	}
 
-	skills, err := skillsModel.GetAgentWorkflowSkills(db, agentID)
+	skills, err := skillsModel.GetAllAgentSkills(db, agentID)
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusInternalServerError, err
 	}
 	if len(skills) == 0 {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no workflow skills found for agent id %s", agentID)
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no skills found for agent id %s", agentID)
 	}
 
 	skillsList := make([]string, len(skills))
