@@ -76,8 +76,25 @@ type AgentSkillResponse struct {
 	// Tags         []string `json:"tags"`
 }
 
+type SkillResp struct {
+	AgentID string
+	SkillID string
+}
+
 func (a *AgentSkill) CreateAgentSkill(db *gorm.DB) error {
 	return postgresql.CreateOneRecord(db, a)
+}
+
+func (as *AgentSkill) CheckAgentHasSkill(db *gorm.DB, agentID, skillID string) (bool, error) {
+	var skill AgentSkill
+	err := db.Where("agent_id = ? AND id = ?", agentID, skillID).First(&skill).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, postgresql.PaginationResponse, error, int) {
@@ -182,6 +199,38 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 	}
 
 	return skill, nil
+}
+
+func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB, agentID string) ([]AgentSkillResponse, error) {
+    var skills []AgentSkillResponse
+
+    err := db.Model(&AgentSkill{}).
+        Select(`
+            agent_skills.id, 
+            agent_skills.agent_id, 
+            agent_skills.config,
+            agent_skills.is_configured,
+            agent_skills.is_active,
+            general_agent_skills.id AS general_id, 
+            general_agent_skills.name, 
+            general_agent_skills.tags, 
+            general_agent_skills.type, 
+            general_agent_skills.description, 
+            general_agent_skills.avatar
+        `).
+        Joins("JOIN general_agent_skills ON general_agent_skills.id = agent_skills.id").
+        Where("agent_skills.agent_id = ?", agentID).
+        Find(&skills).Error
+
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch agent skills: %w", err)
+    }
+
+    if len(skills) == 0 {
+        return []AgentSkillResponse{}, nil
+    }
+
+    return skills, nil
 }
 
 func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) error {

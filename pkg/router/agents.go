@@ -38,7 +38,6 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	{
 		agentURL.PUT("/:agent_id/", agentsCtrl.UpdateAgentTasks)
 		agentURL.GET("/:agent_id/", agentsCtrl.GetAgentTasks)
-		agentURL.GET("/:agent_id/skills", agentsCtrl.GetAgentWorkflowSkills)
 	}
 
 	return r

@@ -73,24 +73,3 @@ func (base *Controller) GetAgentTasks(c *gin.Context) {
 	c.JSON(code, utility.BuildSuccessResponse(code, "Tasks fetched successfully", resp))
 }
 
-func (base *Controller) GetAgentWorkflowSkills(c *gin.Context) {
-	agentID := c.Param("agent_id")
-
-	if _, err := uuid.Parse(agentID); err != nil {
-		base.Logger.Info("invalid agent id format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid agent id format", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	resp, code, err := agents.GetAgentWorkflowSkills(c, base.Db.Postgresql, base.Logger, agentID)
-	if err != nil {
-		base.Logger.Error("error fetching agent workflow skills", err)
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	base.Logger.Info("Agent workflow skills fetched successfully")
-	c.JSON(code, utility.BuildSuccessResponse(code, "Agent workflow skills fetched successfully", resp))
-}
