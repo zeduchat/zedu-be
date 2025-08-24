@@ -1037,6 +1037,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 		notification := Notification[UnReadThreadChange]
 		notification.SectionType = ChannelsSection
 		notification.Content = res[0]
+		notification.NotificationId = utility.GenerateUUID()
 
 		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, c.UserID), notification)
 		if err != nil {
@@ -1063,6 +1064,7 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			notification := Notification[UnReadThreadChange]
 			notification.SectionType = ChannelsSection
 			notification.Content = update
+			notification.NotificationId = utility.GenerateUUID()
 
 			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), notification)
 			if err != nil {
