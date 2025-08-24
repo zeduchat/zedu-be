@@ -31,8 +31,7 @@ func GenerateTranslation(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, tasklist string, req models.TranslationRequest) ([]models.ProcessStep, error) {
 	stepProcess := []models.ProcessStep{}
 	placeholders := map[string]string{
-		"agent_skills":  strings.Join(req.AgentSkills, ", "),
-		"global_skills": strings.Join(req.GlobalSkills, ", "),
+		"skills": strings.Join(req.Skills, ", "),
 	}
 
 	var previousOutput string = tasklist
@@ -113,4 +112,80 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	}
 
 	return response, code, nil
+}
+
+func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.TranslationResponse, int, error) {
+	//fetch tasks and workflow skills from db
+	var (
+		agents      models.OrganisationIntegrations
+		task        models.Task
+		skillsModel models.AgentSkill
+	)
+
+	exists, err := agents.CheckAgentExists(db, agentID)
+	if !exists {
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
+	}
+	if err != nil {
+		return models.TranslationResponse{}, http.StatusInternalServerError, err
+	}
+
+	tasks, err := (task).GetAgentTasks(db, agentID)
+	if err != nil {
+		return models.TranslationResponse{}, http.StatusInternalServerError, err
+	}
+	if len(tasks) == 0 {
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no tasks found for agent id %s", agentID)
+	}
+
+	var taskList strings.Builder
+	for _, t := range tasks {
+		taskList.WriteString(fmt.Sprintf("%s\n", t.Text))
+	}
+
+	skills, err := skillsModel.GetAllAgentSkills(db, agentID)
+	if err != nil {
+		return models.TranslationResponse{}, http.StatusInternalServerError, err
+	}
+	if len(skills) == 0 {
+		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no skills found for agent id %s", agentID)
+	}
+
+	skillsList := make([]string, len(skills))
+	for i, skill := range skills {
+		skillsList[i] = skill.Name
+	}
+
+	promptSteps := []string{"Task Cleanup", "Skill Matching", "Workflow Translation"}
+	steps := make([]models.StepReq, len(promptSteps))
+	for i, step := range promptSteps {
+		var prompt models.Prompts
+		err := prompt.GetLatestPromptVersionByName(db, step)
+		if err != nil {
+			return models.TranslationResponse{}, http.StatusInternalServerError, err
+		}
+
+		steps[i] = models.StepReq{
+			Name:    step,
+			Version: prompt.Version,
+		}
+	}
+
+	req := models.TranslationRequest{
+		TaskList: taskList.String(),
+		Skills:   skillsList,
+		Steps:    steps,
+	}
+
+	stepProcess, err := runTranslationPipeline(db, logger, extReq, taskList.String(), req)
+	if err != nil {
+		return models.TranslationResponse{}, http.StatusBadRequest, err
+	}
+
+	resp := models.TranslationResponse{
+		Status:      "success",
+		ProcessStep: stepProcess,
+	}
+
+	return resp, http.StatusOK, nil
 }

@@ -216,7 +216,7 @@ func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebh
 		return fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db, string(payloadBytes), routing_key)
+	err = rabbitmq.PushToRabbitQueue(logger, db, string(payloadBytes), routing_key, payload["task"].(string))
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration %s: %v", integration.ID, err.Error()))
 		return fmt.Errorf("failed to push to RabbitMQ, error: %v", err)

@@ -6,11 +6,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func PushToRabbitQueue(logger *utility.Logger, db *gorm.DB, payload, routing_key string) error {
+func PushToRabbitQueue(logger *utility.Logger, db *gorm.DB, payload, routing_key, task string) error {
 
 	err := rabbitmq.QueueClient.QM.Publish(
 		payload,
 		routing_key,
+		task,
 	)
 	if err != nil {
 		return err
