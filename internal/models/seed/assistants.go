@@ -7,7 +7,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SeedAssistantIntegrations(logger *utility.Logger, db *gorm.DB) {
+func SeedAssistants(logger *utility.Logger, db *gorm.DB) {
 	var count int64
 
 	names := []string{
