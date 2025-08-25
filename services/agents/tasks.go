@@ -114,7 +114,7 @@ func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extRe
 			as  models.AgentSkill
 		)
 
-		exists, err := as.CheckAgentHasSkill(db, req.AgentID, rs.ID)
+		exists, err := as.CheckAgentHasSkillByName(db, req.AgentID, rs.Name)
 		if err != nil {
 			logger.Error("Failed to check if agent has skill: ", err)
 			continue
@@ -126,10 +126,13 @@ func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extRe
 		}
 	}
 
-	err = StoreAgentSkills(db, logger, recommendedSkills, req.AgentID)
-	if err != nil {
-		logger.Error("Failed to store agent workflow skills: ", err)
-		return http.StatusOK, allRecommendedSkills, nil
+
+	if len(recommendedSkills) > 0 {
+		err = StoreAgentSkills(db, logger, recommendedSkills, req.AgentID)
+		if err != nil {
+			logger.Error("Failed to store agent workflow skills: ", err)
+			return http.StatusOK, allRecommendedSkills, nil
+		}
 	}
 
 	return http.StatusOK, allRecommendedSkills, nil
@@ -218,43 +221,57 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 }
 
 func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []models.GeneralAgentSkill, agentID string) error {
-	var as []models.AgentSkill
-	if len(recommendedskills) == 0 {
-		return nil
-	}
+    logger.Info(fmt.Sprintf("Attempting to store %d recommended skills", len(recommendedskills)))
+    
+    var as []models.AgentSkill
+    if len(recommendedskills) == 0 {
+        logger.Info("No recommended skills to store")
+        return nil
+    }
 
-	tx := db.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
+    tx := db.Begin()
+    if tx.Error != nil {
+        logger.Error("Failed to begin transaction:", tx.Error)
+        return tx.Error
+    }
 
-	//save the skills in AgentSkill
-	for _, skill := range recommendedskills {
-		as = append(as, models.AgentSkill{
-			ID:           skill.ID,
-			Name:         skill.Name,
-			AgentId:      agentID,
-			IsActive:     skill.IsActive,
-			Description:  skill.Description,
-			Type:         skill.Type,
-			IsConfigured: skill.IsConfigured,
-			Config:       skill.Config,
-			Avatar:       skill.Avatar,
-		})
-	}
+    for _, skill := range recommendedskills {
+        logger.Info(fmt.Sprintf("Processing skill: %s", skill.Name))
 
-	err := tx.CreateInBatches(&as, 100).Error
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to save agent skills: %v", err)
-	}
+        newSkill := models.AgentSkill{
+            ID:           skill.ID,
+            Name:         skill.Name,
+            AgentId:      agentID,
+            IsActive:     skill.IsActive,
+            Description:  skill.Description,
+            Type:         skill.Type,
+            IsConfigured: skill.IsConfigured,
+            Config:       skill.Config,
+            Avatar:       skill.Avatar,
+        }
+        as = append(as, newSkill)
+    }
 
-	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("failed to commit agent skills transaction: %v", err)
-	}
+    if len(as) == 0 {
+        logger.Error("No skills were processed for storage")
+        tx.Rollback()
+        return nil
+    }
 
-	logger.Info("Successfully stored agent skills")
-	return nil
+    err := tx.CreateInBatches(&as, 100).Error
+    if err != nil {
+        logger.Error("Failed to save agent skills:", err)
+        tx.Rollback()
+        return fmt.Errorf("failed to save agent skills: %v", err)
+    }
+
+    if err := tx.Commit().Error; err != nil {
+        logger.Error("Failed to commit transaction:", err)
+        return fmt.Errorf("failed to commit agent skills transaction: %v", err)
+    }
+
+    logger.Info(fmt.Sprintf("Successfully stored %d agent skills", len(as)))
+    return nil
 }
 
 func GetAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, agentID string) ([]models.Task, int, error) {
