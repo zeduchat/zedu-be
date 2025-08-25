@@ -285,9 +285,15 @@ func (a *AgentSkill) DeleteAgentSkill(db *gorm.DB) error {
 func (a *AgentSkill) ValidateSkills(db *gorm.DB, req *CreateAgentSkillsRequest) error {
 	invalidSkill := []string{}
 	validSkillIds := []string{}
+	var org_integration OrganisationIntegrations
 
 	if len(req.SkillIds) == 0 {
 		return fmt.Errorf("invalid skills supplied, empty skills")
+	}
+
+	exists := postgresql.CheckExists(db, &org_integration, "integration_id = ?", req.AgentId)
+	if !exists {
+		return errors.New("agent does not exist")
 	}
 
 	for _, skillId := range req.SkillIds {
@@ -333,7 +339,7 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 	err := postgresql.CreateMultipleRecords(db, &skills, len(skills))
 
 	if err != nil {
-		return errors.New("An error occurred adding skills to agent")
+		return err
 	}
 
 	return nil

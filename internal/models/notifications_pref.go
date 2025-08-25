@@ -46,7 +46,7 @@ type Content struct {
 	UpdateChange        map[string]any       `json:"update_change,omitempty"`
 	PinnedDetails       *PinnedDetails       `json:"pinned_details,omitempty"`
 	Reactions           *[]ReactionDetails   `json:"reactions,omitempty"`
-	NotificationId      string               `json:"notification_id"`
+	NotificationId      string               `json:"notification_id,omitempty"`
 }
 
 type ModificationDetails struct {

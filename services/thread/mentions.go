@@ -126,7 +126,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		OrgId:       channel.OrganisationID,
 		Media:       req.Media,
 		ChannelName: channel.Name,
-		ChannelType:   channelType,
+		ChannelType: channelType,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -239,24 +239,21 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		}
 
 		payload := map[string]any{
-			"args": []map[string]any{
-				{
-					"message_content": map[string]any{
-						"channel_id": feed.ChannelsId,
-						"message":    feed.Content,
-						"thread_id":  feed.ThreadId,
-						"type":     feed.Type,
-						"user_id":  feed.UserId,
-						"org_id":   feed.OrgId,
-						"media":    feed.Media,
-						"mentions": feed.Mentions,
-					},
-					"channel_id": feed.ChannelsId,
-					"return_url": feed.ReturnUrl,
-				},
+			"message_content": map[string]any{
+				"channel_id": feed.ChannelsId,
+				"message":    feed.Content,
+				"thread_id":  feed.ThreadId,
+				"type":       feed.Type,
+				"user_id":    feed.UserId,
+				"org_id":     feed.OrgId,
+				"media":      feed.Media,
+				"mentions":   feed.Mentions,
 			},
-			"task": "telex_queue_processor.handle_new_message",
+			"channel_id": feed.ChannelsId,
+			"return_url": feed.ReturnUrl,
 		}
+
+		task := "telex_queue_processor.handle_new_message"
 
 		payloadBytes, err := json.Marshal(payload)
 		if err != nil {
@@ -264,7 +261,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 			return &models.ThreadDocument{}, fmt.Errorf("failed to marshal payload, error: %v", err)
 		}
 
-		err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, payload["task"].(string))
+		err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, task)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
 			return &models.ThreadDocument{}, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)

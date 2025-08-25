@@ -201,7 +201,7 @@ func (base *Controller) AddSkillsToAgent(c *gin.Context) {
 	}
 	req.AgentId = agent_id
 
-	code, err := agents.AddSkillToAgent(req, base.Db.Postgresql)
+	code, err := agents.AddSkillToAgent(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to add agent skills", err)
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to add skill to agent", nil))

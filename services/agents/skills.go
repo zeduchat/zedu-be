@@ -96,7 +96,7 @@ func DeleteAgentSkill(skillID, agentId string, db *gorm.DB) error {
 	return skill.DeleteAgentSkill(db)
 }
 
-func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB) (int, error) {
+func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB, logger *utility.Logger) (int, error) {
 	var skill models.AgentSkill
 
 	// all or nothing validation
@@ -108,7 +108,8 @@ func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB) (int, err
 	err = skill.AddSkilltoAgent(db, &req)
 
 	if err != nil {
-		return http.StatusInternalServerError, err
+		logger.Error("Error adding skills to agent an error occured: %v", err)
+		return http.StatusInternalServerError, errors.New("An error occurred adding skills to agent")
 	}
 
 	return http.StatusOK, nil
