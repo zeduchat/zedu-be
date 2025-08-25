@@ -18808,7 +18808,7 @@ paths:
   /tasks/{agent_id}:
     put:
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       tags:
         - Tasks
       summary: Create tasks for an agent
@@ -18891,7 +18891,7 @@ paths:
   /tasks/{agent_id}/:
     get:
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       tags:
         - Tasks
       summary: Fetch tasks for an agent
