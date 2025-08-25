@@ -7,11 +7,11 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
+		models.AgentSkill{},
 		models.Task{},
 		models.Prompts{},
 		models.FcmTokens{},
 		models.CreditTransaction{},
-		models.OrganisationIntegrations{},
 		models.IntegrationOutput{},
 		models.Integrations{},
 		models.CreditPackage{},
@@ -53,7 +53,6 @@ func AuthMigrationModels() []any {
 		models.PinnedMessage{},
 		models.Reaction{},
 		models.Workflow{},
-		models.AgentSkill{},
 		models.GeneralAgentSkill{},
 		models.GeneralWorkflow{},
 		models.ChannelWorkflow{},
@@ -74,6 +73,7 @@ func AuthMigrationModels() []any {
 		models.CreditUsage{},
 		models.Admin{},
 		models.IntegrationBills{},
+		models.OrganisationIntegrations{},
 	} // an array of db models, example: User{}
 }
 
