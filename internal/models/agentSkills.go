@@ -339,7 +339,7 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 	err := postgresql.CreateMultipleRecords(db, &skills, len(skills))
 
 	if err != nil {
-		return errors.New("An error occurred adding skills to agent")
+		return err
 	}
 
 	return nil
