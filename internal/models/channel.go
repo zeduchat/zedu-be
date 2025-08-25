@@ -1006,7 +1006,7 @@ func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, user
 	if err := db.Model(&Channels{}).
 		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.id = ? AND uc.user_id != ?", channel_id, userId).
+		Where("channels.id = ? AND (uc.user_id != ? OR uc.mention_count > 0)", channel_id, userId).
 		Order("channels.created_at").
 		Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
