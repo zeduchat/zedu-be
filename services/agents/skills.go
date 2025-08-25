@@ -23,13 +23,14 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 
 	agentSkill := models.AgentSkill{
 		ID:           utility.GenerateUUID(),
+		SkillId:      utility.GenerateUUID(),
 		Name:         req.Name,
 		AgentId:      req.AgentId,
 		Description:  req.Description,
 		Type:         req.Type,
-		IsActive:     req.IsActive,
+		IsActive:     true,
 		IsConfigured: false, // default
-		Avatar:       "",    // can be updated later
+		Avatar:       req.Avatar,
 		Config:       req.Config,
 		// Tags:         req.Tags,
 	}
@@ -39,7 +40,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 	}
 
 	resp = models.AgentSkillResponse{
-		ID:           agentSkill.ID,
+		SkillId:      agentSkill.SkillId,
 		Name:         agentSkill.Name,
 		Description:  agentSkill.Description,
 		Type:         agentSkill.Type,
@@ -62,7 +63,7 @@ func GetAgentSkills(agentID string, db *gorm.DB, c *gin.Context) ([]models.Agent
 func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkillResponse, error) {
 	var skill models.AgentSkill
 	skill.AgentId = agentId
-	skill.ID = skillID
+	skill.SkillId = skillID
 	return skill.GetAgentSkillByID(db)
 }
 
@@ -84,14 +85,14 @@ func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentS
 
 func UpdateAgentSkill(skillID, agentId string, updateData models.UpdateAgentSkillRequest, db *gorm.DB) (models.AgentSkill, error) {
 	var skill models.AgentSkill
-	skill.ID = skillID
+	skill.SkillId = skillID
 	skill.AgentId = agentId
 	return skill.UpdateAgentSkill(db, updateData)
 }
 
 func DeleteAgentSkill(skillID, agentId string, db *gorm.DB) error {
 	var skill models.AgentSkill
-	skill.ID = skillID
+	skill.SkillId = skillID
 	skill.AgentId = agentId
 	return skill.DeleteAgentSkill(db)
 }
