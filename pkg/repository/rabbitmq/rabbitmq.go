@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
@@ -211,6 +212,19 @@ func (qm *QueueManager) Publish(payload, routingKey, task string) error {
 		"kwargsrepr":    "{}",
 	}
 
+	publishedBody := map[string]interface{}{
+		"args": []interface{}{payload},
+		"kwargs": map[string]interface{}{
+			"chain": nil,
+		},
+		"options": map[string]interface{}{},
+	}
+
+	bodyBytes, err := json.Marshal(publishedBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal published body: %w", err)
+	}
+
 	return qm.channel.PublishWithContext(
 		ctx,
 		qm.config.Exchange, // Exchange
@@ -219,7 +233,7 @@ func (qm *QueueManager) Publish(payload, routingKey, task string) error {
 		false,              // Immediate
 		amqp091.Publishing{
 			ContentType:  "application/json",
-			Body:         []byte(payload),
+			Body:         bodyBytes,
 			DeliveryMode: amqp091.Persistent,
 			Headers:      headers,
 		},
