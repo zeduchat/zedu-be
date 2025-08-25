@@ -66,11 +66,12 @@ func (r *SendRequestObject) SendRequest(response any) error {
 		logger.Error("encoding error", name, err.Error())
 	}
 
-	logger.Info("before prefix", name, r.Path, data, buf)
+	// logger.Info("before prefix", name, r.Path, data, buf)
 	if r.UrlPrefix != "" {
 		r.Path += r.UrlPrefix
 	}
-	logger.Info("after prefix", name, r.Path, data, buf)
+
+	// logger.Info("after prefix", name, r.Path, data, buf)
 
 	var req *http.Request
 	client := &http.Client{}

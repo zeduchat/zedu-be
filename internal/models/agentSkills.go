@@ -97,6 +97,18 @@ func (as *AgentSkill) CheckAgentHasSkill(db *gorm.DB, agentID, skillID string) (
 	return true, nil
 }
 
+func (as *AgentSkill) CheckAgentHasSkillByName(db *gorm.DB, agentID, skillName string) (bool, error) {
+	var skill AgentSkill
+	err := db.Where("agent_id = ? AND name = ?", agentID, skillName).First(&skill).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skills []AgentSkill
 

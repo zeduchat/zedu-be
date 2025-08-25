@@ -271,27 +271,24 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	}
 
 	payload := map[string]any{
-		"args": []map[string]any{
-			{
-				"message_content": map[string]any{
-					"channel_id":              feed.ChannelsId,
-					"message":                 feed.Content,
-					"thread_id":               feed.ThreadId,
-					"is_channel_conversation": false,
-					"type":                    feed.Type,
-					"user_id":                 feed.UserId,
-					"org_id":                  feed.OrgId,
-					"media":                   feed.Media,
-					"mentions":                feed.Mentions,
-				},
-				"channel_id": feed.ChannelsId,
-				"org_id":     feed.OrgId,
-				"return_url": feed.ReturnUrl,
-				"agent_id":   channel.ParticipantId,
-			},
+		"message_content": map[string]any{
+			"channel_id":              feed.ChannelsId,
+			"message":                 feed.Content,
+			"thread_id":               feed.ThreadId,
+			"is_channel_conversation": false,
+			"type":                    feed.Type,
+			"user_id":                 feed.UserId,
+			"org_id":                  feed.OrgId,
+			"media":                   feed.Media,
+			"mentions":                feed.Mentions,
 		},
-		"task": "telex_queue_processor.handle_direct_message",
+		"channel_id": feed.ChannelsId,
+		"org_id":     feed.OrgId,
+		"return_url": feed.ReturnUrl,
+		"agent_id":   channel.ParticipantId,
 	}
+
+	task := "telex_queue_processor.handle_direct_message"
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -299,7 +296,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, payload["task"].(string))
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, task)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)

@@ -18810,7 +18810,7 @@ paths:
       tags:
         - Tasks
       summary: Create tasks for an agent
-      description: Create and assign multiple tasks to a specific agent. Returns the agent's current and recommended skills based on the submitted tasks.
+      description: Assign one or more tasks to a given agent. Returns the skills that match the created tasks.
       parameters:
         - name: agent_id
           in: path
@@ -18827,15 +18827,13 @@ paths:
               properties:
                 tasks:
                   type: array
+                  description: List of tasks to assign
                   items:
                     type: object
                     properties:
-                      id:
-                        type: string
-                        example: "0198d2cf-b8ac-7a80-ad45-25f7863c514f"
                       text:
                         type: string
-                        example: "Analyze Q4 financial data for trends and anomalies"
+                        example: "Create a new pet listing in the petstore with name 'Buddy', category 'Dog', and status 'available'"
                       position:
                         type: integer
                         example: 1
@@ -18857,70 +18855,36 @@ paths:
                     type: string
                     example: Tasks created successfully
                   data:
-                    type: object
-                    properties:
-                      current_skills:
-                        type: array
-                        items:
+                    type: array
+                    description: Skills resolved for the created tasks
+                    items:
+                      type: object
+                      properties:
+                        skill_id:
+                          type: string
+                          example: "104c2a85-28b6-4a76-b49a-4c84b05e125a"
+                        name:
+                          type: string
+                          example: "Report Generation"
+                        description:
+                          type: string
+                          example: "Generate detailed PDF and Excel reports"
+                        type:
+                          type: string
+                          example: "reporting"
+                        is_active:
+                          type: boolean
+                          example: true
+                        is_configured:
+                          type: boolean
+                          example: false
+                        avatar:
+                          type: string
+                          example: "📝"
+                        agent_config:
                           type: object
-                          properties:
-                            skill_id:
-                              type: string
-                              example: "9ab26335-31b8-4105-b469-d3c4f3f23059"
-                            name:
-                              type: string
-                              example: "Data Analysis"
-                            description:
-                              type: string
-                              example: "Analyze structured and unstructured data"
-                            type:
-                              type: string
-                              example: "analysis"
-                            is_active:
-                              type: boolean
-                            is_configured:
-                              type: boolean
-                            avatar:
-                              type: string
-                              example: "📊"
-                            agent_config:
-                              type: object
-                              additionalProperties: true
-                      recommended_skills:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              example: "3dd3e219-e360-4620-a7a1-76e7422d3d5b"
-                            name:
-                              type: string
-                              example: "Financial Forecasting"
-                            description:
-                              type: string
-                              example: "Predict financial trends based on historical data"
-                            type:
-                              type: string
-                              example: "finance"
-                            is_active:
-                              type: boolean
-                            is_configured:
-                              type: boolean
-                            avatar:
-                              type: string
-                              example: "💹"
-                            tags:
-                              type: array
-                              items:
-                                type: string
-                              example: ["finance", "forecasting", "economics"]
-                            created_at:
-                              type: string
-                              format: date-time
-                            agent_config:
-                              type: object
-                              additionalProperties: true
+                          additionalProperties: true
+                          example: {}
 
   /tasks/{agent_id}/:
     get:
