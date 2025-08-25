@@ -2,12 +2,12 @@ package rabbitmq
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"sync"
 	"time"
-	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
@@ -218,8 +218,8 @@ func (qm *QueueManager) Publish(payload, routingKey, task string) error {
 	}
 
 	body := []any{
-		argPayload,      // args
-		map[string]any{},       // kwargs
+		[]any{argPayload},            // args
+		map[string]any{},             // kwargs
 		map[string]any{"chain": nil}, // options
 	}
 
