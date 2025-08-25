@@ -212,17 +212,20 @@ func (qm *QueueManager) Publish(payload, routingKey, task string) error {
 		"kwargsrepr":    "{}",
 	}
 
-	publishedBody := map[string]interface{}{
-		"args": []interface{}{payload},
-		"kwargs": map[string]interface{}{
-			"chain": nil,
-		},
-		"options": map[string]interface{}{},
+	var argPayload any
+	if err := json.Unmarshal([]byte(payload), &argPayload); err != nil {
+		return fmt.Errorf("invalid payload JSON: %w", err)
 	}
 
-	bodyBytes, err := json.Marshal(publishedBody)
+	body := []any{
+		[]any{argPayload},      // args
+		map[string]any{},       // kwargs
+		map[string]any{"chain": nil}, // options
+	}
+
+	bodyBytes, err := json.Marshal(body)
 	if err != nil {
-		return fmt.Errorf("failed to marshal published body: %w", err)
+		return fmt.Errorf("failed to encode body: %w", err)
 	}
 
 	return qm.channel.PublishWithContext(
