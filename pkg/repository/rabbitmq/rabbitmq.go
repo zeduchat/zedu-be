@@ -218,7 +218,7 @@ func (qm *QueueManager) Publish(payload, routingKey, task string) error {
 	}
 
 	body := []any{
-		[]any{argPayload},      // args
+		argPayload,      // args
 		map[string]any{},       // kwargs
 		map[string]any{"chain": nil}, // options
 	}
