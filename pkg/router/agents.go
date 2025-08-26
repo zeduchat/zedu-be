@@ -36,8 +36,11 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	//agent tasks
 	agentURL := r.Group(fmt.Sprintf("%v/tasks", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
-		agentURL.PUT("/:agent_id", agentsCtrl.UpdateAgentTasks)
+		agentURL.POST("/:agent_id", agentsCtrl.CreateAgentTasks)
 		agentURL.GET("/:agent_id", agentsCtrl.GetAgentTasks)
+		agentURL.PUT("/:task_id/agents/:agent_id", agentsCtrl.UpdateAgentTasks)
+		agentURL.DELETE("/:task_id/agents/:agent_id", agentsCtrl.DeleteAgentTasks)
+		agentURL.GET("/:agent_id/process", agentsCtrl.ProcessAgentTasks)
 	}
 
 	return r
