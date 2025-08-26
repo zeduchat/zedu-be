@@ -2,7 +2,6 @@ package agents
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,88 +11,50 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/translator"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, req models.UpdateAgentTasksRequest) (int, []models.AgentSkillResponse, error) {
-	tx := db.Begin()
-	if tx.Error != nil {
-		return http.StatusInternalServerError, []models.AgentSkillResponse{}, tx.Error
+func CreateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.CreateAgentTasksRequest) (int, models.Task, error) {
+
+	task := models.Task{
+		ID:       utility.GenerateUUID(),
+		AgentID:  req.AgentID,
+		Text:     req.Text,
+		Position: req.Position,
 	}
 
-	var existingTasks []models.Task
-	err := postgresql.SelectAllFromDb(tx, "", &existingTasks, "agent_id = ?", req.AgentID)
+	code, err := task.CreateTasks(db)
 	if err != nil {
-		tx.Rollback()
-		return http.StatusInternalServerError, []models.AgentSkillResponse{}, err
+		return code, models.Task{}, err
 	}
 
-	existingMap := make(map[string]models.Task)
-	for _, t := range existingTasks {
-		existingMap[t.ID] = t
+	return http.StatusCreated, task, nil
+}
+
+func UpdateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.UpdateAgentTasksRequest, ids models.IDS) (int, error) {
+
+	var task models.Task
+
+	code, err := task.UpdateAgentTasks(db, req, ids)
+	if err != nil {
+		return code, err
 	}
 
-	incomingIDs := make(map[string]bool)
-	var updatedTasks []models.Task
+	return http.StatusOK, nil
+}
 
-	for _, taskReq := range req.Tasks {
-		if taskReq.ID != nil {
-			existingTask, ok := existingMap[*taskReq.ID]
-			if !ok {
-				tx.Rollback()
-				return http.StatusNotFound, []models.AgentSkillResponse{}, errors.New("task not found: " + *taskReq.ID)
-			}
+func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (int, []models.AgentSkillResponse, error) {
 
-			changed := false
-			if existingTask.Text != taskReq.Text {
-				existingTask.Text = taskReq.Text
-				changed = true
-			}
-			if existingTask.Position != taskReq.Position {
-				existingTask.Position = taskReq.Position
-				changed = true
-			}
-
-			if changed {
-				if err := tx.Save(&existingTask).Error; err != nil {
-					tx.Rollback()
-					return http.StatusInternalServerError, nil, err
-				}
-			}
-
-			incomingIDs[existingTask.ID] = true
-			updatedTasks = append(updatedTasks, existingTask)
-
-		} else {
-			newTask := models.Task{
-				ID:       utility.GenerateUUID(),
-				AgentID:  req.AgentID,
-				Text:     taskReq.Text,
-				Position: taskReq.Position,
-			}
-			if err := tx.Create(&newTask).Error; err != nil {
-				tx.Rollback()
-				return http.StatusInternalServerError, []models.AgentSkillResponse{}, err
-			}
-			incomingIDs[newTask.ID] = true
-			updatedTasks = append(updatedTasks, newTask)
-		}
+	tasks, code, err := GetAgentTasks(c, db, logger, agentID)
+	if err != nil {
+		logger.Error("error fetching tasks", err)
+		return code, []models.AgentSkillResponse{}, err
 	}
 
-	for id := range existingMap {
-		if !incomingIDs[id] {
-			err := postgresql.HardDeleteSpecificRecord(tx, &models.Task{}, "id = ?", id)
-			if err != nil {
-				tx.Rollback()
-				return http.StatusInternalServerError, []models.AgentSkillResponse{}, err
-			}
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return http.StatusInternalServerError, []models.AgentSkillResponse{}, err
+	if len(tasks) == 0 {
+		logger.Info("No tasks found for agent")
+		return http.StatusOK, []models.AgentSkillResponse{}, nil
 	}
 
 	var gas models.GeneralAgentSkill
@@ -102,7 +63,7 @@ func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extRe
 		return statusCode, []models.AgentSkillResponse{}, err
 	}
 
-	allRecommendedSkills, err := GetRecommendedSkills(db, extReq, logger, updatedTasks, generalskills, req.AgentID)
+	allRecommendedSkills, err := GetRecommendedSkills(db, extReq, logger, tasks, generalskills, agentID)
 	if err != nil {
 		logger.Error("Failed to get recommended agent workflow skills: ", err)
 		return http.StatusOK, []models.AgentSkillResponse{}, nil
@@ -115,7 +76,7 @@ func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extRe
 			as  models.AgentSkill
 		)
 
-		exists, err := as.CheckAgentHasSkillByName(db, req.AgentID, rs.Name)
+		exists, err := as.CheckAgentHasSkillByName(db, agentID, rs.Name)
 		if err != nil {
 			logger.Error("Failed to check if agent has skill: ", err)
 			continue
@@ -128,7 +89,7 @@ func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extRe
 	}
 
 	if len(recommendedSkills) > 0 {
-		err = StoreAgentSkills(db, logger, recommendedSkills, req.AgentID)
+		err = StoreAgentSkills(db, logger, recommendedSkills, agentID)
 		if err != nil {
 			logger.Error("Failed to store agent workflow skills: ", err)
 			return http.StatusOK, allRecommendedSkills, nil
@@ -137,6 +98,7 @@ func UpdateAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extRe
 
 	return http.StatusOK, allRecommendedSkills, nil
 }
+
 
 func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger, tasksList []models.Task, generalSkills []models.GeneralAgentSkill, agentID string) ([]models.AgentSkillResponse, error) {
 	type skillInfo struct {
@@ -283,10 +245,17 @@ func GetAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, agentID 
 		logger.Error("error fetching tasks", err)
 		return nil, http.StatusInternalServerError, err
 	}
-	if len(tasks) == 0 {
-		logger.Info("No tasks found for agent ID: ", agentID)
-		return nil, http.StatusNotFound, fmt.Errorf("no tasks found for agent ID: %s", agentID)
-	}
 
 	return tasks, http.StatusOK, nil
+}
+
+func DeleteAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, ids models.IDS) (int, error) {
+	var task models.Task
+
+	code, err := task.DeleteAgentTasks(db, ids)
+	if err != nil {
+		return code, err
+	}
+
+	return http.StatusOK, nil
 }
