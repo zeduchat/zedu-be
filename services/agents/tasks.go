@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/translator"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func CreateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.CreateAgentTasksRequest) (int, models.Task, error) {
@@ -82,7 +83,7 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 		}
 
 		if !exists {
-			gas.GetGeneralAgentSkillByID(db, rs.ID)
+			gas.GetGeneralAgentSkillByID(db, rs.SkillId)
 			recommendedSkills = append(recommendedSkills, gas)
 		}
 	}
@@ -283,7 +284,7 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 				continue
 			}
 			skillResp = append(skillResp, models.AgentSkillResponse{
-				ID:           skillID,
+				SkillId:      skillID,
 				Name:         gas.Name,
 				Description:  gas.Description,
 				Type:         gas.Type,
@@ -320,7 +321,8 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 		logger.Info(fmt.Sprintf("Processing skill: %s", skill.Name))
 
 		newSkill := models.AgentSkill{
-			ID:           skill.ID,
+			ID:           utility.GenerateUUID(),
+			SkillId:      skill.ID,
 			Name:         skill.Name,
 			AgentId:      agentID,
 			IsActive:     skill.IsActive,
