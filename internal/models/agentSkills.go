@@ -215,7 +215,7 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 	return skill, nil
 }
 
-func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB, agentID string) ([]AgentSkillResponse, error) {
+func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
 	var skills []AgentSkillResponse
 
 	err := db.Model(&AgentSkill{}).

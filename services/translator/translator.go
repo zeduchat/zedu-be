@@ -144,7 +144,8 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		taskList.WriteString(fmt.Sprintf("%s\n", t.Text))
 	}
 
-	skills, err := skillsModel.GetAllAgentSkills(db, agentID)
+	skillsModel.AgentId = agentID
+	skills, err := skillsModel.GetAllAgentSkills(db)
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusInternalServerError, err
 	}
