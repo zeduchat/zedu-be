@@ -18806,18 +18806,16 @@ paths:
                               example: true
 
   /tasks/{agent_id}:
-    put:
-      security:
-        - bearerAuth: []
+    post:
+      summary: Create tasks for an agent
       tags:
         - Tasks
-      summary: Create tasks for an agent
-      description: Assign one or more tasks to a given agent. Returns the skills that match the created tasks.
+      security:
+        - bearerAuth: []
       parameters:
         - name: agent_id
           in: path
           required: true
-          description: The ID of the agent
           schema:
             type: string
       requestBody:
@@ -18829,78 +18827,40 @@ paths:
               properties:
                 tasks:
                   type: array
-                  description: List of tasks to assign
                   items:
                     type: object
                     properties:
                       text:
                         type: string
-                        example: "Create a new pet listing in the petstore with name 'Buddy', category 'Dog', and status 'available'"
                       position:
                         type: integer
-                        example: 1
       responses:
-        "200":
+        "201":
           description: Tasks created successfully
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Tasks created successfully
-                  data:
-                    type: array
-                    description: Skills resolved for the created tasks
-                    items:
-                      type: object
-                      properties:
-                        skill_id:
-                          type: string
-                          example: "104c2a85-28b6-4a76-b49a-4c84b05e125a"
-                        name:
-                          type: string
-                          example: "Report Generation"
-                        description:
-                          type: string
-                          example: "Generate detailed PDF and Excel reports"
-                        type:
-                          type: string
-                          example: "reporting"
-                        is_active:
-                          type: boolean
-                          example: true
-                        is_configured:
-                          type: boolean
-                          example: false
-                        avatar:
-                          type: string
-                          example: "📝"
-                        agent_config:
-                          type: object
-                          additionalProperties: true
-                          example: {}
+              example:
+                status: success
+                status_code: 201
+                message: Tasks created successfully
+                data:
+                  id: "0198e568-2685-73d3-b736-044b5904efbb"
+                  agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                  text: "Retrieve all available pets from the petstore and filter by category 'Dog'"
+                  position: 2
+                  created_at: "2025-08-26T09:04:24.837632358+01:00"
+                  updated_at: "2025-08-26T09:04:24.837632358+01:00"
 
-  /tasks/{agent_id}/:
     get:
-      security:
-        - bearerAuth: []
+      summary: Get all tasks for an agent
       tags:
         - Tasks
-      summary: Fetch tasks for an agent
-      description: Retrieve all tasks assigned to a specific agent.
+      security:
+        - bearerAuth: []
       parameters:
         - name: agent_id
           in: path
           required: true
-          description: The ID of the agent
           schema:
             type: string
       responses:
@@ -18908,43 +18868,115 @@ paths:
           description: Tasks fetched successfully
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Tasks fetched successfully
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          example: "0198d2cf-b8ac-7a80-ad45-25f7863c514f"
-                        agent_id:
-                          type: string
-                          example: "0198d1b8-9988-7dd1-8524-decaa9434ab5"
-                        text:
-                          type: string
-                          example: "Analyze Q4 financial data for trends and anomalies"
-                        position:
-                          type: integer
-                          example: 1
-                        created_at:
-                          type: string
-                          format: date-time
-                          example: "2025-08-22T18:24:45.356051+01:00"
-                        updated_at:
-                          type: string
-                          format: date-time
-                          example: "2025-08-22T18:24:45.356051+01:00"
+              example:
+                status: success
+                status_code: 200
+                message: Tasks fetched successfully
+                data:
+                  - id: "0198e565-018e-7692-8e23-8a267accdb87"
+                    agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    text: "Create a new pet listing in the petstore with name 'Buddy', category 'Dog', and status 'available'"
+                    position: 1000
+                    created_at: "2025-08-26T09:00:58.766444+01:00"
+                    updated_at: "2025-08-26T09:00:58.766444+01:00"
+
+  /tasks/{task_id}/agents/{agent_id}:
+    patch:
+      summary: Update a task for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                position:
+                  type: integer
+      responses:
+        "200":
+          description: Task updated successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Tasks updated successfully
+
+    delete:
+      summary: Delete a task for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task deleted successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Task deleted successfully
+
+  /tasks/{agent_id}/process:
+    get:
+      summary: Process tasks for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tasks processed successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Tasks processed successfully
+                data:
+                  - skill_id: "9ab26335-31b8-4105-b469-d3c4f3f23059"
+                    name: "Data Analysis"
+                    description: "Analyze structured and unstructured data"
+                    type: "analysis"
+                    is_active: true
+                    is_configured: true
+                    avatar: "📊"
+                    agent_config: {}
 
 components:
   schemas:
