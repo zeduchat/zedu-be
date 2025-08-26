@@ -17974,6 +17974,97 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /skills/agents/{agents_id}/new:
+    post:
+      tags:
+        - Skills
+      summary: Add skills to an agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Sales Assistant Bot"
+                description:
+                  type: string
+                  example: "Helps automate the sales process and customer engagement"
+                type:
+                  type: string
+                  example: "MCP"
+                url_link:
+                  type: string
+                  format: url
+                  example: "https://example.com/mcp"
+                avatar:
+                  type: string
+                  example: "https://example.com/images/sales-bot.png"
+                agent_config:
+                  type: object
+                  additionalProperties: true
+                  example:
+                    language: "en"
+                    max_conversations: 5
+                    api_key: "some-random-seed-key"
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["sales", "automation", "crm"]
+                agent_id:
+                  type: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174001"
+
+      responses:
+        "201":
+          description: Agent skill created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Agent skill created
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
   /skills/agents/{agents_id}:
     get:
       tags:
@@ -21894,7 +21985,7 @@ components:
     AgentSkillResponse:
       type: object
       properties:
-        id:
+        skill_id:
           type: string
           format: uuid
           example: "123e4567-e89b-12d3-a456-426614174000"

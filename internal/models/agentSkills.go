@@ -26,6 +26,7 @@ type AgentSkill struct {
 	Avatar       string    `gorm:"type:text" json:"avatar"`
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 	Config       JSONBMap  `json:"agent_config"`
+	Link         string    `gorm:"type:text" json:"-"`
 }
 
 type GeneralAgentSkill struct {
@@ -49,6 +50,7 @@ type CreateAgentSkillRequest struct {
 	Config      JSONBMap `json:"agent_config"`
 	AgentId     string   `json:"agent_id" validate:"required"`
 	IsActive    bool     `json:"is_acive"`
+	URLLink     string   `json:"url_link" validate:"required"`
 	Avatar      string   `json:"avatar"`
 	Tags        []string `json:"tags"`
 }

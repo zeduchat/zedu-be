@@ -32,6 +32,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		IsConfigured: false, // default
 		Avatar:       req.Avatar,
 		Config:       req.Config,
+		Link:         req.URLLink,
 		// Tags:         req.Tags,
 	}
 
