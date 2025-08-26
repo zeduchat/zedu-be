@@ -17978,7 +17978,7 @@ paths:
     post:
       tags:
         - Skills
-      summary: Add skills to an agent
+      summary: Add custom skill to an agent
       security:
         - bearerAuth: []
       parameters:
@@ -18023,9 +18023,7 @@ paths:
                   items:
                     type: string
                   example: ["sales", "automation", "crm"]
-                agent_id:
-                  type: uuid
-                  example: "123e4567-e89b-12d3-a456-426614174001"
+
 
       responses:
         "201":
@@ -18143,8 +18141,8 @@ paths:
                     type: uuid
                   example: ["123e4567-e89b-12d3-a456-426614174001", "123e4567-e89b-12d3-a456-426614174002"]
       responses:
-        "201":
-          description: Agent skill created successfully
+        "200":
+          description: Agent skill added successfully
           content:
             application/json:
               schema:

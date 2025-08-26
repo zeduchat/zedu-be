@@ -15,18 +15,19 @@ import (
 )
 
 type AgentSkill struct {
-	ID           string    `gorm:"column:id;type:uuid" json:"id"`
-	Name         string    `gorm:"column:name;type:text" json:"name"`
-	AgentId      string    `gorm:"column:agent_id;type:uuid" json:"agent_id"`
-	SkillId      string    `gorm:"column:skill_id;type:uuid" json:"skill_id"`
-	Description  string    `gorm:"type:text" json:"description"`
-	Type         string    `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
-	IsActive     bool      `gorm:"type:boolean" json:"is_active"`
-	IsConfigured bool      `gorm:"type:boolean" json:"is_configured"`
-	Avatar       string    `gorm:"type:text" json:"avatar"`
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMap  `json:"agent_config"`
-	Link         string    `gorm:"type:text" json:"-"`
+	ID           string         `gorm:"column:id;type:uuid" json:"-"`
+	Name         string         `gorm:"column:name;type:text" json:"name"`
+	AgentId      string         `gorm:"column:agent_id;type:uuid" json:"agent_id"`
+	SkillId      string         `gorm:"column:skill_id;type:uuid" json:"skill_id"`
+	Description  string         `gorm:"type:text" json:"description"`
+	Type         string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
+	IsActive     bool           `gorm:"type:boolean" json:"is_active"`
+	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
+	Avatar       string         `gorm:"type:text" json:"avatar"`
+	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	Config       JSONBMap       `json:"agent_config"`
+	Link         string         `gorm:"type:text" json:"-"`
+	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 }
 
 type GeneralAgentSkill struct {
@@ -76,7 +77,7 @@ type AgentSkillResponse struct {
 	IsConfigured bool     `json:"is_configured"`
 	Avatar       string   `json:"avatar"`
 	Config       JSONBMap `json:"agent_config"`
-	// Tags         []string `json:"tags"`
+	Tags         []string `json:"tags"`
 }
 
 type SkillResp struct {
@@ -124,16 +125,14 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 		agent_skills.is_configured,
 		agent_skills.created_at,
 		agent_skills.is_active,
-		general_agent_skills.id AS general_id, 
-		general_agent_skills.name, 
-		general_agent_skills.tags, 
-		general_agent_skills.type, 
-		general_agent_skills.description, 
-		general_agent_skills.avatar
+		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
+		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
+		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
+		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
 	`).
-		Joins("JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
+		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
 		Where("agent_skills.agent_id = ?", a.AgentId)
-
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"created_at",
@@ -193,20 +192,20 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 
 	err := db.Model(&AgentSkill{}).
 		Select(`
-		agent_skills.skill_id, 
-		agent_skills.agent_id, 
-		agent_skills.config,
-		agent_skills.is_configured,
-		agent_skills.is_active,
-		general_agent_skills.id AS general_id, 
-		general_agent_skills.name, 
-		general_agent_skills.tags, 
-		general_agent_skills.type, 
-		general_agent_skills.description, 
-		general_agent_skills.avatar
-	`).
-		Joins("JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ? AND agent_skills.skill_id = ?", a.AgentId, a.ID).
+        agent_skills.skill_id, 
+        agent_skills.agent_id, 
+        agent_skills.config,
+        agent_skills.is_configured,
+        agent_skills.created_at,
+        agent_skills.is_active,
+        COALESCE(general_agent_skills.name, agent_skills.name) AS name,
+        COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+        COALESCE(general_agent_skills.type, agent_skills.type) AS type,
+        COALESCE(general_agent_skills.description, agent_skills.description) AS description,
+        COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
+        `).
+		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
+		Where("agent_skills.agent_id = ? AND agent_skills.skill_id = ?", a.AgentId, a.SkillId).
 		First(&skill).Error
 
 	if err != nil {
@@ -221,20 +220,20 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB, agentID string) ([]AgentSkil
 
 	err := db.Model(&AgentSkill{}).
 		Select(`
-            agent_skills.skill_id, 
-            agent_skills.agent_id, 
-            agent_skills.config,
-            agent_skills.is_configured,
-            agent_skills.is_active,
-            general_agent_skills.id AS general_id, 
-            general_agent_skills.name, 
-            general_agent_skills.tags, 
-            general_agent_skills.type, 
-            general_agent_skills.description, 
-            general_agent_skills.avatar
-        `).
-		Joins("JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ?", agentID).
+		agent_skills.skill_id, 
+		agent_skills.agent_id, 
+		agent_skills.config,
+		agent_skills.is_configured,
+		agent_skills.created_at,
+		agent_skills.is_active,
+		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
+		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
+		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
+		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
+	`).
+		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
+		Where("agent_skills.agent_id = ?", a.AgentId).
 		Find(&skills).Error
 
 	if err != nil {

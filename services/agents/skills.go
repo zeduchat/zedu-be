@@ -33,7 +33,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Avatar:       req.Avatar,
 		Config:       req.Config,
 		Link:         req.URLLink,
-		// Tags:         req.Tags,
+		Tags:         req.Tags,
 	}
 
 	if err := agentSkill.CreateAgentSkill(db); err != nil {
@@ -49,7 +49,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		IsConfigured: agentSkill.IsConfigured,
 		Avatar:       agentSkill.Avatar,
 		Config:       agentSkill.Config,
-		// Tags:         agentSkill.Tags,
+		Tags:         agentSkill.Tags,
 	}
 
 	return resp, http.StatusCreated, nil
