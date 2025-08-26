@@ -481,7 +481,7 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 			Visibility:    agents.Visibility,
 			Avatar:        agents.AppLogo,
 			Description:   agents.AppDescription,
-			IsActive:      agents.IsActive,
+			IsActive:      false,
 			SystemPrompts: agents.SystemPrompts,
 		}
 		return &resp, http.StatusOK, nil
