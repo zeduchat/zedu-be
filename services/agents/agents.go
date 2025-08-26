@@ -463,10 +463,28 @@ func UpdateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, e
 func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (*models.AgentResp, int, error) {
 
 	var org_agents models.OrganisationIntegrations
+	var agents models.Integrations
 
 	exists := postgresql.CheckExists(db, &org_agents, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
 	if !exists {
-		return &models.AgentResp{}, http.StatusNotFound, errors.New("organisation does not have that agent")
+		exists = postgresql.CheckExists(db, &agents, "id = ?", req.AgentId)
+
+		if !exists {
+			return &models.AgentResp{}, http.StatusNotFound, errors.New("Agent does not exists")
+		}
+
+		resp := models.AgentResp{
+			ID:            agents.ID,
+			Name:          agents.Name,
+			Title:         agents.Title,
+			Tone:          agents.Tone,
+			Visibility:    agents.Visibility,
+			Avatar:        agents.AppLogo,
+			Description:   agents.AppDescription,
+			IsActive:      agents.IsActive,
+			SystemPrompts: agents.SystemPrompts,
+		}
+		return &resp, http.StatusOK, nil
 	}
 
 	resp := models.AgentResp{
