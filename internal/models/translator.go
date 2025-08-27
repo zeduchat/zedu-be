@@ -45,6 +45,25 @@ type MissingSkillsResponse struct {
 	Suggestion    string   `json:"suggestion"`
 }
 
+type WorkflowJSON struct {
+	Name        string                   `json:"name"`
+	Nodes       []Node                   `json:"nodes"`
+	Connections map[string]NodeConnector `json:"connections"`
+}
+
+type Node struct {
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	NodeName string         `json:"node_name"`
+	Type     string         `json:"type"`
+	Position []int          `json:"position"`
+	Params   map[string]any `json:"parameters"`
+}
+
+type NodeConnector struct {
+	Main [][]Connection `json:"main"`
+}
+
 type TranslationResponse struct {
 	Status string `json:"status"` //success, failed, incomplete
 	// Workflow   map[string]any `json:"workflow,omitempty"`
