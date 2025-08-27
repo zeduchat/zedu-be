@@ -72,7 +72,7 @@ func (base *Controller) GenerateWorkflowJSON(c *gin.Context) {
 	}
 
 	base.Logger.Info("Translation generated successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Translation generated successfully", response.ProcessStep[len(response.ProcessStep)-1].Output)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Translation generated successfully", response)
 	c.JSON(http.StatusCreated, rd)
 }
 

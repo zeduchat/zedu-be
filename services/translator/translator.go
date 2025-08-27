@@ -1,6 +1,7 @@
 package translator
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -115,8 +116,7 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	return response, code, nil
 }
 
-func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.TranslationResponse, int, error) {
-	//fetch tasks and workflow skills from db
+func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.WorkflowJSON, int, error) {
 	var (
 		agents      models.OrganisationIntegrations
 		task        models.Task
@@ -125,18 +125,18 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 
 	exists, err := agents.CheckAgentExists(db, agentID)
 	if !exists {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
+		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
 	}
 	if err != nil {
-		return models.TranslationResponse{}, http.StatusInternalServerError, err
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 
 	tasks, err := (task).GetAgentTasks(db, agentID)
 	if err != nil {
-		return models.TranslationResponse{}, http.StatusInternalServerError, err
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 	if len(tasks) == 0 {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no tasks found for agent id %s", agentID)
+		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("no tasks found for agent id %s", agentID)
 	}
 
 	var taskList strings.Builder
@@ -147,10 +147,10 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	skillsModel.AgentId = agentID
 	skills, err := skillsModel.GetAllAgentSkills(db)
 	if err != nil {
-		return models.TranslationResponse{}, http.StatusInternalServerError, err
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 	if len(skills) == 0 {
-		return models.TranslationResponse{}, http.StatusNotFound, fmt.Errorf("no skills found for agent id %s", agentID)
+		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("no skills found for agent id %s", agentID)
 	}
 
 	skillsList := make([]string, len(skills))
@@ -164,7 +164,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		var prompt models.Prompts
 		err := prompt.GetLatestPromptVersionByName(db, step)
 		if err != nil {
-			return models.TranslationResponse{}, http.StatusInternalServerError, err
+			return models.WorkflowJSON{}, http.StatusInternalServerError, err
 		}
 
 		steps[i] = models.StepReq{
@@ -181,7 +181,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 
 	stepProcess, err := runTranslationPipeline(db, logger, extReq, taskList.String(), req)
 	if err != nil {
-		return models.TranslationResponse{}, http.StatusBadRequest, err
+		return models.WorkflowJSON{}, http.StatusBadRequest, err
 	}
 
 	resp := models.TranslationResponse{
@@ -189,5 +189,24 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		ProcessStep: stepProcess,
 	}
 
-	return resp, http.StatusOK, nil
+	wkfJson, err := ConvertToJSONObject(resp.ProcessStep[len(resp.ProcessStep)-1].Output)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
+	}
+
+	return wkfJson, http.StatusOK, nil
+}
+
+func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
+	cleaned := strings.TrimSpace(workflowStr)
+	cleaned = strings.TrimPrefix(cleaned, "```json")
+	cleaned = strings.TrimSuffix(cleaned, "```")
+	cleaned = strings.TrimSpace(cleaned)
+
+	var workflow models.WorkflowJSON
+	if err := json.Unmarshal([]byte(cleaned), &workflow); err != nil {
+		return models.WorkflowJSON{}, fmt.Errorf("failed to parse workflow JSON: %w", err)
+	}
+
+	return workflow, nil
 }
