@@ -85,10 +85,10 @@ type AgentWorkFlowRequest struct {
 	WorkflowId string   `json:"-"`
 }
 
-type AgentWorkFloUpdatewRequest struct {
+type AgentWorkFloUpdateRequest struct {
 	RawEntry   JSONBMap `json:"raw_entry" validate:"required"`
 	AgentId    string   `json:"-"`
-	IsActive   bool     `json:"is_active" validate:"required"`
+	IsActive   bool     `json:"is_active"`
 	Name       string   `json:"name"`
 	OrgId      string   `json:"-"`
 	WorkflowId string   `json:"-"`
@@ -255,6 +255,7 @@ func (wf *AgentWorkflow) UpdateAgentWorkflow(db *gorm.DB) (error, int) {
 		Updates(map[string]interface{}{
 			"raw_entry": wf.RawEntry,
 			"is_active": wf.IsActive,
+			"name":      wf.Name,
 		}).Error
 	if err != nil {
 		return err, http.StatusInternalServerError

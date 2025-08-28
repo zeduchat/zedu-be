@@ -193,7 +193,7 @@ func (base *Controller) DeleteAgentWorkflow(c *gin.Context) {
 
 // Update Agent Workflow
 func (base *Controller) UpdateAgentWorkflow(c *gin.Context) {
-	var req models.AgentWorkFloUpdatewRequest
+	var req models.AgentWorkFloUpdateRequest
 	req.AgentId = c.Param("agent_id")
 	req.WorkflowId = c.Param("workflow_id")
 

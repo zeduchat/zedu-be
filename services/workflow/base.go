@@ -200,13 +200,14 @@ func DeleteAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (e
 }
 
 // Update Workflow Service
-func UpdateAgentWorkflowService(req models.AgentWorkFloUpdatewRequest, db *gorm.DB) (error, int) {
+func UpdateAgentWorkflowService(req models.AgentWorkFloUpdateRequest, db *gorm.DB) (error, int) {
 	var wf models.AgentWorkflow
 	wf.OrgId = req.OrgId
 	wf.AgentId = req.AgentId
 	wf.WorkflowId = req.WorkflowId
 	wf.RawEntry = req.RawEntry
 	wf.IsActive = req.IsActive
+	wf.Name = req.Name
 
 	err, code := wf.UpdateAgentWorkflow(db)
 	return err, code
