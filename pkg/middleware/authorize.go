@@ -65,13 +65,14 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 			orgs, _ := org.GetOrganisationsByUserID(db, userID)
 			if len(orgs) > 0 {
 				claims["org_id"] = orgs[0].ID
+				org_id = claims["org_id"].(string)
+				// update user current org entry
+				user := models.User{}
+				user, _ = user.GetUserByID(db, userID)
+				user.CurrentOrg, err = uuid.FromString(orgs[0].ID)
+				err = user.Update(db)
 			}
 
-			// update user current org entry
-			user := models.User{}
-			user, _ = user.GetUserByID(db, userID)
-			user.CurrentOrg, err = uuid.FromString(orgs[0].ID)
-			err = user.Update(db)
 		}
 
 		ids := models.IDS{
