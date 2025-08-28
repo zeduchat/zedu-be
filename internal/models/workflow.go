@@ -130,9 +130,10 @@ type WorkflowSummary struct {
 }
 
 type AgentWorkflowSummary struct {
-	WorkflowId string `json:"workflow_id"`
-	Name       string `json:"name"`
-	IsActive   bool   `json:"is_active"`
+	WorkflowId string   `json:"workflow_id"`
+	Name       string   `json:"name"`
+	RawEntry   JSONBMap `json:"raw_entry"`
+	IsActive   bool     `json:"is_active"`
 }
 
 type Connection struct {
