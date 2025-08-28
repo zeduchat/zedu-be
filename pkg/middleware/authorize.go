@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt"
 	"gorm.io/gorm"
 
@@ -57,6 +58,21 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
 			return
+		}
+
+		if org_id == "00000000-0000-0000-0000-000000000000" {
+			org := models.Organisation{}
+			orgs, _ := org.GetOrganisationsByUserID(db, userID)
+			if len(orgs) > 0 {
+				claims["org_id"] = orgs[0].ID
+				org_id = claims["org_id"].(string)
+				// update user current org entry
+				user := models.User{}
+				user, _ = user.GetUserByID(db, userID)
+				user.CurrentOrg, err = uuid.FromString(orgs[0].ID)
+				err = user.Update(db)
+			}
+
 		}
 
 		ids := models.IDS{
