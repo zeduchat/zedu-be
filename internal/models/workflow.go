@@ -79,7 +79,7 @@ type AgentWorkflow struct {
 
 type AgentWorkFlowRequest struct {
 	RawEntry   JSONBMap `json:"raw_entry" validate:"required"`
-	AgentId    string   `json:"agents_id"`
+	AgentId    string   `json:"-"`
 	Name       string   `json:"name" validate:"required"`
 	OrgId      string   `json:"-"`
 	WorkflowId string   `json:"-"`
@@ -87,7 +87,7 @@ type AgentWorkFlowRequest struct {
 
 type AgentWorkFloUpdatewRequest struct {
 	RawEntry   JSONBMap `json:"raw_entry" validate:"required"`
-	AgentId    string   `json:"agents_id"`
+	AgentId    string   `json:"-"`
 	IsActive   bool     `json:"is_active" validate:"required"`
 	Name       string   `json:"name"`
 	OrgId      string   `json:"-"`

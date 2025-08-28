@@ -246,12 +246,12 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-          - in: header
-            name: X-Platform
-            schema:
-              type: string
-            required: true
-            description: device platform (desktop, mobile or web).
+        - in: header
+          name: X-Platform
+          schema:
+            type: string
+          required: true
+          description: device platform (desktop, mobile or web).
       responses:
         "200":
           description: User logout successfully
@@ -3654,7 +3654,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-  
+
   /centrifugo/connection:
     get:
       tags:
@@ -3716,7 +3716,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-
 
   /blogs:
     post:
@@ -17209,7 +17208,6 @@ paths:
                     nullable: true
                     example: null
 
-
   /organisations/{org_id}/workflows:
     post:
       tags:
@@ -17875,6 +17873,203 @@ paths:
                         created_at: { type: string, format: date-time }
                         updated_at: { type: string, format: date-time }
 
+  /agents/{agent_id}/workflows:
+    post:
+      tags:
+        - Agent Workflows
+      summary: Create a new workflow for an agent
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                raw_entry:
+                  type: object
+                  description: JSON payload representing workflow details
+                name:
+                  type: string
+                  description: Name of the workflow
+              required:
+                - raw_entry
+                - name
+      responses:
+        "201":
+          description: Agent Workflow created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      workflow_id: { type: string }
+                      agent_id: { type: string }
+                      org_id: { type: string }
+                      name: { type: string }
+                      raw_entry: { type: object }
+                      is_active: { type: boolean }
+
+    get:
+      tags:
+        - Agent Workflows
+      summary: List all workflows for an agent
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+      responses:
+        "200":
+          description: Agent Workflows listed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        workflow_id: { type: string }
+                        agent_id: { type: string }
+                        name: { type: string }
+                        is_active: { type: boolean }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+
+  /agents/{agent_id}/workflows/{workflow_id}:
+    get:
+      tags:
+        - Agent Workflows
+      summary: Get a workflow by ID for an agent
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Agent Workflow fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      workflow_id: { type: string }
+                      agent_id: { type: string }
+                      org_id: { type: string }
+                      name: { type: string }
+                      raw_entry: { type: object }
+                      is_active: { type: boolean }
+
+    put:
+      tags:
+        - Agent Workflows
+      summary: Update an existing agent workflow
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                raw_entry:
+                  type: object
+                  description: JSON payload representing workflow details
+                is_active:
+                  type: boolean
+                name:
+                  type: string
+              required:
+                - raw_entry
+                - is_active
+      responses:
+        "200":
+          description: Agent Workflow updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+
+    delete:
+      tags:
+        - Agent Workflows
+      summary: Delete an agent workflow
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Agent Workflow deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+
   /skills:
     get:
       tags:
@@ -18024,7 +18219,6 @@ paths:
                     type: string
                   example: ["sales", "automation", "crm"]
 
-
       responses:
         "201":
           description: Agent skill created successfully
@@ -18139,7 +18333,11 @@ paths:
                   type: array
                   items:
                     type: uuid
-                  example: ["123e4567-e89b-12d3-a456-426614174001", "123e4567-e89b-12d3-a456-426614174002"]
+                  example:
+                    [
+                      "123e4567-e89b-12d3-a456-426614174001",
+                      "123e4567-e89b-12d3-a456-426614174002",
+                    ]
       responses:
         "200":
           description: Agent skill added successfully
@@ -18631,7 +18829,7 @@ paths:
             type: string
           description: Unique identifier of the agent
       responses:
-        '201':
+        "201":
           description: Translation generated successfully
           content:
             application/json:
@@ -18650,7 +18848,7 @@ paths:
                   data:
                     type: string
                     description: JSON string containing translated workflow
-                    example: "{ \"name\": \"Q4 Financial Data Analysis and Reporting\", \"nodes\": [...] }"
+                    example: '{ "name": "Q4 Financial Data Analysis and Reporting", "nodes": [...] }'
 
   /prompts:
     post:
@@ -18681,7 +18879,7 @@ paths:
                     - Agent skills: {{agent_skills}}
                     - Global skills (fallback): {{global_skills}}
       responses:
-        '200':
+        "200":
           description: Prompt created successfully
           content:
             application/json:
@@ -18704,7 +18902,7 @@ paths:
       summary: Fetch all prompts
       description: Retrieves all saved prompts.
       responses:
-        '200':
+        "200":
           description: Prompts fetched successfully
           content:
             application/json:
@@ -18748,7 +18946,7 @@ paths:
       summary: Fetch most recent version of unique prompts/steps
       description: Returns the latest version of unique prompt steps for use in workflows.
       responses:
-        '200':
+        "200":
           description: Unique steps fetched successfully
           content:
             application/json:
@@ -18786,29 +18984,28 @@ paths:
                           example: 2025-08-12T04:58:07.1813+01:00
 
   /translator/tester:
-      get:
-        tags:
+    get:
+      tags:
         - Translator
-        summary: Runs an interavtive user interface for generating json for workflows 
-        description: Runs an interavtive user interface for generating json for workflows 
-        responses:
-          '201':
-            description: Translation prompt fetched successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: success
-                    status_code:
-                      type: integer
-                      example: 200
-                    message:
-                      type: string
-                      example: Translation prompt fetched successfully
-                           
+      summary: Runs an interavtive user interface for generating json for workflows
+      description: Runs an interavtive user interface for generating json for workflows
+      responses:
+        "201":
+          description: Translation prompt fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Translation prompt fetched successfully
 
   /translator:
     post:
@@ -18851,7 +19048,7 @@ paths:
                       version:
                         type: int32
       responses:
-        '201':
+        "201":
           description: Translation generated successfully
           content:
             application/json:
