@@ -156,9 +156,11 @@ func CreateAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (*
 	var wf models.AgentWorkflow
 
 	wf.WorkflowId = utility.GenerateUUID()
-	wf.AgemtId = req.AgentId
+	wf.AgentId = req.AgentId
 	wf.RawEntry = req.RawEntry
 	wf.OrgId = req.OrgId
+	wf.Name = req.Name
+	wf.IsActive = true
 
 	err, code := wf.CreateAgentWorkflow(db)
 
@@ -169,7 +171,7 @@ func CreateAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (*
 func GetAgentWorkflowByIDService(req models.AgentWorkFlowRequest, db *gorm.DB) (*models.AgentWorkFlowResponse, int, error) {
 	var wf models.AgentWorkflow
 	wf.OrgId = req.OrgId
-	wf.AgemtId = req.AgentId
+	wf.AgentId = req.AgentId
 	wf.WorkflowId = req.WorkflowId
 
 	res, code, err := wf.GetWorkflowByID(db)
@@ -180,7 +182,7 @@ func GetAgentWorkflowByIDService(req models.AgentWorkFlowRequest, db *gorm.DB) (
 func ListAgentWorkflowsService(req models.AgentWorkFlowRequest, db *gorm.DB) (*[]models.AgentWorkflowSummary, int, error) {
 	var wf models.AgentWorkflow
 	wf.OrgId = req.OrgId
-	wf.AgemtId = req.AgentId
+	wf.AgentId = req.AgentId
 
 	res, code, err := wf.ListWorkflows(db)
 	return res, code, err
@@ -190,7 +192,7 @@ func ListAgentWorkflowsService(req models.AgentWorkFlowRequest, db *gorm.DB) (*[
 func DeleteAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (error, int) {
 	var wf models.AgentWorkflow
 	wf.OrgId = req.OrgId
-	wf.AgemtId = req.AgentId
+	wf.AgentId = req.AgentId
 	wf.WorkflowId = req.WorkflowId
 
 	err, code := wf.DeleteWorkflow(db)
@@ -201,7 +203,7 @@ func DeleteAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (e
 func UpdateAgentWorkflowService(req models.AgentWorkFloUpdatewRequest, db *gorm.DB) (error, int) {
 	var wf models.AgentWorkflow
 	wf.OrgId = req.OrgId
-	wf.AgemtId = req.AgentId
+	wf.AgentId = req.AgentId
 	wf.WorkflowId = req.WorkflowId
 	wf.RawEntry = req.RawEntry
 	wf.IsActive = req.IsActive

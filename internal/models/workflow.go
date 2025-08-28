@@ -67,7 +67,7 @@ type ChannelWorkflow struct {
 
 type AgentWorkflow struct {
 	ID         string    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	AgemtId    string    `json:"agent_id" gorm:"type:uuid;not null"`
+	AgentId    string    `json:"agent_id" gorm:"type:uuid;not null"`
 	WorkflowId string    `json:"workflow_id" gorm:"type:uuid;not null"`
 	RawEntry   JSONBMap  `gorm:"type:jsonb" json:"raw_entry"`
 	Name       string    `gorm:"type:text" json:"name"`
@@ -114,7 +114,7 @@ type WorkFlowResponse struct {
 }
 
 type AgentWorkFlowResponse struct {
-	AgemtId    string    `json:"agent_id"`
+	AgentId    string    `json:"agent_id"`
 	WorkflowId string    `json:"workflow_id"`
 	RawEntry   JSONBMap  `json:"raw_entry"`
 	Name       string    `json:"name"`
@@ -212,7 +212,7 @@ func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 
 func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgemtId}); err != nil {
+	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return err, http.StatusBadRequest
 	}
 
@@ -246,12 +246,12 @@ func (wf *Workflow) UpdateWorkflow(db *gorm.DB) error {
 
 func (wf *AgentWorkflow) UpdateAgentWorkflow(db *gorm.DB) (error, int) {
 
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgemtId}); err != nil {
+	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return err, http.StatusBadRequest
 	}
 
 	err := db.Model(&AgentWorkflow{}).
-		Where("workflow_id = ? AND org_id = ? AND agent_id = ?", wf.WorkflowId, wf.OrgId, wf.AgemtId).
+		Where("workflow_id = ? AND org_id = ? AND agent_id = ?", wf.WorkflowId, wf.OrgId, wf.AgentId).
 		Updates(map[string]interface{}{
 			"raw_entry": wf.RawEntry,
 			"is_active": wf.IsActive,
@@ -264,11 +264,11 @@ func (wf *AgentWorkflow) UpdateAgentWorkflow(db *gorm.DB) (error, int) {
 }
 
 func (wf *AgentWorkflow) DeleteWorkflow(db *gorm.DB) (error, int) {
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgemtId}); err != nil {
+	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return err, http.StatusBadRequest
 	}
 
-	err := db.Where("workflow_id = ? AND org_id = ? AND agent_id = ?", wf.WorkflowId, wf.OrgId, wf.AgemtId).Delete(&AgentWorkflow{}).Error
+	err := db.Where("workflow_id = ? AND org_id = ? AND agent_id = ?", wf.WorkflowId, wf.OrgId, wf.AgentId).Delete(&AgentWorkflow{}).Error
 
 	if err != nil {
 		return err, http.StatusInternalServerError
@@ -291,11 +291,11 @@ func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB) (*[]AgentWorkflowSummary, in
 
 	wfs := []AgentWorkflowSummary{}
 
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgemtId}); err != nil {
+	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return &wfs, http.StatusBadRequest, err
 	}
 
-	err := db.Model(&AgentWorkflow{}).Where("agent_id = ? AND org_id = ?", wf.AgemtId, wf.OrgId).Scan(&wfs).Error
+	err := db.Model(&AgentWorkflow{}).Where("agent_id = ? AND org_id = ?", wf.AgentId, wf.OrgId).Scan(&wfs).Error
 	if err != nil {
 		return &wfs, http.StatusInternalServerError, err
 	}
@@ -321,11 +321,11 @@ func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error)
 func (wf *AgentWorkflow) GetWorkflowByID(db *gorm.DB) (*AgentWorkFlowResponse, int, error) {
 	wfr := AgentWorkFlowResponse{}
 
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgemtId}); err != nil {
+	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return &wfr, http.StatusBadRequest, err
 	}
 
-	err := db.Model(&AgentWorkflow{}).Where("agent_id = ? AND org_id = ? AND workflow_id = ?", wf.AgemtId, wf.OrgId, wf.WorkflowId).Scan(&wfr).Error
+	err := db.Model(&AgentWorkflow{}).Where("agent_id = ? AND org_id = ? AND workflow_id = ?", wf.AgentId, wf.OrgId, wf.WorkflowId).Scan(&wfr).Error
 	if err != nil {
 		return &wfr, http.StatusInternalServerError, err
 	}

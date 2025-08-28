@@ -17844,6 +17844,8 @@ paths:
       tags:
         - Workflow
       summary: Get workflow skills
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: workflow_id
@@ -17878,6 +17880,8 @@ paths:
       tags:
         - Agent Workflows
       summary: Create a new workflow for an agent
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: agent_id
@@ -17926,6 +17930,8 @@ paths:
       tags:
         - Agent Workflows
       summary: List all workflows for an agent
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: agent_id
@@ -17961,6 +17967,8 @@ paths:
       tags:
         - Agent Workflows
       summary: Get a workflow by ID for an agent
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: agent_id
@@ -17999,6 +18007,8 @@ paths:
       tags:
         - Agent Workflows
       summary: Update an existing agent workflow
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: agent_id
@@ -18045,6 +18055,8 @@ paths:
       tags:
         - Agent Workflows
       summary: Delete an agent workflow
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: agent_id
