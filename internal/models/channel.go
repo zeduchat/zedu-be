@@ -30,11 +30,11 @@ type Channels struct {
 	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
 	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
 	MessageCount   int64     `gorm:"-" json:"-"`
-	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived"`
+	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived,omitempty"`
 	GroupID        *string   `gorm:"column:group_id; type:uuid;index;" json:"-"`
 	IsPrivate      bool      `gorm:"column:is_private;default:false" json:"is_private"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"deleted_at"`
+	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"-"`
 }
 
 type UserChannels struct {
@@ -985,7 +985,7 @@ func (uc *UserChannels) GetUserChannel(base *storage.Database, userId, channel_i
 	)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id,  channels.is_private, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.owner_id,  channels.is_private, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.id = ? AND uc.user_id = ?", channel_id, userId).
 		Order("channels.created_at").
@@ -1004,7 +1004,7 @@ func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, user
 	)
 
 	if err := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access, uc.user_id").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.id = ? AND (uc.user_id != ? OR uc.mention_count > 0)", channel_id, userId).
 		Order("channels.created_at").
