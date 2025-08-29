@@ -127,7 +127,6 @@ func (er ExternalRequest) SendExternalRequest(name string, data any) (any, error
 			}
 			return obj.SendAgentApiKey()
 		case GetChatCompletions:
-
 			obj := openrouter.RequestObj{
 				Name:         name,
 				Path:         config.OpenRouter.BaseUrl,

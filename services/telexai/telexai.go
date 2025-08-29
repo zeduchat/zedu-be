@@ -1,6 +1,7 @@
 package telexai
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,27 @@ import (
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
+
+func RespondToChat(w http.ResponseWriter, db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (map[string]any, int, error) {
+
+	response, code, err := ChatCompletions(w, db, logger, req, extReq, ids)
+	if err != nil {
+		return map[string]any{}, code, err
+	}
+
+	content, err := ExtractChatContent(response)
+	if err != nil {
+		return map[string]any{}, http.StatusBadRequest, err
+	}
+
+	inputLength := len(content)
+	err = ChargeAICreditUsage(db, ids, inputLength, logger)
+	if err != nil {
+		return map[string]any{}, http.StatusBadRequest, err
+	}
+
+	return response, code, nil
+}
 
 func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
 	openRouterPayload := external_models.OpenRouterReq{
@@ -49,9 +71,10 @@ func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalReques
 	return result, http.StatusOK, nil
 }
 
-func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (map[string]any, int, error) {
+func ChatCompletions(w http.ResponseWriter, db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (map[string]any, int, error) {
 	var (
 		telexlogs models.TelexAIUsageLog
+		response  map[string]any
 	)
 
 	openRouterPayload := external_models.OpenRouterReq{
@@ -62,11 +85,62 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 				Include: true,
 			},
 		},
-		Tools: ConvertTools(req.Tools),
+		Tools:  ConvertTools(req.Tools),
 		Stream: req.Stream,
 	}
 
 	logger.Info(fmt.Sprintf("Making request to model: %s for org: %s", req.GetModel(), ids.OrganisationID))
+
+	if req.Stream {
+		ctx := context.Background() // Set streaming response headers
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		streamChan, err := extReq.SendStreamingExternalRequest(request.GetChatCompletions, openRouterPayload, ctx)
+		if err != nil {
+			if strings.Contains(err.Error(), "429") {
+				logger.Error("OpenRouter API call failed with 429: ", err)
+				return map[string]any{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
+			}
+			logger.Error("OpenRouter API call failed: ", err)
+			return map[string]any{}, http.StatusBadRequest, err
+		}
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			return map[string]any{}, http.StatusInternalServerError, fmt.Errorf("streaming not supported")
+		}
+
+		for chunk := range streamChan {
+			if chunk.Error != nil {
+				logger.Error("Streaming error: ", chunk.Error)
+				fmt.Fprintf(w, "data: {\"error\": \"%s\"}\n\n", chunk.Error.Error())
+				flusher.Flush()
+				return map[string]any{}, http.StatusInternalServerError, chunk.Error
+			}
+
+			if chunk.Done {
+				fmt.Fprintf(w, "data: {\"done\": true}\n\n")
+				flusher.Flush()
+				break
+			}
+
+			if len(chunk.Data) > 0 {
+				dataStr := strings.TrimSpace(string(chunk.Data))
+				if dataStr != "" {
+					fmt.Fprintf(w, "data: %s\n\n", dataStr)
+					flusher.Flush()
+				}
+			}
+		}
+
+		return map[string]any{}, http.StatusOK, nil
+	}
+
+	//non-streaming request
 	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
 	if err != nil {
 		if strings.Contains(err.Error(), "429") {
@@ -94,9 +168,8 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 		}
 	}
 
-	return result, http.StatusOK, nil
+	return response, http.StatusOK, nil
 }
-
 
 func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client, fetchTools bool) (external_models.OpenRouterModelsResponse, error) {
 	var redisKey string

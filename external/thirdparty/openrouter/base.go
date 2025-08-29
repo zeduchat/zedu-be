@@ -1,6 +1,8 @@
 package openrouter
 
 import (
+	"context"
+
 	"github.com/hngprojects/telex_be/external"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -22,4 +24,8 @@ var (
 
 func (r *RequestObj) getNewSendRequestObject(data any, headers map[string]string, urlprefix string) *external.SendRequestObject {
 	return external.GetNewSendRequestObject(r.Logger, r.Name, r.Path, r.Method, urlprefix, r.DecodeMethod, headers, r.SuccessCode, data, r.Timeout)
+}
+
+func (r *RequestObj) getNewStreamingObject(data any, headers map[string]string, urlprefix string, ctx context.Context) *external.SendRequestObject {
+	return external.GetNewStreamingRequestObject(r.Logger, r.Name, r.Path, r.Method, urlprefix, r.DecodeMethod, headers, r.SuccessCode, data, r.Timeout, ctx)
 }
