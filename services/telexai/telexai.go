@@ -63,6 +63,7 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 			},
 		},
 		Tools: ConvertTools(req.Tools),
+		Stream: req.Stream,
 	}
 
 	logger.Info(fmt.Sprintf("Making request to model: %s for org: %s", req.GetModel(), ids.OrganisationID))
@@ -95,6 +96,7 @@ func ChatCompletions(db *storage.Database, logger *utility.Logger, req models.Te
 
 	return result, http.StatusOK, nil
 }
+
 
 func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client, fetchTools bool) (external_models.OpenRouterModelsResponse, error) {
 	var redisKey string
