@@ -66,7 +66,7 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 	req.Model = model
 
 	if req.Stream {
-		//TODO: implement streaming later
+		
 
 		rd := utility.BuildErrorResponse(http.StatusNotImplemented, "error", "Streaming is not implemented yet", "Streaming is not implemented yet", nil)
 		c.JSON(http.StatusNotImplemented, rd)

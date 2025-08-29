@@ -135,8 +135,10 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
+
 	if len(tasks) == 0 {
-		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("no tasks found for agent id %s", agentID)
+		logger.Error("no tasks found for agent id %s", agentID)
+		return models.WorkflowJSON{}, http.StatusOK, nil
 	}
 
 	var taskList strings.Builder
@@ -150,7 +152,8 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 	if len(skills) == 0 {
-		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("no skills found for agent id %s", agentID)
+		logger.Error("no skills found for agent id %s", agentID)
+		return models.WorkflowJSON{}, http.StatusOK, nil
 	}
 
 	skillsList := make([]string, len(skills))
