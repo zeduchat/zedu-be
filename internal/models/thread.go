@@ -273,6 +273,7 @@ type BotReturnRequest struct {
 	Media          []UploadedFileResponse `json:"media"`
 	State          string                 `json:"state"`
 	Mentions       []Mention              `json:"mentions"`
+	ThreadId       string                 `json:"thread_id"`
 	OperationPrice *float64               `json:"operation_price"`
 }
 
