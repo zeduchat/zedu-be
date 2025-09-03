@@ -19,6 +19,7 @@ type ChannelType string
 
 var (
 	Updated              NotificationType = "updated"
+	AgentUpdate          NotificationType = "agent_update"
 	Deleted              NotificationType = "deleted"
 	NewMessage           NotificationType = "new_message"
 	StatusUpdate         NotificationType = "status_update"
@@ -61,6 +62,11 @@ var Notification = map[NotificationType]Content{
 
 	Updated: Content{
 		NotificationType: Updated,
+		Content:          ModificationDetails{},
+	},
+
+	AgentUpdate: Content{
+		NotificationType: AgentUpdate,
 		Content:          ModificationDetails{},
 	},
 

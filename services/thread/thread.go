@@ -455,7 +455,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		Media:     threadResp.Media,
 	}
 
-	notification := models.Notification[models.Updated]
+	notification := models.Notification[models.AgentUpdate]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 	notification.ModificationDetails = &models.ModificationDetails{
