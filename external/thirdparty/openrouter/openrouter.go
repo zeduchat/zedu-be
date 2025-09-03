@@ -65,6 +65,8 @@ func (r *RequestObj) GetStreamChatCompletions(ctx context.Context) (<-chan exter
 		return openRouterResponse, err
 	}
 
+	logger.Info("OpenRouter request body: %s", string(reqBody)) 
+
 	request := bytes.NewBuffer(reqBody)
 	apiKey := config.App.OpenRouterApiKey
 	if apiKey == "" {
@@ -74,9 +76,9 @@ func (r *RequestObj) GetStreamChatCompletions(ctx context.Context) (<-chan exter
 
 	headers := map[string]string{
 		"Authorization": "Bearer " + apiKey,
-		"Content-Type":  "text/event-stream",
-		"Cache-Control": "keep-alive",
-		"Access-Control-Allow-Origin": "*",
+		"Content-Type":  "application/json",  
+		"Accept":        "text/event-stream", 
+		"Cache-Control": "no-cache",
 	}
 
 	stream, err := r.getNewStreamingObject(request, headers, "/chat/completions", ctx).SendStream()

@@ -12,32 +12,26 @@ import (
 
 
 func (er *ExternalRequest) SendStreamingExternalRequest(name string, data any, ctx context.Context) (<-chan external_models.StreamChunk, error) {
-	var config = config.GetConfig()
+    var config = config.GetConfig()
 
-	if !er.Test {
-		switch name {
-		case GetChatCompletions:
-			obj := openrouter.RequestObj{
-				Name:         name,
-				Path:         fmt.Sprintf("%v", config.OpenRouter.BaseUrl),
-				Method:       http.MethodPost,
-				SuccessCode:  200,
-				DecodeMethod: JsonDecodeMethod,
-				RequestData:  data,
-				Logger:       er.Logger,
-				Timeout:      true,
-			}
-			return obj.GetStreamChatCompletions(ctx)
-		default:
-			errorChan := make(chan external_models.StreamChunk, 1)
-			errorChan <- external_models.StreamChunk{Error: fmt.Errorf("streaming not supported for request type: %s", name)}
-			close(errorChan)
-			return errorChan, fmt.Errorf("streaming not supported for request type: %s", name)
-		}
-	}
+    if !er.Test {
+        switch name {
+        case GetChatCompletions:
+            obj := openrouter.RequestObj{
+                Name:         name,
+                Path:         fmt.Sprintf("%v", config.OpenRouter.BaseUrl),
+                Method:       http.MethodPost,
+                SuccessCode:  200,
+                DecodeMethod: JsonDecodeMethod,
+                RequestData:  data,
+                Logger:       er.Logger,
+                Timeout:      true,
+            }
+            return obj.GetStreamChatCompletions(ctx)
+        default:
+            return nil, fmt.Errorf("streaming not supported for request type: %s", name)
+        }
+    }
 
-	errorChan := make(chan external_models.StreamChunk, 1)
-	errorChan <- external_models.StreamChunk{Error: fmt.Errorf("test mode enabled")}
-	close(errorChan)
-	return errorChan, fmt.Errorf("test mode enabled")
+    return nil, fmt.Errorf("test mode enabled")
 }

@@ -41,40 +41,113 @@ func RespondToChat(w http.ResponseWriter, db *storage.Database, logger *utility.
 	return response, code, nil
 }
 
-func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
-	openRouterPayload := external_models.OpenRouterReq{
-		Model:    "google/gemini-2.0-flash-001",
-		Messages: req.Messages,
-	}
 
-	logger.Info(fmt.Sprintf("Making request to model: %s for translator completions", req.GetModel()))
-	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
-	if err != nil {
-		if strings.Contains(err.Error(), "429") {
-			logger.Error("OpenRouter API call failed with 429: ", err)
-			return map[string]any{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
-		}
-		logger.Error("OpenRouter API call failed: ", err)
-		return map[string]any{}, http.StatusBadRequest, err
-	}
 
-	result, ok := res.(map[string]any)
+func StreamChatCompletions(w http.ResponseWriter, db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) error {
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+
+	flusher, ok := w.(http.Flusher)
 	if !ok {
-		logger.Error("failed to get chat completions: ", res)
-		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("failed to get chat completions: %v", res)
+		return fmt.Errorf("streaming not supported")
 	}
 
-	if choices, exists := result["choices"].([]any); !exists || len(choices) == 0 {
-		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("no choices found in response")
+	openRouterPayload := external_models.OpenRouterReq{
+		Model:    req.GetModel(),
+		Messages: req.Messages,
+		ExtraBody: external_models.OpenRouterExtraBody{
+			Usage: external_models.OpenRouterUsageToggle{
+				Include: true,
+			},
+		},
+		Tools:  ConvertTools(req.Tools),
+		Stream: true,
 	}
 
-	return result, http.StatusOK, nil
+	logger.Info(fmt.Sprintf("Starting stream for model: %s for org: %s", req.GetModel(), ids.OrganisationID))
+
+	ctx := context.Background()
+
+	streamChan, err := extReq.SendStreamingExternalRequest(request.GetChatCompletions, openRouterPayload, ctx)
+	if err != nil {
+		fmt.Fprintf(w, "data: {\"error\": \"%s\"}\n\n", err.Error())
+		flusher.Flush()
+		return err
+	}
+
+	var fullContent strings.Builder
+
+	for chunk := range streamChan {
+		if chunk.Error != nil {
+			logger.Error("Streaming error: ", chunk.Error)
+			fmt.Fprintf(w, "data: {\"error\": \"%s\"}\n\n", chunk.Error.Error())
+			flusher.Flush()
+			return chunk.Error
+		}
+
+		if chunk.Done {
+			fmt.Fprintf(w, "data: [DONE]\n\n")
+			flusher.Flush()
+			break
+		}
+
+		if len(chunk.Data) > 0 {
+			dataStr := string(chunk.Data)
+			lines := strings.Split(dataStr, "\n")
+
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "data: ") {
+					data := line[6:]
+					if data == "[DONE]" {
+						fmt.Fprintf(w, "data: [DONE]\n\n")
+						flusher.Flush()
+						goto billing
+					}
+
+					if data != "" && data != "[DONE]" {
+						fmt.Fprintf(w, "data: %s\n\n", data)
+						flusher.Flush()
+
+						// Extract content for billing (optional)
+						if data != "" {
+							var parsed map[string]any
+							if err := json.Unmarshal([]byte(data), &parsed); err == nil {
+								if choices, ok := parsed["choices"].([]any); ok && len(choices) > 0 {
+									if choice, ok := choices[0].(map[string]any); ok {
+										if delta, ok := choice["delta"].(map[string]any); ok {
+											if content, ok := delta["content"].(string); ok {
+												fullContent.WriteString(content)
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+billing:
+	if fullContent.Len() > 0 {
+		err = ChargeAICreditUsage(db, ids, fullContent.Len(), logger)
+		if err != nil {
+			logger.Error("Failed to charge credits after streaming", err)
+		}
+	}
+
+	return nil
 }
 
 func ChatCompletions(w http.ResponseWriter, db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) (map[string]any, int, error) {
 	var (
 		telexlogs models.TelexAIUsageLog
-		response  map[string]any
 	)
 
 	openRouterPayload := external_models.OpenRouterReq{
@@ -86,61 +159,11 @@ func ChatCompletions(w http.ResponseWriter, db *storage.Database, logger *utilit
 			},
 		},
 		Tools:  ConvertTools(req.Tools),
-		Stream: req.Stream,
+		Stream: false,
 	}
 
 	logger.Info(fmt.Sprintf("Making request to model: %s for org: %s", req.GetModel(), ids.OrganisationID))
 
-	if req.Stream {
-		ctx := context.Background() // Set streaming response headers
-
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-
-		streamChan, err := extReq.SendStreamingExternalRequest(request.GetChatCompletions, openRouterPayload, ctx)
-		if err != nil {
-			if strings.Contains(err.Error(), "429") {
-				logger.Error("OpenRouter API call failed with 429: ", err)
-				return map[string]any{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
-			}
-			logger.Error("OpenRouter API call failed: ", err)
-			return map[string]any{}, http.StatusBadRequest, err
-		}
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			return map[string]any{}, http.StatusInternalServerError, fmt.Errorf("streaming not supported")
-		}
-
-		for chunk := range streamChan {
-			if chunk.Error != nil {
-				logger.Error("Streaming error: ", chunk.Error)
-				fmt.Fprintf(w, "data: {\"error\": \"%s\"}\n\n", chunk.Error.Error())
-				flusher.Flush()
-				return map[string]any{}, http.StatusInternalServerError, chunk.Error
-			}
-
-			if chunk.Done {
-				fmt.Fprintf(w, "data: {\"done\": true}\n\n")
-				flusher.Flush()
-				break
-			}
-
-			if len(chunk.Data) > 0 {
-				dataStr := strings.TrimSpace(string(chunk.Data))
-				if dataStr != "" {
-					fmt.Fprintf(w, "data: %s\n\n", dataStr)
-					flusher.Flush()
-				}
-			}
-		}
-
-		return map[string]any{}, http.StatusOK, nil
-	}
-
-	//non-streaming request
 	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
 	if err != nil {
 		if strings.Contains(err.Error(), "429") {
@@ -168,7 +191,7 @@ func ChatCompletions(w http.ResponseWriter, db *storage.Database, logger *utilit
 		}
 	}
 
-	return response, http.StatusOK, nil
+	return result, http.StatusOK, nil
 }
 
 func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisClient *redis.Client, fetchTools bool) (external_models.OpenRouterModelsResponse, error) {
@@ -224,7 +247,35 @@ func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisCli
 
 	return modelsList, nil
 }
+func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
+	openRouterPayload := external_models.OpenRouterReq{
+		Model:    "google/gemini-2.0-flash-001",
+		Messages: req.Messages,
+	}
 
+	logger.Info(fmt.Sprintf("Making request to model: %s for translator completions", req.GetModel()))
+	res, err := extReq.SendExternalRequest(request.GetChatCompletions, openRouterPayload)
+	if err != nil {
+		if strings.Contains(err.Error(), "429") {
+			logger.Error("OpenRouter API call failed with 429: ", err)
+			return map[string]any{}, http.StatusTooManyRequests, fmt.Errorf("rate limit exceeded: %w", err)
+		}
+		logger.Error("OpenRouter API call failed: ", err)
+		return map[string]any{}, http.StatusBadRequest, err
+	}
+
+	result, ok := res.(map[string]any)
+	if !ok {
+		logger.Error("failed to get chat completions: ", res)
+		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("failed to get chat completions: %v", res)
+	}
+
+	if choices, exists := result["choices"].([]any); !exists || len(choices) == 0 {
+		return map[string]any{}, http.StatusBadRequest, fmt.Errorf("no choices found in response")
+	}
+
+	return result, http.StatusOK, nil
+}
 func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, redis *redis.Client) (string, error) {
 	var (
 		availableModels external_models.OpenRouterModelsResponse
@@ -297,18 +348,19 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 	return nil
 }
 
-func ExtractChatContent(response map[string]any) (string, error) {
-	choices, ok := response["choices"].([]any)
-	if !ok {
+func ExtractChatContent(response map[string]interface{}) (string, error) {
+	fmt.Println(response)
+	choices, ok := response["choices"].([]interface{})
+	if !ok || len(choices) == 0 {
 		return "", errors.New("invalid or empty choices")
 	}
 
-	firstChoice, ok := choices[0].(map[string]any)
+	firstChoice, ok := choices[0].(map[string]interface{})
 	if !ok {
 		return "", errors.New("invalid choice format")
 	}
 
-	message, ok := firstChoice["message"].(map[string]any)
+	message, ok := firstChoice["message"].(map[string]interface{})
 	if !ok {
 		return "", errors.New("invalid message format")
 	}

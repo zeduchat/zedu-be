@@ -68,6 +68,18 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 	}
 
 	req.Model = model
+	if req.Stream {
+		err := telexai.StreamChatCompletions(c.Writer, base.Db, base.Logger, req, base.ExtReq, ids)
+		if err != nil {
+			base.Logger.Error("streaming failed", err)
+			if !c.Writer.Written() {
+				rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Streaming failed", err.Error(), nil)
+				c.JSON(http.StatusInternalServerError, rd)
+			}
+		}
+		return
+	}
+
 	response, code, err := telexai.RespondToChat(w, base.Db, base.Logger, req, base.ExtReq, ids)
 	if err != nil {
 		base.Logger.Error("failed to get chat completions", err)

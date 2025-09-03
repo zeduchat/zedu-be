@@ -1,6 +1,7 @@
 package external
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hngprojects/telex_be/external/external_models"
@@ -24,20 +26,23 @@ func GetNewStreamingRequestObject(logger *utility.Logger, name, path, method, ur
 }
 
 func (r *SendRequestObject) SendStream() (<-chan external_models.StreamChunk, error) {
-	dataChan := make(chan external_models.StreamChunk, 10) // buffered channel
+	dataChan := make(chan external_models.StreamChunk, 10)
 
 	var (
-		data   = r.Data
 		logger = r.Logger
 		name   = r.Name
 		err    error
 	)
-
 	buf := new(bytes.Buffer)
-	if data != nil {
-		err = json.NewEncoder(buf).Encode(data)
+
+	switch data := r.Data.(type) {
+	case *bytes.Buffer:
+		buf = data
+	case nil:
+		logger.Info("r.Data is nil")
+	default:
+		err = json.NewEncoder(buf).Encode(r.Data)
 		if err != nil {
-			logger.Error("encoding error", name, err.Error())
 			close(dataChan)
 			return dataChan, err
 		}
@@ -65,12 +70,7 @@ func (r *SendRequestObject) SendStream() (<-chan external_models.StreamChunk, er
 	if r.Method == http.MethodGet {
 		req, err = http.NewRequestWithContext(r.Context, r.Method, r.Path, nil)
 	} else {
-		switch r.Headers["Content-Type"] {
-		case "application/x-www-form-urlencoded", "application/json":
-			req, err = http.NewRequestWithContext(r.Context, r.Method, r.Path, data.(io.Reader))
-		default:
-			req, err = http.NewRequestWithContext(r.Context, r.Method, r.Path, buf)
-		}
+		req, err = http.NewRequestWithContext(r.Context, r.Method, r.Path, buf)
 	}
 
 	if err != nil {
@@ -87,6 +87,10 @@ func (r *SendRequestObject) SendStream() (<-chan external_models.StreamChunk, er
 		defer close(dataChan)
 
 		logger.Info("streaming request (channel)", name, r.Path, r.Method, r.Headers)
+
+		bodyBytes, _ := json.MarshalIndent(buf, "", "  ")
+		fmt.Println("=== JSON BODY ===")
+		fmt.Println(string(bodyBytes))
 
 		res, err := client.Do(req)
 		if err != nil {
@@ -105,32 +109,37 @@ func (r *SendRequestObject) SendStream() (<-chan external_models.StreamChunk, er
 			return
 		}
 
-		buffer := make([]byte, 4096)
-		for {
+		scanner := bufio.NewScanner(res.Body)
+		var buffer strings.Builder
+
+		for scanner.Scan() {
 			select {
 			case <-r.Context.Done():
 				logger.Info("streaming request cancelled", name)
 				dataChan <- external_models.StreamChunk{Error: r.Context.Err()}
 				return
 			default:
-				n, err := res.Body.Read(buffer)
-				if n > 0 {
-					chunk := make([]byte, n)
-					copy(chunk, buffer[:n])
-					dataChan <- external_models.StreamChunk{Data: chunk}
-				}
-				if err == io.EOF {
-					logger.Info("streaming completed", name)
-					dataChan <- external_models.StreamChunk{Done: true}
-					return
-				}
-				if err != nil {
-					logger.Error("streaming read error", name, err.Error())
-					dataChan <- external_models.StreamChunk{Error: err}
-					return
+				line := scanner.Text()
+
+				if line == "" {
+					if buffer.Len() > 0 {
+						dataChan <- external_models.StreamChunk{Data: []byte(buffer.String() + "\n")}
+						buffer.Reset()
+					}
+				} else {
+					buffer.WriteString(line + "\n")
 				}
 			}
 		}
+
+		if err := scanner.Err(); err != nil {
+			logger.Error("streaming scan error", name, err.Error())
+			dataChan <- external_models.StreamChunk{Error: err}
+			return
+		}
+
+		logger.Info("streaming completed", name)
+		dataChan <- external_models.StreamChunk{Done: true}
 	}()
 
 	return dataChan, nil
