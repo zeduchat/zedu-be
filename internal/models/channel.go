@@ -1100,9 +1100,10 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			if channelMention || userMention[update.UserId] {
 				err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), mentionNotification)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
+					logger.Error(fmt.Sprintf("Error mention message to Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
 					return
 				}
+				logger.Info("Published in-channel mention to user : %s", update.UserId)
 			}
 		}
 	}
