@@ -15,10 +15,9 @@ type OpenRouterUsageToggle struct {
 	Include bool `json:"include"`
 }
 
-
 type TelexAIOpenRouterMessage struct {
 	Role       string     `json:"role" validate:"required,oneof=system developer user assistant tool"`
-	Content    *string    `json:"content" validate:"required"`
+	Content    string     `json:"content" validate:"required"`
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"`
 	Name       string     `json:"name,omitempty"`

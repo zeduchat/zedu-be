@@ -48,7 +48,7 @@ type Tool struct {
 
 func (treq *TelexAIChatCompletionsReq) GetModel() string {
 	if treq.Model == "" {
-		return "qwen/qwen3-30b-a3b:free"
+		return "openai/gpt-4o"
 	}
 	return treq.Model
 }

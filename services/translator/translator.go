@@ -93,11 +93,11 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 		Messages: []external_models.TelexAIOpenRouterMessage{
 			{
 				Role:    "system",
-				Content: &systemPrompt,
+				Content: systemPrompt,
 			},
 			{
 				Role:    "user",
-				Content: &stepInput,
+				Content: stepInput,
 			},
 		},
 	}
@@ -121,6 +121,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		agents      models.OrganisationIntegrations
 		task        models.Task
 		skillsModel models.AgentSkill
+		// workflow    models.Workflow
 	)
 
 	exists, err := agents.CheckAgentExists(db, agentID)
@@ -196,6 +197,8 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
+
+	//TODO: write into workflow table
 
 	return wkfJson, http.StatusOK, nil
 }
