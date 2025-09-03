@@ -161,6 +161,10 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		userChan.UserID = "00000000-0000-0000-0000-000000000000"
 	}
 	userChan.OrgId = channel.OrganisationID
+	mentionMsg := models.MentionMessage{
+		Mention: req.Mentions,
+		Content: feed,
+	}
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 
@@ -182,7 +186,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	// Run this after the others finish
 	go func() {
 		wg.Wait()
-		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, mentionMsg)
 	}()
 
 	return &threadDoc, nil

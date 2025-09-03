@@ -413,7 +413,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
+		ID:            req.ThreadId,
 		Username:      orgAgent.AppName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelID,
@@ -456,12 +456,21 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		State:     req.State,
 	}
 
-	err = centrifuge.PublishChannel(logger, req.ChannelID, feed)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelID, err))
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
+	notification := models.Notification[models.AgentUpdate]
+	notification.SectionType = models.ThreadSection
+	notification.Content = feed
+	notification.ModificationDetails = &models.ModificationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelID,
 	}
-	logger.Info(fmt.Sprintf("Publishing to channel id: %s", req.ChannelID))
+
+	err = centrifuge.PublishChannel(logger, req.ChannelID, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data")
+	}
+
+	logger.Info(fmt.Sprintf("Publishing update to channel id: %s", req.ChannelID))
 
 	pushReq := models.PushRequest{
 		ChannelName: feed.UserName,

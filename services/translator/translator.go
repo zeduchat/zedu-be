@@ -93,11 +93,11 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 		Messages: []external_models.TelexAIOpenRouterMessage{
 			{
 				Role:    "system",
-				Content: &systemPrompt,
+				Content: systemPrompt,
 			},
 			{
 				Role:    "user",
-				Content: &stepInput,
+				Content: stepInput,
 			},
 		},
 	}

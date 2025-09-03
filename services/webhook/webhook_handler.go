@@ -95,6 +95,7 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 	userChan.ChannelsID = webhook.ChannelId
 	userChan.UserID = "00000000-0000-0000-0000-000000000000"
 	userChan.OrgId = channel.OrganisationID
+
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 
@@ -108,7 +109,7 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 	// Run this after the others finish
 	go func() {
 		wg.Wait()
-		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, models.MentionMessage{})
 	}()
 
 	return resp, http.StatusOK, nil
