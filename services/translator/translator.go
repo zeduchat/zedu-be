@@ -121,7 +121,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		agents      models.OrganisationIntegrations
 		task        models.Task
 		skillsModel models.AgentSkill
-		// workflow    models.Workflow
+		aw          models.AgentWorkflow
 	)
 
 	exists, err := agents.CheckAgentExists(db, agentID)
@@ -198,7 +198,27 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 
-	//TODO: write into workflow table
+	bytes, err := json.Marshal(wkfJson)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusBadRequest, err
+	}
+
+	var rawEntry models.JSONBMap
+	if err := json.Unmarshal(bytes, &rawEntry); err != nil {
+		return models.WorkflowJSON{}, http.StatusBadRequest, err
+	}
+
+	aw.AgentId = agentID
+	aw.ID = utility.GenerateUUID()
+	aw.WorkflowId = utility.GenerateUUID()
+	aw.RawEntry = rawEntry
+	aw.Name = wkfJson.Name
+	aw.OrgId = agents.OrgID
+
+	err, code := aw.CreateAgentWorkflow(db)
+	if err != nil {
+		return models.WorkflowJSON{}, code, err
+	}
 
 	return wkfJson, http.StatusOK, nil
 }
