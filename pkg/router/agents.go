@@ -13,17 +13,18 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
+func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	organisationUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion), middleware.Authorize(db.Postgresql))
 
 	{
-		organisationUrl.POST("/:agents_id", agentsCtrl.CreateAgentSkill)
-		organisationUrl.GET("/:agents_id", agentsCtrl.GetAgentSkills)
-		organisationUrl.GET("/:agents_id/integration/:integration_id", agentsCtrl.GetAgentSkillByID)
-		organisationUrl.PUT("/:agents_id/integration/:integration_id", agentsCtrl.UpdateAgentSkill)
-		organisationUrl.DELETE("/:agents_id/integration/:integration_id", agentsCtrl.DeleteAgentSkill)
+		organisationUrl.GET("/agents/:agents_id", agentsCtrl.GetAgentSkills)
+		organisationUrl.GET("/:skill_id/agents/:agents_id", agentsCtrl.GetAgentSkillByID)
+		organisationUrl.PUT("/:skill_id/agents/:agents_id", agentsCtrl.UpdateAgentSkill)
+		organisationUrl.POST("/agents/:agents_id", agentsCtrl.AddSkillsToAgent)
+		organisationUrl.POST("/agents/:agents_id/new", agentsCtrl.CreateAgentSkill)
+		organisationUrl.DELETE("/:skill_id/agents/:agents_id", agentsCtrl.DeleteAgentSkill)
 	}
 
 	skillUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion))
@@ -33,23 +34,18 @@ func AgentSkill(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
 	}
 
+	//agent tasks
+	agentURL := r.Group(fmt.Sprintf("%v/tasks", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		agentURL.POST("/:agent_id", agentsCtrl.CreateAgentTasks)
+		agentURL.GET("/:agent_id", agentsCtrl.GetAgentTasks)
+		agentURL.PUT("/:task_id/agents/:agent_id", agentsCtrl.UpdateAgentTasks)
+		agentURL.DELETE("/:task_id/agents/:agent_id", agentsCtrl.DeleteAgentTasks)
+		agentURL.GET("/:agent_id/process", agentsCtrl.ProcessAgentTasks)
+	}
+
 	return r
 }
-
-// func AgentTasks(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
-// 	extReq := request.ExternalRequest{Logger: logger, Test: false}
-// 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
-// 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
-
-// 	{
-// 		organisationUrl.POST("/:org_id/agents/:agents_id/task", agentsCtrl.CreateAgentTask)
-// 		organisationUrl.GET("/:org_id/agents/:agents_id/task", agentsCtrl.GetAgentTasks)
-// 		organisationUrl.PUT("/:org_id/agents/:agents_id/task/:task_id", agentsCtrl.UpdateAgentTask)
-// 		organisationUrl.DELETE("/:org_id/agents/:agents_id/task/:task_id", agentsCtrl.DeleteAgentTask)
-// 	}
-
-// 	return r
-// }
 
 func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *storage.Database, logger *utility.Logger) *gin.Engine {
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
@@ -70,6 +66,8 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
 		organisationUrl.GET("/:org_id/agents/:agent_id", agentsCtrl.FetchCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
+		organisationUrl.GET("/:org_id/agents/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
+		organisationUrl.PUT("/:org_id/agents/:agent_id/prompts", agentsCtrl.UpdateAgentPrompt)
 
 		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
 		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
@@ -106,8 +104,6 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	agentUrl := r.Group(fmt.Sprintf("%v/agents", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		agentUrl.GET("/:agent_id/settings", agent.GetAgentSettingsAllOrgs)
-		agentUrl.GET("/:agent_id/prompt", agentsCtrl.FetchCustomAgentPrompt)
-		agentUrl.PUT("/:agent_id/prompt", agentsCtrl.UpdateAgentPrompt)
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)

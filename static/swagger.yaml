@@ -100,6 +100,8 @@ tags:
     description: API endpoints for handling message forwarding
   - name: Skills
     description: API endpoints for agents skills
+  - name: Tasks
+    description: API endpoints for agents tasks
   - name: Translator
     description: API endpoints for telex markdown to json formatting engine
 
@@ -215,6 +217,14 @@ paths:
                       access_token:
                         type: string
                         example: "access_token"
+                      access_token_expires_in:
+                        type: string
+                        format: date-time
+                      notification_token:
+                        type: string
+                        format: token
+                        example: KADFKIEWKJADFIOAIJE080
+
         "401":
           description: Unauthorized
           content:
@@ -235,6 +245,13 @@ paths:
       summary: logout a user
       security:
         - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Platform
+          schema:
+            type: string
+          required: true
+          description: device platform (desktop, mobile or web).
       responses:
         "200":
           description: User logout successfully
@@ -3633,6 +3650,68 @@ paths:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
         "401":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /centrifugo/connection:
+    get:
+      tags:
+        - tokens
+      summary: Generate connection token
+      description: Retrieve a connection token for establishing a connection to the server.
+      security:
+        - NotificationTokenHeader: []
+      responses:
+        "200":
+          description: Connection token retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTokenResponseSchema"
+        "400":
+          description: Bad request (missing or invalid `X-Notification-Token` header)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized (expired or invalid notification token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /centrifugo/subscription:
+    post:
+      tags:
+        - tokens
+      summary: Generate subscription token
+      description: Generate a token for subscribing to a specific channel.
+      security:
+        - NotificationTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionTokenRequestSchema"
+      responses:
+        "200":
+          description: Subscription token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionTokenResponseSchema"
+        "400":
+          description: Bad request (missing or invalid `X-Notification-Token` header)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized (expired or invalid notification token)
           content:
             application/json:
               schema:
@@ -11737,7 +11816,7 @@ paths:
         404:
           description: Organisation not found.
 
-  /agents/{agent_id}/prompt:
+  /organisations/{organisationId}/agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt
       description: Retrieve the system prompts for a specific agent.
@@ -11746,6 +11825,12 @@ paths:
       tags:
         - Agents Colleague
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -11805,6 +11890,12 @@ paths:
       tags:
         - Agents Colleague
       parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -17748,6 +17839,249 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /workflow/{workflow_id}/skills:
+    get:
+      tags:
+        - Workflow
+      summary: Get workflow skills
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Workflow skills fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        workflow_id: { type: string }
+                        skill_id: { type: string }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+
+  /agents/{agent_id}/workflows:
+    post:
+      tags:
+        - Agent Workflows
+      summary: Create a new workflow for an agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                raw_entry:
+                  type: object
+                  description: JSON payload representing workflow details
+                name:
+                  type: string
+                  description: Name of the workflow
+              required:
+                - raw_entry
+                - name
+      responses:
+        "201":
+          description: Agent Workflow created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      workflow_id: { type: string }
+                      agent_id: { type: string }
+                      org_id: { type: string }
+                      name: { type: string }
+                      raw_entry: { type: object }
+                      is_active: { type: boolean }
+
+    get:
+      tags:
+        - Agent Workflows
+      summary: List all workflows for an agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+      responses:
+        "200":
+          description: Agent Workflows listed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        workflow_id: { type: string }
+                        agent_id: { type: string }
+                        name: { type: string }
+                        is_active: { type: boolean }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+
+  /agents/{agent_id}/workflows/{workflow_id}:
+    get:
+      tags:
+        - Agent Workflows
+      summary: Get a workflow by ID for an agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Agent Workflow fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      workflow_id: { type: string }
+                      agent_id: { type: string }
+                      org_id: { type: string }
+                      name: { type: string }
+                      raw_entry: { type: object }
+                      is_active: { type: boolean }
+
+    put:
+      tags:
+        - Agent Workflows
+      summary: Update an existing agent workflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                raw_entry:
+                  type: object
+                  description: JSON payload representing workflow details
+                is_active:
+                  type: boolean
+                name:
+                  type: string
+              required:
+                - raw_entry
+                - is_active
+      responses:
+        "200":
+          description: Agent Workflow updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+
+    delete:
+      tags:
+        - Agent Workflows
+      summary: Delete an agent workflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: agent_id
+          required: true
+          schema:
+            type: string
+          description: Agent ID
+        - in: path
+          name: workflow_id
+          required: true
+          schema:
+            type: string
+          description: Workflow ID
+      responses:
+        "200":
+          description: Agent Workflow deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+
   /skills:
     get:
       tags:
@@ -17847,11 +18181,99 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-  /skills/{agents_id}:
+  /skills/agents/{agents_id}/new:
+    post:
+      tags:
+        - Skills
+      summary: Add custom skill to an agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Sales Assistant Bot"
+                description:
+                  type: string
+                  example: "Helps automate the sales process and customer engagement"
+                type:
+                  type: string
+                  example: "MCP"
+                url_link:
+                  type: string
+                  format: url
+                  example: "https://example.com/mcp"
+                avatar:
+                  type: string
+                  example: "https://example.com/images/sales-bot.png"
+                agent_config:
+                  type: object
+                  additionalProperties: true
+                  example:
+                    language: "en"
+                    max_conversations: 5
+                    api_key: "some-random-seed-key"
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["sales", "automation", "crm"]
+
+      responses:
+        "201":
+          description: Agent skill created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Agent skill created
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /skills/agents/{agents_id}:
     get:
       tags:
         - Skills
-      summary: Get agent skill by Agent ID
+      summary: Get agent skills by Agent ID
       security:
         - bearerAuth: []
       parameters:
@@ -17902,7 +18324,7 @@ paths:
     post:
       tags:
         - Skills
-      summary: Create a new agent skill
+      summary: Add skills to an agent
       security:
         - bearerAuth: []
       parameters:
@@ -17919,42 +18341,18 @@ paths:
             schema:
               type: object
               properties:
-                id:
-                  type: string
-                  format: uuid
-                  example: "123e4567-e89b-12d3-a456-426614174000"
-                name:
-                  type: string
-                  example: "Sales Assistant Bot"
-                description:
-                  type: string
-                  example: "Helps automate the sales process and customer engagement"
-                type:
-                  type: string
-                  example: "MCP"
-                is_active:
-                  type: boolean
-                  example: true
-                is_configured:
-                  type: boolean
-                  example: true
-                avatar:
-                  type: string
-                  example: "https://example.com/images/sales-bot.png"
-                agent_config:
-                  type: object
-                  additionalProperties: true
-                  example:
-                    language: "en"
-                    max_conversations: 5
-                tags:
+                skill_ids:
                   type: array
                   items:
-                    type: string
-                  example: ["sales", "automation", "crm"]
+                    type: uuid
+                  example:
+                    [
+                      "123e4567-e89b-12d3-a456-426614174001",
+                      "123e4567-e89b-12d3-a456-426614174002",
+                    ]
       responses:
-        "201":
-          description: Agent skill created successfully
+        "200":
+          description: Agent skill added successfully
           content:
             application/json:
               schema:
@@ -17990,11 +18388,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
-  /skills/{agents_id}/integration/{integration_id}:
+  /skills/{skill_id}/agents/{agents_id}:
     get:
       tags:
         - Skills
-      summary: Get agent skill integration by ID
+      summary: Get agent skill by ID
       security:
         - bearerAuth: []
       parameters:
@@ -18004,7 +18402,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: integration_id
+        - name: skill_id
           in: path
           required: true
           schema:
@@ -18051,7 +18449,7 @@ paths:
     put:
       tags:
         - Skills
-      summary: Update agent skill integration
+      summary: Update agent skill
       security:
         - bearerAuth: []
       parameters:
@@ -18061,7 +18459,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: integration_id
+        - name: skill_id
           in: path
           required: true
           schema:
@@ -18074,39 +18472,15 @@ paths:
             schema:
               type: object
               properties:
-                id:
-                  type: string
-                  format: uuid
-                  example: "123e4567-e89b-12d3-a456-426614174000"
-                name:
-                  type: string
-                  example: "Sales Assistant Bot"
-                description:
-                  type: string
-                  example: "Helps automate the sales process and customer engagement"
-                type:
-                  type: string
-                  example: "MCP"
                 is_active:
                   type: boolean
                   example: true
-                is_configured:
-                  type: boolean
-                  example: true
-                avatar:
-                  type: string
-                  example: "https://example.com/images/sales-bot.png"
                 agent_config:
                   type: object
                   additionalProperties: true
                   example:
                     language: "en"
                     max_conversations: 5
-                tags:
-                  type: array
-                  items:
-                    type: string
-                  example: ["sales", "automation", "crm"]
       responses:
         "200":
           description: Agent skill updated successfully
@@ -18148,7 +18522,7 @@ paths:
     delete:
       tags:
         - Skills
-      summary: Delete agent skill integration
+      summary: Delete agent skill
       security:
         - bearerAuth: []
       parameters:
@@ -18158,7 +18532,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: integration_id
+        - name: skill_id
           in: path
           required: true
           schema:
@@ -18452,6 +18826,42 @@ paths:
                     type: object
                     nullable: true
                     example: null
+
+  /translator/{agent_id}:
+    get:
+      tags:
+        - Translator
+      summary: Generate translation for an agent
+      description: Returns a translated workflow definition for the given agent.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the agent
+      responses:
+        "201":
+          description: Translation generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: Translation generated successfully
+                  data:
+                    type: string
+                    description: JSON string containing translated workflow
+                    example: '{ "name": "Q4 Financial Data Analysis and Reporting", "nodes": [...] }'
+
   /prompts:
     post:
       tags:
@@ -18459,7 +18869,7 @@ paths:
       summary: Create a new prompt
       description: Creates a new prompt template for use in translation workflows.
       requestBody:
-        required: true
+        required: trueans
         content:
           application/json:
             schema:
@@ -18481,7 +18891,7 @@ paths:
                     - Agent skills: {{agent_skills}}
                     - Global skills (fallback): {{global_skills}}
       responses:
-        '200':
+        "200":
           description: Prompt created successfully
           content:
             application/json:
@@ -18504,7 +18914,7 @@ paths:
       summary: Fetch all prompts
       description: Retrieves all saved prompts.
       responses:
-        '200':
+        "200":
           description: Prompts fetched successfully
           content:
             application/json:
@@ -18548,7 +18958,7 @@ paths:
       summary: Fetch most recent version of unique prompts/steps
       description: Returns the latest version of unique prompt steps for use in workflows.
       responses:
-        '200':
+        "200":
           description: Unique steps fetched successfully
           content:
             application/json:
@@ -18586,29 +18996,28 @@ paths:
                           example: 2025-08-12T04:58:07.1813+01:00
 
   /translator/tester:
-      get:
-        tags:
+    get:
+      tags:
         - Translator
-        summary: Runs an interavtive user interface for generating json for workflows 
-        description: Runs an interavtive user interface for generating json for workflows 
-        responses:
-          '201':
-            description: Translation prompt fetched successfully
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    status:
-                      type: string
-                      example: success
-                    status_code:
-                      type: integer
-                      example: 200
-                    message:
-                      type: string
-                      example: Translation prompt fetched successfully
-                           
+      summary: Runs an interavtive user interface for generating json for workflows
+      description: Runs an interavtive user interface for generating json for workflows
+      responses:
+        "201":
+          description: Translation prompt fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Translation prompt fetched successfully
 
   /translator:
     post:
@@ -18624,15 +19033,15 @@ paths:
               type: object
               required:
                 - task_list
-                - agent_skills
-                - global_skills
+                - skills
+                - steps
               properties:
                 task_list:
                   type: string
                   example: |
                     - Review 45-min Zoom webinar on Q4 financials, find CFO strategy sections...
                     - Extract audio from these segments, transcribe via speech-to-text...
-                agent_skills:
+                skills:
                   type: array
                   items:
                     type: string
@@ -18640,16 +19049,18 @@ paths:
                     - skill_video_transcription
                     - skill_text_summarization
                     - skill_copywriting
-                global_skills:
+                steps:
                   type: array
                   items:
-                    type: string
-                  example:
-                    - skill_translate_en_es
-                    - skill_translate_en_fr
-                    - skill_generate_social_post
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: Skill Matching
+                      version:
+                        type: int32
       responses:
-        '201':
+        "201":
           description: Translation generated successfully
           content:
             application/json:
@@ -18691,6 +19102,179 @@ paths:
                             llm_call:
                               type: boolean
                               example: true
+
+  /tasks/{agent_id}:
+    post:
+      summary: Create tasks for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tasks:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      text:
+                        type: string
+                      position:
+                        type: integer
+      responses:
+        "201":
+          description: Tasks created successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 201
+                message: Tasks created successfully
+                data:
+                  id: "0198e568-2685-73d3-b736-044b5904efbb"
+                  agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                  text: "Retrieve all available pets from the petstore and filter by category 'Dog'"
+                  position: 2
+                  created_at: "2025-08-26T09:04:24.837632358+01:00"
+                  updated_at: "2025-08-26T09:04:24.837632358+01:00"
+
+    get:
+      summary: Get all tasks for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tasks fetched successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Tasks fetched successfully
+                data:
+                  - id: "0198e565-018e-7692-8e23-8a267accdb87"
+                    agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    text: "Create a new pet listing in the petstore with name 'Buddy', category 'Dog', and status 'available'"
+                    position: 1000
+                    created_at: "2025-08-26T09:00:58.766444+01:00"
+                    updated_at: "2025-08-26T09:00:58.766444+01:00"
+
+  /tasks/{task_id}/agents/{agent_id}:
+    patch:
+      summary: Update a task for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                position:
+                  type: integer
+      responses:
+        "200":
+          description: Task updated successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Tasks updated successfully
+
+    delete:
+      summary: Delete a task for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task deleted successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Task deleted successfully
+
+  /tasks/{agent_id}/process:
+    get:
+      summary: Process tasks for an agent
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tasks processed successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Tasks processed successfully
+                data:
+                  - skill_id: "9ab26335-31b8-4105-b469-d3c4f3f23059"
+                    name: "Data Analysis"
+                    description: "Analyze structured and unstructured data"
+                    type: "analysis"
+                    is_active: true
+                    is_configured: true
+                    avatar: "📊"
+                    agent_config: {}
 
 components:
   schemas:
@@ -21644,7 +22228,7 @@ components:
     AgentSkillResponse:
       type: object
       properties:
-        id:
+        skill_id:
           type: string
           format: uuid
           example: "123e4567-e89b-12d3-a456-426614174000"
@@ -21951,3 +22535,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+    NotificationTokenHeader:
+      type: apiKey
+      in: header
+      name: X-Notification-Token
+      description: |
+        Notification token required to access these endpoints.  
+        This replaces the Bearer authentication for unauthenticated connection/subscription tokens.

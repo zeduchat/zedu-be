@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/thanhpk/randstr"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -26,6 +27,8 @@ type AccessToken struct {
 	LoginAccessTokenExpiresIn string    `gorm:"column:login_access_token_expires_in; type:varchar(250)" json:"-"`
 	CreatedAt                 time.Time `gorm:"column:created_at; autoCreateTime" json:"created_at"`
 	UpdatedAt                 time.Time `gorm:"column:updated_at; autoUpdateTime" json:"updated_at"`
+	SubAccessToken            string    `gorm:"column:sub_access_token; type:text" json:"-"`
+	IsLiveNotificaionToken    bool      `gorm:"column:is_live_notification_token; type:bool; default:false; not null" json:"is_live_notification_token"`
 }
 
 func (a *AccessToken) GetAccessTokens(db *gorm.DB) error {
@@ -50,6 +53,18 @@ func (a *AccessToken) GetMostRecentAccessToken(db *gorm.DB) (int, error) {
 
 func (a *AccessToken) GetByOwnerID(db *gorm.DB) (int, error) {
 	err, nilErr := postgresql.SelectOneFromDb(db, &a, "owner_id = ? ", a.OwnerID)
+	if nilErr != nil {
+		return http.StatusBadRequest, nilErr
+	}
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	return http.StatusOK, nil
+}
+
+func (a *AccessToken) GetBySubToken(db *gorm.DB) (int, error) {
+	err, nilErr := postgresql.SelectOneFromDb(db, &a, "sub_access_token = ? ", a.SubAccessToken)
 	if nilErr != nil {
 		return http.StatusBadRequest, nilErr
 	}
@@ -101,6 +116,8 @@ func (a *AccessToken) CreateAccessToken(db *gorm.DB, tokenData any) error {
 	a.IsLive = true
 	a.LoginAccessToken = access_token
 	a.LoginAccessTokenExpiresIn = exp
+	a.SubAccessToken = randstr.String(32)
+	a.IsLiveNotificaionToken = true
 	err := postgresql.CreateOneRecord(db, &a)
 	if err != nil {
 		return fmt.Errorf("user creation failed: %v", err.Error())

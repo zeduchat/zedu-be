@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -12,8 +13,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/utility"
-
-	"sync"
 )
 
 func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, userID string) (*models.ThreadDocument, error) {
@@ -216,7 +215,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 	// Run this after the others finish
 	go func() {
 		wg.Wait()
-		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, models.MentionMessage{})
 	}()
 
 	return &threadDoc, nil

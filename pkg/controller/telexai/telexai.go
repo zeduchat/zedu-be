@@ -21,7 +21,10 @@ type Controller struct {
 }
 
 func (base *Controller) RespondToChat(c *gin.Context) {
-	var req models.TelexAIChatCompletionsReq
+	var (
+		req models.TelexAIChatCompletionsReq
+		w   = c.Writer
+	)
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -63,45 +66,31 @@ func (base *Controller) RespondToChat(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
 	req.Model = model
-
 	if req.Stream {
-		//TODO: implement streaming later
-
-		rd := utility.BuildErrorResponse(http.StatusNotImplemented, "error", "Streaming is not implemented yet", "Streaming is not implemented yet", nil)
-		c.JSON(http.StatusNotImplemented, rd)
+		err := telexai.StreamChatCompletions(c.Writer, base.Db, base.Logger, req, base.ExtReq, ids)
+		if err != nil {
+			base.Logger.Error("streaming failed", err)
+			if !c.Writer.Written() {
+				rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Streaming failed", err.Error(), nil)
+				c.JSON(http.StatusInternalServerError, rd)
+			}
+		}
 		return
-	} else {
-		response, code, err := telexai.ChatCompletions(base.Db, base.Logger, req, base.ExtReq, ids)
-		if err != nil {
-			base.Logger.Error("Failed to make chat completions", err)
-			rd := utility.BuildErrorResponse(code, "error", "Failed to make chat completions", err.Error(), nil)
-			c.JSON(code, rd)
-			return
-		}
-
-		content, err := telexai.ExtractChatContent(response)
-		if err != nil {
-			base.Logger.Error("failed to extract chat content", err)
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to extract chat content", err.Error(), nil)
-			c.JSON(http.StatusInternalServerError, rd)
-			return
-		}
-
-		inputLength := len(content)
-
-		err = telexai.ChargeAICreditUsage(base.Db, ids, inputLength, base.Logger)
-		if err != nil {
-			base.Logger.Error("failed to charge organization for AI credit usage!!")
-			rd := utility.BuildErrorResponse(400, "error", "failed to charge organization for AI organisation credit usage", err.Error(), nil)
-			c.JSON(400, rd)
-			return
-		}
-
-		base.Logger.Info("chat completed successfully")
-		rd := utility.BuildSuccessResponse(http.StatusOK, "chat completed successfully", response)
-		c.JSON(http.StatusOK, rd)
 	}
+
+	response, code, err := telexai.RespondToChat(w, base.Db, base.Logger, req, base.ExtReq, ids)
+	if err != nil {
+		base.Logger.Error("failed to get chat completions", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get chat completions", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("chat completed successfully")
+	rd := utility.BuildSuccessResponse(code, "chat completed successfully", response)
+	c.JSON(code, rd)
 }
 
 func (base *Controller) ListModels(c *gin.Context) {

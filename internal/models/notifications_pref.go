@@ -19,10 +19,12 @@ type ChannelType string
 
 var (
 	Updated              NotificationType = "updated"
+	AgentUpdate          NotificationType = "agent_update"
 	Deleted              NotificationType = "deleted"
 	NewMessage           NotificationType = "new_message"
 	StatusUpdate         NotificationType = "status_update"
 	UnReadThreadChange   NotificationType = "unread_thread_change"
+	ChannelMention       NotificationType = "channel_mention"
 	ReplyCountChange     NotificationType = "reply_count_change"
 	PinnedMessageEvent   NotificationType = "pinned_message_event"
 	UnPinnedMessageEvent NotificationType = "unpinned_message_event"
@@ -39,13 +41,14 @@ var (
 )
 
 type Content struct {
-	NotificationType   NotificationType    `json:"notification_type"`
-	SectionType        SectionType         `json:"section"`
+	NotificationType    NotificationType     `json:"notification_type"`
+	SectionType         SectionType          `json:"section"`
 	ModificationDetails *ModificationDetails `json:"modification_ids,omitempty"`
-	Content            any                 `json:"data,omitempty"`
-	UpdateChange       map[string]any      `json:"update_change,omitempty"`
-	PinnedDetails      *PinnedDetails      `json:"pinned_details,omitempty"`
-	Reactions          *[]ReactionDetails  `json:"reactions,omitempty"`
+	Content             any                  `json:"data,omitempty"`
+	UpdateChange        map[string]any       `json:"update_change,omitempty"`
+	PinnedDetails       *PinnedDetails       `json:"pinned_details,omitempty"`
+	Reactions           *[]ReactionDetails   `json:"reactions,omitempty"`
+	NotificationId      string               `json:"notification_id,omitempty"`
 }
 
 type ModificationDetails struct {
@@ -60,6 +63,11 @@ var Notification = map[NotificationType]Content{
 
 	Updated: Content{
 		NotificationType: Updated,
+		Content:          ModificationDetails{},
+	},
+
+	AgentUpdate: Content{
+		NotificationType: AgentUpdate,
 		Content:          ModificationDetails{},
 	},
 
@@ -96,6 +104,9 @@ var Notification = map[NotificationType]Content{
 	ReactionEvent: Content{
 		NotificationType: ReactionEvent,
 		Content:          ModificationDetails{},
+	},
+	ChannelMention: Content{
+		NotificationType: ChannelMention,
 	},
 }
 

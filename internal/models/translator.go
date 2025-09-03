@@ -1,6 +1,8 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,10 +30,14 @@ type ProcessStep struct {
 }
 
 type TranslationRequest struct {
-	TaskList     string   `json:"task_list" binding:"required"`
-	AgentSkills  []string `json:"agent_skills" binding:"required"`
-	GlobalSkills []string `json:"global_skills" binding:"required"`
-	Steps        []string `json:"steps" binding:"required"`
+	TaskList string    `json:"task_list" binding:"required"`
+	Skills   []string  `json:"skills" binding:"required"`
+	Steps    []StepReq `json:"steps" binding:"required"`
+}
+
+type StepReq struct {
+	Name    string `json:"name"`
+	Version int    `json:"version"`
 }
 
 type MissingSkillsResponse struct {
@@ -39,11 +45,58 @@ type MissingSkillsResponse struct {
 	Suggestion    string   `json:"suggestion"`
 }
 
+type WorkflowJSON struct {
+	Name        string                   `json:"name"`
+	Nodes       []Node                   `json:"nodes"`
+	Connections map[string]NodeConnector `json:"connections"`
+}
+
+type Node struct {
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	NodeName string         `json:"node_name"`
+	Type     string         `json:"type"`
+	Position []int          `json:"position"`
+	Params   map[string]any `json:"parameters"`
+}
+
+type NodeConnector struct {
+	Main [][]Connection `json:"main"`
+}
+
 type TranslationResponse struct {
 	Status string `json:"status"` //success, failed, incomplete
 	// Workflow   map[string]any `json:"workflow,omitempty"`
 	ProcessStep   []ProcessStep          `json:"process_step,omitempty"`
 	MissingSkills *MissingSkillsResponse `json:"missing_skills,omitempty"`
+}
+
+type PromptVersionDetail struct {
+	ID        string    `json:"id"`
+	Version   int       `json:"version"`
+	Template  string    `json:"template"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type PromptVersionList []PromptVersionDetail
+
+// Implement sql.Scanner
+func (p *PromptVersionList) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to scan PromptVersionList: not []byte")
+	}
+	return json.Unmarshal(bytes, p)
+}
+
+// (Optional) Implement driver.Valuer if you ever write back
+func (p PromptVersionList) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+type GetPromptResponse struct {
+	PromptName string            `json:"prompt_name"`
+	Versions   PromptVersionList `json:"versions"`
 }
 
 func (p *Prompts) BeforeCreate(tx *gorm.DB) (err error) {
@@ -82,27 +135,54 @@ func (p *Prompts) GetAllPrompts(db *gorm.DB) ([]Prompts, int, error) {
 	return prompts, http.StatusOK, nil
 }
 
-func (p *Prompts) GetPrompt(db *gorm.DB, prompt_id string) (int, error) {
-	err, _ := postgresql.SelectOneFromDb(db, &p, "id = ?", prompt_id)
+func (p *Prompts) GetPrompt(db *gorm.DB, name string) (GetPromptResponse, int, error) {
+	query := `
+		SELECT 
+			name AS prompt_name,
+			json_agg(
+				json_build_object(
+					'id', id,
+					'template', template,
+					'created_at', created_at,
+					'version', version
+				) ORDER BY version DESC
+			) AS versions
+		FROM prompts
+		WHERE name = ?
+		GROUP BY name;
+	`
+
+	var resp GetPromptResponse
+	if err := db.Raw(query, name).Scan(&resp).Error; err != nil {
+		return resp, http.StatusBadRequest, err
+	}
+
+	return resp, http.StatusOK, nil
+}
+
+func (p *Prompts) GetPromptByVersion(db *gorm.DB, req StepReq) (int, error) {
+	err := db.
+		Where("name = ? AND version = ?", req.Name, req.Version).
+		First(&p).Error
+
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("unable to fetch prompt: %v", err)
 	}
 
-	return http.StatusOK, err
+	return http.StatusOK, nil
 }
 
-func (p *Prompts) GetLatestPrompt(db *gorm.DB, name string) (int, error) {
+func (p *Prompts) GetLatestPromptVersionByName(db *gorm.DB, name string) error {
 	err := db.
 		Where("name = ?", name).
-		Order("created_at DESC").
-		Limit(1).
-		First(p).Error
+		Order("version DESC").
+		First(&p).Error
 
 	if err != nil {
-		return http.StatusBadRequest, fmt.Errorf("unable to fetch latest prompt: %v", err)
+		return fmt.Errorf("unable to fetch latest prompt version: %v", err)
 	}
 
-	return http.StatusOK, nil
+	return nil
 }
 
 func (p *Prompts) FetchUniquePrompts(db *gorm.DB) ([]Prompts, error) {

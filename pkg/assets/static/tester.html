@@ -3,110 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Translation Tester</title>
+    <title>Telex Translator</title>
     <link rel="stylesheet" href="/static/style.css">
+    <!-- Added vis.js library for network visualization -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="/static/script.js" defer></script>
-
+    <script src="/static/visualization.js" defer></script>
+    <!-- Added marked.js library for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <h3>🔄 Processing Translation...</h3>
+            <h3>Processing Translation...</h3>
             <p>Please wait while we process your pipeline</p>
         </div>
     </div>
 
     <div class="container">
         <div class="header">
-            <h1>🔄 Translation Tester</h1>
+            <h1>Translator Tester</h1>
             <p>Test your translation pipeline with interactive controls</p>
         </div>
         
         <div class="main-content">
             <!-- Tab Navigation -->
             <div class="tab-navigation">
-                <button class="tab-btn active" data-tab="setup">📝 Setup</button>
-                <button class="tab-btn" data-tab="pipeline">⚙️ Pipeline</button>
-                <button class="tab-btn" data-tab="execute">🚀 Execute</button>
-                <button class="tab-btn" data-tab="results">📊 Results</button>
+                <button class="tab-btn active" data-tab="tasks">Task List</button>
+                <button class="tab-btn" data-tab="skills">Skills</button>
+                <button class="tab-btn" data-tab="pipeline">Pipeline</button>
+                <button class="tab-btn" data-tab="execute">Execute</button>
+                <button class="tab-btn" data-tab="results">Results</button>
             </div>
 
-            <!-- Setup Tab -->
-            <div class="tab-content active" id="setup-tab">
-                <div class="form-section">
-                    <h3>📝 Task List</h3>
-                    <div class="task-list-container">
-                        <div class="task-list" id="taskList">
-                            <!-- Tasks will be added dynamically -->
-                        </div>
-                        <button class="add-task-btn" onclick="addTask()">+ Add Task</button>
-                    </div>
+            <!-- Task List Tab -->
+            <div class="tab-content active" id="tasks-tab">
+                <div class="tab-header">
+                    <h3>Task Management</h3>
+                    <p>Add your tasks as a single markdown entry</p>
                 </div>
                 
-                <div class="form-section">
-                    <h3>🛠️ Skills Configuration</h3>
+                <div class="task-section">
+                    <div class="task-display-area" id="taskDisplayArea">
+                        <!-- Added inner padding to empty state -->
+                        <div class="empty-state" id="emptyTaskState" style="padding:12px;">
+                            <div class="empty-icon">📝</div>
+                            <!-- <h4>No tasks added yet</h4><br/> -->
+                            <p>Add your task markdown below to get started</p>
+                        </div>
+                        <!-- Updated to display parsed markdown instead of task list -->
+                        <div class="task-markdown-display" id="taskMarkdownDisplay" style="display: none;">
+                            <div class="markdown-header">
+                                <h4>Task List</h4>
+                                <button class="clear-btn" onclick="clearTasks()">Clear</button>
+                            </div>
+                            <div class="parsed-markdown" id="parsedMarkdown"></div>
+                        </div>
+                    </div>
                     
+                    <!-- Updated to single markdown textarea -->
+                    <div class="task-input-section" id="taskInputSection">
+                        <div class="markdown-input-container">
+                            <textarea 
+                                id="taskMarkdown" 
+                                placeholder="Enter your tasks in markdown format:
+
+- Monitor social media mentions for brand keywords
+- Filter high-priority mentions and complaints  
+- Send real-time notifications to PR team via Slack" 
+                                rows="6"></textarea>
+                            <button class="add-btn" onclick="addTaskMarkdown()">
+                                <span class="btn-icon">+</span>
+                                Add Task List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills Tab -->
+            <div class="tab-content" id="skills-tab">
+                <div class="tab-header">
+                    <h3>Skills Configuration</h3>
+                    <p>Configure agent and global skills for your pipeline</p>
+                </div>
+                
+                <div class="skills-container">
                     <!-- Agent Skills -->
                     <div class="skills-section">
-                        <label>Agent Skills:</label>
-                        <div class="skills-input-group">
-                            <!-- <div class="skills-input">
-                                <input type="text" id="agentSkillInput" placeholder="Enter skill...">
-                                <button class="add-skill-btn" onclick="addSkill('agent')">Add</button>
-                            </div> -->
-                            <div class="bulk-input-container">
-                                <textarea id="agentSkillsBulk" placeholder="Paste multiple skills (one per line)..." rows="3"></textarea>
-                                <button class="bulk-add-btn" onclick="addSkillsBulk('agent')">Add All</button>
+                        <div class="skills-header">
+                            <h4>Agent Skills</h4>
+                            <span class="skills-count" id="agentSkillsCount">0 skills</span>
+                        </div>
+                        
+                        <div class="skills-display-area" id="agentSkillsDisplay">
+                            <div class="empty-state" style="padding:24px;">
+                                <div class="empty-icon" >🤖</div>
+                                <p>No agent skills configured</p>
                             </div>
                         </div>
-                        <div class="skills-list" id="agentSkills"></div>
+                        
+                        <div class="skills-input-section">
+                            <div class="bulk-input-container">
+                                <!-- Updated placeholder with matching skills -->
+                                <textarea 
+                                    id="agentSkillsBulk" 
+                                    placeholder="Enter agent skills (one per line):
+
+data_filtering
+sentiment_analysis" 
+                                    rows="4"></textarea>
+                                <button class="add-btn" onclick="addSkillsBulk('agent')">
+                                    <span class="btn-icon">+</span>
+                                    Add Skills
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Global Skills -->
                     <div class="skills-section">
-                        <label>Global Skills:</label>
-                        <div class="skills-input-group">
-                            <!-- <div class="skills-input">
-                                <input type="text" id="globalSkillInput" placeholder="Enter skill...">
-                                <button class="add-skill-btn" onclick="addSkill('global')">Add</button>
-                            </div> -->
-                            <div class="bulk-input-container">
-                                <textarea id="globalSkillsBulk" placeholder="Paste multiple skills (one per line)..." rows="3"></textarea>
-                                <button class="bulk-add-btn" onclick="addSkillsBulk('global')">Add All</button>
+                        <div class="skills-header">
+                            <h4>Global Skills</h4>
+                            <span class="skills-count" id="globalSkillsCount">0 skills</span>
+                        </div>
+                        
+                        <div class="skills-display-area" id="globalSkillsDisplay">
+                            <!-- Added inner padding to empty state -->
+                            <div class="empty-state" style="padding:24px;">
+                                <div class="empty-icon">🌍</div>
+                                <p>No global skills configured</p>
                             </div>
                         </div>
-                        <div class="skills-list" id="globalSkills"></div>
+                        
+                        <div class="skills-input-section">
+                            <div class="bulk-input-container">
+                                <textarea 
+                                    id="globalSkillsBulk" 
+                                    placeholder="Enter global skills (one per line):
+
+fetch_social_mentions
+apply_content_filter" 
+                                    rows="4"></textarea>
+                                <button class="add-btn" onclick="addSkillsBulk('global')">
+                                    <span class="btn-icon">+</span>
+                                    Add Skills
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Pipeline Tab -->
             <div class="tab-content" id="pipeline-tab">
-                <div class="pipeline-section">
-                    <div class="pipeline-header">
-                        <h3>⚙️ Pipeline Steps Configuration</h3>
-                        <button class="refresh-steps-btn" onclick="refreshPipelineSteps()" title="Refresh Pipeline Steps">
-                            <span class="refresh-icon">♻️</span>
-                            Refresh Steps
+                <div class="tab-header">
+                    <h3>Pipeline Configuration</h3>
+                    <p>Configure your translation pipeline steps</p>
+                    <!-- Updated instruction for new prompt update functionality -->
+                    <div class="pipeline-instructions">
+                        <p><strong>💡 Tip:</strong> Use "Update Existing Prompt" to modify a prompt version, or "Add New Prompt" to create a new prompt step.</p>
+                    </div>
+                </div>
+                
+                <div class="pipeline-container">
+                    <div class="pipeline-left">
+                        <div class="section-header">
+                            <h4>Available Prompts</h4>
+                            <button class="refresh-btn" onclick="refreshPipelineSteps()" title="Refresh Pipeline Steps">
+                                <span class="refresh-icon">↻</span>
+                                Refresh
+                            </button>
+                        </div>
+                        
+                        <div class="pipeline-loading" id="pipelineLoading">
+                            <div class="mini-spinner"></div>
+                            <span>Loading available prompts...</span>
+                        </div>
+                        
+                        <div class="prompts-container" id="promptsContainer">
+                            <!-- Grouped prompts will be loaded here -->
+                        </div>
+                        
+                        <button class="add-prompt-btn" onclick="showAddPromptModal()">
+                            <span class="btn-icon">+</span>
+                            Add Prompt
                         </button>
                     </div>
-                    <p>Select and order the steps for your translation pipeline. Steps will execute in the order shown below:</p>
                     
-                    <div class="pipeline-loading" id="pipelineLoading">
-                        <div class="mini-spinner"></div>
-                        <span>Loading available steps...</span>
-                    </div>
-                    
-                    <div class="pipeline-steps" id="pipelineSteps">
-                        <!-- Steps will be loaded dynamically from API -->
-                    </div>
-                    
-                    <div class="pipeline-order" id="pipelineOrder">
-                        <h4>📋 Execution Order:</h4>
-                        <div class="order-list" id="orderList">
-                            <p class="empty-order">No steps selected</p>
+                    <div class="pipeline-right">
+                        <div class="section-header">
+                            <h4>Pipeline Steps</h4>
+                            <span class="steps-count" id="stepsCount">0 steps</span>
+                        </div>
+                        
+                        <div class="pipeline-steps-area" id="pipelineStepsArea">
+                            <div class="empty-state">
+                                <div class="empty-icon">⚙️</div>
+                                <h4>No steps selected</h4>
+                                <p>Click on prompts from the left to add them as pipeline steps</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -114,31 +212,49 @@
 
             <!-- Execute Tab -->
             <div class="tab-content" id="execute-tab">
+                <div class="tab-header">
+                    <h3>Execute Pipeline</h3>
+                    <p>Review your configuration and run the translation</p>
+                </div>
+                
                 <div class="execute-section">
-                    <h3>🚀 Generate Translation</h3>
-                    
                     <div class="execution-summary">
-                        <div class="summary-item">
-                            <h4>📝 Tasks</h4>
-                            <span id="taskSummary">0 tasks</span>
+                        <div class="summary-card">
+                            <div class="summary-icon">📝</div>
+                            <div class="summary-content">
+                                <h4>Tasks</h4>
+                                <span id="taskSummary">0 tasks</span>
+                            </div>
                         </div>
-                        <div class="summary-item">
-                            <h4>🛠️ Agent Skills</h4>
-                            <span id="agentSkillsSummary">0 skills</span>
+                        <div class="summary-card">
+                            <div class="summary-icon">🤖</div>
+                            <div class="summary-content">
+                                <h4>Skills</h4>
+                                <span id="agentSkillsSummary">0 skills</span>
+                            </div>
                         </div>
-                        <div class="summary-item">
-                            <h4>🌍 Global Skills</h4>
-                            <span id="globalSkillsSummary">0 skills</span>
-                        </div>
-                        <div class="summary-item">
-                            <h4>⚙️ Pipeline Steps</h4>
-                            <span id="stepsSummary">0 steps</span>
+                        <!-- <div class="summary-card">
+                            <div class="summary-icon">🌍</div>
+                            <div class="summary-content">
+                                <h4>Global Skills</h4>
+                                <span id="globalSkillsSummary">0 skills</span>
+                            </div>
+                        </div> -->
+                        <div class="summary-card">
+                            <div class="summary-icon">⚙️</div>
+                            <div class="summary-content">
+                                <h4>Pipeline Steps</h4>
+                                <span id="stepsSummary">0 steps</span>
+                            </div>
                         </div>
                     </div>
                     
-                    <button class="translate-btn" onclick="performTranslation()">
-                        🚀 Generate Translation
-                    </button>
+                    <div class="execute-actions">
+                        <button class="execute-btn" onclick="performTranslation()">
+                            <span class="btn-icon">🚀</span>
+                            Execute Translation
+                        </button>
+                    </div>
                     
                     <div class="validation-errors" id="validationErrors" style="display: none;"></div>
                 </div>
@@ -146,17 +262,32 @@
 
             <!-- Results Tab -->
             <div class="tab-content" id="results-tab">
+                <div class="tab-header">
+                    <h3>Translation Results</h3>
+                    <p>View the results of your translation pipeline</p>
+                </div>
+                
                 <div class="results-section">
-                    <h3>📊 Translation Results</h3>
-                    
                     <div class="results-header" id="resultsHeader" style="display: none;">
                         <div class="status-indicator" id="statusIndicator"></div>
-                        <button class="copy-btn" onclick="copyResults()">📋 Copy Full Response</button>
+                        <div class="results-actions">
+                            <!-- Added visualize workflow button -->
+                            <button class="visualize-btn" onclick="showWorkflowVisualization()">
+                                <span class="btn-icon">🔗</span>
+                                Visualize Workflow
+                            </button>
+                            <button class="copy-btn" onclick="copyResults()">
+                                <span class="btn-icon">📋</span>
+                                Copy Results
+                            </button>
+                        </div>
                     </div>
                     
-                    <div class="process-steps" id="processSteps">
+                    <div class="results-content" id="resultsContent">
                         <div class="no-results">
-                            <p>No translation results yet. Complete the setup and execute a translation to see results here.</p>
+                            <div class="empty-icon">📊</div>
+                            <h4>No results yet</h4>
+                            <p>Execute your translation pipeline to see results here</p>
                         </div>
                     </div>
                 </div>
@@ -164,4 +295,97 @@
         </div>
     </div>
 
-   
+    <!-- Add Prompt Modal -->
+    <div class="modal-overlay" id="addPromptModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add New Prompt</h3>
+                <button class="modal-close" onclick="hideAddPromptModal()">×</button>
+            </div>
+            <div class="modal-content">
+                <!-- Added mode selection buttons -->
+                <div class="prompt-mode-selection">
+                    <button class="mode-btn active" id="newPromptBtn" onclick="setPromptModalMode('new')">Add New Prompt</button>
+                    <button class="mode-btn" id="updatePromptBtn" onclick="setPromptModalMode('update')">Update Existing Prompt</button>
+                </div>
+                
+                <!-- Added prompt selection for update mode -->
+                <div class="form-group" id="promptSelectGroup" style="display: none;">
+                    <label>Select Prompt to Update</label>
+                    <select id="promptSelect">
+                        <option value="">Select a prompt to update...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="promptNameGroup">
+                    <label>Prompt Name</label>
+                    <input type="text" id="promptName" placeholder="e.g., Task Cleanup, Skill Matching, Workflow Translation">
+                </div>
+                <div class="form-group">
+                    <label>Prompt Template</label>
+                    <textarea id="promptContent" placeholder="Enter your prompt template here...
+
+Example:
+You are a workflow translation expert. Convert the following task list into an n8n workflow format.
+
+Tasks: {task_list}
+Skills: {skills}
+
+Please provide a complete n8n workflow JSON." rows="8"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" onclick="hideAddPromptModal()">Cancel</button>
+                <button class="save-btn" onclick="saveNewPrompt()">Save Prompt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Added Prompt Versions Modal -->
+    <div class="modal-overlay" id="promptVersionsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="versionsModalTitle">Prompt Versions</h3>
+                <button class="modal-close" onclick="hidePromptVersionsModal()">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="versions-list" id="versionsList">
+                    <!-- Versions will be loaded here -->
+                </div>
+                <div class="template-preview" id="templatePreview">
+                    <label>Template Preview</label>
+                    <div class="template-content" id="templateContent">
+                        Select a version to view its template
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" onclick="hidePromptVersionsModal()">Cancel</button>
+                <button class="select-btn" onclick="selectPromptVersion()" id="selectVersionBtn" disabled>Select Version</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Added Workflow Visualization Modal -->
+    <div class="modal-overlay" id="workflowVisualizationModal">
+        <div class="modal workflow-modal">
+            <div class="modal-header">
+                <h3>Workflow Visualization</h3>
+                <div class="workflow-actions">
+                    <button class="download-btn" onclick="downloadVisualization()">
+                        <span class="btn-icon">⬇️</span>
+                        Download
+                    </button>
+                    <button class="modal-close" onclick="hideWorkflowVisualizationModal()">×</button>
+                </div>
+            </div>
+            <div class="modal-content workflow-content">
+                <div id="workflowNetwork" class="workflow-network"></div>
+                <div class="workflow-info">
+                    <p><strong>Instructions:</strong> Drag nodes to rearrange, zoom with mouse wheel, click and drag to pan. Hover over nodes to see details.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

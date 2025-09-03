@@ -23,14 +23,16 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 
 	agentSkill := models.AgentSkill{
 		ID:           utility.GenerateUUID(),
+		SkillId:      utility.GenerateUUID(),
 		Name:         req.Name,
 		AgentId:      req.AgentId,
 		Description:  req.Description,
 		Type:         req.Type,
-		IsActive:     req.IsActive,
+		IsActive:     true,
 		IsConfigured: false, // default
-		Avatar:       "",    // can be updated later
+		Avatar:       req.Avatar,
 		Config:       req.Config,
+		Link:         req.URLLink,
 		Tags:         req.Tags,
 	}
 
@@ -39,7 +41,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 	}
 
 	resp = models.AgentSkillResponse{
-		ID:           agentSkill.ID,
+		SkillId:      agentSkill.SkillId,
 		Name:         agentSkill.Name,
 		Description:  agentSkill.Description,
 		Type:         agentSkill.Type,
@@ -55,13 +57,14 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 
 func GetAgentSkills(agentID string, db *gorm.DB, c *gin.Context) ([]models.AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skill models.AgentSkill
-	return skill.GetAgentSkills(db, agentID, c)
+	skill.AgentId = agentID
+	return skill.GetAgentSkills(db, c)
 }
 
-func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkill, error) {
+func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkillResponse, error) {
 	var skill models.AgentSkill
 	skill.AgentId = agentId
-	skill.ID = skillID
+	skill.SkillId = skillID
 	return skill.GetAgentSkillByID(db)
 }
 
@@ -72,19 +75,44 @@ func GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]models.GeneralAgentSk
 
 func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentSkill, error) {
 	var skill models.GeneralAgentSkill
-	return skill.GetGeneralAgentSkillByID(db, skillID)
+	err := skill.GetGeneralAgentSkillByID(db, skillID)
+
+	if err != nil {
+		return skill, errors.New("Skill does not exists")
+	}
+
+	return skill, nil
 }
 
-func UpdateAgentSkill(skillID, agentId string, updateData map[string]interface{}, db *gorm.DB) (models.AgentSkill, error) {
+func UpdateAgentSkill(skillID, agentId string, updateData models.UpdateAgentSkillRequest, db *gorm.DB) (models.AgentSkill, error) {
 	var skill models.AgentSkill
-	skill.ID = skillID
+	skill.SkillId = skillID
 	skill.AgentId = agentId
 	return skill.UpdateAgentSkill(db, updateData)
 }
 
 func DeleteAgentSkill(skillID, agentId string, db *gorm.DB) error {
 	var skill models.AgentSkill
-	skill.ID = skillID
+	skill.SkillId = skillID
 	skill.AgentId = agentId
 	return skill.DeleteAgentSkill(db)
+}
+
+func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB, logger *utility.Logger) (int, error) {
+	var skill models.AgentSkill
+
+	// all or nothing validation
+	err := skill.ValidateSkills(db, &req)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	err = skill.AddSkilltoAgent(db, &req)
+
+	if err != nil {
+		logger.Error("Error adding skills to agent an error occured: %v", err)
+		return http.StatusInternalServerError, errors.New("An error occurred adding skills to agent")
+	}
+
+	return http.StatusOK, nil
 }

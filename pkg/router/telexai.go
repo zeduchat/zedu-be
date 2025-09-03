@@ -18,12 +18,11 @@ func TelexAI(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	aiProxyCtrl := telexai.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	aiProxyUrl := r.Group(fmt.Sprintf("%v/telexai", ApiVersion), middleware.APIKeyAuthMiddleware(db.Postgresql, logger, false))
-
 	{
 		aiProxyUrl.POST("/chat", aiProxyCtrl.RespondToChat)
 		aiProxyUrl.GET("/models", aiProxyCtrl.ListModels)
 		aiProxyUrl.GET("/models/tools", aiProxyCtrl.ListToolsModels)
 	}
-	
+
 	return r
 }

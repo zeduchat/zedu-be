@@ -1,38 +1,23 @@
 package translator
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/telexai"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
-// func checkMissingSkills(output string) (*models.MissingSkillsResponse, bool) {
-// 	var missResp struct {
-// 		MissingSkills []string `json:"missing_skills"`
-// 		Suggestion    string   `json:"suggestion"`
-// 	}
-// 	if err := json.Unmarshal([]byte(output), &missResp); err == nil {
-// 		if len(missResp.MissingSkills) > 0 {
-// 			return &models.MissingSkillsResponse{
-// 				MissingSkills: missResp.MissingSkills,
-// 				Suggestion:    missResp.Suggestion,
-// 			}, true
-// 		}
-// 	}
-// 	return nil, false
-// }
-
 func GenerateTranslation(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, req models.TranslationRequest) (models.TranslationResponse, int, error) {
-	// stepIds := []string{"Task Cleanup", "Skill Matching"}
 
-	stepProcess, err := runTranslationPipeline(db, logger, extReq, req.Steps, req.TaskList, req)
+	stepProcess, err := runTranslationPipeline(db, logger, extReq, req.TaskList, req)
 	if err != nil {
 		return models.TranslationResponse{}, http.StatusBadRequest, err
 	}
@@ -45,24 +30,23 @@ func GenerateTranslation(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 	return resp, http.StatusOK, nil
 }
 
-func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, steps []string, tasklist string, req models.TranslationRequest) ([]models.ProcessStep, error) {
+func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, tasklist string, req models.TranslationRequest) ([]models.ProcessStep, error) {
 	stepProcess := []models.ProcessStep{}
 	placeholders := map[string]string{
-		"agent_skills":  strings.Join(req.AgentSkills, ", "),
-		"global_skills": strings.Join(req.GlobalSkills, ", "),
+		"skills": strings.Join(req.Skills, ", "),
 	}
 
 	var previousOutput string = tasklist
 
-	for i, step := range steps {
+	for _, step := range req.Steps {
 		var prompt models.Prompts
 
-		if _, err := prompt.GetLatestPrompt(db, step); err != nil {
+		if _, err := prompt.GetPromptByVersion(db, step); err != nil {
 			return stepProcess, err
 		}
 
 		pStep := models.ProcessStep{
-			Step:    step,
+			Step:    step.Name,
 			Input:   previousOutput,
 			Status:  "in_progress",
 			LLMCall: true,
@@ -76,20 +60,7 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 				return stepProcess, err
 			}
 			pStep.Output = aiOutput
-			fmt.Printf(
-				"\n\n===== Step %d =====\n\nInput:\n%v\n\nOutput:\n%v\n==============================\n\n",
-				i+1,
-				pStep.Input,
-				pStep.Output,
-			)
 
-			// missErr, found := checkMissingSkills(pStep.Output)
-			// if found {
-			// 	pStep.Status = "failed_missing_skills"
-			// 	pStep.Output = missErr
-			// 	stepProcess = append(stepProcess, pStep)
-			// 	return stepProcess, missErr
-			// }
 		} else {
 			pStep.Output = pStep.Input
 		}
@@ -122,11 +93,11 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 		Messages: []external_models.TelexAIOpenRouterMessage{
 			{
 				Role:    "system",
-				Content: &systemPrompt,
+				Content: systemPrompt,
 			},
 			{
 				Role:    "user",
-				Content: &stepInput,
+				Content: stepInput,
 			},
 		},
 	}
@@ -134,8 +105,7 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	ai_response, code, err := telexai.TranslatorCompletions(logger, extReq, req)
 	if err != nil {
 		logger.Error("Error Generating Translator Completions: %v\n", err)
-		// return "", code, errors.New("error generating translation: telex-ai error")
-		return "", code, fmt.Errorf("error Generating Translator Completions: %v", err)
+		return "", code, fmt.Errorf("error generating translator completions: %v", err)
 	}
 
 	response, err := telexai.ExtractChatContent(ai_response)
@@ -144,4 +114,125 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	}
 
 	return response, code, nil
+}
+
+func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.WorkflowJSON, int, error) {
+	var (
+		agents      models.OrganisationIntegrations
+		task        models.Task
+		skillsModel models.AgentSkill
+		aw          models.AgentWorkflow
+	)
+
+	exists, err := agents.CheckAgentExists(db, agentID)
+	if !exists {
+		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
+	}
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
+	}
+
+	tasks, err := (task).GetAgentTasks(db, agentID)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
+	}
+
+	if len(tasks) == 0 {
+		logger.Error("no tasks found for agent id %s", agentID)
+		return models.WorkflowJSON{}, http.StatusOK, nil
+	}
+
+	var taskList strings.Builder
+	for _, t := range tasks {
+		taskList.WriteString(fmt.Sprintf("%s\n", t.Text))
+	}
+
+	skillsModel.AgentId = agentID
+	skills, err := skillsModel.GetAllAgentSkills(db)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
+	}
+	if len(skills) == 0 {
+		logger.Error("no skills found for agent id %s", agentID)
+		return models.WorkflowJSON{}, http.StatusOK, nil
+	}
+
+	skillsList := make([]string, len(skills))
+	for i, skill := range skills {
+		skillsList[i] = skill.Name
+	}
+
+	promptSteps := []string{"Task Cleanup", "Skill Matching", "Workflow Translation"}
+	steps := make([]models.StepReq, len(promptSteps))
+	for i, step := range promptSteps {
+		var prompt models.Prompts
+		err := prompt.GetLatestPromptVersionByName(db, step)
+		if err != nil {
+			return models.WorkflowJSON{}, http.StatusInternalServerError, err
+		}
+
+		steps[i] = models.StepReq{
+			Name:    step,
+			Version: prompt.Version,
+		}
+	}
+
+	req := models.TranslationRequest{
+		TaskList: taskList.String(),
+		Skills:   skillsList,
+		Steps:    steps,
+	}
+
+	stepProcess, err := runTranslationPipeline(db, logger, extReq, taskList.String(), req)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusBadRequest, err
+	}
+
+	resp := models.TranslationResponse{
+		Status:      "success",
+		ProcessStep: stepProcess,
+	}
+
+	wkfJson, err := ConvertToJSONObject(resp.ProcessStep[len(resp.ProcessStep)-1].Output)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusInternalServerError, err
+	}
+
+	bytes, err := json.Marshal(wkfJson)
+	if err != nil {
+		return models.WorkflowJSON{}, http.StatusBadRequest, err
+	}
+
+	var rawEntry models.JSONBMap
+	if err := json.Unmarshal(bytes, &rawEntry); err != nil {
+		return models.WorkflowJSON{}, http.StatusBadRequest, err
+	}
+
+	aw.AgentId = agentID
+	aw.ID = utility.GenerateUUID()
+	aw.WorkflowId = utility.GenerateUUID()
+	aw.RawEntry = rawEntry
+	aw.Name = wkfJson.Name
+	aw.OrgId = agents.OrgID
+
+	err, code := aw.CreateAgentWorkflow(db)
+	if err != nil {
+		return models.WorkflowJSON{}, code, err
+	}
+
+	return wkfJson, http.StatusOK, nil
+}
+
+func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
+	cleaned := strings.TrimSpace(workflowStr)
+	cleaned = strings.TrimPrefix(cleaned, "```json")
+	cleaned = strings.TrimSuffix(cleaned, "```")
+	cleaned = strings.TrimSpace(cleaned)
+
+	var workflow models.WorkflowJSON
+	if err := json.Unmarshal([]byte(cleaned), &workflow); err != nil {
+		return models.WorkflowJSON{}, fmt.Errorf("failed to parse workflow JSON: %w", err)
+	}
+
+	return workflow, nil
 }

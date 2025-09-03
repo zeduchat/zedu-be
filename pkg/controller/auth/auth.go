@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -32,7 +33,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	err = base.Validator.Struct(&req)
 	if err != nil {
 		base.Logger.Error("Validation failed", err)
@@ -144,6 +145,10 @@ func (base *Controller) LoginUser(c *gin.Context) {
 }
 
 func (base *Controller) LogoutUser(c *gin.Context) {
+
+	platform := c.GetHeader("X-Platform")
+	platform = strings.ToLower(platform)
+
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
@@ -161,7 +166,13 @@ func (base *Controller) LogoutUser(c *gin.Context) {
 		return
 	}
 
-	code, err := auth.LogoutUser(access_uuid, owner_id, base.Db.Postgresql)
+	req := models.LogoutReqModel{
+		UserId:     owner_id,
+		AccessUuid: access_uuid,
+		Platform:   platform,
+	}
+
+	code, err := auth.LogoutUser(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)

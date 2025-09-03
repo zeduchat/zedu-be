@@ -308,6 +308,11 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		return gin.H{}, http.StatusInternalServerError, err
 	}
 
+	err = user.Update(db)
+	if err != nil {
+		return gin.H{}, http.StatusInternalServerError, err
+	}
+
 	user.OrgRoleID = &orgMgt.RoleID
 	user.OrgRole = orgRole
 

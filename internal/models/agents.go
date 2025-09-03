@@ -69,6 +69,7 @@ type UpdateAgentPromptRequest struct {
 	SystemPrompts JSONSystemPrompts `json:"system_prompts" validate:"required"`
 	AgentId       string
 	UserId        string
+	OrgId         string
 }
 
 type UpdateAgent struct {
@@ -335,7 +336,7 @@ type AgentResp struct {
 	Title         string            `json:"title"`
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility"`
-	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
+	SystemPrompts JSONSystemPrompts `json:"system_prompts"`
 	Category      string            `json:"category,omitempty"`
 }
 
@@ -752,7 +753,7 @@ func (oi *OrganisationIntegrations) UpdateCustomAgentPrompt(db *gorm.DB, req Upd
 	update := make(map[string]any)
 	update["system_prompts"] = req.SystemPrompts
 
-	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ?", req.AgentId)
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ? AND org_id = ?", req.AgentId, req.OrgId)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -810,6 +811,9 @@ func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentSta
 		oi.IsSystem = true
 		oi.PreSharedKey = agent.PreSharedKey
 		oi.OwnerID = ids["user_id"]
+		oi.SystemPrompts = agent.SystemPrompts
+		oi.Title = agent.Title
+		oi.Tone = agent.Tone
 
 		err := oi.CreateOrganisationIntegration(db)
 		if err != nil {
@@ -2416,4 +2420,18 @@ func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Log
 	}
 
 	return nil, http.StatusOK
+}
+
+func (oi *OrganisationIntegrations) CheckAgentExists(db *gorm.DB, agentID string) (bool, error) {
+	// var agent OrganisationIntegrations
+
+	err := db.Where("integration_id = ?", agentID).First(&oi).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }

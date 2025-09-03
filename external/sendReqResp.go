@@ -2,6 +2,7 @@ package external
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,7 +26,10 @@ type SendRequestObject struct {
 	DecodeMethod string
 	UrlPrefix    string
 	Timeout      bool
+	IsStreaming  bool
+	Context      context.Context
 }
+
 
 func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPrefix, decodeMethod string, headers map[string]string, successCode int, data any, timeout bool) *SendRequestObject {
 	return &SendRequestObject{
@@ -39,6 +43,8 @@ func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPref
 		SuccessCode:  successCode,
 		Data:         data,
 		Timeout:      timeout,
+		IsStreaming:  false,
+		Context:      context.Background(),
 	}
 }
 
@@ -66,11 +72,12 @@ func (r *SendRequestObject) SendRequest(response any) error {
 		logger.Error("encoding error", name, err.Error())
 	}
 
-	logger.Info("before prefix", name, r.Path, data, buf)
+	// logger.Info("before prefix", name, r.Path, data, buf)
 	if r.UrlPrefix != "" {
 		r.Path += r.UrlPrefix
 	}
-	logger.Info("after prefix", name, r.Path, data, buf)
+
+	// logger.Info("after prefix", name, r.Path, data, buf)
 
 	var req *http.Request
 	client := &http.Client{}

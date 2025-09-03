@@ -271,27 +271,24 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	}
 
 	payload := map[string]any{
-		"args": []map[string]any{
-			{
-				"message_content": map[string]any{
-					"channel_id":              feed.ChannelsId,
-					"message":                 feed.Content,
-					"thread_id":               feed.ThreadId,
-					"is_channel_conversation": false,
-					"type":                    feed.Type,
-					"user_id":                 feed.UserId,
-					"org_id":                  feed.OrgId,
-					"media":                   feed.Media,
-					"mentions":                feed.Mentions,
-				},
-				"channel_id": feed.ChannelsId,
-				"org_id":     feed.OrgId,
-				"return_url": feed.ReturnUrl,
-				"agent_id":   channel.ParticipantId,
-			},
+		"message_content": map[string]any{
+			"channel_id":              feed.ChannelsId,
+			"message":                 feed.Content,
+			"thread_id":               feed.ThreadId,
+			"is_channel_conversation": false,
+			"type":                    feed.Type,
+			"user_id":                 feed.UserId,
+			"org_id":                  feed.OrgId,
+			"media":                   feed.Media,
+			"mentions":                feed.Mentions,
 		},
-		"task": "telex_queue_processor.handle_direct_message",
+		"channel_id": feed.ChannelsId,
+		"org_id":     feed.OrgId,
+		"return_url": feed.ReturnUrl,
+		"agent_id":   channel.ParticipantId,
 	}
+
+	task := "telex_queue_processor.handle_direct_message"
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -299,7 +296,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, task)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
 		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
@@ -416,7 +413,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
+		ID:            req.ThreadId,
 		Username:      orgAgent.AppName,
 		Content:       req.Content,
 		ChannelsID:    req.ChannelID,
@@ -459,12 +456,21 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		State:     req.State,
 	}
 
-	err = centrifuge.PublishChannel(logger, req.ChannelID, feed)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, error: %v", req.ChannelID, err))
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish webhook data: %v", err)
+	notification := models.Notification[models.AgentUpdate]
+	notification.SectionType = models.ThreadSection
+	notification.Content = feed
+	notification.ModificationDetails = &models.ModificationDetails{
+		ThreadId:  req.ThreadId,
+		ChannelId: req.ChannelID,
 	}
-	logger.Info(fmt.Sprintf("Publishing to channel id: %s", req.ChannelID))
+
+	err = centrifuge.PublishChannel(logger, req.ChannelID, notification)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", req.ChannelID, err.Error()))
+		return nil, http.StatusBadRequest, errors.New("failed to publish data")
+	}
+
+	logger.Info(fmt.Sprintf("Publishing update to channel id: %s", req.ChannelID))
 
 	pushReq := models.PushRequest{
 		ChannelName: feed.UserName,

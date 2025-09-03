@@ -150,3 +150,65 @@ func GetGeneralMarketPlaceWorkflowId(req models.WorkFlowRequest, db *gorm.DB) (*
 	}
 	return wfs, http.StatusOK, nil
 }
+
+// Agent workflow request
+func CreateAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (*models.AgentWorkflow, int, error) {
+	var wf models.AgentWorkflow
+
+	wf.WorkflowId = utility.GenerateUUID()
+	wf.AgentId = req.AgentId
+	wf.RawEntry = req.RawEntry
+	wf.OrgId = req.OrgId
+	wf.Name = req.Name
+	wf.IsActive = true
+
+	err, code := wf.CreateAgentWorkflow(db)
+
+	return &wf, code, err
+}
+
+// Get Workflow by ID Service
+func GetAgentWorkflowByIDService(req models.AgentWorkFlowRequest, db *gorm.DB) (*models.AgentWorkFlowResponse, int, error) {
+	var wf models.AgentWorkflow
+	wf.OrgId = req.OrgId
+	wf.AgentId = req.AgentId
+	wf.WorkflowId = req.WorkflowId
+
+	res, code, err := wf.GetWorkflowByID(db)
+	return res, code, err
+}
+
+// List Workflows Service
+func ListAgentWorkflowsService(req models.AgentWorkFlowRequest, db *gorm.DB) (*[]models.AgentWorkflowSummary, int, error) {
+	var wf models.AgentWorkflow
+	wf.OrgId = req.OrgId
+	wf.AgentId = req.AgentId
+
+	res, code, err := wf.ListWorkflows(db)
+	return res, code, err
+}
+
+// Delete Workflow Service
+func DeleteAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (error, int) {
+	var wf models.AgentWorkflow
+	wf.OrgId = req.OrgId
+	wf.AgentId = req.AgentId
+	wf.WorkflowId = req.WorkflowId
+
+	err, code := wf.DeleteWorkflow(db)
+	return err, code
+}
+
+// Update Workflow Service
+func UpdateAgentWorkflowService(req models.AgentWorkFloUpdateRequest, db *gorm.DB) (error, int) {
+	var wf models.AgentWorkflow
+	wf.OrgId = req.OrgId
+	wf.AgentId = req.AgentId
+	wf.WorkflowId = req.WorkflowId
+	wf.RawEntry = req.RawEntry
+	wf.IsActive = req.IsActive
+	wf.Name = req.Name
+
+	err, code := wf.UpdateAgentWorkflow(db)
+	return err, code
+}

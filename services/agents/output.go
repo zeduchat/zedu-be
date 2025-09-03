@@ -31,21 +31,16 @@ func TriggerTick(db *storage.Database, logger *utility.Logger, req models.Trigge
 	// }
 
 	payload := map[string]any{
-		"args": []map[string]any{
-			{
-				"message_content": map[string]any{
-					"channel_id": req.ChannelID,
-					"message":    "",
-					// "thread_id":  feed.ThreadId,
-					// "type":       feed.Type,
-					// "user_id":    feed.UserId,
-					"org_id": req.OrganisationID,
-				},
-				"channel_id": req.ChannelID,
-				// "return_url": feed.ReturnUrl,
-			},
+		"message_content": map[string]any{
+			"channel_id": req.ChannelID,
+			"message":    "",
+			// "thread_id":  feed.ThreadId,
+			// "type":       feed.Type,
+			// "user_id":    feed.UserId,
+			"org_id": req.OrganisationID,
 		},
-		"task": "telex_queue_processor.handle_new_message",
+		"channel_id": req.ChannelID,
+		// "return_url": feed.ReturnUrl,
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -54,7 +49,9 @@ func TriggerTick(db *storage.Database, logger *utility.Logger, req models.Trigge
 		return "", http.StatusBadRequest, fmt.Errorf("failed to marshal payload, error: %v", err)
 	}
 
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key)
+	task := "telex_queue_processor.handle_new_message"
+
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, task)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for ticktest: %v", err.Error()))
 		return "", http.StatusBadRequest, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
