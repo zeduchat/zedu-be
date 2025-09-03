@@ -24,6 +24,7 @@ var (
 	NewMessage           NotificationType = "new_message"
 	StatusUpdate         NotificationType = "status_update"
 	UnReadThreadChange   NotificationType = "unread_thread_change"
+	ChannelMention       NotificationType = "channel_mention"
 	ReplyCountChange     NotificationType = "reply_count_change"
 	PinnedMessageEvent   NotificationType = "pinned_message_event"
 	UnPinnedMessageEvent NotificationType = "unpinned_message_event"
@@ -103,6 +104,9 @@ var Notification = map[NotificationType]Content{
 	ReactionEvent: Content{
 		NotificationType: ReactionEvent,
 		Content:          ModificationDetails{},
+	},
+	ChannelMention: Content{
+		NotificationType: ChannelMention,
 	},
 }
 

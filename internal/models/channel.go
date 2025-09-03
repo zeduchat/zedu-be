@@ -160,6 +160,11 @@ type ArchiveChannelRequest struct {
 	UserId   string `json:"user_id" `
 }
 
+type MentionMessage struct {
+	Mention []Mention
+	Content any
+}
+
 type UnReadUpdate string
 
 var Read UnReadUpdate = "read"
@@ -1015,7 +1020,7 @@ func (uc *UserChannels) GetUserChannelsUnreadThread(base *storage.Database, user
 	return chanResp, nil
 }
 
-func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Logger, updateType UnReadUpdate) {
+func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Logger, updateType UnReadUpdate, mentionMsg MentionMessage) {
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -1048,6 +1053,20 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 
 	if updateType == NewThread {
 
+		userMention := map[string]bool{}
+		channelMention := false
+		mentionNotification := Notification[ChannelMention]
+
+		for _, mention := range mentionMsg.Mention {
+			if mention.ID == "00000000-0000-0000-0000-000000000000" {
+				channelMention = true
+				break
+			}
+			if mention.Type == "user" {
+				userMention[mention.ID] = true
+			}
+		}
+
 		res, err := c.GetUserChannelsUnreadThread(storage.DB, c.UserID, c.ChannelsID)
 
 		if err != nil {
@@ -1060,6 +1079,12 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			return
 		}
 
+		if len(userMention) > 0 || channelMention {
+			mentionNotification = Notification[ChannelMention]
+			mentionNotification.Content = mentionMsg.Content
+			mentionNotification.NotificationId = utility.GenerateUUID()
+		}
+
 		for _, update := range res {
 			notification := Notification[UnReadThreadChange]
 			notification.SectionType = ChannelsSection
@@ -1070,6 +1095,15 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			if err != nil {
 				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
 				return
+			}
+
+			if channelMention || userMention[update.UserId] {
+				err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), mentionNotification)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Error mention message to Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
+					return
+				}
+				logger.Info("Published in-channel mention to user : %s", update.UserId)
 			}
 		}
 	}
