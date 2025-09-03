@@ -456,7 +456,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		State:     req.State,
 	}
 
-	notification := models.Notification[models.Updated]
+	notification := models.Notification[models.AgentUpdate]
 	notification.SectionType = models.ThreadSection
 	notification.Content = feed
 	notification.ModificationDetails = &models.ModificationDetails{
