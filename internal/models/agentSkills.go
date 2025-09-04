@@ -218,7 +218,7 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
 	var skills []AgentSkillResponse
 
-	err := db.Model(&AgentSkill{}).
+	err := db.Table("agent_skills").
 		Select(`
 		agent_skills.skill_id, 
 		agent_skills.agent_id, 
@@ -234,7 +234,7 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error
 	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
 		Where("agent_skills.agent_id = ?", a.AgentId).
-		Find(&skills).Error
+		Scan(&skills).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch agent skills: %w", err)

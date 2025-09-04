@@ -21,6 +21,11 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		return resp, http.StatusNotFound, errors.New("agent not found")
 	}
 
+	agentSkillExists := postgresql.CheckExists(db, &models.AgentSkill{}, "agent_id = ?", req.AgentId)
+	if agentSkillExists {
+		return resp, http.StatusBadRequest, errors.New("agent already has the skill")
+	}
+
 	agentSkill := models.AgentSkill{
 		ID:           utility.GenerateUUID(),
 		SkillId:      utility.GenerateUUID(),
@@ -78,7 +83,7 @@ func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentS
 	err := skill.GetGeneralAgentSkillByID(db, skillID)
 
 	if err != nil {
-		return skill, errors.New("Skill does not exists")
+		return skill, errors.New("skill does not exists")
 	}
 
 	return skill, nil
