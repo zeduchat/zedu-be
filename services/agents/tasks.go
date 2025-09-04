@@ -44,29 +44,29 @@ func UpdateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.UpdateAgen
 	return http.StatusOK, nil
 }
 
-func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (int, []models.AgentSkillResponse, error) {
+func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (int, gin.H, error) {
 
 	tasks, code, err := GetAgentTasks(c, db, logger, agentID)
 	if err != nil {
 		logger.Error("error fetching tasks", err)
-		return code, []models.AgentSkillResponse{}, err
+		return code, gin.H{}, err
 	}
 
 	if len(tasks) == 0 {
 		logger.Info("No tasks found for agent")
-		return http.StatusOK, []models.AgentSkillResponse{}, nil
+		return http.StatusOK, gin.H{}, nil
 	}
 
 	var gas models.GeneralAgentSkill
 	generalskills, err, statusCode := gas.FetchGeneralAgentSkills(db, c)
 	if err != nil {
-		return statusCode, []models.AgentSkillResponse{}, err
+		return statusCode, gin.H{}, err
 	}
 
 	allRecommendedSkills, err := GetRecommendedSkills(db, extReq, logger, tasks, generalskills, agentID)
 	if err != nil {
 		logger.Error("Failed to get recommended agent workflow skills: ", err)
-		return http.StatusOK, []models.AgentSkillResponse{}, nil
+		return http.StatusOK, gin.H{}, nil
 	}
 
 	recommendedSkills := make([]models.GeneralAgentSkill, 0)
@@ -92,25 +92,48 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 		err = StoreAgentSkills(db, logger, recommendedSkills, agentID)
 		if err != nil {
 			logger.Error("Failed to store agent workflow skills: ", err)
-			return http.StatusOK, allRecommendedSkills, nil
+			resp := gin.H{
+				"all_recommended_skills": allRecommendedSkills,
+				// "workflow_json":          wkfJSON,
+			}
+			return http.StatusOK, resp, nil
 		}
 	}
 
-	return http.StatusOK, allRecommendedSkills, nil
-}
+	//generate the workflow json
+	wkfJSON, statusCode, err := translator.GenerateWorkflowJSON(db, logger, extReq, agentID)
+	if err != nil {
+		logger.Error("failed to generate workflow json: ", err)
+		resp := gin.H{
+			"all_recommended_skills": allRecommendedSkills,
+			"workflow_json":          wkfJSON,
+		}
+		return statusCode, resp, nil
+	}
 
+	response := gin.H{
+		"all_recommended_skills": allRecommendedSkills,
+		"workflow_json":          wkfJSON,
+	}
+
+	return http.StatusOK, response, nil
+}
 
 func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger, tasksList []models.Task, generalSkills []models.GeneralAgentSkill, agentID string) ([]models.AgentSkillResponse, error) {
 	type skillInfo struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Type        string `json:"type"`
 	}
 
 	skills := make([]skillInfo, len(generalSkills))
 	for i, skill := range generalSkills {
 		skills[i] = skillInfo{
-			ID:   skill.ID,
-			Name: skill.Name,
+			ID:          skill.ID,
+			Name:        skill.Name,
+			Description: skill.Description,
+			Type:        skill.Type,
 		}
 	}
 
@@ -119,10 +142,17 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 		taskDescriptions.WriteString(fmt.Sprintf("Task ID: %s, Task: %s\n", task.ID, task.Text))
 	}
 
-	systemPrompt := `You are a skill recommendation assistant. Given a list of tasks and available skills, identify which skills are relevant to the overall workflow. 
-	Return ONLY a valid JSON array containing UNIQUE skill IDs that are relevant to the workflow:
-	["skill-id-1", "skill-id-2", "skill-id-3"]
-	Only return the JSON array, nothing else.`
+	systemPrompt := `You are a skill recommendation assistant. 
+		Given a list of tasks and available skills, identify which skills are DIRECTLY relevant to the overall workflow. 
+
+		Rules:
+		- Only return skills that CLEARLY and EXPLICITLY match the tasks. 
+		- Do NOT infer or assume relevance if no clear match exists. 
+		- If none of the available skills are relevant, return an EMPTY JSON array: []
+		- The output must be a valid JSON array containing UNIQUE skill IDs only, for example:
+		["skill-id-1", "skill-id-2"]
+
+		Return ONLY the JSON array, nothing else.`
 
 	input := fmt.Sprintf("Skills: %+v\n\nTasks:\n%s", skills, taskDescriptions.String())
 
@@ -175,7 +205,7 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 			})
 			uniqueSkills[skillID] = true
 		} else if !skillMap[skillID] {
-			logger.Error("Invalid skill ID recommended: ", skillID)
+			logger.Error("Invalid skill ID recommended by llm: ", skillID)
 		}
 	}
 
@@ -221,7 +251,7 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 		return nil
 	}
 
-	err := tx.CreateInBatches(&as, 100).Error
+	err := tx.CreateInBatches(&as, len(as)).Error
 	if err != nil {
 		logger.Error("Failed to save agent skills:", err)
 		tx.Rollback()

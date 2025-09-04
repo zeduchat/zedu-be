@@ -56,6 +56,7 @@ type Node struct {
 	Name     string         `json:"name"`
 	NodeName string         `json:"node_name"`
 	Type     string         `json:"type"`
+	SkillID  string         `json:"skill_id"`
 	Position []int          `json:"position"`
 	Params   map[string]any `json:"parameters"`
 }
