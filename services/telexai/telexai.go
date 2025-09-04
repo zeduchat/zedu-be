@@ -349,7 +349,6 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 }
 
 func ExtractChatContent(response map[string]interface{}) (string, error) {
-	fmt.Println(response)
 	choices, ok := response["choices"].([]interface{})
 	if !ok || len(choices) == 0 {
 		return "", errors.New("invalid or empty choices")

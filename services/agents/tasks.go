@@ -96,6 +96,15 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 		}
 	}
 
+	//generate the workflow json 
+	response, statusCode, err := translator.GenerateWorkflowJSON(db, logger, extReq, agentID)
+	if err != nil {
+		logger.Error("failed to generate workflow json: ", err)
+		return statusCode, allRecommendedSkills, nil
+	}
+
+	_ = response
+
 	return http.StatusOK, allRecommendedSkills, nil
 }
 
@@ -175,7 +184,7 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 			})
 			uniqueSkills[skillID] = true
 		} else if !skillMap[skillID] {
-			logger.Error("Invalid skill ID recommended: ", skillID)
+			logger.Error("Invalid skill ID recommended by llm: ", skillID)
 		}
 	}
 

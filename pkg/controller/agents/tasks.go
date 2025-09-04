@@ -71,7 +71,6 @@ func (base *Controller) UpdateAgentTasks(c *gin.Context) {
 		return
 	}
 
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Info("error parsing request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
@@ -181,7 +180,7 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Tasks processed successfully: Recommendations sent to agent")
-	rd := utility.BuildSuccessResponse(code, "Tasks processed successfully", resp)
+	base.Logger.Info("Tasks processed successfully: Recommendations sent to agent and Workflow successfully generated")
+	rd := utility.BuildSuccessResponse(code, "Tasks processed successfully: Recommendations sent to agent and Workflow successfully generated", resp)
 	c.JSON(code, rd)
 }
