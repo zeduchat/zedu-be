@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -17,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
@@ -57,20 +59,25 @@ func GetUser(userIDStr string, db *gorm.DB) (models.User, error) {
 	return userResp, nil
 }
 
-func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.CreateUserRequestModel, db *gorm.DB) (gin.H, int, error) {
+func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.CreateUserRequestModel, db *gorm.DB, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
-		email        = strings.ToLower(req.Email)
-		firstName    = strings.ToTitle(strings.ToLower(req.FirstName))
-		lastName     = strings.ToTitle(strings.ToLower(req.LastName))
-		phoneNumber  = req.PhoneNumber
-		password     = req.Password
-		responseData gin.H
-		userChk      = models.User{}
+		email              = strings.ToLower(req.Email)
+		firstName          = strings.ToTitle(strings.ToLower(req.FirstName))
+		lastName           = strings.ToTitle(strings.ToLower(req.LastName))
+		phoneNumber        = req.PhoneNumber
+		password           = req.Password
+		responseData gin.H = gin.H{}
+		userChk            = models.User{}
 	)
 
 	exists := postgresql.CheckExists(db, &userChk, "email = ?", req.Email)
 	if exists {
+
+		if !utility.CompareHash(req.Password, userChk.Password) {
+			return responseData, 400, fmt.Errorf("Email address already exist, use another email or signin")
+		}
+
 		loginUser := models.LoginRequestModel{
 			Email:    email,
 			Password: req.Password,
@@ -135,6 +142,27 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
 	}
 
+	ipAddress := audit_utility.GetClientIP(c)
+
+	response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
+
+	info, _ := response.(external_models.IPInfoResponse)
+
+	createPersonalOrgReq := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("%s", name),
+		Description: fmt.Sprintf("%s's organization", name),
+		Email:       email,
+		Type:        "User Default Org",
+		Country:     info.Country,
+		Location:    info.Location,
+	}
+
+	_, err = organisation.CreateOrganisation(createPersonalOrgReq, db, user.ID, logger)
+
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("failed to create user organization: %v", err)
+	}
+
 	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
@@ -189,7 +217,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	}
 
 	if !utility.CompareHash(req.Password, user.Password) {
-		return responseData, 400, fmt.Errorf("invalid credentials")
+		return responseData, 400, fmt.Errorf("invalid email and password supplied")
 	}
 
 	user.IsActive = true
@@ -238,9 +266,9 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
-		"access_token":       tokenData.AccessToken,
-		"notification_token": access_token.SubAccessToken,
-		"access_token_expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+		"access_token":            tokenData.AccessToken,
+		"notification_token":      access_token.SubAccessToken,
+		"access_token_expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 	}
 
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
