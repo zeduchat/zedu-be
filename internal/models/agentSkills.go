@@ -1,6 +1,8 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,7 +27,7 @@ type AgentSkill struct {
 	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
 	Avatar       string         `gorm:"type:text" json:"avatar"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMap       `gorm:"type:jsonb" json:"agent_config"`
+	Config       JSONBMapArr    `gorm:"type:jsonb" json:"agent_config"`
 	Link         string         `gorm:"type:text" json:"-"`
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	UserId       string         `gorm:"type:uuid" json:"-"`
@@ -43,31 +45,31 @@ type GeneralAgentSkill struct {
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	Link         string         `gorm:"type:text" json:"-"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMap       `gorm:"type:jsonb" json:"agent_config"`
+	Config       JSONBMapArr    `gorm:"type:jsonb" json:"agent_config"`
 }
 
 type CreateAgentSkillRequest struct {
-	Name        string   `json:"name" validate:"required"`
-	Description string   `json:"description" validate:"required"`
-	Type        string   `json:"type" validate:"required,oneof=MCP A2A"`
-	Config      JSONBMap `json:"agent_config"`
-	AgentId     string   `json:"agent_id" validate:"required"`
-	IsActive    bool     `json:"is_acive"`
-	URLLink     string   `json:"url_link" validate:"required"`
-	Avatar      string   `json:"avatar"`
-	Tags        []string `json:"tags"`
-	OrgId       string   `json:"-"`
-	UserId      string   `json:"-"`
-	SkillId     string   `json:"-"`
+	Name        string      `json:"name" validate:"required"`
+	Description string      `json:"description" validate:"required"`
+	Type        string      `json:"type" validate:"required,oneof=MCP A2A"`
+	Config      JSONBMapArr `json:"agent_config"`
+	AgentId     string      `json:"agent_id" validate:"required"`
+	IsActive    bool        `json:"is_acive"`
+	URLLink     string      `json:"url_link" validate:"required"`
+	Avatar      string      `json:"avatar"`
+	Tags        []string    `json:"tags"`
+	OrgId       string      `json:"-"`
+	UserId      string      `json:"-"`
+	SkillId     string      `json:"-"`
 }
 
 type UpdateAgentSkillRequest struct {
-	Config   JSONBMap `json:"agent_config"`
-	SkillId  string   `json:"skill_id"`
-	AgentId  string   `json:"agent_id"`
-	IsActive bool     `json:"is_active"`
-	OrgId    string   `json:"-"`
-	UserId   string   `json:"-"`
+	Config   JSONBMapArr `json:"agent_config"`
+	SkillId  string      `json:"skill_id"`
+	AgentId  string      `json:"agent_id"`
+	IsActive bool        `json:"is_active"`
+	OrgId    string      `json:"-"`
+	UserId   string      `json:"-"`
 }
 
 type CreateAgentSkillsRequest struct {
@@ -78,20 +80,34 @@ type CreateAgentSkillsRequest struct {
 }
 
 type AgentSkillResponse struct {
-	SkillId      string   `json:"skill_id"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Type         string   `json:"type"`
-	IsActive     bool     `json:"is_active"`
-	IsConfigured bool     `json:"is_configured"`
-	Avatar       string   `json:"avatar"`
-	Config       JSONBMap `json:"agent_config"`
-	Tags         []string `json:"tags"`
+	SkillId      string      `json:"skill_id"`
+	Name         string      `json:"name"`
+	Description  string      `json:"description"`
+	Type         string      `json:"type"`
+	IsActive     bool        `json:"is_active"`
+	IsConfigured bool        `json:"is_configured"`
+	Avatar       string      `json:"avatar"`
+	Config       JSONBMapArr `json:"agent_config"`
+	Tags         []string    `json:"tags"`
 }
 
 type SkillResp struct {
 	AgentID string
 	SkillID string
+}
+
+type JSONBMapArr []JSONBMap
+
+func (j *JSONBMapArr) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, j)
+}
+
+func (j JSONBMapArr) Value() (driver.Value, error) {
+	return json.Marshal(j)
 }
 
 func (a *AgentSkill) CreateAgentSkill(db *gorm.DB) error {
