@@ -40,11 +40,11 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 
 	for _, step := range req.Steps {
 		var prompt models.Prompts
-		
+
 		if _, err := prompt.GetPromptByVersion(db, step); err != nil {
 			return stepProcess, err
 		}
-		
+
 		pStep := models.ProcessStep{
 			Step:    step.Name,
 			Input:   previousOutput,
@@ -52,7 +52,7 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 			LLMCall: true,
 			Prompt:  prompt.Template,
 		}
-		
+
 		if pStep.LLMCall {
 			systemPrompt := assemblePrompt(pStep, placeholders)
 			aiOutput, _, err := LLMCall(logger, extReq, systemPrompt, pStep.Input)
@@ -148,6 +148,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	}
 
 	skillsModel.AgentId = agentID
+	skillsModel.OrgId = agents.OrgID
 	skills, err := skillsModel.GetAllAgentSkills(db)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err

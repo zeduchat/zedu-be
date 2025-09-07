@@ -25,9 +25,11 @@ type AgentSkill struct {
 	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
 	Avatar       string         `gorm:"type:text" json:"avatar"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMap       `json:"agent_config"`
+	Config       JSONBMap       `gorm:"type:jsonb" json:"agent_config"`
 	Link         string         `gorm:"type:text" json:"-"`
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
+	UserId       string         `gorm:"type:uuid" json:"-"`
+	OrgId        string         `gorm:"type:uuid" json:"-"`
 }
 
 type GeneralAgentSkill struct {
@@ -41,7 +43,7 @@ type GeneralAgentSkill struct {
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	Link         string         `gorm:"type:text" json:"-"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMap       `json:"agent_config"`
+	Config       JSONBMap       `gorm:"type:jsonb" json:"agent_config"`
 }
 
 type CreateAgentSkillRequest struct {
@@ -54,6 +56,9 @@ type CreateAgentSkillRequest struct {
 	URLLink     string   `json:"url_link" validate:"required"`
 	Avatar      string   `json:"avatar"`
 	Tags        []string `json:"tags"`
+	OrgId       string   `json:"-"`
+	UserId      string   `json:"-"`
+	SkillId     string   `json:"-"`
 }
 
 type UpdateAgentSkillRequest struct {
@@ -61,11 +66,15 @@ type UpdateAgentSkillRequest struct {
 	SkillId  string   `json:"skill_id"`
 	AgentId  string   `json:"agent_id"`
 	IsActive bool     `json:"is_active"`
+	OrgId    string   `json:"-"`
+	UserId   string   `json:"-"`
 }
 
 type CreateAgentSkillsRequest struct {
 	AgentId  string   `json:"agent_id"`
 	SkillIds []string `json:"skill_ids" validate:"required,dive,uuid"`
+	OrgId    string   `json:"-"`
+	UserId   string   `json:"-"`
 }
 
 type AgentSkillResponse struct {
@@ -132,7 +141,7 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
 	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ?", a.AgentId)
+		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId)
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"created_at",
@@ -205,7 +214,7 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
         COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
         `).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ? AND agent_skills.skill_id = ?", a.AgentId, a.SkillId).
+		Where("agent_skills.agent_id = ? AND agent_skills.skill_id = ? AND agent_skills.org_id = ?", a.AgentId, a.SkillId, a.OrgId).
 		First(&skill).Error
 
 	if err != nil {
@@ -233,7 +242,7 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error
 		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
 	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ?", a.AgentId).
+		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId).
 		Scan(&skills).Error
 
 	if err != nil {
@@ -254,7 +263,7 @@ func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) err
 
 func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRequest) (AgentSkill, error) {
 	var skill AgentSkill
-	exists := postgresql.CheckExists(db, &skill, "skill_id = ? AND agent_id = ?", a.SkillId, a.AgentId)
+	exists := postgresql.CheckExists(db, &skill, "skill_id = ? AND agent_id = ? AND org_id = ?", a.SkillId, a.AgentId, a.OrgId)
 	if !exists {
 		return skill, errors.New("agent skill not found")
 	}
@@ -277,7 +286,7 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 
 func (a *AgentSkill) DeleteAgentSkill(db *gorm.DB) error {
 	var skill AgentSkill
-	exists := postgresql.CheckExists(db, &skill, "skill_id = ? AND agent_id = ?", a.SkillId, a.AgentId)
+	exists := postgresql.CheckExists(db, &skill, "skill_id = ? AND agent_id = ? AND org_id = ?", a.SkillId, a.AgentId, a.OrgId)
 	if !exists {
 		return errors.New("agent skill not found")
 	}
@@ -336,6 +345,8 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 			SkillId:  skillId,
 			AgentId:  req.AgentId,
 			IsActive: true,
+			OrgId:    req.OrgId,
+			UserId:   req.UserId,
 		})
 	}
 
