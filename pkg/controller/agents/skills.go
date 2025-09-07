@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -38,6 +39,17 @@ func (base *Controller) CreateAgentSkill(c *gin.Context) {
 
 	req.AgentId = agentID
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+
 	resp, code, err := agents.CreateAgentSkill(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), "failed to create agent skill", nil)
@@ -50,6 +62,7 @@ func (base *Controller) CreateAgentSkill(c *gin.Context) {
 }
 
 func (base *Controller) GetAgentSkills(c *gin.Context) {
+	var req models.CreateAgentSkillRequest
 	agent_id := c.Param("agents_id")
 
 	if _, err := uuid.Parse(agent_id); err != nil {
@@ -59,7 +72,24 @@ func (base *Controller) GetAgentSkills(c *gin.Context) {
 		return
 	}
 
-	skills, pagination, err, code := agents.GetAgentSkills(agent_id, base.Db.Postgresql, c)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
+		base.Logger.Info("invalid organization id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	skills, pagination, err, code := agents.GetAgentSkills(req, base.Db.Postgresql, c)
 	if err != nil {
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
@@ -68,6 +98,8 @@ func (base *Controller) GetAgentSkills(c *gin.Context) {
 }
 
 func (base *Controller) GetAgentSkillByID(c *gin.Context) {
+
+	var req models.CreateAgentSkillRequest
 	agent_id := c.Param("agents_id")
 
 	if _, err := uuid.Parse(agent_id); err != nil {
@@ -76,6 +108,8 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	req.AgentId = agent_id
 
 	skill_id := c.Param("skill_id")
 
@@ -86,7 +120,26 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 		return
 	}
 
-	skills, err := agents.GetAgentSkillByID(agent_id, skill_id, base.Db.Postgresql)
+	req.SkillId = skill_id
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
+		base.Logger.Info("invalid organization id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	skills, err := agents.GetAgentSkillByID(req, base.Db.Postgresql)
 	if err != nil {
 		code := http.StatusBadRequest
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
@@ -98,7 +151,10 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 
 func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 	skill_id := c.Param("skill_id")
-	var updateData models.UpdateAgentSkillRequest
+	var (
+		updateData models.UpdateAgentSkillRequest
+		req        models.CreateAgentRequest
+	)
 
 	if _, err := uuid.Parse(skill_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
@@ -120,7 +176,28 @@ func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
 		return
 	}
-	updated, err := agents.UpdateAgentSkill(skill_id, agent_id, updateData, base.Db.Postgresql)
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
+	req.SkillId = skill_id
+
+	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
+		base.Logger.Info("invalid organization id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	updated, err := agents.UpdateAgentSkill(req, updateData, base.Db.Postgresql)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update agent skill", nil))
 		return
@@ -129,6 +206,9 @@ func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 }
 
 func (base *Controller) DeleteAgentSkill(c *gin.Context) {
+
+	var req models.CreateAgentRequest
+
 	skillID := c.Param("skill_id")
 
 	if _, err := uuid.Parse(skillID); err != nil {
@@ -146,7 +226,27 @@ func (base *Controller) DeleteAgentSkill(c *gin.Context) {
 		return
 	}
 
-	if err := agents.DeleteAgentSkill(skillID, agentID, base.Db.Postgresql); err != nil {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agentID
+	req.SkillId = skillID
+
+	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
+		base.Logger.Info("invalid organization id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := agents.DeleteAgentSkill(req, base.Db.Postgresql); err != nil {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete agent skill", nil))
 		return
 	}
@@ -199,6 +299,25 @@ func (base *Controller) AddSkillsToAgent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
 		return
 	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+
+	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
+		base.Logger.Info("invalid organization id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	req.AgentId = agent_id
 
 	code, err := agents.AddSkillToAgent(req, base.Db.Postgresql, base.Logger)

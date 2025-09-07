@@ -60,9 +60,10 @@ type CreateAgentRequest struct {
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility" validate:"required,oneof=private public me"`
 	SystemPrompts JSONSystemPrompts `json:"system_prompts"`
-	UserId        string
-	OrgId         string
-	AgentId       string
+	UserId        string            `json:"-"`
+	OrgId         string            `json:"-"`
+	AgentId       string            `json:"-"`
+	SkillId       string            `json:"-"`
 }
 
 type UpdateAgentPromptRequest struct {

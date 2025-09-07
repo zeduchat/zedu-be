@@ -39,6 +39,8 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Config:       req.Config,
 		Link:         req.URLLink,
 		Tags:         req.Tags,
+		OrgId:        req.OrgId,
+		UserId:       req.UserId,
 	}
 
 	if err := agentSkill.CreateAgentSkill(db); err != nil {
@@ -60,16 +62,18 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 	return resp, http.StatusCreated, nil
 }
 
-func GetAgentSkills(agentID string, db *gorm.DB, c *gin.Context) ([]models.AgentSkill, postgresql.PaginationResponse, error, int) {
+func GetAgentSkills(req models.CreateAgentSkillRequest, db *gorm.DB, c *gin.Context) ([]models.AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skill models.AgentSkill
-	skill.AgentId = agentID
+	skill.AgentId = req.AgentId
+	skill.OrgId = req.OrgId
 	return skill.GetAgentSkills(db, c)
 }
 
-func GetAgentSkillByID(agentId, skillID string, db *gorm.DB) (models.AgentSkillResponse, error) {
+func GetAgentSkillByID(req models.CreateAgentSkillRequest, db *gorm.DB) (models.AgentSkillResponse, error) {
 	var skill models.AgentSkill
-	skill.AgentId = agentId
-	skill.SkillId = skillID
+	skill.AgentId = req.AgentId
+	skill.SkillId = req.SkillId
+	skill.OrgId = req.OrgId
 	return skill.GetAgentSkillByID(db)
 }
 
@@ -89,17 +93,21 @@ func GetGeneralAgentSkillByID(skillID string, db *gorm.DB) (models.GeneralAgentS
 	return skill, nil
 }
 
-func UpdateAgentSkill(skillID, agentId string, updateData models.UpdateAgentSkillRequest, db *gorm.DB) (models.AgentSkill, error) {
+func UpdateAgentSkill(req models.CreateAgentRequest, updateData models.UpdateAgentSkillRequest, db *gorm.DB) (models.AgentSkill, error) {
 	var skill models.AgentSkill
-	skill.SkillId = skillID
-	skill.AgentId = agentId
+	skill.SkillId = req.SkillId
+	skill.AgentId = req.AgentId
+	skill.OrgId = req.OrgId
+	skill.UserId = req.UserId
 	return skill.UpdateAgentSkill(db, updateData)
 }
 
-func DeleteAgentSkill(skillID, agentId string, db *gorm.DB) error {
+func DeleteAgentSkill(req models.CreateAgentRequest, db *gorm.DB) error {
 	var skill models.AgentSkill
-	skill.SkillId = skillID
-	skill.AgentId = agentId
+	skill.SkillId = req.SkillId
+	skill.AgentId = req.AgentId
+	skill.OrgId = req.OrgId
+	skill.UserId = req.SkillId
 	return skill.DeleteAgentSkill(db)
 }
 
