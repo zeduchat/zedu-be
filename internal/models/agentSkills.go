@@ -243,6 +243,8 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
 	var skills []AgentSkillResponse
 
+	fmt.Println("%s::::::%s", a.AgentId, a.OrgId)
+
 	err := db.Table("agent_skills").
 		Select(`
 		agent_skills.skill_id, 

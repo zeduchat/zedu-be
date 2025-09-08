@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/agents"
@@ -172,7 +173,24 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		return
 	}
 
-	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, agentID)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	// orgID := userClaims["org_id"].(string)
+	userID := userClaims["user_id"].(string)
+
+	ids := models.IDS{
+		// OrganisationID: orgID,
+		AgentID:        agentID,
+		UserID:         userID,
+	}
+
+	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, ids)
 	if err != nil {
 		base.Logger.Error("error processing tasks", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
