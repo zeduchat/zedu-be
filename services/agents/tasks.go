@@ -78,7 +78,7 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 
 		exists, err := as.CheckAgentHasSkillByName(db, agentID, rs.Name)
 		if err != nil {
-			logger.Error("Failed to check if agent has skill: ", err)
+			logger.Error(err)
 			continue
 		}
 
@@ -93,8 +93,8 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 		if err != nil {
 			logger.Error("Failed to store agent workflow skills: ", err)
 			resp := gin.H{
+				"workflow_json":          map[string]any{},
 				"all_recommended_skills": allRecommendedSkills,
-				// "workflow_json":          wkfJSON,
 			}
 			return http.StatusOK, resp, nil
 		}
@@ -228,13 +228,13 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 	}
 
 	for _, skill := range recommendedskills {
-		logger.Info(fmt.Sprintf("Processing skill: %s", skill.Name))
+		logger.Info(fmt.Sprintf("Processing skill: %s, SkillID: %s ", skill.Name, skill.ID))
 
 		newSkill := models.AgentSkill{
 			ID:           utility.GenerateUUID(),
 			SkillId:      skill.ID,
-			Name:         skill.Name,
 			AgentId:      agentID,
+			Name:         skill.Name,
 			IsActive:     skill.IsActive,
 			Description:  skill.Description,
 			Type:         skill.Type,
@@ -251,10 +251,10 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 		return nil
 	}
 
-	err := tx.CreateInBatches(&as, len(as)).Error
+	err := tx.CreateInBatches(&as, 100).Error
 	if err != nil {
 		logger.Error("Failed to save agent skills:", err)
-		tx.Rollback()
+		tx.Rollback() 
 		return fmt.Errorf("failed to save agent skills: %v", err)
 	}
 

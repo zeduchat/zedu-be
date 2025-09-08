@@ -133,7 +133,7 @@ func (as *AgentSkill) CheckAgentHasSkillByName(db *gorm.DB, agentID, skillName s
 		return false, nil
 	}
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("agent does not have skill with name %s", skillName)
 	}
 	return true, nil
 }
