@@ -230,6 +230,15 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 	for _, skill := range recommendedskills {
 		logger.Info(fmt.Sprintf("Processing skill: %s, SkillID: %s ", skill.Name, skill.ID))
 
+		if skill.ID == "" {
+			tx.Rollback()
+			return fmt.Errorf("invalid skill ID: empty for skill %s", skill.Name)
+		}
+		if agentID == "" {
+			tx.Rollback()
+			return fmt.Errorf("invalid agent ID: empty when saving skill %s", skill.Name)
+		}
+
 		newSkill := models.AgentSkill{
 			ID:           utility.GenerateUUID(),
 			SkillId:      skill.ID,
@@ -243,7 +252,7 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 			Avatar:       skill.Avatar,
 		}
 
-		logger.Info(newSkill)
+		logger.Info(fmt.Sprintf("%+v\n",newSkill))
 		as = append(as, newSkill)
 	}
 
@@ -256,7 +265,7 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 	err := tx.CreateInBatches(&as, 100).Error
 	if err != nil {
 		logger.Error("Failed to save agent skills:", err)
-		tx.Rollback() 
+		tx.Rollback()
 		return fmt.Errorf("failed to save agent skills: %v", err)
 	}
 
