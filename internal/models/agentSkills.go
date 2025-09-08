@@ -356,6 +356,10 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 	}
 
 	for _, skillId := range req.SkillIds {
+		gaSkill := GeneralAgentSkill{}
+
+		_ = postgresql.CheckExists(db, &gaSkill, "id = ?", skillId)
+
 		skills = append(skills, AgentSkill{
 			ID:       utility.GenerateUUID(),
 			SkillId:  skillId,
@@ -363,6 +367,9 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 			IsActive: true,
 			OrgId:    req.OrgId,
 			UserId:   req.UserId,
+			Config:   gaSkill.Config,
+			Link:     gaSkill.Link,
+			Type:     gaSkill.Type,
 		})
 	}
 
