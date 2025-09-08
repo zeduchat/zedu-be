@@ -190,6 +190,17 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, mentionMsg)
 	}()
 
+	threadReplyNotif := models.Notification[models.ThreadReply]
+	threadReplyNotif.Content = feed
+	threadReplyNotif.NotificationId = utility.GenerateUUID()
+
+	err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", threads.OrgansationID, threads.UserId), threadReplyNotif)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing thread reply message to user, channelid: %s, with userid: %s error: %v", threads.ChannelsID, threads.UserId, err.Error()))
+	}
+
+	logger.Info("Published thread reply message to user : %s", threads.UserId)
+
 	return &messageDoc, http.StatusCreated, nil
 }
 
