@@ -242,6 +242,8 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 			Config:       skill.Config,
 			Avatar:       skill.Avatar,
 		}
+
+		logger.Info(newSkill)
 		as = append(as, newSkill)
 	}
 
