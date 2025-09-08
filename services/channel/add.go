@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		channels      models.Channels
 		threads       models.ThreadDocument
 		agent_message = false
+		userChan      models.UserChannels
 	)
 
 	userType := "user"
@@ -160,6 +162,33 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	logger.Info("added notification to queue for channel %s", req.ChannelsId)
+
+	// increase unread count for channel users
+	userChan.ChannelsID = req.ChannelsId
+	userChan.UserID = req.UserId
+	if req.UserId == "WEBHOOK" {
+		userChan.UserID = "00000000-0000-0000-0000-000000000000"
+	}
+	userChan.OrgId = channels.OrganisationID
+	mentionMsg := models.MentionMessage{
+		Mention: req.Mentions,
+		Content: feed,
+	}
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	if len(req.Mentions) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			userChan.ProcessMentions(db.Postgresql, req.Mentions, mutex, logger)
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, mentionMsg)
+	}()
 
 	return &messageDoc, http.StatusCreated, nil
 }
