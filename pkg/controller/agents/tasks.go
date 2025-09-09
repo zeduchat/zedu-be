@@ -192,10 +192,17 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	orgID, ok := userClaims["org_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "org_id must be string", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	ids := models.IDS{
-		AgentID: agentID,
-		UserID:  userID,
+		OrganisationID: orgID,
+		AgentID:        agentID,
+		UserID:         userID,
 	}
 
 	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, ids)

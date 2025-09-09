@@ -118,7 +118,7 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	return response, code, nil
 }
 
-func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.WorkflowJSON, int, error) {
+func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID, orgID string) (models.WorkflowJSON, int, error) {
 	var (
 		agents      models.OrganisationIntegrations
 		task        models.Task
@@ -141,7 +141,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 
 	if len(tasks) == 0 {
 		logger.Error("no tasks found for agent id %s", agentID)
-		return models.WorkflowJSON{}, http.StatusOK, nil
+		return models.WorkflowJSON{}, http.StatusNotFound, nil
 	}
 
 	var taskList strings.Builder
@@ -150,14 +150,14 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	}
 
 	skillsModel.AgentId = agentID
-	skillsModel.OrgId = agents.OrgID
+	skillsModel.OrgId = orgID
 	skills, err := skillsModel.GetAllAgentSkills(db)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 	if len(skills) == 0 {
 		logger.Error("no skills found for agent id %s", agentID)
-		return models.WorkflowJSON{}, http.StatusOK, nil
+		return models.WorkflowJSON{}, http.StatusNotFound, nil
 	}
 
 	skillsList := make([]string, len(skills))
@@ -217,7 +217,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	aw.WorkflowId = utility.GenerateUUID()
 	aw.RawEntry = rawEntry
 	aw.Name = wkfJson.Name
-	aw.OrgId = agents.OrgID
+	aw.OrgId = orgID
 
 	err, code := aw.CreateAgentWorkflow(db)
 	if err != nil {

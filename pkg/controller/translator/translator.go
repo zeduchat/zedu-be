@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -63,7 +64,28 @@ func (base *Controller) GenerateWorkflowJSON(c *gin.Context) {
 		return
 	}
 
-	response, statusCode, err := translator.GenerateWorkflowJSON(base.Db.Postgresql, base.Logger, base.ExtReq, agentID)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "invalid user claims type", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	
+	orgID, ok := userClaims["org_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "org_id must be string", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	response, statusCode, err := translator.GenerateWorkflowJSON(base.Db.Postgresql, base.Logger, base.ExtReq, agentID, orgID)
 	if err != nil {
 		base.Logger.Error("error generating translation", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
