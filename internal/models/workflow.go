@@ -211,20 +211,50 @@ func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 
 }
 
-func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
+// func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 
+// 	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
+// 		return err, http.StatusBadRequest
+// 	}
+
+// 	err := db.Create(&wf).Error
+
+// 	if err != nil {
+// 		return err, http.StatusInternalServerError
+// 	}
+
+// 	return nil, http.StatusCreated
+// }
+
+func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return err, http.StatusBadRequest
 	}
 
-	err := db.Create(&wf).Error
-
+	var existing AgentWorkflow
+	err := db.Where("org_id = ? AND agent_id = ?", wf.OrgId, wf.AgentId).First(&existing).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			if err := db.Create(&wf).Error; err != nil {
+				return err, http.StatusInternalServerError
+			}
+			return nil, http.StatusCreated
+		}
 		return err, http.StatusInternalServerError
 	}
 
-	return nil, http.StatusCreated
+	existing.WorkflowId = wf.WorkflowId
+	existing.RawEntry = wf.RawEntry
+	existing.Name = wf.Name
+
+	if err := db.Save(&existing).Error; err != nil {
+		return err, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusOK
 }
+
+
 
 func (wf *Workflow) UpdateWorkflow(db *gorm.DB) error {
 
