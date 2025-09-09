@@ -82,6 +82,7 @@ func (base *Controller) GetAgentSkills(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.OrgId = userClaims["org_id"].(string)
+	req.AgentId = agent_id
 
 	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
 		base.Logger.Info("invalid organization id format")
