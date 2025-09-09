@@ -167,6 +167,7 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 			Description: agents.AppDescription,
 			IsActive:    agents.IsActive,
 			Category:    agents.Category,
+			Stars:       agents.Stars,
 		}
 
 		botResp = append(botResp, agent)
@@ -196,6 +197,7 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		Description: agent.AppDescription,
 		IsActive:    agent.IsActive,
 		Category:    agent.Category,
+		Stars:       agent.Stars,
 	}
 	return &resp, nil, code
 }
@@ -1102,4 +1104,15 @@ func UploadAgentAvatar(logger *utility.Logger, uniqueId string, file []byte, ext
 		return picUrl, nil
 	}
 	return "", nil
+}
+
+func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (int, error) {
+	var agent models.OrganisationIntegrations
+
+	code, err := agent.PublishAgent(req, db)
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
 }

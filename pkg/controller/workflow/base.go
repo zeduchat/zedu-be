@@ -12,6 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/services/workflow"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -383,4 +384,24 @@ func (base *Controller) GetGeneralMarketWorkflows(c *gin.Context) {
 	base.Logger.Info("Workflow fetched successfully")
 	rd := utility.BuildSuccessResponse(code, "Workflow fetched successfully", resp, pag)
 	c.JSON(code, rd)
+}
+
+func (base *Controller) SearchWorkflows(c *gin.Context) {
+	workflows, paginationResponse, err, code := agents.SearchWorkflowsService(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to search workflows", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to search workflows", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(*workflows),
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "workflows retrieved successfully.", workflows, paginationData)
+	c.JSON(http.StatusOK, rd)
 }

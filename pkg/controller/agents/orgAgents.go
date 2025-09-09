@@ -1242,3 +1242,76 @@ func (base *Controller) GetOrgAgentBills(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "organization agent bills retrieved successfully.", agent_bills, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) PublishAgentApp(c *gin.Context) {
+	var req models.PublishAgentRequest
+
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, ok := models.Categories[req.Category]; !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid category", "invalid agent category supplied", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
+
+	code, err := agents.PublishAgent(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to publish agent app", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to publish agent app", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agents updated successfully")
+	rd := utility.BuildSuccessResponse(code, "Agents updated successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetAllCategories(c *gin.Context) {
+
+	resp, err := agents.GetAllCategories(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch categories", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch categories", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("categories retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp)
+	c.JSON(http.StatusOK, rd)
+}

@@ -52,6 +52,7 @@ func (base *Controller) CreateAgentSkill(c *gin.Context) {
 
 	resp, code, err := agents.CreateAgentSkill(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
+		base.Logger.Error("Failed to create agent skill, err: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), "failed to create agent skill", nil)
 		c.JSON(code, rd)
 		return
@@ -91,6 +92,7 @@ func (base *Controller) GetAgentSkills(c *gin.Context) {
 
 	skills, pagination, err, code := agents.GetAgentSkills(req, base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("Failed to get agent skills, err: %v", err)
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
@@ -142,6 +144,7 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 	skills, err := agents.GetAgentSkillByID(req, base.Db.Postgresql)
 	if err != nil {
 		code := http.StatusBadRequest
+		base.Logger.Error("Failed to fetch agent skill, err: %v", err)
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
 		return
 	}
@@ -199,6 +202,7 @@ func (base *Controller) UpdateAgentSkill(c *gin.Context) {
 
 	updated, err := agents.UpdateAgentSkill(req, updateData, base.Db.Postgresql)
 	if err != nil {
+		base.Logger.Error("Failed to update agent skill, err: %v", err)
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update agent skill", nil))
 		return
 	}
@@ -247,6 +251,7 @@ func (base *Controller) DeleteAgentSkill(c *gin.Context) {
 	}
 
 	if err := agents.DeleteAgentSkill(req, base.Db.Postgresql); err != nil {
+		base.Logger.Error("Failed to delete agent skill, err: %v", err)
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete agent skill", nil))
 		return
 	}
@@ -330,4 +335,24 @@ func (base *Controller) AddSkillsToAgent(c *gin.Context) {
 	base.Logger.Info("Agent skill added successfully")
 	rd := utility.BuildSuccessResponse(code, "Skill added to agent successfully", nil)
 	c.JSON(code, rd)
+}
+
+func (base *Controller) SearchSkills(c *gin.Context) {
+	skills, paginationResponse, err, code := agents.SearchSkillsService(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to search skills", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to search skills", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(*skills),
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "skills retrieved successfully.", skills, paginationData)
+	c.JSON(http.StatusOK, rd)
 }

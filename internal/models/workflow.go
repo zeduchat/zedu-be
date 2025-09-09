@@ -26,6 +26,7 @@ type Workflow struct {
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
+	Category        string                `gorm:"type:text;default:default" json:"category"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
@@ -40,6 +41,7 @@ type GeneralWorkflow struct {
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
+	Category        string                `gorm:"type:text;default:default" json:"category"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
@@ -55,6 +57,7 @@ type WorkFlowRequest struct {
 	Agents          StringSlice           `json:"agents_id" validate:"required,dive,uuid"`
 	FlowConnections Connections           `json:"connections"`
 	Settings        WorkflowSettingsEntry `json:"settings"`
+	Category        string                `json:"category"`
 }
 
 type ChannelWorkflow struct {
@@ -73,6 +76,7 @@ type AgentWorkflow struct {
 	Name       string    `gorm:"type:text" json:"name"`
 	OrgId      string    `gorm:"type:uuid" json:"-"`
 	IsActive   bool      `gorm:"type:boolean" json:"is_active"`
+	Category   string    `gorm:"type:text" json:"category"`
 	CreatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }

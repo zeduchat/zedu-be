@@ -32,6 +32,7 @@ type AgentSkill struct {
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	UserId       string         `gorm:"type:uuid" json:"-"`
 	OrgId        string         `gorm:"type:uuid" json:"-"`
+	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
 
 type GeneralAgentSkill struct {
@@ -46,6 +47,8 @@ type GeneralAgentSkill struct {
 	Link         string         `gorm:"type:text" json:"-"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	Config       JSONBMapArr    `gorm:"type:jsonb" json:"agent_config"`
+	Stars        int64          `gorm:"default:1" json:"stars"`
+	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
 
 type CreateAgentSkillRequest struct {
@@ -57,7 +60,8 @@ type CreateAgentSkillRequest struct {
 	IsActive    bool        `json:"is_acive"`
 	URLLink     string      `json:"url_link" validate:"required"`
 	Avatar      string      `json:"avatar"`
-	Tags        []string    `json:"tags"`
+	Tags        []string    `json:"tags" validate:"required,min=1,dive"`
+	Category    string      `json:"category" validate:"required"`
 	OrgId       string      `json:"-"`
 	UserId      string      `json:"-"`
 	SkillId     string      `json:"-"`
@@ -89,6 +93,7 @@ type AgentSkillResponse struct {
 	Avatar       string      `json:"avatar"`
 	Config       JSONBMapArr `json:"agent_config"`
 	Tags         []string    `json:"tags"`
+	Category     string      `json:"category"`
 }
 
 type SkillResp struct {
@@ -111,6 +116,10 @@ func (j JSONBMapArr) Value() (driver.Value, error) {
 }
 
 func (a *AgentSkill) CreateAgentSkill(db *gorm.DB) error {
+	return postgresql.CreateOneRecord(db, a)
+}
+
+func (a *GeneralAgentSkill) CreateGeneralAgentSkill(db *gorm.DB) error {
 	return postgresql.CreateOneRecord(db, a)
 }
 
@@ -152,6 +161,7 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 		agent_skills.is_active,
 		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
 		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
 		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
 		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
 		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
@@ -225,6 +235,7 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
         agent_skills.is_active,
         COALESCE(general_agent_skills.name, agent_skills.name) AS name,
         COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
         COALESCE(general_agent_skills.type, agent_skills.type) AS type,
         COALESCE(general_agent_skills.description, agent_skills.description) AS description,
         COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
@@ -254,6 +265,7 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error
 		agent_skills.is_active,
 		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
 		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
 		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
 		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
 		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
@@ -371,6 +383,7 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 			Config:   gaSkill.Config,
 			Link:     gaSkill.Link,
 			Type:     gaSkill.Type,
+			Category: gaSkill.Category,
 		})
 	}
 

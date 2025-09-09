@@ -28,10 +28,10 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	}
 
 	skillUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion))
-
 	{
 		skillUrl.GET("", agentsCtrl.GetGeneralAgentSkill)
 		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
+		skillUrl.GET("/search", agentsCtrl.SearchSkills)
 	}
 
 	//agent tasks
@@ -104,6 +104,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	agentUrl := r.Group(fmt.Sprintf("%v/agents", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		agentUrl.GET("/:agent_id/settings", agent.GetAgentSettingsAllOrgs)
+		agentUrl.POST("/:agent_id/publish", agent.PublishAgentApp)
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)
@@ -131,6 +132,12 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		intPage.GET("", agent.GetSystemAgentApps)
 		intPage.GET("/callback", agent.AgentCallback)
 		intPage.GET("/:agent_id", agent.GetSystemAgentApp)
+		intPage.GET("/search", agent.SearchAgents)
+	}
+
+	marketPage := r.Group(fmt.Sprintf("%v/marketplace", ApiVersion))
+	{
+		marketPage.GET("/categories", agent.GetAllCategories)
 	}
 
 	external_int := r.Group(fmt.Sprintf("%v/agents/settings", ApiVersion))

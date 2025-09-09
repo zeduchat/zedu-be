@@ -11816,6 +11816,338 @@ paths:
         404:
           description: Organisation not found.
 
+  /agents/{agent_id}/publish:
+    post:
+      summary: Publish an agent
+      description: Publishes an agent by providing required details such as category, snapshots, how it works, benefits, and why to use.
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The unique identifier of the agent to publish.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category:
+                  type: string
+                  description: Category of the agent. Must match a valid category from the system.
+                  example: Knowledge Management
+                snapshots:
+                  type: array
+                  minItems: 1
+                  description: A list of snapshots describing the agent.
+                  items:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        maxLength: 19
+                        description: Short title for the snapshot (max 19 characters).
+                        example: Quick Start
+                      description:
+                        type: string
+                        maxLength: 79
+                        description: Short description of the snapshot (max 79 characters).
+                        example: Helps you get started quickly with minimal setup.
+                how_it_works:
+                  type: string
+                  minLength: 101
+                  description: Detailed explanation of how the agent works. Must be more than 100 characters.
+                  example: |
+                    This agent connects to multiple data sources and leverages AI models to provide 
+                    insights in real-time. It integrates seamlessly with your workflow...
+                benefits:
+                  type: string
+                  minLength: 101
+                  description: Explanation of the benefits of using the agent. Must be more than 100 characters.
+                  example: |
+                    Using this agent helps improve productivity by automating repetitive tasks, reducing errors,
+                    and providing actionable insights in real time...
+                why_use:
+                  type: string
+                  minLength: 101
+                  description: Explanation of why users should choose this agent. Must be more than 100 characters.
+                  example: |
+                    This agent offers unique value by combining advanced machine learning algorithms with 
+                    user-friendly integrations across multiple platforms...
+      responses:
+        200:
+          description: Successfully published the agent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: agent published successfully.
+                    description: A message describing the result.
+                  data:
+
+        400:
+          description: Invalid request body or parameters.
+        401:
+          description: Unauthorized – missing or invalid token.
+        404:
+          description: Agent not found.
+        500:
+          description: Internal server error.
+
+
+#  Market place
+  /marketplace/categories:
+    get:
+      summary: Get all marketplace categories
+      description: >
+        Fetch a list of all available categories for agents, workflows, and skills 
+        in the marketplace.
+      tags:
+        - Marketplace
+      responses:
+        "200":
+          description: Successfully retrieved categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: categories retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      agents:
+                        type: array
+                        items:
+                          type: string
+                        example: ["chatbots", "analytics", "security"]
+                      workflow:
+                        type: array
+                        items:
+                          type: string
+                        example: ["automation", "reporting"]
+                      skills:
+                        type: array
+                        items:
+                          type: string
+                        example: ["python", "golang", "sql"]
+        "500":
+          description: Failed to fetch categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Failed to fetch categories
+                  error:
+                    type: string
+                    example: database connection error
+
+  /skills/search:
+    get:
+      summary: Search skills
+      description: >
+        Search available skills in the marketplace by keyword or filters.
+      tags:
+        - Marketplace
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search keyword for skills
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: Sort order
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: page
+          schema:
+            type: integer
+            example: 1
+          required: false
+          description: Page number for pagination
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            example: 10
+          required: false
+          description: Number of items per page
+      responses:
+        "200":
+          description: Successfully retrieved skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: skills retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+        "404":
+          description: No skills found
+        "500":
+          description: Server error
+
+  /workflows/search:
+    get:
+      summary: Search workflows
+      description: >
+        Search available workflows in the marketplace by keyword or filters.
+      tags:
+        - Marketplace
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search keyword for skills
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: Sort order
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: page
+          schema:
+            type: integer
+            example: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Successfully retrieved workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: workflows retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workflow'
+        "404":
+          description: No workflows found
+        "500":
+          description: Server error
+
+  /agents/search:
+    get:
+      summary: Search agents
+      description: >
+        Search available agents in the marketplace by keyword or filters.
+      tags:
+        - Marketplace
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search keyword for skills
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: Sort order
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: featured
+          schema:
+            type: boolean
+            example: true
+          description: Query for featured agents
+        - in: query
+          name: page
+          schema:
+            type: integer
+            example: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Successfully retrieved agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: agents retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+        "404":
+          description: No agents found
+        "500":
+          description: Server error
+
   /organisations/{organisationId}/agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt
@@ -11956,6 +12288,7 @@ paths:
       description: Retrieve a list of system agent.
       tags:
         - System Agents
+        - Marketplace
       responses:
         200:
           description: Successfully retrieved the list of agents.
@@ -11988,10 +12321,9 @@ paths:
     get:
       summary: Get a single agent
       description: Retrieve a system agent from telex.
-      security:
-        - bearerAuth: []
       tags:
         - System Agents
+        - Marketplace
       parameters:
         - name: agentId
           in: path
@@ -17750,9 +18082,8 @@ paths:
     get:
       tags:
         - Workflow
+        - Marketplace
       summary: Get workflow by ID
-      security:
-        - bearerAuth: []
       parameters:
         - name: workflow_id
           in: path
@@ -17800,9 +18131,8 @@ paths:
     get:
       tags:
         - Workflow
+        - Marketplace
       summary: Get all workflows
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Workflows retrieved successfully
@@ -18086,9 +18416,8 @@ paths:
     get:
       tags:
         - Skills
+        - Marketplace
       summary: Get all agent skills
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Agent skills retrieved successfully
@@ -18133,9 +18462,8 @@ paths:
     get:
       tags:
         - Skills
+        - Marketplace
       summary: Get agent skill by ID
-      security:
-        - bearerAuth: []
       parameters:
         - name: skill_id
           in: path
@@ -18218,6 +18546,9 @@ paths:
                 avatar:
                   type: string
                   example: "https://example.com/images/sales-bot.png"
+                category:
+                  type: string
+                  example: "Mail"
                 agent_config:
                   type: object
                   additionalProperties: true
@@ -22177,6 +22508,65 @@ components:
             num_users:
               type: integer
               example: 10
+    Skill:
+      type: object
+      properties:
+        skill_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        is_active:
+          type: boolean
+        is_configured:
+          type: boolean
+        avatar:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        avatar:
+          type: string
+        is_active:
+          type: boolean
+        category:
+          type: string
+        stars:
+          type: integer
 
     Webhook:
       type: object
