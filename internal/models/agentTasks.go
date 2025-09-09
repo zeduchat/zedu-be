@@ -10,12 +10,13 @@ import (
 )
 
 type Task struct {
-	ID        string    `json:"id" gorm:"type:uuid;primaryKey"`
-	AgentID   string    `json:"agent_id" gorm:"type:uuid;index"`
-	Text      string    `gorm:"type:text" json:"text"`
-	Position  int       `gorm:"type:int" json:"position"`
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID             string    `json:"id" gorm:"type:uuid;primaryKey"`
+	AgentID        string    `json:"agent_id" gorm:"type:uuid;index"`
+	OrganisationID string    `json:"org_id" gorm:"type:uuid;index"`
+	Text           string    `gorm:"type:text" json:"text"`
+	Position       int       `gorm:"type:int" json:"position"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type TaskSkill struct {
@@ -30,14 +31,15 @@ type UpdateAgentTasksRequest struct {
 }
 
 type CreateAgentTasksRequest struct {
-	AgentID  string `json:"agentId"`
-	Text     string `json:"text"`
-	Position int    `json:"position"`
+	AgentID        string `json:"agentId"`
+	OrganisationID string `json:"org_id"`
+	Text           string `json:"text"`
+	Position       int    `json:"position"`
 }
 
-func (t *Task) GetAgentTasks(db *gorm.DB, agentID string) ([]Task, error) {
+func (t *Task) GetAgentTasks(db *gorm.DB, agentID, orgID string) ([]Task, error) {
 	var tasks []Task
-	err := db.Where("agent_id = ?", agentID).Order("position").Find(&tasks).Error
+	err := db.Where("agent_id = ? AND organisation_id = ?", agentID, orgID).Order("position").Find(&tasks).Error
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +57,7 @@ func (t *Task) CreateTasks(db *gorm.DB) (int, error) {
 
 func (t *Task) UpdateAgentTasks(db *gorm.DB, req UpdateAgentTasksRequest, ids IDS) (int, error) {
 	var (
-		task  Task
+		task Task
 	)
 
 	exists := postgresql.CheckExists(db, &task, "id = ? AND agent_id = ?", ids.TaskID, ids.AgentID)

@@ -20,10 +20,11 @@ import (
 func CreateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.CreateAgentTasksRequest) (int, models.Task, error) {
 
 	task := models.Task{
-		ID:       utility.GenerateUUID(),
-		AgentID:  req.AgentID,
-		Text:     req.Text,
-		Position: req.Position,
+		ID:             utility.GenerateUUID(),
+		AgentID:        req.AgentID,
+		Text:           req.Text,
+		OrganisationID: req.OrganisationID,
+		Position:       req.Position,
 	}
 
 	code, err := task.CreateTasks(db)
@@ -65,11 +66,11 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 	}
 
 	var agent models.OrganisationIntegrations
-	if !postgresql.CheckExists(db, &agent, "integration_id = ?", ids.AgentID) {
+	if !postgresql.CheckExists(db, &agent, "integration_id = ? AND org_id", ids.AgentID, ids.OrganisationID) {
 		return fail(http.StatusNotFound, "agent not found", nil)
 	}
 
-	tasks, code, err := GetAgentTasks(c, db, logger, ids.AgentID)
+	tasks, code, err := GetAgentTasks(c, db, logger, ids.AgentID, ids.OrganisationID)
 	if err != nil {
 		return fail(code, "error fetching tasks", err)
 	}
@@ -275,10 +276,10 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 	return nil
 }
 
-func GetAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, agentID string) ([]models.Task, int, error) {
+func GetAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, agentID, orgID string) ([]models.Task, int, error) {
 	var task models.Task
 
-	tasks, err := task.GetAgentTasks(db, agentID)
+	tasks, err := task.GetAgentTasks(db, agentID, orgID)
 	if err != nil {
 		logger.Error("error fetching tasks", err)
 		return nil, http.StatusInternalServerError, err

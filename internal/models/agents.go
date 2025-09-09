@@ -2423,9 +2423,9 @@ func (i *Integrations) AdminDeleteSystemAgentApp(db *gorm.DB, logger utility.Log
 	return nil, http.StatusOK
 }
 
-func (oi *OrganisationIntegrations) CheckAgentExists(db *gorm.DB, agentID string) (bool, error) {
+func (oi *OrganisationIntegrations) CheckAgentExists(db *gorm.DB, agentID, orgID string) (bool, error) {
 
-	err := db.Where("integration_id = ?", agentID).First(&oi).Error
+	err := db.Where("integration_id = ? AND org_id = ?", agentID, orgID).First(&oi).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil

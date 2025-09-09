@@ -102,7 +102,6 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 		},
 	}
 	
-	fmt.Println("====================================================", req.Messages)
 
 	ai_response, code, err := telexai.TranslatorCompletions(logger, extReq, req)
 	if err != nil {
@@ -126,7 +125,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		aw          models.AgentWorkflow
 	)
 
-	exists, err := agents.CheckAgentExists(db, agentID)
+	exists, err := agents.CheckAgentExists(db, agentID, orgID)
 	if !exists {
 		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
 	}
@@ -134,7 +133,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 
-	tasks, err := (task).GetAgentTasks(db, agentID)
+	tasks, err := (task).GetAgentTasks(db, agentID, orgID)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
