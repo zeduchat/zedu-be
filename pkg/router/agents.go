@@ -32,6 +32,7 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	{
 		skillUrl.GET("", agentsCtrl.GetGeneralAgentSkill)
 		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
+		skillUrl.GET("/search", agentsCtrl.SearchSkills)
 	}
 
 	//agent tasks

@@ -46,6 +46,7 @@ func WorkflowRoutes(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	{
 		wGMPGroup.GET("/:workflow_id", wfCtrl.GetGeneralMarketPlaceWorkflowByID)
 		wGMPGroup.GET("/", wfCtrl.GetGeneralMarketWorkflows)
+		wGMPGroup.GET("/search", wfCtrl.SearchWorkflows)
 	}
 
 	return r

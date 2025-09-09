@@ -331,3 +331,23 @@ func (base *Controller) AddSkillsToAgent(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Skill added to agent successfully", nil)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) SearchSkills(c *gin.Context) {
+	skills, paginationResponse, err, code := agents.SearchSkillsService(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to search skills", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to search skills", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(*skills),
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "skills retrieved successfully.", skills, paginationData)
+	c.JSON(http.StatusOK, rd)
+}

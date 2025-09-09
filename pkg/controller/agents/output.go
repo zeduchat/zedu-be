@@ -112,3 +112,25 @@ func (base *Controller) TriggerTick(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "tick called successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
+
+// Search Agents (featured, category, or keyword search)
+func (base *Controller) SearchAgents(c *gin.Context) {
+	agents, paginationResponse, err, code := agents.SearchAgentsService(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to search agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to search agents", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(*agents),
+	}
+
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
