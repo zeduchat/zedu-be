@@ -11987,7 +11987,7 @@ paths:
           name: sort_by
           schema:
             type: string
-          description: Sort order
+          description: Sort order, sort by name or rating
         - in: query
           name: category
           schema:
@@ -12047,7 +12047,7 @@ paths:
           name: sort_by
           schema:
             type: string
-          description: Sort order
+          description: Sort order, sort by name or rating
         - in: query
           name: category
           schema:
@@ -12103,7 +12103,7 @@ paths:
           name: sort_by
           schema:
             type: string
-          description: Sort order
+          description: Sort order, sort by name or rating
         - in: query
           name: category
           schema:
