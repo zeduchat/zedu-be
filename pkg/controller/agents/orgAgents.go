@@ -1299,3 +1299,17 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Agents updated successfully", nil)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) GetAllCategories(c *gin.Context) {
+	resp, err := agents.GetAllCategories(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch categories", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch categories", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("categories retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp, nil)
+	c.JSON(http.StatusOK, rd)
+}

@@ -146,3 +146,34 @@ func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkf
 	}
 	return &resp, pagination, nil, code
 }
+
+// Categories
+
+func GetAllCategories(c *gin.Context, db *gorm.DB) (gin.H, error) {
+	// Fetch agent categories
+	agentCategories, err := models.GetUniqueCategories(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch workflow categories
+	workflowCategories, err := models.GetUniqueWorkflowCategories(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch skill categories
+	skillCategories, err := models.GetUniqueSkillsCategories(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build response
+	response := gin.H{
+		"agents":   agentCategories,
+		"workflow": workflowCategories,
+		"skills":   skillCategories,
+	}
+
+	return response, nil
+}

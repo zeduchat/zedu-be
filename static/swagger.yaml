@@ -11911,6 +11911,228 @@ paths:
         500:
           description: Internal server error.
 
+
+#  Market place
+  /marketplace/categories:
+    get:
+      summary: Get all marketplace categories
+      description: >
+        Fetch a list of all available categories for agents, workflows, and skills 
+        in the marketplace.
+      tags:
+        - Marketplace
+      responses:
+        "200":
+          description: Successfully retrieved categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: categories retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      agents:
+                        type: array
+                        items:
+                          type: string
+                        example: ["chatbots", "analytics", "security"]
+                      workflow:
+                        type: array
+                        items:
+                          type: string
+                        example: ["automation", "reporting"]
+                      skills:
+                        type: array
+                        items:
+                          type: string
+                        example: ["python", "golang", "sql"]
+        "500":
+          description: Failed to fetch categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Failed to fetch categories
+                  error:
+                    type: string
+                    example: database connection error
+
+  /skills/search:
+    get:
+      summary: Search skills
+      description: >
+        Search available skills in the marketplace by keyword or filters.
+      tags:
+        - Marketplace
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search keyword for skills
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: page
+          schema:
+            type: integer
+            example: 1
+          required: false
+          description: Page number for pagination
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            example: 10
+          required: false
+          description: Number of items per page
+      responses:
+        "200":
+          description: Successfully retrieved skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: skills retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+        "404":
+          description: No skills found
+        "500":
+          description: Server error
+
+  /workflows/search:
+    get:
+      summary: Search workflows
+      description: >
+        Search available workflows in the marketplace by keyword or filters.
+      tags:
+        - Marketplace
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search keyword for skills
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: page
+          schema:
+            type: integer
+            example: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Successfully retrieved workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: workflows retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workflow'
+        "404":
+          description: No workflows found
+        "500":
+          description: Server error
+
+  /agents/search:
+    get:
+      summary: Search agents
+      description: >
+        Search available agents in the marketplace by keyword or filters.
+      tags:
+        - Marketplace
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search keyword for skills
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: featured
+          schema:
+            type: boolean
+            example: true
+          description: Query for featured agents
+        - in: query
+          name: page
+          schema:
+            type: integer
+            example: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Successfully retrieved agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: agents retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+        "404":
+          description: No agents found
+        "500":
+          description: Server error
+
   /organisations/{organisationId}/agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt
@@ -22272,6 +22494,65 @@ components:
             num_users:
               type: integer
               example: 10
+    Skill:
+      type: object
+      properties:
+        skill_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        is_active:
+          type: boolean
+        is_configured:
+          type: boolean
+        avatar:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        avatar:
+          type: string
+        is_active:
+          type: boolean
+        category:
+          type: string
+        stars:
+          type: integer
 
     Webhook:
       type: object

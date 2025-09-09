@@ -159,7 +159,7 @@ func (s *GeneralAgentSkill) SearchSkills(db *gorm.DB, c *gin.Context, keyword st
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func (s *GeneralAgentSkill) ListSkillCategories(db *gorm.DB) ([]string, error) {
+func GetUniqueSkillsCategories(db *gorm.DB) ([]string, error) {
 	var categories []string
 
 	if err := db.Model(&GeneralAgentSkill{}).Distinct("category").Pluck("category", &categories).Error; err != nil {
@@ -214,7 +214,7 @@ func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword s
 	return workflows, paginationResponse, nil, http.StatusOK
 }
 
-func (w *GeneralWorkflow) GetUniqueWorkflowCategories(db *gorm.DB) ([]string, error) {
+func GetUniqueWorkflowCategories(db *gorm.DB) ([]string, error) {
 	var categories []string
 	if err := db.
 		Model(&GeneralWorkflow{}).
