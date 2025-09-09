@@ -180,14 +180,22 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		return
 	}
 
-	userClaims := claims.(jwt.MapClaims)
-	// orgID := userClaims["org_id"].(string)
-	userID := userClaims["user_id"].(string)
+	userClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "invalid user claims type", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "user_id must be string", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	ids := models.IDS{
-		// OrganisationID: orgID,
-		AgentID:        agentID,
-		UserID:         userID,
+		AgentID: agentID,
+		UserID:  userID,
 	}
 
 	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, ids)
