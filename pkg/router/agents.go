@@ -28,7 +28,6 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 	}
 
 	skillUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion))
-
 	{
 		skillUrl.GET("", agentsCtrl.GetGeneralAgentSkill)
 		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)

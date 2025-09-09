@@ -12273,6 +12273,7 @@ paths:
       description: Retrieve a list of system agent.
       tags:
         - System Agents
+        - Marketplace
       responses:
         200:
           description: Successfully retrieved the list of agents.
@@ -12305,10 +12306,9 @@ paths:
     get:
       summary: Get a single agent
       description: Retrieve a system agent from telex.
-      security:
-        - bearerAuth: []
       tags:
         - System Agents
+        - Marketplace
       parameters:
         - name: agentId
           in: path
@@ -18067,9 +18067,8 @@ paths:
     get:
       tags:
         - Workflow
+        - Marketplace
       summary: Get workflow by ID
-      security:
-        - bearerAuth: []
       parameters:
         - name: workflow_id
           in: path
@@ -18117,6 +18116,7 @@ paths:
     get:
       tags:
         - Workflow
+        - Marketplace
       summary: Get all workflows
       security:
         - bearerAuth: []
@@ -18403,9 +18403,8 @@ paths:
     get:
       tags:
         - Skills
+        - Marketplace
       summary: Get all agent skills
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Agent skills retrieved successfully
@@ -18450,9 +18449,8 @@ paths:
     get:
       tags:
         - Skills
+        - Marketplace
       summary: Get agent skill by ID
-      security:
-        - bearerAuth: []
       parameters:
         - name: skill_id
           in: path
@@ -18535,6 +18533,9 @@ paths:
                 avatar:
                   type: string
                   example: "https://example.com/images/sales-bot.png"
+                category:
+                  type: string
+                  example: "Mail"
                 agent_config:
                   type: object
                   additionalProperties: true
