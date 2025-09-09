@@ -108,12 +108,12 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 	}
 
 	if len(recommendedSkills) > 0 {
-		if err := StoreAgentSkills(db, logger, recommendedSkills, ids.AgentID, agent.OrgID, ids.UserID); err != nil {
+		if err := StoreAgentSkills(db, logger, recommendedSkills, ids.AgentID, ids.OrganisationID, ids.UserID); err != nil {
 			return fail(http.StatusOK, "Failed to store agent workflow skills", err)
 		}
 	}
 
-	wkfJSON, statusCode, err := translator.GenerateWorkflowJSON(db, logger, extReq, ids.AgentID)
+	wkfJSON, statusCode, err := translator.GenerateWorkflowJSON(db, logger, extReq, ids.AgentID, ids.OrganisationID)
 	if err != nil {
 		logger.Error("failed to generate workflow json: ", err)
 		return statusCode, gin.H{
