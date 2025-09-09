@@ -219,6 +219,7 @@ type OrganisationIntegrations struct {
 	Title              string             `gorm:"column:title;type:text;" json:"title"`
 	Visibility         string             `gorm:"column:visibility;type:varchar(255);default:public;" json:"visibility"`
 	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
+	Stars              int64              `gorm:"default:1" json:"stars"`
 }
 
 type AdminAgentResp struct {
@@ -2522,7 +2523,7 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	genAgent.Category = req.Category
 	genAgent.HowItWorks = req.HowItWorks
 	genAgent.ID = agent.IntegrationID
-	genAgent.OwnerID = agent.OwnerID
+	genAgent.OwnerID = req.UserId
 	genAgent.PreSharedKey = agent.PreSharedKey
 	genAgent.SystemPrompts = agent.SystemPrompts
 	genAgent.Snapshot = req.Snapshot
@@ -2530,6 +2531,7 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	genAgent.Tone = agent.Tone
 	genAgent.Skills = agent.Skills
 	genAgent.Version = agent.Version
+	genAgent.Stars = agent.Stars
 
 	if err := db.Save(&genAgent).Error; err != nil {
 		return http.StatusInternalServerError, err

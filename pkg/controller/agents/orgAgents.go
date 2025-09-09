@@ -1286,6 +1286,7 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	req.OrgId = userClaims["org_id"].(string)
 	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
 
 	code, err := agents.PublishAgent(req, base.Db.Postgresql)
 	if err != nil {
