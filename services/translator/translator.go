@@ -101,6 +101,8 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 			},
 		},
 	}
+	
+	fmt.Println("====================================================", req.Messages)
 
 	ai_response, code, err := telexai.TranslatorCompletions(logger, extReq, req)
 	if err != nil {
@@ -190,9 +192,10 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	}
 
 	resp := models.TranslationResponse{
-		Status:      "success",
 		ProcessStep: stepProcess,
 	}
+
+	fmt.Printf("Step Process result: %+v\n", stepProcess)
 
 	wkfJson, err := ConvertToJSONObject(resp.ProcessStep[len(resp.ProcessStep)-1].Output)
 	if err != nil {
