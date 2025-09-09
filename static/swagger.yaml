@@ -11816,6 +11816,101 @@ paths:
         404:
           description: Organisation not found.
 
+  /agents/{agent_id}/publish:
+    post:
+      summary: Publish an agent
+      description: Publishes an agent by providing required details such as category, snapshots, how it works, benefits, and why to use.
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The unique identifier of the agent to publish.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category:
+                  type: string
+                  description: Category of the agent. Must match a valid category from the system.
+                  example: Knowledge Management
+                snapshots:
+                  type: array
+                  minItems: 1
+                  description: A list of snapshots describing the agent.
+                  items:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        maxLength: 19
+                        description: Short title for the snapshot (max 19 characters).
+                        example: Quick Start
+                      description:
+                        type: string
+                        maxLength: 79
+                        description: Short description of the snapshot (max 79 characters).
+                        example: Helps you get started quickly with minimal setup.
+                how_it_works:
+                  type: string
+                  minLength: 101
+                  description: Detailed explanation of how the agent works. Must be more than 100 characters.
+                  example: |
+                    This agent connects to multiple data sources and leverages AI models to provide 
+                    insights in real-time. It integrates seamlessly with your workflow...
+                benefits:
+                  type: string
+                  minLength: 101
+                  description: Explanation of the benefits of using the agent. Must be more than 100 characters.
+                  example: |
+                    Using this agent helps improve productivity by automating repetitive tasks, reducing errors,
+                    and providing actionable insights in real time...
+                why_use:
+                  type: string
+                  minLength: 101
+                  description: Explanation of why users should choose this agent. Must be more than 100 characters.
+                  example: |
+                    This agent offers unique value by combining advanced machine learning algorithms with 
+                    user-friendly integrations across multiple platforms...
+      responses:
+        200:
+          description: Successfully published the agent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Status of the response.
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code.
+                  message:
+                    type: string
+                    example: agent published successfully.
+                    description: A message describing the result.
+                  data:
+
+        400:
+          description: Invalid request body or parameters.
+        401:
+          description: Unauthorized – missing or invalid token.
+        404:
+          description: Agent not found.
+        500:
+          description: Internal server error.
+
   /organisations/{organisationId}/agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt

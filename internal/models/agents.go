@@ -50,6 +50,11 @@ type Integrations struct {
 	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
 	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
 	Category           string             `gorm:"type:text" json:"category"`
+	Snapshot           Snapshots          `gorm:"type:jsonb" json:"snapshot"`
+	HowItWorks         string             `gorm:"type:text" json:"how_it_works"`
+	Benefits           string             `gorm:"type:text" json:"benefits"`
+	WhyUse             string             `gorm:"type:text" json:"why_use"`
+	Stars              int64              `gorm:"default:1" json:"stars"`
 }
 
 type CreateAgentRequest struct {
@@ -64,6 +69,17 @@ type CreateAgentRequest struct {
 	OrgId         string            `json:"-"`
 	AgentId       string            `json:"-"`
 	SkillId       string            `json:"-"`
+}
+
+type PublishAgentRequest struct {
+	Category   string    `json:"category" validate:"required"`
+	Snapshot   Snapshots `json:"snapshots" validate:"required,min=1,dive"`
+	HowItWorks string    `json:"how_it_works" validate:"required,min=101"`
+	Benefits   string    `json:"benefits" validate:"required,min=101"`
+	WhyUse     string    `json:"why_use" validate:"required,min=101"`
+	UserId     string    `json:"-"`
+	AgentId    string    `json:"-"`
+	OrgId      string    `json:"-"`
 }
 
 type UpdateAgentPromptRequest struct {
@@ -160,9 +176,15 @@ type CapabilitiesObject struct {
 	StateTransitionHistory bool `json:"stateTransitionHistory"`
 }
 
+type Snapshot struct {
+	Title       string `json:"title" validate:"required,max=19"`
+	Description string `json:"description" validate:"required,max=79"`
+}
+
 type JSONPrices []Price
 type JSONSkills []Skill
 type JSONSystemPrompts []SystemPrompts
+type Snapshots []Snapshot
 
 type OrganisationIntegrations struct {
 	ID                 string             `gorm:"type:uuid;primary_key" json:"id"`
@@ -339,6 +361,7 @@ type AgentResp struct {
 	Visibility    string            `json:"visibility"`
 	SystemPrompts JSONSystemPrompts `json:"system_prompts"`
 	Category      string            `json:"category,omitempty"`
+	Stars         int64             `json:"stars"`
 }
 
 type IntegrationBills struct {
@@ -380,6 +403,73 @@ type IntegrationBillsResponse struct {
 type IntegrationApp struct {
 	IntegrationID string
 	AppName       string
+}
+
+var Categories = map[string]bool{
+	"Monitoring & Logging":             true,
+	"Communication & Collaboration":    true,
+	"Security & Compliance":            true,
+	"Performance Monitoring":           true,
+	"Website Uptime":                   true,
+	"Social Media Management":          true,
+	"CRM & Customer Support":           true,
+	"Marketing Automation":             true,
+	"Data Analytics & Visualization":   true,
+	"Finance & Payments":               true,
+	"Project Management":               true,
+	"E-commerce & Retail":              true,
+	"Task Automation":                  true,
+	"Cloud Services":                   true,
+	"Human Resources & Payroll":        true,
+	"Email & Messaging":                true,
+	"IT Service Management":            true,
+	"Development & Code Management":    true,
+	"DevOps & CI/CD":                   true,
+	"Knowledge Management":             true,
+	"Research & Information Retrieval": true,
+	"Document Processing & Summaries":  true,
+	"Legal & Contract Management":      true,
+	"Healthcare & Telemedicine":        true,
+	"Sales & Lead Generation":          true,
+	"Education & Learning":             true,
+	"Content Creation & Copywriting":   true,
+	"Design & Creative Tools":          true,
+	"Video & Multimedia Editing":       true,
+	"Customer Feedback & Surveys":      true,
+	"Productivity & Scheduling":        true,
+	"Translation & Localization":       true,
+	"Supply Chain & Logistics":         true,
+	"Travel & Hospitality":             true,
+	"Energy & Sustainability":          true,
+	"Gaming & Entertainment":           true,
+	"Government & Public Services":     true,
+	"Real Estate & Property":           true,
+	"Legal Research & Compliance":      true,
+}
+
+func (agent *Integrations) GetUseableCategories() gin.H {
+	keys := make([]string, 0, len(Categories))
+	for k := range Categories {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	resp := gin.H{
+		"categories": keys,
+	}
+	return resp
+}
+
+func (p *Snapshots) Scan(value any) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal Snapshots: value is not []byte")
+	}
+
+	return json.Unmarshal(bytes, p)
+}
+
+func (p Snapshots) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }
 
 func (p *JSONPrices) Scan(value any) error {
@@ -1381,31 +1471,6 @@ func (oi *CustomIntegrationsSetting) UpdateCustomIntegrationSettings(db *gorm.DB
 }
 
 func ValidateAgentData(data_r map[string]any) error {
-
-	var categories = map[string]bool{
-		"Monitoring & Logging":           true,
-		"Communication & Collaboration":  true,
-		"Security & Compliance":          true,
-		"Performance Monitoring":         true,
-		"Website Uptime":                 true,
-		"Social Media Management":        true,
-		"CRM & Customer Support":         true,
-		"Marketing Automation":           true,
-		"Data Analytics & Visualization": true,
-		"Finance & Payments":             true,
-		"Project Management":             true,
-		"E-commerce & Retail":            true,
-		"AI & Machine Learning":          true,
-		"Task Automation":                true,
-		"Cloud Services":                 true,
-		"Human Resources & Payroll":      true,
-		"Email & Messaging":              true,
-		"IT Service Management":          true,
-		"Development & Code Management":  true,
-		"DevOps & CI/CD":                 true,
-	}
-
-	_ = categories
 
 	app_name, ok := data_r["name"].(string)
 	if !ok || app_name == "" {
@@ -2435,4 +2500,39 @@ func (oi *OrganisationIntegrations) CheckAgentExists(db *gorm.DB, agentID string
 	}
 
 	return true, nil
+}
+
+func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gorm.DB) (int, error) {
+	var (
+		agent    OrganisationIntegrations
+		genAgent Integrations
+	)
+
+	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", req.AgentId)
+	if !exists {
+		return http.StatusBadRequest, errors.New("agent app does not exist")
+	}
+
+	genAgent.Name = agent.AppName
+	genAgent.AppDescription = agent.AppDescription
+	genAgent.AppLogo = agent.AppLogo
+	genAgent.Benefits = req.Benefits
+	genAgent.WhyUse = req.WhyUse
+	genAgent.Category = req.Category
+	genAgent.HowItWorks = req.HowItWorks
+	genAgent.ID = agent.IntegrationID
+	genAgent.OwnerID = agent.OwnerID
+	genAgent.PreSharedKey = agent.PreSharedKey
+	genAgent.SystemPrompts = agent.SystemPrompts
+	genAgent.Snapshot = req.Snapshot
+	genAgent.Title = agent.Title
+	genAgent.Tone = agent.Tone
+	genAgent.Skills = agent.Skills
+	genAgent.Version = agent.Version
+
+	if err := db.Save(&genAgent).Error; err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }

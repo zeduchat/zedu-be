@@ -26,9 +26,29 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		return resp, http.StatusBadRequest, errors.New("agent already has the skill")
 	}
 
+	// add to general Agent skill
+
+	genAgentSkill := models.GeneralAgentSkill{
+		ID:           utility.GenerateUUID(),
+		Name:         req.Name,
+		Description:  req.Description,
+		Type:         req.Type,
+		IsActive:     true,
+		IsConfigured: false, // default
+		Avatar:       req.Avatar,
+		Config:       req.Config,
+		Link:         req.URLLink,
+		Tags:         req.Tags,
+		Category:     req.Category,
+	}
+
+	if err := genAgentSkill.CreateGeneralAgentSkill(db); err != nil {
+		return resp, http.StatusInternalServerError, err
+	}
+
 	agentSkill := models.AgentSkill{
 		ID:           utility.GenerateUUID(),
-		SkillId:      utility.GenerateUUID(),
+		SkillId:      genAgentSkill.ID,
 		Name:         req.Name,
 		AgentId:      req.AgentId,
 		Description:  req.Description,
@@ -41,6 +61,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Tags:         req.Tags,
 		OrgId:        req.OrgId,
 		UserId:       req.UserId,
+		Category:     req.Category,
 	}
 
 	if err := agentSkill.CreateAgentSkill(db); err != nil {
@@ -57,6 +78,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Avatar:       agentSkill.Avatar,
 		Config:       agentSkill.Config,
 		Tags:         agentSkill.Tags,
+		Category:     agentSkill.Category,
 	}
 
 	return resp, http.StatusCreated, nil

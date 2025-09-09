@@ -1,9 +1,10 @@
 package seed
 
 import (
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
-	"gorm.io/gorm"
 )
 
 func SeedPlans(logger *utility.Logger, db *gorm.DB) {
@@ -32,7 +33,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				IsForIndividuals:         true,
 				IsForSmallBusiness:       false,
 				IsForLargeEnterprise:     false,
-				Credits:                  0,
+				Credits:                  10,
 				UnlimitedAICoWorkers:     true,
 				CreateYourOwnAICoWorkers: true,
 				AICreditsPurchasable:     true,
