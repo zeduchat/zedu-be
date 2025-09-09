@@ -2,6 +2,7 @@ package agents
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -65,7 +66,7 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 
 	var agent models.OrganisationIntegrations
 	if !postgresql.CheckExists(db, &agent, "integration_id = ?", ids.AgentID) {
-		return fail(http.StatusOK, "error getting agentID", nil)
+		return fail(http.StatusNotFound, "agent not found", nil)
 	}
 
 	tasks, code, err := GetAgentTasks(c, db, logger, ids.AgentID)
@@ -73,8 +74,7 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 		return fail(code, "error fetching tasks", err)
 	}
 	if len(tasks) == 0 {
-		logger.Info("No tasks found for agent")
-		return http.StatusOK, emptyResp(), nil
+		return fail(http.StatusBadRequest, "No tasks found for agent", errors.New("no tasks found for agent"))
 	}
 
 	var gas models.GeneralAgentSkill
@@ -86,6 +86,10 @@ func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extR
 	allRecommendedSkills, err := GetRecommendedSkills(db, extReq, logger, tasks, generalSkills, ids.AgentID)
 	if err != nil {
 		return fail(http.StatusOK, "Failed to get recommended agent workflow skills", err)
+	}
+
+	if len(allRecommendedSkills) == 0 {
+		return fail(http.StatusBadRequest, "No Skills Recommended from global skills", errors.New("no skills recommended for agent from global skills"))
 	}
 
 	recommendedSkills := make([]models.GeneralAgentSkill, 0)
@@ -157,7 +161,7 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 		- The output must be a valid JSON array containing UNIQUE skill IDs only, for example:
 		["skill-id-1", "skill-id-2"]
 
-		Return ONLY the JSON array, nothing else.`
+		Return ONLY the JSON array, nothing else. BE VERY ACCURATE`
 
 	input := fmt.Sprintf("Skills: %+v\n\nTasks:\n%s", skills, taskDescriptions.String())
 
@@ -221,10 +225,6 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 
 	logger.Info(fmt.Sprintf("Attempting to store %d recommended skills", len(recommendedskills)))
 	var as []models.AgentSkill
-	if len(recommendedskills) == 0 {
-		logger.Info("No recommended skills to store")
-		return nil
-	}
 
 	tx := db.Begin()
 	if tx.Error != nil {
