@@ -1301,6 +1301,7 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 }
 
 func (base *Controller) GetAllCategories(c *gin.Context) {
+
 	resp, err := agents.GetAllCategories(c, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to fetch categories", err)
@@ -1310,6 +1311,6 @@ func (base *Controller) GetAllCategories(c *gin.Context) {
 	}
 
 	base.Logger.Info("categories retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp, nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp)
 	c.JSON(http.StatusOK, rd)
 }

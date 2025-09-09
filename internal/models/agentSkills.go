@@ -32,7 +32,7 @@ type AgentSkill struct {
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	UserId       string         `gorm:"type:uuid" json:"-"`
 	OrgId        string         `gorm:"type:uuid" json:"-"`
-	Category     string         `gorm:"type:text" json:"category"`
+	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
 
 type GeneralAgentSkill struct {
@@ -48,7 +48,7 @@ type GeneralAgentSkill struct {
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	Config       JSONBMapArr    `gorm:"type:jsonb" json:"agent_config"`
 	Stars        int64          `gorm:"default:1" json:"stars"`
-	Category     string         `gorm:"type:text" json:"category"`
+	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
 
 type CreateAgentSkillRequest struct {

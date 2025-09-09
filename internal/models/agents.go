@@ -49,7 +49,7 @@ type Integrations struct {
 	Title              string             `gorm:"column:title;type:text;" json:"title"`
 	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
 	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
-	Category           string             `gorm:"type:text" json:"category"`
+	Category           string             `gorm:"type:text;default:default" json:"category"`
 	Snapshot           Snapshots          `gorm:"type:jsonb" json:"snapshot"`
 	HowItWorks         string             `gorm:"type:text" json:"how_it_works"`
 	Benefits           string             `gorm:"type:text" json:"benefits"`
@@ -212,6 +212,7 @@ type OrganisationIntegrations struct {
 	DefaultOutputModes []string           `gorm:"type:jsonb" json:"default_output_modes"`
 	PreSharedKey       string             `gorm:"type:varchar(64)" json:"preshared_key"`
 	Skills             JSONSkills         `gorm:"type:jsonb" json:"skills"`
+	Category           string             `gorm:"type:text;default:default" json:"category"`
 	CommissionRate     float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
 	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
 	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
@@ -359,7 +360,7 @@ type AgentResp struct {
 	Title         string            `json:"title"`
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility"`
-	SystemPrompts JSONSystemPrompts `json:"system_prompts"`
+	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
 	Category      string            `json:"category,omitempty"`
 	Stars         int64             `json:"stars"`
 }

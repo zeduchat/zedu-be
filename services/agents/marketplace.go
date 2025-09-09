@@ -24,6 +24,7 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 	search := c.Query("search")
 	category := c.Query("category")
 	featured := c.Query("featured")
+	sortBy := c.Query("sort_by")
 
 	var (
 		pagination postgresql.PaginationResponse
@@ -32,12 +33,12 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 	)
 
 	switch {
+	case category != "":
+		resp, pagination, err, code = agents.GetAgentsByCategory(db, c, category, sortBy)
+	case search != "":
+		resp, pagination, err, code = agents.SearchAgents(db, c, search, sortBy)
 	case featured == "true":
 		resp, pagination, err, code = agents.GetFeaturedAgents(db, c)
-	case category != "":
-		resp, pagination, err, code = agents.GetAgentsByCategory(db, c, category)
-	case search != "":
-		resp, pagination, err, code = agents.SearchAgents(db, c, search)
 	default:
 		return &[]models.AgentResp{}, postgresql.PaginationResponse{}, errors.New("invalid search query"), http.StatusBadRequest
 	}
@@ -77,6 +78,7 @@ func SearchSkillsService(c *gin.Context, db *gorm.DB) (*[]models.AgentSkillRespo
 
 	search := c.Query("search")
 	category := c.Query("category")
+	sortBy := c.Query("sort_by")
 
 	var (
 		pagination postgresql.PaginationResponse
@@ -86,9 +88,9 @@ func SearchSkillsService(c *gin.Context, db *gorm.DB) (*[]models.AgentSkillRespo
 
 	switch {
 	case category != "":
-		resp, pagination, err, code = skill.GetSkillsByCategory(db, c, category)
+		resp, pagination, err, code = skill.GetSkillsByCategory(db, c, category, sortBy)
 	case search != "":
-		resp, pagination, err, code = skill.SearchSkills(db, c, search)
+		resp, pagination, err, code = skill.SearchSkills(db, c, search, sortBy)
 	default:
 		return &[]models.AgentSkillResponse{}, postgresql.PaginationResponse{}, errors.New("invalid search query"), http.StatusBadRequest
 	}
@@ -125,6 +127,7 @@ func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkf
 
 	search := c.Query("search")
 	category := c.Query("category")
+	sortBy := c.Query("sort_by")
 
 	var (
 		pagination postgresql.PaginationResponse
@@ -134,9 +137,9 @@ func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkf
 
 	switch {
 	case category != "":
-		resp, pagination, err, code = workflow.GetWorkflowsByCategory(db, c, category)
+		resp, pagination, err, code = workflow.GetWorkflowsByCategory(db, c, category, sortBy)
 	case search != "":
-		resp, pagination, err, code = workflow.SearchWorkflows(db, c, search)
+		resp, pagination, err, code = workflow.SearchWorkflows(db, c, search, sortBy)
 	default:
 		return &[]models.GeneralWorkflow{}, postgresql.PaginationResponse{}, errors.New("invalid search query"), http.StatusBadRequest
 	}
@@ -150,25 +153,22 @@ func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkf
 // Categories
 
 func GetAllCategories(c *gin.Context, db *gorm.DB) (gin.H, error) {
-	// Fetch agent categories
+
 	agentCategories, err := models.GetUniqueCategories(db)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch workflow categories
 	workflowCategories, err := models.GetUniqueWorkflowCategories(db)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch skill categories
 	skillCategories, err := models.GetUniqueSkillsCategories(db)
 	if err != nil {
 		return nil, err
 	}
 
-	// Build response
 	response := gin.H{
 		"agents":   agentCategories,
 		"workflow": workflowCategories,

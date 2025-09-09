@@ -11984,6 +11984,11 @@ paths:
             type: string
           description: Search keyword for skills
         - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: Sort order
+        - in: query
           name: category
           schema:
             type: string
@@ -12039,6 +12044,11 @@ paths:
             type: string
           description: Search keyword for skills
         - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: Sort order
+        - in: query
           name: category
           schema:
             type: string
@@ -12089,6 +12099,11 @@ paths:
           schema:
             type: string
           description: Search keyword for skills
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: Sort order
         - in: query
           name: category
           schema:
@@ -18118,8 +18133,6 @@ paths:
         - Workflow
         - Marketplace
       summary: Get all workflows
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Workflows retrieved successfully

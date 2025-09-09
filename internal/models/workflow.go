@@ -26,7 +26,7 @@ type Workflow struct {
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
-	Category        string                `gorm:"type:text" json:"category"`
+	Category        string                `gorm:"type:text;default:default" json:"category"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
@@ -41,7 +41,7 @@ type GeneralWorkflow struct {
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
-	Category        string                `gorm:"type:text" json:"category"`
+	Category        string                `gorm:"type:text;default:default" json:"category"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
