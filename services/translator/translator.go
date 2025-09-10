@@ -67,6 +67,7 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 
 		previousOutput = pStep.Output
 
+		fmt.Printf("input: %s\noutput: %s", pStep.Input, pStep.Output)
 		pStep.Status = "completed"
 		stepProcess = append(stepProcess, pStep)
 	}
@@ -101,7 +102,6 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 			},
 		},
 	}
-	
 
 	ai_response, code, err := telexai.TranslatorCompletions(logger, extReq, req)
 	if err != nil {
@@ -165,6 +165,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	}
 
 	promptSteps := []string{"Task Cleanup", "Skill Matching", "Workflow Translation"}
+	// promptSteps := []string{"Task Cleanup", "Skill Matching", }
 	steps := make([]models.StepReq, len(promptSteps))
 	for i, step := range promptSteps {
 		var prompt models.Prompts
@@ -185,6 +186,8 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		Steps:    steps,
 	}
 
+	fmt.Printf("%+v\n", req)
+
 	stepProcess, err := runTranslationPipeline(db, logger, extReq, taskList.String(), req)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusBadRequest, err
@@ -193,8 +196,6 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	resp := models.TranslationResponse{
 		ProcessStep: stepProcess,
 	}
-
-	fmt.Printf("Step Process result: %+v\n", stepProcess)
 
 	wkfJson, err := ConvertToJSONObject(resp.ProcessStep[len(resp.ProcessStep)-1].Output)
 	if err != nil {
