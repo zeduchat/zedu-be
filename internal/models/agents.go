@@ -177,8 +177,8 @@ type CapabilitiesObject struct {
 }
 
 type Snapshot struct {
-	Title       string `json:"title" validate:"required,max=19"`
-	Description string `json:"description" validate:"required,max=79"`
+	Title       string `json:"title" validate:"required,min=19"`
+	Description string `json:"description" validate:"required,min=20"`
 }
 
 type JSONPrices []Price
