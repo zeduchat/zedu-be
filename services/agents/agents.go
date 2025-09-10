@@ -198,6 +198,10 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		IsActive:    agent.IsActive,
 		Category:    agent.Category,
 		Stars:       agent.Stars,
+		Snapshot:    agents.Snapshot,
+		HowItWorks:  agents.HowItWorks,
+		Benefits:    agents.Benefits,
+		WhyUse:      agents.WhyUse,
 	}
 	return &resp, nil, code
 }
@@ -485,6 +489,10 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 			Description:   agents.AppDescription,
 			IsActive:      false,
 			SystemPrompts: agents.SystemPrompts,
+			Snapshot:      agents.Snapshot,
+			HowItWorks:    agents.HowItWorks,
+			Benefits:      agents.Benefits,
+			WhyUse:        agents.WhyUse,
 		}
 		return &resp, http.StatusOK, nil
 	}
@@ -499,6 +507,13 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		Description:   org_agents.AppDescription,
 		IsActive:      org_agents.IsActive,
 		SystemPrompts: org_agents.SystemPrompts,
+	}
+
+	if exists = postgresql.CheckExists(db, &agents, "id = ?", req.AgentId); exists {
+		resp.Benefits = agents.Benefits
+		resp.Snapshot = agents.Snapshot
+		resp.WhyUse = agents.WhyUse
+		resp.HowItWorks = agents.HowItWorks
 	}
 
 	return &resp, http.StatusOK, nil

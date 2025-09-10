@@ -364,6 +364,10 @@ type AgentResp struct {
 	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
 	Category      string            `json:"category,omitempty"`
 	Stars         int64             `json:"stars"`
+	Snapshot      Snapshots         `json:"snapshots,omitempty"`
+	HowItWorks    string            `json:"how_it_works,omitempty"`
+	Benefits      string            `json:"benefits,omitempty"`
+	WhyUse        string            `json:"why_use,omitempty"`
 }
 
 type IntegrationBills struct {
