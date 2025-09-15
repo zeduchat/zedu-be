@@ -531,8 +531,8 @@ func (base *Controller) DeleteAgentPrompt(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Agent updated successfully")
-	rd := utility.BuildSuccessResponse(code, "Agent updated successfully", nil)
+	base.Logger.Info("Agent prompt deleted successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent prompt deleted successfully", nil)
 	c.JSON(code, rd)
 }
 
@@ -585,8 +585,8 @@ func (base *Controller) CreateAgentPrompt(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Agent updated successfully")
-	rd := utility.BuildSuccessResponse(code, "Agent updated successfully", nil)
+	base.Logger.Info("Agent prompt created successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent prompt created successfully", nil)
 	c.JSON(code, rd)
 }
 
@@ -643,15 +643,7 @@ func (base *Controller) FetchCustomAgentPrompt(c *gin.Context) {
 		req models.CreateAgentRequest
 	)
 
-	org_id := c.Param("org_id")
 	agent_id := c.Param("agent_id")
-
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	if _, err := uuid.Parse(agent_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
@@ -669,9 +661,7 @@ func (base *Controller) FetchCustomAgentPrompt(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
-	req.OrgId = org_id
-
-	req.OrgId = org_id
+	req.OrgId = userClaims["org_id"].(string)
 	req.AgentId = agent_id
 
 	resp, code, err := agents.FetchCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)

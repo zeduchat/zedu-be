@@ -919,7 +919,7 @@ func (oi *OrganisationIntegrations) CreateCustomAgentPrompt(db *gorm.DB, req Upd
 		return http.StatusOK, errors.New("no record updated")
 	}
 
-	return http.StatusOK, nil
+	return http.StatusCreated, nil
 }
 
 func (oi *OrganisationIntegrations) DeleteCustomAgentPrompt(db *gorm.DB, req UpdateAgentPromptRequest) (int, error) {

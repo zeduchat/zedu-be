@@ -107,9 +107,9 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)
 		agentUrl.GET("/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
-		agentUrl.PUT("/:agent_id/prompts/prompt_id", agentsCtrl.UpdateAgentPrompt)
+		agentUrl.PATCH("/:agent_id/prompts/:prompt_id", agentsCtrl.UpdateAgentPrompt)
 		agentUrl.POST("/:agent_id/prompts", agentsCtrl.CreateAgentPrompt)
-		agentUrl.DELETE("/:agent_id/prompts/prompt_id", agentsCtrl.DeleteAgentPrompt)
+		agentUrl.DELETE("/:agent_id/prompts/:prompt_id", agentsCtrl.DeleteAgentPrompt)
 	}
 
 	// fetch all agents ---> will be used to get all agents on the superAdmin dashboard

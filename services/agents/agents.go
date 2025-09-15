@@ -469,7 +469,7 @@ func CreateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, e
 
 	var orgIntegration models.OrganisationIntegrations
 
-	code, err := orgIntegration.UpdateCustomAgentPrompt(db, req)
+	code, err := orgIntegration.CreateCustomAgentPrompt(db, req)
 
 	if err != nil {
 		return code, err
@@ -482,7 +482,7 @@ func DeleteCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, e
 
 	var orgIntegration models.OrganisationIntegrations
 
-	code, err := orgIntegration.UpdateCustomAgentPrompt(db, req)
+	code, err := orgIntegration.DeleteCustomAgentPrompt(db, req)
 
 	if err != nil {
 		return code, err
