@@ -1661,7 +1661,7 @@ paths:
                         current_page:
                           type: integer
                           example: 1
-                        page_size:
+                        limit:
                           type: integer
                           example: 20
                         total_items:
@@ -3467,7 +3467,7 @@ paths:
                         current_page:
                           type: integer
                           example: 1
-                        page_size:
+                        limit:
                           type: integer
                           example: 20
                         total_items:
@@ -8377,7 +8377,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - name: page_size
+        - name: limit
           in: query
           required: false
           description: The number of items per page for pagination
@@ -8427,7 +8427,7 @@ paths:
                       properties:
                         current_page:
                           type: integer
-                        page_size:
+                        limit:
                           type: integer
                         total_items:
                           type: integer
@@ -8750,7 +8750,7 @@ paths:
                           current_page:
                             type: integer
                             example: 1
-                          page_size:
+                          limit:
                             type: integer
                             example: 1
                           total_items:
@@ -8899,13 +8899,13 @@ paths:
                           current_page:
                             type: integer
                             example: 1
-                          page_size:
+                          limit:
                             type: integer
                             example: 1
                           total_items:
                             type: integer
                             example: 1
-                          total_pages:
+                          total_pages_count:
                             type: integer
                             example: 1
         "404":
@@ -9008,7 +9008,7 @@ paths:
                           current_page:
                             type: integer
                             example: 1
-                          page_size:
+                          limit:
                             type: integer
                             example: 1
                           total_items:
@@ -12001,7 +12001,7 @@ paths:
           required: false
           description: Page number for pagination
         - in: query
-          name: page_size
+          name: limit
           schema:
             type: integer
             example: 10
@@ -12059,7 +12059,7 @@ paths:
             type: integer
             example: 1
         - in: query
-          name: page_size
+          name: limit
           schema:
             type: integer
             example: 10
@@ -12121,7 +12121,7 @@ paths:
             type: integer
             example: 1
         - in: query
-          name: page_size
+          name: limit
           schema:
             type: integer
             example: 10
@@ -13383,7 +13383,7 @@ paths:
                       current_page:
                         type: integer
                         description: The current page number.
-                      page_size:
+                      limit:
                         type: integer
                         description: The number of items per page.
                       total_items:
@@ -13425,7 +13425,7 @@ paths:
                       linked: true
                   pagination:
                     current_page: 1
-                    page_size: 2
+                    limit: 2
                     total_items: 2
                     total_pages: 1
         "400":
@@ -14147,7 +14147,7 @@ paths:
                       properties:
                         current_page:
                           type: integer
-                        page_size:
+                        limit:
                           type: integer
                         total_items:
                           type: integer
@@ -19654,7 +19654,7 @@ components:
             total_pages:
               type: integer
               example: 10
-            page_size:
+            limit:
               type: integer
               example: 20
             total_items:
@@ -19958,7 +19958,7 @@ components:
             current_page:
               type: integer
               example: 1
-            page_size:
+            limit:
               type: integer
               example: 20
             total_items:
