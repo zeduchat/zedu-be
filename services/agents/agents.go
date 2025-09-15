@@ -149,7 +149,7 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 		botResp []models.AgentResp = make([]models.AgentResp, 0)
 	)
 
-	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c)
+	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c, "")
 
 	if err != nil {
 		return &[]models.AgentResp{}, postgresql.PaginationResponse{}, err, code

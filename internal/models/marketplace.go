@@ -51,7 +51,7 @@ func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, categori
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&Integrations{}).
-		Where("category IN ? AND is_active = ?", categories, true)
+		Where("category IN ?", categories)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
@@ -134,7 +134,7 @@ func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, cat
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&GeneralAgentSkill{}).
-		Where("category IN ? AND is_active = ?", categories, true)
+		Where("category IN ?", categories, true)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]

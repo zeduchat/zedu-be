@@ -644,7 +644,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, org_id string
 	return orgIntResp, paginationResponse, err, http.StatusOK
 }
 
-func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
 
 	var (
 		IntResp []Integrations
@@ -654,9 +654,15 @@ func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integr
 
 	query := db.Model(&Integrations{})
 
+	sortOrder := "created_at"
+	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
+	if ok {
+		sortOrder = sortBy
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
+		sortOrder,
 		"desc",
 		pagination,
 		&IntResp,

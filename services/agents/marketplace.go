@@ -39,7 +39,7 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 	case featured == "true":
 		resp, pagination, err, code = agents.GetFeaturedAgents(db, c)
 	default:
-		resp, pagination, err, code = agents.GetSystemAgentApps(db, c)
+		resp, pagination, err, code = agents.GetSystemAgentApps(db, c, sortBy)
 	}
 
 	if err != nil {
