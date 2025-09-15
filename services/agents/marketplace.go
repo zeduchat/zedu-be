@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -92,7 +91,7 @@ func SearchSkillsService(c *gin.Context, db *gorm.DB) (*[]models.AgentSkillRespo
 	case search != "":
 		resp, pagination, err, code = skill.SearchSkills(db, c, search, sortBy)
 	default:
-		return &[]models.AgentSkillResponse{}, postgresql.PaginationResponse{}, errors.New("invalid search query"), http.StatusBadRequest
+		resp, pagination, err, code = skill.GetGeneralAgentSkills(db, c)
 	}
 
 	if err != nil {
@@ -122,7 +121,7 @@ func SearchSkillsService(c *gin.Context, db *gorm.DB) (*[]models.AgentSkillRespo
 func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkflow, postgresql.PaginationResponse, error, int) {
 	var (
 		workflow models.GeneralWorkflow
-		resp     []models.GeneralWorkflow
+		resp     *[]models.GeneralWorkflow
 	)
 
 	search := c.Query("search")
@@ -141,13 +140,18 @@ func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkf
 	case search != "":
 		resp, pagination, err, code = workflow.SearchWorkflows(db, c, search, sortBy)
 	default:
-		return &[]models.GeneralWorkflow{}, postgresql.PaginationResponse{}, errors.New("invalid search query"), http.StatusBadRequest
+		resp, pagination, err = workflow.GetMarketPlaceWorkflows(db, c)
+		if err != nil {
+			code = http.StatusOK
+		} else {
+			code = http.StatusInternalServerError
+		}
 	}
 
 	if err != nil {
 		return &[]models.GeneralWorkflow{}, pagination, err, code
 	}
-	return &resp, pagination, nil, code
+	return resp, pagination, nil, code
 }
 
 // Categories

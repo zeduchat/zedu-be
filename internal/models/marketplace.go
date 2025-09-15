@@ -199,7 +199,7 @@ func GetUniqueSkillsCategories(db *gorm.DB) ([]string, error) {
 
 // workflow
 
-func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) ([]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
+func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) (*[]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
 	var workflows []GeneralWorkflow
 	pagination := postgresql.GetPagination(c)
 
@@ -220,12 +220,12 @@ func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, ca
 		nil,
 	)
 	if err != nil {
-		return workflows, paginationResponse, err, http.StatusInternalServerError
+		return &workflows, paginationResponse, err, http.StatusInternalServerError
 	}
-	return workflows, paginationResponse, nil, http.StatusOK
+	return &workflows, paginationResponse, nil, http.StatusOK
 }
 
-func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, sortBy string) ([]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
+func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, sortBy string) (*[]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
 	var workflows []GeneralWorkflow
 	pagination := postgresql.GetPagination(c)
 	searchTerm := "%" + keyword + "%"
@@ -247,9 +247,9 @@ func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, 
 		nil,
 	)
 	if err != nil {
-		return workflows, paginationResponse, err, http.StatusInternalServerError
+		return &workflows, paginationResponse, err, http.StatusInternalServerError
 	}
-	return workflows, paginationResponse, nil, http.StatusOK
+	return &workflows, paginationResponse, nil, http.StatusOK
 }
 
 func GetUniqueWorkflowCategories(db *gorm.DB) ([]string, error) {
