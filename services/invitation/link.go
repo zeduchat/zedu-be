@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -163,6 +164,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 		i            = models.Invitation{}
 		orgmgt       = models.OrgUserManagement{}
 		userID       string
+		org          models.Organisation
 	)
 
 	invitation, code, err := i.GetInvitationLinkByToken(db.Postgresql, req.Token, logger)
@@ -225,7 +227,15 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 		return responseData, http.StatusInternalServerError, errors.New("error saving access token")
 	}
 
+	org, _ = org.GetOrgByID(db.Postgresql, userData.CurrentOrg.String())
+
 	responseData = buildUserResponse(userData, tokenData)
+
+	if userData.CurrentOrg.String() != "00000000-0000-0000-0000-000000000000" {
+		if u, ok := responseData["user"].(map[string]any); ok {
+			u["current_organisation_slug"] = slug.Make(org.Name)
+		}
+	}
 
 	return responseData, http.StatusOK, nil
 }

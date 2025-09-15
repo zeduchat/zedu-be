@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
@@ -32,6 +33,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		reqUser      models.CreateUserRequestModel
 		sendWelcome  bool
 		responseData gin.H
+		org          models.Organisation
 	)
 
 	var googleOAuthConfig = &oauth2.Config{
@@ -119,24 +121,27 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
 	}
 
+	org, _ = org.GetOrgByID(db, user.CurrentOrg.String())
+
 	responseData = gin.H{
 		"user": map[string]any{
-			"id":              user.ID,
-			"email":           user.Email,
-			"username":        user.Name,
-			"fullname":        user.Name,
-			"current_org":     user.CurrentOrg,
-			"is_verified":     user.IsVerified,
-			"profile_updated": user.ProfileUpdated,
-			"is_onboarded":    user.IsOnboarded,
-			"avatar_url":      user.Profile.AvatarURL,
-			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":      strconv.Itoa(int(user.CreatedAt.Unix())),
-			"updated_at":      strconv.Itoa(int(user.UpdatedAt.Unix())),
+			"id":                        user.ID,
+			"email":                     user.Email,
+			"username":                  user.Name,
+			"fullname":                  user.Name,
+			"current_org":               user.CurrentOrg,
+			"current_organisation_slug": slug.Make(org.Name),
+			"is_verified":               user.IsVerified,
+			"profile_updated":           user.ProfileUpdated,
+			"is_onboarded":              user.IsOnboarded,
+			"avatar_url":                user.Profile.AvatarURL,
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
-		"access_token": tokenData.AccessToken,
-		"access_token_expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-		"notification_token": access_token.SubAccessToken,
+		"access_token":            tokenData.AccessToken,
+		"access_token_expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+		"notification_token":      access_token.SubAccessToken,
 	}
 	if sendWelcome {
 		resetReq := models.SendWelcomeMail{

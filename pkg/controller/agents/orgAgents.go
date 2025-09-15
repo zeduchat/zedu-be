@@ -430,14 +430,116 @@ func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
 		req models.UpdateAgentPromptRequest
 	)
 
-	org_id := c.Param("org_id")
+	agent_id := c.Param("agent_id")
 
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.PromptId = c.Param("prompt_id")
+
+	if _, err := uuid.Parse(req.PromptId); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid prompt id format", "failed to decode prompt id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
+	req.OrgId = userClaims["org_id"].(string)
+
+	code, err := agents.UpdateCustomAgentPrompt(req, base.Db.Postgresql, base.ExtReq, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to update agent", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent updated successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent updated successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) DeleteAgentPrompt(c *gin.Context) {
+	var (
+		req models.UpdateAgentPromptRequest
+	)
+
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	req.PromptId = c.Param("prompt_id")
+
+	if _, err := uuid.Parse(req.PromptId); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid prompt id format", "failed to decode prompt id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
+	req.OrgId = userClaims["org_id"].(string)
+
+	code, err := agents.DeleteCustomAgentPrompt(req, base.Db.Postgresql, base.ExtReq, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to update agent", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent prompt deleted successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent prompt deleted successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) CreateAgentPrompt(c *gin.Context) {
+	var (
+		req models.UpdateAgentPromptRequest
+	)
 
 	agent_id := c.Param("agent_id")
 
@@ -473,9 +575,9 @@ func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
 	req.AgentId = agent_id
-	req.OrgId = org_id
+	req.OrgId = userClaims["org_id"].(string)
 
-	code, err := agents.UpdateCustomAgentPrompt(req, base.Db.Postgresql, base.ExtReq, base.Logger)
+	code, err := agents.CreateCustomAgentPrompt(req, base.Db.Postgresql, base.ExtReq, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to update agent", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update agent", nil)
@@ -483,8 +585,8 @@ func (base *Controller) UpdateAgentPrompt(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Agent updated successfully")
-	rd := utility.BuildSuccessResponse(code, "Agent updated successfully", nil)
+	base.Logger.Info("Agent prompt created successfully")
+	rd := utility.BuildSuccessResponse(code, "Agent prompt created successfully", nil)
 	c.JSON(code, rd)
 }
 
@@ -541,15 +643,7 @@ func (base *Controller) FetchCustomAgentPrompt(c *gin.Context) {
 		req models.CreateAgentRequest
 	)
 
-	org_id := c.Param("org_id")
 	agent_id := c.Param("agent_id")
-
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	if _, err := uuid.Parse(agent_id); err != nil {
 		base.Logger.Error("invalid agent id format", err)
@@ -567,9 +661,7 @@ func (base *Controller) FetchCustomAgentPrompt(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
-	req.OrgId = org_id
-
-	req.OrgId = org_id
+	req.OrgId = userClaims["org_id"].(string)
 	req.AgentId = agent_id
 
 	resp, code, err := agents.FetchCustomAgent(req, base.Db.Postgresql, base.ExtReq, base.Logger)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -86,6 +87,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 		user         = models.User{}
 		responseData gin.H
 		magicLink    = models.MagicLink{}
+		org          models.Organisation
 	)
 
 	magicExist, err := magicLink.GetMagicLinkByToken(db, req.Token)
@@ -125,24 +127,27 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 		return responseData, http.StatusInternalServerError, err
 	}
 
+	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
+
 	responseData = gin.H{
 		"user": map[string]any{
-			"id":              userData.ID,
-			"email":           userData.Email,
-			"username":        userData.Name,
-			"is_verified":     userData.IsVerified,
-			"is_onboarded":    userData.IsOnboarded,
-			"profile_updated": userData.ProfileUpdated,
-			"is_active":       userData.IsActive,
-			"current_org":     userData.CurrentOrg,
-			"first_name":      userData.Profile.FirstName,
-			"last_name":       userData.Profile.LastName,
-			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":           userData.Profile.Phone,
-			"avatar_url":      userData.Profile.AvatarURL,
-			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":                        userData.ID,
+			"email":                     userData.Email,
+			"username":                  userData.Name,
+			"is_verified":               userData.IsVerified,
+			"is_onboarded":              userData.IsOnboarded,
+			"profile_updated":           userData.ProfileUpdated,
+			"is_active":                 userData.IsActive,
+			"current_org":               userData.CurrentOrg,
+			"current_organisation_slug": slug.Make(org.Name),
+			"first_name":                userData.Profile.FirstName,
+			"last_name":                 userData.Profile.LastName,
+			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":                     userData.Profile.Phone,
+			"avatar_url":                userData.Profile.AvatarURL,
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 		},
 		"access_token":            tokenData.AccessToken,
 		"notification_token":      access_token.SubAccessToken,

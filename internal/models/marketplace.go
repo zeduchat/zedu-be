@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,43 @@ func (i *Integrations) GetFeaturedAgents(db *gorm.DB, c *gin.Context) ([]Integra
 	return agents, paginationResponse, nil, http.StatusOK
 }
 
+func (i *Integrations) GetPopularAgents(db *gorm.DB, c *gin.Context, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
+	var agents []Integrations
+	pagination := postgresql.GetPagination(c)
+
+	subQuery := db.Model(&Integrations{}).
+		Select("integrations.*, COUNT(organisation_integrations.id) AS install_count").
+		Joins("LEFT JOIN organisation_integrations ON organisation_integrations.integration_id = integrations.id").
+		Where("integrations.is_active = ?", true).
+		Group("integrations.id")
+
+	// Now treat subquery as a table
+	query := db.Table("(?) as sub", subQuery)
+
+	orderBy := "install_count DESC"
+	if val, ok := map[string]string{
+		"name":  "sub.name ASC",
+		"stars": "sub.stars DESC",
+	}[sortBy]; ok {
+		orderBy = fmt.Sprintf("install_count DESC, %s", val)
+	}
+
+	query = query.Order(orderBy)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"install_count",
+		"desc",
+		pagination,
+		&agents,
+		nil,
+	)
+	if err != nil {
+		return agents, paginationResponse, err, http.StatusInternalServerError
+	}
+	return agents, paginationResponse, nil, http.StatusOK
+}
+
 func GetUniqueCategories(db *gorm.DB) ([]string, error) {
 	var categories []string
 	if err := db.
@@ -46,12 +84,12 @@ func GetUniqueCategories(db *gorm.DB) ([]string, error) {
 	return categories, nil
 }
 
-func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, category, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
 	var agents []Integrations
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&Integrations{}).
-		Where("category = ? AND is_active = ?", category, true)
+		Where("category IN ?", categories)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
@@ -129,12 +167,12 @@ func (i *Integrations) SearchAgents(db *gorm.DB, c *gin.Context, keyword, sortBy
 
 // skills
 
-func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, category, sortBy string) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
+func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
 	var skills []GeneralAgentSkill
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&GeneralAgentSkill{}).
-		Where("category = ? AND is_active = ?", category, true)
+		Where("category IN ?", categories, true)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
@@ -142,10 +180,16 @@ func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, cat
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&skills,
 		nil,
@@ -170,10 +214,16 @@ func (s *GeneralAgentSkill) SearchSkills(db *gorm.DB, c *gin.Context, keyword, s
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&skills,
 		nil,
@@ -199,33 +249,39 @@ func GetUniqueSkillsCategories(db *gorm.DB) ([]string, error) {
 
 // workflow
 
-func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, category, sortBy string) ([]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
+func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) (*[]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
 	var workflows []GeneralWorkflow
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&GeneralWorkflow{}).
-		Where("category = ?", category)
+		Where("category IN ?", categories)
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
 	if ok {
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&workflows,
 		nil,
 	)
 	if err != nil {
-		return workflows, paginationResponse, err, http.StatusInternalServerError
+		return &workflows, paginationResponse, err, http.StatusInternalServerError
 	}
-	return workflows, paginationResponse, nil, http.StatusOK
+	return &workflows, paginationResponse, nil, http.StatusOK
 }
 
-func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, sortBy string) ([]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
+func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, sortBy string) (*[]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
 	var workflows []GeneralWorkflow
 	pagination := postgresql.GetPagination(c)
 	searchTerm := "%" + keyword + "%"
@@ -238,18 +294,24 @@ func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, 
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&workflows,
 		nil,
 	)
 	if err != nil {
-		return workflows, paginationResponse, err, http.StatusInternalServerError
+		return &workflows, paginationResponse, err, http.StatusInternalServerError
 	}
-	return workflows, paginationResponse, nil, http.StatusOK
+	return &workflows, paginationResponse, nil, http.StatusOK
 }
 
 func GetUniqueWorkflowCategories(db *gorm.DB) ([]string, error) {

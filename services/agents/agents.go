@@ -149,7 +149,7 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 		botResp []models.AgentResp = make([]models.AgentResp, 0)
 	)
 
-	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c)
+	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c, "")
 
 	if err != nil {
 		return &[]models.AgentResp{}, postgresql.PaginationResponse{}, err, code
@@ -198,10 +198,10 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		IsActive:    agent.IsActive,
 		Category:    agent.Category,
 		Stars:       agent.Stars,
-		Snapshot:    agents.Snapshot,
-		HowItWorks:  agents.HowItWorks,
-		Benefits:    agents.Benefits,
-		WhyUse:      agents.WhyUse,
+		Snapshot:    agent.Snapshot,
+		HowItWorks:  agent.HowItWorks,
+		Benefits:    agent.Benefits,
+		WhyUse:      agent.WhyUse,
 	}
 	return &resp, nil, code
 }
@@ -457,6 +457,32 @@ func UpdateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, e
 	var orgIntegration models.OrganisationIntegrations
 
 	code, err := orgIntegration.UpdateCustomAgentPrompt(db, req)
+
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
+}
+
+func CreateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (int, error) {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	code, err := orgIntegration.CreateCustomAgentPrompt(db, req)
+
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
+}
+
+func DeleteCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (int, error) {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	code, err := orgIntegration.DeleteCustomAgentPrompt(db, req)
 
 	if err != nil {
 		return code, err

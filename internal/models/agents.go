@@ -27,10 +27,10 @@ type Integrations struct {
 	AppUrl             string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
 	AppLogo            string             `gorm:"column:app_logo; type:varchar(255);" json:"avatar"`
 	OwnerID            string             `gorm:"type:uuid;" json:"owner_id"`
-	AppDescription     string             `gorm:"column:app_description; type:varchar(255);" json:"description"`
+	AppDescription     string             `gorm:"column:app_description; type:text;" json:"description"`
 	IntegrationType    string             `gorm:"column:integration_type; type:varchar(255);" json:"-"`
 	Info               string             `gorm:"colummn:info; type:varchar(255);" json:"-"`
-	IsActive           bool               `gorm:"type:boolean;default:false" json:"is_active"`
+	IsActive           bool               `gorm:"type:boolean;default:true" json:"is_active"`
 	IsPaid             bool               `gorm:"type:boolean;default:false" json:"-"`
 	IsApproved         bool               `gorm:"type:boolean;default:false" json:"-"`
 	Prices             JSONPrices         `gorm:"type:jsonb" json:"prices"`
@@ -83,10 +83,13 @@ type PublishAgentRequest struct {
 }
 
 type UpdateAgentPromptRequest struct {
-	SystemPrompts JSONSystemPrompts `json:"system_prompts" validate:"required"`
-	AgentId       string
-	UserId        string
-	OrgId         string
+	AgentId  string
+	UserId   string
+	OrgId    string
+	PromptId string
+	Name     string `json:"name" validate:"required"`
+	Content  string `json:"content" validate:"required"`
+	Type     string `json:"type" validate:"required"`
 }
 
 type UpdateAgent struct {
@@ -168,6 +171,7 @@ type SystemPrompts struct {
 	Name    string `json:"name"`
 	Content string `json:"content"`
 	Type    string `json:"type"`
+	Id      string `json:"id"`
 }
 
 type CapabilitiesObject struct {
@@ -362,12 +366,12 @@ type AgentResp struct {
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility"`
 	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
-	Category      string            `json:"category,omitempty"`
+	Category      string            `json:"category"`
 	Stars         int64             `json:"stars"`
-	Snapshot      Snapshots         `json:"snapshots,omitempty"`
-	HowItWorks    string            `json:"how_it_works,omitempty"`
-	Benefits      string            `json:"benefits,omitempty"`
-	WhyUse        string            `json:"why_use,omitempty"`
+	Snapshot      Snapshots         `json:"snapshots"`
+	HowItWorks    string            `json:"how_it_works"`
+	Benefits      string            `json:"benefits"`
+	WhyUse        string            `json:"why_use"`
 }
 
 type IntegrationBills struct {
@@ -644,7 +648,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, org_id string
 	return orgIntResp, paginationResponse, err, http.StatusOK
 }
 
-func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
 
 	var (
 		IntResp []Integrations
@@ -654,9 +658,15 @@ func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context) ([]Integr
 
 	query := db.Model(&Integrations{})
 
+	sortOrder := "created_at"
+	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
+	if ok {
+		sortOrder = sortBy
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
+		sortOrder,
 		"desc",
 		pagination,
 		&IntResp,
@@ -847,8 +857,27 @@ func (oi *OrganisationIntegrations) UpdateCustomAgent(db *gorm.DB, req CreateAge
 
 func (oi *OrganisationIntegrations) UpdateCustomAgentPrompt(db *gorm.DB, req UpdateAgentPromptRequest) (int, error) {
 
-	update := make(map[string]any)
-	update["system_prompts"] = req.SystemPrompts
+	exists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
+	if !exists {
+		return http.StatusNotFound, errors.New("Agent does not exist in organisation")
+	}
+
+	existinSystemPrompt := oi.SystemPrompts
+
+	for idx, prompt := range existinSystemPrompt {
+		if prompt.Id == req.PromptId {
+			existinSystemPrompt[idx] = SystemPrompts{
+				Name:    req.Name,
+				Id:      req.PromptId,
+				Type:    req.Type,
+				Content: req.Content,
+			}
+			break
+		}
+	}
+
+	update := map[string]any{}
+	update["system_prompts"] = existinSystemPrompt
 
 	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ? AND org_id = ?", req.AgentId, req.OrgId)
 	if err != nil {
@@ -862,6 +891,67 @@ func (oi *OrganisationIntegrations) UpdateCustomAgentPrompt(db *gorm.DB, req Upd
 	return http.StatusOK, nil
 }
 
+func (oi *OrganisationIntegrations) CreateCustomAgentPrompt(db *gorm.DB, req UpdateAgentPromptRequest) (int, error) {
+
+	exists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
+	if !exists {
+		return http.StatusNotFound, errors.New("Agent does not exist in organisation")
+	}
+
+	existingSystemPrompt := oi.SystemPrompts
+
+	existingSystemPrompt = append(existingSystemPrompt, SystemPrompts{
+		Name:    req.Name,
+		Id:      utility.GenerateUUID(),
+		Type:    req.Type,
+		Content: req.Content,
+	})
+
+	update := map[string]any{}
+	update["system_prompts"] = existingSystemPrompt
+
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ? AND org_id = ?", req.AgentId, req.OrgId)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	if result.RowsAffected == 0 {
+		return http.StatusOK, errors.New("no record updated")
+	}
+
+	return http.StatusCreated, nil
+}
+
+func (oi *OrganisationIntegrations) DeleteCustomAgentPrompt(db *gorm.DB, req UpdateAgentPromptRequest) (int, error) {
+
+	exists := postgresql.CheckExists(db, &oi, "org_id = ? AND integration_id = ?", req.OrgId, req.AgentId)
+	if !exists {
+		return http.StatusNotFound, errors.New("Agent does not exist in organisation")
+	}
+
+	existingSystemPrompt := oi.SystemPrompts
+
+	for idx, prompt := range existingSystemPrompt {
+		if prompt.Id == req.PromptId {
+			existingSystemPrompt = append(existingSystemPrompt[:idx], existingSystemPrompt[idx+1:]...)
+			break
+		}
+	}
+
+	update := map[string]any{}
+	update["system_prompts"] = existingSystemPrompt
+
+	result, err := postgresql.UpdateFields(db, &oi, update, "integration_id = ? AND org_id = ?", req.AgentId, req.OrgId)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	if result.RowsAffected == 0 {
+		return http.StatusOK, errors.New("no record updated")
+	}
+
+	return http.StatusOK, nil
+}
 func (oi *OrganisationIntegrations) ChangeStatus(db *gorm.DB, req ChangeAgentStatus, ids map[string]string, extReq request.ExternalRequest) error {
 	var (
 		agent        Integrations

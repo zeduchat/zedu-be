@@ -26,6 +26,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.3.0
+	github.com/gosimple/slug v1.15.0
 	github.com/jeanphorn/log4go v0.0.0-20231225120528-d93eb9001e51
 	github.com/lib/pq v1.10.9
 	github.com/markbates/goth v1.80.0
@@ -77,6 +78,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect

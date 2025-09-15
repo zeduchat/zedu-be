@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/external_models"
@@ -157,7 +158,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		Location:    info.Location,
 	}
 
-	_, err = organisation.CreateOrganisation(createPersonalOrgReq, db, user.ID, logger)
+	org, err := organisation.CreateOrganisation(createPersonalOrgReq, db, user.ID, logger)
 
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("failed to create user organization: %v", err)
@@ -182,22 +183,23 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	responseData = gin.H{
 		"user": map[string]any{
-			"id":              userData.ID,
-			"email":           userData.Email,
-			"username":        userData.Name,
-			"is_verified":     userData.IsVerified,
-			"is_onboarded":    userData.IsOnboarded,
-			"profile_updated": userData.ProfileUpdated,
-			"is_active":       userData.IsActive,
-			"current_org":     userData.CurrentOrg,
-			"first_name":      userData.Profile.FirstName,
-			"last_name":       userData.Profile.LastName,
-			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":           userData.Profile.Phone,
-			"avatar_url":      userData.Profile.AvatarURL,
-			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":                        userData.ID,
+			"email":                     userData.Email,
+			"username":                  userData.Name,
+			"is_verified":               userData.IsVerified,
+			"is_onboarded":              userData.IsOnboarded,
+			"profile_updated":           userData.ProfileUpdated,
+			"is_active":                 userData.IsActive,
+			"current_org":               userData.CurrentOrg,
+			"first_name":                userData.Profile.FirstName,
+			"last_name":                 userData.Profile.LastName,
+			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":                     userData.Profile.Phone,
+			"avatar_url":                userData.Profile.AvatarURL,
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"current_organisation_slug": slug.Make(org.Name),
 		},
 		"access_token":       tokenData.AccessToken,
 		"notification_token": access_token.SubAccessToken,
@@ -209,6 +211,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	var (
 		user         = models.User{}
 		responseData gin.H
+		org          models.Organisation
 	)
 
 	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
@@ -247,24 +250,27 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
 	}
 
+	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
+
 	responseData = gin.H{
 		"user": map[string]any{
-			"id":              userData.ID,
-			"email":           userData.Email,
-			"username":        userData.Name,
-			"is_verified":     userData.IsVerified,
-			"is_onboarded":    userData.IsOnboarded,
-			"profile_updated": userData.ProfileUpdated,
-			"is_active":       userData.IsActive,
-			"current_org":     userData.CurrentOrg,
-			"first_name":      userData.Profile.FirstName,
-			"last_name":       userData.Profile.LastName,
-			"fullname":        userData.Profile.FirstName + " " + userData.Profile.LastName,
-			"phone":           userData.Profile.Phone,
-			"avatar_url":      userData.Profile.AvatarURL,
-			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":      strconv.Itoa(int(userData.CreatedAt.Unix())),
-			"updated_at":      strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"id":                        userData.ID,
+			"email":                     userData.Email,
+			"username":                  userData.Name,
+			"is_verified":               userData.IsVerified,
+			"is_onboarded":              userData.IsOnboarded,
+			"profile_updated":           userData.ProfileUpdated,
+			"is_active":                 userData.IsActive,
+			"current_org":               userData.CurrentOrg,
+			"first_name":                userData.Profile.FirstName,
+			"last_name":                 userData.Profile.LastName,
+			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":                     userData.Profile.Phone,
+			"avatar_url":                userData.Profile.AvatarURL,
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"current_organisation_slug": slug.Make(org.Name),
 		},
 		"access_token":            tokenData.AccessToken,
 		"notification_token":      access_token.SubAccessToken,
