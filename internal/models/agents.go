@@ -362,12 +362,12 @@ type AgentResp struct {
 	Description   string            `json:"description"`
 	Visibility    string            `json:"visibility"`
 	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
-	Category      string            `json:"category,omitempty"`
+	Category      string            `json:"category"`
 	Stars         int64             `json:"stars"`
-	Snapshot      Snapshots         `json:"snapshots,omitempty"`
-	HowItWorks    string            `json:"how_it_works,omitempty"`
-	Benefits      string            `json:"benefits,omitempty"`
-	WhyUse        string            `json:"why_use,omitempty"`
+	Snapshot      Snapshots         `json:"snapshots"`
+	HowItWorks    string            `json:"how_it_works"`
+	Benefits      string            `json:"benefits"`
+	WhyUse        string            `json:"why_use"`
 }
 
 type IntegrationBills struct {
