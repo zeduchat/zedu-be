@@ -34,6 +34,33 @@ func (i *Integrations) GetFeaturedAgents(db *gorm.DB, c *gin.Context) ([]Integra
 	return agents, paginationResponse, nil, http.StatusOK
 }
 
+func (i *Integrations) GetPopularAgents(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+	var agents []Integrations
+	pagination := postgresql.GetPagination(c)
+
+	// Join organisation_integrations and count installs
+	query := db.Model(&Integrations{}).
+		Select("integrations.*, COUNT(organisation_integrations.id) AS install_count").
+		Joins("LEFT JOIN organisation_integrations ON organisation_integrations.integration_id = integrations.id").
+		// Where("integrations.is_active = ?", true).
+		Group("integrations.id").
+		Order("install_count DESC").
+		Limit(10)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"install_count",
+		"desc",
+		pagination,
+		&agents,
+		nil,
+	)
+	if err != nil {
+		return agents, paginationResponse, err, http.StatusInternalServerError
+	}
+	return agents, paginationResponse, nil, http.StatusOK
+}
+
 func GetUniqueCategories(db *gorm.DB) ([]string, error) {
 	var categories []string
 	if err := db.

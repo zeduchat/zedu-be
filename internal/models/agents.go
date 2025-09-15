@@ -30,7 +30,7 @@ type Integrations struct {
 	AppDescription     string             `gorm:"column:app_description; type:text;" json:"description"`
 	IntegrationType    string             `gorm:"column:integration_type; type:varchar(255);" json:"-"`
 	Info               string             `gorm:"colummn:info; type:varchar(255);" json:"-"`
-	IsActive           bool               `gorm:"type:boolean;default:false" json:"is_active"`
+	IsActive           bool               `gorm:"type:boolean;default:true" json:"is_active"`
 	IsPaid             bool               `gorm:"type:boolean;default:false" json:"-"`
 	IsApproved         bool               `gorm:"type:boolean;default:false" json:"-"`
 	Prices             JSONPrices         `gorm:"type:jsonb" json:"prices"`

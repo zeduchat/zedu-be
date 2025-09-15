@@ -12122,11 +12122,11 @@ paths:
           explode: true
           description: Filter by one or more categories
         - in: query
-          name: featured
+          name: Popular
           schema:
             type: boolean
             example: true
-          description: Query for featured agents
+          description: Query for popular agents
         - in: query
           name: page
           schema:

@@ -22,7 +22,7 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 	// Get query params
 	search := c.Query("search")
 	categories := c.QueryArray("category")
-	featured := c.Query("featured")
+	popular := c.Query("popular")
 	sortBy := c.Query("sort_by")
 
 	var (
@@ -36,8 +36,8 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 		resp, pagination, err, code = agents.GetAgentsByCategory(db, c, categories, sortBy)
 	case search != "":
 		resp, pagination, err, code = agents.SearchAgents(db, c, search, sortBy)
-	case featured == "true":
-		resp, pagination, err, code = agents.GetFeaturedAgents(db, c)
+	case popular == "true":
+		resp, pagination, err, code = agents.GetPopularAgents(db, c)
 	default:
 		resp, pagination, err, code = agents.GetSystemAgentApps(db, c, sortBy)
 	}
