@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,18 +35,28 @@ func (i *Integrations) GetFeaturedAgents(db *gorm.DB, c *gin.Context) ([]Integra
 	return agents, paginationResponse, nil, http.StatusOK
 }
 
-func (i *Integrations) GetPopularAgents(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetPopularAgents(db *gorm.DB, c *gin.Context, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
 	var agents []Integrations
 	pagination := postgresql.GetPagination(c)
 
-	// Join organisation_integrations and count installs
-	query := db.Model(&Integrations{}).
+	subQuery := db.Model(&Integrations{}).
 		Select("integrations.*, COUNT(organisation_integrations.id) AS install_count").
 		Joins("LEFT JOIN organisation_integrations ON organisation_integrations.integration_id = integrations.id").
-		// Where("integrations.is_active = ?", true).
-		Group("integrations.id").
-		Order("install_count DESC").
-		Limit(10)
+		Where("integrations.is_active = ?", true).
+		Group("integrations.id")
+
+	// Now treat subquery as a table
+	query := db.Table("(?) as sub", subQuery)
+
+	orderBy := "install_count DESC"
+	if val, ok := map[string]string{
+		"name":  "sub.name ASC",
+		"stars": "sub.stars DESC",
+	}[sortBy]; ok {
+		orderBy = fmt.Sprintf("install_count DESC, %s", val)
+	}
+
+	query = query.Order(orderBy)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -169,10 +180,16 @@ func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, cat
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&skills,
 		nil,
@@ -197,10 +214,16 @@ func (s *GeneralAgentSkill) SearchSkills(db *gorm.DB, c *gin.Context, keyword, s
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&skills,
 		nil,
@@ -238,10 +261,16 @@ func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, ca
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&workflows,
 		nil,
@@ -265,10 +294,16 @@ func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, 
 		sortOrder = sortBy
 	}
 
+	direction := "desc"
+
+	if sortBy == "name" {
+		direction = "ASC"
+	}
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		direction,
 		pagination,
 		&workflows,
 		nil,

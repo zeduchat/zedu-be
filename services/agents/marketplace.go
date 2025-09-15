@@ -37,7 +37,7 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 	case search != "":
 		resp, pagination, err, code = agents.SearchAgents(db, c, search, sortBy)
 	case popular == "true":
-		resp, pagination, err, code = agents.GetPopularAgents(db, c)
+		resp, pagination, err, code = agents.GetPopularAgents(db, c, sortBy)
 	default:
 		resp, pagination, err, code = agents.GetSystemAgentApps(db, c, sortBy)
 	}

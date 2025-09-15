@@ -12122,7 +12122,7 @@ paths:
           explode: true
           description: Filter by one or more categories
         - in: query
-          name: Popular
+          name: popular
           schema:
             type: boolean
             example: true
