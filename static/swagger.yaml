@@ -11911,8 +11911,7 @@ paths:
         500:
           description: Internal server error.
 
-
-#  Market place
+  #  Market place
   /marketplace/categories:
     get:
       summary: Get all marketplace categories
@@ -12028,7 +12027,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Skill'
+                      $ref: "#/components/schemas/Skill"
         "404":
           description: No skills found
         "500":
@@ -12088,7 +12087,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Workflow'
+                      $ref: "#/components/schemas/Workflow"
         "404":
           description: No workflows found
         "500":
@@ -12154,13 +12153,13 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Agent'
+                      $ref: "#/components/schemas/Agent"
         "404":
           description: No agents found
         "500":
           description: Server error
 
-  /organisations/{organisationId}/agents/{agent_id}/prompts:
+  /agents/{agent_id}/prompts:
     get:
       summary: Fetch a custom agent's prompt
       description: Retrieve the system prompts for a specific agent.
@@ -12169,12 +12168,6 @@ paths:
       tags:
         - Agents Colleague
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -12226,7 +12219,7 @@ paths:
         404:
           description: Agent not found.
 
-    put:
+    post:
       summary: Update a custom agent's prompt
       description: Update the system prompts for a specific agent.
       security:
@@ -12234,12 +12227,6 @@ paths:
       tags:
         - Agents Colleague
       parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
         - name: agent_id
           in: path
           required: true
@@ -12253,25 +12240,22 @@ paths:
             schema:
               type: object
               required:
-                - system_prompts
+                - name
+                - content
+                - type
               properties:
-                system_prompts:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                        example: Greeting Prompt
-                        description: Name of the system prompt.
-                      content:
-                        type: string
-                        example: Hello! How can I assist you today?
-                        description: The content of the system prompt.
-                      type:
-                        type: string
-                        example: tagged prompt
-                        description: The content of the system prompt.
+                name:
+                  type: string
+                  example: Greeting Prompt
+                  description: Name of the system prompt.
+                content:
+                  type: string
+                  example: Hello! How can I assist you today?
+                  description: The content of the system prompt.
+                type:
+                  type: string
+                  example: tagged prompt
+                  description: The content of the system prompt.
       responses:
         200:
           description: Successfully updated the agent's prompts.
@@ -12293,6 +12277,107 @@ paths:
           description: Invalid agent_id or request body.
         404:
           description: Agent not found.
+
+  /agents/{agent_id}/prompts/{prompt_id}:
+    patch:
+      summary: Update a custom agent's prompt
+      description: Modify a specific system prompt for an agent.
+      security:
+        - bearerAuth: []
+      tags:
+        - Agents Colleague
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+        - name: prompt_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377ff"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Updated Greeting Prompt
+                content:
+                  type: string
+                  example: Hi there! How can I help you now?
+                type:
+                  type: string
+                  example: contextual prompt
+      responses:
+        200:
+          description: Successfully updated the agent's prompt.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: prompt updated successfully.
+        400:
+          description: Invalid agent_id, prompt_id, or request body.
+        404:
+          description: Agent or prompt not found.
+
+    delete:
+      summary: Delete a custom agent's prompt
+      description: Remove a specific system prompt from an agent.
+      security:
+        - bearerAuth: []
+      tags:
+        - Agents Colleague
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+        - name: prompt_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "0191e724-de59-78f8-a582-5cbc83f377fe"
+      responses:
+        200:
+          description: Successfully deleted the agent's prompt.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: prompt deleted successfully.
+        400:
+          description: Invalid agent_id or prompt_id.
+        404:
+          description: Agent or prompt not found.
 
   /agents:
     get:

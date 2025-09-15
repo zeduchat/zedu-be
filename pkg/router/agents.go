@@ -66,8 +66,6 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
 		organisationUrl.GET("/:org_id/agents/:agent_id", agentsCtrl.FetchCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
-		organisationUrl.GET("/:org_id/agents/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
-		organisationUrl.PUT("/:org_id/agents/:agent_id/prompts", agentsCtrl.UpdateAgentPrompt)
 
 		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
 		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
@@ -108,6 +106,10 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)
+		agentUrl.GET("/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
+		agentUrl.PUT("/:agent_id/prompts/prompt_id", agentsCtrl.UpdateAgentPrompt)
+		agentUrl.POST("/:agent_id/prompts", agentsCtrl.CreateAgentPrompt)
+		agentUrl.DELETE("/:agent_id/prompts/prompt_id", agentsCtrl.DeleteAgentPrompt)
 	}
 
 	// fetch all agents ---> will be used to get all agents on the superAdmin dashboard
