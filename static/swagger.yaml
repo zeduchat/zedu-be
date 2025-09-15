@@ -11991,8 +11991,12 @@ paths:
         - in: query
           name: category
           schema:
-            type: string
-          description: Filter by category
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: Filter by one or more categories
         - in: query
           name: page
           schema:
@@ -12051,8 +12055,12 @@ paths:
         - in: query
           name: category
           schema:
-            type: string
-          description: Filter by category
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: Filter by one or more categories
         - in: query
           name: page
           schema:
@@ -12107,8 +12115,12 @@ paths:
         - in: query
           name: category
           schema:
-            type: string
-          description: Filter by category
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: Filter by one or more categories
         - in: query
           name: featured
           schema:

@@ -46,12 +46,12 @@ func GetUniqueCategories(db *gorm.DB) ([]string, error) {
 	return categories, nil
 }
 
-func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, category, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
+func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
 	var agents []Integrations
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&Integrations{}).
-		Where("category = ? AND is_active = ?", category, true)
+		Where("category IN ? AND is_active = ?", categories, true)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
@@ -129,12 +129,12 @@ func (i *Integrations) SearchAgents(db *gorm.DB, c *gin.Context, keyword, sortBy
 
 // skills
 
-func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, category, sortBy string) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
+func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
 	var skills []GeneralAgentSkill
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&GeneralAgentSkill{}).
-		Where("category = ? AND is_active = ?", category, true)
+		Where("category IN ? AND is_active = ?", categories, true)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
@@ -199,12 +199,12 @@ func GetUniqueSkillsCategories(db *gorm.DB) ([]string, error) {
 
 // workflow
 
-func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, category, sortBy string) ([]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
+func (w *GeneralWorkflow) GetWorkflowsByCategory(db *gorm.DB, c *gin.Context, categories []string, sortBy string) ([]GeneralWorkflow, postgresql.PaginationResponse, error, int) {
 	var workflows []GeneralWorkflow
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&GeneralWorkflow{}).
-		Where("category = ?", category)
+		Where("category IN ?", categories)
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
 	if ok {
