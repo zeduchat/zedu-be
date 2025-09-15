@@ -198,10 +198,10 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		IsActive:    agent.IsActive,
 		Category:    agent.Category,
 		Stars:       agent.Stars,
-		Snapshot:    agents.Snapshot,
-		HowItWorks:  agents.HowItWorks,
-		Benefits:    agents.Benefits,
-		WhyUse:      agents.WhyUse,
+		Snapshot:    agent.Snapshot,
+		HowItWorks:  agent.HowItWorks,
+		Benefits:    agent.Benefits,
+		WhyUse:      agent.WhyUse,
 	}
 	return &resp, nil, code
 }
