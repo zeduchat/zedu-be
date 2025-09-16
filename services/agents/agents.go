@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -519,6 +520,7 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 			HowItWorks:    agents.HowItWorks,
 			Benefits:      agents.Benefits,
 			WhyUse:        agents.WhyUse,
+			AgentSlug:     slug.Make(agents.Name),
 		}
 		return &resp, http.StatusOK, nil
 	}
@@ -533,6 +535,7 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		Description:   org_agents.AppDescription,
 		IsActive:      org_agents.IsActive,
 		SystemPrompts: org_agents.SystemPrompts,
+		AgentSlug:     slug.Make(agents.Name),
 	}
 
 	if exists = postgresql.CheckExists(db, &agents, "id = ?", req.AgentId); exists {
