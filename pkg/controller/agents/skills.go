@@ -15,13 +15,6 @@ import (
 func (base *Controller) CreateAgentSkill(c *gin.Context) {
 	var req models.CreateAgentSkillRequest
 
-	agentID := c.Param("agents_id")
-
-	if _, err := uuid.Parse(agentID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil)
@@ -36,8 +29,6 @@ func (base *Controller) CreateAgentSkill(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-
-	req.AgentId = agentID
 
 	claims, exists := c.Get("userClaims")
 	if !exists {

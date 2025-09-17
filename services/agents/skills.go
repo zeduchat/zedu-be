@@ -16,16 +16,6 @@ import (
 func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *utility.Logger) (models.AgentSkillResponse, int, error) {
 	var resp models.AgentSkillResponse
 
-	agentExists := postgresql.CheckExists(db, &models.OrganisationIntegrations{}, "integration_id = ?", req.AgentId)
-	if !agentExists {
-		return resp, http.StatusNotFound, errors.New("agent not found")
-	}
-
-	agentSkillExists := postgresql.CheckExists(db, &models.AgentSkill{}, "agent_id = ?", req.AgentId)
-	if agentSkillExists {
-		return resp, http.StatusBadRequest, errors.New("agent already has the skill")
-	}
-
 	// add to general Agent skill
 
 	genAgentSkill := models.GeneralAgentSkill{
@@ -46,39 +36,17 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		return resp, http.StatusInternalServerError, err
 	}
 
-	agentSkill := models.AgentSkill{
-		ID:           utility.GenerateUUID(),
-		SkillId:      genAgentSkill.ID,
-		Name:         req.Name,
-		AgentId:      req.AgentId,
-		Description:  req.Description,
-		Type:         req.Type,
-		IsActive:     true,
-		IsConfigured: false, // default
-		Avatar:       req.Avatar,
-		Config:       req.Config,
-		Link:         req.URLLink,
-		Tags:         req.Tags,
-		OrgId:        req.OrgId,
-		UserId:       req.UserId,
-		Category:     req.Category,
-	}
-
-	if err := agentSkill.CreateAgentSkill(db); err != nil {
-		return resp, http.StatusInternalServerError, err
-	}
-
 	resp = models.AgentSkillResponse{
-		SkillId:      agentSkill.SkillId,
-		Name:         agentSkill.Name,
-		Description:  agentSkill.Description,
-		Type:         agentSkill.Type,
-		IsActive:     agentSkill.IsActive,
-		IsConfigured: agentSkill.IsConfigured,
-		Avatar:       agentSkill.Avatar,
-		Config:       agentSkill.Config,
-		Tags:         agentSkill.Tags,
-		Category:     agentSkill.Category,
+		SkillId:      genAgentSkill.ID,
+		Name:         genAgentSkill.Name,
+		Description:  genAgentSkill.Description,
+		Type:         genAgentSkill.Type,
+		IsActive:     genAgentSkill.IsActive,
+		IsConfigured: genAgentSkill.IsConfigured,
+		Avatar:       genAgentSkill.Avatar,
+		Config:       genAgentSkill.Config,
+		Tags:         genAgentSkill.Tags,
+		Category:     genAgentSkill.Category,
 	}
 
 	return resp, http.StatusCreated, nil
