@@ -381,18 +381,22 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	orgIntegration.AppDescription = req.Description
 	orgIntegration.OwnerID = req.UserId
 	orgIntegration.IntegrationID = utility.GenerateUUID()
-	orgIntegration.SystemPrompts = req.SystemPrompts
+	orgIntegration.SystemPrompts = []models.SystemPrompts{
+		{
+			Name:    "System Prompt",
+			Content: fmt.Sprintf("Your name is %s and your job is %s", req.Name, req.Description),
+			Type:    "system_prompt",
+			Id:      utility.GenerateUUID(),
+		},
+	}
 	orgIntegration.AppLogo = req.Avatar
 	orgIntegration.PreSharedKey = psk
-
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
 		return int_resp, http.StatusInternalServerError, err
 	}
-
 	auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
 	settings_data := map[string]any{"settings": ""}
-
 	auth_credentials["agent_api_key"] = psk
 	settings_data["auth_credentials"] = auth_credentials
 	settingJsonData, err := json.Marshal(settings_data)
@@ -405,7 +409,6 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	agentSettings.IntegrationID = orgIntegration.IntegrationID
 	agentSettings.IsSystem = false
 	agentSettings.ID = utility.GenerateUUID()
-
 	err = agentSettings.CreateIntegrationSettings(db)
 	if err != nil {
 		return int_resp, http.StatusInternalServerError, err
