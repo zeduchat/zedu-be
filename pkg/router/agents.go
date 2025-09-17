@@ -23,7 +23,7 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		organisationUrl.GET("/:skill_id/agents/:agents_id", agentsCtrl.GetAgentSkillByID)
 		organisationUrl.PUT("/:skill_id/agents/:agents_id", agentsCtrl.UpdateAgentSkill)
 		organisationUrl.POST("/agents/:agents_id", agentsCtrl.AddSkillsToAgent)
-		organisationUrl.POST("/agents/new", agentsCtrl.CreateAgentSkill)
+		organisationUrl.POST("", agentsCtrl.CreateAgentSkill)
 		organisationUrl.DELETE("/:skill_id/agents/:agents_id", agentsCtrl.DeleteAgentSkill)
 	}
 
