@@ -372,6 +372,7 @@ type AgentResp struct {
 	HowItWorks    string            `json:"how_it_works"`
 	Benefits      string            `json:"benefits"`
 	WhyUse        string            `json:"why_use"`
+	AgentSlug     string            `json:"agent_slug"`
 }
 
 type IntegrationBills struct {
