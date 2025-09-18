@@ -33,12 +33,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 		return
 	}
 
-	reqData, code, err := service.ValidateCreateOrgRequest(req, base.Db.Postgresql)
-	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		c.JSON(code, rd)
-		return
-	}
+
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -50,7 +45,7 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	respData, err := service.CreateOrganisation(reqData, base.Db.Postgresql, userId, base.Logger)
+	respData, err := service.CreateOrganisation(req, base.Db.Postgresql, userId, base.Logger)
 	if err != nil {
 		base.Logger.Error("error creating organisation", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error creating organisation", err, nil)
