@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -202,6 +203,8 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 		return nil, errors.New("user not authorised to retrieve this organisation")
 	}
 
+	org.OrganisationSlug = slug.Make(org.Name)
+
 	return &org, nil
 }
 
@@ -275,7 +278,7 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		org models.Organisation
 	)
 
-	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId) 
+	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
 	if err != nil {
 		return err
 	}

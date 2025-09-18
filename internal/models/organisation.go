@@ -40,6 +40,7 @@ type Organisation struct {
 	StripeCustomerID   string           `gorm:"column:stripe_customer_id; type:varchar(255)" json:"stripe_customer_id"`
 	OrgPlanID          string           `gorm:"type:varchar(100);null;index" json:"org_plan_id"`
 	OrganisationPlan   OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan"`
+	OrganisationSlug   string           `gorm:"-" json:"organisation_slug"`
 }
 
 type CreateOrgRequestModel struct {
