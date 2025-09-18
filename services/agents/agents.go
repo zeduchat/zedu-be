@@ -210,7 +210,7 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		HowItWorks:  agent.HowItWorks,
 		Benefits:    agent.Benefits,
 		WhyUse:      agent.WhyUse,
-		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
+		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agent.Name), lastPart),
 	}
 	return &resp, nil, code
 }
@@ -423,6 +423,9 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 		return int_resp, http.StatusInternalServerError, err
 	}
 
+	parts := strings.Split(orgIntegration.IntegrationID, "-")
+	lastPart := parts[len(parts)-1]
+
 	int_resp = models.AgentResp{
 		ID:          orgIntegration.IntegrationID,
 		Name:        orgIntegration.AppName,
@@ -432,6 +435,7 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 		Avatar:      orgIntegration.AppLogo,
 		Description: orgIntegration.AppDescription,
 		IsActive:    orgIntegration.IsActive,
+		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(orgIntegration.AppName), lastPart),
 	}
 
 	return int_resp, http.StatusCreated, nil
@@ -552,7 +556,7 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		Description:   org_agents.AppDescription,
 		IsActive:      org_agents.IsActive,
 		SystemPrompts: org_agents.SystemPrompts,
-		AgentSlug:     fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
+		AgentSlug:     fmt.Sprintf("%s-%s", slug.Make(org_agents.AppName), lastPart),
 	}
 
 	if exists = postgresql.CheckExists(db, &agents, "id = ?", req.AgentId); exists {

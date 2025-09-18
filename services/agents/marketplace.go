@@ -1,9 +1,12 @@
 package agents
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -48,6 +51,10 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 
 	// Format response
 	for _, a := range resp {
+
+		parts := strings.Split(a.ID, "-")
+		lastPart := parts[len(parts)-1]
+
 		agent := models.AgentResp{
 			ID:          a.ID,
 			Name:        a.Name,
@@ -59,6 +66,7 @@ func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, post
 			IsActive:    a.IsActive,
 			Category:    a.Category,
 			Stars:       a.Stars,
+			AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(a.Name), lastPart),
 		}
 		botResp = append(botResp, agent)
 	}
