@@ -13398,12 +13398,15 @@ paths:
                   status: "error"
                   status_code: 404
                   message: "Organisation not found"
+
   /organisations/{organisation_id}/fetch-bots:
     get:
       tags:
         - Bots
       summary: Fetch bots linked to an organisation
       description: Retrieves a list of bots associated with a specific organisation.
+      security:
+        - bearerAuth: []
       parameters:
         - name: organisation_id
           in: path

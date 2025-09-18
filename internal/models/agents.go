@@ -632,7 +632,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, org_id string
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ?", org_id)
+		Where("org_id = ? and is_active = ?", org_id, true)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
