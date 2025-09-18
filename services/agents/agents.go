@@ -191,6 +191,9 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		return &models.AgentResp{}, err, code
 	}
 
+	parts := strings.Split(agent.ID, "-")
+	lastPart := parts[len(parts)-1]
+
 	resp := models.AgentResp{
 
 		ID:          agent.ID,
@@ -207,6 +210,7 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		HowItWorks:  agent.HowItWorks,
 		Benefits:    agent.Benefits,
 		WhyUse:      agent.WhyUse,
+		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
 	}
 	return &resp, nil, code
 }
