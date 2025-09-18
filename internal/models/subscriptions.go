@@ -66,15 +66,15 @@ type Plan struct {
 }
 
 type OrganisationPlan struct {
-	ID             string         `gorm:"primaryKey;type:uuid" json:"id"`
-	OrganisationID string         `gorm:"not null;index" json:"organisation_id"`
-	PlanID         string         `gorm:"not null;index" json:"plan_id"`
-	StartedAt      time.Time      `gorm:"column:started_at;null; autoCreateTime" json:"started_at"`
-	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at"`
-	Status         string         `gorm:"null" json:"status"`
-	SessionID      string         `gorm:"null" json:"session_id"`
-	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID             string         `gorm:"primaryKey;type:uuid" json:"id,omitempty"`
+	OrganisationID string         `gorm:"not null;index" json:"organisation_id,omitempty"`
+	PlanID         string         `gorm:"not null;index" json:"plan_id,omitempty"`
+	StartedAt      time.Time      `gorm:"column:started_at;null; autoCreateTime" json:"started_at,omitempty"`
+	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at,omitempty"`
+	Status         string         `gorm:"null" json:"status,omitempty"`
+	SessionID      string         `gorm:"null" json:"session_id,omitempty"`
+	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at,omitempty"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at,omitempty"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
 

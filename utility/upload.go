@@ -32,7 +32,7 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 	case strings.HasPrefix(base64Image, "data:image/png;base64,"):
 		ext = ".png"
 	default:
-		return nil, "", fmt.Errorf("invalid content type: only PNG, JPEG, or JPG images are allowed")
+		return nil, "", nil
 	}
 
 	if len(imageData) > maxImageSize {

@@ -33,8 +33,6 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 		return
 	}
 
-
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", err, nil)

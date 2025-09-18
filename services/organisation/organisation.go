@@ -42,13 +42,13 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	file, ext, err := utility.ValidatePicture(req.LogoURL)
 
 	if err != nil {
-		return nil, errors.New("failed to validate organisation logo")
+		return nil, fmt.Errorf("failed to validate organisation logo, %v", err)
 	}
 
 	picUrl, err := UploadOrganisationLogo(logger, orgId, file, ext)
 
 	if err != nil {
-		return nil, errors.New("failed to upload organisation logo")
+		return nil, fmt.Errorf("failed to upload organisation logo, %v", err)
 	}
 
 	plan := models.Plan{}
@@ -76,12 +76,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		CreditBalance: float64(credits),
 		Country:       strings.ToLower(req.Country),
 		LogoURL:       picUrl,
-	}
-
-	// Check if the organisation name already exists
-	exists := postgresql.CheckExists(db, &models.Organisation{}, "name = ? AND owner_id = ?", org.Name, userId)
-	if exists {
-		return nil, errors.New("organisation already exists with the given name")
+		OrgPlanID:     plan.ID,
 	}
 
 	err = org.CreateOrganisation(db)
@@ -159,9 +154,11 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		WebhookName: fmt.Sprintf("%s's webhook", channel.Name),
 	}
 
-	slug := channel.ID
-	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slug)
-	webhook.WebhookSlug = slug
+	org.OrganisationSlug = slug.Make(req.Name)
+
+	slugId := channel.ID
+	webhookUrl := config.Config.App.WebhookApiUrl + fmt.Sprintf("/v1/webhooks/%s", slugId)
+	webhook.WebhookSlug = slugId
 	webhook.WebhookUrl = webhookUrl
 
 	err = webhook.CreateWebhook(db)
@@ -176,12 +173,14 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 	}
 
 	err = org.AddSystemAgentstoOrg(db)
+	orgResp, _ := org.GetOrgByID(db, orgId)
+	orgResp.OrganisationSlug = slug.Make(orgResp.Name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &org, nil
+	return &orgResp, nil
 }
 
 func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisation, error) {
