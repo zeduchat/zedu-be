@@ -190,7 +190,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 			"is_onboarded":              userData.IsOnboarded,
 			"profile_updated":           userData.ProfileUpdated,
 			"is_active":                 userData.IsActive,
-			"current_org":               userData.CurrentOrg,
+			"current_org":               org.ID,
 			"first_name":                userData.Profile.FirstName,
 			"last_name":                 userData.Profile.LastName,
 			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
