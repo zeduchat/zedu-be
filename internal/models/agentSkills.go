@@ -27,7 +27,7 @@ type AgentSkill struct {
 	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
 	Avatar       string         `gorm:"type:text" json:"avatar"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMapArr    `gorm:"type:jsonb" json:"agent_config"`
+	Config       JSONBMapArr    `gorm:"type:jsonb" json:"config"`
 	Link         string         `gorm:"type:text" json:"-"`
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	UserId       string         `gorm:"type:uuid" json:"-"`
@@ -46,7 +46,7 @@ type GeneralAgentSkill struct {
 	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
 	Link         string         `gorm:"type:text" json:"-"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMapArr    `gorm:"type:jsonb" json:"agent_config"`
+	Config       JSONBMapArr    `gorm:"type:jsonb" json:"config"`
 	Stars        int64          `gorm:"default:1" json:"stars"`
 	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
@@ -55,7 +55,7 @@ type CreateAgentSkillRequest struct {
 	Name        string      `json:"name" validate:"required"`
 	Description string      `json:"description" validate:"required"`
 	Type        string      `json:"type" validate:"required,oneof=MCP A2A"`
-	Config      JSONBMapArr `json:"agent_config"`
+	Config      JSONBMapArr `json:"config"`
 	AgentId     string      `json:"agent_id" validate:"required"`
 	IsActive    bool        `json:"is_acive"`
 	URLLink     string      `json:"url_link" validate:"required"`
@@ -68,7 +68,7 @@ type CreateAgentSkillRequest struct {
 }
 
 type UpdateAgentSkillRequest struct {
-	Config   JSONBMapArr `json:"agent_config"`
+	Config   JSONBMapArr `json:"config"`
 	SkillId  string      `json:"skill_id"`
 	AgentId  string      `json:"agent_id"`
 	IsActive bool        `json:"is_active"`
@@ -91,7 +91,7 @@ type AgentSkillResponse struct {
 	IsActive     bool        `json:"is_active"`
 	IsConfigured bool        `json:"is_configured"`
 	Avatar       string      `json:"avatar"`
-	Config       JSONBMapArr `json:"agent_config"`
+	Config       JSONBMapArr `json:"config"`
 	Tags         []string    `json:"tags"`
 	Category     string      `json:"category"`
 }

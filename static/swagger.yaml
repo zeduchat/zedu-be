@@ -18899,7 +18899,7 @@ paths:
                 is_active:
                   type: boolean
                   example: true
-                agent_config:
+                config:
                   type: array
                   items:
                     type: object
