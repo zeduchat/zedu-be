@@ -18903,12 +18903,6 @@ paths:
                   type: array
                   items:
                     type: object
-                    properties:
-                      type: object
-                      additionalProperties: true
-                      example:
-                        language: "en"
-                        max_conversations: 5
       responses:
         "200":
           description: Agent skill updated successfully
