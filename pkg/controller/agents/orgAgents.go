@@ -1393,9 +1393,39 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) GetAllCategories(c *gin.Context) {
+func (base *Controller) GetAgentCategories(c *gin.Context) {
 
-	resp, err := agents.GetAllCategories(c, base.Db.Postgresql)
+	resp, err := agents.GetAgentCategories(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to agent categories", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch categories", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("categories retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetSkillCategories(c *gin.Context) {
+
+	resp, err := agents.GetSkillCategories(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch categories", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch categories", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("categories retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetWorkflowCategories(c *gin.Context) {
+
+	resp, err := agents.GetWorkflowCategories(c, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to fetch categories", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch categories", err.Error(), nil)
