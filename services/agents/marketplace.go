@@ -163,10 +163,9 @@ func SearchWorkflowsService(c *gin.Context, db *gorm.DB) (*[]models.GeneralWorkf
 }
 
 // Categories
-
 func GetAgentCategories(c *gin.Context, db *gorm.DB) (gin.H, error) {
 
-	agentCategories, err := models.GetUniqueCategories(db)
+	agentCategories, err := models.GetUniqueAgentCategories(db)
 	if err != nil {
 		return nil, err
 	}

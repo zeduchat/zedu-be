@@ -12,6 +12,11 @@ import (
 
 // Agents
 
+type CategoriesCount struct {
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
+}
+
 func (i *Integrations) GetFeaturedAgents(db *gorm.DB, c *gin.Context) ([]Integrations, postgresql.PaginationResponse, error, int) {
 	var agents []Integrations
 	pagination := postgresql.GetPagination(c)
@@ -72,13 +77,15 @@ func (i *Integrations) GetPopularAgents(db *gorm.DB, c *gin.Context, sortBy stri
 	return agents, paginationResponse, nil, http.StatusOK
 }
 
-func GetUniqueCategories(db *gorm.DB) ([]string, error) {
-	var categories []string
+func GetUniqueAgentCategories(db *gorm.DB) ([]CategoriesCount, error) {
+	var categories []CategoriesCount
 	if err := db.
 		Model(&Integrations{}).
+		Select("category as name, COUNT(*) as count").
 		Where("category IS NOT NULL AND category != ''").
-		Distinct("category").
-		Pluck("category", &categories).Error; err != nil {
+		Group("category").
+		Order("name ASC").
+		Scan(&categories).Error; err != nil {
 		return nil, err
 	}
 	return categories, nil
@@ -91,7 +98,7 @@ func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, categori
 	query := db.Model(&Integrations{}).
 		Where("category IN ?", categories)
 
-	sortOrder := "created_at"
+	sortOrder := "name"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
 	if ok {
 		sortOrder = sortBy
@@ -100,7 +107,7 @@ func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, categori
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		"asc",
 		pagination,
 		&agents,
 		nil,
@@ -123,8 +130,8 @@ func (i *Integrations) FilterAgents(db *gorm.DB, filters map[string]interface{},
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
-		"desc",
+		"name",
+		"asc",
 		pagination,
 		&agents,
 		nil,
@@ -144,7 +151,7 @@ func (i *Integrations) SearchAgents(db *gorm.DB, c *gin.Context, keyword, sortBy
 	query := db.Model(&Integrations{}).
 		Where("name ILIKE ? OR title ILIKE ? OR app_description ILIKE ?", searchTerm, searchTerm, searchTerm)
 
-	sortOrder := "created_at"
+	sortOrder := "name"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
 	if ok {
 		sortOrder = sortBy
@@ -153,7 +160,7 @@ func (i *Integrations) SearchAgents(db *gorm.DB, c *gin.Context, keyword, sortBy
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		sortOrder,
-		"desc",
+		"asc",
 		pagination,
 		&agents,
 		nil,
@@ -172,7 +179,7 @@ func (s *GeneralAgentSkill) GetSkillsByCategory(db *gorm.DB, c *gin.Context, cat
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&GeneralAgentSkill{}).
-		Where("category IN ?", categories, true)
+		Where("category IN ?", categories)
 
 	sortOrder := "created_at"
 	sortBy, ok := map[string]string{"name": "name", "rating": "stars"}[sortBy]
@@ -234,13 +241,15 @@ func (s *GeneralAgentSkill) SearchSkills(db *gorm.DB, c *gin.Context, keyword, s
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func GetUniqueSkillsCategories(db *gorm.DB) ([]string, error) {
-	var categories []string
+func GetUniqueSkillsCategories(db *gorm.DB) ([]CategoriesCount, error) {
+	var categories []CategoriesCount
 
 	if err := db.Model(&GeneralAgentSkill{}).
+		Select("category as name, COUNT(*) as count").
 		Where("category IS NOT NULL AND category != ''").
-		Distinct("category").
-		Pluck("category", &categories).Error; err != nil {
+		Group("category").
+		Order("name ASC").
+		Scan(&categories).Error; err != nil {
 		return nil, err
 	}
 
@@ -314,13 +323,15 @@ func (w *GeneralWorkflow) SearchWorkflows(db *gorm.DB, c *gin.Context, keyword, 
 	return &workflows, paginationResponse, nil, http.StatusOK
 }
 
-func GetUniqueWorkflowCategories(db *gorm.DB) ([]string, error) {
-	var categories []string
+func GetUniqueWorkflowCategories(db *gorm.DB) ([]CategoriesCount, error) {
+	var categories []CategoriesCount
 	if err := db.
 		Model(&GeneralWorkflow{}).
+		Select("category as name, COUNT(*) as count").
 		Where("category IS NOT NULL AND category != ''").
-		Distinct("category").
-		Pluck("category", &categories).Error; err != nil {
+		Group("category").
+		Order("name ASC").
+		Scan(&categories).Error; err != nil {
 		return nil, err
 	}
 	return categories, nil
