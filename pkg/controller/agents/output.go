@@ -2,6 +2,7 @@ package agents
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -62,10 +63,14 @@ func (base *Controller) GetSystemAgentApp(c *gin.Context) {
 	int_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(int_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+		parts := strings.Split(int_id, "-")
+		if len(parts) != 2 {
+			base.Logger.Error("invalid organisation id format", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	int_id =  parts[1]
 	}
 
 	agent, err, code := agents.GetSystemAgentApp(c, base.Db.Postgresql, int_id, base.ExtReq)

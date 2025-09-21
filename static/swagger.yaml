@@ -11912,11 +11912,11 @@ paths:
           description: Internal server error.
 
   #  Market place
-  /marketplace/categories:
+  /marketplace/agent/categories:
     get:
       summary: Get all marketplace categories
       description: >
-        Fetch a list of all available categories for agents, workflows, and skills 
+        Fetch a list of all available categories for agents
         in the marketplace.
       tags:
         - Marketplace
@@ -11942,11 +11942,97 @@ paths:
                         items:
                           type: string
                         example: ["chatbots", "analytics", "security"]
+
+        "500":
+          description: Failed to fetch categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Failed to fetch categories
+                  error:
+                    type: string
+                    example: database connection error
+
+  /marketplace/workflow/categories:
+    get:
+      summary: Get all marketplace categories
+      description: >
+        Fetch a list of all available categories for workflows
+        in the marketplace.
+      tags:
+        - Marketplace
+      responses:
+        "200":
+          description: Successfully retrieved categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: categories retrieved successfully.
+                  data:
+                    type: object
+                    properties:
                       workflow:
                         type: array
                         items:
                           type: string
                         example: ["automation", "reporting"]
+
+        "500":
+          description: Failed to fetch categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Failed to fetch categories
+                  error:
+                    type: string
+                    example: database connection error
+
+  /marketplace/skill/categories:
+    get:
+      summary: Get all skill categories
+      description: >
+        Fetch a list of all available categories for skills 
+        in the marketplace.
+      tags:
+        - Marketplace
+      responses:
+        "200":
+          description: Successfully retrieved categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: categories retrieved successfully.
+                  data:
+                    type: object
+                    properties:
                       skills:
                         type: array
                         items:
