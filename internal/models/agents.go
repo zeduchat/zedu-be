@@ -681,12 +681,15 @@ func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context, sortBy st
 }
 
 func (i *Integrations) GetSystemAgentApp(db *gorm.DB, int_id string, c *gin.Context) (Integrations, error, int) {
+	var IntResp Integrations
 
-	var (
-		IntResp Integrations
+	// Try full UUID or match by last part
+	exists := postgresql.CheckExists(
+		db,
+		&IntResp,
+		"(id::text = ? OR id::text LIKE ?)",
+		int_id, "%-"+int_id,
 	)
-
-	exists := postgresql.CheckExists(db, &IntResp, "id = ?", int_id)
 	if !exists {
 		return IntResp, errors.New("Agent does not exist"), http.StatusNotFound
 	}
