@@ -55,6 +55,8 @@ type Integrations struct {
 	Benefits           string             `gorm:"type:text" json:"benefits"`
 	WhyUse             string             `gorm:"type:text" json:"why_use"`
 	Stars              int64              `gorm:"default:1" json:"stars"`
+	ShortDescription   string             `gorm:"type:text" json:"short_description"`
+	LongDescription    string             `gorm:"type:text" json:"long_description"`
 }
 
 type CreateAgentRequest struct {
@@ -72,14 +74,16 @@ type CreateAgentRequest struct {
 }
 
 type PublishAgentRequest struct {
-	Category   string    `json:"category" validate:"required"`
-	Snapshot   Snapshots `json:"snapshots" validate:"required,min=1,dive"`
-	HowItWorks string    `json:"how_it_works" validate:"required,min=101"`
-	Benefits   string    `json:"benefits" validate:"required,min=101"`
-	WhyUse     string    `json:"why_use" validate:"required,min=101"`
-	UserId     string    `json:"-"`
-	AgentId    string    `json:"-"`
-	OrgId      string    `json:"-"`
+	Category         string    `json:"category" validate:"required"`
+	Snapshot         Snapshots `json:"snapshots" validate:"required,min=1,dive"`
+	HowItWorks       string    `json:"how_it_works" validate:"required,min=101"`
+	Benefits         string    `json:"benefits" validate:"required,min=101"`
+	WhyUse           string    `json:"why_use" validate:"required,min=101"`
+	ShortDescription string    `json:"short_description" validate:"required,min=10"`
+	LongDescription  string    `json:"long_description" validate:"required,min=101"`
+	UserId           string    `json:"-"`
+	AgentId          string    `json:"-"`
+	OrgId            string    `json:"-"`
 }
 
 type UpdateAgentPromptRequest struct {
@@ -2629,6 +2633,8 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	genAgent.Skills = agent.Skills
 	genAgent.Version = agent.Version
 	genAgent.Stars = agent.Stars
+	genAgent.ShortDescription = req.ShortDescription
+	genAgent.LongDescription = req.LongDescription
 
 	if err := db.Save(&genAgent).Error; err != nil {
 		return http.StatusInternalServerError, err
