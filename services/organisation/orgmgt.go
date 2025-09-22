@@ -10,7 +10,6 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -170,12 +169,9 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 		}
 	} else {
 
-		req := models.LogoutReqModel{
-			UserId:     user.ID,
-			AccessUuid: user_token.ID,
-		}
+		access_token := models.AccessToken{ID: user_token.ID, OwnerID: user.ID}
+		err := access_token.RevokeAccessToken(db)
 
-		_, err = auth.LogoutUser(req, tx)
 		if err != nil {
 			tx.Rollback()
 			return http.StatusBadRequest, errors.New("failed to logout user")

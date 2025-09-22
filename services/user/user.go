@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -338,7 +339,7 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	access_token := models.AccessToken{ID: token.AccessUuid, OwnerID: user.ID}
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: " + err.Error())
+		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: %v",err.Error())
 	}
 
 	err = user.Update(db)
@@ -347,8 +348,9 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	}
 
 	theData := gin.H{
-		"organisation": org,
-		"access_token": token.AccessToken,
+		"organisation":              org,
+		"access_token":              token.AccessToken,
+		"current_organisation_slug": slug.Make(org.Name),
 	}
 
 	return theData, http.StatusOK, nil

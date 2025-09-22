@@ -88,10 +88,6 @@ func (r *SendRequestObject) SendStream() (<-chan external_models.StreamChunk, er
 
 		logger.Info("streaming request (channel)", name, r.Path, r.Method, r.Headers)
 
-		bodyBytes, _ := json.MarshalIndent(buf, "", "  ")
-		fmt.Println("=== JSON BODY ===")
-		fmt.Println(string(bodyBytes))
-
 		res, err := client.Do(req)
 		if err != nil {
 			logger.Error("client do error", name, err.Error())

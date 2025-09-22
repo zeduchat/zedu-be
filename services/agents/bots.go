@@ -1,10 +1,13 @@
 package agents
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -25,6 +28,8 @@ func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, org_id string,
 	}
 
 	for _, org_agents := range resp {
+		parts := strings.Split(org_agents.IntegrationID, "-")
+		lastPart := parts[len(parts)-1]
 
 		agent := models.AgentResp{
 			ID:          org_agents.IntegrationID,
@@ -35,6 +40,7 @@ func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, org_id string,
 			Avatar:      org_agents.AppLogo,
 			Description: org_agents.AppDescription,
 			IsActive:    org_agents.IsActive,
+			AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(org_agents.AppName), lastPart),
 		}
 
 		botResp = append(botResp, agent)

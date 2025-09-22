@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/agents"
@@ -22,6 +23,16 @@ func (base *Controller) CreateAgentTasks(c *gin.Context) {
 		return
 	}
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	orgID := userClaims["org_id"].(string)
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Info("error parsing request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
@@ -38,6 +49,7 @@ func (base *Controller) CreateAgentTasks(c *gin.Context) {
 	}
 
 	req.AgentID = agentID
+	req.OrganisationID = orgID
 	code, tasks, err := agents.CreateAgentTasks(base.Db.Postgresql, base.Logger, req)
 	if err != nil {
 		base.Logger.Error("error creating tasks", err)
@@ -70,7 +82,6 @@ func (base *Controller) UpdateAgentTasks(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Info("error parsing request body")
@@ -108,6 +119,16 @@ func (base *Controller) UpdateAgentTasks(c *gin.Context) {
 func (base *Controller) GetAgentTasks(c *gin.Context) {
 	agentID := c.Param("agent_id")
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	orgID := userClaims["org_id"].(string)
+
 	if _, err := uuid.Parse(agentID); err != nil {
 		base.Logger.Info("invalid agent workflow id format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid agent workflow id format", err, nil)
@@ -115,7 +136,7 @@ func (base *Controller) GetAgentTasks(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := agents.GetAgentTasks(c, base.Db.Postgresql, base.Logger, agentID)
+	resp, code, err := agents.GetAgentTasks(c, base.Db.Postgresql, base.Logger, agentID, orgID)
 	if err != nil {
 		base.Logger.Error("error fetching tasks", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -173,7 +194,39 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		return
 	}
 
-	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, agentID)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "invalid user claims type", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "user_id must be string", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	orgID, ok := userClaims["org_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "org_id must be string", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := models.IDS{
+		OrganisationID: orgID,
+		AgentID:        agentID,
+		UserID:         userID,
+	}
+
+	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, ids)
 	if err != nil {
 		base.Logger.Error("error processing tasks", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -181,7 +234,7 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Tasks processed successfully: Recommendations sent to agent")
-	rd := utility.BuildSuccessResponse(code, "Tasks processed successfully", resp)
+	base.Logger.Info("Tasks processed successfully: Recommendations sent to agent and Workflow successfully generated")
+	rd := utility.BuildSuccessResponse(code, "Tasks processed successfully: Recommendations sent to agent and Workflow successfully generated", resp)
 	c.JSON(code, rd)
 }

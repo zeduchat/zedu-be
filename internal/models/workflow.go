@@ -26,6 +26,7 @@ type Workflow struct {
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
+	Category        string                `gorm:"type:text;default:default" json:"category"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
@@ -40,6 +41,7 @@ type GeneralWorkflow struct {
 	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
 	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
 	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
+	Category        string                `gorm:"type:text;default:default" json:"category"`
 	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
@@ -55,6 +57,7 @@ type WorkFlowRequest struct {
 	Agents          StringSlice           `json:"agents_id" validate:"required,dive,uuid"`
 	FlowConnections Connections           `json:"connections"`
 	Settings        WorkflowSettingsEntry `json:"settings"`
+	Category        string                `json:"category"`
 }
 
 type ChannelWorkflow struct {
@@ -73,6 +76,7 @@ type AgentWorkflow struct {
 	Name       string    `gorm:"type:text" json:"name"`
 	OrgId      string    `gorm:"type:uuid" json:"-"`
 	IsActive   bool      `gorm:"type:boolean" json:"is_active"`
+	Category   string    `gorm:"type:text" json:"category"`
 	CreatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 	UpdatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
@@ -211,20 +215,50 @@ func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 
 }
 
-func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
+// func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 
+// 	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
+// 		return err, http.StatusBadRequest
+// 	}
+
+// 	err := db.Create(&wf).Error
+
+// 	if err != nil {
+// 		return err, http.StatusInternalServerError
+// 	}
+
+// 	return nil, http.StatusCreated
+// }
+
+func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return err, http.StatusBadRequest
 	}
 
-	err := db.Create(&wf).Error
-
+	var existing AgentWorkflow
+	err := db.Where("org_id = ? AND agent_id = ?", wf.OrgId, wf.AgentId).First(&existing).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			if err := db.Create(&wf).Error; err != nil {
+				return err, http.StatusInternalServerError
+			}
+			return nil, http.StatusCreated
+		}
 		return err, http.StatusInternalServerError
 	}
 
-	return nil, http.StatusCreated
+	existing.WorkflowId = wf.WorkflowId
+	existing.RawEntry = wf.RawEntry
+	existing.Name = wf.Name
+
+	if err := db.Save(&existing).Error; err != nil {
+		return err, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusOK
 }
+
+
 
 func (wf *Workflow) UpdateWorkflow(db *gorm.DB) error {
 
@@ -338,7 +372,7 @@ func (wf *AgentWorkflow) GetWorkflowByID(db *gorm.DB) (*AgentWorkFlowResponse, i
 func ValidateAgentIDs(db *gorm.DB, orgID string, agentIDs []string) error {
 	var validIDs []string
 	if err := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ? AND integration_id IN ?", orgID, agentIDs).
+		Where("integration_id IN ?", agentIDs).
 		Pluck("integration_id", &validIDs).Error; err != nil {
 		return fmt.Errorf("error validating agents: %w", err)
 	}

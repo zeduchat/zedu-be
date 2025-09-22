@@ -67,6 +67,7 @@ func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.
 
 		previousOutput = pStep.Output
 
+		fmt.Printf("input: %s\noutput: %s", pStep.Input, pStep.Output)
 		pStep.Status = "completed"
 		stepProcess = append(stepProcess, pStep)
 	}
@@ -116,7 +117,7 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 	return response, code, nil
 }
 
-func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (models.WorkflowJSON, int, error) {
+func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID, orgID string) (models.WorkflowJSON, int, error) {
 	var (
 		agents      models.OrganisationIntegrations
 		task        models.Task
@@ -124,7 +125,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		aw          models.AgentWorkflow
 	)
 
-	exists, err := agents.CheckAgentExists(db, agentID)
+	exists, err := agents.CheckAgentExists(db, agentID, orgID)
 	if !exists {
 		return models.WorkflowJSON{}, http.StatusNotFound, fmt.Errorf("agent with id %s not found", agentID)
 	}
@@ -132,14 +133,14 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 
-	tasks, err := (task).GetAgentTasks(db, agentID)
+	tasks, err := (task).GetAgentTasks(db, agentID, orgID)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 
 	if len(tasks) == 0 {
 		logger.Error("no tasks found for agent id %s", agentID)
-		return models.WorkflowJSON{}, http.StatusOK, nil
+		return models.WorkflowJSON{}, http.StatusNotFound, nil
 	}
 
 	var taskList strings.Builder
@@ -148,13 +149,14 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	}
 
 	skillsModel.AgentId = agentID
+	skillsModel.OrgId = orgID
 	skills, err := skillsModel.GetAllAgentSkills(db)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusInternalServerError, err
 	}
 	if len(skills) == 0 {
 		logger.Error("no skills found for agent id %s", agentID)
-		return models.WorkflowJSON{}, http.StatusOK, nil
+		return models.WorkflowJSON{}, http.StatusNotFound, nil
 	}
 
 	skillsList := make([]string, len(skills))
@@ -163,6 +165,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	}
 
 	promptSteps := []string{"Task Cleanup", "Skill Matching", "Workflow Translation"}
+	// promptSteps := []string{"Task Cleanup", "Skill Matching", }
 	steps := make([]models.StepReq, len(promptSteps))
 	for i, step := range promptSteps {
 		var prompt models.Prompts
@@ -183,13 +186,14 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		Steps:    steps,
 	}
 
+	fmt.Printf("%+v\n", req)
+
 	stepProcess, err := runTranslationPipeline(db, logger, extReq, taskList.String(), req)
 	if err != nil {
 		return models.WorkflowJSON{}, http.StatusBadRequest, err
 	}
 
 	resp := models.TranslationResponse{
-		Status:      "success",
 		ProcessStep: stepProcess,
 	}
 
@@ -213,7 +217,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	aw.WorkflowId = utility.GenerateUUID()
 	aw.RawEntry = rawEntry
 	aw.Name = wkfJson.Name
-	aw.OrgId = agents.OrgID
+	aw.OrgId = orgID
 
 	err, code := aw.CreateAgentWorkflow(db)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -149,13 +150,16 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 		botResp []models.AgentResp = make([]models.AgentResp, 0)
 	)
 
-	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c)
+	resp, paginationResult, err, code := agents.GetSystemAgentApps(db, c, "")
 
 	if err != nil {
 		return &[]models.AgentResp{}, postgresql.PaginationResponse{}, err, code
 	}
 
 	for _, agents := range resp {
+
+		parts := strings.Split(agents.ID, "-")
+		lastPart := parts[len(parts)-1]
 
 		agent := models.AgentResp{
 			ID:          agents.ID,
@@ -167,6 +171,8 @@ func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequ
 			Description: agents.AppDescription,
 			IsActive:    agents.IsActive,
 			Category:    agents.Category,
+			Stars:       agents.Stars,
+			AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
 		}
 
 		botResp = append(botResp, agent)
@@ -185,6 +191,9 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		return &models.AgentResp{}, err, code
 	}
 
+	parts := strings.Split(agent.ID, "-")
+	lastPart := parts[len(parts)-1]
+
 	resp := models.AgentResp{
 
 		ID:          agent.ID,
@@ -196,6 +205,12 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 		Description: agent.AppDescription,
 		IsActive:    agent.IsActive,
 		Category:    agent.Category,
+		Stars:       agent.Stars,
+		Snapshot:    agent.Snapshot,
+		HowItWorks:  agent.HowItWorks,
+		Benefits:    agent.Benefits,
+		WhyUse:      agent.WhyUse,
+		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agent.Name), lastPart),
 	}
 	return &resp, nil, code
 }
@@ -375,18 +390,22 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	orgIntegration.AppDescription = req.Description
 	orgIntegration.OwnerID = req.UserId
 	orgIntegration.IntegrationID = utility.GenerateUUID()
-	orgIntegration.SystemPrompts = req.SystemPrompts
+	orgIntegration.SystemPrompts = []models.SystemPrompts{
+		{
+			Name:    "System Prompt",
+			Content: fmt.Sprintf("Your name is %s and your job is %s", req.Name, req.Description),
+			Type:    "system_prompt",
+			Id:      utility.GenerateUUID(),
+		},
+	}
 	orgIntegration.AppLogo = req.Avatar
 	orgIntegration.PreSharedKey = psk
-
 	err = orgIntegration.CreateOrganisationIntegration(db)
 	if err != nil {
 		return int_resp, http.StatusInternalServerError, err
 	}
-
 	auth_credentials := map[string]any{"agent_auth_credentials": "Not-Set-Yet"}
 	settings_data := map[string]any{"settings": ""}
-
 	auth_credentials["agent_api_key"] = psk
 	settings_data["auth_credentials"] = auth_credentials
 	settingJsonData, err := json.Marshal(settings_data)
@@ -399,11 +418,13 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 	agentSettings.IntegrationID = orgIntegration.IntegrationID
 	agentSettings.IsSystem = false
 	agentSettings.ID = utility.GenerateUUID()
-
 	err = agentSettings.CreateIntegrationSettings(db)
 	if err != nil {
 		return int_resp, http.StatusInternalServerError, err
 	}
+
+	parts := strings.Split(orgIntegration.IntegrationID, "-")
+	lastPart := parts[len(parts)-1]
 
 	int_resp = models.AgentResp{
 		ID:          orgIntegration.IntegrationID,
@@ -414,6 +435,7 @@ func CreateCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq reques
 		Avatar:      orgIntegration.AppLogo,
 		Description: orgIntegration.AppDescription,
 		IsActive:    orgIntegration.IsActive,
+		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(orgIntegration.AppName), lastPart),
 	}
 
 	return int_resp, http.StatusCreated, nil
@@ -459,6 +481,32 @@ func UpdateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, e
 	return code, nil
 }
 
+func CreateCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (int, error) {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	code, err := orgIntegration.CreateCustomAgentPrompt(db, req)
+
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
+}
+
+func DeleteCustomAgentPrompt(req models.UpdateAgentPromptRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (int, error) {
+
+	var orgIntegration models.OrganisationIntegrations
+
+	code, err := orgIntegration.DeleteCustomAgentPrompt(db, req)
+
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
+}
+
 // Update CustomIntegration
 func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger) (*models.AgentResp, int, error) {
 
@@ -473,6 +521,9 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 			return &models.AgentResp{}, http.StatusNotFound, errors.New("Agent does not exists")
 		}
 
+		parts := strings.Split(agents.ID, "-")
+		lastPart := parts[len(parts)-1]
+
 		resp := models.AgentResp{
 			ID:            agents.ID,
 			Name:          agents.Name,
@@ -483,9 +534,17 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 			Description:   agents.AppDescription,
 			IsActive:      false,
 			SystemPrompts: agents.SystemPrompts,
+			Snapshot:      agents.Snapshot,
+			HowItWorks:    agents.HowItWorks,
+			Benefits:      agents.Benefits,
+			WhyUse:        agents.WhyUse,
+			AgentSlug:     fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
 		}
 		return &resp, http.StatusOK, nil
 	}
+
+	parts := strings.Split(org_agents.IntegrationID, "-")
+	lastPart := parts[len(parts)-1]
 
 	resp := models.AgentResp{
 		ID:            org_agents.IntegrationID,
@@ -497,6 +556,14 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		Description:   org_agents.AppDescription,
 		IsActive:      org_agents.IsActive,
 		SystemPrompts: org_agents.SystemPrompts,
+		AgentSlug:     fmt.Sprintf("%s-%s", slug.Make(org_agents.AppName), lastPart),
+	}
+
+	if exists = postgresql.CheckExists(db, &agents, "id = ?", req.AgentId); exists {
+		resp.Benefits = agents.Benefits
+		resp.Snapshot = agents.Snapshot
+		resp.WhyUse = agents.WhyUse
+		resp.HowItWorks = agents.HowItWorks
 	}
 
 	return &resp, http.StatusOK, nil
@@ -1102,4 +1169,15 @@ func UploadAgentAvatar(logger *utility.Logger, uniqueId string, file []byte, ext
 		return picUrl, nil
 	}
 	return "", nil
+}
+
+func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (int, error) {
+	var agent models.OrganisationIntegrations
+
+	code, err := agent.PublishAgent(req, db)
+	if err != nil {
+		return code, err
+	}
+
+	return code, nil
 }

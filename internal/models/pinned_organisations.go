@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
 type UserPinnedOrganisations struct {
@@ -23,12 +25,13 @@ type CreateUserPinnedOrganisationRequest struct {
 }
 
 type GetUserPinnedOrganisationsResponse struct {
-	ID        string    `json:"id"`
-	OrgID     string    `json:"org_id"`
-	OrgName   string    `json:"org_name"`
-	AvatarUrl string    `json:"avatar_url"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	OrgID            string    `json:"org_id"`
+	OrgName          string    `json:"org_name"`
+	AvatarUrl        string    `json:"avatar_url"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	OrganisationSlug string    `json:"organisation_slug"`
 }
 
 type UnpinOrganisationRequest struct {
@@ -57,6 +60,10 @@ func (u *UserPinnedOrganisations) GetUserPinnedOrganisations(db *gorm.DB, ids ID
 
 	if err != nil {
 		return nil, errors.New("failed to get user pinned organisations: " + err.Error())
+	}
+
+	for i := range pinnedOrgs {
+		pinnedOrgs[i].OrganisationSlug = slug.Make(pinnedOrgs[i].OrgName)
 	}
 
 	return pinnedOrgs, nil

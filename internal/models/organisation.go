@@ -39,7 +39,8 @@ type Organisation struct {
 	SubscriptionPlanId string           `gorm:"column:subscription_plan_id; type:varchar(255); default:'free'" json:"subscription_plan_id"`
 	StripeCustomerID   string           `gorm:"column:stripe_customer_id; type:varchar(255)" json:"stripe_customer_id"`
 	OrgPlanID          string           `gorm:"type:varchar(100);null;index" json:"org_plan_id"`
-	OrganisationPlan   OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan"`
+	OrganisationPlan   OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan,omitempty"`
+	OrganisationSlug   string           `gorm:"-" json:"organisation_slug"`
 }
 
 type CreateOrgRequestModel struct {
@@ -170,7 +171,7 @@ func (o *Organisation) GetOrgByID(db *gorm.DB, orgID string) (Organisation, erro
 	}
 
 	query := db.Where("id = ?", orgID)
-	query = postgresql.PreloadEntities(query, &org, "OrgRoles", "OrgRoles.Permissions")
+	query = postgresql.PreloadEntities(query, &org, "OrgRoles", "OrgRoles.Permissions", "OrganisationPlan")
 
 	if err := query.First(&org).Error; err != nil {
 		return org, fmt.Errorf("failed to retrieve organisation: %w", err)
@@ -584,7 +585,8 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 	var orgIntResp []OrganisationIntegrations
 
 	err := db.Model(&Integrations{}).
-		Select("gen_random_uuid() AS id, id as integration_id, ? as org_id, ? as owner_id, name as app_name, app_description, app_url, app_logo, json_url, false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at", o.ID, o.OwnerID).
+		Select("gen_random_uuid() AS id, id as integration_id, ? as org_id, ? as owner_id, name as app_name, app_description, app_url, app_logo, json_url, false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at, system_prompts, tone, title", o.ID, o.OwnerID).
+		Limit(5).
 		Scan(&orgIntResp).Error
 
 	if err != nil {

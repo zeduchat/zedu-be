@@ -2,6 +2,7 @@ package agents
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/translator"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -18,10 +20,11 @@ import (
 func CreateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.CreateAgentTasksRequest) (int, models.Task, error) {
 
 	task := models.Task{
-		ID:       utility.GenerateUUID(),
-		AgentID:  req.AgentID,
-		Text:     req.Text,
-		Position: req.Position,
+		ID:             utility.GenerateUUID(),
+		AgentID:        req.AgentID,
+		Text:           req.Text,
+		OrganisationID: req.OrganisationID,
+		Position:       req.Position,
 	}
 
 	code, err := task.CreateTasks(db)
@@ -44,73 +47,103 @@ func UpdateAgentTasks(db *gorm.DB, logger *utility.Logger, req models.UpdateAgen
 	return http.StatusOK, nil
 }
 
-func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, agentID string) (int, []models.AgentSkillResponse, error) {
+func ProcessAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, ids models.IDS) (int, gin.H, error) {
 
-	tasks, code, err := GetAgentTasks(c, db, logger, agentID)
-	if err != nil {
-		logger.Error("error fetching tasks", err)
-		return code, []models.AgentSkillResponse{}, err
+	emptyResp := func() gin.H {
+		return gin.H{
+			"workflow_json":          map[string]any{},
+			"all_recommended_skills": []models.AgentSkillResponse{},
+		}
 	}
 
+	fail := func(code int, msg string, err error) (int, gin.H, error) {
+		if err != nil {
+			logger.Error(msg, err)
+		} else {
+			logger.Error(msg)
+		}
+		return code, emptyResp(), err
+	}
+
+	var agent models.OrganisationIntegrations
+	if !postgresql.CheckExists(db, &agent, "integration_id = ? AND org_id", ids.AgentID, ids.OrganisationID) {
+		return fail(http.StatusNotFound, "agent not found", nil)
+	}
+
+	tasks, code, err := GetAgentTasks(c, db, logger, ids.AgentID, ids.OrganisationID)
+	if err != nil {
+		return fail(code, "error fetching tasks", err)
+	}
 	if len(tasks) == 0 {
-		logger.Info("No tasks found for agent")
-		return http.StatusOK, []models.AgentSkillResponse{}, nil
+		return fail(http.StatusBadRequest, "No tasks found for agent", errors.New("no tasks found for agent"))
 	}
 
 	var gas models.GeneralAgentSkill
-	generalskills, err, statusCode := gas.FetchGeneralAgentSkills(db, c)
+	generalSkills, err, statusCode := gas.FetchGeneralAgentSkills(db, c)
 	if err != nil {
-		return statusCode, []models.AgentSkillResponse{}, err
+		return fail(statusCode, "error fetching general agent skills", err)
 	}
 
-	allRecommendedSkills, err := GetRecommendedSkills(db, extReq, logger, tasks, generalskills, agentID)
+	allRecommendedSkills, err := GetRecommendedSkills(db, extReq, logger, tasks, generalSkills, ids.AgentID)
 	if err != nil {
-		logger.Error("Failed to get recommended agent workflow skills: ", err)
-		return http.StatusOK, []models.AgentSkillResponse{}, nil
+		return fail(http.StatusOK, "Failed to get recommended agent workflow skills", err)
+	}
+
+	if len(allRecommendedSkills) == 0 {
+		return fail(http.StatusBadRequest, "No Skills Recommended from global skills", errors.New("no skills recommended for agent from global skills"))
 	}
 
 	recommendedSkills := make([]models.GeneralAgentSkill, 0)
 	for _, rs := range allRecommendedSkills {
-		var (
-			gas models.GeneralAgentSkill
-			as  models.AgentSkill
-		)
-
-		exists, err := as.CheckAgentHasSkillByName(db, agentID, rs.Name)
+		var as models.AgentSkill
+		exists, err := as.CheckAgentHasSkillByName(db, ids.AgentID, rs.Name)
 		if err != nil {
-			logger.Error("Failed to check if agent has skill: ", err)
+			logger.Error(err.Error())
 			continue
 		}
-
 		if !exists {
-			gas.GetGeneralAgentSkillByID(db, rs.SkillId)
-			recommendedSkills = append(recommendedSkills, gas)
+			var g models.GeneralAgentSkill
+			g.GetGeneralAgentSkillByID(db, rs.SkillId)
+			recommendedSkills = append(recommendedSkills, g)
 		}
 	}
 
 	if len(recommendedSkills) > 0 {
-		err = StoreAgentSkills(db, logger, recommendedSkills, agentID)
-		if err != nil {
-			logger.Error("Failed to store agent workflow skills: ", err)
-			return http.StatusOK, allRecommendedSkills, nil
+		if err := StoreAgentSkills(db, logger, recommendedSkills, ids.AgentID, ids.OrganisationID, ids.UserID); err != nil {
+			return fail(http.StatusOK, "Failed to store agent workflow skills", err)
 		}
 	}
 
-	return http.StatusOK, allRecommendedSkills, nil
-}
+	wkfJSON, statusCode, err := translator.GenerateWorkflowJSON(db, logger, extReq, ids.AgentID, ids.OrganisationID)
+	if err != nil {
+		logger.Error("failed to generate workflow json: ", err)
+		return statusCode, gin.H{
+			"all_recommended_skills": allRecommendedSkills,
+			"workflow_json":          wkfJSON,
+		}, nil
+	}
 
+	return http.StatusOK, gin.H{
+		"all_recommended_skills": allRecommendedSkills,
+		"workflow_json":          wkfJSON,
+	}, nil
+}
 
 func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *utility.Logger, tasksList []models.Task, generalSkills []models.GeneralAgentSkill, agentID string) ([]models.AgentSkillResponse, error) {
 	type skillInfo struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Type        string `json:"type"`
 	}
 
 	skills := make([]skillInfo, len(generalSkills))
 	for i, skill := range generalSkills {
 		skills[i] = skillInfo{
-			ID:   skill.ID,
-			Name: skill.Name,
+			ID:          skill.ID,
+			Name:        skill.Name,
+			Description: skill.Description,
+			Type:        skill.Type,
 		}
 	}
 
@@ -119,10 +152,17 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 		taskDescriptions.WriteString(fmt.Sprintf("Task ID: %s, Task: %s\n", task.ID, task.Text))
 	}
 
-	systemPrompt := `You are a skill recommendation assistant. Given a list of tasks and available skills, identify which skills are relevant to the overall workflow. 
-	Return ONLY a valid JSON array containing UNIQUE skill IDs that are relevant to the workflow:
-	["skill-id-1", "skill-id-2", "skill-id-3"]
-	Only return the JSON array, nothing else.`
+	systemPrompt := `You are a skill recommendation assistant. 
+		Given a list of tasks and available skills, identify which skills are DIRECTLY relevant to the overall workflow. 
+
+		Rules:
+		- Only return skills that CLEARLY and EXPLICITLY match the tasks. 
+		- Do NOT infer or assume relevance if no clear match exists. 
+		- If none of the available skills are relevant, return an EMPTY JSON array: []
+		- The output must be a valid JSON array containing UNIQUE skill IDs only, for example:
+		["skill-id-1", "skill-id-2"]
+
+		Return ONLY the JSON array, nothing else. BE VERY ACCURATE`
 
 	input := fmt.Sprintf("Skills: %+v\n\nTasks:\n%s", skills, taskDescriptions.String())
 
@@ -175,21 +215,17 @@ func GetRecommendedSkills(db *gorm.DB, extReq request.ExternalRequest, logger *u
 			})
 			uniqueSkills[skillID] = true
 		} else if !skillMap[skillID] {
-			logger.Error("Invalid skill ID recommended: ", skillID)
+			logger.Error("Invalid skill ID recommended by llm: ", skillID)
 		}
 	}
 
 	return skillResp, nil
 }
 
-func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []models.GeneralAgentSkill, agentID string) error {
-	logger.Info(fmt.Sprintf("Attempting to store %d recommended skills", len(recommendedskills)))
+func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []models.GeneralAgentSkill, agentID, orgID, userID string) error {
 
+	logger.Info(fmt.Sprintf("Attempting to store %d recommended skills", len(recommendedskills)))
 	var as []models.AgentSkill
-	if len(recommendedskills) == 0 {
-		logger.Info("No recommended skills to store")
-		return nil
-	}
 
 	tx := db.Begin()
 	if tx.Error != nil {
@@ -198,20 +234,23 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 	}
 
 	for _, skill := range recommendedskills {
-		logger.Info(fmt.Sprintf("Processing skill: %s", skill.Name))
+		logger.Info(fmt.Sprintf("Processing skill: %s, SkillID: %s ", skill.Name, skill.ID))
 
 		newSkill := models.AgentSkill{
 			ID:           utility.GenerateUUID(),
 			SkillId:      skill.ID,
-			Name:         skill.Name,
 			AgentId:      agentID,
+			Name:         skill.Name,
 			IsActive:     skill.IsActive,
 			Description:  skill.Description,
 			Type:         skill.Type,
 			IsConfigured: skill.IsConfigured,
 			Config:       skill.Config,
 			Avatar:       skill.Avatar,
+			OrgId:        orgID,
+			UserId:       userID,
 		}
+
 		as = append(as, newSkill)
 	}
 
@@ -237,10 +276,10 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, recommendedskills []m
 	return nil
 }
 
-func GetAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, agentID string) ([]models.Task, int, error) {
+func GetAgentTasks(c *gin.Context, db *gorm.DB, logger *utility.Logger, agentID, orgID string) ([]models.Task, int, error) {
 	var task models.Task
 
-	tasks, err := task.GetAgentTasks(db, agentID)
+	tasks, err := task.GetAgentTasks(db, agentID, orgID)
 	if err != nil {
 		logger.Error("error fetching tasks", err)
 		return nil, http.StatusInternalServerError, err

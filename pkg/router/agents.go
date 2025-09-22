@@ -23,15 +23,15 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		organisationUrl.GET("/:skill_id/agents/:agents_id", agentsCtrl.GetAgentSkillByID)
 		organisationUrl.PUT("/:skill_id/agents/:agents_id", agentsCtrl.UpdateAgentSkill)
 		organisationUrl.POST("/agents/:agents_id", agentsCtrl.AddSkillsToAgent)
-		organisationUrl.POST("/agents/:agents_id/new", agentsCtrl.CreateAgentSkill)
+		organisationUrl.POST("", agentsCtrl.CreateAgentSkill)
 		organisationUrl.DELETE("/:skill_id/agents/:agents_id", agentsCtrl.DeleteAgentSkill)
 	}
 
 	skillUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion))
-
 	{
 		skillUrl.GET("", agentsCtrl.GetGeneralAgentSkill)
 		skillUrl.GET("/general/:skill_id", agentsCtrl.GetGeneralAgentSkillByID)
+		skillUrl.GET("/search", agentsCtrl.SearchSkills)
 	}
 
 	//agent tasks
@@ -66,8 +66,6 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.PUT("/:org_id/agents/:agent_id", agentsCtrl.UpdateCustomAgent)
 		organisationUrl.GET("/:org_id/agents/:agent_id", agentsCtrl.FetchCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
-		organisationUrl.GET("/:org_id/agents/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
-		organisationUrl.PUT("/:org_id/agents/:agent_id/prompts", agentsCtrl.UpdateAgentPrompt)
 
 		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
 		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
@@ -104,9 +102,14 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	agentUrl := r.Group(fmt.Sprintf("%v/agents", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		agentUrl.GET("/:agent_id/settings", agent.GetAgentSettingsAllOrgs)
+		agentUrl.POST("/:agent_id/publish", agent.PublishAgentApp)
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)
+		agentUrl.GET("/:agent_id/prompts", agentsCtrl.FetchCustomAgentPrompt)
+		agentUrl.PATCH("/:agent_id/prompts/:prompt_id", agentsCtrl.UpdateAgentPrompt)
+		agentUrl.POST("/:agent_id/prompts", agentsCtrl.CreateAgentPrompt)
+		agentUrl.DELETE("/:agent_id/prompts/:prompt_id", agentsCtrl.DeleteAgentPrompt)
 	}
 
 	// fetch all agents ---> will be used to get all agents on the superAdmin dashboard
@@ -131,6 +134,14 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		intPage.GET("", agent.GetSystemAgentApps)
 		intPage.GET("/callback", agent.AgentCallback)
 		intPage.GET("/:agent_id", agent.GetSystemAgentApp)
+		intPage.GET("/search", agent.SearchAgents)
+	}
+
+	marketPage := r.Group(fmt.Sprintf("%v/marketplace", ApiVersion))
+	{
+		marketPage.GET("/agent/categories", agent.GetAgentCategories)
+		marketPage.GET("/skill/categories", agent.GetSkillCategories)
+		marketPage.GET("/workflow/categories", agent.GetWorkflowCategories)
 	}
 
 	external_int := r.Group(fmt.Sprintf("%v/agents/settings", ApiVersion))

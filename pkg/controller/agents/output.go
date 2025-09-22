@@ -2,6 +2,7 @@ package agents
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -62,10 +63,14 @@ func (base *Controller) GetSystemAgentApp(c *gin.Context) {
 	int_id := c.Param("agent_id")
 
 	if _, err := uuid.Parse(int_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+		parts := strings.Split(int_id, "-")
+		if len(parts) != 2 {
+			base.Logger.Error("invalid organisation id format", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	int_id =  parts[1]
 	}
 
 	agent, err, code := agents.GetSystemAgentApp(c, base.Db.Postgresql, int_id, base.ExtReq)
@@ -110,5 +115,27 @@ func (base *Controller) TriggerTick(c *gin.Context) {
 
 	base.Logger.Info("tick called successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "tick called successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+// Search Agents (featured, category, or keyword search)
+func (base *Controller) SearchAgents(c *gin.Context) {
+	agents, paginationResponse, err, code := agents.SearchAgentsService(c, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to search agents", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to search agents", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  len(*agents),
+	}
+
+	base.Logger.Info("agents retrieved successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
