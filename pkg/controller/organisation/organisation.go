@@ -136,7 +136,7 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(respData),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("channels fetched successfully")
@@ -329,7 +329,7 @@ func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(users),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("users and bots retrieved successfully")
@@ -408,7 +408,7 @@ func (base *Controller) GetAllOrganisations(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(organizations),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("organisation retrieved successfully")

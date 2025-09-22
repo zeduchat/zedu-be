@@ -111,7 +111,7 @@ func (base *Controller) GetBlogs(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(blogs),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("blogs retrieved successfully")

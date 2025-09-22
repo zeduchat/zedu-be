@@ -49,7 +49,7 @@ func (base *Controller) GetSystemAgentApps(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(*agents),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agents retrieved successfully.")
@@ -70,7 +70,7 @@ func (base *Controller) GetSystemAgentApp(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
-	int_id =  parts[1]
+		int_id = parts[1]
 	}
 
 	agent, err, code := agents.GetSystemAgentApp(c, base.Db.Postgresql, int_id, base.ExtReq)
@@ -132,7 +132,7 @@ func (base *Controller) SearchAgents(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(*agents),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agents retrieved successfully.")

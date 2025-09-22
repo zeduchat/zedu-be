@@ -31,7 +31,7 @@ func (base *Controller) FetchOrganisationAgents(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(response),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("Agents in organisation fetched successfully")

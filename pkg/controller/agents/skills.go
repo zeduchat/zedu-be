@@ -15,7 +15,6 @@ import (
 func (base *Controller) CreateAgentSkill(c *gin.Context) {
 	var req models.CreateAgentSkillRequest
 
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -342,7 +341,7 @@ func (base *Controller) SearchSkills(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(*skills),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "skills retrieved successfully.", skills, paginationData)

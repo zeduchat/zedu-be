@@ -76,7 +76,7 @@ func (base *Controller) GetCustomAgentApp(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agents),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agents retrieved successfully.")
@@ -1110,7 +1110,7 @@ func (base *Controller) GetAllCustomAgent(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agents),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agents retrieved successfully.")
@@ -1297,7 +1297,7 @@ func (base *Controller) GetAgentBills(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agent_bills),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agent bills retrieved successfully.")
@@ -1327,7 +1327,7 @@ func (base *Controller) GetOrgAgentBills(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agent_bills),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("organization agent bills retrieved successfully.")

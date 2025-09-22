@@ -50,7 +50,7 @@ func (i *Integrations) GetPopularAgents(db *gorm.DB, c *gin.Context, sortBy stri
 		Where("integrations.is_active = ?", true).
 		Group("integrations.id")
 
-	// Now treat subquery as a table
+	// Treat subquery as a table
 	query := db.Table("(?) as sub", subQuery)
 
 	orderBy := "install_count DESC"
