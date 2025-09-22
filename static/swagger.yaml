@@ -11880,6 +11880,16 @@ paths:
                   example: |
                     This agent offers unique value by combining advanced machine learning algorithms with 
                     user-friendly integrations across multiple platforms...
+                short_description:
+                  type: string
+                  minLength: 10
+                  maxLength: 30
+                  description: Very short descriptoin of the agent
+                long_description:
+                  type: string
+                  minLength: 101
+                  description: Long description of the agent
+
       responses:
         200:
           description: Successfully published the agent.
