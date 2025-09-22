@@ -196,21 +196,23 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 
 	resp := models.AgentResp{
 
-		ID:          agent.ID,
-		Name:        agent.Name,
-		Title:       agent.Title,
-		Tone:        agent.Tone,
-		Visibility:  agent.Visibility,
-		Avatar:      agent.AppLogo,
-		Description: agent.AppDescription,
-		IsActive:    agent.IsActive,
-		Category:    agent.Category,
-		Stars:       agent.Stars,
-		Snapshot:    agent.Snapshot,
-		HowItWorks:  agent.HowItWorks,
-		Benefits:    agent.Benefits,
-		WhyUse:      agent.WhyUse,
-		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agent.Name), lastPart),
+		ID:               agent.ID,
+		Name:             agent.Name,
+		Title:            agent.Title,
+		Tone:             agent.Tone,
+		Visibility:       agent.Visibility,
+		Avatar:           agent.AppLogo,
+		Description:      agent.AppDescription,
+		IsActive:         agent.IsActive,
+		Category:         agent.Category,
+		Stars:            agent.Stars,
+		Snapshot:         agent.Snapshot,
+		HowItWorks:       agent.HowItWorks,
+		Benefits:         agent.Benefits,
+		WhyUse:           agent.WhyUse,
+		AgentSlug:        fmt.Sprintf("%s-%s", slug.Make(agent.Name), lastPart),
+		ShortDescription: agent.ShortDescription,
+		LongDescription:  agent.LongDescription,
 	}
 	return &resp, nil, code
 }
@@ -525,20 +527,22 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		lastPart := parts[len(parts)-1]
 
 		resp := models.AgentResp{
-			ID:            agents.ID,
-			Name:          agents.Name,
-			Title:         agents.Title,
-			Tone:          agents.Tone,
-			Visibility:    agents.Visibility,
-			Avatar:        agents.AppLogo,
-			Description:   agents.AppDescription,
-			IsActive:      false,
-			SystemPrompts: agents.SystemPrompts,
-			Snapshot:      agents.Snapshot,
-			HowItWorks:    agents.HowItWorks,
-			Benefits:      agents.Benefits,
-			WhyUse:        agents.WhyUse,
-			AgentSlug:     fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
+			ID:               agents.ID,
+			Name:             agents.Name,
+			Title:            agents.Title,
+			Tone:             agents.Tone,
+			Visibility:       agents.Visibility,
+			Avatar:           agents.AppLogo,
+			Description:      agents.AppDescription,
+			IsActive:         false,
+			SystemPrompts:    agents.SystemPrompts,
+			Snapshot:         agents.Snapshot,
+			HowItWorks:       agents.HowItWorks,
+			Benefits:         agents.Benefits,
+			WhyUse:           agents.WhyUse,
+			AgentSlug:        fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
+			ShortDescription: agents.ShortDescription,
+			LongDescription:  agents.LongDescription,
 		}
 		return &resp, http.StatusOK, nil
 	}
@@ -564,6 +568,8 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		resp.Snapshot = agents.Snapshot
 		resp.WhyUse = agents.WhyUse
 		resp.HowItWorks = agents.HowItWorks
+		resp.LongDescription = agents.LongDescription
+		resp.ShortDescription = agents.ShortDescription
 	}
 
 	return &resp, http.StatusOK, nil
@@ -1171,13 +1177,13 @@ func UploadAgentAvatar(logger *utility.Logger, uniqueId string, file []byte, ext
 	return "", nil
 }
 
-func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (int, error) {
+func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (*models.AgentResp, int, error) {
 	var agent models.OrganisationIntegrations
 
-	code, err := agent.PublishAgent(req, db)
+	resp, code, err := agent.PublishAgent(req, db)
 	if err != nil {
-		return code, err
+		return resp, code, err
 	}
 
-	return code, nil
+	return resp, code, nil
 }

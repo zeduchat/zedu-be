@@ -1380,7 +1380,7 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 	req.UserId = userClaims["user_id"].(string)
 	req.AgentId = agent_id
 
-	code, err := agents.PublishAgent(req, base.Db.Postgresql)
+	resp, code, err := agents.PublishAgent(req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to publish agent app", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to publish agent app", err, nil)
@@ -1388,8 +1388,8 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Agents updated successfully")
-	rd := utility.BuildSuccessResponse(code, "Agents updated successfully", nil)
+	base.Logger.Info("Agents published successfully")
+	rd := utility.BuildSuccessResponse(code, "Agents published successfully", resp)
 	c.JSON(code, rd)
 }
 

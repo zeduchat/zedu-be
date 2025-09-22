@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -361,22 +363,24 @@ type AgentsResp []struct {
 }
 
 type AgentResp struct {
-	ID            string            `json:"id"`
-	IsActive      bool              `json:"is_active"`
-	Name          string            `json:"name"`
-	Tone          string            `json:"tone"`
-	Avatar        string            `json:"avatar"`
-	Title         string            `json:"title"`
-	Description   string            `json:"description"`
-	Visibility    string            `json:"visibility"`
-	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
-	Category      string            `json:"category"`
-	Stars         int64             `json:"stars"`
-	Snapshot      Snapshots         `json:"snapshots"`
-	HowItWorks    string            `json:"how_it_works"`
-	Benefits      string            `json:"benefits"`
-	WhyUse        string            `json:"why_use"`
-	AgentSlug     string            `json:"agent_slug"`
+	ID               string            `json:"id"`
+	IsActive         bool              `json:"is_active"`
+	Name             string            `json:"name"`
+	Tone             string            `json:"tone"`
+	Avatar           string            `json:"avatar"`
+	Title            string            `json:"title"`
+	Description      string            `json:"description"`
+	Visibility       string            `json:"visibility"`
+	SystemPrompts    JSONSystemPrompts `json:"system_prompts,omitempty"`
+	Category         string            `json:"category"`
+	Stars            int64             `json:"stars"`
+	Snapshot         Snapshots         `json:"snapshots"`
+	HowItWorks       string            `json:"how_it_works"`
+	Benefits         string            `json:"benefits"`
+	WhyUse           string            `json:"why_use"`
+	AgentSlug        string            `json:"agent_slug"`
+	ShortDescription string            `json:"short_description"`
+	LongDescription  string            `json:"long_description"`
 }
 
 type IntegrationBills struct {
@@ -2605,15 +2609,16 @@ func (oi *OrganisationIntegrations) CheckAgentExists(db *gorm.DB, agentID, orgID
 	return true, nil
 }
 
-func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gorm.DB) (int, error) {
+func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gorm.DB) (*AgentResp, int, error) {
 	var (
 		agent    OrganisationIntegrations
 		genAgent Integrations
+		resp     = AgentResp{}
 	)
 
 	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", req.AgentId)
 	if !exists {
-		return http.StatusBadRequest, errors.New("agent app does not exist")
+		return &resp, http.StatusBadRequest, errors.New("agent app does not exist")
 	}
 
 	genAgent.Name = agent.AppName
@@ -2637,8 +2642,30 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	genAgent.LongDescription = req.LongDescription
 
 	if err := db.Save(&genAgent).Error; err != nil {
-		return http.StatusInternalServerError, err
+		return &resp, http.StatusInternalServerError, err
 	}
 
-	return http.StatusOK, nil
+	parts := strings.Split(agent.IntegrationID, "-")
+	lastPart := parts[len(parts)-1]
+
+	resp = AgentResp{
+		ID:               genAgent.ID,
+		Name:             genAgent.Name,
+		Title:            genAgent.Title,
+		Tone:             genAgent.Tone,
+		Visibility:       genAgent.Visibility,
+		Avatar:           genAgent.AppLogo,
+		Description:      genAgent.AppDescription,
+		IsActive:         false,
+		SystemPrompts:    genAgent.SystemPrompts,
+		Snapshot:         genAgent.Snapshot,
+		HowItWorks:       genAgent.HowItWorks,
+		Benefits:         genAgent.Benefits,
+		WhyUse:           genAgent.WhyUse,
+		AgentSlug:        fmt.Sprintf("%s-%s", slug.Make(genAgent.Name), lastPart),
+		ShortDescription: genAgent.ShortDescription,
+		LongDescription:  genAgent.LongDescription,
+	}
+
+	return &resp, http.StatusOK, nil
 }
