@@ -399,7 +399,7 @@ func (base *Controller) SearchWorkflows(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(*workflows),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "workflows retrieved successfully.", workflows, paginationData)

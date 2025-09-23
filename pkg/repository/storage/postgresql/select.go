@@ -20,9 +20,10 @@ type Pagination struct {
 	Limit int
 }
 type PaginationResponse struct {
-	CurrentPage     int `json:"current_page"`
-	PageCount       int `json:"page_count"`
-	TotalPagesCount int `json:"total_pages_count"`
+	CurrentPage     int   `json:"current_page"`
+	PageCount       int   `json:"page_count"`
+	TotalPagesCount int   `json:"total_pages_count"`
+	TotalItems      int64 `json:"total_items"`
 }
 
 func GetPagination(c *gin.Context) Pagination {
@@ -181,6 +182,7 @@ func SelectAllFromDbOrderByPaginated(db *gorm.DB, orderBy, order string, paginat
 		CurrentPage:     pagination.Page,
 		PageCount:       int(tx.RowsAffected),
 		TotalPagesCount: totalPages,
+		TotalItems:      count,
 	}, tx.Error
 }
 

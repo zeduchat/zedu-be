@@ -61,7 +61,7 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-	
+
 	req.UserId = userId
 
 	// if !plan.CheckChannelPlanThreshold(c, base.Logger, base.Db.Postgresql, req.OrganisationID) {
@@ -485,7 +485,7 @@ func (base *Controller) SearchChannelsByNames(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(channels),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("channel names retrieved successfully")
@@ -532,7 +532,7 @@ func (base *Controller) GetUsersInChannel(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(users),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("users retrieved successfully")

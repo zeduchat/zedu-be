@@ -57,7 +57,7 @@ func (base *Controller) GetBlogCategories(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(blogCategories),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("blog categories retrieved successfully")
