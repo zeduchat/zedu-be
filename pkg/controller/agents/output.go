@@ -64,13 +64,13 @@ func (base *Controller) GetSystemAgentApp(c *gin.Context) {
 
 	if _, err := uuid.Parse(int_id); err != nil {
 		parts := strings.Split(int_id, "-")
-		if len(parts) != 2 {
+		if len(parts) > 1 || len(parts[len(parts)-1]) != 12 {
 			base.Logger.Error("invalid organisation id format", err)
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
-	int_id =  parts[1]
+		int_id = parts[len(parts)-1]
 	}
 
 	agent, err, code := agents.GetSystemAgentApp(c, base.Db.Postgresql, int_id, base.ExtReq)
