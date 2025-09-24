@@ -81,7 +81,7 @@ type PublishAgentRequest struct {
 	HowItWorks       string    `json:"how_it_works" validate:"required,min=101"`
 	Benefits         string    `json:"benefits" validate:"required,min=101"`
 	WhyUse           string    `json:"why_use" validate:"required,min=101"`
-	ShortDescription string    `json:"short_description" validate:"required,min=10,max=30"`
+	ShortDescription string    `json:"short_description" validate:"required,min=10,max=50"`
 	LongDescription  string    `json:"long_description" validate:"required,min=101"`
 	UserId           string    `json:"-"`
 	AgentId          string    `json:"-"`

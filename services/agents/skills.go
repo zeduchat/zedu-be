@@ -19,17 +19,19 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 	// add to general Agent skill
 
 	genAgentSkill := models.GeneralAgentSkill{
-		ID:           utility.GenerateUUID(),
-		Name:         req.Name,
-		Description:  req.Description,
-		Type:         req.Type,
-		IsActive:     true,
-		IsConfigured: false, // default
-		Avatar:       req.Avatar,
-		Config:       req.Config,
-		Link:         req.URLLink,
-		Tags:         req.Tags,
-		Category:     req.Category,
+		ID:               utility.GenerateUUID(),
+		Name:             req.Name,
+		Description:      req.Description,
+		Type:             req.Type,
+		IsActive:         true,
+		IsConfigured:     false, // default
+		Avatar:           req.Avatar,
+		Config:           req.Config,
+		Link:             req.URLLink,
+		Tags:             req.Tags,
+		Category:         req.Category,
+		ShortDescription: req.ShortDescription,
+		LongDescription:  req.LongDescription,
 	}
 
 	if err := genAgentSkill.CreateGeneralAgentSkill(db); err != nil {
@@ -37,16 +39,18 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 	}
 
 	resp = models.AgentSkillResponse{
-		SkillId:      genAgentSkill.ID,
-		Name:         genAgentSkill.Name,
-		Description:  genAgentSkill.Description,
-		Type:         genAgentSkill.Type,
-		IsActive:     genAgentSkill.IsActive,
-		IsConfigured: genAgentSkill.IsConfigured,
-		Avatar:       genAgentSkill.Avatar,
-		Config:       genAgentSkill.Config,
-		Tags:         genAgentSkill.Tags,
-		Category:     genAgentSkill.Category,
+		SkillId:          genAgentSkill.ID,
+		Name:             genAgentSkill.Name,
+		Description:      genAgentSkill.Description,
+		Type:             genAgentSkill.Type,
+		IsActive:         genAgentSkill.IsActive,
+		IsConfigured:     genAgentSkill.IsConfigured,
+		Avatar:           genAgentSkill.Avatar,
+		Config:           genAgentSkill.Config,
+		Tags:             genAgentSkill.Tags,
+		Category:         genAgentSkill.Category,
+		ShortDescription: req.ShortDescription,
+		LongDescription:  req.LongDescription,
 	}
 
 	return resp, http.StatusCreated, nil

@@ -2,6 +2,7 @@ package agents
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
@@ -96,21 +97,28 @@ func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 	agent_id := c.Param("agents_id")
 
 	if _, err := uuid.Parse(agent_id); err != nil {
-		base.Logger.Error("invalid skill_id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+		parts := strings.Split(agent_id, "-")
+		if len(parts) < 2 || len(parts[len(parts)-1]) != 12 {
+			base.Logger.Error("invalid agent id format", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		agent_id = parts[len(parts)-1]
 	}
 
 	req.AgentId = agent_id
 
 	skill_id := c.Param("skill_id")
-
-	if _, err := uuid.Parse(agent_id); err != nil {
-		base.Logger.Error("invalid skill_id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill_id format", "failed to decode agent id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+	if _, err := uuid.Parse(skill_id); err != nil {
+		parts := strings.Split(skill_id, "-")
+		if len(parts) < 2 || len(parts[len(parts)-1]) != 12 {
+			base.Logger.Error("invalid skill id format", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill id format", "failed to decode skill id", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		skill_id = parts[len(parts)-1]
 	}
 
 	req.SkillId = skill_id
@@ -260,16 +268,16 @@ func (base *Controller) GetGeneralAgentSkill(c *gin.Context) {
 }
 
 func (base *Controller) GetGeneralAgentSkillByID(c *gin.Context) {
-	agent_id := c.Param("skill_id")
+	skill_id := c.Param("skill_id")
 
-	if _, err := uuid.Parse(agent_id); err != nil {
+	if _, err := uuid.Parse(skill_id); err != nil {
 		base.Logger.Error("invalid skill_id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill_id format", "failed to decode agent id", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid skill_id format", "failed to decode skill id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	skills, err := agents.GetGeneralAgentSkillByID(agent_id, base.Db.Postgresql)
+	skills, err := agents.GetGeneralAgentSkillByID(skill_id, base.Db.Postgresql)
 	if err != nil {
 		code := http.StatusBadRequest
 		c.JSON(code, utility.BuildErrorResponse(code, "error", err.Error(), "failed to get agent skills", nil))
