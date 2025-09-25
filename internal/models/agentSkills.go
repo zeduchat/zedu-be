@@ -305,7 +305,7 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error
 }
 
 func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) error {
-	err := db.Where("id = ?", id).First(&a).Error
+	err := db.Where("(id::text = ? OR id::text LIKE ?)", id, "%-"+id).First(&a).Error
 	return err
 }
 
@@ -316,9 +316,32 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 		return skill, errors.New("agent skill not found")
 	}
 
+	parameters := JSONBMapArr{JSONBMap{}}
+
+	for _, v := range updateData.Config {
+		type ConfigOption struct {
+			Name    string      `json:"name"`
+			Value   interface{} `json:"value"`
+			Default interface{} `json:"default"`
+		}
+
+		var valueParam interface{}
+
+		if value, ok := v["value"]; ok {
+			valueParam = value
+		} else {
+			valueParam = v["default"]
+		}
+
+		con := parameters[0]
+		con[v["name"].(string)] = valueParam
+		parameters[0] = con
+	}
+
 	updates := map[string]any{
-		"is_active": updateData.IsActive,
-		"config":    updateData.Config,
+		"is_active":  updateData.IsActive,
+		"config":     updateData.Config,
+		"parameters": parameters,
 	}
 
 	result, err := postgresql.UpdateFields(db, &skill, updates, "skill_id = ? AND agent_id = ?", a.SkillId, a.AgentId)
