@@ -18466,9 +18466,28 @@ paths:
                 name:
                   type: string
                   description: Name of the workflow
+                short_description:
+                  type: string
+                  minLength: 10
+                  maxLength: 50
+                  description: Very short descriptoin of the workflow
+                long_description:
+                  type: string
+                  minLength: 101
+                  description: Long description of the workflow
+                description:
+                  type: string
+                  description: Description of the workflow
+                category:
+                  type: string
+                  description: Category of the workflow
               required:
                 - raw_entry
                 - name
+                - short_description
+                - long_description
+                - description
+                - category
       responses:
         "201":
           description: Agent Workflow created successfully
