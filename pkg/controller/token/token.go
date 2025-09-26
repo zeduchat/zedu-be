@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -101,7 +100,7 @@ func (base *Controller) GetConnTokenUnAuth(c *gin.Context) {
 	accessToken := models.AccessToken{}
 	accessToken.SubAccessToken = SubToken
 
-	if _, err := uuid.Parse(SubToken); err == nil {
+	{
 		var userUnAuth models.UnauthenticatedUser
 		claims, exists := c.Get("client_ip")
 		if !exists {
@@ -110,7 +109,7 @@ func (base *Controller) GetConnTokenUnAuth(c *gin.Context) {
 			return
 		}
 
-		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT})
+		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT, Subtoken: SubToken})
 
 		if !valid || err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid token", err.Error(), nil)
@@ -131,7 +130,7 @@ func (base *Controller) GetConnTokenUnAuth(c *gin.Context) {
 
 	respData, code, err := token.GetConnToken(accessToken.OwnerID, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -154,7 +153,7 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 	accessToken := models.AccessToken{}
 	accessToken.SubAccessToken = SubToken
 
-	if _, err := uuid.Parse(SubToken); err == nil {
+	{
 		var userUnAuth models.UnauthenticatedUser
 		claims, exists := c.Get("client_ip")
 		if !exists {
@@ -163,7 +162,7 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 			return
 		}
 
-		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT})
+		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT, Subtoken: SubToken})
 
 		if !valid || err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid token", err.Error(), nil)
