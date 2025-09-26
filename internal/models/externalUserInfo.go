@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -86,8 +87,13 @@ func (d *UnauthenticatedUser) VerifySubtoken(db *gorm.DB, req UnauthReq) (bool, 
 		if err == gorm.ErrRecordNotFound {
 			return false, nil
 		}
-		return false, err
+		return false, errors.New("Invalid token, user have not setup")
 	}
+
+	if user.UsageCount >= req.Limit && time.Since(user.UpdatedAt) < 24*time.Hour {
+		return false, errors.New("Usage limit reached, can't subscribe again, try again tomorrow")
+	}
+
 	return true, nil
 }
 

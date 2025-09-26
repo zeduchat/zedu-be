@@ -23,7 +23,7 @@ func TokenGen(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		tokenUrl.POST("/subscription", token.GetSubToken)
 	}
 
-	subTokenUrl := r.Group(fmt.Sprintf("%v/centrifugo", ApiVersion))
+	subTokenUrl := r.Group(fmt.Sprintf("%v/centrifugo", ApiVersion), middleware.UnauthenticatedUserTracker(logger))
 	{
 		subTokenUrl.GET("/connection", token.GetConnTokenUnAuth)
 		subTokenUrl.POST("/subscription", token.GetSubTokenUnAuth)
