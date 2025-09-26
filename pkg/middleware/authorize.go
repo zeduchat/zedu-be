@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"net/http"
 	"strings"
@@ -261,5 +262,38 @@ func AdminAuthorize(db *gorm.DB) gin.HandlerFunc {
 		// call the next handler
 		c.Next()
 
+	}
+}
+
+func getClientIP(c *gin.Context) string {
+	// Check for reverse proxy headers (like Nginx, Cloudflare, etc.)
+	ip := c.GetHeader("X-Forwarded-For")
+	if ip == "" {
+		ip = c.GetHeader("X-Real-IP")
+	}
+	if ip == "" {
+		ip = c.ClientIP() // falls back to RemoteAddr
+	}
+	return ip
+}
+
+func getUserAgent(c *gin.Context) string {
+	return c.GetHeader("User-Agent")
+}
+
+func UnauthenticatedUserTracker(logger *utility.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		clientIP := getClientIP(c)
+		userAgent := getUserAgent(c)
+		visitorID := fmt.Sprintf("visitor-%x", sha1.Sum([]byte(clientIP+userAgent)))
+
+		c.Set("visitor_id", visitorID)
+		c.Set("client_ip", clientIP)
+		c.Set("user_agent", userAgent)
+
+		logger.Info("Unauthenticated request: visitor_id=%s ip=%s ua=%s",
+			visitorID, clientIP, userAgent)
+
+		c.Next()
 	}
 }

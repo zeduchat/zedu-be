@@ -14,10 +14,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -2668,4 +2670,35 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	}
 
 	return &resp, http.StatusOK, nil
+}
+
+func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
+
+	var (
+		agent    = Integrations{}
+		orgAgent = OrganisationIntegrations{}
+	)
+
+	if _, err := uuid.Parse(partialUUId); err != nil {
+		parts := strings.Split(partialUUId, "-")
+		if len(parts) < 2 || len(parts[len(parts)-1]) != 12 {
+			return "", errors.New("Invalid id format")
+		}
+		partialUUId = parts[len(parts)-1]
+	}
+
+	exists := postgresql.CheckExists(db.Postgresql, &agent, "(id::text = ? OR id::text LIKE ?)", partialUUId, "%-"+partialUUId)
+
+	if exists {
+		return agent.ID, nil
+	}
+
+	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "(id::text = ? OR id::text LIKE ?)", partialUUId, "%-"+partialUUId)
+
+	if exists {
+		return orgAgent.IntegrationID, nil
+	}
+
+	return "", errors.New("Invalid agent id, agent does not exists")
+
 }
