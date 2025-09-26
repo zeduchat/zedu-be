@@ -272,7 +272,7 @@ type CreateThreadMsgReq2 struct {
 	Content        string `json:"content" validate:"required"`
 	ChannelsID     string `json:"channels_id"`
 	Message        string `json:"message"`
-	AgentId        string `json:"agent_id"`
+	AgentId        string `json:"agent_id" validate:"required"`
 	ThreadId       string `json:"thread_id"`
 	AgentName      string `json:"agent_name"`
 	Type           string `json:"type"`
@@ -287,6 +287,9 @@ type BotReturnRequest struct {
 	Mentions       []Mention              `json:"mentions"`
 	ThreadId       string                 `json:"thread_id" validate:"required"`
 	OperationPrice *float64               `json:"operation_price"`
+	UserId         string                 `json:"user_id"`
+	OrgId          string                 `json:"org_id"`
+	AgentId        string                 `json:"agent_id"`
 }
 
 type FeedMessageRequest struct {

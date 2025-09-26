@@ -402,6 +402,43 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		// user       models.User
 	)
 
+	if req.ThreadId == "00000000-0000-0000-0000-000000000000" {
+
+		var agent models.Integrations
+
+		exists := postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", req.AgentId)
+		if !exists {
+
+			exists = postgresql.CheckExists(db.Postgresql, &agent, "id = ?", req.AgentId)
+			if !exists {
+				logger.Info("Failed to get agent info, with marketplace channel id: %v and agent id: %v", req.ChannelID, req.AgentId)
+				return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
+			}
+		}
+
+		feed := models.FeedMessageRequest{
+			ChannelID: req.ChannelID,
+			UserName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+			AvatarURL: utility.ThisOrThat(orgAgent.AppLogo, agent.AppLogo),
+			Type:      "message",
+			Content:   req.Content,
+			Email:     "agent",
+			FullName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			UserType:  "bot",
+			State:     req.State,
+		}
+
+		err := centrifuge.PublishChannel(logger, req.ChannelID, feed)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to marketplace channel with destination id: %s error: %v", req.ChannelID, err.Error()))
+			return nil, http.StatusBadRequest, errors.New("failed to publish data")
+		}
+
+		logger.Info(fmt.Sprintf("Publishing update to marketplace with channel id: %s", req.ChannelID))
+		return &models.ThreadDocument{}, http.StatusOK, nil
+	}
+
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
@@ -580,6 +617,7 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 		Email:     user.Email,
 		FullName:  profile.FullName,
 		UserType:  "user",
+		ThreadId:  "00000000-0000-0000-0000-000000000000",
 	}
 
 	err := centrifuge.PublishChannel(logger, publishfeed.ChannelID, publishfeed)
@@ -594,11 +632,12 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 	feed := models.FeedQueue{
 		ChannelsId: req.ChannelsID,
 		Content:    req.Content,
-		ThreadId:   "",
+		ThreadId:   "00000000-0000-0000-0000-000000000000",
 		ReturnUrl:  returnUrl,
 		Type:       "message/thread",
 		UserId:     "00000000-0000-0000-0000-000000000000",
 		OrgId:      "00000000-0000-0000-0000-000000000000",
+		AgentId:    req.AgentId,
 	}
 
 	payload := map[string]any{
@@ -612,6 +651,7 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 			"org_id":                  feed.OrgId,
 			"media":                   feed.Media,
 			"mentions":                feed.Mentions,
+			"agent_id":                feed.AgentId,
 		},
 		"channel_id": feed.ChannelsId,
 		"org_id":     feed.OrgId,
@@ -633,7 +673,7 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 		return &models.FeedQueue{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
 	}
 
-	logger.Info(fmt.Sprintf("Pushed to RabbitMQ for integration: %s", routing_key))
+	logger.Info("Pushed to RabbitMQ for integration: %s", routing_key)
 
 	return &feed, http.StatusCreated, nil
 }

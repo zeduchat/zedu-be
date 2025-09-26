@@ -162,7 +162,6 @@ func (base *Controller) AddAThreadDmFromMarketPlace(c *gin.Context) {
 	}
 
 	userIdentifier := claims.(string)
-
 	limitReached, err := unAuthUser.IsUsageGreaterThan(base.Db.Postgresql, models.UnauthReq{UserIdentifier: userIdentifier, Limit: models.CHATUSAGELIMIT}, base.Logger)
 
 	if limitReached {

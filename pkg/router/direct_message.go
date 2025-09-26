@@ -39,7 +39,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 	responseUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.UnauthenticatedUserTracker(logger))
 	{
 		responseUrl.POST("/bot-dm-response", dmCtrl.BotDMResponse)
-		responseUrl.POST("/threads", dmCtrl.AddAThreadDmFromMarketPlace)
+		responseUrl.POST("/:channel_id", dmCtrl.AddAThreadDmFromMarketPlace)
 		responseUrl.GET("/setup", dmCtrl.SetupChatSession)
 	}
 
