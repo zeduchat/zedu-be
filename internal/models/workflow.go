@@ -222,6 +222,10 @@ func (s *WorkflowSettingsEntry) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, s)
 }
 
+func (AgentWorkflowSummary) TableName() string {
+	return "agent_workflows"
+}
+
 func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 
 	if err := ValidateAgentIDs(db, wf.OrgId, wf.Agents); err != nil {
@@ -323,7 +327,7 @@ func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) 
 	return wfs, err
 }
 
-func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB, c *gin.Context) ([]AgentWorkflowSummary, postgresql.PaginationResponse, int, error){
+func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB, c *gin.Context) ([]AgentWorkflowSummary, postgresql.PaginationResponse, int, error) {
 	var wfs []AgentWorkflowSummary
 
 	var lastQuery string
@@ -365,10 +369,10 @@ func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB, c *gin.Context) ([]AgentWork
 		nil,
 	)
 	if err != nil {
-		return wfs, paginationResponse,  http.StatusInternalServerError, err
+		return wfs, paginationResponse, http.StatusInternalServerError, err
 	}
 
-	return wfs, paginationResponse,  http.StatusOK, nil
+	return wfs, paginationResponse, http.StatusOK, nil
 }
 
 func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error) {
