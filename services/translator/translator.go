@@ -186,7 +186,6 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		Steps:    steps,
 	}
 
-	fmt.Printf("%+v\n", req)
 
 	stepProcess, err := runTranslationPipeline(db, logger, extReq, taskList.String(), req)
 	if err != nil {

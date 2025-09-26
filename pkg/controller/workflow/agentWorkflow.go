@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
@@ -113,7 +114,6 @@ func (base *Controller) GetAgentWorkflowByID(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-// List Agent Workflows
 func (base *Controller) ListAgentWorkflows(c *gin.Context) {
 	var req models.AgentWorkFlowRequest
 	req.AgentId = c.Param("agent_id")
@@ -148,7 +148,35 @@ func (base *Controller) ListAgentWorkflows(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-// Delete Agent Workflow
+func (base *Controller) ListGeneralAgentWorkflows(c *gin.Context) {
+	var req models.AgentWorkFlowRequest
+	req.AgentId = c.Param("agent_id")
+
+	if _, err := uuid.Parse(req.AgentId); err != nil {
+		parts := strings.Split(req.AgentId, "-")
+		if len(parts) < 2 || len(parts[len(parts)-1]) != 12 {
+			base.Logger.Error("invalid agent id format", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		req.AgentId = parts[len(parts)-1]
+	}
+
+	req.IsPublic = true
+
+	resp, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("error listing workflows", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp)
+	c.JSON(code, rd)
+}
+
 func (base *Controller) DeleteAgentWorkflow(c *gin.Context) {
 	var req models.AgentWorkFlowRequest
 	req.AgentId = c.Param("agent_id")
@@ -191,7 +219,6 @@ func (base *Controller) DeleteAgentWorkflow(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-// Update Agent Workflow
 func (base *Controller) UpdateAgentWorkflow(c *gin.Context) {
 	var req models.AgentWorkFloUpdateRequest
 	req.AgentId = c.Param("agent_id")

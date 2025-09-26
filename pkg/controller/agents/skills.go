@@ -310,6 +310,7 @@ func (base *Controller) GetGeneralAgentSkillByAgentID(c *gin.Context) {
 	}
 
 	req.AgentId = agent_id
+	req.IsPublic = true
 	skills, pagination, err, code := agents.GetAgentSkills(req, base.Db.Postgresql, c)
 	if err != nil {
 		base.Logger.Error("Failed to get agent skills, err: %v", err)

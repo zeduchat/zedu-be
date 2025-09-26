@@ -32,18 +32,20 @@ type Workflow struct {
 }
 
 type GeneralWorkflow struct {
-	ID              string                `gorm:"type:uuid;primaryKey" json:"id"`
-	Name            string                `gorm:"type:text" json:"name"`
-	Description     string                `gorm:"type:text" json:"description"`
-	Tags            StringSlice           `gorm:"type:jsonb" json:"tags"`
-	Meta            JSONBMap              `gorm:"type:jsonb" json:"meta"`
-	RawEntry        JSONBMap              `gorm:"type:jsonb" json:"raw_entry"`
-	Agents          StringSlice           `gorm:"type:jsonb" json:"agents_id"`
-	FlowConnections Connections           `gorm:"type:jsonb" json:"connections"`
-	Settings        WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
-	Category        string                `gorm:"type:text;default:default" json:"category"`
-	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	ID               string                `gorm:"type:uuid;primaryKey" json:"id"`
+	Name             string                `gorm:"type:text" json:"name"`
+	Description      string                `gorm:"type:text" json:"description"`
+	Tags             StringSlice           `gorm:"type:jsonb" json:"tags"`
+	Meta             JSONBMap              `gorm:"type:jsonb" json:"meta"`
+	RawEntry         JSONBMap              `gorm:"type:jsonb" json:"raw_entry"`
+	Agents           StringSlice           `gorm:"type:jsonb" json:"agents_id"`
+	FlowConnections  Connections           `gorm:"type:jsonb" json:"connections"`
+	Settings         WorkflowSettingsEntry `gorm:"type:jsonb" json:"settings"`
+	Category         string                `gorm:"type:text;default:default" json:"category"`
+	CreatedAt        time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt        time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	ShortDescription string                `gorm:"type:text" json:"short_description"`
+	LongDescription  string                `gorm:"type:text" json:"long_description"`
 }
 
 type WorkFlowRequest struct {
@@ -69,24 +71,33 @@ type ChannelWorkflow struct {
 }
 
 type AgentWorkflow struct {
-	ID         string    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	AgentId    string    `json:"agent_id" gorm:"type:uuid;not null"`
-	WorkflowId string    `json:"workflow_id" gorm:"type:uuid;not null"`
-	RawEntry   JSONBMap  `gorm:"type:jsonb" json:"raw_entry"`
-	Name       string    `gorm:"type:text" json:"name"`
-	OrgId      string    `gorm:"type:uuid" json:"-"`
-	IsActive   bool      `gorm:"type:boolean" json:"is_active"`
-	Category   string    `gorm:"type:text" json:"category"`
-	CreatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt  time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	ID               string    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	AgentId          string    `json:"agent_id" gorm:"type:uuid;not null"`
+	WorkflowId       string    `json:"workflow_id" gorm:"type:uuid;not null"`
+	RawEntry         JSONBMap  `gorm:"type:jsonb" json:"raw_entry"`
+	Name             string    `gorm:"type:text" json:"name"`
+	OrgId            string    `gorm:"type:uuid" json:"-"`
+	IsActive         bool      `gorm:"type:boolean" json:"is_active"`
+	Category         string    `gorm:"type:text" json:"category"`
+	CreatedAt        time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt        time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	ShortDescription string    `gorm:"type:text" json:"short_description"`
+	LongDescription  string    `gorm:"type:text" json:"long_description"`
+	Description      string    `gorm:"type:text" json:"description"`
+	IsPublic         bool      `gorm:"type:boolean;default:false" json:"-"`
 }
 
 type AgentWorkFlowRequest struct {
-	RawEntry   JSONBMap `json:"raw_entry" validate:"required"`
-	AgentId    string   `json:"-"`
-	Name       string   `json:"name" validate:"required"`
-	OrgId      string   `json:"-"`
-	WorkflowId string   `json:"-"`
+	RawEntry         JSONBMap `json:"raw_entry" validate:"required"`
+	AgentId          string   `json:"-"`
+	Name             string   `json:"name" validate:"required"`
+	OrgId            string   `json:"-"`
+	WorkflowId       string   `json:"-"`
+	ShortDescription string   `json:"short_description" validate:"required,min=10,max=50"`
+	LongDescription  string   `json:"long_description" validate:"required,min=101"`
+	Description      string   `json:"description" validate:"required"`
+	Category         string   `json:"category" validate:"required"`
+	IsPublic         bool     `json:"-"`
 }
 
 type AgentWorkFloUpdateRequest struct {
@@ -118,13 +129,16 @@ type WorkFlowResponse struct {
 }
 
 type AgentWorkFlowResponse struct {
-	AgentId    string    `json:"agent_id"`
-	WorkflowId string    `json:"workflow_id"`
-	RawEntry   JSONBMap  `json:"raw_entry"`
-	Name       string    `json:"name"`
-	IsActive   bool      `json:"is_active"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	AgentId          string    `json:"agent_id"`
+	WorkflowId       string    `json:"workflow_id"`
+	RawEntry         JSONBMap  `json:"raw_entry"`
+	Name             string    `json:"name"`
+	IsActive         bool      `json:"is_active"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	ShortDescription string    `json:"short_description"`
+	LongDescription  string    `json:"long_description"`
+	Description      string    `json:"description"`
 }
 
 type WorkflowSummary struct {
@@ -134,10 +148,13 @@ type WorkflowSummary struct {
 }
 
 type AgentWorkflowSummary struct {
-	WorkflowId string   `json:"workflow_id"`
-	Name       string   `json:"name"`
-	RawEntry   JSONBMap `json:"raw_entry"`
-	IsActive   bool     `json:"is_active"`
+	WorkflowId       string   `json:"workflow_id"`
+	Name             string   `json:"name"`
+	RawEntry         JSONBMap `json:"raw_entry"`
+	IsActive         bool     `json:"is_active"`
+	ShortDescription string   `json:"short_description"`
+	LongDescription  string   `json:"long_description"`
+	Description      string   `json:"description"`
 }
 
 type Connection struct {
@@ -215,21 +232,6 @@ func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 
 }
 
-// func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
-
-// 	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
-// 		return err, http.StatusBadRequest
-// 	}
-
-// 	err := db.Create(&wf).Error
-
-// 	if err != nil {
-// 		return err, http.StatusInternalServerError
-// 	}
-
-// 	return nil, http.StatusCreated
-// }
-
 func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
 		return err, http.StatusBadRequest
@@ -257,8 +259,6 @@ func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 
 	return nil, http.StatusOK
 }
-
-
 
 func (wf *Workflow) UpdateWorkflow(db *gorm.DB) error {
 
@@ -323,20 +323,43 @@ func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) 
 	return wfs, err
 }
 
-func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB) (*[]AgentWorkflowSummary, int, error) {
+func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB) ([]AgentWorkflowSummary, int, error) {
+	var wfs []AgentWorkflowSummary
 
-	wfs := []AgentWorkflowSummary{}
+	var lastQuery string
+	var params []any
 
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
-		return &wfs, http.StatusBadRequest, err
+	if wf.IsPublic {
+		lastQuery = "(agent_workflows.agent_id::text = ? OR agent_workflows.agent_id::text LIKE ?) AND agent_workflows.is_public = ?"
+		params = []any{wf.AgentId, "%-" + wf.AgentId, true}
+	} else {
+		lastQuery = "agent_workflows.agent_id = ? AND agent_workflows.org_id = ?"
+		params = []any{wf.AgentId, wf.OrgId}
 	}
 
-	err := db.Model(&AgentWorkflow{}).Where("agent_id = ? AND org_id = ?", wf.AgentId, wf.OrgId).Scan(&wfs).Error
+	query := db.Model(&AgentWorkflow{}).
+		Select(`
+			agent_workflows.workflow_id,
+			agent_workflows.agent_id,
+			agent_workflows.raw_entry,
+			agent_workflows.is_active,
+			agent_workflows.created_at,
+			COALESCE(general_workflows.name, agent_workflows.name) AS name,
+			COALESCE(general_workflows.description, agent_workflows.description) AS description,
+			COALESCE(general_workflows.tags, '[]') AS tags,
+			COALESCE(general_workflows.category, agent_workflows.category) AS category,
+			COALESCE(general_workflows.short_description, agent_workflows.short_description) AS short_description,
+			COALESCE(general_workflows.long_description, agent_workflows.long_description) AS long_description
+		`).
+		Joins("LEFT JOIN general_workflows ON general_workflows.id = agent_workflows.workflow_id").
+		Where(lastQuery, params...)
+
+	err := query.Scan(&wfs).Error
 	if err != nil {
-		return &wfs, http.StatusInternalServerError, err
+		return wfs, http.StatusInternalServerError, err
 	}
 
-	return &wfs, http.StatusOK, nil
+	return wfs, http.StatusOK, nil
 }
 
 func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error) {

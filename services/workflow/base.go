@@ -160,7 +160,11 @@ func CreateAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (*
 	wf.RawEntry = req.RawEntry
 	wf.OrgId = req.OrgId
 	wf.Name = req.Name
+	wf.Description = req.Description
+	wf.ShortDescription = req.ShortDescription
+	wf.LongDescription = req.LongDescription
 	wf.IsActive = true
+	wf.Category = req.Category
 
 	err, code := wf.CreateAgentWorkflow(db)
 
@@ -179,10 +183,11 @@ func GetAgentWorkflowByIDService(req models.AgentWorkFlowRequest, db *gorm.DB) (
 }
 
 // List Workflows Service
-func ListAgentWorkflowsService(req models.AgentWorkFlowRequest, db *gorm.DB) (*[]models.AgentWorkflowSummary, int, error) {
+func ListAgentWorkflowsService(req models.AgentWorkFlowRequest, db *gorm.DB) ([]models.AgentWorkflowSummary, int, error) {
 	var wf models.AgentWorkflow
 	wf.OrgId = req.OrgId
 	wf.AgentId = req.AgentId
+	wf.IsPublic = req.IsPublic
 
 	res, code, err := wf.ListWorkflows(db)
 	return res, code, err
