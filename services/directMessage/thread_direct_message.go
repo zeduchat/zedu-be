@@ -580,6 +580,15 @@ func TemporalThreadDmMessage(req models.CreateThreadMsgReq2, db *storage.Databas
 		unAuthUser models.UnauthenticatedUser
 	)
 
+	agentId, err := models.ResolveAgentId(req.AgentId, db)
+
+	if err != nil {
+		logger.Error("Failed to send message to bot for marketplace chat, err: %v", err)
+		return &models.FeedQueue{}, http.StatusUnprocessableEntity, err
+	}
+
+	req.AgentId = agentId
+
 	resp, code, err := sendTemporalMessageToBot(req, db, logger)
 
 	if err != nil {
