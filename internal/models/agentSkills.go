@@ -37,6 +37,7 @@ type AgentSkill struct {
 	Category         string         `gorm:"type:text;default:default" json:"category"`
 	ShortDescription string         `gorm:"type:text" json:"short_description"`
 	LongDescription  string         `gorm:"type:text" json:"long_description"`
+	IsPublic         bool           `gorm:"type:boolean;default:false" json:"-"`
 }
 
 type GeneralAgentSkill struct {
@@ -75,6 +76,7 @@ type CreateAgentSkillRequest struct {
 	OrgId            string      `json:"-"`
 	UserId           string      `json:"-"`
 	SkillId          string      `json:"-"`
+	IsPublic         bool      `json:"-"`
 }
 
 type UpdateAgentSkillRequest struct {
@@ -163,11 +165,19 @@ func (as *AgentSkill) CheckAgentHasSkillByName(db *gorm.DB, agentID, skillName s
 func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skills []AgentSkill
 
+	lastQuery := "agent_skills.agent_id = ? AND agent_skills.org_id = ?"
+	params := []any{a.AgentId, a.OrgId}
+
+	if a.IsPublic {
+		lastQuery = "(agent_skills.agent_id::text = ? OR agent_skills.agent_id::text LIKE ?) AND agent_skills.is_public = ?"
+		params = []any{a.AgentId, "%-" + a.AgentId, true}
+	}
+
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&AgentSkill{}).
 		Select(`
-		agent_skills.skill_id, 
-		agent_skills.agent_id, 
+		agent_skills.skill_id,
+		agent_skills.agent_id,
 		agent_skills.config,
 		agent_skills.is_configured,
 		agent_skills.created_at,
@@ -182,7 +192,7 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 		COALESCE(general_agent_skills.long_description, agent_skills.long_description) AS long_description
 	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId)
+		Where(lastQuery, params...)
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"created_at",
@@ -319,12 +329,6 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 	parameters := JSONBMapArr{JSONBMap{}}
 
 	for _, v := range updateData.Config {
-		type ConfigOption struct {
-			Name    string      `json:"name"`
-			Value   interface{} `json:"value"`
-			Default interface{} `json:"default"`
-		}
-
 		var valueParam interface{}
 
 		if value, ok := v["value"]; ok {

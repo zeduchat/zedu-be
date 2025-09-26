@@ -12189,6 +12189,44 @@ paths:
         "500":
           description: Server error
 
+
+  /workflows/agents/{agent_id}:
+    get:
+      summary: Get agent workflows
+      description: >
+        Get available workflows in for an agent.
+      tags:
+        - Marketplace
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The unique identifier of the agent.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully retrieved workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: workflows retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Workflow"
+        "404":
+          description: No workflows found
+        "500":
+          description: Server error
+
   /agents/search:
     get:
       summary: Search agents
@@ -18749,7 +18787,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       responses:
         "200":
           description: Agent skill retrieved successfully
@@ -18788,6 +18825,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+
+  /skills/general/agents/{agents_id}:
+    get:
+      tags:
+        - Skills
+        - Marketplace
+      summary: Get agent skills by Agent ID
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent skill retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill retrieved
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /skills/agents/{agents_id}:
     get:

@@ -66,6 +66,7 @@ func GetAgentSkills(req models.CreateAgentSkillRequest, db *gorm.DB, c *gin.Cont
 	)
 	skill.AgentId = req.AgentId
 	skill.OrgId = req.OrgId
+	skill.IsPublic = req.IsPublic
 
 	resp, pag, err, code := skill.GetAgentSkills(db, c)
 
@@ -86,7 +87,6 @@ func GetAgentSkills(req models.CreateAgentSkillRequest, db *gorm.DB, c *gin.Cont
 			IsActive:         s.IsActive,
 			IsConfigured:     s.IsConfigured,
 			Avatar:           s.Avatar,
-			Config:           s.Config,
 			Tags:             s.Tags,
 			Category:         s.Category,
 			ShortDescription: s.ShortDescription,
