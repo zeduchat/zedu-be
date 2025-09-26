@@ -207,12 +207,14 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
+
 	userID, ok := userClaims["user_id"].(string)
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "user_id must be string", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	
 	orgID, ok := userClaims["org_id"].(string)
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "org_id must be string", nil, nil)
