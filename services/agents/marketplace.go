@@ -14,7 +14,6 @@ import (
 )
 
 // Agents
-
 func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, postgresql.PaginationResponse, error, int) {
 	var (
 		agents  models.Integrations
