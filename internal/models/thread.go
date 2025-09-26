@@ -19,6 +19,7 @@ import (
 )
 
 var ThreadIndexName = "threads"
+var CHATUSAGELIMIT int64 = 5
 
 type Threads struct {
 	ID                       string                    `gorm:"type:uuid;primary_key" json:"thread_id"`
@@ -265,6 +266,17 @@ type CreateThreadMsgReq struct {
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
 	Type       string                 `json:"type"`
+}
+
+type CreateThreadMsgReq2 struct {
+	Content        string `json:"content" validate:"required"`
+	ChannelsID     string `json:"channels_id"`
+	Message        string `json:"message"`
+	AgentId        string `json:"agent_id"`
+	ThreadId       string `json:"thread_id"`
+	AgentName      string `json:"agent_name"`
+	Type           string `json:"type"`
+	UserIdentifier string `json:"user_identifier"`
 }
 
 type BotReturnRequest struct {
