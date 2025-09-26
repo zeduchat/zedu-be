@@ -164,7 +164,6 @@ func (base *Controller) ListGeneralAgentWorkflows(c *gin.Context) {
 	}
 
 	req.IsPublic = true
-
 	resp, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("error listing workflows", err)
