@@ -323,7 +323,7 @@ func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) 
 	return wfs, err
 }
 
-func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB) ([]AgentWorkflowSummary, int, error) {
+func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB, c *gin.Context) ([]AgentWorkflowSummary, postgresql.PaginationResponse, int, error){
 	var wfs []AgentWorkflowSummary
 
 	var lastQuery string
@@ -336,6 +336,8 @@ func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB) ([]AgentWorkflowSummary, int
 		lastQuery = "agent_workflows.agent_id = ? AND agent_workflows.org_id = ?"
 		params = []any{wf.AgentId, wf.OrgId}
 	}
+
+	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&AgentWorkflow{}).
 		Select(`
@@ -354,12 +356,19 @@ func (wf *AgentWorkflow) ListWorkflows(db *gorm.DB) ([]AgentWorkflowSummary, int
 		Joins("LEFT JOIN general_workflows ON general_workflows.id = agent_workflows.workflow_id").
 		Where(lastQuery, params...)
 
-	err := query.Scan(&wfs).Error
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&wfs,
+		nil,
+	)
 	if err != nil {
-		return wfs, http.StatusInternalServerError, err
+		return wfs, paginationResponse,  http.StatusInternalServerError, err
 	}
 
-	return wfs, http.StatusOK, nil
+	return wfs, paginationResponse,  http.StatusOK, nil
 }
 
 func GetWorkflowByID(db *gorm.DB, req WorkFlowRequest) (WorkFlowResponse, error) {

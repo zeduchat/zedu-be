@@ -18830,6 +18830,7 @@ paths:
     get:
       tags:
         - Skills
+        - Marketplace
       summary: Get agent skills by Agent ID
       parameters:
         - name: agents_id

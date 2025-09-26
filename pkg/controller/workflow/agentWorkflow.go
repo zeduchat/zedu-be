@@ -136,7 +136,7 @@ func (base *Controller) ListAgentWorkflows(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	req.OrgId = userClaims["org_id"].(string)
 
-	resp, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql)
+	resp,paginationResponse, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql, c)
 	if err != nil {
 		base.Logger.Error("error listing workflows", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -144,7 +144,16 @@ func (base *Controller) ListAgentWorkflows(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp)
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  paginationResponse.TotalItems,
+	}
+
+
+	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp, paginationData)
 	c.JSON(code, rd)
 }
 
@@ -164,7 +173,7 @@ func (base *Controller) ListGeneralAgentWorkflows(c *gin.Context) {
 	}
 
 	req.IsPublic = true
-	resp, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql)
+	resp, paginationResponse, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql, c)
 	if err != nil {
 		base.Logger.Error("error listing workflows", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -172,7 +181,15 @@ func (base *Controller) ListGeneralAgentWorkflows(c *gin.Context) {
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp)
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  paginationResponse.TotalItems,
+	}
+
+
+	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp, paginationData)
 	c.JSON(code, rd)
 }
 
