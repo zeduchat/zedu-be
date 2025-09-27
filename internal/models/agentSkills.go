@@ -16,6 +16,26 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+type SkillInfo struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+}
+
+type MatchedSkill struct {
+	SkillID    string  `json:"skill_id"`
+	Confidence float64 `json:"confidence"`
+}
+type MatchedSkills []MatchedSkill
+
+type TaskSkillMatch struct {
+	Task          string        `json:"task"`
+	MatchedSkills MatchedSkills `json:"matched_skills"`
+	Unsupported   bool          `json:"unsupported"`
+}
+
+type GeneralAgentSkills []GeneralAgentSkill
 type AgentSkill struct {
 	ID           string         `gorm:"column:id;type:uuid" json:"-"`
 	Name         string         `gorm:"column:name;type:text" json:"name"`
@@ -183,8 +203,8 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]GeneralAgentSkill, postgresql.PaginationResponse, error, int) {
-	var skills []GeneralAgentSkill
+func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) (GeneralAgentSkills, postgresql.PaginationResponse, error, int) {
+	var skills GeneralAgentSkills
 
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&GeneralAgentSkill{})
@@ -204,8 +224,8 @@ func (a *GeneralAgentSkill) GetGeneralAgentSkills(db *gorm.DB, c *gin.Context) (
 	return skills, paginationResponse, nil, http.StatusOK
 }
 
-func (a *GeneralAgentSkill) FetchGeneralAgentSkills(db *gorm.DB, c *gin.Context) ([]GeneralAgentSkill, error, int) {
-	var skills []GeneralAgentSkill
+func (a *GeneralAgentSkill) FetchGeneralAgentSkills(db *gorm.DB, c *gin.Context) (GeneralAgentSkills, error, int) {
+	var skills GeneralAgentSkills
 
 	query := db.Model(&GeneralAgentSkill{})
 
@@ -253,7 +273,6 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 
 func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
 	var skills []AgentSkillResponse
-
 
 	err := db.Table("agent_skills").
 		Select(`

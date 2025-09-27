@@ -25,18 +25,18 @@ type Prompts struct {
 }
 
 type ProcessStep struct {
-	Step    string `json:"step"`
-	Input   string `json:"input"`
-	Output  string `json:"output"`
-	Status  string `json:"status"`
-	Prompt  string `json:"prompt"`
-	LLMCall bool   `json:"llm_call"`
+	Step         string `json:"step"`
+	Input        string `json:"input"`
+	Output       string `json:"output"`
+	Status       string `json:"status"`
+	SystemPrompt string `json:"system_prompt"`
+	LLMCall      bool   `json:"llm_call"`
 }
 
 type TranslationRequest struct {
-	TaskList string       `json:"task_list" binding:"required"`
-	Skills   []string     `json:"skills" binding:"required"`
-	Steps    StepRequests `json:"steps" binding:"required"`
+	TaskList string `json:"task_list" binding:"required"`
+	// Skills   []string     `json:"skills" binding:"required"`
+	Steps StepRequests `json:"steps" binding:"required"`
 }
 
 type StepReq struct {
@@ -76,6 +76,7 @@ type Node struct {
 	NodeName    string         `json:"node_name"`
 	Type        string         `json:"type"`
 	SkillID     string         `json:"skill_id"`
+	Confidence  float64        `json:"confidence"`
 	Position    []int          `json:"position"`
 	Params      map[string]any `json:"parameters"`
 	TypeVersion float64        `json:"typeVersion"`
@@ -94,7 +95,6 @@ type NodeConnection struct {
 
 type TranslationResponse struct {
 	Status string `json:"status"` //success, failed, incomplete
-	// Workflow   map[string]any `json:"workflow,omitempty"`
 	ProcessStep   ProcessSteps           `json:"process_step,omitempty"`
 	MissingSkills *MissingSkillsResponse `json:"missing_skills,omitempty"`
 }
