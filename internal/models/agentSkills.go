@@ -96,7 +96,7 @@ type CreateAgentSkillsRequest struct {
 }
 
 type AgentSkillResponse struct {
-	SkillId          string      `json:"skill_id"`
+	SkillId          string      `json:"id"`
 	Name             string      `json:"name"`
 	Description      string      `json:"description"`
 	Type             string      `json:"type"`
