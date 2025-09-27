@@ -16,6 +16,10 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+const taskCleanup = "Task Cleanup"
+const skillMatching = "Skill Matching"
+const workflowTranslation = "Workflow Translation"
+
 func runTranslationPipeline(db *gorm.DB, logger *utility.Logger, extReq request.ExternalRequest, tasklist string, req models.TranslationRequest, agentID, orgID, userID string) ([]models.ProcessStep, error) {
 	stepProcess := []models.ProcessStep{}
 	placeholders := map[string]string{
@@ -131,7 +135,7 @@ func handleSkillMatching(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 		logger.Error(fmt.Sprintf("handleSkillMatching: failed to get skill matching from LLM: %v", err))
 		return "", fmt.Errorf("failed to get skill matching from LLM: %v", err)
 	}
-	fmt.Println("=============================", aiOutput)
+
 	var skillMatchingResult []map[string]any
 	if err := json.Unmarshal([]byte(aiOutput), &skillMatchingResult); err != nil {
 		logger.Error(fmt.Sprintf("handleSkillMatching: failed to unmarshal skill matching result: %v", err))
@@ -346,7 +350,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		taskList.WriteString(fmt.Sprintf("%s\n", t.Text))
 	}
 
-	promptSteps := []string{"Task Cleanup", "Skill Matching", "Workflow Translation"}
+	promptSteps := []string{taskCleanup, skillMatching, workflowTranslation}
 	steps := make([]models.StepReq, len(promptSteps))
 	for i, step := range promptSteps {
 		var prompt models.Prompts
@@ -401,6 +405,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 	aw.RawEntry = rawEntry
 	aw.Name = wkfJson.Name
 	aw.OrgId = ids.OrganisationID
+	aw.UserID = ids.UserID
 
 	err, code := aw.CreateAgentWorkflow(db)
 	if err != nil {
@@ -420,6 +425,11 @@ func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
 	var workflow models.WorkflowJSON
 	if err := json.Unmarshal([]byte(cleaned), &workflow); err != nil {
 		return models.WorkflowJSON{}, fmt.Errorf("failed to parse workflow JSON: %w", err)
+	}
+
+	workflow.ID = utility.GenerateUUID()
+	for i := range workflow.Nodes {
+		workflow.Nodes[i].ID = utility.GenerateUUID()
 	}
 
 	return workflow, nil

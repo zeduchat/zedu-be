@@ -208,6 +208,7 @@ func UpdateAgentWorkflowService(req models.AgentWorkFloUpdateRequest, db *gorm.D
 	wf.RawEntry = req.RawEntry
 	wf.IsActive = req.IsActive
 	wf.Name = req.Name
+	wf.Private = req.Private
 
 	err, code := wf.UpdateAgentWorkflow(db)
 	return err, code

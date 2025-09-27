@@ -48,6 +48,7 @@ type MissingSkillsResponse struct {
 	MissingSkills []string `json:"missing_skills"`
 	Suggestion    string   `json:"suggestion"`
 }
+
 type WorkflowJSON struct {
 	ID          string                   `json:"id"`
 	Meta        WorkflowMeta             `json:"meta"`
@@ -61,6 +62,18 @@ type WorkflowJSON struct {
 	Connections map[string]NodeConnector `json:"connections"`
 }
 
+type Node struct {
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Type        string         `json:"type"`
+	SkillID     string         `json:"skill_id"`
+	Confidence  float64        `json:"confidence"`
+	Position    []int          `json:"position"`
+	Params      map[string]any `json:"parameters"`
+	TypeVersion float64        `json:"typeVersion"`
+	WebhookID   string         `json:"webhookId,omitempty"`
+}
+
 type WorkflowMeta struct {
 	InstanceID                  string `json:"instanceId"`
 	TemplateCredsSetupCompleted bool   `json:"templateCredsSetupCompleted"`
@@ -70,18 +83,6 @@ type WkfSettings struct {
 	ExecutionOrder string `json:"executionOrder"`
 }
 
-type Node struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	NodeName    string         `json:"node_name"`
-	Type        string         `json:"type"`
-	SkillID     string         `json:"skill_id"`
-	Confidence  float64        `json:"confidence"`
-	Position    []int          `json:"position"`
-	Params      map[string]any `json:"parameters"`
-	TypeVersion float64        `json:"typeVersion"`
-	WebhookID   string         `json:"webhookId,omitempty"`
-}
 
 type NodeConnector struct {
 	Main NodeConnections `json:"main"` // Connections between nodes

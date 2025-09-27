@@ -231,7 +231,7 @@ func (base *Controller) ProcessAgentTasks(c *gin.Context) {
 	code, resp, err := agents.ProcessAgentTasks(c, base.Db.Postgresql, base.Logger, base.ExtReq, ids)
 	if err != nil {
 		base.Logger.Error("error processing tasks", err)
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(code, "error", "error processing agent tasks", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
