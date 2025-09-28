@@ -34,9 +34,8 @@ type ProcessStep struct {
 }
 
 type TranslationRequest struct {
-	TaskList string `json:"task_list" binding:"required"`
-	// Skills   []string     `json:"skills" binding:"required"`
-	Steps StepRequests `json:"steps" binding:"required"`
+	TaskList string       `json:"task_list" binding:"required"`
+	Steps    StepRequests `json:"steps" binding:"required"`
 }
 
 type StepReq struct {
@@ -65,6 +64,7 @@ type WorkflowJSON struct {
 type Node struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
+	Description string         `json:"description"`
 	Type        string         `json:"type"`
 	SkillID     string         `json:"skill_id"`
 	Confidence  float64        `json:"confidence"`
@@ -83,7 +83,6 @@ type WkfSettings struct {
 	ExecutionOrder string `json:"executionOrder"`
 }
 
-
 type NodeConnector struct {
 	Main NodeConnections `json:"main"` // Connections between nodes
 }
@@ -95,7 +94,7 @@ type NodeConnection struct {
 }
 
 type TranslationResponse struct {
-	Status string `json:"status"` //success, failed, incomplete
+	Status        string                 `json:"status"` //success, failed, incomplete
 	ProcessStep   ProcessSteps           `json:"process_step,omitempty"`
 	MissingSkills *MissingSkillsResponse `json:"missing_skills,omitempty"`
 }

@@ -15,4 +15,5 @@ type IDS struct {
 	ReactionID     string `json:"reaction_id"`
 	OwnerID        string `json:"owner_id"`
 	Type           string `json:"type"`
+	WorkflowID     string `json:"workflow_id"`
 }

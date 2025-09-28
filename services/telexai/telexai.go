@@ -249,7 +249,8 @@ func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisCli
 }
 func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
 	openRouterPayload := external_models.OpenRouterReq{
-		Model:    "google/gemini-2.0-flash-001",
+		// Model:    "google/gemini-2.0-flash-001",
+		Model: "anthropic/claude-3.5-haiku",
 		Messages: req.Messages,
 	}
 

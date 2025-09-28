@@ -55,6 +55,19 @@ type AgentSkill struct {
 	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
 
+type AgentSkillResponse struct {
+	SkillId      string      `json:"skill_id"`
+	Name         string      `json:"name"`
+	Description  string      `json:"description"`
+	Type         string      `json:"type"`
+	IsActive     bool        `json:"is_active"`
+	IsConfigured bool        `json:"is_configured"`
+	Avatar       string      `json:"avatar"`
+	Config       JSONBMapArr `json:"config"`
+	Tags         []string    `json:"tags"`
+	Category     string      `json:"category"`
+}
+
 type GeneralAgentSkill struct {
 	ID           string         `gorm:"column:id;type:uuid" json:"id"`
 	Name         string         `gorm:"column:name;type:text" json:"name"`
@@ -70,6 +83,8 @@ type GeneralAgentSkill struct {
 	Stars        int64          `gorm:"default:1" json:"stars"`
 	Category     string         `gorm:"type:text;default:default" json:"category"`
 }
+
+
 
 type CreateAgentSkillRequest struct {
 	Name        string      `json:"name" validate:"required"`
@@ -103,17 +118,20 @@ type CreateAgentSkillsRequest struct {
 	UserId   string   `json:"-"`
 }
 
-type AgentSkillResponse struct {
-	SkillId      string      `json:"skill_id"`
-	Name         string      `json:"name"`
-	Description  string      `json:"description"`
-	Type         string      `json:"type"`
-	IsActive     bool        `json:"is_active"`
-	IsConfigured bool        `json:"is_configured"`
-	Avatar       string      `json:"avatar"`
-	Config       JSONBMapArr `json:"config"`
-	Tags         []string    `json:"tags"`
-	Category     string      `json:"category"`
+
+type WorkflowNode struct {
+	ID         string      `gorm:"column:id;type:uuid;primaryKey" json:"id"`
+	WorkflowID string      `gorm:"column:workflow_id;type:uuid;not null" json:"workflow_id"`
+	NodeID     string      `gorm:"column:node_id;type:text;not null" json:"node_id"`
+	SkillID    string      `gorm:"column:skill_id;type:uuid" json:"skill_id"` 
+	AgentID    string      `gorm:"column:agent_id;type:uuid;not null" json:"agent_id"`
+	OrgID      string      `gorm:"column:org_id;type:uuid;not null" json:"org_id"`
+	Name       string      `gorm:"column:name;type:text;not null" json:"name"`
+	Type       string      `gorm:"column:type;type:text;not null" json:"type"`
+	Position   string      `gorm:"column:position;type:jsonb" json:"position"` // [x, y] coordinates
+	Settings   JSONBMapArr `gorm:"type:jsonb" json:"settings"` // Node-specific configuration
+	CreatedAt  time.Time   `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time   `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type SkillResp struct {
@@ -271,36 +289,36 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 	return skill, nil
 }
 
-func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
-	var skills []AgentSkillResponse
-
+func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkill, error) {
+	var skills []AgentSkill
 	err := db.Table("agent_skills").
 		Select(`
-		agent_skills.skill_id, 
-		agent_skills.agent_id, 
-		agent_skills.config,
-		agent_skills.is_configured,
-		agent_skills.created_at,
-		agent_skills.is_active,
-		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
-		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
-		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
-		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
-		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
-		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
-	`).
+			agent_skills.id,
+			agent_skills.agent_id,
+			agent_skills.skill_id,
+			agent_skills.config,
+			agent_skills.is_configured,
+			agent_skills.is_active,
+			agent_skills.created_at,
+			agent_skills.link,
+			agent_skills.user_id,
+			agent_skills.org_id,
+			COALESCE(general_agent_skills.name, agent_skills.name) AS name,
+			COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+			COALESCE(general_agent_skills.category, agent_skills.category) AS category,
+			COALESCE(general_agent_skills.type, agent_skills.type) AS type,
+			COALESCE(general_agent_skills.description, agent_skills.description) AS description,
+			COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
+		`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
 		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId).
 		Scan(&skills).Error
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch agent skills: %w", err)
 	}
-
 	if len(skills) == 0 {
-		return []AgentSkillResponse{}, nil
+		return []AgentSkill{}, nil
 	}
-
 	return skills, nil
 }
 

@@ -413,7 +413,88 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 		return models.WorkflowJSON{}, code, err
 	}
 
+	node_ids := models.IDS{
+		AgentID:        aw.AgentId,
+		WorkflowID:     wkfJson.ID,
+		OrganisationID: aw.OrgId,
+	}
+
+	if err := createWorkflowNodes(db, logger, wkfJson, node_ids); err != nil {
+		logger.Error("Failed to create workflow nodes", err)
+	}
+
 	return wkfJson, http.StatusOK, nil
+}
+
+func createWorkflowNodes(db *gorm.DB, logger *utility.Logger, wkfJson models.WorkflowJSON, node_ids models.IDS) error {
+	var skillsModel models.AgentSkill
+	skillsModel.AgentId = node_ids.AgentID
+	skillsModel.OrgId = node_ids.OrganisationID
+	
+	skills, err := skillsModel.GetAllAgentSkills(db)
+	if err != nil {
+		logger.Error("Failed to fetch agent skills for workflow node creation", err)
+		return err
+	}
+	
+	skillsByID := make(map[string]models.AgentSkill)
+	for _, skill := range skills {
+		skillsByID[skill.SkillId] = skill
+	}
+
+	for _, node := range wkfJson.Nodes {
+		if strings.Contains(strings.ToLower(node.Type), "trigger") {
+			continue
+		}
+		if node.SkillID == "00000000-0000-0000-0000-000000000000" {
+			logger.Info(fmt.Sprintf("Skipping TODO node: %s", node.Name))
+			continue
+		}
+		
+		var matchingSkill models.AgentSkill
+		var found bool
+		if node.SkillID != "" {
+			if skill, exists := skillsByID[node.SkillID]; exists {
+				matchingSkill = skill
+				found = true
+			} else {
+				logger.Error(fmt.Sprintf("Skill ID %s not found for node %s", node.SkillID, node.Name))
+			}
+		}
+		
+		positionJSON, _ := json.Marshal(node.Position)
+		nodeSettings := make(models.JSONBMapArr, 0)
+		if found && matchingSkill.Config != nil {
+			nodeSettings = append(nodeSettings, matchingSkill.Config...)
+		}
+		if node.Params != nil {
+			nodeParamsJSON, _ := json.Marshal(node.Params)
+			var nodeParamsMap map[string]interface{}
+			json.Unmarshal(nodeParamsJSON, &nodeParamsMap)
+			nodeSettings = append(nodeSettings, nodeParamsMap)
+		}
+		
+		workflowNode := models.WorkflowNode{
+			ID:         utility.GenerateUUID(),
+			WorkflowID: node_ids.WorkflowID,
+			NodeID:     node.ID,
+			SkillID:    node.SkillID,
+			AgentID:    node_ids.AgentID,
+			OrgID:      node_ids.OrganisationID,
+			Name:       node.Name,
+			Type:       node.Type,
+			Position:   string(positionJSON),
+			Settings:   nodeSettings,
+		}
+		
+		if err := db.Create(&workflowNode).Error; err != nil {
+			logger.Error(fmt.Sprintf("Failed to create workflow node %s", node.ID), err)
+			continue
+		}
+		
+		logger.Info(fmt.Sprintf("Created workflow node: %s (SkillID: %s)", node.Name, node.SkillID))
+	}
+	return nil
 }
 
 func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
