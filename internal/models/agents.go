@@ -14,10 +14,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -81,7 +83,7 @@ type PublishAgentRequest struct {
 	HowItWorks       string    `json:"how_it_works" validate:"required,min=101"`
 	Benefits         string    `json:"benefits" validate:"required,min=101"`
 	WhyUse           string    `json:"why_use" validate:"required,min=101"`
-	ShortDescription string    `json:"short_description" validate:"required,min=10,max=30"`
+	ShortDescription string    `json:"short_description" validate:"required,min=10,max=50"`
 	LongDescription  string    `json:"long_description" validate:"required,min=101"`
 	UserId           string    `json:"-"`
 	AgentId          string    `json:"-"`
@@ -372,15 +374,19 @@ type AgentResp struct {
 	Description      string            `json:"description"`
 	Visibility       string            `json:"visibility"`
 	SystemPrompts    JSONSystemPrompts `json:"system_prompts,omitempty"`
-	Category         string            `json:"category"`
+	Category         string            `json:"category,omitempty"`
 	Stars            int64             `json:"stars"`
-	Snapshot         Snapshots         `json:"snapshots"`
-	HowItWorks       string            `json:"how_it_works"`
-	Benefits         string            `json:"benefits"`
-	WhyUse           string            `json:"why_use"`
+	Snapshot         Snapshots         `json:"snapshots,omitempty"`
+	HowItWorks       string            `json:"how_it_works,omitempty"`
+	Benefits         string            `json:"benefits,omitempty"`
+	WhyUse           string            `json:"why_use,omitempty"`
 	AgentSlug        string            `json:"agent_slug"`
-	ShortDescription string            `json:"short_description"`
-	LongDescription  string            `json:"long_description"`
+	ShortDescription string            `json:"short_description,omitempty"`
+	LongDescription  string            `json:"long_description,omitempty"`
+	ThreadCount      int64             `json:"thread_count"`
+	LastThreadId     string            `json:"last_thread_id"`
+	LastReadAt       time.Time         `json:"last_read_at"`
+	UserId           string            `json:"-"`
 }
 
 type IntegrationBills struct {
@@ -625,36 +631,52 @@ func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context
 }
 
 // Get custom integrations
-func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *gin.Context) ([]AgentResp, postgresql.PaginationResponse, error, int) {
 
 	var (
-		org        Organisation
-		orgIntResp []OrganisationIntegrations
+		org    Organisation
+		agents = []AgentResp{}
 	)
 
-	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrganisationID)
 	if !exists {
 		return nil, postgresql.PaginationResponse{}, errors.New("organisation not found"), http.StatusNotFound
 	}
 
 	pagination := postgresql.GetPagination(c)
 
-	query := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ? and is_active = ?", org_id, true)
+	query := db.Table("organisation_integrations oi").
+		Select(`
+		oi.integration_id as id,
+		oi.is_active,
+		oi.app_name as name,
+		oi.tone,
+		oi.app_logo as avatar,
+		oi.title,
+		oi.app_description as description,
+		oi.visibility,
+		oi.stars,
+		COALESCE(dc.thread_count, 0) as thread_count,
+		COALESCE(dc.last_thread_id, '') as last_thread_id,
+		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at
+	`).
+		Joins(`
+		LEFT JOIN dm_channels dc 
+		ON dc.participant_id = oi.integration_id
+		AND dc.user_id = ?
+	`, ids.UserID).
+		Where("oi.org_id = ? AND oi.is_active = ?", ids.OrganisationID, true)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
+		"oi.created_at",
 		"desc",
 		pagination,
-		&orgIntResp,
+		&agents,
 		nil,
 	)
-	if err != nil {
-		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
-	}
 
-	return orgIntResp, paginationResponse, err, http.StatusOK
+	return agents, paginationResponse, err, http.StatusOK
 }
 
 func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
@@ -2668,4 +2690,35 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	}
 
 	return &resp, http.StatusOK, nil
+}
+
+func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
+
+	var (
+		agent    = Integrations{}
+		orgAgent = OrganisationIntegrations{}
+	)
+
+	if _, err := uuid.Parse(partialUUId); err != nil {
+		parts := strings.Split(partialUUId, "-")
+		if len(parts) < 2 || len(parts[len(parts)-1]) != 12 {
+			return "", errors.New("Invalid id format")
+		}
+		partialUUId = parts[len(parts)-1]
+	}
+
+	exists := postgresql.CheckExists(db.Postgresql, &agent, "(id::text = ? OR id::text LIKE ?)", partialUUId, "%-"+partialUUId)
+
+	if exists {
+		return agent.ID, nil
+	}
+
+	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "(id::text = ? OR id::text LIKE ?)", partialUUId, "%-"+partialUUId)
+
+	if exists {
+		return orgAgent.IntegrationID, nil
+	}
+
+	return "", errors.New("Invalid agent id, agent does not exists")
+
 }

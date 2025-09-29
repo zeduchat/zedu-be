@@ -402,6 +402,43 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		// user       models.User
 	)
 
+	if req.ThreadId == "00000000-0000-0000-0000-000000000000" {
+
+		var agent models.Integrations
+
+		exists := postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", req.AgentId)
+		if !exists {
+
+			exists = postgresql.CheckExists(db.Postgresql, &agent, "id = ?", req.AgentId)
+			if !exists {
+				logger.Info("Failed to get agent info, with marketplace channel id: %v and agent id: %v", req.ChannelID, req.AgentId)
+				return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
+			}
+		}
+
+		feed := models.FeedMessageRequest{
+			ChannelID: req.ChannelID,
+			UserName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+			AvatarURL: utility.ThisOrThat(orgAgent.AppLogo, agent.AppLogo),
+			Type:      "message",
+			Content:   req.Content,
+			Email:     "agent",
+			FullName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			UserType:  "bot",
+			State:     req.State,
+		}
+
+		err := centrifuge.PublishChannel(logger, req.ChannelID, feed)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing to marketplace channel with destination id: %s error: %v", req.ChannelID, err.Error()))
+			return nil, http.StatusBadRequest, errors.New("failed to publish data")
+		}
+
+		logger.Info(fmt.Sprintf("Publishing update to marketplace with channel id: %s", req.ChannelID))
+		return &models.ThreadDocument{}, http.StatusOK, nil
+	}
+
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
 	if !exists || err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
@@ -409,7 +446,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", channel.ParticipantId)
 	if !exists {
-		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
+		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist, with integration_id = ?, %v", *channel.ParticipantId)
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -470,6 +507,34 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, errors.New("failed to publish data")
 	}
 
+	dmChan := models.DmChannels{}
+	dmChan.ChannelId = req.ChannelID
+	dmChan.UserId = "00000000-0000-0000-0000-000000000000"
+	dmChan.ChannelType = channel.ChannelType
+	dmChan.OrgId = channel.OrgId
+	dmChan.ChatType = channel.ChatType
+	dmChan.ParticipantId = channel.ParticipantId
+
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Updating unread thread count")
+		dmChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	go func() {
+		wg.Wait()
+		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
+
+	err = channel.UpdateInteractionAt(db.Postgresql)
+	if err != nil {
+		logger.Error("Error updating last interacted time of channelid: %s, with orgid: %s error: %v", req.ChannelID, channel.OrgId, err.Error())
+	}
+
 	logger.Info(fmt.Sprintf("Publishing update to channel id: %s", req.ChannelID))
 
 	pushReq := models.PushRequest{
@@ -496,7 +561,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		OrganisationID: channel.OrgId,
 		Amount:         creditUsed,
 		AgentID:        *channel.ParticipantId,
-		UserID:         nil,
+		UserID:         &channel.UserId,
 	}
 
 	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
@@ -521,4 +586,131 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 	}
 
 	return &threadDoc, http.StatusCreated, nil
+}
+
+func SetupChatSession(req models.UnauthReq, db *storage.Database, logger *utility.Logger) (*models.UserUsageInfoResponse, int, error) {
+
+	unUser := models.UnauthenticatedUser{}
+
+	resp, err := unUser.GetOrCreateUserInfo(db.Postgresql, req.UserIdentifier)
+
+	if err != nil {
+		return &models.UserUsageInfoResponse{}, http.StatusInternalServerError, err
+	}
+
+	return resp, http.StatusOK, nil
+
+}
+
+func TemporalThreadDmMessage(req models.CreateThreadMsgReq2, db *storage.Database, logger *utility.Logger) (*models.FeedQueue, int, error) {
+
+	var (
+		unAuthUser models.UnauthenticatedUser
+	)
+
+	agentId, err := models.ResolveAgentId(req.AgentId, db)
+
+	if err != nil {
+		logger.Error("Failed to send message to bot for marketplace chat, err: %v", err)
+		return &models.FeedQueue{}, http.StatusUnprocessableEntity, err
+	}
+
+	req.AgentId = agentId
+
+	resp, code, err := sendTemporalMessageToBot(req, db, logger)
+
+	if err != nil {
+		logger.Error("Failed to send message to bot for marketplace chat, err: %v", err)
+		return resp, code, errors.New("Failed to send message")
+	}
+
+	_, err = unAuthUser.IncrementUsage(db.Postgresql, models.UnauthReq{
+		UserIdentifier:  req.UserIdentifier,
+		LastAgentChatID: req.AgentId,
+		Limit:           models.CHATUSAGELIMIT,
+	})
+
+	if err != nil {
+		logger.Error("******** Failed to update user usage, err: %v", err)
+	}
+
+	return resp, code, err
+}
+
+func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Database, logger *utility.Logger) (*models.FeedQueue, int, error) {
+	var (
+		profile     models.Profile
+		user        models.User
+		channel     models.DmChannels
+		routing_key = "direct_message"
+	)
+
+	publishfeed := models.FeedMessageRequest{
+		ChannelID: req.ChannelsID,
+		UserName:  profile.UserName,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		Type:      "message",
+		Content:   req.Content,
+		Email:     user.Email,
+		FullName:  profile.FullName,
+		UserType:  "user",
+		ThreadId:  "00000000-0000-0000-0000-000000000000",
+	}
+
+	err := centrifuge.PublishChannel(logger, publishfeed.ChannelID, publishfeed)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error Publishing to participant id: %s, error: %v", publishfeed.ChannelID, err))
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to publish feed data: %v", err)
+	}
+
+	logger.Info(fmt.Sprintf("Publishing to marketplace channel with id: %s", publishfeed.ChannelID))
+
+	returnUrl := fmt.Sprintf("%s/api/v1/dms/bot-dm-response", config.Config.App.Url)
+	feed := models.FeedQueue{
+		ChannelsId: req.ChannelsID,
+		Content:    req.Content,
+		ThreadId:   "00000000-0000-0000-0000-000000000000",
+		ReturnUrl:  returnUrl,
+		Type:       "message/thread",
+		UserId:     "00000000-0000-0000-0000-000000000000",
+		OrgId:      "00000000-0000-0000-0000-000000000000",
+		AgentId:    req.AgentId,
+	}
+
+	payload := map[string]any{
+		"message_content": map[string]any{
+			"channel_id":              feed.ChannelsId,
+			"message":                 feed.Content,
+			"thread_id":               feed.ThreadId,
+			"is_channel_conversation": false,
+			"type":                    feed.Type,
+			"user_id":                 feed.UserId,
+			"org_id":                  feed.OrgId,
+			"media":                   feed.Media,
+			"mentions":                feed.Mentions,
+			"agent_id":                feed.AgentId,
+		},
+		"channel_id": feed.ChannelsId,
+		"org_id":     feed.OrgId,
+		"return_url": feed.ReturnUrl,
+		"agent_id":   channel.ParticipantId,
+	}
+
+	task := "telex_queue_processor.handle_direct_message"
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
+		return &models.FeedQueue{}, http.StatusInternalServerError, fmt.Errorf("failed to marshal payload, error: %v", err)
+	}
+
+	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, task)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
+		return &models.FeedQueue{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
+	}
+
+	logger.Info("Pushed to RabbitMQ for integration: %s", routing_key)
+
+	return &feed, http.StatusCreated, nil
 }

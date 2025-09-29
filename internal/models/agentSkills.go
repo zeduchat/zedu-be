@@ -37,69 +37,68 @@ type TaskSkillMatch struct {
 
 type GeneralAgentSkills []GeneralAgentSkill
 type AgentSkill struct {
-	ID           string         `gorm:"column:id;type:uuid" json:"-"`
-	Name         string         `gorm:"column:name;type:text" json:"name"`
-	AgentId      string         `gorm:"column:agent_id;type:uuid" json:"agent_id"`
-	SkillId      string         `gorm:"column:skill_id;type:uuid" json:"skill_id"`
-	Description  string         `gorm:"type:text" json:"description"`
-	Type         string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
-	IsActive     bool           `gorm:"type:boolean" json:"is_active"`
-	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
-	Avatar       string         `gorm:"type:text" json:"avatar"`
-	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMapArr    `gorm:"type:jsonb" json:"config"`
-	Link         string         `gorm:"type:text" json:"-"`
-	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
-	UserId       string         `gorm:"type:uuid" json:"-"`
-	OrgId        string         `gorm:"type:uuid" json:"-"`
-	Category     string         `gorm:"type:text;default:default" json:"category"`
-}
-
-type AgentSkillResponse struct {
-	SkillId      string      `json:"skill_id"`
-	Name         string      `json:"name"`
-	Description  string      `json:"description"`
-	Type         string      `json:"type"`
-	IsActive     bool        `json:"is_active"`
-	IsConfigured bool        `json:"is_configured"`
-	Avatar       string      `json:"avatar"`
-	Config       JSONBMapArr `json:"config"`
-	Tags         []string    `json:"tags"`
-	Category     string      `json:"category"`
+	ID               string         `gorm:"column:id;type:uuid" json:"-"`
+	Name             string         `gorm:"column:name;type:text" json:"name"`
+	AgentId          string         `gorm:"column:agent_id;type:uuid" json:"agent_id"`
+	SkillId          string         `gorm:"column:skill_id;type:uuid" json:"skill_id"`
+	Description      string         `gorm:"type:text" json:"description"`
+	Type             string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
+	IsActive         bool           `gorm:"type:boolean" json:"is_active"`
+	IsConfigured     bool           `gorm:"type:boolean" json:"is_configured"`
+	Avatar           string         `gorm:"type:text" json:"avatar"`
+	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
+	Link             string         `gorm:"type:text" json:"-"`
+	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
+	UserId           string         `gorm:"type:uuid" json:"-"`
+	OrgId            string         `gorm:"type:uuid" json:"-"`
+	Category         string         `gorm:"type:text;default:default" json:"category"`
+	ShortDescription string         `gorm:"type:text" json:"short_description"`
+	LongDescription  string         `gorm:"type:text" json:"long_description"`
+	IsPublic         bool           `gorm:"type:boolean;default:false" json:"-"`
 }
 
 type GeneralAgentSkill struct {
-	ID           string         `gorm:"column:id;type:uuid" json:"id"`
-	Name         string         `gorm:"column:name;type:text" json:"name"`
-	Description  string         `gorm:"type:text" json:"description"`
-	Type         string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
-	IsActive     bool           `gorm:"type:boolean" json:"is_active"`
-	IsConfigured bool           `gorm:"type:boolean" json:"is_configured"`
-	Avatar       string         `gorm:"type:text" json:"avatar"`
-	Tags         pq.StringArray `gorm:"type:text[]" json:"tags"`
-	Link         string         `gorm:"type:text" json:"-"`
-	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	Config       JSONBMapArr    `gorm:"type:jsonb" json:"config"`
-	Stars        int64          `gorm:"default:1" json:"stars"`
-	Category     string         `gorm:"type:text;default:default" json:"category"`
+	ID               string         `gorm:"column:id;type:uuid" json:"id"`
+	Name             string         `gorm:"column:name;type:text" json:"name"`
+	Description      string         `gorm:"type:text" json:"description"`
+	Type             string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
+	IsActive         bool           `gorm:"type:boolean" json:"is_active"`
+	IsConfigured     bool           `gorm:"type:boolean" json:"is_configured"`
+	Avatar           string         `gorm:"type:text" json:"avatar"`
+	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
+	Link             string         `gorm:"type:text" json:"-"`
+	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
+	Stars            int64          `gorm:"default:1" json:"stars"`
+	Category         string         `gorm:"type:text;default:default" json:"category"`
+	ShortDescription string         `gorm:"type:text" json:"short_description"`
+	LongDescription  string         `gorm:"type:text" json:"long_description"`
 }
 
 
 
 type CreateAgentSkillRequest struct {
-	Name        string      `json:"name" validate:"required"`
-	Description string      `json:"description" validate:"required"`
-	Type        string      `json:"type" validate:"required,oneof=MCP A2A"`
-	Config      JSONBMapArr `json:"config"`
-	AgentId     string      `json:"agent_id" validate:"required"`
-	IsActive    bool        `json:"is_acive"`
-	URLLink     string      `json:"url_link" validate:"required"`
-	Avatar      string      `json:"avatar"`
-	Tags        []string    `json:"tags" validate:"required,min=1,dive"`
-	Category    string      `json:"category" validate:"required"`
-	OrgId       string      `json:"-"`
-	UserId      string      `json:"-"`
-	SkillId     string      `json:"-"`
+	Name             string      `json:"name" validate:"required"`
+	Description      string      `json:"description" validate:"required"`
+	Type             string      `json:"type" validate:"required,oneof=MCP A2A"`
+	Config           JSONBMapArr `json:"config"`
+	AgentId          string      `json:"agent_id" validate:"required"`
+	IsActive         bool        `json:"is_acive"`
+	URLLink          string      `json:"url_link" validate:"required"`
+	Avatar           string      `json:"avatar"`
+	Tags             []string    `json:"tags" validate:"required,min=1,dive"`
+	Category         string      `json:"category" validate:"required"`
+	ShortDescription string      `json:"short_description" validate:"required,min=10,max=50"`
+	LongDescription  string      `json:"long_description" validate:"required,min=101"`
+	OrgId            string      `json:"-"`
+	UserId           string      `json:"-"`
+	SkillId          string      `json:"-"`
+	IsPublic         bool      `json:"-"`
 }
 
 type UpdateAgentSkillRequest struct {
@@ -118,6 +117,20 @@ type CreateAgentSkillsRequest struct {
 	UserId   string   `json:"-"`
 }
 
+type AgentSkillResponse struct {
+	SkillId          string      `json:"skill_id"`
+	Name             string      `json:"name"`
+	Description      string      `json:"description"`
+	Type             string      `json:"type"`
+	IsActive         bool        `json:"is_active"`
+	IsConfigured     bool        `json:"is_configured"`
+	Avatar           string      `json:"avatar"`
+	Config           JSONBMapArr `json:"config"`
+	Tags             []string    `json:"tags"`
+	Category         string      `json:"category"`
+	SkillSlug        string      `json:"skill_slug"`
+	ShortDescription string      `json:"short_description"`
+	LongDescription  string      `json:"long_description"`
 
 type WorkflowNode struct {
 	ID         string      `gorm:"column:id;type:uuid;primaryKey" json:"id"`
@@ -188,11 +201,19 @@ func (as *AgentSkill) CheckAgentHasSkillByName(db *gorm.DB, agentID, orgID, skil
 func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, postgresql.PaginationResponse, error, int) {
 	var skills []AgentSkill
 
+	lastQuery := "agent_skills.agent_id = ? AND agent_skills.org_id = ?"
+	params := []any{a.AgentId, a.OrgId}
+
+	if a.IsPublic {
+		lastQuery = "(agent_skills.agent_id::text = ? OR agent_skills.agent_id::text LIKE ?) AND agent_skills.is_public = ?"
+		params = []any{a.AgentId, "%-" + a.AgentId, true}
+	}
+
 	pagination := postgresql.GetPagination(c)
 	query := db.Model(&AgentSkill{}).
 		Select(`
-		agent_skills.skill_id, 
-		agent_skills.agent_id, 
+		agent_skills.skill_id,
+		agent_skills.agent_id,
 		agent_skills.config,
 		agent_skills.is_configured,
 		agent_skills.created_at,
@@ -202,10 +223,12 @@ func (a *AgentSkill) GetAgentSkills(db *gorm.DB, c *gin.Context) ([]AgentSkill, 
 		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
 		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
 		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
-		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
+		COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar,
+		COALESCE(general_agent_skills.short_description, agent_skills.short_description) AS short_description,
+		COALESCE(general_agent_skills.long_description, agent_skills.long_description) AS long_description
 	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId)
+		Where(lastQuery, params...)
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"created_at",
@@ -276,10 +299,13 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
         COALESCE(general_agent_skills.type, agent_skills.type) AS type,
         COALESCE(general_agent_skills.description, agent_skills.description) AS description,
-        COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
+        COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar,
+		COALESCE(general_agent_skills.short_description, agent_skills.short_description) AS short_description,
+		COALESCE(general_agent_skills.long_description, agent_skills.long_description) AS long_description
         `).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
-		Where("agent_skills.agent_id = ? AND agent_skills.skill_id = ? AND agent_skills.org_id = ?", a.AgentId, a.SkillId, a.OrgId).
+		Where("(agent_skills.agent_id::text = ? OR agent_skills.agent_id::text LIKE ?) AND (agent_skills.skill_id::text = ? OR agent_skills.skill_id::text LIKE ?) AND agent_skills.org_id = ?",
+			a.AgentId, "%-"+a.AgentId, a.SkillId, "%-"+a.SkillId, a.OrgId).
 		First(&skill).Error
 
 	if err != nil {
@@ -291,6 +317,9 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 
 func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkill, error) {
 	var skills []AgentSkill
+func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
+	var skills []AgentSkillResponse
+
 	err := db.Table("agent_skills").
 		Select(`
 			agent_skills.id,
@@ -310,6 +339,21 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkill, error) {
 			COALESCE(general_agent_skills.description, agent_skills.description) AS description,
 			COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
 		`).
+		agent_skills.skill_id, 
+		agent_skills.agent_id, 
+		agent_skills.config,
+		agent_skills.is_configured,
+		agent_skills.created_at,
+		agent_skills.is_active,
+		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
+		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
+		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
+		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
+		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
+        COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar,
+		COALESCE(general_agent_skills.short_description, agent_skills.short_description) AS short_description,
+		COALESCE(general_agent_skills.long_description, agent_skills.long_description) AS long_description
+	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
 		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId).
 		Scan(&skills).Error
@@ -323,7 +367,7 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkill, error) {
 }
 
 func (a *GeneralAgentSkill) GetGeneralAgentSkillByID(db *gorm.DB, id string) error {
-	err := db.Where("id = ?", id).First(&a).Error
+	err := db.Where("(id::text = ? OR id::text LIKE ?)", id, "%-"+id).First(&a).Error
 	return err
 }
 
@@ -334,9 +378,26 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 		return skill, errors.New("agent skill not found")
 	}
 
+	parameters := JSONBMapArr{JSONBMap{}}
+
+	for _, v := range updateData.Config {
+		var valueParam interface{}
+
+		if value, ok := v["value"]; ok {
+			valueParam = value
+		} else {
+			valueParam = v["default"]
+		}
+
+		con := parameters[0]
+		con[v["name"].(string)] = valueParam
+		parameters[0] = con
+	}
+
 	updates := map[string]any{
-		"is_active": updateData.IsActive,
-		"config":    updateData.Config,
+		"is_active":  updateData.IsActive,
+		"config":     updateData.Config,
+		"parameters": parameters,
 	}
 
 	result, err := postgresql.UpdateFields(db, &skill, updates, "skill_id = ? AND agent_id = ?", a.SkillId, a.AgentId)
@@ -411,16 +472,19 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 		_ = postgresql.CheckExists(db, &gaSkill, "id = ?", skillId)
 
 		skills = append(skills, AgentSkill{
-			ID:       utility.GenerateUUID(),
-			SkillId:  skillId,
-			AgentId:  req.AgentId,
-			IsActive: true,
-			OrgId:    req.OrgId,
-			UserId:   req.UserId,
-			Config:   gaSkill.Config,
-			Link:     gaSkill.Link,
-			Type:     gaSkill.Type,
-			Category: gaSkill.Category,
+			ID:               utility.GenerateUUID(),
+			SkillId:          skillId,
+			AgentId:          req.AgentId,
+			IsActive:         true,
+			OrgId:            req.OrgId,
+			UserId:           req.UserId,
+			Config:           gaSkill.Config,
+			Parameters:       gaSkill.Parameters,
+			Link:             gaSkill.Link,
+			Type:             gaSkill.Type,
+			Category:         gaSkill.Category,
+			ShortDescription: gaSkill.ShortDescription,
+			LongDescription:  gaSkill.LongDescription,
 		})
 	}
 

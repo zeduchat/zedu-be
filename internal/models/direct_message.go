@@ -543,6 +543,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 	chanInfo := map[string]func() ([]DmChannelsResponse, error){
 
 		"dm": func() ([]DmChannelsResponse, error) {
+
 			if err := db.Model(&DmChannels{}).
 				Select("dm_channels.*, dm_channels.channel_id as id, COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as name, p.avatar_url as avatar_url, u.email as participant_email").
 				Joins("JOIN profiles AS p ON p.userid = dm_channels.user_id").
@@ -755,6 +756,55 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 
 	if updateType == NewThread {
 
+		if c.ChatType == "bot" {
+			db := storage.DB.Postgresql
+			var agentResp = AgentResp{}
+
+			err := db.Table("organisation_integrations oi").
+				Select(`
+	                	oi.integration_id as id,
+	                	oi.is_active,
+	                	oi.app_name as name,
+	                	oi.tone,
+	                	oi.app_logo as avatar,
+	                	oi.title,
+	                	oi.app_description as description,
+	                	oi.visibility,
+	                	oi.stars,
+	                	COALESCE(dc.thread_count, 0) as thread_count,
+	                	COALESCE(dc.last_thread_id, '') as last_thread_id,
+	                	COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
+						dc.user_id
+	                `).
+				Joins(`
+	                	LEFT JOIN dm_channels dc
+	                	ON dc.participant_id = oi.integration_id
+	                	AND dc.channel_id = ?
+	                `, c.ChannelId).
+				Where("oi.org_id = ? AND oi.integration_id = ?", c.OrgId, c.ParticipantId).
+				First(&agentResp).Error
+
+			if err != nil {
+				logger.Error("Failed to send update count for bot channel, error %v: ", err)
+			}
+
+
+			notification := Notification[UnReadThreadChange]
+			notification.SectionType = AgentChannelsSection
+			notification.Content = agentResp
+			notification.NotificationId = utility.GenerateUUID()
+
+			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, agentResp.UserId), notification)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Error Publishing to bot dm with channelid: %s, with userid: %s error: %v", c.ChannelId, agentResp.UserId, err.Error()))
+				return
+			}
+
+			logger.Info("user last read sent successfully")
+
+			return
+		}
+
 		res, err := c.GetUserChannelsUnreadThread(storage.DB)
 
 		if err != nil {
@@ -781,7 +831,7 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 		}
 	}
 
-	logger.Info("user last read updated successfully")
+	logger.Info("user last read sent successfully")
 }
 
 func (r *DmChannels) UpdateInteractionAt(db *gorm.DB) error {

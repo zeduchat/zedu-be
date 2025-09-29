@@ -8,6 +8,7 @@ import (
 func AuthMigrationModels() []any {
 	return []any{
 		models.WorkflowNode{},
+		models.UnauthenticatedUser{},
 		models.AgentWorkflow{},
 		models.AgentSkill{},
 		models.Task{},
