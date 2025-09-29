@@ -446,7 +446,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", channel.ParticipantId)
 	if !exists {
-		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist")
+		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist, with integration_id = ?, %v", *channel.ParticipantId)
 	}
 
 	threadDoc := models.ThreadDocument{
@@ -507,6 +507,34 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, errors.New("failed to publish data")
 	}
 
+	dmChan := models.DmChannels{}
+	dmChan.ChannelId = req.ChannelID
+	dmChan.UserId = "00000000-0000-0000-0000-000000000000"
+	dmChan.ChannelType = channel.ChannelType
+	dmChan.OrgId = channel.OrgId
+	dmChan.ChatType = channel.ChatType
+	dmChan.ParticipantId = channel.ParticipantId
+
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Updating unread thread count")
+		dmChan.UpdateUnReadCount(db.Postgresql, mutex, logger)
+	}()
+
+	go func() {
+		wg.Wait()
+		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
+	}()
+
+	err = channel.UpdateInteractionAt(db.Postgresql)
+	if err != nil {
+		logger.Error("Error updating last interacted time of channelid: %s, with orgid: %s error: %v", req.ChannelID, channel.OrgId, err.Error())
+	}
+
 	logger.Info(fmt.Sprintf("Publishing update to channel id: %s", req.ChannelID))
 
 	pushReq := models.PushRequest{
@@ -533,7 +561,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		OrganisationID: channel.OrgId,
 		Amount:         creditUsed,
 		AgentID:        *channel.ParticipantId,
-		UserID:         nil,
+		UserID:         &channel.UserId,
 	}
 
 	err = credit_usage.UpdateOrCreateDailyCredit(db.Postgresql, creditUsed)
