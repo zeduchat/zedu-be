@@ -136,6 +136,8 @@ func handleSkillMatching(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 		return "", fmt.Errorf("failed to get skill matching from LLM: %v", err)
 	}
 
+	fmt.Println("===================================================", aiOutput)
+
 	var skillMatchingResult []map[string]any
 	if err := json.Unmarshal([]byte(aiOutput), &skillMatchingResult); err != nil {
 		logger.Error(fmt.Sprintf("handleSkillMatching: failed to unmarshal skill matching result: %v", err))
@@ -352,6 +354,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 
 	promptSteps := []string{taskCleanup, skillMatching, workflowTranslation}
 	steps := make([]models.StepReq, len(promptSteps))
+
 	for i, step := range promptSteps {
 		var prompt models.Prompts
 		err := prompt.GetLatestPromptVersionByName(db, step)
@@ -364,6 +367,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 			Name:    step,
 			Version: prompt.Version,
 		}
+
 	}
 
 	req := models.TranslationRequest{
@@ -502,16 +506,17 @@ func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
 	cleaned = strings.TrimPrefix(cleaned, "```json")
 	cleaned = strings.TrimSuffix(cleaned, "```")
 	cleaned = strings.TrimSpace(cleaned)
-
+	
 	var workflow models.WorkflowJSON
 	if err := json.Unmarshal([]byte(cleaned), &workflow); err != nil {
 		return models.WorkflowJSON{}, fmt.Errorf("failed to parse workflow JSON: %w", err)
 	}
-
+	
 	workflow.ID = utility.GenerateUUID()
 	for i := range workflow.Nodes {
 		workflow.Nodes[i].ID = utility.GenerateUUID()
 	}
-
+	
+	fmt.Println("*********************************************************",workflow)
 	return workflow, nil
 }
