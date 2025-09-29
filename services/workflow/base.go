@@ -155,19 +155,56 @@ func GetGeneralMarketPlaceWorkflowId(req models.WorkFlowRequest, db *gorm.DB) (*
 func CreateAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (*models.AgentWorkflow, int, error) {
 	var wf models.AgentWorkflow
 
+	rawEntry := req.RawEntry
+
+	shortDesc, ok := rawEntry["short_description"].(string)
+	if !ok && req.ShortDescription == "" {
+		return &models.AgentWorkflow{}, http.StatusUnprocessableEntity, errors.New("short_description is missing")
+	}
+
+	longDesc, ok := rawEntry["long_description"].(string)
+	if !ok && req.LongDescription == "" {
+		return &models.AgentWorkflow{}, http.StatusUnprocessableEntity, errors.New("long_description is missing")
+	}
+
+	category, ok := rawEntry["category"].(string)
+	if !ok && req.Category == "" {
+		return &models.AgentWorkflow{}, http.StatusUnprocessableEntity, errors.New("category is missing")
+	}
+
+	desc, ok := rawEntry["description"].(string)
+	if !ok && req.Description == "" {
+		return &models.AgentWorkflow{}, http.StatusUnprocessableEntity, errors.New("description is missing")
+	}
+
 	wf.WorkflowId = utility.GenerateUUID()
 	wf.AgentId = req.AgentId
 	wf.RawEntry = req.RawEntry
 	wf.OrgId = req.OrgId
 	wf.Name = req.Name
+
 	wf.Description = req.Description
+	if req.Description == "" {
+		wf.Description = desc
+	}
+
 	wf.ShortDescription = req.ShortDescription
+	if req.ShortDescription == "" {
+		wf.ShortDescription = shortDesc
+	}
+
 	wf.LongDescription = req.LongDescription
+	if req.LongDescription == "" {
+		wf.LongDescription = longDesc
+	}
+
 	wf.IsActive = true
 	wf.Category = req.Category
+	if req.Category == "" {
+		wf.Category = category
+	}
 
 	err, code := wf.CreateAgentWorkflow(db)
-
 	return &wf, code, err
 }
 
