@@ -60,6 +60,7 @@ type AgentSkill struct {
 	IsPublic         bool           `gorm:"type:boolean;default:false" json:"-"`
 }
 
+
 type GeneralAgentSkill struct {
 	ID               string         `gorm:"column:id;type:uuid" json:"id"`
 	Name             string         `gorm:"column:name;type:text" json:"name"`
@@ -117,20 +118,6 @@ type CreateAgentSkillsRequest struct {
 	UserId   string   `json:"-"`
 }
 
-type AgentSkillResponse struct {
-	SkillId          string      `json:"skill_id"`
-	Name             string      `json:"name"`
-	Description      string      `json:"description"`
-	Type             string      `json:"type"`
-	IsActive         bool        `json:"is_active"`
-	IsConfigured     bool        `json:"is_configured"`
-	Avatar           string      `json:"avatar"`
-	Config           JSONBMapArr `json:"config"`
-	Tags             []string    `json:"tags"`
-	Category         string      `json:"category"`
-	SkillSlug        string      `json:"skill_slug"`
-	ShortDescription string      `json:"short_description"`
-	LongDescription  string      `json:"long_description"`
 
 type WorkflowNode struct {
 	ID         string      `gorm:"column:id;type:uuid;primaryKey" json:"id"`
@@ -145,6 +132,22 @@ type WorkflowNode struct {
 	Settings   JSONBMapArr `gorm:"type:jsonb" json:"settings"` // Node-specific configuration
 	CreatedAt  time.Time   `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt  time.Time   `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+type AgentSkillResponse struct {
+	SkillId          string      `json:"skill_id"`
+	Name             string      `json:"name"`
+	Description      string      `json:"description"`
+	Type             string      `json:"type"`
+	IsActive         bool        `json:"is_active"`
+	IsConfigured     bool        `json:"is_configured"`
+	Avatar           string      `json:"avatar"`
+	Config           JSONBMapArr `json:"config"`
+	Tags             []string    `json:"tags"`
+	Category         string      `json:"category"`
+	SkillSlug        string      `json:"skill_slug"`
+	ShortDescription string      `json:"short_description"`
+	LongDescription  string      `json:"long_description"`
 }
 
 type SkillResp struct {
@@ -317,9 +320,6 @@ func (a *AgentSkill) GetAgentSkillByID(db *gorm.DB) (AgentSkillResponse, error) 
 
 func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkill, error) {
 	var skills []AgentSkill
-func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error) {
-	var skills []AgentSkillResponse
-
 	err := db.Table("agent_skills").
 		Select(`
 			agent_skills.id,
@@ -339,21 +339,6 @@ func (a *AgentSkill) GetAllAgentSkills(db *gorm.DB) ([]AgentSkillResponse, error
 			COALESCE(general_agent_skills.description, agent_skills.description) AS description,
 			COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar
 		`).
-		agent_skills.skill_id, 
-		agent_skills.agent_id, 
-		agent_skills.config,
-		agent_skills.is_configured,
-		agent_skills.created_at,
-		agent_skills.is_active,
-		COALESCE(general_agent_skills.name, agent_skills.name) AS name,
-		COALESCE(general_agent_skills.tags, agent_skills.tags) AS tags,
-		COALESCE(general_agent_skills.category, agent_skills.category) AS category,
-		COALESCE(general_agent_skills.type, agent_skills.type) AS type,
-		COALESCE(general_agent_skills.description, agent_skills.description) AS description,
-        COALESCE(general_agent_skills.avatar, agent_skills.avatar) AS avatar,
-		COALESCE(general_agent_skills.short_description, agent_skills.short_description) AS short_description,
-		COALESCE(general_agent_skills.long_description, agent_skills.long_description) AS long_description
-	`).
 		Joins("LEFT JOIN general_agent_skills ON general_agent_skills.id = agent_skills.skill_id").
 		Where("agent_skills.agent_id = ? AND agent_skills.org_id = ?", a.AgentId, a.OrgId).
 		Scan(&skills).Error
