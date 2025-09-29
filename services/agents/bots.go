@@ -16,35 +16,22 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, org_id string, c *gin.Context, extReq request.ExternalRequest, redisClient *redis.Client) ([]models.AgentResp, postgresql.PaginationResponse, int, error) {
+func FetchOrganisationAgents(db *gorm.DB, logger *utility.Logger, ids models.IDS, c *gin.Context, extReq request.ExternalRequest, redisClient *redis.Client) ([]models.AgentResp, postgresql.PaginationResponse, int, error) {
 	var (
-		orgInt  models.OrganisationIntegrations
-		botResp []models.AgentResp = make([]models.AgentResp, 0)
+		orgInt models.OrganisationIntegrations
 	)
 
-	resp, paginatedResponse, err, code := orgInt.GetCustomAgentApps(db, org_id, c)
+	resp, paginatedResponse, err, code := orgInt.GetCustomAgentApps(db, ids, c)
 	if err != nil {
 		return []models.AgentResp{}, paginatedResponse, code, err
 	}
 
-	for _, org_agents := range resp {
-		parts := strings.Split(org_agents.IntegrationID, "-")
+	for id, org_agents := range resp {
+		parts := strings.Split(org_agents.ID, "-")
 		lastPart := parts[len(parts)-1]
 
-		agent := models.AgentResp{
-			ID:          org_agents.IntegrationID,
-			Name:        org_agents.AppName,
-			Title:       org_agents.Title,
-			Tone:        org_agents.Tone,
-			Visibility:  org_agents.Visibility,
-			Avatar:      org_agents.AppLogo,
-			Description: org_agents.AppDescription,
-			IsActive:    org_agents.IsActive,
-			AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(org_agents.AppName), lastPart),
-		}
-
-		botResp = append(botResp, agent)
+		resp[id].AgentSlug = fmt.Sprintf("%s-%s", slug.Make(org_agents.Name), lastPart)
 	}
 
-	return botResp, paginatedResponse, http.StatusOK, nil
+	return resp, paginatedResponse, http.StatusOK, nil
 }

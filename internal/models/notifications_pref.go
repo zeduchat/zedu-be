@@ -36,6 +36,7 @@ var (
 	ReplySection         SectionType      = "reply_message"
 	ChannelsSection      SectionType      = "channels_section"
 	DmChannelsSection    SectionType      = "dm_channels_section"
+	AgentChannelsSection SectionType      = "agent_channels_section"
 	Channel              ChannelType      = "channel"
 	DMChannel            ChannelType      = "dm_channel"
 	GroupDMChannel       ChannelType      = "group_dm_channel"

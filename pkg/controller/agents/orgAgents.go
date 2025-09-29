@@ -53,37 +53,6 @@ func (base *Controller) GetAllAgentApp(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-// Fetch Custom Agents with pagination
-func (base *Controller) GetCustomAgentApp(c *gin.Context) {
-	org_id := c.Param("org_id")
-
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	agents, paginationResponse, err, code := agents.GetCustomAgentApp(c, org_id, base.Db.Postgresql, base.ExtReq)
-	if err != nil {
-		base.Logger.Error("Failed to fetch agents", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	paginationData := map[string]any{
-		"current_page": paginationResponse.CurrentPage,
-		"total_pages":  paginationResponse.TotalPagesCount,
-		"page_size":    paginationResponse.PageCount,
-		"total_items":  paginationResponse.TotalItems,
-	}
-
-	base.Logger.Info("agents retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
-	c.JSON(http.StatusOK, rd)
-}
-
 func (base *Controller) UpdateAgentApp(c *gin.Context) {
 	var req models.UpdateAgent
 	org_id := c.Param("org_id")
