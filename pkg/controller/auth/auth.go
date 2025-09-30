@@ -244,3 +244,34 @@ func (base *Controller) UpdateOnboardStatus(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "user onboarding status updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) FetchUser(c *gin.Context) {
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	owner_id, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to user claim id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, code, err := auth.FetchUser(owner_id, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Faild to fetch user details, err:%v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("user details fetched successfully")
+
+	rd := utility.BuildSuccessResponse(code, "user details fetched successfully", resp)
+	c.JSON(code, rd)
+}
