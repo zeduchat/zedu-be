@@ -170,6 +170,8 @@ func (base *Controller) AddAThreadDmFromMarketPlace(c *gin.Context) {
 		return
 	}
 
+	req.UserIdentifier = userIdentifier
+
 	threadData, statusCode, err := dm.TemporalThreadDmMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
