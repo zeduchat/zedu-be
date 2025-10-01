@@ -136,7 +136,6 @@ func handleSkillMatching(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 		return "", fmt.Errorf("failed to get skill matching from LLM: %v", err)
 	}
 
-	fmt.Println("===================================================", aiOutput)
 
 	var skillMatchingResult []map[string]any
 	if err := json.Unmarshal([]byte(aiOutput), &skillMatchingResult); err != nil {
@@ -405,7 +404,6 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 
 	aw.AgentId = ids.AgentID
 	aw.ID = utility.GenerateUUID()
-	aw.WorkflowId = utility.GenerateUUID()
 	aw.RawEntry = rawEntry
 	aw.Name = wkfJson.Name
 	aw.OrgId = ids.OrganisationID
@@ -419,7 +417,7 @@ func GenerateWorkflowJSON(db *gorm.DB, logger *utility.Logger, extReq request.Ex
 
 	node_ids := models.IDS{
 		AgentID:        aw.AgentId,
-		WorkflowID:     wkfJson.ID,
+		WorkflowID:     aw.WorkflowId,
 		OrganisationID: aw.OrgId,
 	}
 
@@ -517,6 +515,5 @@ func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
 		workflow.Nodes[i].ID = utility.GenerateUUID()
 	}
 	
-	fmt.Println("*********************************************************",workflow)
 	return workflow, nil
 }
