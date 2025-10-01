@@ -628,6 +628,7 @@ func TemporalThreadDmMessage(req models.CreateThreadMsgReq2, db *storage.Databas
 		UserIdentifier:  req.UserIdentifier,
 		LastAgentChatID: req.AgentId,
 		Limit:           models.CHATUSAGELIMIT,
+		ChannelID:       req.ChannelsID,
 	})
 
 	if err != nil {
