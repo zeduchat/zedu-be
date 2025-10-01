@@ -5564,6 +5564,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/me:
+    get:
+      tags:
+        - user
+      summary: Retrieve the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /users/{userId}:
     get:
       tags:
@@ -7896,7 +7935,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-  
 
   /dms/setup:
     get:
@@ -7934,7 +7972,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /dms/{channel_id}:
     post:
@@ -12290,7 +12327,6 @@ paths:
           description: No workflows found
         "500":
           description: Server error
-
 
   /workflows/agents/{agent_id}:
     get:
@@ -18945,7 +18981,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
-
 
   /skills/general/agents/{agents_id}:
     get:
