@@ -40,7 +40,7 @@ type UserUsageInfoResponse struct {
 func (d *UnauthenticatedUser) IncrementUsage(db *gorm.DB, req UnauthReq) (int, error) {
 	var user UnauthenticatedUser
 
-	err := db.Where("user_identifier = ?", req.UserIdentifier).First(&user).Error
+	err := db.Where("user_identifier = ? OR channel_id = ?", req.UserIdentifier, req.ChannelID).First(&user).Error
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
