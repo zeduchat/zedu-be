@@ -8,12 +8,14 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/gosimple/slug"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -22,11 +24,12 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
-func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest) (gin.H, int, error) {
+func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
 		userClaims   map[string]any
@@ -99,6 +102,33 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		err := user.CreateUser(db)
 		sendWelcome = true
 		if err != nil {
+			return responseData, http.StatusInternalServerError, err
+		}
+
+		ipAddress := audit_utility.GetClientIP(c)
+
+		response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
+
+		info, _ := response.(external_models.IPInfoResponse)
+
+		createPersonalOrgReq := models.CreateOrgRequestModel{
+			Name:        fmt.Sprintf("%s", username),
+			Description: fmt.Sprintf("%s's organization", username),
+			Email:       email,
+			Type:        "User Default Org",
+			Country:     info.Country,
+			Location:    info.Location,
+		}
+
+		org, err := organisation.CreateOrganisation(createPersonalOrgReq, db, user.ID, logger)
+
+		if err != nil {
+			return responseData, http.StatusInternalServerError, fmt.Errorf("failed to create user organization: %v", err)
+		}
+
+		user.CurrentOrg = uuid.FromStringOrNil(org.ID)
+
+		if err := db.Save(&user).Error; err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
 	}
