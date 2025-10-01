@@ -92,6 +92,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			Email:          formattedReq.Email,
 			IsVerified:     true,
 			ProfileUpdated: true,
+			IsOnboarded:    true,
 			Profile: models.Profile{
 				FullName:  username,
 				UserName:  username,
@@ -118,6 +119,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			Type:        "User Default Org",
 			Country:     info.Country,
 			Location:    info.Location,
+			LogoURL:     userClaims["picture"].(string),
 		}
 
 		org, err := organisation.CreateOrganisation(createPersonalOrgReq, db, user.ID, logger)
