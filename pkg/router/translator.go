@@ -21,11 +21,11 @@ func Translator(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 
 	SetupStaticRoutes(r, ApiVersion)
 
-	translatorURL := r.Group(fmt.Sprintf("%v/translator", ApiVersion))
+	// translatorURL := r.Group(fmt.Sprintf("%v/translator", ApiVersion))
 	{
-		translatorURL.POST("/", transCtrl.GenerateTranslation)
-		translatorURL.GET("/:agent_id", transCtrl.GenerateWorkflowJSON)
-		translatorURL.GET("/tester", transCtrl.TranslationTester)
+		// translatorURL.POST("/", transCtrl.GenerateTranslation)
+		// translatorURL.GET("/:agent_id", transCtrl.GenerateWorkflowJSON)
+		// translatorURL.GET("/tester", transCtrl.TranslationTester)
 	}
 
 	promptURL := r.Group(fmt.Sprintf("%v/prompts", ApiVersion))

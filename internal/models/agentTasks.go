@@ -9,6 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
+type Tasks []Task
+
 type Task struct {
 	ID             string    `json:"id" gorm:"type:uuid;primaryKey"`
 	AgentID        string    `json:"agent_id" gorm:"type:uuid;index"`

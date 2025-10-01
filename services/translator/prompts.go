@@ -11,11 +11,6 @@ import (
 func CreatePrompt(db *gorm.DB, req models.Prompts) (int, error) {
 	var p models.Prompts
 
-	// exists := postgresql.CheckExists(db, &p, "name = ?", req.Name)
-	// if exists {
-	// 	return http.StatusBadRequest, errors.New("prompt with name already exist")
-	// }
-
 	p.Name = req.Name
 	p.Template = req.Template
 
