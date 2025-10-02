@@ -603,6 +603,7 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 			return err
 		}
 		orgIntResp[i].PreSharedKey = key
+		orgIntResp[i].IsActive = true
 	}
 
 	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
