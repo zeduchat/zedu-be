@@ -586,6 +586,7 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 
 	err := db.Model(&Integrations{}).
 		Select("gen_random_uuid() AS id, id as integration_id, ? as org_id, ? as owner_id, name as app_name, app_description, app_url, app_logo, json_url, false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at, system_prompts, tone, title", o.ID, o.OwnerID).
+		Where("app_logo != '' AND system_prompts IS NOT NULL").
 		Limit(5).
 		Scan(&orgIntResp).Error
 
