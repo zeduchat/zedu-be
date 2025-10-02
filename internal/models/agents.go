@@ -645,6 +645,14 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 
 	pagination := postgresql.GetPagination(c)
 
+	args := []any{ids.OrganisationID}
+	subQuery := "oi.org_id = ?"
+
+	if ids.Type == "active" {
+		args = append(args, true)
+		subQuery = "oi.org_id = ? AND oi.is_active = ?"
+	}
+
 	query := db.Table("organisation_integrations oi").
 		Select(`
 		oi.integration_id as id,
@@ -665,7 +673,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		ON dc.participant_id = oi.integration_id
 		AND dc.user_id = ?
 	`, ids.UserID).
-		Where("oi.org_id = ? AND oi.is_active = ?", ids.OrganisationID, true)
+		Where(subQuery, args...)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
