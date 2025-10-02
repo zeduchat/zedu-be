@@ -32,6 +32,7 @@ func WorkflowRoutes(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		agentGroup.GET("/:agent_id/workflows", wfCtrl.ListAgentWorkflows)
 		agentGroup.GET("/:agent_id/workflows/:workflow_id", wfCtrl.GetAgentWorkflowByID)
 		agentGroup.PUT("/:agent_id/workflows/:workflow_id", wfCtrl.UpdateAgentWorkflow)
+		agentGroup.PUT("/:agent_id/nodes/:node_id", wfCtrl.UpdateWorkflowNode)
 		agentGroup.DELETE("/:agent_id/workflows/:workflow_id", wfCtrl.DeleteAgentWorkflow)
 	}
 

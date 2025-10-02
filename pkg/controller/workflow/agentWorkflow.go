@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -136,7 +138,7 @@ func (base *Controller) ListAgentWorkflows(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	req.OrgId = userClaims["org_id"].(string)
 
-	resp,paginationResponse, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql, c)
+	resp, paginationResponse, code, err := workflow.ListAgentWorkflowsService(req, base.Db.Postgresql, c)
 	if err != nil {
 		base.Logger.Error("error listing workflows", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -144,14 +146,12 @@ func (base *Controller) ListAgentWorkflows(c *gin.Context) {
 		return
 	}
 
-
 	paginationData := map[string]any{
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
 		"total_items":  paginationResponse.TotalItems,
 	}
-
 
 	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp, paginationData)
 	c.JSON(code, rd)
@@ -187,7 +187,6 @@ func (base *Controller) ListGeneralAgentWorkflows(c *gin.Context) {
 		"page_size":    paginationResponse.PageCount,
 		"total_items":  paginationResponse.TotalItems,
 	}
-
 
 	rd := utility.BuildSuccessResponse(code, "Agent Workflows listed successfully", resp, paginationData)
 	c.JSON(code, rd)
@@ -289,4 +288,57 @@ func (base *Controller) UpdateAgentWorkflow(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(code, "Agent Workflow updated successfully", nil)
 	c.JSON(code, rd)
+}
+
+func (base *Controller) UpdateWorkflowNode(c *gin.Context) {
+	var (
+		updateData models.UpdateWorkflowNodeRequest
+		req        models.AgentWorkFloNodeUpdateRequest
+	)
+	log.Println("info", "Reached update workflow node controller")
+	node_id := c.Param("node_id")
+	agent_id := c.Param("agent_id")
+	fmt.Println(node_id, agent_id)
+	// validate agent id
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid skill_id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// bind the json body to updateData struct and validate
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
+		return
+	}
+
+	// get user claims from context
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	// req.UserId = userClaims["user_id"].(string)
+	req.AgentId = agent_id
+	req.NodeID = node_id
+
+	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
+		base.Logger.Info("invalid organization id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	updated, err := workflow.UpdateWorkflowNodeService(req, updateData, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to update workflow node, err: %v", err)
+		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to update agent skill", nil))
+		return
+	}
+	c.JSON(http.StatusOK, utility.BuildSuccessResponse(http.StatusOK, "Workflow Node updated", updated))
 }
