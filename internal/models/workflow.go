@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Workflow struct {
@@ -71,9 +72,11 @@ type ChannelWorkflow struct {
 }
 
 type AgentWorkflow struct {
-	ID               string    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	AgentId          string    `json:"agent_id" gorm:"type:uuid;not null"`
-	WorkflowId       string    `json:"workflow_id" gorm:"type:uuid;not null"`
+	ID         string `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	AgentId    string `json:"agent_id" gorm:"type:uuid;not null"`
+	WorkflowId string `json:"workflow_id" gorm:"type:uuid;not null"`
+	UserID     string `json:"user_id" gorm:"type:uuid;not null"`
+	// Private          bool      `gorm:"type:boolean;default:true" json:"private"`
 	RawEntry         JSONBMap  `gorm:"type:jsonb" json:"raw_entry"`
 	Name             string    `gorm:"type:text" json:"name"`
 	OrgId            string    `gorm:"type:uuid" json:"-"`
@@ -105,6 +108,7 @@ type AgentWorkFloUpdateRequest struct {
 	AgentId    string   `json:"-"`
 	IsActive   bool     `json:"is_active"`
 	Name       string   `json:"name"`
+	Private    bool     `json:"private"`
 	OrgId      string   `json:"-"`
 	WorkflowId string   `json:"-"`
 }
@@ -237,28 +241,55 @@ func (wf *Workflow) CreateWorkflow(db *gorm.DB) error {
 }
 
 func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
-	if err := ValidateAgentIDs(db, wf.OrgId, []string{wf.AgentId}); err != nil {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error, http.StatusInternalServerError
+	}
+
+	if err := ValidateAgentIDs(tx, wf.OrgId, []string{wf.AgentId}); err != nil {
+		tx.Rollback()
 		return err, http.StatusBadRequest
 	}
 
 	var existing AgentWorkflow
-	err := db.Where("org_id = ? AND agent_id = ?", wf.OrgId, wf.AgentId).First(&existing).Error
+	err := tx.Where("org_id = ? AND agent_id = ? AND user_id = ?",
+		wf.OrgId, wf.AgentId, wf.UserID).First(&existing).Error
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			if err := db.Create(&wf).Error; err != nil {
+			wf.WorkflowId = utility.GenerateUUID()
+			if err := tx.Create(&wf).Error; err != nil {
+				tx.Rollback()
 				return err, http.StatusInternalServerError
 			}
-			return nil, http.StatusCreated
+		} else {
+			tx.Rollback()
+			return err, http.StatusInternalServerError
 		}
-		return err, http.StatusInternalServerError
+	} else {
+		if err := tx.Unscoped().
+			Where("workflow_id = ?", existing.WorkflowId).
+			Delete(&WorkflowNode{}).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to delete existing workflow nodes: %w", err),
+				http.StatusInternalServerError
+		}
+
+		existing.RawEntry = wf.RawEntry
+		existing.Name = wf.Name
+
+		if err := tx.Save(&existing).Error; err != nil {
+			tx.Rollback()
+			return err, http.StatusInternalServerError
+		}
+
+		wf.WorkflowId = existing.WorkflowId
+		wf.ID = existing.ID 
 	}
 
-	existing.WorkflowId = wf.WorkflowId
-	existing.RawEntry = wf.RawEntry
-	existing.Name = wf.Name
-
-	if err := db.Save(&existing).Error; err != nil {
-		return err, http.StatusInternalServerError
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err),
+			http.StatusInternalServerError
 	}
 
 	return nil, http.StatusOK

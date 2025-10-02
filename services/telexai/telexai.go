@@ -247,9 +247,12 @@ func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisCli
 
 	return modelsList, nil
 }
+
 func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
 	openRouterPayload := external_models.OpenRouterReq{
 		Model:    "google/gemini-2.0-flash-001",
+		// Model: "anthropic/claude-3.5-haiku",
+		// Model: "openai/gpt-4.1-nano",
 		Messages: req.Messages,
 	}
 
@@ -276,6 +279,8 @@ func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalReques
 
 	return result, http.StatusOK, nil
 }
+
+
 func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, redis *redis.Client) (string, error) {
 	var (
 		availableModels external_models.OpenRouterModelsResponse
