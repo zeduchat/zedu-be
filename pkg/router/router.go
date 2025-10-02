@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-contrib/gzip"
@@ -8,6 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"riverqueue.com/riverui"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -99,5 +101,39 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 		ginSwagger.WrapHandler(swaggerFiles.Handler, url)(c)
 	})
 
+	handler, err := SetupRiverUI(db)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := handler.Start(context.Background()); err != nil {
+		panic(err)
+	}
+
+	if db.River != nil {
+		r.GET("/river/*any", func(c *gin.Context) {
+			c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-2TOI2ugkuROHHfKZr6kdGv+XxhrVUI8uHycXqXUIR4g='; img-src 'self' data:;")
+			gin.WrapH(handler)
+		})
+
+	}
+
 	return r
+}
+
+func SetupRiverUI(db *storage.Database) (*riverui.Handler, error) {
+
+	sLogger := utility.NewRotatingLogger()
+
+	handler, err := riverui.NewHandler(&riverui.HandlerOpts{
+		DevMode:   false,
+		Logger:    sLogger,
+		Endpoints: riverui.NewEndpoints(db.River, nil),
+		Prefix:    "",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return handler, nil
 }
