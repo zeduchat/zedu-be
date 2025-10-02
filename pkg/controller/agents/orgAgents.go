@@ -53,37 +53,6 @@ func (base *Controller) GetAllAgentApp(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-// Fetch Custom Agents with pagination
-func (base *Controller) GetCustomAgentApp(c *gin.Context) {
-	org_id := c.Param("org_id")
-
-	if _, err := uuid.Parse(org_id); err != nil {
-		base.Logger.Error("invalid organisation id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to decode organisation id", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	agents, paginationResponse, err, code := agents.GetCustomAgentApp(c, org_id, base.Db.Postgresql, base.ExtReq)
-	if err != nil {
-		base.Logger.Error("Failed to fetch agents", err)
-		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch agents", err.Error(), nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	paginationData := map[string]any{
-		"current_page": paginationResponse.CurrentPage,
-		"total_pages":  paginationResponse.TotalPagesCount,
-		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agents),
-	}
-
-	base.Logger.Info("agents retrieved successfully.")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "agents retrieved successfully.", agents, paginationData)
-	c.JSON(http.StatusOK, rd)
-}
-
 func (base *Controller) UpdateAgentApp(c *gin.Context) {
 	var req models.UpdateAgent
 	org_id := c.Param("org_id")
@@ -1110,7 +1079,7 @@ func (base *Controller) GetAllCustomAgent(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agents),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agents retrieved successfully.")
@@ -1297,7 +1266,7 @@ func (base *Controller) GetAgentBills(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agent_bills),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("agent bills retrieved successfully.")
@@ -1327,7 +1296,7 @@ func (base *Controller) GetOrgAgentBills(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(agent_bills),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("organization agent bills retrieved successfully.")
@@ -1380,7 +1349,7 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 	req.UserId = userClaims["user_id"].(string)
 	req.AgentId = agent_id
 
-	code, err := agents.PublishAgent(req, base.Db.Postgresql)
+	resp, code, err := agents.PublishAgent(req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to publish agent app", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to publish agent app", err, nil)
@@ -1388,8 +1357,8 @@ func (base *Controller) PublishAgentApp(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Agents updated successfully")
-	rd := utility.BuildSuccessResponse(code, "Agents updated successfully", nil)
+	base.Logger.Info("Agents published successfully")
+	rd := utility.BuildSuccessResponse(code, "Agents published successfully", resp)
 	c.JSON(code, rd)
 }
 

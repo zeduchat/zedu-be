@@ -104,6 +104,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		Email:          email,
 		Password:       password,
 		ProfileUpdated: true,
+		IsOnboarded:    true,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),
 			FirstName: name,
@@ -423,6 +424,44 @@ func UpdateOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 	}
 
 	responseData = gin.H{}
+
+	return responseData, http.StatusOK, nil
+}
+
+func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
+	var (
+		user         = models.User{}
+		responseData gin.H
+		org          models.Organisation
+	)
+
+	userData, err := user.GetUserByID(db, userId)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
+	}
+
+	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
+
+	responseData = gin.H{
+		"user": map[string]any{
+			"id":                        userData.ID,
+			"email":                     userData.Email,
+			"username":                  userData.Name,
+			"is_verified":               userData.IsVerified,
+			"is_onboarded":              userData.IsOnboarded,
+			"profile_updated":           userData.ProfileUpdated,
+			"is_active":                 userData.IsActive,
+			"current_org":               userData.CurrentOrg,
+			"first_name":                userData.Profile.FirstName,
+			"last_name":                 userData.Profile.LastName,
+			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":                     userData.Profile.Phone,
+			"avatar_url":                userData.Profile.AvatarURL,
+			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"current_organisation_slug": slug.Make(org.Name),
+		},
+	}
 
 	return responseData, http.StatusOK, nil
 }

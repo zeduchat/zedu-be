@@ -12,6 +12,10 @@ import (
 	"gorm.io/gorm"
 )
 
+type NodeConnections [][]NodeConnection
+type ProcessSteps []ProcessStep
+type StepRequests []StepReq
+
 type Prompts struct {
 	ID        string    `json:"id" gorm:"primaryKey"`
 	Name      string    `json:"name" gorm:"not null"`
@@ -21,18 +25,17 @@ type Prompts struct {
 }
 
 type ProcessStep struct {
-	Step    string `json:"step"`
-	Input   string `json:"input"`
-	Output  string `json:"output"`
-	Status  string `json:"status"`
-	Prompt  string `json:"prompt"`
-	LLMCall bool   `json:"llm_call"`
+	Step         string `json:"step"`
+	Input        string `json:"input"`
+	Output       string `json:"output"`
+	Status       string `json:"status"`
+	SystemPrompt string `json:"system_prompt"`
+	LLMCall      bool   `json:"llm_call"`
 }
 
 type TranslationRequest struct {
-	TaskList string    `json:"task_list" binding:"required"`
-	Skills   []string  `json:"skills" binding:"required"`
-	Steps    []StepReq `json:"steps" binding:"required"`
+	TaskList string       `json:"task_list" binding:"required"`
+	Steps    StepRequests `json:"steps" binding:"required"`
 }
 
 type StepReq struct {
@@ -44,42 +47,44 @@ type MissingSkillsResponse struct {
 	MissingSkills []string `json:"missing_skills"`
 	Suggestion    string   `json:"suggestion"`
 }
+
 type WorkflowJSON struct {
-	ID          string                   `json:"id"`          // Unique workflow ID
-	Meta        WorkflowMeta             `json:"meta"`        // Workflow metadata
-	Name        string                   `json:"name"`        // Workflow name
-	Tags        []string                 `json:"tags"`        // Optional workflow tags
-	Nodes       []Node                   `json:"nodes"`       // All workflow nodes
-	Active      bool                     `json:"active"`      // Whether workflow is active
-	PinData     map[string]any           `json:"pinData"`     // Debug / pin data
-	Settings    WkfSettings              `json:"settings"`    // Workflow settings
-	VersionID   string                   `json:"versionId"`   // Workflow version
-	Connections map[string]NodeConnector `json:"connections"` // Node connections
-}
-
-type WorkflowMeta struct {
-	InstanceID                  string `json:"instanceId"`                  // Workflow instance ID
-	TemplateCredsSetupCompleted bool   `json:"templateCredsSetupCompleted"` // Whether creds setup completed
-}
-
-type WkfSettings struct {
-	ExecutionOrder string `json:"executionOrder"` // e.g., "v1"
+	ID          string                   `json:"id"`
+	Meta        WorkflowMeta             `json:"meta"`
+	Name        string                   `json:"name"`
+	Tags        []string                 `json:"tags"`
+	Nodes       []Node                   `json:"nodes"`
+	Active      bool                     `json:"active"`
+	PinData     map[string]any           `json:"pinData"`
+	Settings    WkfSettings              `json:"settings"`
+	VersionID   string                   `json:"versionId"`
+	Connections map[string]NodeConnector `json:"connections"`
 }
 
 type Node struct {
-	ID          string         `json:"id"`                  // Unique node ID
-	Name        string         `json:"name"`                // Node display name
-	NodeName    string         `json:"node_name"`           // Internal reference (if needed)
-	Type        string         `json:"type"`                // Node type (e.g., "a2a/a2a-weather")
-	SkillID     string         `json:"skill_id"`            // Candidate skill ID
-	Position    []int          `json:"position"`            // Canvas coordinates [x, y]
-	Params      map[string]any `json:"parameters"`          // Node-specific configuration
-	TypeVersion float64        `json:"typeVersion"`         // Node schema version
-	WebhookID   string         `json:"webhookId,omitempty"` // Trigger nodes only
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Type        string         `json:"type"`
+	SkillID     string         `json:"skill_id"`
+	Confidence  float64        `json:"confidence"`
+	Position    []int          `json:"position"`
+	Params      map[string]any `json:"parameters"`
+	TypeVersion float64        `json:"typeVersion"`
+	WebhookID   string         `json:"webhookId,omitempty"`
+}
+
+type WorkflowMeta struct {
+	InstanceID                  string `json:"instanceId"`
+	TemplateCredsSetupCompleted bool   `json:"templateCredsSetupCompleted"`
+}
+
+type WkfSettings struct {
+	ExecutionOrder string `json:"executionOrder"`
 }
 
 type NodeConnector struct {
-	Main [][]NodeConnection `json:"main"` // Connections between nodes
+	Main NodeConnections `json:"main"` // Connections between nodes
 }
 
 type NodeConnection struct {
@@ -89,9 +94,8 @@ type NodeConnection struct {
 }
 
 type TranslationResponse struct {
-	Status string `json:"status"` //success, failed, incomplete
-	// Workflow   map[string]any `json:"workflow,omitempty"`
-	ProcessStep   []ProcessStep          `json:"process_step,omitempty"`
+	Status        string                 `json:"status"` //success, failed, incomplete
+	ProcessStep   ProcessSteps           `json:"process_step,omitempty"`
 	MissingSkills *MissingSkillsResponse `json:"missing_skills,omitempty"`
 }
 

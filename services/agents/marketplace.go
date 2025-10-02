@@ -14,7 +14,6 @@ import (
 )
 
 // Agents
-
 func SearchAgentsService(c *gin.Context, db *gorm.DB) (*[]models.AgentResp, postgresql.PaginationResponse, error, int) {
 	var (
 		agents  models.Integrations
@@ -107,17 +106,24 @@ func SearchSkillsService(c *gin.Context, db *gorm.DB) (*[]models.AgentSkillRespo
 	}
 
 	for _, s := range resp {
+
+		parts := strings.Split(s.ID, "-")
+		lastPart := parts[len(parts)-1]
+
 		skillResp = append(skillResp, models.AgentSkillResponse{
-			SkillId:      s.ID,
-			Name:         s.Name,
-			Description:  s.Description,
-			Type:         s.Type,
-			IsActive:     s.IsActive,
-			IsConfigured: s.IsConfigured,
-			Avatar:       s.Avatar,
-			Config:       s.Config,
-			Tags:         s.Tags,
-			Category:     s.Category,
+			SkillId:          s.ID,
+			Name:             s.Name,
+			Description:      s.Description,
+			Type:             s.Type,
+			IsActive:         s.IsActive,
+			IsConfigured:     s.IsConfigured,
+			Avatar:           s.Avatar,
+			Config:           s.Config,
+			Tags:             s.Tags,
+			Category:         s.Category,
+			ShortDescription: s.ShortDescription,
+			LongDescription:  s.LongDescription,
+			SkillSlug:        fmt.Sprintf("%s-%s", slug.Make(s.Name), lastPart),
 		})
 	}
 

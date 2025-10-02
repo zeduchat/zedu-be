@@ -116,7 +116,7 @@ func (base *Controller) GetAPIStatus(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(apiStatuses),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("api statuses retrieved successfully")

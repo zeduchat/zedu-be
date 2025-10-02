@@ -90,7 +90,7 @@ func (base *Controller) GetOrgCreditTransactions(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(credits_transactions),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("credit transactions retrieved successfully.")
@@ -113,7 +113,7 @@ func (base *Controller) GetOrgCreditUsage(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(credits_usage),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("credit usage retrieved successfully.")
@@ -147,7 +147,7 @@ func (base *Controller) GetAllCreditUsage(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(credits_usage),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("credit usage retrieved successfully.")

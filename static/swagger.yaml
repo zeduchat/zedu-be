@@ -5564,6 +5564,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/me:
+    get:
+      tags:
+        - user
+      summary: Retrieve the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /users/{userId}:
     get:
       tags:
@@ -7896,6 +7935,106 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
+  /dms/setup:
+    get:
+      tags:
+        - Marketplace
+      summary: Setup a chat session with an agent
+      responses:
+        "200":
+          description: Chat session setup is successfull
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /dms/{channel_id}:
+    post:
+      tags:
+        - Marketplace
+      summary: Endpoint for interaction with an agent
+      description: Endpoint for interaction with an agent
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel to create the message in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: Hello agent
+                agent_id:
+                  type: string
+                  example: agent_47474747
+              required:
+                - content
+                - agent_id
+
+      responses:
+        "201":
+          description: Message created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageCreateResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   ## Reply Message Dms
 
@@ -11880,6 +12019,16 @@ paths:
                   example: |
                     This agent offers unique value by combining advanced machine learning algorithms with 
                     user-friendly integrations across multiple platforms...
+                short_description:
+                  type: string
+                  minLength: 10
+                  maxLength: 30
+                  description: Very short descriptoin of the agent
+                long_description:
+                  type: string
+                  minLength: 101
+                  description: Long description of the agent
+
       responses:
         200:
           description: Successfully published the agent.
@@ -12156,6 +12305,43 @@ paths:
           schema:
             type: integer
             example: 10
+      responses:
+        "200":
+          description: Successfully retrieved workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: workflows retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Workflow"
+        "404":
+          description: No workflows found
+        "500":
+          description: Server error
+
+  /workflows/agents/{agent_id}:
+    get:
+      summary: Get agent workflows
+      description: >
+        Get available workflows in for an agent.
+      tags:
+        - Marketplace
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The unique identifier of the agent.
+          schema:
+            type: string
       responses:
         "200":
           description: Successfully retrieved workflows
@@ -18418,9 +18604,28 @@ paths:
                 name:
                   type: string
                   description: Name of the workflow
+                short_description:
+                  type: string
+                  minLength: 10
+                  maxLength: 50
+                  description: Very short descriptoin of the workflow
+                long_description:
+                  type: string
+                  minLength: 101
+                  description: Long description of the workflow
+                description:
+                  type: string
+                  description: Description of the workflow
+                category:
+                  type: string
+                  description: Category of the workflow
               required:
                 - raw_entry
                 - name
+                - short_description
+                - long_description
+                - description
+                - category
       responses:
         "201":
           description: Agent Workflow created successfully
@@ -18739,7 +18944,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       responses:
         "200":
           description: Agent skill retrieved successfully
@@ -18778,6 +18982,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /skills/general/agents/{agents_id}:
+    get:
+      tags:
+        - Skills
+        - Marketplace
+      summary: Get agent skills by Agent ID
+      parameters:
+        - name: agents_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent skill retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent skill retrieved
+                  data:
+                    $ref: "#/components/schemas/AgentSkillResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /skills/agents/{agents_id}:
     get:

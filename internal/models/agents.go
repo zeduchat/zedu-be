@@ -10,12 +10,16 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -55,6 +59,8 @@ type Integrations struct {
 	Benefits           string             `gorm:"type:text" json:"benefits"`
 	WhyUse             string             `gorm:"type:text" json:"why_use"`
 	Stars              int64              `gorm:"default:1" json:"stars"`
+	ShortDescription   string             `gorm:"type:text" json:"short_description"`
+	LongDescription    string             `gorm:"type:text" json:"long_description"`
 }
 
 type CreateAgentRequest struct {
@@ -72,14 +78,16 @@ type CreateAgentRequest struct {
 }
 
 type PublishAgentRequest struct {
-	Category   string    `json:"category" validate:"required"`
-	Snapshot   Snapshots `json:"snapshots" validate:"required,min=1,dive"`
-	HowItWorks string    `json:"how_it_works" validate:"required,min=101"`
-	Benefits   string    `json:"benefits" validate:"required,min=101"`
-	WhyUse     string    `json:"why_use" validate:"required,min=101"`
-	UserId     string    `json:"-"`
-	AgentId    string    `json:"-"`
-	OrgId      string    `json:"-"`
+	Category         string    `json:"category" validate:"required"`
+	Snapshot         Snapshots `json:"snapshots" validate:"required,min=1,dive"`
+	HowItWorks       string    `json:"how_it_works" validate:"required,min=101"`
+	Benefits         string    `json:"benefits" validate:"required,min=101"`
+	WhyUse           string    `json:"why_use" validate:"required,min=101"`
+	ShortDescription string    `json:"short_description" validate:"required,min=10,max=50"`
+	LongDescription  string    `json:"long_description" validate:"required,min=101"`
+	UserId           string    `json:"-"`
+	AgentId          string    `json:"-"`
+	OrgId            string    `json:"-"`
 }
 
 type UpdateAgentPromptRequest struct {
@@ -357,22 +365,28 @@ type AgentsResp []struct {
 }
 
 type AgentResp struct {
-	ID            string            `json:"id"`
-	IsActive      bool              `json:"is_active"`
-	Name          string            `json:"name"`
-	Tone          string            `json:"tone"`
-	Avatar        string            `json:"avatar"`
-	Title         string            `json:"title"`
-	Description   string            `json:"description"`
-	Visibility    string            `json:"visibility"`
-	SystemPrompts JSONSystemPrompts `json:"system_prompts,omitempty"`
-	Category      string            `json:"category"`
-	Stars         int64             `json:"stars"`
-	Snapshot      Snapshots         `json:"snapshots"`
-	HowItWorks    string            `json:"how_it_works"`
-	Benefits      string            `json:"benefits"`
-	WhyUse        string            `json:"why_use"`
-	AgentSlug     string            `json:"agent_slug"`
+	ID               string            `json:"id"`
+	IsActive         bool              `json:"is_active"`
+	Name             string            `json:"name"`
+	Tone             string            `json:"tone"`
+	Avatar           string            `json:"avatar"`
+	Title            string            `json:"title"`
+	Description      string            `json:"description"`
+	Visibility       string            `json:"visibility"`
+	SystemPrompts    JSONSystemPrompts `json:"system_prompts,omitempty"`
+	Category         string            `json:"category,omitempty"`
+	Stars            int64             `json:"stars"`
+	Snapshot         Snapshots         `json:"snapshots,omitempty"`
+	HowItWorks       string            `json:"how_it_works,omitempty"`
+	Benefits         string            `json:"benefits,omitempty"`
+	WhyUse           string            `json:"why_use,omitempty"`
+	AgentSlug        string            `json:"agent_slug"`
+	ShortDescription string            `json:"short_description,omitempty"`
+	LongDescription  string            `json:"long_description,omitempty"`
+	ThreadCount      int64             `json:"thread_count"`
+	LastThreadId     string            `json:"last_thread_id"`
+	LastReadAt       time.Time         `json:"last_read_at"`
+	UserId           string            `json:"-"`
 }
 
 type IntegrationBills struct {
@@ -617,36 +631,52 @@ func (i *Integrations) GetAllAgentApp(db *gorm.DB, org_id string, c *gin.Context
 }
 
 // Get custom integrations
-func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, org_id string, c *gin.Context) ([]OrganisationIntegrations, postgresql.PaginationResponse, error, int) {
+func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *gin.Context) ([]AgentResp, postgresql.PaginationResponse, error, int) {
 
 	var (
-		org        Organisation
-		orgIntResp []OrganisationIntegrations
+		org    Organisation
+		agents = []AgentResp{}
 	)
 
-	exists := postgresql.CheckExists(db, &org, "id = ?", org_id)
+	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrganisationID)
 	if !exists {
 		return nil, postgresql.PaginationResponse{}, errors.New("organisation not found"), http.StatusNotFound
 	}
 
 	pagination := postgresql.GetPagination(c)
 
-	query := db.Model(&OrganisationIntegrations{}).
-		Where("org_id = ? and is_active = ?", org_id, true)
+	query := db.Table("organisation_integrations oi").
+		Select(`
+		oi.integration_id as id,
+		oi.is_active,
+		oi.app_name as name,
+		oi.tone,
+		oi.app_logo as avatar,
+		oi.title,
+		oi.app_description as description,
+		oi.visibility,
+		oi.stars,
+		COALESCE(dc.thread_count, 0) as thread_count,
+		COALESCE(dc.last_thread_id, '') as last_thread_id,
+		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at
+	`).
+		Joins(`
+		LEFT JOIN dm_channels dc 
+		ON dc.participant_id = oi.integration_id
+		AND dc.user_id = ?
+	`, ids.UserID).
+		Where("oi.org_id = ? AND oi.is_active = ?", ids.OrganisationID, true)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		"created_at",
+		"oi.created_at",
 		"desc",
 		pagination,
-		&orgIntResp,
+		&agents,
 		nil,
 	)
-	if err != nil {
-		return orgIntResp, paginationResponse, err, http.StatusInternalServerError
-	}
 
-	return orgIntResp, paginationResponse, err, http.StatusOK
+	return agents, paginationResponse, err, http.StatusOK
 }
 
 func (i *Integrations) GetSystemAgentApps(db *gorm.DB, c *gin.Context, sortBy string) ([]Integrations, postgresql.PaginationResponse, error, int) {
@@ -2601,15 +2631,16 @@ func (oi *OrganisationIntegrations) CheckAgentExists(db *gorm.DB, agentID, orgID
 	return true, nil
 }
 
-func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gorm.DB) (int, error) {
+func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gorm.DB) (*AgentResp, int, error) {
 	var (
 		agent    OrganisationIntegrations
 		genAgent Integrations
+		resp     = AgentResp{}
 	)
 
 	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", req.AgentId)
 	if !exists {
-		return http.StatusBadRequest, errors.New("agent app does not exist")
+		return &resp, http.StatusBadRequest, errors.New("agent app does not exist")
 	}
 
 	genAgent.Name = agent.AppName
@@ -2629,10 +2660,65 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	genAgent.Skills = agent.Skills
 	genAgent.Version = agent.Version
 	genAgent.Stars = agent.Stars
+	genAgent.ShortDescription = req.ShortDescription
+	genAgent.LongDescription = req.LongDescription
 
 	if err := db.Save(&genAgent).Error; err != nil {
-		return http.StatusInternalServerError, err
+		return &resp, http.StatusInternalServerError, err
 	}
 
-	return http.StatusOK, nil
+	parts := strings.Split(agent.IntegrationID, "-")
+	lastPart := parts[len(parts)-1]
+
+	resp = AgentResp{
+		ID:               genAgent.ID,
+		Name:             genAgent.Name,
+		Title:            genAgent.Title,
+		Tone:             genAgent.Tone,
+		Visibility:       genAgent.Visibility,
+		Avatar:           genAgent.AppLogo,
+		Description:      genAgent.AppDescription,
+		IsActive:         false,
+		SystemPrompts:    genAgent.SystemPrompts,
+		Snapshot:         genAgent.Snapshot,
+		HowItWorks:       genAgent.HowItWorks,
+		Benefits:         genAgent.Benefits,
+		WhyUse:           genAgent.WhyUse,
+		AgentSlug:        fmt.Sprintf("%s-%s", slug.Make(genAgent.Name), lastPart),
+		ShortDescription: genAgent.ShortDescription,
+		LongDescription:  genAgent.LongDescription,
+	}
+
+	return &resp, http.StatusOK, nil
+}
+
+func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
+
+	var (
+		agent    = Integrations{}
+		orgAgent = OrganisationIntegrations{}
+	)
+
+	if _, err := uuid.Parse(partialUUId); err != nil {
+		parts := strings.Split(partialUUId, "-")
+		if len(parts) < 2 || len(parts[len(parts)-1]) != 12 {
+			return "", errors.New("Invalid id format")
+		}
+		partialUUId = parts[len(parts)-1]
+	}
+
+	exists := postgresql.CheckExists(db.Postgresql, &agent, "(id::text = ? OR id::text LIKE ?)", partialUUId, "%-"+partialUUId)
+
+	if exists {
+		return agent.ID, nil
+	}
+
+	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "(id::text = ? OR id::text LIKE ?)", partialUUId, "%-"+partialUUId)
+
+	if exists {
+		return orgAgent.IntegrationID, nil
+	}
+
+	return "", errors.New("Invalid agent id, agent does not exists")
+
 }

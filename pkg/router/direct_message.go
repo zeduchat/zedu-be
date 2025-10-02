@@ -36,9 +36,11 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		threadUrl.DELETE("/channels/:channelId/messages/:messageId", channel.DeleteChannelsMsg)
 	}
 
-	responseUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion))
+	responseUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.UnauthenticatedUserTracker(logger))
 	{
 		responseUrl.POST("/bot-dm-response", dmCtrl.BotDMResponse)
+		responseUrl.POST("/:channel_id", dmCtrl.AddAThreadDmFromMarketPlace)
+		responseUrl.GET("/setup", dmCtrl.SetupChatSession)
 	}
 
 	// Direct Messaege Channel endpoints

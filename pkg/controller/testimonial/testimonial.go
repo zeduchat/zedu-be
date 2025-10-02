@@ -75,7 +75,7 @@ func (base *Controller) GetTestimonials(c *gin.Context) {
 		"current_page": paginationResponse.CurrentPage,
 		"total_pages":  paginationResponse.TotalPagesCount,
 		"page_size":    paginationResponse.PageCount,
-		"total_items":  len(testimonials),
+		"total_items":  paginationResponse.TotalItems,
 	}
 
 	base.Logger.Info("testimonials retrieved successfully")

@@ -122,3 +122,93 @@ func (base *Controller) BotDMResponse(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Bot response sent successfully", respData)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) AddAThreadDmFromMarketPlace(c *gin.Context) {
+
+	var (
+		req        = models.CreateThreadMsgReq2{}
+		unAuthUser = models.UnauthenticatedUser{}
+		channelID  = c.Param("channel_id")
+	)
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.ChannelsID = channelID
+
+	claims, exists := c.Get("client_ip")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userIdentifier := claims.(string)
+	limitReached, err := unAuthUser.IsUsageGreaterThan(base.Db.Postgresql, models.UnauthReq{UserIdentifier: userIdentifier, Limit: models.CHATUSAGELIMIT}, base.Logger)
+
+	if limitReached {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "user limit reached", errors.New("user limit reached"), nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	req.UserIdentifier = userIdentifier
+
+	threadData, statusCode, err := dm.TemporalThreadDmMessage(req, base.Db, base.Logger)
+	if err != nil {
+		base.Logger.Info("some error occurred while creating thread: " + err.Error())
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), nil, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("dm thread message added successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "dm thread message added successfully", threadData)
+	c.JSON(statusCode, rd)
+}
+
+func (base *Controller) SetupChatSession(c *gin.Context) {
+
+	var (
+		req = models.UnauthReq{}
+	)
+
+	claims, exists := c.Get("client_ip")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+
+		return
+	}
+	req.UserIdentifier = claims.(string)
+
+	resp, statusCode, err := dm.SetupChatSession(req, base.Db, base.Logger)
+	if err != nil {
+		base.Logger.Info("some error occurred while setting up session: " + err.Error())
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), nil, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("chat session setup is successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "chat session setup is successfully", resp)
+	c.JSON(statusCode, rd)
+}

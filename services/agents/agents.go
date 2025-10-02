@@ -33,117 +33,6 @@ func GetAllAgentApp(c *gin.Context, org_id string, db *gorm.DB) (models.AgentsRe
 	return resp, nil
 }
 
-func GetCustomAgentApp(c *gin.Context, org_id string, db *gorm.DB, extReq request.ExternalRequest) (models.AgentsResp, postgresql.PaginationResponse, error, int) {
-	var org_agents models.OrganisationIntegrations
-
-	var int_resp = models.AgentsResp{}
-
-	resp, paginationResult, err, code := org_agents.GetCustomAgentApps(db, org_id, c)
-
-	if err != nil {
-		return nil, postgresql.PaginationResponse{}, err, code
-	}
-
-	for _, org_agents := range resp {
-
-		if org_agents.AppName == "" {
-
-			json_url := org_agents.JSONUrl
-			data := map[string]string{"url": json_url}
-
-			response, err := extReq.SendExternalRequest(request.AgentJsonContent, data)
-
-			if err != nil {
-				agent := models.Integrations{
-					ID:             org_agents.IntegrationID,
-					Name:           "Unavailable",
-					JSONUrl:        org_agents.JSONUrl,
-					AppDescription: "This agent is currently unavailable.",
-					IsActive:       false,
-					CreatedAt:      org_agents.CreatedAt,
-					UpdatedAt:      org_agents.UpdatedAt,
-				}
-
-				int_resp = append(int_resp, struct {
-					models.Integrations
-					Linked bool "json:\"linked\""
-				}{
-					Integrations: agent,
-					Linked:       true,
-				})
-				continue
-			}
-
-			response_data := response.(map[string]any)
-
-			data_r := response_data["data"].(map[string]any)
-
-			description := data_r["descriptions"].(map[string]any)
-			category, ok := data_r["integration_category"].(string)
-
-			if !ok || category == "" {
-				category = "Undefined"
-			}
-
-			agent := models.Integrations{
-				ID:             org_agents.IntegrationID,
-				Name:           description["app_name"].(string),
-				JSONUrl:        org_agents.JSONUrl,
-				AppUrl:         description["app_url"].(string),
-				AppLogo:        description["app_logo"].(string),
-				AppDescription: description["app_description"].(string),
-				IsActive:       org_agents.IsActive,
-				CreatedAt:      org_agents.CreatedAt,
-				UpdatedAt:      org_agents.UpdatedAt,
-				Version:        org_agents.Version,
-				Prices:         org_agents.Prices,
-				Provider:       org_agents.Provider,
-				IsPaid:         org_agents.IsPaid,
-				IsApproved:     org_agents.IsApproved,
-				Skills:         org_agents.Skills,
-			}
-
-			int_resp = append(int_resp, struct {
-				models.Integrations
-				Linked bool "json:\"linked\""
-			}{
-				Integrations: agent,
-				Linked:       true,
-			})
-			continue
-		}
-
-		agent := models.Integrations{
-			ID:             org_agents.IntegrationID,
-			Name:           org_agents.AppName,
-			JSONUrl:        org_agents.JSONUrl,
-			AppUrl:         org_agents.AppUrl,
-			AppLogo:        org_agents.AppLogo,
-			AppDescription: org_agents.AppDescription,
-			IsActive:       org_agents.IsActive,
-			CreatedAt:      org_agents.CreatedAt,
-			UpdatedAt:      org_agents.UpdatedAt,
-			Version:        org_agents.Version,
-			Prices:         org_agents.Prices,
-			Provider:       org_agents.Provider,
-			IsPaid:         org_agents.IsPaid,
-			IsApproved:     org_agents.IsApproved,
-			Skills:         org_agents.Skills,
-		}
-
-		int_resp = append(int_resp, struct {
-			models.Integrations
-			Linked bool "json:\"linked\""
-		}{
-			Integrations: agent,
-			Linked:       true,
-		})
-
-	}
-
-	return int_resp, paginationResult, nil, code
-}
-
 func GetSystemAgentApps(c *gin.Context, db *gorm.DB, extReq request.ExternalRequest) (*[]models.AgentResp, postgresql.PaginationResponse, error, int) {
 	var (
 		agents  models.Integrations
@@ -196,21 +85,23 @@ func GetSystemAgentApp(c *gin.Context, db *gorm.DB, int_id string, extReq reques
 
 	resp := models.AgentResp{
 
-		ID:          agent.ID,
-		Name:        agent.Name,
-		Title:       agent.Title,
-		Tone:        agent.Tone,
-		Visibility:  agent.Visibility,
-		Avatar:      agent.AppLogo,
-		Description: agent.AppDescription,
-		IsActive:    agent.IsActive,
-		Category:    agent.Category,
-		Stars:       agent.Stars,
-		Snapshot:    agent.Snapshot,
-		HowItWorks:  agent.HowItWorks,
-		Benefits:    agent.Benefits,
-		WhyUse:      agent.WhyUse,
-		AgentSlug:   fmt.Sprintf("%s-%s", slug.Make(agent.Name), lastPart),
+		ID:               agent.ID,
+		Name:             agent.Name,
+		Title:            agent.Title,
+		Tone:             agent.Tone,
+		Visibility:       agent.Visibility,
+		Avatar:           agent.AppLogo,
+		Description:      agent.AppDescription,
+		IsActive:         agent.IsActive,
+		Category:         agent.Category,
+		Stars:            agent.Stars,
+		Snapshot:         agent.Snapshot,
+		HowItWorks:       agent.HowItWorks,
+		Benefits:         agent.Benefits,
+		WhyUse:           agent.WhyUse,
+		AgentSlug:        fmt.Sprintf("%s-%s", slug.Make(agent.Name), lastPart),
+		ShortDescription: agent.ShortDescription,
+		LongDescription:  agent.LongDescription,
 	}
 	return &resp, nil, code
 }
@@ -525,20 +416,22 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		lastPart := parts[len(parts)-1]
 
 		resp := models.AgentResp{
-			ID:            agents.ID,
-			Name:          agents.Name,
-			Title:         agents.Title,
-			Tone:          agents.Tone,
-			Visibility:    agents.Visibility,
-			Avatar:        agents.AppLogo,
-			Description:   agents.AppDescription,
-			IsActive:      false,
-			SystemPrompts: agents.SystemPrompts,
-			Snapshot:      agents.Snapshot,
-			HowItWorks:    agents.HowItWorks,
-			Benefits:      agents.Benefits,
-			WhyUse:        agents.WhyUse,
-			AgentSlug:     fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
+			ID:               agents.ID,
+			Name:             agents.Name,
+			Title:            agents.Title,
+			Tone:             agents.Tone,
+			Visibility:       agents.Visibility,
+			Avatar:           agents.AppLogo,
+			Description:      agents.AppDescription,
+			IsActive:         false,
+			SystemPrompts:    agents.SystemPrompts,
+			Snapshot:         agents.Snapshot,
+			HowItWorks:       agents.HowItWorks,
+			Benefits:         agents.Benefits,
+			WhyUse:           agents.WhyUse,
+			AgentSlug:        fmt.Sprintf("%s-%s", slug.Make(agents.Name), lastPart),
+			ShortDescription: agents.ShortDescription,
+			LongDescription:  agents.LongDescription,
 		}
 		return &resp, http.StatusOK, nil
 	}
@@ -564,6 +457,8 @@ func FetchCustomAgent(req models.CreateAgentRequest, db *gorm.DB, extReq request
 		resp.Snapshot = agents.Snapshot
 		resp.WhyUse = agents.WhyUse
 		resp.HowItWorks = agents.HowItWorks
+		resp.LongDescription = agents.LongDescription
+		resp.ShortDescription = agents.ShortDescription
 	}
 
 	return &resp, http.StatusOK, nil
@@ -1171,13 +1066,13 @@ func UploadAgentAvatar(logger *utility.Logger, uniqueId string, file []byte, ext
 	return "", nil
 }
 
-func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (int, error) {
+func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (*models.AgentResp, int, error) {
 	var agent models.OrganisationIntegrations
 
-	code, err := agent.PublishAgent(req, db)
+	resp, code, err := agent.PublishAgent(req, db)
 	if err != nil {
-		return code, err
+		return resp, code, err
 	}
 
-	return code, nil
+	return resp, code, nil
 }

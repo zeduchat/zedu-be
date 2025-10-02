@@ -100,9 +100,29 @@ func (base *Controller) GetConnTokenUnAuth(c *gin.Context) {
 	accessToken := models.AccessToken{}
 	accessToken.SubAccessToken = SubToken
 
+	{
+		var userUnAuth models.UnauthenticatedUser
+		claims, exists := c.Get("client_ip")
+		if !exists {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+
+		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT, Subtoken: SubToken})
+
+		if !valid || err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid token", err.Error(), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+
+		accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+	}
+
 	code, err := accessToken.GetBySubToken(base.Db.Postgresql)
 
-	if err != nil || !accessToken.IsLive {
+	if (err != nil || !accessToken.IsLive) && accessToken.OwnerID != "00000000-0000-0000-0000-000000000000" {
 		rd := utility.BuildErrorResponse(code, "error", "invalid notification token", errors.New("invalid or exipired notification token"), nil)
 		c.JSON(code, rd)
 		return
@@ -110,7 +130,7 @@ func (base *Controller) GetConnTokenUnAuth(c *gin.Context) {
 
 	respData, code, err := token.GetConnToken(accessToken.OwnerID, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -130,13 +150,32 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
 	accessToken := models.AccessToken{}
 	accessToken.SubAccessToken = SubToken
 
+	{
+		var userUnAuth models.UnauthenticatedUser
+		claims, exists := c.Get("client_ip")
+		if !exists {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+
+		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT, Subtoken: SubToken})
+
+		if !valid || err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid token", err.Error(), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+
+		accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+	}
+
 	code, err := accessToken.GetBySubToken(base.Db.Postgresql)
 
-	if err != nil || !accessToken.IsLive {
+	if (err != nil || !accessToken.IsLive) && accessToken.OwnerID != "00000000-0000-0000-0000-000000000000" {
 		rd := utility.BuildErrorResponse(code, "error", "invalid notification token", errors.New("invalid or exipired notification token"), nil)
 		c.JSON(code, rd)
 		return

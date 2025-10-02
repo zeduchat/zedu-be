@@ -65,6 +65,10 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	credits := plan.Credits
 
+	if picUrl == "" {
+		picUrl = req.LogoURL
+	}
+
 	org := models.Organisation{
 		ID:            orgId,
 		Name:          strings.ToLower(req.Name),
