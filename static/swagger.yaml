@@ -18803,6 +18803,71 @@ paths:
                   status_code: { type: integer }
                   message: { type: string }
 
+  /agents/workflows/{workflow_id}/nodes/{node_id}:
+    put:
+      tags:
+        - Agent Workflows
+      summary: Update a node in an agent workflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: node_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agent_id:
+                  type: string
+                  description: The id of the agent attached to the workflow
+                config:
+                  type: array
+                  items:
+                    type: object
+                  description: Configuration details for the node
+      responses:
+        "200":
+          description: Workflow node updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  status_code: { type: integer }
+                  message: { type: string }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
   /skills:
     post:
       tags:
@@ -23081,6 +23146,39 @@ components:
           items:
             type: string
           example: ["sales", "automation", "crm"]
+
+    AgentWorkFlowResponse:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        workflow_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Sales Assistant Bot"
+        description:
+          type: string
+          example: "Helps automate the sales process and customer engagement"
+        long_description:
+          type: string
+          example: "Helps automate the sales process and customer engagement"
+        short_description:
+          type: string
+          example: "Helps automate the sales process and customer engagement"
+        type:
+          type: string
+          example: "MCP"
+        is_active:
+          type: boolean
+          example: true
+        raw_entry:
+          type: object
+          additionalProperties: true
 
     GeneralAgentSkill:
       type: object
