@@ -18803,7 +18803,7 @@ paths:
                   status_code: { type: integer }
                   message: { type: string }
 
-  /agents/{agent_id}/nodes/{node_id}:
+  /agents/workflows/{workflow_id}/nodes/{node_id}:
     put:
       tags:
         - Agent Workflows
@@ -18811,7 +18811,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: agent_id
+        - name: workflow_id
           in: path
           required: true
           schema:
@@ -18830,6 +18830,9 @@ paths:
             schema:
               type: object
               properties:
+                agent_id:
+                  type: string
+                  description: The id of the agent attached to the workflow
                 config:
                   type: array
                   items:

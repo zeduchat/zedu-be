@@ -255,10 +255,13 @@ func UpdateAgentWorkflowService(req models.AgentWorkFloUpdateRequest, db *gorm.D
 	return err, code
 }
 
-func UpdateWorkflowNodeService(req models.AgentWorkFloNodeUpdateRequest, updateData models.UpdateWorkflowNodeRequest, db *gorm.DB) (models.AgentWorkflow, error) {
+func UpdateWorkflowNodeService(req models.AgentWorkFloNodeUpdateRequest, db *gorm.DB) (models.AgentWorkflow, error) {
 	var wfr models.AgentWorkFloNodeUpdateRequest
 	wfr.NodeID = req.NodeID
 	wfr.AgentId = req.AgentId
 	wfr.OrgId = req.OrgId
-	return wfr.UpdateWorkflowNode(db, updateData)
+	wfr.WorkflowId = req.WorkflowId
+	wfr.Config = req.Config
+
+	return wfr.UpdateWorkflowNode(db)
 }

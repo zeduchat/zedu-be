@@ -108,24 +108,15 @@ type AgentWorkFloUpdateRequest struct {
 	OrgId      string   `json:"-"`
 	WorkflowId string   `json:"-"`
 }
-type UpdateWorkflowNodeRequest struct {
-	Config   JSONBMapArr `json:"config"`
-	NodeID   string      `json:"skill_id"`
-	NodeType string      `json:"node_type"`
-	AgentId  string      `json:"agent_id"`
-	IsActive bool        `json:"is_active"`
-	OrgId    string      `json:"-"`
-	UserId   string      `json:"-"`
-}
 
 type AgentWorkFloNodeUpdateRequest struct {
-	RawEntry   JSONBMap    `json:"raw_entry" validate:"required"`
-	AgentId    string      `json:"-"`
+	RawEntry   JSONBMap    `json:"raw_entry"`
+	AgentId    string      `json:"agent_id" validate:"required"`
 	IsActive   bool        `json:"is_active"`
 	Name       string      `json:"name"`
 	OrgId      string      `json:"-"`
 	WorkflowId string      `json:"-"`
-	NodeID     string      `json:"node_id" validate:"required"`
+	NodeID     string      `json:"node_id"`
 	NodeType   string      `json:"node_type"`
 	Config     JSONBMapArr `json:"config"`
 }
@@ -324,11 +315,11 @@ func (wf *AgentWorkflow) UpdateAgentWorkflow(db *gorm.DB) (error, int) {
 	return nil, http.StatusOK
 }
 
-func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB, updateData UpdateWorkflowNodeRequest) (AgentWorkflow, error) {
-	// Fetch the workflow attached to the agent, If agent has no workflow, return atp
+func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB) (AgentWorkflow, error) {
+	fmt.Println(n)
 	wfr := AgentWorkflow{}
 
-	exists := postgresql.CheckExists(db, &wfr, "agent_id = ? AND org_id = ?", n.AgentId, n.OrgId)
+	exists := postgresql.CheckExists(db, &wfr, "workflow_id = ? AND agent_id = ? AND org_id = ?", n.WorkflowId, n.AgentId, n.OrgId)
 
 	if !exists {
 		return wfr, errors.New("agent not attached to a workflow")
@@ -336,8 +327,10 @@ func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB, updateDa
 
 	parameters := JSONBMapArr{JSONBMap{}}
 
+	fmt.Println(n.Config)
+
 	//The current algorithm for converting config to parameters.
-	for _, v := range updateData.Config {
+	for _, v := range n.Config {
 		var valueParam interface{}
 
 		if value, ok := v["value"]; ok {
@@ -352,52 +345,39 @@ func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB, updateDa
 	}
 
 	// Update the parameters matching the skill id in the workflow
-
-	// retrieve raw entry and iterate over it to find the skill and update its parameters
 	rawEntry := wfr.RawEntry
 
-	// Access nodes property
 	nodes, ok := rawEntry["nodes"].([]interface{})
 	if !ok {
-		// nodes doesn't exist or isn't an array
 		return wfr, errors.New("workflow has no nodes")
 	}
 
-	// var skillNode map[string]interface{}
 
-	// Iterate and find by id
 	for i, node := range nodes {
-		// Convert each node to a map
 		nodeMap, ok := node.(map[string]interface{})
 		if !ok {
-			continue // skip if not a map
+			continue
 		}
 
-		// Check if id matches
 		if nodeMap["id"] == n.NodeID {
-			// Found it!
-			// skillNode = nodeMap
-			fmt.Println("Found node:", nodeMap)
 
-			//Update node parameters
+			fmt.Println(nodeMap)
+
 			nodeMap["parameters"] = parameters
 
-			// IMPORTANT: Update back to the array
 			nodes[i] = nodeMap
-
-			// IMPORTANT: Update back to the JSONBMap
 			rawEntry["nodes"] = nodes
 
 			break
 		}
-		// add something for node type in a bit
+		// add something for node type later
 	}
 
 	wfUpdates := map[string]any{
 		"raw_entry": rawEntry,
 	}
 
-	result, err := postgresql.UpdateFields(db, &wfr, wfUpdates, "workflow_id = ?AND agent_id = ?", wfr.WorkflowId, wfr.AgentId)
+	result, err := postgresql.UpdateFields(db, &wfr, wfUpdates, "workflow_id = ? AND agent_id = ?", wfr.WorkflowId, wfr.AgentId)
 
 	if err != nil {
 		return wfr, errors.New("failed to update agent workflow")
