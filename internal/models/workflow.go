@@ -316,7 +316,6 @@ func (wf *AgentWorkflow) UpdateAgentWorkflow(db *gorm.DB) (error, int) {
 }
 
 func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB) (AgentWorkflow, error) {
-	fmt.Println(n)
 	wfr := AgentWorkflow{}
 
 	exists := postgresql.CheckExists(db, &wfr, "workflow_id = ? AND agent_id = ? AND org_id = ?", n.WorkflowId, n.AgentId, n.OrgId)
@@ -326,8 +325,6 @@ func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB) (AgentWo
 	}
 
 	parameters := JSONBMapArr{JSONBMap{}}
-
-	fmt.Println(n.Config)
 
 	//The current algorithm for converting config to parameters.
 	for _, v := range n.Config {
@@ -360,8 +357,6 @@ func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB) (AgentWo
 		}
 
 		if nodeMap["id"] == n.NodeID {
-
-			fmt.Println(nodeMap)
 
 			nodeMap["parameters"] = parameters
 
