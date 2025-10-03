@@ -26,8 +26,7 @@ func TelexAI(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	
 	chatCompletionsProxyUrl := r.Group(fmt.Sprintf("%v/telexai", ApiVersion), middleware.ProxyKeyAuthMiddleware(db.Postgresql, logger))
 	{
-		chatCompletionsProxyUrl.Any("/proxy/*path", aiProxyCtrl.ProxyToOpenRouter)
-		chatCompletionsProxyUrl.POST("/chat/completions", aiProxyCtrl.ProxyToOpenRouter)
+		chatCompletionsProxyUrl.Any("/chat/completions", aiProxyCtrl.ProxyToOpenRouter)
 	}
 
 	return r
