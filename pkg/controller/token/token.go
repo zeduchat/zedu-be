@@ -111,19 +111,19 @@ func (base *Controller) GetConnTokenUnAuth(c *gin.Context) {
 
 		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT, Subtoken: SubToken})
 
-		if !valid || err != nil {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid token", err.Error(), nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
+		if err != nil {
+			base.Logger.Error("An error occured while getting connection token, error: %v", err)
 		}
 
-		accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+		if valid {
+			accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+		}
+
 	}
 
 	code, err := accessToken.GetBySubToken(base.Db.Postgresql)
-
 	if (err != nil || !accessToken.IsLive) && accessToken.OwnerID != "00000000-0000-0000-0000-000000000000" {
-		rd := utility.BuildErrorResponse(code, "error", "invalid notification token", errors.New("invalid or exipired notification token"), nil)
+		rd := utility.BuildErrorResponse(code, "error", "invalid token", errors.New("invalid or exipired token"), nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -164,19 +164,19 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 
 		valid, err := userUnAuth.VerifySubtoken(base.Db.Postgresql, models.UnauthReq{UserIdentifier: claims.(string), Limit: models.CHATUSAGELIMIT, Subtoken: SubToken})
 
-		if !valid || err != nil {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid token", err.Error(), nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
+		if err != nil {
+			base.Logger.Error("An error occured while getting sub token, error: %v", err)
 		}
 
-		accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+		if valid {
+			accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+		}
+
 	}
 
 	code, err := accessToken.GetBySubToken(base.Db.Postgresql)
-
 	if (err != nil || !accessToken.IsLive) && accessToken.OwnerID != "00000000-0000-0000-0000-000000000000" {
-		rd := utility.BuildErrorResponse(code, "error", "invalid notification token", errors.New("invalid or exipired notification token"), nil)
+		rd := utility.BuildErrorResponse(code, "error", "invalid token", errors.New("invalid or exipired token"), nil)
 		c.JSON(code, rd)
 		return
 	}

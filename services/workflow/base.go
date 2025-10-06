@@ -254,3 +254,14 @@ func UpdateAgentWorkflowService(req models.AgentWorkFloUpdateRequest, db *gorm.D
 	err, code := wf.UpdateAgentWorkflow(db)
 	return err, code
 }
+
+func UpdateWorkflowNodeService(req models.AgentWorkFloNodeUpdateRequest, db *gorm.DB) (models.AgentWorkflow, error) {
+	var wfr models.AgentWorkFloNodeUpdateRequest
+	wfr.NodeID = req.NodeID
+	wfr.AgentId = req.AgentId
+	wfr.OrgId = req.OrgId
+	wfr.WorkflowId = req.WorkflowId
+	wfr.Config = req.Config
+
+	return wfr.UpdateWorkflowNode(db)
+}
