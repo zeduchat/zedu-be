@@ -37,14 +37,18 @@ func SetupRiver(ctx context.Context, configDatabase config.Database, logger *uti
 		return nil, fmt.Errorf("river migration failed: %w", err)
 	}
 
-	logger.Info("River migration done, res: %v", res)
+	logger.Info("<<<<<<<<<<<<<<<<<< River migration done, res: %v >>>>>>>>>>>>>>>>>>>>", res)
 
 	// Create River client
+
+	slogger := utility.NewRotatingLogger()
+
 	client, err := river.NewClient(driver, &river.Config{
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
-		Workers: registerWorkers(),
+		Workers: registerWorkers(logger),
+		Logger:  slogger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize river client: %w", err)

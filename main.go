@@ -54,20 +54,19 @@ func main() {
 
 	// start river
 	ctx := context.Background()
-	client, err := riverqueueBg.SetupRiver(ctx, configuration.Database, logger)
+	riverClient, err := riverqueueBg.SetupRiver(ctx, configuration.Database, logger)
 
-	// Gracefull shortdown procedure
-	defer func() {
-		client.Stop(ctx)
-	}()
-
-	d := riverqueueBg.SortArgs{
-		Strings: []string{"name", "animal", "place"},
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	err = d.InsertSortJob(ctx)
+	defer func() {
+		riverClient.Stop(ctx)
+	}()
+
+	err = riverClient.Start(ctx)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
 
 	validatorRef := validator.New()

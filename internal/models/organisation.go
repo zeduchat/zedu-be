@@ -1,11 +1,13 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Organisation struct {
@@ -579,10 +582,15 @@ func (o *Organisation) GetOrganisationDetails(db *gorm.DB, orgID string) (Organi
 	return org, nil
 }
 
-func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
+func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB, logger *utility.Logger) error {
 
 	// this section creates default integration
-	var orgIntResp []OrganisationIntegrations
+	var (
+		orgIntResp []OrganisationIntegrations
+		agentIds   = []string{}
+		details    = map[string]string{}
+		user       = User{}
+	)
 
 	err := db.Model(&Integrations{}).
 		Select("gen_random_uuid() AS id, id as integration_id, ? as org_id, ? as owner_id, name as app_name, app_description, app_url, app_logo, json_url, false as is_active, true as is_system, NOW() as created_at, NOW() as updated_at, system_prompts, tone, title", o.ID, o.OwnerID).
@@ -598,6 +606,11 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 		return nil
 	}
 
+	user, err = user.GetUserByID(db, o.OwnerID)
+	if err != nil {
+		logger.Error("Failed to fetch user, error: %v", err)
+	}
+
 	for i := range orgIntResp {
 		key, err := GenerateAgentKey()
 		if err != nil {
@@ -605,6 +618,8 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 		}
 		orgIntResp[i].PreSharedKey = key
 		orgIntResp[i].IsActive = true
+		agentIds = append(agentIds, orgIntResp[i].IntegrationID)
+		details[orgIntResp[i].IntegrationID] = GetAssistantIntro(orgIntResp[i], user.Profile.UserName)
 	}
 
 	err = postgresql.CreateMultipleRecords(db, &orgIntResp, len(orgIntResp))
@@ -612,6 +627,22 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+
+	agentTask := AgentJobArgs{
+		AgentIds: agentIds,
+		OrgId:    o.ID,
+		UserId:   o.OwnerID,
+		Messages: details,
+	}
+
+	err = agentTask.InsertAgentJob(context.Background())
+	if err != nil {
+		logger.Error("An error occured while enqueueing agent task for org: %v, error: %v", o.ID, err)
+		return err
+	}
+
+	logger.Info("Agent task enqueued for organization: %v", o.ID)
+
 	return nil
 }
 
@@ -909,4 +940,26 @@ func (o *Organisation) ClearOrganisationResources(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func GetAssistantIntro(assistant OrganisationIntegrations, userName string) string {
+	var intro strings.Builder
+	if userName != "" {
+		intro.WriteString(fmt.Sprintf("Hello, %s! 👋\n\n", userName))
+	}
+
+	intro.WriteString(fmt.Sprintf("# %s - %s\n\n", assistant.AppName, assistant.Title))
+
+	intro.WriteString(fmt.Sprintf("My name is **%s** and I am here as your **%s**. %s\n\n",
+		assistant.AppName,
+		assistant.Title,
+		assistant.AppDescription))
+
+	if assistant.Tone != "" {
+		intro.WriteString(fmt.Sprintf("**Personality:** %s\n\n", strings.Title(assistant.Tone)))
+	}
+
+	intro.WriteString(fmt.Sprintf("Ready to start your journey with %s? Let's get started!\n", assistant.AppName))
+
+	return intro.String()
 }

@@ -193,13 +193,13 @@ func SpewResultForDebugging(description string, v any) {
 
 func NewRotatingLogger() *slog.Logger {
 	// Ensure log folder exists
-	if err := os.MkdirAll("./logs", 0o755); err != nil {
+	if err := os.MkdirAll("./river_queue_logs", 0o755); err != nil {
 		panic(fmt.Sprintf("failed to create log folder: %v", err))
 	}
 
 	// Build file path with today's date
 	dateStr := time.Now().Format("2006-01-02")
-	logFile := filepath.Join("./logs", fmt.Sprintf("%s.log", dateStr))
+	logFile := filepath.Join("./river_queue_logs", fmt.Sprintf("%s.log", dateStr))
 
 	// Use lumberjack for rotation
 	rotator := &lumberjack.Logger{

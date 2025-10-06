@@ -148,7 +148,7 @@ func ExtractBaseURL(raw string) (string, error) {
 	host := u.Hostname()
 	domain, err := publicsuffix.EffectiveTLDPlusOne(host)
 	if err != nil {
-		return host, nil 
+		return host, nil
 	}
 	return domain, nil
 }
