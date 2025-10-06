@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"reflect"
@@ -17,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/firebase"
 	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
+	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -49,6 +51,23 @@ func main() {
 	firebase.ConnectFirebase(logger, configuration.Firebase)
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 	webpush.NewPushClient(logger, configuration.WebPush)
+
+	// start river
+	ctx := context.Background()
+	riverClient, err := riverqueueBg.SetupRiver(ctx, configuration.Database, logger)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer func() {
+		riverClient.Stop(ctx)
+	}()
+
+	err = riverClient.Start(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	validatorRef := validator.New()
 	validatorRef.RegisterTagNameFunc(func(fld reflect.StructField) string {

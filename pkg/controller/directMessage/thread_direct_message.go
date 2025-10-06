@@ -110,7 +110,7 @@ func (base *Controller) BotDMResponse(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := dm.BotResponse(req, base.Db, base.Logger, base.ExtReq, base.Db.Redis)
+	respData, code, err := dm.BotResponse(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to post message", err, nil)

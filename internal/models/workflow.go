@@ -75,7 +75,7 @@ type AgentWorkflow struct {
 	ID         string `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	AgentId    string `json:"agent_id" gorm:"type:uuid;not null"`
 	WorkflowId string `json:"workflow_id" gorm:"type:uuid;not null"`
-	UserID     string `json:"user_id" gorm:"type:uuid;not null"`
+	UserID     string `json:"user_id" gorm:"type:uuid"`
 	// Private          bool      `gorm:"type:boolean;default:true" json:"private"`
 	RawEntry         JSONBMap  `gorm:"type:jsonb" json:"raw_entry"`
 	Name             string    `gorm:"type:text" json:"name"`

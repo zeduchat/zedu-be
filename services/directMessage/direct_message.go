@@ -42,7 +42,7 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.E
 	var err error
 
 	if req.ChatType == "bot" {
-		resp, err = dmchans.CreateAgentDMChannel(extReq, db, rds)
+		resp, err = dmchans.CreateAgentDMChannel(db)
 	} else {
 		resp, err = dmchans.CreateDmChannel(db)
 	}
@@ -91,7 +91,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 			return resp, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
 		}
 
-		agentDetails, err := models.FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
+		agentDetails, err := models.FetchDetailsFromAgentJSON(orgAgent)
 		if err != nil {
 			return resp, http.StatusInternalServerError, fmt.Errorf("failed to fetch agent details: %w", err)
 		}
