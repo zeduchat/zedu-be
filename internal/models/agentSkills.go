@@ -91,7 +91,7 @@ type CreateAgentSkillRequest struct {
 	Type             string      `json:"type" validate:"required,oneof=MCP A2A"`
 	NodeType 	     string      `json:"node_type"` // e.g MCP, A2A etc
 	Config           JSONBMapArr `json:"config"`
-	AgentId          string      `json:"agent_id" validate:"required"`
+	AgentId          string      `json:"agent_id"`
 	IsActive         bool        `json:"is_acive"`
 	URLLink          string      `json:"url_link" validate:"required"`
 	Avatar           string      `json:"avatar"`
