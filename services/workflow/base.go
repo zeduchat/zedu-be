@@ -181,6 +181,7 @@ func CreateAgentWorkflowService(req models.AgentWorkFlowRequest, db *gorm.DB) (*
 	wf.AgentId = req.AgentId
 	wf.RawEntry = req.RawEntry
 	wf.OrgId = req.OrgId
+	wf.UserID = req.UserID
 	wf.Name = req.Name
 
 	wf.Description = req.Description

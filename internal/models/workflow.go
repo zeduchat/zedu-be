@@ -95,6 +95,7 @@ type AgentWorkFlowRequest struct {
 	AgentId          string   `json:"-"`
 	Name             string   `json:"name" validate:"required"`
 	OrgId            string   `json:"-"`
+	UserID            string   `json:"-"`
 	WorkflowId       string   `json:"-"`
 	ShortDescription string   `json:"short_description" validate:"required,min=10,max=50"`
 	LongDescription  string   `json:"long_description" validate:"required,min=101"`
