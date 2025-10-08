@@ -9,10 +9,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -395,7 +393,7 @@ func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mo
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest, rds *redis.Client) (*models.ThreadDocument, int, error) {
+func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
 	var (
 		channel  models.DmChannels
 		orgAgent models.OrganisationIntegrations
@@ -446,7 +444,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 
 	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", channel.ParticipantId)
 	if !exists {
-		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist, with integration_id = ?, %v", *channel.ParticipantId)
+		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist in org, with integration_id = ?, %v", *channel.ParticipantId)
 	}
 
 	threadDoc := models.ThreadDocument{

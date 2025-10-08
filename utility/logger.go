@@ -3,13 +3,16 @@ package utility
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	log "github.com/jeanphorn/log4go"
+	"github.com/natefinch/lumberjack"
 )
 
 var (
@@ -186,4 +189,31 @@ func SpewResultForDebugging(description string, v any) {
 	fmt.Println(description)
 	spew.Dump(v)
 	fmt.Println("**** End Result ******")
+}
+
+func NewRotatingLogger() *slog.Logger {
+	// Ensure log folder exists
+	if err := os.MkdirAll("./river_queue_logs", 0o755); err != nil {
+		panic(fmt.Sprintf("failed to create log folder: %v", err))
+	}
+
+	// Build file path with today's date
+	dateStr := time.Now().Format("2006-01-02")
+	logFile := filepath.Join("./river_queue_logs", fmt.Sprintf("%s.log", dateStr))
+
+	// Use lumberjack for rotation
+	rotator := &lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    100, // megabytes before rolling
+		MaxBackups: 30,  // keep last 30 files
+		MaxAge:     30,  // keep logs for 30 days
+		Compress:   true,
+	}
+
+	// Setup slog with JSON logs (structured)
+	handler := slog.NewJSONHandler(rotator, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+
+	return slog.New(handler)
 }

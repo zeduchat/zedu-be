@@ -176,13 +176,14 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-	err = org.AddSystemAgentstoOrg(db)
-	orgResp, _ := org.GetOrgByID(db, orgId)
-	orgResp.OrganisationSlug = slug.Make(orgResp.Name)
-
+	err = org.AddSystemAgentstoOrg(db, logger)
 	if err != nil {
+		logger.Error("Adding default agents to organisation failed, error: %v", err)
 		return nil, err
 	}
+
+	orgResp, _ := org.GetOrgByID(db, orgId)
+	orgResp.OrganisationSlug = slug.Make(orgResp.Name)
 
 	return &orgResp, nil
 }
