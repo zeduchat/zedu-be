@@ -2,6 +2,10 @@ package telexai
 
 import (
 	"net/http"
+	"io"
+	"bytes"
+	"strings"
+	"github.com/hngprojects/telex_be/internal/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -18,6 +22,71 @@ type Controller struct {
 	Validator *validator.Validate
 	Logger    *utility.Logger
 	ExtReq    request.ExternalRequest
+}
+
+func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
+	config := config.GetConfig()
+	
+	path := "/chat/completions"
+
+	openRouterURL := config.OpenRouter.BaseUrl + path
+
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		base.Logger.Error("Failed to read request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to read request body", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	
+	req, err := http.NewRequest(c.Request.Method, openRouterURL, bytes.NewBuffer(body))
+	if err != nil {
+		base.Logger.Error("Failed to create request to OpenRouter", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create request", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	for key, values := range c.Request.Header {
+		lower := strings.ToLower(key)
+		if lower == "authorization" {
+			req.Header.Set("Authorization", "Bearer "+config.OpenRouter.ApiKey)
+		} else if lower == "accept-encoding" {
+			continue
+		} else {
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
+	}
+
+	req.URL.RawQuery = c.Request.URL.RawQuery
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		base.Logger.Error("Failed to make request to OpenRouter", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to make request to OpenRouter", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		base.Logger.Error("Failed to read response body from OpenRouter", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read response", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	for key, values := range resp.Header {
+		for _, value := range values {
+			c.Header(key, value)
+		}
+	}
+
+	c.Data(resp.StatusCode, resp.Header.Get("Content-Type"), respBody)
 }
 
 func (base *Controller) RespondToChat(c *gin.Context) {
