@@ -95,11 +95,12 @@ type AgentWorkFlowRequest struct {
 	AgentId          string   `json:"-"`
 	Name             string   `json:"name" validate:"required"`
 	OrgId            string   `json:"-"`
+	UserID            string   `json:"-"`
 	WorkflowId       string   `json:"-"`
-	ShortDescription string   `json:"short_description" validate:"required,min=10,max=50"`
-	LongDescription  string   `json:"long_description" validate:"required,min=101"`
-	Description      string   `json:"description" validate:"required"`
-	Category         string   `json:"category" validate:"required"`
+	ShortDescription string   `json:"short_description"`
+	LongDescription  string   `json:"long_description"`
+	Description      string   `json:"description"`
+	Category         string   `json:"category"`
 	IsPublic         bool     `json:"-"`
 }
 

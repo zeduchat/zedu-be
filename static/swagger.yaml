@@ -18803,7 +18803,7 @@ paths:
                   status_code: { type: integer }
                   message: { type: string }
 
-  /agents/workflows/{workflow_id}/nodes/{node_id}:
+  /workflows/{workflow_id}/nodes/{node_id}:
     put:
       tags:
         - Agent Workflows
@@ -18895,6 +18895,18 @@ paths:
                   type: string
                   format: url
                   example: "https://example.com/mcp"
+                node_type:
+                  type: string
+                  example: "@n8n/n8n-nodes-pirate-weather.pirateWeather"
+                agent_id:
+                  type: string
+                  example: "@n8n/n8n-nodes-pirate-weather.pirateWeather"
+                long_description:
+                  type: string
+                  example: "long_descriptionlong_descriptionlong_descriptionlong_descriptionlong_descriptionlong_description"
+                short_description:
+                  type: string
+                  example: "short_descriptionshort_description"
                 avatar:
                   type: string
                   example: "https://example.com/images/sales-bot.png"

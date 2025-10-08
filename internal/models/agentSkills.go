@@ -41,6 +41,7 @@ type AgentSkill struct {
 	Name             string         `gorm:"column:name;type:text" json:"name"`
 	AgentId          string         `gorm:"column:agent_id;type:uuid" json:"agent_id"`
 	SkillId          string         `gorm:"column:skill_id;type:uuid" json:"skill_id"`
+	NodeType 	     string         `gorm:"column:node_type;type:text" json:"node_type"`
 	Description      string         `gorm:"type:text" json:"description"`
 	Type             string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
 	IsActive         bool           `gorm:"type:boolean" json:"is_active"`
@@ -66,6 +67,7 @@ type GeneralAgentSkill struct {
 	Name             string         `gorm:"column:name;type:text" json:"name"`
 	Description      string         `gorm:"type:text" json:"description"`
 	Type             string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
+	NodeType 	     string         `gorm:"column:node_type;type:text" json:"node_type"`
 	IsActive         bool           `gorm:"type:boolean" json:"is_active"`
 	IsConfigured     bool           `gorm:"type:boolean" json:"is_configured"`
 	Avatar           string         `gorm:"type:text" json:"avatar"`
@@ -87,8 +89,9 @@ type CreateAgentSkillRequest struct {
 	Name             string      `json:"name" validate:"required"`
 	Description      string      `json:"description" validate:"required"`
 	Type             string      `json:"type" validate:"required,oneof=MCP A2A"`
+	NodeType 	     string      `json:"node_type"` // e.g MCP, A2A etc
 	Config           JSONBMapArr `json:"config"`
-	AgentId          string      `json:"agent_id" validate:"required"`
+	AgentId          string      `json:"agent_id"`
 	IsActive         bool        `json:"is_acive"`
 	URLLink          string      `json:"url_link" validate:"required"`
 	Avatar           string      `json:"avatar"`
@@ -139,6 +142,7 @@ type AgentSkillResponse struct {
 	Name             string      `json:"name"`
 	Description      string      `json:"description"`
 	Type             string      `json:"type"`
+	NodeType 	     string      `json:"node_type"`
 	IsActive         bool        `json:"is_active"`
 	IsConfigured     bool        `json:"is_configured"`
 	Avatar           string      `json:"avatar"`

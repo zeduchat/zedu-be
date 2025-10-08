@@ -27,6 +27,7 @@ func (base *Controller) CreateAgentWorkflow(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.OrgId = userClaims["org_id"].(string)
+	req.UserID = userClaims["user_id"].(string)
 
 	if _, err := uuid.Parse(req.OrgId); err != nil || req.OrgId == "" {
 		base.Logger.Info("invalid organization id format")
