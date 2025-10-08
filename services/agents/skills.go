@@ -26,6 +26,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Name:             req.Name,
 		Description:      req.Description,
 		Type:             req.Type,
+		NodeType: 	      req.NodeType,
 		IsActive:         true,
 		IsConfigured:     false, // default
 		Avatar:           req.Avatar,
@@ -46,6 +47,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Name:             genAgentSkill.Name,
 		Description:      genAgentSkill.Description,
 		Type:             genAgentSkill.Type,
+		NodeType: 	      genAgentSkill.NodeType,
 		IsActive:         genAgentSkill.IsActive,
 		IsConfigured:     genAgentSkill.IsConfigured,
 		Avatar:           genAgentSkill.Avatar,
