@@ -18803,7 +18803,7 @@ paths:
                   status_code: { type: integer }
                   message: { type: string }
 
-  /agents/workflows/{workflow_id}/nodes/{node_id}:
+  /workflows/{workflow_id}/nodes/{node_id}:
     put:
       tags:
         - Agent Workflows
