@@ -655,6 +655,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 
 	query := db.Table("organisation_integrations oi").
 		Select(`
+		DISTINCT ON (oi.integration_id)
 		oi.integration_id as id,
 		oi.is_active,
 		oi.app_name as name,
@@ -673,7 +674,8 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		ON dc.participant_id = oi.integration_id
 		AND dc.user_id = ?
 	`, ids.UserID).
-		Where(subQuery, args...)
+		Where(subQuery, args...).
+		Order("oi.integration_id")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
