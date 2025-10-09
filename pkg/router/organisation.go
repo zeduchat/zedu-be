@@ -54,7 +54,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		organisationUrl.GET("/:org_id/metrics", organisationCtrl.GetOrganisationCountMetrics)
 		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
-
 		organisationUrl.GET("/:org_id/notification-preference", organisationCtrl.GetChannelNotificationPref)
 		organisationUrl.POST("/:org_id/notification-preference", organisationCtrl.UpdateDeviceNotification)
 
