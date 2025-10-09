@@ -69,7 +69,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.POST("/pin", organisationCtrl.CreateUserPinnedOrganisation)
 		organisationUrl.GET("/pin", organisationCtrl.GetUserPinnedOrganisations)
 		organisationUrl.DELETE("/pin/:org_id", organisationCtrl.UnpinOrganisation)
-
 	}
 
 	// Test routes

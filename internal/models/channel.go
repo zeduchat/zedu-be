@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -89,6 +90,7 @@ type GetUserChannelResp []struct {
 	MembersCount  int      `json:"members_count,omitempty"`
 	LastPostTime  string   `json:"last_post_time,omitempty"`
 	UnreadCount   int64    `json:"unread_count,omitempty"`
+	ChannelSlug   string   `json:"channel_slug"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -818,6 +820,9 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		chanResp[i].MemberAvatars = avatars
 		chanResp[i].MembersCount = membersLeft
+		parts := strings.Split(chanResp[i].ID, "-")
+		lastPart := parts[len(parts)-1]
+		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
 	}
 
 	return chanResp, nil
