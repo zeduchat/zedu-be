@@ -94,6 +94,10 @@ func PushFCMToUsers(req models.PushRequest, logger *utility.Logger, db *gorm.DB)
 // SendPush sends a push notification to a user
 func SendWebPush(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
 
+	if req.Payload == "" {
+		return nil
+	}
+
 	sub, exists, _ := fcmtokens.GetWebPushTokenByUserId(req.UserId, db)
 
 	if !exists {

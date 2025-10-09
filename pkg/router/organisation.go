@@ -54,7 +54,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		organisationUrl.GET("/:org_id/metrics", organisationCtrl.GetOrganisationCountMetrics)
 		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)
-
 		organisationUrl.GET("/:org_id/notification-preference", organisationCtrl.GetChannelNotificationPref)
 		organisationUrl.POST("/:org_id/notification-preference", organisationCtrl.UpdateDeviceNotification)
 
@@ -69,7 +68,6 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.POST("/pin", organisationCtrl.CreateUserPinnedOrganisation)
 		organisationUrl.GET("/pin", organisationCtrl.GetUserPinnedOrganisations)
 		organisationUrl.DELETE("/pin/:org_id", organisationCtrl.UnpinOrganisation)
-
 	}
 
 	// Test routes

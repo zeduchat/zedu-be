@@ -220,6 +220,12 @@ func GetAllChannelssInTeam(db *storage.Database, c *gin.Context, ids models.IDS)
 		return channels, pag, code, err
 	}
 
+	for i := range channels {
+		parts := strings.Split(channels[i].ID, "-")
+		lastPart := parts[len(parts)-1]
+		channels[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(channels[i].Name), lastPart)
+	}
+
 	return channels, pag, code, nil
 }
 

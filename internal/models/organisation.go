@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -300,6 +301,11 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 
 		chanResp[i].MemberAvatars = avatars
 		chanResp[i].MembersCount = membersLeft
+
+		parts := strings.Split(chanResp[i].ID, "-")
+		lastPart := parts[len(parts)-1]
+		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
+
 	}
 	query = db.Postgresql.Table("channels").
 		Select(`channels.id, channels.name, channels.description, channels.organisation_id,

@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"time"
 
 	"github.com/riverqueue/river"
 
@@ -21,8 +22,8 @@ func (w *AgentJobArgs) InsertAgentJob(ctx context.Context) error {
 	client := storage.DB.River
 	_, err := client.Insert(ctx, w, &river.InsertOpts{
 		MaxAttempts: 5,
-		// ScheduledAt: time.Now().Add(time.Minute),
-		Priority: 1,
+		ScheduledAt: time.Now().Add(time.Minute),
+		Priority:    1,
 	})
 
 	return err
