@@ -20037,6 +20037,44 @@ paths:
                     avatar: "📊"
                     agent_config: {}
 
+
+  /credentials:
+    post:
+      summary: Create credentials for a skill
+      tags:
+        - Credentials
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                org_id:
+                  type: string
+                agent_id:
+                  type: string
+                skill_id:
+                  type: string
+                credentials:
+                  type: object
+                  description: JSON payload representing workflow details
+                
+      responses:
+        "201":
+          description: Credentials created successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 201
+                message: Credentials created successfully
+
+
 components:
   schemas:
     OptInSchema:

@@ -29,6 +29,7 @@ type AgentSkill struct {
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Link             string         `gorm:"type:text" json:"-"`
 	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
@@ -53,6 +54,7 @@ type GeneralAgentSkill struct {
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Stars            int64          `gorm:"default:1" json:"stars"`
 	Category         string         `gorm:"type:text;default:default" json:"category"`

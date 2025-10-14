@@ -71,6 +71,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	PinMessages(r, ApiVersion, validator, db, logger)
 	Reactions(r, ApiVersion, validator, db, logger)
 	WorkflowRoutes(r, ApiVersion, validator, db, logger)
+	CredentialRoutes(r, ApiVersion, validator, db, logger)
 	ForwardMessage(r, ApiVersion, validator, db, logger)
 	AgentSkillTask(r, ApiVersion, validator, db, logger)
 	Translator(r, ApiVersion, validator, db, logger)

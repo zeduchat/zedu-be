@@ -8,6 +8,7 @@ type ServerConfiguration struct {
 	RequestPerSecond          float64
 	TrustedProxies            []string
 	ExemptFromThrottle        []string
+	EncryptionKey             string
 }
 
 type App struct {

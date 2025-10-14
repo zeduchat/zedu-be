@@ -37,6 +37,7 @@ type BaseConfig struct {
 	REQUEST_PER_SECOND               float64 `mapstructure:"REQUEST_PER_SECOND"`
 	TRUSTED_PROXIES                  string  `mapstructure:"TRUSTED_PROXIES"`
 	EXEMPT_FROM_THROTTLE             string  `mapstructure:"EXEMPT_FROM_THROTTLE"`
+	ENCRYPTION_KEY                   string  `mapstructure:"ENCRYPTION_KEY"`
 
 	APP_NAME                string `mapstructure:"APP_NAME"`
 	APP_MODE                string `mapstructure:"APP_MODE"`
@@ -153,6 +154,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			RequestPerSecond:          config.REQUEST_PER_SECOND,
 			TrustedProxies:            trustedProxies,
 			ExemptFromThrottle:        exemptFromThrottle,
+			EncryptionKey:             config.ENCRYPTION_KEY,
 		},
 		App: App{
 			Name:                  config.APP_NAME,
