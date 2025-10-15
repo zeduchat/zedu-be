@@ -91,12 +91,35 @@ func (base *Controller) GetSkillCredentials(c *gin.Context) {
 
 	resp, code, err := credentials.GetSkillCredentialsService(req, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("error fetching workflow", err)
+		base.Logger.Error("error fetching credentials", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(code, "Agent Workflow fetched successfully", resp)
+	rd := utility.BuildSuccessResponse(code, "Skill Credentials fetched successfully", resp)
+	c.JSON(code, rd)
+}
+
+
+func (base *Controller) GetCredentialByID(c *gin.Context) {
+	var credentialId = c.Param("credential_id")
+
+	if _, err := uuid.Parse(credentialId); err != nil {
+		base.Logger.Info("invalid skill id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid skill id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, code, err := credentials.GetCredentialByIDService(credentialId, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("error fetching credential", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "Credential fetched successfully", resp)
 	c.JSON(code, rd)
 }

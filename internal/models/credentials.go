@@ -80,12 +80,14 @@ func EncryptJSON(data interface{}, key []byte) ([]byte, error) {
 }
 
 
-func DecryptJSON(ciphertext []byte, key []byte, result interface{}) error {
-	if len(key) != 32 {
+func DecryptJSON(ciphertext []byte, result interface{}) error {
+	var config = config.GetConfig()
+	var encryptionKey = []byte(config.Server.EncryptionKey)
+	if len(encryptionKey) != 32 {
 		return errors.New("key must be 32 bytes for AES-256")
 	}
 
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
 		return fmt.Errorf("failed to create cipher: %w", err)
 	}
@@ -193,11 +195,40 @@ func (cred *Credential) GetSkillCredentials(db *gorm.DB) (*SkillCredentialsRespo
         return &res, http.StatusInternalServerError, err
     }
 
-	var config = config.GetConfig()
-	var encryptionKey = []byte(config.Server.EncryptionKey)
+    var decryptedCreds JSONBMap 
+    if err := DecryptJSON(dbCredential.Credentials, &decryptedCreds); err != nil {
+        return &res, http.StatusInternalServerError, fmt.Errorf("failed to decrypt credentials: %w", err)
+    }
+
+    res.ID = dbCredential.ID
+    res.Name = dbCredential.Name
+    res.OrgId = dbCredential.OrgId
+    res.AgentId = dbCredential.AgentId
+    res.UserId = dbCredential.UserId
+    res.SkillId = dbCredential.SkillId
+    res.Credentials = decryptedCreds 
+
+    return &res, http.StatusOK, nil
+}
+
+
+func (cred *Credential) GetCredentialByID(db *gorm.DB) (*SkillCredentialsResponse, int, error) {
+	res := SkillCredentialsResponse{}
+
+    var dbCredential Credential
+    err := db.Model(&Credential{}).
+        Where("id = ?", cred.ID).
+        First(&dbCredential).Error
+    
+    if err != nil {
+        if err == gorm.ErrRecordNotFound {
+            return &res, http.StatusNotFound, fmt.Errorf("credential not found")
+        }
+        return &res, http.StatusInternalServerError, err
+    }
 
     var decryptedCreds JSONBMap 
-    if err := DecryptJSON(dbCredential.Credentials, encryptionKey, &decryptedCreds); err != nil {
+    if err := DecryptJSON(dbCredential.Credentials, &decryptedCreds); err != nil {
         return &res, http.StatusInternalServerError, fmt.Errorf("failed to decrypt credentials: %w", err)
     }
 

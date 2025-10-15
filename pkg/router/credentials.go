@@ -20,7 +20,8 @@ func CredentialRoutes(r *gin.Engine, ApiVersion string, validator *validator.Val
 	credGroup := r.Group(fmt.Sprintf("%v/credentials", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		credGroup.POST("", credCtrl.CreateCredential)
-		credGroup.GET("/:skill_id", credCtrl.GetSkillCredentials)
+		credGroup.GET("/skill/:skill_id", credCtrl.GetSkillCredentials)
+		credGroup.GET("/:credential_id", credCtrl.GetCredentialByID)
 	}
 
 	return r
