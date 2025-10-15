@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -61,5 +62,41 @@ func (base *Controller) CreateCredential(c *gin.Context) {
 
 	base.Logger.Info("Credential created successfully")
 	rd := utility.BuildSuccessResponse(code, "Credential created successfully", nil)
+	c.JSON(code, rd)
+}
+
+
+func (base *Controller) GetSkillCredentials(c *gin.Context) {
+	var req models.CredentialRequest
+	req.SkillId = c.Param("skill_id")
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.SkillId); err != nil {
+		base.Logger.Info("invalid skill id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid skill id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	req.OrgId = userClaims["org_id"].(string)
+	req.UserId = userClaims["user_id"].(string)
+
+	resp, code, err := credentials.GetSkillCredentialsService(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("error fetching workflow", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "Agent Workflow fetched successfully", resp)
 	c.JSON(code, rd)
 }
