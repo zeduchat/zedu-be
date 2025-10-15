@@ -446,3 +446,32 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 
 	return nil
 }
+
+
+func ValidateSkillIDs(db *gorm.DB, orgID string, skillIDs []string) error {
+	var validIDs []string
+
+	if err := db.Model(&GeneralAgentSkill{}).
+		Where("id IN ?", skillIDs).
+		Pluck("id", &validIDs).Error; err != nil {
+		return fmt.Errorf("error validating skills: %w", err)
+	}
+
+	validMap := make(map[string]bool)
+	for _, id := range validIDs {
+		validMap[id] = true
+	}
+
+	var invalid []string
+	for _, id := range skillIDs {
+		if !validMap[id] {
+			invalid = append(invalid, id)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("invalid skill IDs: %v, skill does not exist in Org", invalid)
+	}
+
+	return nil
+}

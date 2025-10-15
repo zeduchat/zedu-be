@@ -110,15 +110,34 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 		return http.StatusBadRequest, err
 	}
 
-	var existing Credential
-	err := db.Where("org_id = ? AND agent_id = ? AND skill_id = ? AND name = ?", cred.OrgId, cred.AgentId, cred.SkillId, cred.Name).First(&existing).Error
-	if err == nil {
-		return http.StatusConflict, fmt.Errorf("credential with the same name already exists for this agent and skill")
-	} 
+	if err := ValidateSkillIDs(db, cred.OrgId, []string{cred.SkillId}); err != nil {
+		return http.StatusBadRequest, err
+	}
 
 	var config = config.GetConfig()
-
 	var encryptionKey = []byte(config.Server.EncryptionKey)
+
+
+	var existing Credential
+	err := db.Where("org_id = ? AND agent_id = ? AND skill_id = ? AND name = ?", cred.OrgId, cred.AgentId, cred.SkillId, cred.Name).First(&existing).Error
+	
+	if err == nil {
+		fmt.Println("I'm updating instead")
+		encrypted, err := EncryptJSON(cred.Credentials, encryptionKey)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to encrypt credential: %w", err)
+		}
+
+		existing.Credentials = encrypted
+		existing.UpdatedAt = time.Now()
+
+		if err := db.Save(&existing).Error; err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to update credential: %w", err)
+		}
+
+		return http.StatusOK, nil 
+	} 
+
 
 	encrypted, err := EncryptJSON(cred.Credentials, encryptionKey)
 	if err != nil {
