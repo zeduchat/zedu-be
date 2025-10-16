@@ -20114,6 +20114,106 @@ paths:
                     avatar: "📊"
                     agent_config: {}
 
+
+  /credentials:
+    post:
+      summary: Create credentials for a skill
+      tags:
+        - Credentials
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                org_id:
+                  type: string
+                agent_id:
+                  type: string
+                skill_id:
+                  type: string
+                credentials:
+                  type: object
+                  description: JSON payload representing workflow details
+                
+      responses:
+        "201":
+          description: Credentials created successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 201
+                message: Credentials created successfully
+
+  /credentials/skill/{skill_id}:
+    get:
+      summary: Get user credentials for a skill
+      tags:
+        - Credentials
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: skill_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credentials fetched successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Credentials fetched successfully
+                data:
+                  - id: "0198e565-018e-7692-8e23-8a267accdb87"
+                    agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    skill_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    org_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    name: "Pirate weather API key"
+                    credentials: {}
+
+  /credentials/{credential_id}:
+    get:
+      summary: Get credential by id
+      tags:
+        - Credentials
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credentials fetched successfully
+          content:
+            application/json:
+              example:
+                status: success
+                status_code: 200
+                message: Credentials fetched successfully
+                data:
+                  - id: "0198e565-018e-7692-8e23-8a267accdb87"
+                    agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    skill_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    org_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+                    name: "Pirate weather API key"
+                    credentials: {}
+
+
 components:
   schemas:
     OptInSchema:

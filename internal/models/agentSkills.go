@@ -50,6 +50,7 @@ type AgentSkill struct {
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Link             string         `gorm:"type:text" json:"-"`
 	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
@@ -76,6 +77,7 @@ type GeneralAgentSkill struct {
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Stars            int64          `gorm:"default:1" json:"stars"`
 	Category         string         `gorm:"type:text;default:default" json:"category"`
@@ -481,6 +483,35 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+
+func ValidateSkillIDs(db *gorm.DB, orgID string, skillIDs []string) error {
+	var validIDs []string
+
+	if err := db.Model(&GeneralAgentSkill{}).
+		Where("id IN ?", skillIDs).
+		Pluck("id", &validIDs).Error; err != nil {
+		return fmt.Errorf("error validating skills: %w", err)
+	}
+
+	validMap := make(map[string]bool)
+	for _, id := range validIDs {
+		validMap[id] = true
+	}
+
+	var invalid []string
+	for _, id := range skillIDs {
+		if !validMap[id] {
+			invalid = append(invalid, id)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("invalid skill IDs: %v, skill does not exist in Org", invalid)
 	}
 
 	return nil
