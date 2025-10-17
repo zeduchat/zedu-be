@@ -136,7 +136,6 @@ func handleSkillMatching(db *gorm.DB, logger *utility.Logger, extReq request.Ext
 		return "", fmt.Errorf("failed to get skill matching from LLM: %v", err)
 	}
 
-
 	var skillMatchingResult []map[string]any
 	if err := json.Unmarshal([]byte(aiOutput), &skillMatchingResult); err != nil {
 		logger.Error(fmt.Sprintf("handleSkillMatching: failed to unmarshal skill matching result: %v", err))
@@ -432,13 +431,13 @@ func createWorkflowNodes(db *gorm.DB, logger *utility.Logger, wkfJson models.Wor
 	var skillsModel models.AgentSkill
 	skillsModel.AgentId = node_ids.AgentID
 	skillsModel.OrgId = node_ids.OrganisationID
-	
+
 	skills, err := skillsModel.GetAllAgentSkills(db)
 	if err != nil {
 		logger.Error("Failed to fetch agent skills for workflow node creation", err)
 		return err
 	}
-	
+
 	skillsByID := make(map[string]models.AgentSkill)
 	for _, skill := range skills {
 		skillsByID[skill.SkillId] = skill
@@ -452,7 +451,7 @@ func createWorkflowNodes(db *gorm.DB, logger *utility.Logger, wkfJson models.Wor
 			logger.Info(fmt.Sprintf("Skipping TODO node: %s", node.Name))
 			continue
 		}
-		
+
 		var matchingSkill models.AgentSkill
 		var found bool
 		if node.SkillID != "" {
@@ -463,11 +462,25 @@ func createWorkflowNodes(db *gorm.DB, logger *utility.Logger, wkfJson models.Wor
 				logger.Error(fmt.Sprintf("Skill ID %s not found for node %s", node.SkillID, node.Name))
 			}
 		}
-		
+
 		positionJSON, _ := json.Marshal(node.Position)
 		nodeSettings := make(models.JSONBMapArr, 0)
-		if found && matchingSkill.Config != nil {
-			nodeSettings = append(nodeSettings, matchingSkill.Config...)
+
+		if found {
+			// Config can be an array or an object (JSONBAny). Handle both shapes.
+			if matchingSkill.Config.IsArray() {
+				if arr, err := matchingSkill.Config.ToArray(); err != nil {
+					logger.Error(fmt.Sprintf("createWorkflowNodes: failed to parse config array for skill %s: %v", matchingSkill.SkillId, err))
+				} else {
+					nodeSettings = append(nodeSettings, arr...)
+				}
+			} else if matchingSkill.Config.IsObject() {
+				if m, err := matchingSkill.Config.ToMap(); err != nil {
+					logger.Error(fmt.Sprintf("createWorkflowNodes: failed to parse config object for skill %s: %v", matchingSkill.SkillId, err))
+				} else {
+					nodeSettings = append(nodeSettings, m)
+				}
+			}
 		}
 		if node.Params != nil {
 			nodeParamsJSON, _ := json.Marshal(node.Params)
@@ -475,7 +488,7 @@ func createWorkflowNodes(db *gorm.DB, logger *utility.Logger, wkfJson models.Wor
 			json.Unmarshal(nodeParamsJSON, &nodeParamsMap)
 			nodeSettings = append(nodeSettings, nodeParamsMap)
 		}
-		
+
 		workflowNode := models.WorkflowNode{
 			ID:         utility.GenerateUUID(),
 			WorkflowID: node_ids.WorkflowID,
@@ -488,12 +501,12 @@ func createWorkflowNodes(db *gorm.DB, logger *utility.Logger, wkfJson models.Wor
 			Position:   string(positionJSON),
 			Settings:   nodeSettings,
 		}
-		
+
 		if err := db.Create(&workflowNode).Error; err != nil {
 			logger.Error(fmt.Sprintf("Failed to create workflow node %s", node.ID), err)
 			continue
 		}
-		
+
 		logger.Info(fmt.Sprintf("Created workflow node: %s (SkillID: %s)", node.Name, node.SkillID))
 	}
 	return nil
@@ -504,16 +517,16 @@ func ConvertToJSONObject(workflowStr string) (models.WorkflowJSON, error) {
 	cleaned = strings.TrimPrefix(cleaned, "```json")
 	cleaned = strings.TrimSuffix(cleaned, "```")
 	cleaned = strings.TrimSpace(cleaned)
-	
+
 	var workflow models.WorkflowJSON
 	if err := json.Unmarshal([]byte(cleaned), &workflow); err != nil {
 		return models.WorkflowJSON{}, fmt.Errorf("failed to parse workflow JSON: %w", err)
 	}
-	
+
 	workflow.ID = utility.GenerateUUID()
 	for i := range workflow.Nodes {
 		workflow.Nodes[i].ID = utility.GenerateUUID()
 	}
-	
+
 	return workflow, nil
 }
