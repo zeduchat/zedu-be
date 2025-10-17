@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -41,7 +42,7 @@ type AgentSkill struct {
 	Name             string         `gorm:"column:name;type:text" json:"name"`
 	AgentId          string         `gorm:"column:agent_id;type:uuid" json:"agent_id"`
 	SkillId          string         `gorm:"column:skill_id;type:uuid" json:"skill_id"`
-	NodeType 	     string         `gorm:"column:node_type;type:text" json:"node_type"`
+	NodeType         string         `gorm:"column:node_type;type:text" json:"node_type"`
 	Description      string         `gorm:"type:text" json:"description"`
 	Type             string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
 	IsActive         bool           `gorm:"type:boolean" json:"is_active"`
@@ -49,8 +50,8 @@ type AgentSkill struct {
 	Avatar           string         `gorm:"type:text" json:"avatar"`
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
-	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
+	Config           JSONBAny       `gorm:"type:jsonb" json:"config"`
+	Credentials      JSONBMap       `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Link             string         `gorm:"type:text" json:"-"`
 	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
@@ -62,13 +63,12 @@ type AgentSkill struct {
 	IsPublic         bool           `gorm:"type:boolean;default:false" json:"-"`
 }
 
-
 type GeneralAgentSkill struct {
 	ID               string         `gorm:"column:id;type:uuid" json:"id"`
 	Name             string         `gorm:"column:name;type:text" json:"name"`
 	Description      string         `gorm:"type:text" json:"description"`
 	Type             string         `gorm:"type:text" json:"type"` // e.g MCP, A2A etc
-	NodeType 	     string         `gorm:"column:node_type;type:text" json:"node_type"`
+	NodeType         string         `gorm:"column:node_type;type:text" json:"node_type"`
 	IsActive         bool           `gorm:"type:boolean" json:"is_active"`
 	IsConfigured     bool           `gorm:"type:boolean" json:"is_configured"`
 	Avatar           string         `gorm:"type:text" json:"avatar"`
@@ -76,8 +76,8 @@ type GeneralAgentSkill struct {
 	Link             string         `gorm:"type:text" json:"-"`
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	Config           JSONBMap       `gorm:"type:jsonb" json:"config"`
-	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
+	Config           JSONBAny       `gorm:"type:jsonb" json:"config"`
+	Credentials      JSONBMap       `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Stars            int64          `gorm:"default:1" json:"stars"`
 	Category         string         `gorm:"type:text;default:default" json:"category"`
@@ -85,35 +85,33 @@ type GeneralAgentSkill struct {
 	LongDescription  string         `gorm:"type:text" json:"long_description"`
 }
 
-
-
 type CreateAgentSkillRequest struct {
-	Name             string      `json:"name" validate:"required"`
-	Description      string      `json:"description" validate:"required"`
-	Type             string      `json:"type" validate:"required,oneof=MCP A2A"`
-	NodeType 	     string      `json:"node_type"` // e.g MCP, A2A etc
-	Config           JSONBMapArr `json:"config"`
-	AgentId          string      `json:"agent_id"`
-	IsActive         bool        `json:"is_acive"`
-	URLLink          string      `json:"url_link" validate:"required"`
-	Avatar           string      `json:"avatar"`
-	Tags             []string    `json:"tags" validate:"required,min=1,dive"`
-	Category         string      `json:"category" validate:"required"`
-	ShortDescription string      `json:"short_description" validate:"required,min=10,max=50"`
-	LongDescription  string      `json:"long_description" validate:"required,min=101"`
-	OrgId            string      `json:"-"`
-	UserId           string      `json:"-"`
-	SkillId          string      `json:"-"`
-	IsPublic         bool      `json:"-"`
+	Name             string   `json:"name" validate:"required"`
+	Description      string   `json:"description" validate:"required"`
+	Type             string   `json:"type" validate:"required,oneof=MCP A2A"`
+	NodeType         string   `json:"node_type"` // e.g MCP, A2A etc
+	Config           JSONBAny `json:"config"`
+	AgentId          string   `json:"agent_id"`
+	IsActive         bool     `json:"is_acive"`
+	URLLink          string   `json:"url_link" validate:"required"`
+	Avatar           string   `json:"avatar"`
+	Tags             []string `json:"tags" validate:"required,min=1,dive"`
+	Category         string   `json:"category" validate:"required"`
+	ShortDescription string   `json:"short_description" validate:"required,min=10,max=50"`
+	LongDescription  string   `json:"long_description" validate:"required,min=101"`
+	OrgId            string   `json:"-"`
+	UserId           string   `json:"-"`
+	SkillId          string   `json:"-"`
+	IsPublic         bool     `json:"-"`
 }
 
 type UpdateAgentSkillRequest struct {
-	Config   JSONBMapArr `json:"config"`
-	SkillId  string      `json:"skill_id"`
-	AgentId  string      `json:"agent_id"`
-	IsActive bool        `json:"is_active"`
-	OrgId    string      `json:"-"`
-	UserId   string      `json:"-"`
+	Config   JSONBAny `json:"config"`
+	SkillId  string   `json:"skill_id"`
+	AgentId  string   `json:"agent_id"`
+	IsActive bool     `json:"is_active"`
+	OrgId    string   `json:"-"`
+	UserId   string   `json:"-"`
 }
 
 type CreateAgentSkillsRequest struct {
@@ -123,37 +121,36 @@ type CreateAgentSkillsRequest struct {
 	UserId   string   `json:"-"`
 }
 
-
 type WorkflowNode struct {
 	ID         string      `gorm:"column:id;type:uuid;primaryKey" json:"id"`
 	WorkflowID string      `gorm:"column:workflow_id;type:uuid;not null" json:"workflow_id"`
 	NodeID     string      `gorm:"column:node_id;type:text;not null" json:"node_id"`
-	SkillID    string      `gorm:"column:skill_id;type:uuid" json:"skill_id"` 
+	SkillID    string      `gorm:"column:skill_id;type:uuid" json:"skill_id"`
 	AgentID    string      `gorm:"column:agent_id;type:uuid;not null" json:"agent_id"`
 	OrgID      string      `gorm:"column:org_id;type:uuid;not null" json:"org_id"`
 	Name       string      `gorm:"column:name;type:text;not null" json:"name"`
 	Type       string      `gorm:"column:type;type:text;not null" json:"type"`
 	Position   string      `gorm:"column:position;type:jsonb" json:"position"` // [x, y] coordinates
-	Settings   JSONBMapArr `gorm:"type:jsonb" json:"settings"` // Node-specific configuration
+	Settings   JSONBMapArr `gorm:"type:jsonb" json:"settings"`                 // Node-specific configuration
 	CreatedAt  time.Time   `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt  time.Time   `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type AgentSkillResponse struct {
-	SkillId          string      `json:"skill_id"`
-	Name             string      `json:"name"`
-	Description      string      `json:"description"`
-	Type             string      `json:"type"`
-	NodeType 	     string      `json:"node_type"`
-	IsActive         bool        `json:"is_active"`
-	IsConfigured     bool        `json:"is_configured"`
-	Avatar           string      `json:"avatar"`
-	Config           JSONBMapArr `json:"config"`
-	Tags             []string    `json:"tags"`
-	Category         string      `json:"category"`
-	SkillSlug        string      `json:"skill_slug"`
-	ShortDescription string      `json:"short_description"`
-	LongDescription  string      `json:"long_description"`
+	SkillId          string   `json:"skill_id"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
+	Type             string   `json:"type"`
+	NodeType         string   `json:"node_type"`
+	IsActive         bool     `json:"is_active"`
+	IsConfigured     bool     `json:"is_configured"`
+	Avatar           string   `json:"avatar"`
+	Config           JSONBAny `json:"config"`
+	Tags             []string `json:"tags"`
+	Category         string   `json:"category"`
+	SkillSlug        string   `json:"skill_slug"`
+	ShortDescription string   `json:"short_description"`
+	LongDescription  string   `json:"long_description"`
 }
 
 type SkillResp struct {
@@ -162,17 +159,87 @@ type SkillResp struct {
 }
 
 type JSONBMapArr []JSONBMap
-
-func (j *JSONBMapArr) Scan(value interface{}) error {
-	bytes, ok := value.([]byte)
-	if !ok {
-		return errors.New("type assertion to []byte failed")
-	}
-	return json.Unmarshal(bytes, j)
+type JSONBAny struct {
+	Raw json.RawMessage
 }
 
-func (j JSONBMapArr) Value() (driver.Value, error) {
-	return json.Marshal(j)
+func (j *JSONBAny) Scan(value interface{}) error {
+	if value == nil {
+		j.Raw = nil
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		j.Raw = append([]byte(nil), v...)
+	case string:
+		j.Raw = append([]byte(nil), v...)
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		j.Raw = b
+	}
+	return nil
+}
+
+func (j JSONBAny) Value() (driver.Value, error) {
+	if j.Raw == nil {
+		return "null", nil
+	}
+	return string(j.Raw), nil
+}
+
+func (j JSONBAny) isEmpty() bool { return len(bytes.TrimSpace(j.Raw)) == 0 }
+
+func (j JSONBAny) IsArray() bool {
+	if j.isEmpty() {
+		return false
+	}
+	b := bytes.TrimSpace(j.Raw)
+	return len(b) > 0 && b[0] == '['
+}
+
+func (j JSONBAny) IsObject() bool {
+	if j.isEmpty() {
+		return false
+	}
+	b := bytes.TrimSpace(j.Raw)
+	return len(b) > 0 && b[0] == '{'
+}
+
+func (j JSONBAny) ToArray() ([]JSONBMap, error) {
+	if j.isEmpty() {
+		return nil, nil
+	}
+	var arr []JSONBMap
+	if err := json.Unmarshal(j.Raw, &arr); err != nil {
+		return nil, err
+	}
+	return arr, nil
+}
+
+func (j JSONBAny) ToMap() (JSONBMap, error) {
+	if j.isEmpty() {
+		return JSONBMap{}, nil
+	}
+	var m JSONBMap
+	if err := json.Unmarshal(j.Raw, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (j JSONBAny) MarshalJSON() ([]byte, error) {
+	if j.Raw == nil {
+		return []byte("null"), nil
+	}
+	return j.Raw, nil
+}
+
+func (j *JSONBAny) UnmarshalJSON(b []byte) error {
+	j.Raw = append([]byte(nil), b...)
+	return nil
 }
 
 func (a *AgentSkill) CreateAgentSkill(db *gorm.DB) error {
@@ -369,9 +436,17 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 		return skill, errors.New("agent skill not found")
 	}
 
+	cfgArr, err := updateData.Config.ToArray()
+	if err != nil {
+		if updateData.Config.IsObject() {
+			return skill, errors.New("config must be an array of parameter definitions")
+		}
+		return skill, errors.New("invalid config format")
+	}
+
 	parameters := JSONBMapArr{JSONBMap{}}
 
-	for _, v := range updateData.Config {
+	for _, v := range cfgArr {
 		var valueParam interface{}
 
 		if value, ok := v["value"]; ok {
@@ -381,7 +456,8 @@ func (a *AgentSkill) UpdateAgentSkill(db *gorm.DB, updateData UpdateAgentSkillRe
 		}
 
 		con := parameters[0]
-		con[v["name"].(string)] = valueParam
+		name, _ := v["name"].(string)
+		con[name] = valueParam
 		parameters[0] = con
 	}
 
@@ -487,7 +563,6 @@ func (a *AgentSkill) AddSkilltoAgent(db *gorm.DB, req *CreateAgentSkillsRequest)
 
 	return nil
 }
-
 
 func ValidateSkillIDs(db *gorm.DB, orgID string, skillIDs []string) error {
 	var validIDs []string
