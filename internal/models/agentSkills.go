@@ -76,7 +76,7 @@ type GeneralAgentSkill struct {
 	Link             string         `gorm:"type:text" json:"-"`
 	CreatedAt        time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	Config           JSONBMapArr    `gorm:"type:jsonb" json:"config"`
+	Config           JSONBMap       `gorm:"type:jsonb" json:"config"`
 	Credentials      JSONBMap	    `gorm:"type:jsonb" json:"credentials"`
 	Parameters       JSONBMapArr    `gorm:"type:jsonb" json:"parameters"`
 	Stars            int64          `gorm:"default:1" json:"stars"`
