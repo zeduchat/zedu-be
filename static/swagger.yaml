@@ -20174,13 +20174,12 @@ paths:
                 status_code: 200
                 message: Credentials fetched successfully
                 data:
-                  - id: "0198e565-018e-7692-8e23-8a267accdb87"
-                    agent_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-                    skill_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-                    org_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-                    user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-                    name: "Pirate weather API key"
-                    credentials: {}
+                  type: array
+                  items:
+                    type: object
+                    properties: 
+                    - id: "0198e565-018e-7692-8e23-8a267accdb87"
+                      name: "Pirate weather API key"
 
   /credentials/{credential_id}:
     get:
