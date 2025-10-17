@@ -39,7 +39,7 @@ type CredentialRequest struct {
 }
 
 
-type SkillCredentialsResponse struct {
+type CredentialsResponse struct {
 	ID          string                 `json:"id"`
 	OrgId       string                 `json:"org_id" `
 	AgentId     string                 `json:"agent_id"`
@@ -47,6 +47,10 @@ type SkillCredentialsResponse struct {
 	SkillId     string                 `json:"skill_id"`
 	Name        string                 `json:"name"`
 	Credentials JSONBMap               `json:"credentials"`
+}
+type SkillCredentialsResponse struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
 }
 
 
@@ -176,44 +180,32 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 }
 
 
-func (cred *Credential) GetSkillCredentials(db *gorm.DB) (*SkillCredentialsResponse, int, error) {
-	res := SkillCredentialsResponse{}
+func (cred *Credential) GetSkillCredentials(db *gorm.DB) ([]SkillCredentialsResponse, int, error) {
 
 	if err := ValidateSkillIDs(db, cred.OrgId, []string{cred.SkillId}); err != nil {
-		return &res, http.StatusBadRequest, err
+		return nil, http.StatusBadRequest, err
 	}
 
-    var dbCredential Credential
+    var dbCredentials []SkillCredentialsResponse
     err := db.Model(&Credential{}).
+		Select("id, name").
         Where("user_id = ? AND org_id = ? AND skill_id = ?", cred.UserId, cred.OrgId, cred.SkillId).
-        First(&dbCredential).Error
+        Find(&dbCredentials).Error
     
     if err != nil {
-        if err == gorm.ErrRecordNotFound {
-            return &res, http.StatusNotFound, fmt.Errorf("credential not found")
-        }
-        return &res, http.StatusInternalServerError, err
+        return nil, http.StatusInternalServerError, err
     }
 
-    var decryptedCreds JSONBMap 
-    if err := DecryptJSON(dbCredential.Credentials, &decryptedCreds); err != nil {
-        return &res, http.StatusInternalServerError, fmt.Errorf("failed to decrypt credentials: %w", err)
+	if dbCredentials == nil {
+        return []SkillCredentialsResponse{}, http.StatusOK, nil
     }
 
-    res.ID = dbCredential.ID
-    res.Name = dbCredential.Name
-    res.OrgId = dbCredential.OrgId
-    res.AgentId = dbCredential.AgentId
-    res.UserId = dbCredential.UserId
-    res.SkillId = dbCredential.SkillId
-    res.Credentials = decryptedCreds 
-
-    return &res, http.StatusOK, nil
+    return dbCredentials, http.StatusOK, nil
 }
 
 
-func (cred *Credential) GetCredentialByID(db *gorm.DB) (*SkillCredentialsResponse, int, error) {
-	res := SkillCredentialsResponse{}
+func (cred *Credential) GetCredentialByID(db *gorm.DB) (*CredentialsResponse, int, error) {
+	res := CredentialsResponse{}
 
     var dbCredential Credential
     err := db.Model(&Credential{}).

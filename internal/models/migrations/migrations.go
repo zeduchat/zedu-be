@@ -9,6 +9,7 @@ func AuthMigrationModels() []any {
 	return []any{
 		models.OrganisationIntegrations{},
 		models.WorkflowNode{},
+		models.Credential{},
 		models.UnauthenticatedUser{},
 		models.AgentWorkflow{},
 		models.AgentSkill{},
