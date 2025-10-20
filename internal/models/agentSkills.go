@@ -121,6 +121,11 @@ type CreateAgentSkillsRequest struct {
 	UserId   string   `json:"-"`
 }
 
+type RetrieveAgentConfig struct {
+	Name    string `json:"name"`
+	SkillID string `json:"skill_id"`
+}
+
 type WorkflowNode struct {
 	ID         string      `gorm:"column:id;type:uuid;primaryKey" json:"id"`
 	WorkflowID string      `gorm:"column:workflow_id;type:uuid;not null" json:"workflow_id"`

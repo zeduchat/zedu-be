@@ -25,6 +25,8 @@ func AgentSkillTask(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		organisationUrl.POST("/agents/:agents_id", agentsCtrl.AddSkillsToAgent)
 		organisationUrl.POST("", agentsCtrl.CreateAgentSkill)
 		organisationUrl.DELETE("/:skill_id/agents/:agents_id", agentsCtrl.DeleteAgentSkill)
+
+		organisationUrl.GET("/:skill_id/credential/config/:credential_name", agentsCtrl.GetCredentialForSkill)
 	}
 
 	skillUrl := r.Group(fmt.Sprintf("%v/skills", ApiVersion))
