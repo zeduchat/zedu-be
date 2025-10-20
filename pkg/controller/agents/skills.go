@@ -91,6 +91,22 @@ func (base *Controller) GetAgentSkills(c *gin.Context) {
 	c.JSON(code, utility.BuildSuccessResponse(code, "Agent skills retrieved", skills, pagination))
 }
 
+func (base *Controller) GetCredentialForSkill(c *gin.Context) {
+	var req models.RetrieveAgentConfig
+	req.SkillID = c.Param("skill_id")
+
+	credentialConfig, err := agents.GetCredentialConfigForSkill(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed ot get credential config, err: %v", err)
+		c.JSON(http.StatusInternalServerError, utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get credential config", nil))
+		return
+	}
+
+	base.Logger.Info("Credentials config fetched successfully.")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Credentials config fetched successfully.", credentialConfig)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) GetAgentSkillByID(c *gin.Context) {
 
 	var req models.CreateAgentSkillRequest
