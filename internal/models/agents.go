@@ -113,6 +113,15 @@ type AdminUpdateAgent struct {
 	IsSystem   bool `json:"is_system"`
 }
 
+type AgentSkillCredentialConfig struct {
+	Name             string                   `json:"name"`
+	Properties       []map[string]interface{} `json:"properties"`
+	Test             map[string]interface{}   `json:"test,omitempty"`
+	DisplayName      *string                  `json:"displayName,omitempty"`
+	Authenticate     map[string]interface{}   `json:"authenticate,omitempty"`
+	DocumentationURL *string                  `json:"documentationUrl,omitempty"`
+}
+
 type ChangeAgentStatus struct {
 	Status     bool   `json:"status" validate:"required,oneof=true false"`
 	AgentID    string `json:"integration_id"`
@@ -428,6 +437,10 @@ type IntegrationBillsResponse struct {
 type IntegrationApp struct {
 	IntegrationID string
 	AppName       string
+}
+
+type CredentialConfigResponse struct {
+	Credentials JSONBMap `json:"credentials"`
 }
 
 var Categories = map[string]bool{
@@ -2731,4 +2744,17 @@ func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
 
 	return "", errors.New("Invalid agent id, agent does not exists")
 
+}
+
+func GetCredentialConfigForSkill(skillID string, db *gorm.DB) (CredentialConfigResponse, error) {
+	var skill GeneralAgentSkill
+	err := db.Select("credentials").Where("id = ?", skillID).First(&skill).Error
+
+	if err != nil {
+		return CredentialConfigResponse{}, errors.New("Skill does not exist")
+	}
+
+	return CredentialConfigResponse{
+		Credentials: skill.Credentials,
+	}, nil
 }
