@@ -75,7 +75,7 @@ type AgentWorkflow struct {
 	ID         string `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	AgentId    string `json:"agent_id" gorm:"type:uuid;not null"`
 	WorkflowId string `json:"workflow_id" gorm:"type:uuid;not null"`
-	UserID     string `json:"user_id" gorm:"type:uuid;not null"`
+	UserID     string `json:"user_id" gorm:"type:uuid"`
 	// Private          bool      `gorm:"type:boolean;default:true" json:"private"`
 	RawEntry         JSONBMap  `gorm:"type:jsonb" json:"raw_entry"`
 	Name             string    `gorm:"type:text" json:"name"`
@@ -95,11 +95,12 @@ type AgentWorkFlowRequest struct {
 	AgentId          string   `json:"-"`
 	Name             string   `json:"name" validate:"required"`
 	OrgId            string   `json:"-"`
+	UserID            string   `json:"-"`
 	WorkflowId       string   `json:"-"`
-	ShortDescription string   `json:"short_description" validate:"required,min=10,max=50"`
-	LongDescription  string   `json:"long_description" validate:"required,min=101"`
-	Description      string   `json:"description" validate:"required"`
-	Category         string   `json:"category" validate:"required"`
+	ShortDescription string   `json:"short_description"`
+	LongDescription  string   `json:"long_description"`
+	Description      string   `json:"description"`
+	Category         string   `json:"category"`
 	IsPublic         bool     `json:"-"`
 }
 
@@ -111,6 +112,18 @@ type AgentWorkFloUpdateRequest struct {
 	Private    bool     `json:"private"`
 	OrgId      string   `json:"-"`
 	WorkflowId string   `json:"-"`
+}
+
+type AgentWorkFloNodeUpdateRequest struct {
+	RawEntry   JSONBMap    `json:"raw_entry"`
+	AgentId    string      `json:"agent_id" validate:"required"`
+	IsActive   bool        `json:"is_active"`
+	Name       string      `json:"name"`
+	OrgId      string      `json:"-"`
+	WorkflowId string      `json:"-"`
+	NodeID     string      `json:"node_id"`
+	NodeType   string      `json:"node_type"`
+	Config     JSONBMapArr `json:"config"`
 }
 type ChannelWorkflowRequest struct {
 	ChannelID  string `json:"channel_id"`
@@ -332,6 +345,76 @@ func (wf *AgentWorkflow) UpdateAgentWorkflow(db *gorm.DB) (error, int) {
 	}
 
 	return nil, http.StatusOK
+}
+
+func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB) (AgentWorkflow, error) {
+	wfr := AgentWorkflow{}
+
+	exists := postgresql.CheckExists(db, &wfr, "workflow_id = ? AND agent_id = ? AND org_id = ?", n.WorkflowId, n.AgentId, n.OrgId)
+
+	if !exists {
+		return wfr, errors.New("agent not attached to a workflow")
+	}
+
+	parameters := JSONBMapArr{JSONBMap{}}
+
+	//The current algorithm for converting config to parameters.
+	for _, v := range n.Config {
+		var valueParam interface{}
+
+		if value, ok := v["value"]; ok {
+			valueParam = value
+		} else {
+			valueParam = v["default"]
+		}
+
+		con := parameters[0]
+		con[v["name"].(string)] = valueParam
+		parameters[0] = con
+	}
+
+	// Update the parameters matching the skill id in the workflow
+	rawEntry := wfr.RawEntry
+
+	nodes, ok := rawEntry["nodes"].([]interface{})
+	if !ok {
+		return wfr, errors.New("workflow has no nodes")
+	}
+
+
+	for i, node := range nodes {
+		nodeMap, ok := node.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if nodeMap["id"] == n.NodeID {
+
+			nodeMap["parameters"] = parameters
+
+			nodes[i] = nodeMap
+			rawEntry["nodes"] = nodes
+
+			break
+		}
+		// add something for node type later
+	}
+
+	wfUpdates := map[string]any{
+		"raw_entry": rawEntry,
+	}
+
+	result, err := postgresql.UpdateFields(db, &wfr, wfUpdates, "workflow_id = ? AND agent_id = ?", wfr.WorkflowId, wfr.AgentId)
+
+	if err != nil {
+		return wfr, errors.New("failed to update agent workflow")
+	}
+
+	if result.RowsAffected == 0 {
+		return wfr, errors.New("no record updated")
+	}
+
+	return wfr, nil
 }
 
 func (wf *AgentWorkflow) DeleteWorkflow(db *gorm.DB) (error, int) {

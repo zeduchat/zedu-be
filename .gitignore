@@ -44,3 +44,6 @@ cypress_tests/node_modules
 cypress_tests/cypress.env.json
 cypress_tests/cypress/screenshots
 cypress_tests/cypress/reports
+
+.air.toml
+river_queue_logs/

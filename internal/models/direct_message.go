@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -11,14 +10,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -61,78 +57,21 @@ type DmChannelsRequest struct {
 	ChannelId     string `json:"channel_id"`
 }
 
-func FetchDetailsFromAgentJSON(extReq request.ExternalRequest, agent OrganisationIntegrations, redisClient *redis.Client) (map[string]any, error) {
-	var response any
+func FetchDetailsFromAgentJSON(agent OrganisationIntegrations) (map[string]any, error) {
+
 	var data_r map[string]any
-	agentJSONURL := agent.JSONUrl
-	redisKey := fmt.Sprintf("agent_json_%s", agentJSONURL)
 
-	if agent.AppName == "" {
-
-		cachedData, err := rd.RedisGet(redisClient, redisKey)
-		if err == nil && len(cachedData) > 0 {
-			var cachedResult any
-
-			if err := json.Unmarshal(cachedData, &cachedResult); err != nil {
-				rd.RedisDelete(redisClient, redisKey)
-				return nil, fmt.Errorf("failed to unmarshal cached data: %v", err)
-			}
-
-			data_r, ok := cachedResult.(map[string]any)
-			if !ok {
-				rd.RedisDelete(redisClient, redisKey)
-				return nil, errors.New("cached data is not in the expected format")
-			}
-
-			return data_r, nil
-		}
-
-		data := map[string]string{"url": agentJSONURL}
-
-		for i := 0; i < 2; i++ {
-			response, err = extReq.SendExternalRequest(request.AgentJsonContent, data)
-			if err == nil {
-				break
-			}
-			time.Sleep(time.Duration(2<<i) * time.Second) // exponential backoff
-		}
-		if err != nil {
-			return nil, fmt.Errorf("could not fetch agent json: %v", err)
-		}
-
-		response_data := response.(map[string]any)
-		content, ok := response_data["data"].(map[string]any)
-		if !ok {
-			return nil, errors.New("could not fetch data from agent json")
-		}
-
-		data_r, ok := content["descriptions"].(map[string]any)
-		if !ok {
-			return nil, errors.New("invalid agent details format")
-		}
-
-		data_r["bot"] = content["bot"]
-
-		err = ValidateAgentData(data_r)
-		if err != nil {
-			return nil, fmt.Errorf("invalid agent json data: %v", err)
-		}
-	} else {
-
-		data_r = map[string]any{
-			"app_name":        agent.AppName,
-			"app_logo":        agent.AppLogo,
-			"app_description": agent.AppDescription,
-			"version":         agent.Version,
-			"is_paid":         agent.IsPaid,
-			"is_approved":     agent.IsApproved,
-			"provider":        agent.Provider,
-			"prices":          agent.Prices,
-			"agent":           true,
-		}
+	data_r = map[string]any{
+		"app_name":        agent.AppName,
+		"app_logo":        agent.AppLogo,
+		"app_description": agent.AppDescription,
+		"version":         agent.Version,
+		"is_paid":         agent.IsPaid,
+		"is_approved":     agent.IsApproved,
+		"provider":        agent.Provider,
+		"prices":          agent.Prices,
+		"agent":           true,
 	}
-
-	rd.RedisSet(redisClient, redisKey, data_r, 12*time.Hour)
 
 	return data_r, nil
 }
@@ -150,13 +89,13 @@ func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse
 	}
 }
 
-func (dm *DmChannels) CreateAgentDMChannel(extReq request.ExternalRequest, db *gorm.DB, rds *redis.Client) (DmChannelsResponse, error) {
+func (dm *DmChannels) CreateAgentDMChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	var orgAgent OrganisationIntegrations
 	if !postgresql.CheckExists(db, &orgAgent, "org_id = ? AND integration_id = ?", dm.OrgId, dm.ParticipantId) {
 		return DmChannelsResponse{}, fmt.Errorf("agent participant does not exist in organisation %v", dm.OrgId)
 	}
 
-	agentDetails, err := FetchDetailsFromAgentJSON(extReq, orgAgent, rds)
+	agentDetails, err := FetchDetailsFromAgentJSON(orgAgent)
 	if err != nil {
 		return DmChannelsResponse{}, fmt.Errorf("failed to fetch agent details: %w", err)
 	}
@@ -787,7 +726,6 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 			if err != nil {
 				logger.Error("Failed to send update count for bot channel, error %v: ", err)
 			}
-
 
 			notification := Notification[UnReadThreadChange]
 			notification.SectionType = AgentChannelsSection

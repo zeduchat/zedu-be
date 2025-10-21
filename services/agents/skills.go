@@ -26,6 +26,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Name:             req.Name,
 		Description:      req.Description,
 		Type:             req.Type,
+		NodeType:         req.NodeType,
 		IsActive:         true,
 		IsConfigured:     false, // default
 		Avatar:           req.Avatar,
@@ -46,6 +47,7 @@ func CreateAgentSkill(req models.CreateAgentSkillRequest, db *gorm.DB, logger *u
 		Name:             genAgentSkill.Name,
 		Description:      genAgentSkill.Description,
 		Type:             genAgentSkill.Type,
+		NodeType:         genAgentSkill.NodeType,
 		IsActive:         genAgentSkill.IsActive,
 		IsConfigured:     genAgentSkill.IsConfigured,
 		Avatar:           genAgentSkill.Avatar,
@@ -217,4 +219,19 @@ func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB, logger *u
 	}
 
 	return http.StatusOK, nil
+}
+
+func GetCredentialConfigForSkill(req models.RetrieveAgentConfig, db *gorm.DB, logger *utility.Logger) (gin.H, error) {
+	skillID := req.SkillID
+	var credentialConfig models.CredentialConfigResponse
+
+	credentialConfig, err := models.GetCredentialConfigForSkill(skillID, db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	response := gin.H{"credentials": credentialConfig}
+
+	return response, nil
 }

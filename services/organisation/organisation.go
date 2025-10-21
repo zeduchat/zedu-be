@@ -176,13 +176,14 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-	err = org.AddSystemAgentstoOrg(db)
-	orgResp, _ := org.GetOrgByID(db, orgId)
-	orgResp.OrganisationSlug = slug.Make(orgResp.Name)
-
+	err = org.AddSystemAgentstoOrg(db, logger)
 	if err != nil {
+		logger.Error("Adding default agents to organisation failed, error: %v", err)
 		return nil, err
 	}
+
+	orgResp, _ := org.GetOrgByID(db, orgId)
+	orgResp.OrganisationSlug = slug.Make(orgResp.Name)
 
 	return &orgResp, nil
 }
@@ -217,6 +218,12 @@ func GetAllChannelssInTeam(db *storage.Database, c *gin.Context, ids models.IDS)
 	channels, pag, code, err := o.GetAllChannelssInOrganisation(db, c, ids)
 	if err != nil {
 		return channels, pag, code, err
+	}
+
+	for i := range channels {
+		parts := strings.Split(channels[i].ID, "-")
+		lastPart := parts[len(parts)-1]
+		channels[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(channels[i].Name), lastPart)
 	}
 
 	return channels, pag, code, nil

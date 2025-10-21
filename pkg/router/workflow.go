@@ -34,20 +34,25 @@ func WorkflowRoutes(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		agentGroup.PUT("/:agent_id/workflows/:workflow_id", wfCtrl.UpdateAgentWorkflow)
 		agentGroup.DELETE("/:agent_id/workflows/:workflow_id", wfCtrl.DeleteAgentWorkflow)
 	}
-
+	
 	wGroup := r.Group(fmt.Sprintf("%v/channel-workflows", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		wGroup.POST("", wfCtrl.AddWorkflowToChannel)
 		wGroup.DELETE("/:workflow_id/channels/:channel_id", wfCtrl.RemoveWorkflowFromChannel)
 		wGroup.GET("/organisations/:org_id/channels/:channel_id", wfCtrl.GetChannelWorkflows)
 	}
-
+	
 	wGMPGroup := r.Group(fmt.Sprintf("%v/workflows", ApiVersion))
 	{
 		wGMPGroup.GET("/:workflow_id", wfCtrl.GetGeneralMarketPlaceWorkflowByID)
 		wGMPGroup.GET("/agents/:agent_id", wfCtrl.ListGeneralAgentWorkflows)
 		wGMPGroup.GET("/", wfCtrl.GetGeneralMarketWorkflows)
 		wGMPGroup.GET("/search", wfCtrl.SearchWorkflows)
+	}
+	
+	wGMPGroupAuth := r.Group(fmt.Sprintf("%v/workflows", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		wGMPGroupAuth.PUT("/:workflow_id/nodes/:node_id", wfCtrl.UpdateWorkflowNode)
 	}
 
 	return r

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -177,7 +178,7 @@ func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *ut
 	var channel models.Channels
 
 	ids := models.IDS{
-		UserID: user_id,
+		UserID:    user_id,
 		ChannelID: channels_id,
 	}
 
@@ -264,13 +265,13 @@ func CountChannelsUsers(db *gorm.DB, channelId string) (int64, int, error) {
 	return count, http.StatusOK, nil
 }
 
-func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, ids models.IDS) (models.Channels,int, error) {
+func UpdateChannels(db *gorm.DB, req models.UpdateChannelsRequest, ids models.IDS) (models.Channels, int, error) {
 	var r models.Channels
 	r.ID = ids.ChannelID
 
 	updatedChannels, code, err := r.UpdateChannels(db, req, ids.UserID)
 	if err != nil {
-		return updatedChannels,code, err
+		return updatedChannels, code, err
 	}
 
 	return updatedChannels, code, nil
@@ -438,6 +439,13 @@ func GetUserChannels(db *storage.Database, ids models.IDS) (models.GetUserChanne
 	if err != nil {
 		return userchannels, err
 	}
+
+	for i := range userchannels {
+		parts := strings.Split(userchannels[i].ID, "-")
+		lastPart := parts[len(parts)-1]
+		userchannels[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(userchannels[i].Name), lastPart)
+	}
+
 	return userchannels, nil
 }
 

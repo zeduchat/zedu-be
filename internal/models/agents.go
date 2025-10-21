@@ -113,6 +113,15 @@ type AdminUpdateAgent struct {
 	IsSystem   bool `json:"is_system"`
 }
 
+type AgentSkillCredentialConfig struct {
+	Name             string                   `json:"name"`
+	Properties       []map[string]interface{} `json:"properties"`
+	Test             map[string]interface{}   `json:"test,omitempty"`
+	DisplayName      *string                  `json:"displayName,omitempty"`
+	Authenticate     map[string]interface{}   `json:"authenticate,omitempty"`
+	DocumentationURL *string                  `json:"documentationUrl,omitempty"`
+}
+
 type ChangeAgentStatus struct {
 	Status     bool   `json:"status" validate:"required,oneof=true false"`
 	AgentID    string `json:"integration_id"`
@@ -430,6 +439,10 @@ type IntegrationApp struct {
 	AppName       string
 }
 
+type CredentialConfigResponse struct {
+	Credentials JSONBMap `json:"credentials"`
+}
+
 var Categories = map[string]bool{
 	"Monitoring & Logging":             true,
 	"Communication & Collaboration":    true,
@@ -655,6 +668,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 
 	query := db.Table("organisation_integrations oi").
 		Select(`
+		DISTINCT ON (oi.integration_id)
 		oi.integration_id as id,
 		oi.is_active,
 		oi.app_name as name,
@@ -673,7 +687,8 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		ON dc.participant_id = oi.integration_id
 		AND dc.user_id = ?
 	`, ids.UserID).
-		Where(subQuery, args...)
+		Where(subQuery, args...).
+		Order("oi.integration_id")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -2729,4 +2744,17 @@ func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
 
 	return "", errors.New("Invalid agent id, agent does not exists")
 
+}
+
+func GetCredentialConfigForSkill(skillID string, db *gorm.DB) (CredentialConfigResponse, error) {
+	var skill GeneralAgentSkill
+	err := db.Select("credentials").Where("id = ?", skillID).First(&skill).Error
+
+	if err != nil {
+		return CredentialConfigResponse{}, errors.New("Skill does not exist")
+	}
+
+	return CredentialConfigResponse{
+		Credentials: skill.Credentials,
+	}, nil
 }
