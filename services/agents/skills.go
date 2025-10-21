@@ -223,7 +223,7 @@ func AddSkillToAgent(req models.CreateAgentSkillsRequest, db *gorm.DB, logger *u
 
 func GetCredentialConfigForSkill(req models.RetrieveAgentConfig, db *gorm.DB, logger *utility.Logger) (gin.H, error) {
 	skillID := req.SkillID
-	var credentialConfig models.CredentialConfigResponse
+	var credentialConfig models.JSONBMap
 
 	credentialConfig, err := models.GetCredentialConfigForSkill(skillID, db)
 

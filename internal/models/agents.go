@@ -2746,15 +2746,13 @@ func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
 
 }
 
-func GetCredentialConfigForSkill(skillID string, db *gorm.DB) (CredentialConfigResponse, error) {
+func GetCredentialConfigForSkill(skillID string, db *gorm.DB) (JSONBMap, error) {
 	var skill GeneralAgentSkill
 	err := db.Select("credentials").Where("id = ?", skillID).First(&skill).Error
 
 	if err != nil {
-		return CredentialConfigResponse{}, errors.New("Skill does not exist")
+		return JSONBMap{}, errors.New("Skill does not exist")
 	}
 
-	return CredentialConfigResponse{
-		Credentials: skill.Credentials,
-	}, nil
+	return skill.Credentials, nil
 }
