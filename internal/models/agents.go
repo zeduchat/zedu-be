@@ -693,7 +693,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"oi.created_at",
-		"desc",
+		"asc",
 		pagination,
 		&agents,
 		nil,
