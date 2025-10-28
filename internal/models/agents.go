@@ -680,7 +680,8 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		oi.stars,
 		COALESCE(dc.thread_count, 0) as thread_count,
 		COALESCE(dc.last_thread_id, '') as last_thread_id,
-		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at
+		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
+		oi.created_at
 	`).
 		Joins(`
 		LEFT JOIN dm_channels dc 
