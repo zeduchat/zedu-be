@@ -689,7 +689,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		AND dc.user_id = ?
 	`, ids.UserID).
 		Where(subQuery, args...).
-		Order("oi.integration_id, oi.created_at DESC")
+		Order("oi.integration_id")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
