@@ -668,33 +668,32 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 
 	query := db.Table("organisation_integrations oi").
 		Select(`
-		DISTINCT ON (oi.integration_id)
-		oi.integration_id as id,
-		oi.is_active,
-		oi.app_name as name,
-		oi.tone,
-		oi.app_logo as avatar,
-		oi.title,
-		oi.app_description as description,
-		oi.visibility,
-		oi.stars,
-		COALESCE(dc.thread_count, 0) as thread_count,
-		COALESCE(dc.last_thread_id, '') as last_thread_id,
-		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
-		oi.created_at
-	`).
+        oi.integration_id as id,
+        oi.is_active,
+        oi.app_name as name,
+        oi.tone,
+        oi.app_logo as avatar,
+        oi.title,
+        oi.app_description as description,
+        oi.visibility,
+        oi.stars,
+        COALESCE(dc.thread_count, 0) as thread_count,
+        COALESCE(dc.last_thread_id, '') as last_thread_id,
+        COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
+        oi.created_at
+    `).
 		Joins(`
-		LEFT JOIN dm_channels dc 
-		ON dc.participant_id = oi.integration_id
-		AND dc.user_id = ?
-	`, ids.UserID).
+        LEFT JOIN dm_channels dc 
+        ON dc.participant_id = oi.integration_id
+        AND dc.user_id = ?
+    `, ids.UserID).
 		Where(subQuery, args...).
-		Order("oi.integration_id")
+		Group("oi.integration_id, oi.is_active, oi.app_name, oi.tone, oi.app_logo, oi.title, oi.app_description, oi.visibility, oi.stars, dc.thread_count, dc.last_thread_id, dc.last_read_at, oi.created_at")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"oi.created_at",
-		"desc",
+		"DESC",
 		pagination,
 		&agents,
 		nil,
