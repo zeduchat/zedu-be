@@ -667,8 +667,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 	}
 
 	query := db.Table("organisation_integrations oi").
-		Select(`
-		DISTINCT ON (oi.integration_id)
+	Select(`
 		oi.integration_id as id,
 		oi.is_active,
 		oi.app_name as name,
@@ -680,20 +679,20 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		oi.stars,
 		COALESCE(dc.thread_count, 0) as thread_count,
 		COALESCE(dc.last_thread_id, '') as last_thread_id,
-		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at
+		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
+		oi.created_at
 	`).
-		Joins(`
+	Joins(`
 		LEFT JOIN dm_channels dc 
 		ON dc.participant_id = oi.integration_id
-		AND dc.user_id = ?
-	`, ids.UserID).
-		Where(subQuery, args...).
-		Order("oi.integration_id")
+		AND dc.user_id = ? AND dc.org_id = ?
+	`, ids.UserID, ids.OrganisationID).
+	Where(subQuery, args...)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
 		"oi.created_at",
-		"desc",
+		"DESC",
 		pagination,
 		&agents,
 		nil,
@@ -2746,15 +2745,13 @@ func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
 
 }
 
-func GetCredentialConfigForSkill(skillID string, db *gorm.DB) (CredentialConfigResponse, error) {
+func GetCredentialConfigForSkill(skillID string, db *gorm.DB) (JSONBMap, error) {
 	var skill GeneralAgentSkill
 	err := db.Select("credentials").Where("id = ?", skillID).First(&skill).Error
 
 	if err != nil {
-		return CredentialConfigResponse{}, errors.New("Skill does not exist")
+		return JSONBMap{}, errors.New("Skill does not exist")
 	}
 
-	return CredentialConfigResponse{
-		Credentials: skill.Credentials,
-	}, nil
+	return skill.Credentials, nil
 }
