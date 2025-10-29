@@ -657,7 +657,6 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 	}
 
 	pagination := postgresql.GetPagination(c)
-
 	args := []any{ids.OrganisationID}
 	subQuery := "oi.org_id = ?"
 
@@ -665,6 +664,10 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		args = append(args, true)
 		subQuery = "oi.org_id = ? AND oi.is_active = ?"
 	}
+
+	uniqueIntegrations := db.Table("organisation_integrations oi").
+		Select("DISTINCT oi.integration_id").
+		Where(subQuery, args...).Order("oi.integration_id")
 
 	query := db.Table("organisation_integrations oi").
 		Select(`
@@ -682,13 +685,12 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
         COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
         oi.created_at
     `).
+		Where("oi.integration_id IN (?)", uniqueIntegrations).
 		Joins(`
         LEFT JOIN dm_channels dc 
         ON dc.participant_id = oi.integration_id
         AND dc.user_id = ?
-    `, ids.UserID).
-		Where(subQuery, args...).
-		Group("oi.integration_id, oi.is_active, oi.app_name, oi.tone, oi.app_logo, oi.title, oi.app_description, oi.visibility, oi.stars, dc.thread_count, dc.last_thread_id, dc.last_read_at, oi.created_at")
+    `, ids.UserID)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
