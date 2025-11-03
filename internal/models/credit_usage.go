@@ -1,18 +1,17 @@
 package models
 
 import (
-	"math"
-	"time"
-
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
-
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"gorm.io/gorm"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -27,16 +26,14 @@ func SetMapPackagePriceID(stripeConfig config.Stripe) {
 }
 
 type CreditUsage struct {
-	ID             string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	OrganisationID string    `gorm:"type:uuid;not null;index" json:"organisation_id"`
-	Amount         float64   `gorm:"type:decimal(10,2);not null" json:"amount"`
-	AgentID        string    `gorm:"type:uuid;not null;index" json:"agent_id"`
-	UserID         *string   `gorm:"type:uuid;index" json:"user_id"`
-	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-
-	Agent        OrganisationIntegrations `gorm:"foreignKey:AgentID;references:IntegrationID"`
-	Organisation Organisation             `gorm:"foreignKey:OrganisationID;references:ID"`
+	ID             string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	OrganisationID string       `gorm:"type:uuid;not null;index" json:"organisation_id"`
+	Amount         float64      `gorm:"type:decimal(10,2);not null" json:"amount"`
+	AgentID        string       `gorm:"type:uuid;not null;index" json:"agent_id"`
+	UserID         *string      `gorm:"type:uuid;index" json:"user_id"`
+	CreatedAt      time.Time    `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time    `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Organisation   Organisation `gorm:"foreignKey:OrganisationID;references:ID"`
 }
 
 type CreditUsageResponse struct {
@@ -355,11 +352,14 @@ func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsage
 	}
 
 	for _, usage := range creditUsages {
+
+		orgAgent := OrganisationIntegrations{}
+		orgAgent.CheckAgentExists(db, usage.AgentID, usage.OrganisationID)
 		creditUsageResponses = append(creditUsageResponses, CreditUsageResponse{
 			ID:             usage.ID,
 			OrganisationID: usage.OrganisationID,
 			Amount:         usage.Amount,
-			AgentName:      usage.Agent.AppName,
+			AgentName:      orgAgent.AppName,
 			CreatedAt:      usage.CreatedAt,
 		})
 	}
@@ -391,11 +391,14 @@ func GetAllCreditUsage(db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, post
 	}
 
 	for _, usage := range creditUsages {
+
+		orgAgent := OrganisationIntegrations{}
+		orgAgent.CheckAgentExists(db, usage.AgentID, usage.OrganisationID)
 		creditUsageResponses = append(creditUsageResponses, CreditUsageResponse{
 			ID:             usage.ID,
 			OrganisationID: usage.OrganisationID,
 			Amount:         usage.Amount,
-			AgentName:      usage.Agent.AppName,
+			AgentName:      orgAgent.AppName,
 			OrgName:        usage.Organisation.Name,
 			CreatedAt:      usage.CreatedAt,
 		})
