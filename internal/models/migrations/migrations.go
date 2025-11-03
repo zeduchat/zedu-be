@@ -7,13 +7,14 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
+		models.AgentSkill{},
+		models.Task{},
+		models.GeneralWorkflow{},
 		models.OrganisationIntegrations{},
 		models.WorkflowNode{},
 		models.Credential{},
 		models.UnauthenticatedUser{},
 		models.AgentWorkflow{},
-		models.AgentSkill{},
-		models.Task{},
 		models.Prompts{},
 		models.FcmTokens{},
 		models.CreditTransaction{},
@@ -59,7 +60,6 @@ func AuthMigrationModels() []any {
 		models.Reaction{},
 		models.Workflow{},
 		models.GeneralAgentSkill{},
-		models.GeneralWorkflow{},
 		models.ChannelWorkflow{},
 		models.Plan{},
 		models.ProcessedStripeWebhook{},
