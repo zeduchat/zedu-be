@@ -84,7 +84,7 @@ type PublishAgentRequest struct {
 	Benefits         string    `json:"benefits" validate:"required,min=101"`
 	WhyUse           string    `json:"why_use" validate:"required,min=101"`
 	ShortDescription string    `json:"short_description" validate:"required,min=10,max=50"`
-	LongDescription  string    `json:"long_description" validate:"required,min=101"`
+	LongDescription  string    `json:"long_description" validate:"required,min=10"`
 	UserId           string    `json:"-"`
 	AgentId          string    `json:"-"`
 	OrgId            string    `json:"-"`
@@ -198,8 +198,8 @@ type CapabilitiesObject struct {
 }
 
 type Snapshot struct {
-	Title       string `json:"title" validate:"required,min=19"`
-	Description string `json:"description" validate:"required,min=20"`
+	Title       string `json:"title" validate:"required,min=5"`
+	Description string `json:"description" validate:"required,min=5"`
 }
 
 type JSONPrices []Price
