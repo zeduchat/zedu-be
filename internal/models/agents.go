@@ -91,6 +91,18 @@ type PublishAgentRequest struct {
 	OrgId            string    `json:"-"`
 }
 
+type GenerateInfoRequest struct {
+	Description string `json:"description" validate:"required,min=10"`
+}
+
+type GenerateInfoResponse struct {
+	HowItWorks string           `json:"how_it_works"`
+	Benefits   string           `json:"benefits"`
+	WhyUse     string           `json:"why_use"`
+	Category   string           `json:"category"`
+	Snapshot   []map[string]any `json:"snapshots" validate:"dive"`
+}
+
 type UpdateAgentPromptRequest struct {
 	AgentId  string
 	UserId   string

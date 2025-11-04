@@ -12060,6 +12060,122 @@ paths:
         500:
           description: Internal server error.
 
+  /agents/{agent_id}/generate-info:
+    post:
+      tags:
+        - Agents
+      summary: Generate informational content for an agent
+      description: >
+        Generates structured informational content for a given agent, including
+        how it works, benefits, why to use it, and illustrative snapshots.  
+        Requires authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The unique identifier of the agent.
+          schema:
+            type: string
+            example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  description: The textual description of the agent for which informational content should be generated.
+                  example: >
+                    This home organizer is a practical and efficient tool designed to help create orderly and functional living spaces. 
+                    It offers decluttering tips using methods like the KonMari approach, suggests suitable storage solutions for different rooms or items, 
+                    and provides strategies to optimize space and reduce stress. The advice is tailored to the user's home size, lifestyle, and budget, 
+                    including maintenance routines to keep things organized. It responds with clear, actionable lists, before-and-after ideas, 
+                    and encouragement to support gradual progress in home organization.
+      responses:
+        "200":
+          description: Agent info generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Agent info generated successfully
+                  data:
+                    type: object
+                    properties:
+                      how_it_works:
+                        type: string
+                        example: |
+                          # How the Home Organizer Works
+                          The home organizer simplifies the decluttering process with structured support.
+
+                          - **Decluttering Tips**: Utilizes methods like the KonMari approach to sort and reduce possessions.
+                          - **Customized Solutions**: Offers storage suggestions tailored to specific rooms or items based on user's home and lifestyle.
+                          - **Space Optimization**: Provides strategies to maximize space efficiency and minimize stress.
+                          - **Maintenance Routines**: Recommends schedules to maintain organization over time.
+                      benefits:
+                        type: string
+                        example: |
+                          # Benefits of the Home Organizer
+                          Experience a streamlined process to achieve a tidy and functional home.
+
+                          - **Personalized Advice**: Receive tips and solutions adjusted to your home's size, lifestyle, and budget.
+                          - **Clear Guidance**: Follow actionable lists and before-and-after ideas that simplify the organizing journey.
+                          - **Holistic Approach**: Reduce household stress through consistent, manageable progress in organizing.
+                      why_use:
+                        type: string
+                        example: |
+                          # Why Use the Home Organizer
+                          Achieving a harmonious living environment is made easier than ever.
+
+                          - **Tailored Strategies**: Benefit from recommendations that suit your personal living situation and needs.
+                          - **Encouraging Support**: Stay motivated with positive reinforcement and gradual progress that prevent feeling overwhelmed.
+                          - **Cost-Effective Solutions**: Optimize your space efficiently without straining your budget.
+                      category:
+                        type: string
+                        example: "Home Organization & Improvement"
+                      snapshots:
+                        type: array
+                        description: Snapshot summaries of the generated content.
+                        items:
+                          type: object
+                          properties:
+                            title:
+                              type: string
+                              example: "Start Decluttering"
+                            description:
+                              type: string
+                              example: "Implement the KonMari method to efficiently sort and declutter your home."
+        "401":
+          description: Unauthorized — missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: Unauthorized access — valid bearer token required.
+
+
   #  Market place
   /marketplace/agent/categories:
     get:

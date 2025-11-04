@@ -1304,6 +1304,46 @@ func (base *Controller) GetOrgAgentBills(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GenerateAgentInfo(c *gin.Context) {
+	var req models.GenerateInfoRequest
+
+	agent_id := c.Param("agent_id")
+
+	if _, err := uuid.Parse(agent_id); err != nil {
+		base.Logger.Error("invalid agent id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent id format", "failed to decode agent id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Input validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Input validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	response, code, err := agents.GenerateAgentInfo(c , req, agent_id, base.Db, base.ExtReq, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to generate agent info", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to generate agent info", err, err.Error())
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Agent info generated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Agent info generated successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) PublishAgentApp(c *gin.Context) {
 	var req models.PublishAgentRequest
 
