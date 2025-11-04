@@ -14,5 +14,3 @@ ALTER TABLE "general_workflows" ADD COLUMN IF NOT EXISTS "category" text DEFAULT
 ALTER TABLE "general_workflows" ADD COLUMN IF NOT EXISTS "short_description" text;
 ALTER TABLE "general_workflows" ADD COLUMN IF NOT EXISTS "long_description" text;
 
--- Add primary key if not exists
-ALTER TABLE "general_workflows" ADD CONSTRAINT "general_workflows_pkey" PRIMARY KEY ("id");

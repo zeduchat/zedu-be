@@ -1,5 +1,4 @@
 -- DOWN Migration: Remove all added columns and constraints
-ALTER TABLE "agent_skills" DROP CONSTRAINT IF EXISTS "agent_skills_pkey";
 
 ALTER TABLE "agent_skills" DROP COLUMN IF EXISTS "id";
 ALTER TABLE "agent_skills" DROP COLUMN IF EXISTS "name";

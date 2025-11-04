@@ -1,5 +1,4 @@
 -- DOWN Migration: Remove all added columns from general_workflows table
-ALTER TABLE "general_workflows" DROP CONSTRAINT IF EXISTS "general_workflows_pkey";
 
 ALTER TABLE "general_workflows" DROP COLUMN IF EXISTS "id";
 ALTER TABLE "general_workflows" DROP COLUMN IF EXISTS "name";
