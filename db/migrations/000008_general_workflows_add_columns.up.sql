@@ -1,4 +1,4 @@
-- UP Migration: Add all missing columns to general_workflows table
+-- - UP Migration: Add all missing columns to general_workflows table
 ALTER TABLE "general_workflows" ADD COLUMN IF NOT EXISTS "id" uuid;
 ALTER TABLE "general_workflows" ADD COLUMN IF NOT EXISTS "name" text;
 ALTER TABLE "general_workflows" ADD COLUMN IF NOT EXISTS "description" text;
