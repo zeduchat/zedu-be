@@ -374,5 +374,10 @@ func ExtractChatContent(response map[string]interface{}) (string, error) {
 		return "", errors.New("content not found or not a string")
 	}
 
-	return content, nil
+	cleaned := strings.TrimSpace(content)
+	cleaned = strings.TrimPrefix(cleaned, "```json")
+	cleaned = strings.TrimSuffix(cleaned, "```")
+	cleaned = strings.TrimSpace(cleaned)
+
+	return cleaned, nil
 }
