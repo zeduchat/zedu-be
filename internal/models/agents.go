@@ -25,42 +25,43 @@ import (
 )
 
 type Integrations struct {
-	ID                 string             `gorm:"type:uuid;primary_key" json:"id"`
-	Name               string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
-	JSONUrl            string             `gorm:"column:json_url; type:varchar(255);" json:"-"`
-	AppUrl             string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
-	AppLogo            string             `gorm:"column:app_logo; type:varchar(255);" json:"avatar"`
-	OwnerID            string             `gorm:"type:uuid;" json:"owner_id"`
-	AppDescription     string             `gorm:"column:app_description; type:text;" json:"description"`
-	IntegrationType    string             `gorm:"column:integration_type; type:varchar(255);" json:"-"`
-	Info               string             `gorm:"colummn:info; type:varchar(255);" json:"-"`
-	IsActive           bool               `gorm:"type:boolean;default:true" json:"is_active"`
-	IsPaid             bool               `gorm:"type:boolean;default:false" json:"-"`
-	IsApproved         bool               `gorm:"type:boolean;default:false" json:"-"`
-	Prices             JSONPrices         `gorm:"type:jsonb" json:"prices"`
-	Version            string             `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
-	Provider           Provider           `gorm:"type:jsonb" json:"provider"`
-	DefaultInputModes  []string           `gorm:"type:jsonb" json:"default_input_modes"`
-	DefaultOutputModes []string           `gorm:"type:jsonb" json:"default_output_modes"`
-	PreSharedKey       string             `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
-	CreatedAt          time.Time          `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt          time.Time          `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	Skills             JSONSkills         `gorm:"type:jsonb" json:"skills"`
-	IsSystem           bool               `gorm:"type:boolean;default:false" json:"is_system"`
-	CommissionRate     float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
-	Capabilities       CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
-	Tone               string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
-	Title              string             `gorm:"column:title;type:text;" json:"title"`
-	Visibility         string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
-	SystemPrompts      JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
-	Category           string             `gorm:"type:text;default:default" json:"category"`
-	Snapshot           Snapshots          `gorm:"type:jsonb" json:"snapshot"`
-	HowItWorks         string             `gorm:"type:text" json:"how_it_works"`
-	Benefits           string             `gorm:"type:text" json:"benefits"`
-	WhyUse             string             `gorm:"type:text" json:"why_use"`
-	Stars              int64              `gorm:"default:1" json:"stars"`
-	ShortDescription   string             `gorm:"type:text" json:"short_description"`
-	LongDescription    string             `gorm:"type:text" json:"long_description"`
+	ID                  string             `gorm:"type:uuid;primary_key" json:"id"`
+	Name                string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
+	JSONUrl             string             `gorm:"column:json_url; type:varchar(255);" json:"-"`
+	AppUrl              string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
+	AppLogo             string             `gorm:"column:app_logo; type:varchar(255);" json:"avatar"`
+	OwnerID             string             `gorm:"type:uuid;" json:"owner_id"`
+	AppDescription      string             `gorm:"column:app_description; type:text;" json:"description"`
+	IntegrationType     string             `gorm:"column:integration_type; type:varchar(255);" json:"-"`
+	Info                string             `gorm:"colummn:info; type:varchar(255);" json:"-"`
+	IsActive            bool               `gorm:"type:boolean;default:true" json:"is_active"`
+	IsPaid              bool               `gorm:"type:boolean;default:false" json:"-"`
+	IsApproved          bool               `gorm:"type:boolean;default:false" json:"-"`
+	Prices              JSONPrices         `gorm:"type:jsonb" json:"prices"`
+	Version             string             `gorm:"type:varchar(20);default:'v1.0.0'" json:"version"`
+	Provider            Provider           `gorm:"type:jsonb" json:"provider"`
+	DefaultInputModes   []string           `gorm:"type:jsonb" json:"default_input_modes"`
+	DefaultOutputModes  []string           `gorm:"type:jsonb" json:"default_output_modes"`
+	PreSharedKey        string             `gorm:"type:varchar(64);uniqueIndex" json:"preshared_key"`
+	CreatedAt           time.Time          `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time          `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	Skills              JSONSkills         `gorm:"type:jsonb" json:"skills"`
+	IsSystem            bool               `gorm:"type:boolean;default:false" json:"is_system"`
+	CommissionRate      float64            `gorm:"type:decimal(5,2);default:80.00" json:"commission_rate"` // default commission rate for agent bill is 80% and telex takes 20% -> 0.8/0.2
+	Capabilities        CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
+	Tone                string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
+	Title               string             `gorm:"column:title;type:text;" json:"title"`
+	Visibility          string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
+	SystemPrompts       JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
+	Category            string             `gorm:"type:text;default:default" json:"category"`
+	Snapshot            Snapshots          `gorm:"type:jsonb" json:"snapshot"`
+	HowItWorks          string             `gorm:"type:text" json:"how_it_works"`
+	Benefits            string             `gorm:"type:text" json:"benefits"`
+	WhyUse              string             `gorm:"type:text" json:"why_use"`
+	Stars               int64              `gorm:"default:1" json:"stars"`
+	ShortDescription    string             `gorm:"type:text" json:"short_description"`
+	LongDescription     string             `gorm:"type:text" json:"long_description"`
+	IsSystemIntegration bool               `gorm:"type:boolean;default:false" json:"-"`
 }
 
 type CreateAgentRequest struct {
@@ -667,7 +668,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 	}
 
 	query := db.Table("organisation_integrations oi").
-	Select(`
+		Select(`
 		oi.integration_id as id,
 		oi.is_active,
 		oi.app_name as name,
@@ -682,12 +683,12 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
 		oi.created_at
 	`).
-	Joins(`
+		Joins(`
 		LEFT JOIN dm_channels dc 
 		ON dc.participant_id = oi.integration_id
 		AND dc.user_id = ? AND dc.org_id = ?
 	`, ids.UserID, ids.OrganisationID).
-	Where(subQuery, args...)
+		Where(subQuery, args...)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
@@ -2663,6 +2664,16 @@ func (i *OrganisationIntegrations) PublishAgent(req PublishAgentRequest, db *gor
 	exists := postgresql.CheckExists(db, &agent, "integration_id = ?", req.AgentId)
 	if !exists {
 		return &resp, http.StatusBadRequest, errors.New("agent app does not exist")
+	}
+
+	exists = postgresql.CheckExists(db, &genAgent, "integration = ?", req.AgentId)
+
+	if exists && genAgent.IsSystemIntegration && genAgent.OwnerID != req.UserId {
+		return &resp, http.StatusBadRequest, errors.New("User is not allowed to publish system agent, create a new one")
+	}
+
+	if exists && genAgent.OwnerID != req.UserId {
+		return &resp, http.StatusBadRequest, errors.New("Agent does not belong to user, create a new one")
 	}
 
 	genAgent.Name = agent.AppName
