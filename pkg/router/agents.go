@@ -106,6 +106,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	{
 		agentUrl.GET("/:agent_id/settings", agent.GetAgentSettingsAllOrgs)
 		agentUrl.POST("/:agent_id/publish", agent.PublishAgentApp)
+		agentUrl.POST("/:agent_id/generate-info", agent.GenerateAgentInfo)
 		agentUrl.GET("/me", agentsCtrl.GetAgentsByOwner)
 		agentUrl.GET("/:agent_id/activated-organizations", agent.GetActivatedOrganizations)
 		agentUrl.POST("/trigger-tick", agent.TriggerTick)

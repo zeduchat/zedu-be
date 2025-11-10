@@ -1,7 +1,9 @@
 package utility
 
 import (
+	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -151,4 +153,17 @@ func ExtractBaseURL(raw string) (string, error) {
 		return host, nil
 	}
 	return domain, nil
+}
+
+func ReadSystemPromptFromFile(filePath string) (string, error) {
+	if filePath == "" {
+		return "", fmt.Errorf("file path is empty")
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(content)), nil
 }
