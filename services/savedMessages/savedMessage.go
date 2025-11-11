@@ -12,7 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, bool, error) {
+func SaveThreadForLater(req models.SaveThreadRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, bool, error) {
 	var (
 		checkThread models.ThreadDocument
 	)
@@ -43,7 +43,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 		ThreadID:   threadId.String(),
 	}
 
-	saved, err := messageToSave.CreateThreadMessageRecord(db)
+	saved, err := messageToSave.CreateSavedThreadRecord(db)
 	if err != nil {
 		logger.Error("failed to save thread message: %v", err)
 		return nil, true, errors.New("failed to save thread message, error: " + err.Error())
@@ -83,7 +83,7 @@ func SaveThreadMessageForLater(req models.SaveThreadRequest, db *gorm.DB, logger
 
 }
 
-func SaveReplyMessageForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, bool, error) {
+func SaveThreadReplyForLater(req models.SaveMessageRequest, db *gorm.DB, logger *utility.Logger) (*models.SavedMessage, bool, error) {
 	var (
 		checkMessage models.MessageDocument
 	)

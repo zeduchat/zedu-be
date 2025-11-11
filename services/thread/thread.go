@@ -327,7 +327,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
     }
 
     thread.ID = threadID
-    err = threadDoc.GetThreadById(tx, threadID)
+    err = threadDoc.GetThreadById(threadID)
     if err != nil {
         tx.Rollback()
         return http.StatusNotFound, errors.New("thread not found")
@@ -433,7 +433,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		return threadResp, http.StatusNotFound, err
 	}
 
-	err = threadResp.GetThreadById(db, thread.ID)
+	err = threadResp.GetThreadById(thread.ID)
 
 	if err != nil {
 		return threadResp, http.StatusInternalServerError, err

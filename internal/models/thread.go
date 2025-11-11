@@ -731,7 +731,7 @@ func (m *Mentions) CreateMention(db *gorm.DB) error {
 	return nil
 }
 
-func (t *ThreadDocument) GetThreadById(db *gorm.DB, threadID string) error {
+func (t *ThreadDocument) GetThreadById(threadID string) error {
 
 	var (
 		threadData any

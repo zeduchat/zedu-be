@@ -23,20 +23,21 @@ type SavedMessage struct {
 }
 
 type SavedMessagesResp struct {
-	ID          string    `json:"id"`
-	ThreadID    string    `json:"thread_id"`
+	ID          string    `json:"id,omitempty"`
+	ThreadID    string    `json:"thread_id,omitempty"`
 	MessageID   *string   `json:"message_id,omitempty"`
-	AvatarURL   string    `json:"avatar_url"`
-	Username    string    `json:"username"`
-	Content     string    `json:"content"`
-	UserID      string    `json:"user_id"`
-	ChannelID   string    `json:"channel_id"`
-	ChannelName string    `json:"channel_name"`
-	Type        string    `json:"type"`         // thread or message(thread-reply)
-	ChannelType string    `json:"channel_type"` // dm, groupDM, public, private
-	SavedAt     time.Time `json:"saved_at"`
-	CreatedAt   time.Time `json:"created_at"`
+	AvatarURL   string    `json:"avatar_url,omitempty"`
+	Username    string    `json:"username,omitempty"`
+	Content     string    `json:"content,omitempty"`
+	UserID      string    `json:"user_id,omitempty"`
+	ChannelID   string    `json:"channel_id,omitempty"`
+	ChannelName string    `json:"channel_name,omitempty"`
+	Type        string    `json:"type,omitempty"`         // thread or message(thread-reply)
+	ChannelType string    `json:"channel_type,omitempty"` // dm, groupDM, public, private
+	SavedAt     time.Time `json:"saved_at,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 }
+
 
 type SaveThreadRequest struct {
 	ChannelsId string `json:"channels_id" validate:"required"`
@@ -62,7 +63,7 @@ type SavedMessageIds struct {
 	ChannelID      string
 }
 
-func (m *SavedMessage) CreateThreadMessageRecord(db *gorm.DB) (bool, error) {
+func (m *SavedMessage) CreateSavedThreadRecord(db *gorm.DB) (bool, error) {
 	var (
 		org          Organisation
 		dmChannels   DmChannels
@@ -79,6 +80,7 @@ func (m *SavedMessage) CreateThreadMessageRecord(db *gorm.DB) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	if !isMember {
 		return false, errors.New("user is not a member of organisation")
 	}
@@ -192,7 +194,9 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		organisation *Organisation
 		messages     []SavedMessage
 		messagesResp = make([]SavedMessagesResp, 0)
+		foundMsgs, notFoundMsgs []SavedMessagesResp
 	)
+
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
 	if !exists {
@@ -278,8 +282,18 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr SavedMessagesResp
 		)
 
+		populateNotFoundDocument := func() SavedMessagesResp {
+			resp := SavedMessagesResp{
+				Content:   "A message you saved was not found.",
+				AvatarURL: "",
+			}
+			return resp
+		}
+
 		if msg.MessageID != nil {
 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
+				resp := populateNotFoundDocument()
+				notFoundMsgs = append(notFoundMsgs, resp)
 				continue
 			}
 
@@ -296,7 +310,9 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
 			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
 		} else {
-			if err := t.GetThreadById(db, msg.ThreadID); err != nil {
+			if err := t.GetThreadById(msg.ThreadID); err != nil {
+				resp := populateNotFoundDocument()
+				notFoundMsgs = append(notFoundMsgs, resp)
 				continue
 			}
 
@@ -314,9 +330,10 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
 		}
 
-		messagesResp = append(messagesResp, mr)
+		foundMsgs = append(foundMsgs, mr)
 	}
 
+	messagesResp = append(foundMsgs, notFoundMsgs...)
 	return messagesResp, nil
 }
 

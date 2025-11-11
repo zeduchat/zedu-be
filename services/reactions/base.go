@@ -259,7 +259,7 @@ func UpdateReaction(db *storage.Database, logger *utility.Logger, req models.Rea
 
 			var threadEntry models.ThreadDocument
 
-			err = threadEntry.GetThreadById(db.Postgresql, req.ThreadID)
+			err = threadEntry.GetThreadById(req.ThreadID)
 			if err != nil {
 				logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
 				return reactionDetails, err

@@ -181,7 +181,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 		return updateResp, err
 	}
 
-	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+	err = thread.GetThreadById(m.ThreadID.String())
 
 	if err != nil {
 		return updateResp, err
@@ -243,7 +243,7 @@ func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Lo
 
 	}
 
-	err = thread.GetThreadById(db.Postgresql, m.ThreadID.String())
+	err = thread.GetThreadById(m.ThreadID.String())
 	if err != nil {
 		return updateResp, err
 	}
@@ -357,7 +357,7 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 		return updateResp, fmt.Errorf("failed to delete message, err: %v", err)
 	}
 
-	err = thread.GetThreadById(db, m.ThreadID.String())
+	err = thread.GetThreadById(m.ThreadID.String())
 
 	if err != nil {
 		return updateResp, err
@@ -419,7 +419,7 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 		}
 	}
 
-	err = thread.GetThreadById(db, m.ThreadID.String())
+	err = thread.GetThreadById(m.ThreadID.String())
 
 	if err != nil {
 		return updateResp, err
@@ -510,7 +510,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 		return nil, pagR, fmt.Errorf("failed to fetch message records, error: %v", err)
 	}
 
-	err = thread.GetThreadById(db, ThreadID)
+	err = thread.GetThreadById(ThreadID)
 	if err != nil {
 		return nil, pagR, err
 	}
