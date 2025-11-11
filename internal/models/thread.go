@@ -931,6 +931,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		threadData any
 		threadIDs  []string
 		org        Organisation
+		dmChannelIds []string
 	)
 
 	threads = make([]Threads, 0)
@@ -953,6 +954,18 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	if err != nil {
 		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
+
+
+	err = db.Model(&DmChannels{}).
+		Select("dm_channels.channel_id").
+		Where("dm_channels.user_id = ? AND dm_channels.organisation_id = ?", userId, organisationID).
+		Find(&dmChannelIds).Error
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("error fetching dm channel IDs: %v", err)
+	}
+
+	channelIDs = append(channelIDs, dmChannelIds...)
 
 	query := map[string]any{
 		"query": map[string]any{
