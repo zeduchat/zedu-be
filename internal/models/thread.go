@@ -336,6 +336,11 @@ type UpdateThreadMessage struct {
 	ChannelId string `json:"channel_id"`
 }
 
+type ThreadWithMessagesResponse struct {
+	ThreadMessages []ThreadDocument `json:"thread_messages"`
+	ChannelName    string           `json:"channel_name"`
+}
+
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
 		CC         ChannelCountInfo
@@ -924,17 +929,20 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
-func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, userId, organisationID string) ([]Threads, *elastic.PaginationResponse, error) {
+func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]Threads, *elastic.PaginationResponse, error) {
 	var (
-		threads    []Threads
-		channelIDs []string
-		threadData any
-		threadIDs  []string
-		org        Organisation
+		threads      []Threads
+		channelIDs   []string
+		threadData   any
+		threadIDs    []string
+		org          Organisation
 		dmChannelIds []string
 	)
 
 	threads = make([]Threads, 0)
+	result := make([]ThreadWithMessagesResponse, 0)
+	userId := t.UserId
+	organisationID := t.OrgansationID
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
@@ -954,7 +962,6 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	if err != nil {
 		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
-
 
 	err = db.Model(&DmChannels{}).
 		Select("dm_channels.channel_id").
@@ -981,6 +988,18 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 							"user_id.keyword": userId,
 						},
 					},
+					{
+						"exists": map[string]any{
+							"field": "messages",
+						},
+					},
+				},
+			},
+		},
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]string{
+					"order": "desc",
 				},
 			},
 		},
@@ -997,7 +1016,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		},
 	}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "messages", query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch thread records, error in %v", err)
@@ -1064,6 +1083,54 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 
 	if err != nil {
 		return nil, pagR, err
+	}
+
+	for _, thread := range threads {
+		messages, _, err := FetchMessagesByThreadID(thread.ID)
+		if err != nil {
+			logger.Error("failed to fetch messages for thread %s: %v\n", thread.ID, err)
+			continue
+		}
+
+		threadDoc := ThreadDocument{
+			ID:                       thread.ID,
+			ChannelsID:               thread.ChannelsID,
+			OrgansationID:            thread.OrgansationID,
+			EventName:                thread.EventName,
+			Username:                 thread.Username,
+			ActionType:               thread.ActionType,
+			Status:                   thread.Status,
+			CreatedAt:                thread.CreatedAt,
+			MessageCount:             thread.MessageCount,
+			LastReply:                thread.LastReply,
+			AvatarURL:                thread.AvatarURL,
+			UserType:                 thread.UserType,
+			Type:                     thread.Type,
+			Content:                  thread.Content,
+			ChannelName:              thread.ChannelName,
+			ChannelType:              thread.ChannelType,
+			CurrentStatus:            thread.CurrentStatus,
+			FullName:                 thread.FullName,
+			Email:                    thread.Email,
+			UserId:                   thread.UserId,
+			Edited:                   thread.Edited,
+			IsPinned:                 thread.IsPinned,
+			Messages:                 messages,
+			Media:                    thread.Media,
+			Mentions:                 thread.Mentions,
+			State:                    thread.State,
+			IsSaved:                  thread.IsSaved,
+			PinnedDetails:            thread.PinnedDetails,
+			Reactions:                thread.Reactions,
+			IsForwarded:              thread.IsForwarded,
+			ForwardedMessageMetadata: thread.ForwardedMessageMetadata,
+		}
+
+		// Add to response
+		result = append(result, ThreadWithMessagesResponse{
+			ThreadMessages: []ThreadDocument{threadDoc},
+			ChannelName:    thread.ChannelName,
+		})
 	}
 
 	return threads, pagR, nil
@@ -1325,4 +1392,38 @@ func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *syn
 	}
 
 	logger.Info("Updated username across thread index")
+}
+
+func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
+	var messages []MessageDocument
+
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"thread_id.keyword": threadID,
+			},
+		},
+		"from": 0,
+		"size": 1000,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "asc",
+				},
+			},
+		},
+	}
+
+	var messageData any
+	err := elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch messages for thread %s: %v", threadID, err)
+	}
+
+	messages, err = UnmarshalMessageResponse(messageData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return messages, nil, nil
 }
