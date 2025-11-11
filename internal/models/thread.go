@@ -931,7 +931,7 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
-func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]Threads, *elastic.PaginationResponse, error) {
+func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]ThreadWithMessagesResponse, *elastic.PaginationResponse, error) {
 	var (
 		threads      []Threads
 		channelIDs   []string
@@ -1043,7 +1043,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	rawJSON, _ := json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
-		return threads, pagR, fmt.Errorf("failed to decode search response: %v", err)
+		return []ThreadWithMessagesResponse{}, pagR, fmt.Errorf("failed to decode search response: %v", err)
 	}
 
 	// Extract unique thread IDs from the aggregation buckets
@@ -1054,7 +1054,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	}
 
 	if len(threadIDs) == 0 {
-		return threads, pagR, nil
+		return []ThreadWithMessagesResponse{}, pagR, nil
 	}
 
 	// Build the query
@@ -1160,7 +1160,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		})
 	}
 
-	return threads, pagR, nil
+	return result, pagR, nil
 }
 
 func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {

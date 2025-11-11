@@ -44,10 +44,10 @@ func GetGroupByDate(c *gin.Context) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.Threads, *elastic.PaginationResponse, int, error) {
+func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.ThreadWithMessagesResponse, *elastic.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
-		accessResp []models.Threads
+		accessResp []models.ThreadWithMessagesResponse
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
