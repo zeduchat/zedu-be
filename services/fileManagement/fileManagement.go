@@ -12,12 +12,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/minio/minio-go/v7"
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/utility"
-	"github.com/minio/minio-go/v7"
-	"gorm.io/gorm"
 )
 
 func FormatFileName(filename string) string {
@@ -194,25 +197,58 @@ func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.UploadedFileRespons
 	return file, nil
 }
 
-func DeleteFileDetailsByID(logger *utility.Logger, db *gorm.DB, file *models.UploadedFileResponse, fileId string) error {
+func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *models.UploadedFileResponse, fileId, threadId string) error {
 	var fileModel models.UploadedFileResponse
 
-	count, countErr := fileModel.GetFileCountByLink(db, file.FileLink)	
+	count, countErr := fileModel.GetFileCountByLink(db.Postgresql, file.FileLink)
 	if countErr != nil {
 		return countErr
 	}
 	if count == 1 {
 		hashedFileName := utility.ExtractHashedFileName(file.FileLink)
-	
+
 		minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
 		if minioErr != nil {
 			return minioErr
 		}
 	}
 
-	err := fileModel.DeleteFileByID(db, fileId)
+	err := fileModel.DeleteFileByID(db.Postgresql, fileId)
 	if err != nil {
 		return err
+	}
+
+	if threadId != "" {
+		RemoveMediaFileFromThread(db.Elastic, threadId, fileId)
+	}
+
+	return nil
+}
+
+func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string) error {
+	script := `if (ctx._source.media == null) {
+		ctx._source.media = [];
+	}
+	for (int i = 0; i < ctx._source.media.size(); i++) {
+		if (ctx._source.media[i] != null && ctx._source.media[i].id == params.file_id) {
+			ctx._source.media.remove(i);
+			break;
+		}
+	}`
+
+	req := map[string]any{
+		"script": map[string]any{
+			"source": script,
+			"params": map[string]any{
+				"file_id": fileID,
+			},
+		},
+	}
+
+	err := elastic.UpdateDocWithScript(db, models.ThreadIndexName, threadID, req)
+
+	if err != nil {
+		return fmt.Errorf("failed to remove media file from thread: %w", err)
 	}
 
 	return nil

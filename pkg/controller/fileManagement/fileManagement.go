@@ -4,8 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -80,6 +81,14 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 
 func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
+	thread_id := c.Query("thread_id")
+
+	if _, err := uuid.Parse(thread_id); thread_id != "" && err != nil {
+		base.Logger.Error("invalid thread id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid thread id format", "failed to decode thread id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
 	if err != nil {
@@ -88,7 +97,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 		return
 	}
 
-	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db.Postgresql, file, fileId)
+	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db, file, fileId, thread_id)
 	if deleteErr != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "File not deleted", deleteErr.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
