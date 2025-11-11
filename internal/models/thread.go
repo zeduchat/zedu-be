@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -339,6 +340,7 @@ type UpdateThreadMessage struct {
 type ThreadWithMessagesResponse struct {
 	ThreadMessages []ThreadDocument `json:"thread_messages"`
 	ChannelName    string           `json:"channel_name"`
+	Participants   string           `json:"participants"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -965,7 +967,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 
 	err = db.Model(&DmChannels{}).
 		Select("dm_channels.channel_id").
-		Where("dm_channels.user_id = ? AND dm_channels.organisation_id = ?", userId, organisationID).
+		Where("dm_channels.user_id = ? AND dm_channels.org_id = ?", userId, organisationID).
 		Find(&dmChannelIds).Error
 
 	if err != nil {
@@ -1086,10 +1088,34 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	}
 
 	for _, thread := range threads {
+		usernames := map[string]bool{}
+		participants := ""
 		messages, _, err := FetchMessagesByThreadID(thread.ID)
 		if err != nil {
 			logger.Error("failed to fetch messages for thread %s: %v\n", thread.ID, err)
 			continue
+		}
+
+		for _, msg := range messages {
+			if msg.UserID == userId {
+				continue
+			}
+			usernames[msg.Username] = true
+		}
+
+		if len(usernames) == 0 {
+			participants = "Just you"
+		} else if len(usernames) == 1 {
+
+			for userName := range usernames {
+				participants = fmt.Sprintf("%s and you", userName)
+			}
+		} else {
+			userList := make([]string, 0, len(usernames))
+			for userName := range usernames {
+				userList = append(userList, userName)
+			}
+			participants = fmt.Sprintf("%s and you", strings.Join(userList, ", "))
 		}
 
 		threadDoc := ThreadDocument{
@@ -1130,6 +1156,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		result = append(result, ThreadWithMessagesResponse{
 			ThreadMessages: []ThreadDocument{threadDoc},
 			ChannelName:    thread.ChannelName,
+			Participants:   participants,
 		})
 	}
 
