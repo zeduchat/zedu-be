@@ -44,7 +44,7 @@ func GetGroupByDate(c *gin.Context) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.Threads, *elastic.PaginationResponse, int, error) {
+func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.Threads, *elastic.PaginationResponse, int, error) {
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
@@ -65,7 +65,10 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context) (*[]models.
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, userID, orgID)
+	accessData.UserId = userID
+	accessData.OrgansationID = orgID
+
+	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, logger)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -281,113 +284,113 @@ func UpdateAThread(req models.UpdateThreadStatus, threadID, channelID string, db
 }
 
 func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (int, error) {
-    var (
-        thread       models.Threads
-        threadDoc    models.ThreadDocument
-        channel      models.Channels
-        dmChannel    models.DmChannels
-        savedMessage models.SavedMessage
-    )
+	var (
+		thread       models.Threads
+		threadDoc    models.ThreadDocument
+		channel      models.Channels
+		dmChannel    models.DmChannels
+		savedMessage models.SavedMessage
+	)
 
-    // Start transaction
-    tx := db.Begin()
-    if tx.Error != nil {
-        logger.Error("Failed to begin transaction: %v", tx.Error)
-        return http.StatusInternalServerError, tx.Error
-    }
-    defer func() {
-        if r := recover(); r != nil {
-            tx.Rollback()
-        }
-    }()
+	// Start transaction
+	tx := db.Begin()
+	if tx.Error != nil {
+		logger.Error("Failed to begin transaction: %v", tx.Error)
+		return http.StatusInternalServerError, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-    userId, err := middleware.GetUserClaims(c, tx, "user_id")
-    if err != nil {
-        tx.Rollback()
-        return http.StatusNotFound, err
-    }
+	userId, err := middleware.GetUserClaims(c, tx, "user_id")
+	if err != nil {
+		tx.Rollback()
+		return http.StatusNotFound, err
+	}
 
-    userID, ok := userId.(string)
-    if !ok {
-        tx.Rollback()
-        return http.StatusBadRequest, errors.New("user_id is not of type string")
-    }
+	userID, ok := userId.(string)
+	if !ok {
+		tx.Rollback()
+		return http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
 
-    _, code, err := user.GetUser(userID, tx)
-    if err != nil {
-        tx.Rollback()
-        return code, err
-    }
+	_, code, err := user.GetUser(userID, tx)
+	if err != nil {
+		tx.Rollback()
+		return code, err
+	}
 
-    chanExist, _ := channel.CheckChannelExists(tx, channelID)
-    dmChanExist, _ := dmChannel.CheckChannelExists(tx, channelID, userID)
-    if !(dmChanExist || chanExist) {
-        tx.Rollback()
-        return http.StatusNotFound, errors.New("channel does not exist")
-    }
+	chanExist, _ := channel.CheckChannelExists(tx, channelID)
+	dmChanExist, _ := dmChannel.CheckChannelExists(tx, channelID, userID)
+	if !(dmChanExist || chanExist) {
+		tx.Rollback()
+		return http.StatusNotFound, errors.New("channel does not exist")
+	}
 
-    thread.ID = threadID
-    err = threadDoc.GetThreadById(tx, threadID)
-    if err != nil {
-        tx.Rollback()
-        return http.StatusNotFound, errors.New("thread not found")
-    }
+	thread.ID = threadID
+	err = threadDoc.GetThreadById(tx, threadID)
+	if err != nil {
+		tx.Rollback()
+		return http.StatusNotFound, errors.New("thread not found")
+	}
 
-    savedMessageIds := models.SavedMessageIds{
-        UserID:   userID,
-        OrgID:    threadDoc.OrgansationID,
-        ThreadID: threadDoc.ID,
-    }
+	savedMessageIds := models.SavedMessageIds{
+		UserID:   userID,
+		OrgID:    threadDoc.OrgansationID,
+		ThreadID: threadDoc.ID,
+	}
 
-    if exists := savedMessage.SavedThreadMsgExists(tx, savedMessageIds); exists {
-        if err := savedMessage.DeleteSavedThreadMsgByMessageID(tx, savedMessageIds); err != nil {
-            tx.Rollback()
-            return http.StatusBadRequest, err
-        }
-    }
+	if exists := savedMessage.SavedThreadMsgExists(tx, savedMessageIds); exists {
+		if err := savedMessage.DeleteSavedThreadMsgByMessageID(tx, savedMessageIds); err != nil {
+			tx.Rollback()
+			return http.StatusBadRequest, err
+		}
+	}
 
-    pinnedThread := models.PinnedMessage{
-        ThreadID:   threadID,
-        ChannelsID: channelID,
-    }
-    if exists := pinnedThread.CheckPinnedReplyExists(tx); exists {
-        if err := pinnedThread.DeletePinnedThreadMessageRecord(tx); err != nil {
-            tx.Rollback()
-            logger.Error("An error occurred while deleting pinned thread message record: %v", err)
-            return http.StatusInternalServerError, err
-        }
-    }
+	pinnedThread := models.PinnedMessage{
+		ThreadID:   threadID,
+		ChannelsID: channelID,
+	}
+	if exists := pinnedThread.CheckPinnedReplyExists(tx); exists {
+		if err := pinnedThread.DeletePinnedThreadMessageRecord(tx); err != nil {
+			tx.Rollback()
+			logger.Error("An error occurred while deleting pinned thread message record: %v", err)
+			return http.StatusInternalServerError, err
+		}
+	}
 
-    if _, err := thread.DeleteThread(tx); err != nil {
-        tx.Rollback()
-        return http.StatusBadRequest, err
-    }
+	if _, err := thread.DeleteThread(tx); err != nil {
+		tx.Rollback()
+		return http.StatusBadRequest, err
+	}
 
-    if _, err := thread.DeleteThreadMediaFiles(logger, tx, threadDoc.Media); err != nil {
-        tx.Rollback()
-        return http.StatusBadRequest, err
-    }
+	if _, err := thread.DeleteThreadMediaFiles(logger, tx, threadDoc.Media); err != nil {
+		tx.Rollback()
+		return http.StatusBadRequest, err
+	}
 
-    // Commit transaction
-    if err := tx.Commit().Error; err != nil {
-        tx.Rollback()
-        logger.Error("Failed to commit transaction: %v", err)
-        return http.StatusInternalServerError, err
-    }
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		logger.Error("Failed to commit transaction: %v", err)
+		return http.StatusInternalServerError, err
+	}
 
-    notification := models.Notification[models.Deleted]
-    notification.SectionType = models.ThreadSection
-    notification.ModificationDetails = &models.ModificationDetails{
-        ThreadId:  threadID,
-        ChannelId: channelID,
-    }
+	notification := models.Notification[models.Deleted]
+	notification.SectionType = models.ThreadSection
+	notification.ModificationDetails = &models.ModificationDetails{
+		ThreadId:  threadID,
+		ChannelId: channelID,
+	}
 
-    if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
-        logger.Error("Error Publishing to with destination id: %s error: %v", channelID, err)
-        return http.StatusBadRequest, errors.New("failed to publish data")
-    }
+	if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
+		logger.Error("Error Publishing to with destination id: %s error: %v", channelID, err)
+		return http.StatusBadRequest, errors.New("failed to publish data")
+	}
 
-    return http.StatusOK, nil
+	return http.StatusOK, nil
 }
 
 func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Context, logger *utility.Logger) (models.ThreadDocument, int, error) {
