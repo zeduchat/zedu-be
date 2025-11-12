@@ -16848,62 +16848,6 @@ paths:
                     nullable: true
                     example: null
 
-  /organisations/{org_id}/saved/message:
-    get:
-      tags:
-        - Saved Messages
-      summary: Retrieve saved messages
-      description: Fetches all messages saved by a user within a specific organisation.
-      operationId: getSavedMessages
-      parameters:
-        - name: org_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: The ID of the organisation
-          example: "019700db-4e22-7f90-a20e-f9116291ef24"
-      responses:
-        "200":
-          description: Messages retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Messages retrieved successfully
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        avatar_url:
-                          type: string
-                          format: uri
-                          example: ""
-                        username:
-                          type: string
-                          example: "user1"
-                        content:
-                          type: string
-                          description: HTML or plain text message content
-                          example: '<p class="tracking-wide">hi mans</p><p class="tracking-wide"></p>'
-                        channel_name:
-                          type: string
-                          example: "general"
-                        saved_at:
-                          type: string
-                          format: date-time
-                          example: "2025-06-27T04:26:13.947409+01:00"
-
   /organisations/{organisationId}/saved/message/{messageId}:
     delete:
       tags:
@@ -16979,6 +16923,335 @@ paths:
                   error:
                     type: string
                     example: "Failed to delete message"
+  /organisations/{org_id}/set-remainder:
+    put:
+      tags:
+        - Saved Messages
+      summary: Set a reminder for a saved message or thread
+      description: >
+        Sets a reminder for a specific message, thread, or reply within an organization.
+        The reminder time is specified in ISO8601 format.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The organization ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [reply, message]
+                  example: reply
+                channels_id:
+                  type: string
+                  example: "019891f4-ba4e-7bfb-9592-f03aad81adca"
+                thread_id:
+                  type: string
+                  example: "019a72c6-0988-7587-a2b5-2c3add1d7962"
+                message_id:
+                  type: string
+                  example: "019a72c3-166d-7587-98be-3aa8eba15539"
+                remainder_at:
+                  type: string
+                  format: date-time
+                  example: "2025-11-12T14:18:00+01:00"
+      responses:
+        "200":
+          description: Reminder set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Remainder set successfully
+
+  /organisations/{org_id}/archive-saved/{smId}:
+    put:
+      tags:
+        - Saved Messages
+      summary: Archive a saved message
+      description: Marks a saved message as archived within the organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: smId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Saved message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                archived:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Message archived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Saved message marked as archived successfully
+
+  /organisations/{org_id}/mark-complete/{smId}:
+    put:
+      tags:
+        - Saved Messages
+      summary: Mark a saved message as completed
+      description: Marks a saved message as completed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: smId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Saved message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Message marked complete successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Saved message marked as complete successfully
+
+  /organisations/{org_id}/saved/message:
+    get:
+      tags:
+        - Saved Messages
+      summary: Get all saved messages
+      description: Retrieves all saved messages for an organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Messages retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "019a72c6-f42d-7587-b0ba-17c06f8b16f1"
+                        thread_id:
+                          type: string
+                          example: "019a72c6-0988-7587-a2b5-2c3add1d7962"
+                        message_id:
+                          type: string
+                          example: "019a72c3-166d-7587-98be-3aa8eba15539"
+                        username:
+                          type: string
+                          example: "user1"
+                        content:
+                          type: string
+                          example: "reply to thread-1- direct message"
+                        user_id:
+                          type: string
+                          example: "01983184-8a02-75c6-9956-e43a3056f143"
+                        channel_id:
+                          type: string
+                          example: "019891f4-ba4e-7bfb-9592-f03aad81adca"
+                        channel_name:
+                          type: string
+                          example: "Direct Message"
+                        type:
+                          type: string
+                          example: "message"
+                        channel_type:
+                          type: string
+                          example: "Direct Message"
+                        saved_at:
+                          type: string
+                          format: date-time
+                          example: "2025-11-11T12:57:12.617913+01:00"
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "0001-01-01T00:00:00Z"
+
+  /organisations/{org_id}/saved/archived:
+    get:
+      tags:
+        - Saved Messages
+      summary: Get archived saved messages
+      description: Retrieves all saved messages that have been marked as archived.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Archived saved messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Archived saved messages retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "019a72c6-f42d-7587-b0ba-17c06f8b16f1"
+                        content:
+                          type: string
+                          example: "reply to thread-1- direct message"
+                        overdue:
+                          type: boolean
+                          example: true
+                        overdue_time:
+                          type: string
+                          format: date-time
+                          example: "2025-11-12T14:18:00+01:00"
+
+  /organisations/{org_id}/saved/completed:
+    get:
+      tags:
+        - Saved Messages
+      summary: Get completed saved messages
+      description: Retrieves all saved messages that have been marked as completed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Completed saved messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Completed saved messages retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: "019a72c6-f42d-7587-b0ba-17c06f8b16f1"
+                        content:
+                          type: string
+                          example: "reply to thread-1- direct message"
+                        overdue:
+                          type: boolean
+                          example: true
+                        overdue_time:
+                          type: string
+                          format: date-time
+                          example: "2025-11-12T14:18:00+01:00"
 
   /organisations/pin:
     post:

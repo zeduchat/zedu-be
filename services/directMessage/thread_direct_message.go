@@ -541,6 +541,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		Message:     req.Content,
 		TimeStamp:   threadDoc.CreatedAt.String(),
 		AvatarUrl:   feed.AvatarURL,
+		Title:       fmt.Sprintf("Notification from user %s", feed.UserName),
 	}
 
 	err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)

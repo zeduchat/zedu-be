@@ -16,12 +16,15 @@ import (
 )
 
 // SetupRiver initializes River using pgx driver
-func SetupRiver(ctx context.Context, configDatabase config.Database, logger *utility.Logger) (*river.Client[pgx.Tx], error) {
+func SetupRiver(ctx context.Context, configDatabase config.Database, logger *utility.Logger, db *storage.Database) (*river.Client[pgx.Tx], error) {
 
 	dbsCV := configDatabase
 	utility.LogAndPrint(logger, "connecting to database for riverqueue")
 	dsnString := dsn(dbsCV.DB_HOST, dbsCV.USERNAME, dbsCV.PASSWORD, dbsCV.DB_NAME, dbsCV.DB_PORT, dbsCV.SSLMODE, dbsCV.TIMEZONE)
 	dbPool, err := pgxpool.New(context.Background(), dsnString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pgx pool: %w", err)
+	}
 
 	// Create river driver for pgx
 	driver := riverpgxv5.New(dbPool)
@@ -47,7 +50,7 @@ func SetupRiver(ctx context.Context, configDatabase config.Database, logger *uti
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
-		Workers: registerWorkers(logger),
+		Workers: registerWorkers(logger, db),
 		Logger:  slogger,
 	})
 	if err != nil {

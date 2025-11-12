@@ -52,9 +52,11 @@ func main() {
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 	webpush.NewPushClient(logger, configuration.WebPush)
 
+	db := storage.Connection()
+
 	// start river
 	ctx := context.Background()
-	riverClient, err := riverqueueBg.SetupRiver(ctx, configuration.Database, logger)
+	riverClient, err := riverqueueBg.SetupRiver(ctx, configuration.Database, logger, db)
 
 	if err != nil {
 		log.Fatal(err)
@@ -78,8 +80,6 @@ func main() {
 		return name
 	})
 	utility.RegisterCustomValidations(validatorRef)
-
-	db := storage.Connection()
 
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 	dispatcher := np.NewDispatcher(0, 15, db, logger)

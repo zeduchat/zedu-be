@@ -62,7 +62,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("invalid thread ID")
 	}
 
-	err = threads.GetThreadById(db.Postgresql, req.ThreadId)
+	err = threads.GetThreadById(req.ThreadId)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}

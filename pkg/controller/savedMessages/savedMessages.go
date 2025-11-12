@@ -22,7 +22,7 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
-func (base *Controller) SaveThreadMessageForLater(c *gin.Context) {
+func (base *Controller) SaveThreadForLater(c *gin.Context) {
 	var req models.SaveThreadRequest
 	orgId := c.Param("org_id")
 
@@ -59,7 +59,7 @@ func (base *Controller) SaveThreadMessageForLater(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = orgId
 
-	messageDocument, saveStatus, err := savedMessages.SaveThreadMessageForLater(req, base.Db.Postgresql, base.Logger)
+	messageDocument, saveStatus, err := savedMessages.SaveThreadForLater(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to save message: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)
@@ -122,7 +122,7 @@ func (base *Controller) SaveReplyMessageForLater(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = orgId
 
-	messageDocument, saveStatus, err := savedMessages.SaveReplyMessageForLater(req, base.Db.Postgresql, base.Logger)
+	messageDocument, saveStatus, err := savedMessages.SaveThreadReplyForLater(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to save message: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to save message", err.Error(), nil)

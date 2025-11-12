@@ -329,12 +329,12 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-	thread.ID = threadID
-	err = threadDoc.GetThreadById(tx, threadID)
-	if err != nil {
-		tx.Rollback()
-		return http.StatusNotFound, errors.New("thread not found")
-	}
+    thread.ID = threadID
+    err = threadDoc.GetThreadById(threadID)
+    if err != nil {
+        tx.Rollback()
+        return http.StatusNotFound, errors.New("thread not found")
+    }
 
 	savedMessageIds := models.SavedMessageIds{
 		UserID:   userID,
@@ -436,7 +436,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		return threadResp, http.StatusNotFound, err
 	}
 
-	err = threadResp.GetThreadById(db, thread.ID)
+	err = threadResp.GetThreadById(thread.ID)
 
 	if err != nil {
 		return threadResp, http.StatusInternalServerError, err

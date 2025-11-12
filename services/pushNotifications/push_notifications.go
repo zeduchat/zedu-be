@@ -1,7 +1,6 @@
 package push_notifications
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -16,7 +15,7 @@ import (
 
 func PushFCMToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
 
-	title := fmt.Sprintf("Notification from user %s", req.ChannelName)
+	title := req.Title
 	body := req.Message
 
 	fcmtoken, exists, err := fcmtokens.GetFcmTokenByUserId(req.UserId, db)
@@ -26,8 +25,8 @@ func PushFCMToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) 
 	}
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
-		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		logger.Error(fmt.Sprintf("failed to send mass push notification, %s", err.Error()))
+		return fmt.Errorf("failed to send mass push notification, %s", err.Error())
 	}
 
 	if fcmtoken == "" {
@@ -38,11 +37,10 @@ func PushFCMToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) 
 
 	if err != nil {
 		logger.Error("Failed to send mass push notification, %s", err.Error())
-		return errors.New(fmt.Sprintf("Failed to send mass push notification, %s", err.Error()))
+		return fmt.Errorf("Failed to send mass push notification, %s", err.Error())
 	}
 
 	return nil
-
 }
 
 func PushFCMToUsers(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
