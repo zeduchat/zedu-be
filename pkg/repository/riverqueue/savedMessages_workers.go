@@ -15,9 +15,8 @@ import (
 )
 
 type SavedMessagesRemainderWorker struct {
-	logger    *utility.Logger
-	db        *gorm.DB
-	cancelJob chan int64
+	logger *utility.Logger
+	db     *gorm.DB
 	river.WorkerDefaults[models.SavedMessagesRemainderJobArgs]
 }
 

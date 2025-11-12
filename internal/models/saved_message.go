@@ -23,6 +23,7 @@ type SavedMessage struct {
 	RemainderMessage     bool           `gorm:"column:remainder; default:false" json:"remainder_message,omitempty"`
 	RemainderAt          *time.Time     `gorm:"column:remainder_at; null" json:"remainder_at,omitempty"`
 	RemainderDescription *string        `gorm:"column:remainder_description; type:text; null" json:"remainder_description,omitempty"`
+	RiverJobID           *int64         `gorm:"type:bigint;index" json:"river_job_id,omitempty"`
 	Archived             bool           `gorm:"column:archived; default:false" json:"archived,omitempty"`
 	Completed            bool           `gorm:"column:completed; default:false" json:"completed,omitempty"`
 	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
@@ -309,7 +310,7 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 		if msg.RemainderAt.Before(time.Now().UTC()) {
 			mr.Overdue = true
 		}
-		
+
 		mr.OverDueTime = msg.RemainderAt
 
 		if msg.MessageID != nil {
@@ -498,4 +499,15 @@ func (m *SavedMessage) UpdateSavedMessageRemainder(db *gorm.DB, req SetRemainder
 	}
 
 	return http.StatusOK, nil
+}
+
+func (m *SavedMessage) GetByUserAndThread(db *gorm.DB, userID, orgID, channelID, threadID string) (*SavedMessage, error) {
+	var savedMessage SavedMessage
+
+	err, _ := postgresql.SelectOneFromDb(db, &savedMessage, "user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ?", userID, orgID, channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &savedMessage, nil
 }

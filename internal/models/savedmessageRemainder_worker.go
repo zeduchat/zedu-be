@@ -2,9 +2,11 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 )
@@ -20,13 +22,17 @@ type SavedMessagesRemainderJobArgs struct {
 
 func (SavedMessagesRemainderJobArgs) Kind() string { return "remainder_job" }
 
-func (w *SavedMessagesRemainderJobArgs) InsertRemainderJob(ctx context.Context, db *storage.Database, remainderTime time.Time) error {
+func (w *SavedMessagesRemainderJobArgs) InsertRemainderJob(ctx context.Context, db *storage.Database, remainderTime time.Time) (*rivertype.JobInsertResult, error) {
 	client := storage.DB.River
-	_, err := client.Insert(ctx, w, &river.InsertOpts{
+	insertRes, err := client.Insert(ctx, w, &river.InsertOpts{
 		MaxAttempts: 5,
 		ScheduledAt: remainderTime,
 		Priority:    2,
 	})
 
-	return err
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert remainder job: %w", err)
+	}
+
+	return insertRes, nil
 }
