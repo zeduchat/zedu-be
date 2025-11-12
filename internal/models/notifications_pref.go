@@ -21,6 +21,7 @@ var (
 	Updated                     NotificationType = "updated"
 	AgentUpdate                 NotificationType = "agent_update"
 	Deleted                     NotificationType = "deleted"
+	UpdatedMedia         NotificationType = "updated_media"
 	NewMessage                  NotificationType = "new_message"
 	StatusUpdate                NotificationType = "status_update"
 	UnReadThreadChange          NotificationType = "unread_thread_change"
@@ -128,6 +129,10 @@ var Notification = map[NotificationType]Content{
 	},
 	UnArchiveSavedMessage: Content{
 		NotificationType: UnArchiveSavedMessage,
+	},
+	UpdatedMedia: Content{
+		NotificationType: UpdatedMedia,
+		Content:          ModificationDetails{},
 	},
 }
 

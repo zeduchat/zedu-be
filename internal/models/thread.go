@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -334,6 +335,12 @@ type UpdateThreadMessage struct {
 	Message   string `json:"content" validate:"required"`
 	ThreadId  string `json:"thread_id"`
 	ChannelId string `json:"channel_id"`
+}
+
+type ThreadWithMessagesResponse struct {
+	ThreadMessages []ThreadDocument `json:"thread_messages"`
+	ChannelName    string           `json:"channel_name"`
+	Participants   string           `json:"participants"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -924,16 +931,20 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
-func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, userId, organisationID string) ([]Threads, *elastic.PaginationResponse, error) {
+func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]ThreadWithMessagesResponse, *elastic.PaginationResponse, error) {
 	var (
-		threads    []Threads
-		channelIDs []string
-		threadData any
-		threadIDs  []string
-		org        Organisation
+		threads      []Threads
+		channelIDs   []string
+		threadData   any
+		threadIDs    []string
+		org          Organisation
+		dmChannelIds []string
 	)
 
 	threads = make([]Threads, 0)
+	result := make([]ThreadWithMessagesResponse, 0)
+	userId := t.UserId
+	organisationID := t.OrgansationID
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
@@ -954,6 +965,17 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
 
+	err = db.Model(&DmChannels{}).
+		Select("dm_channels.channel_id").
+		Where("dm_channels.user_id = ? AND dm_channels.org_id = ?", userId, organisationID).
+		Find(&dmChannelIds).Error
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("error fetching dm channel IDs: %v", err)
+	}
+
+	channelIDs = append(channelIDs, dmChannelIds...)
+
 	query := map[string]any{
 		"query": map[string]any{
 			"bool": map[string]any{
@@ -968,6 +990,18 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 							"user_id.keyword": userId,
 						},
 					},
+					{
+						"exists": map[string]any{
+							"field": "messages",
+						},
+					},
+				},
+			},
+		},
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]string{
+					"order": "desc",
 				},
 			},
 		},
@@ -984,7 +1018,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		},
 	}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, "messages", query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch thread records, error in %v", err)
@@ -1009,7 +1043,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	rawJSON, _ := json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
-		return threads, pagR, fmt.Errorf("failed to decode search response: %v", err)
+		return []ThreadWithMessagesResponse{}, pagR, fmt.Errorf("failed to decode search response: %v", err)
 	}
 
 	// Extract unique thread IDs from the aggregation buckets
@@ -1020,7 +1054,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 	}
 
 	if len(threadIDs) == 0 {
-		return threads, pagR, nil
+		return []ThreadWithMessagesResponse{}, pagR, nil
 	}
 
 	// Build the query
@@ -1053,7 +1087,80 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, user
 		return nil, pagR, err
 	}
 
-	return threads, pagR, nil
+	for _, thread := range threads {
+		usernames := map[string]bool{}
+		participants := ""
+		messages, _, err := FetchMessagesByThreadID(thread.ID)
+		if err != nil {
+			logger.Error("failed to fetch messages for thread %s: %v\n", thread.ID, err)
+			continue
+		}
+
+		for _, msg := range messages {
+			if msg.UserID == userId {
+				continue
+			}
+			usernames[msg.Username] = true
+		}
+
+		if len(usernames) == 0 {
+			participants = "Just you"
+		} else if len(usernames) == 1 {
+
+			for userName := range usernames {
+				participants = fmt.Sprintf("%s and you", userName)
+			}
+		} else {
+			userList := make([]string, 0, len(usernames))
+			for userName := range usernames {
+				userList = append(userList, userName)
+			}
+			participants = fmt.Sprintf("%s and you", strings.Join(userList, ", "))
+		}
+
+		threadDoc := ThreadDocument{
+			ID:                       thread.ID,
+			ChannelsID:               thread.ChannelsID,
+			OrgansationID:            thread.OrgansationID,
+			EventName:                thread.EventName,
+			Username:                 thread.Username,
+			ActionType:               thread.ActionType,
+			Status:                   thread.Status,
+			CreatedAt:                thread.CreatedAt,
+			MessageCount:             thread.MessageCount,
+			LastReply:                thread.LastReply,
+			AvatarURL:                thread.AvatarURL,
+			UserType:                 thread.UserType,
+			Type:                     thread.Type,
+			Content:                  thread.Content,
+			ChannelName:              thread.ChannelName,
+			ChannelType:              thread.ChannelType,
+			CurrentStatus:            thread.CurrentStatus,
+			FullName:                 thread.FullName,
+			Email:                    thread.Email,
+			UserId:                   thread.UserId,
+			Edited:                   thread.Edited,
+			IsPinned:                 thread.IsPinned,
+			Messages:                 messages,
+			Media:                    thread.Media,
+			Mentions:                 thread.Mentions,
+			State:                    thread.State,
+			IsSaved:                  thread.IsSaved,
+			PinnedDetails:            thread.PinnedDetails,
+			Reactions:                thread.Reactions,
+			IsForwarded:              thread.IsForwarded,
+			ForwardedMessageMetadata: thread.ForwardedMessageMetadata,
+		}
+
+		// Add to response
+		result = append(result, ThreadWithMessagesResponse{
+			ThreadMessages: []ThreadDocument{threadDoc},
+			ChannelName:    thread.ChannelName,
+			Participants:   participants,
+		})
+	}
+
+	return result, pagR, nil
 }
 
 func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
@@ -1312,4 +1419,38 @@ func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *syn
 	}
 
 	logger.Info("Updated username across thread index")
+}
+
+func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
+	var messages []MessageDocument
+
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"thread_id.keyword": threadID,
+			},
+		},
+		"from": 0,
+		"size": 1000,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "asc",
+				},
+			},
+		},
+	}
+
+	var messageData any
+	err := elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch messages for thread %s: %v", threadID, err)
+	}
+
+	messages, err = UnmarshalMessageResponse(messageData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return messages, nil, nil
 }

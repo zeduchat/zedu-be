@@ -23,11 +23,10 @@ func SeedAssistants(logger *utility.Logger, db *gorm.DB) {
 		return
 	}
 
-	// if count > 0 {
-	// 	logger.Error("Assistant integrations already exist, skipping seeding...")
-	// 	return
-	// } else {
-	{
+	if count > 0 {
+		logger.Error("Assistant integrations already exist, skipping seeding...")
+		return
+	} else {
 		integrations := []models.Integrations{
 			{
 				ID:                 "0198d111-7a99-75c5-9931-22f15cc1aa11",
