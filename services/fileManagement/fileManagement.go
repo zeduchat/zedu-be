@@ -237,7 +237,7 @@ func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string
 		threadDoc models.ThreadDocument
 	)
 
-	err := threadDoc.GetThreadById(storage.DB.Postgresql, threadID)
+	err := threadDoc.GetThreadById(threadID)
 	if err != nil {
 		return errors.New("thread not found")
 	}
@@ -267,7 +267,7 @@ func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string
 		return fmt.Errorf("failed to remove media file from thread: %w", err)
 	}
 
-	err = threadDoc.GetThreadById(storage.DB.Postgresql, threadID)
+	err = threadDoc.GetThreadById(threadID)
 	if err != nil {
 		return errors.New("thread not found")
 	}
