@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/utility"
@@ -204,6 +206,7 @@ func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *m
 	if countErr != nil {
 		return countErr
 	}
+
 	if count == 1 {
 		hashedFileName := utility.ExtractHashedFileName(file.FileLink)
 
@@ -219,13 +222,26 @@ func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *m
 	}
 
 	if threadId != "" {
-		RemoveMediaFileFromThread(db.Elastic, threadId, fileId)
+		err = RemoveMediaFileFromThread(db.Elastic, threadId, fileId, logger)
+		if err != nil {
+			logger.Error("Failed to remove media file from thread, err: %s", err)
+		}
 	}
 
 	return nil
 }
 
-func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string) error {
+func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string, logger *utility.Logger) error {
+
+	var (
+		threadDoc models.ThreadDocument
+	)
+
+	err := threadDoc.GetThreadById(storage.DB.Postgresql, threadID)
+	if err != nil {
+		return errors.New("thread not found")
+	}
+
 	script := `if (ctx._source.media == null) {
 		ctx._source.media = [];
 	}
@@ -245,10 +261,28 @@ func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string
 		},
 	}
 
-	err := elastic.UpdateDocWithScript(db, models.ThreadIndexName, threadID, req)
+	err = elastic.UpdateDocWithScript(db, models.ThreadIndexName, threadID, req)
 
 	if err != nil {
 		return fmt.Errorf("failed to remove media file from thread: %w", err)
+	}
+
+	err = threadDoc.GetThreadById(storage.DB.Postgresql, threadID)
+	if err != nil {
+		return errors.New("thread not found")
+	}
+
+	notification := models.Notification[models.UpdatedMedia]
+	notification.SectionType = models.ThreadSection
+	notification.Content = threadDoc
+	notification.ModificationDetails = &models.ModificationDetails{
+		ThreadId:  threadID,
+		ChannelId: threadDoc.ChannelsID,
+	}
+
+	if err := centrifuge.PublishChannel(logger, threadDoc.ChannelsID, notification); err != nil {
+		logger.Error("Error Publishing to with destination id: %s error: %v", threadDoc.ChannelsID, err)
+		return errors.New("failed to publish data")
 	}
 
 	return nil
