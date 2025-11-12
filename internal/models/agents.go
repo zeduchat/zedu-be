@@ -2764,7 +2764,7 @@ func ResolveAgentId(partialUUId string, db *storage.Database) (string, error) {
 		return orgAgent.IntegrationID, nil
 	}
 
-	return "", errors.New("Invalid agent id, agent does not exists")
+	return "", errors.New("invalid agent id, agent does not exists")
 
 }
 

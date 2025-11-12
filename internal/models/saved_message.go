@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -11,33 +12,39 @@ import (
 )
 
 type SavedMessage struct {
-	ID         string         `gorm:"type:uuid;primary_key" json:"id"`
-	ChannelsID string         `gorm:"type:uuid;not null;index" json:"channels_id"`
-	OrgId      string         `gorm:"type:uuid;not null;index" json:"org_id"`
-	UserID     string         `gorm:"type:uuid;not null;index" json:"user_id"`
-	Type       string         `gorm:"type:text;not null;index" json:"type,omitempty"`
-	MessageID  *string        `gorm:"type:uuid;null;index" json:"message_id,omitempty"`
-	ThreadID   string         `gorm:"type:uuid;null;index" json:"thread_id"`
-	CreatedAt  time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                   string         `gorm:"type:uuid;primary_key" json:"id"`
+	ChannelsID           string         `gorm:"type:uuid;not null;index" json:"channels_id"`
+	OrgId                string         `gorm:"type:uuid;not null;index" json:"org_id"`
+	UserID               string         `gorm:"type:uuid;not null;index" json:"user_id"`
+	Type                 string         `gorm:"type:text;not null;index" json:"type,omitempty"`
+	MessageID            *string        `gorm:"type:uuid;null;index" json:"message_id,omitempty"`
+	ThreadID             string         `gorm:"type:uuid;null;index" json:"thread_id"`
+	CreatedAt            time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	RemainderMessage     bool           `gorm:"column:remainder; default:false" json:"remainder_message,omitempty"`
+	RemainderAt          *time.Time     `gorm:"column:remainder_at; null" json:"remainder_at,omitempty"`
+	RemainderDescription *string        `gorm:"column:remainder_description; type:text; null" json:"remainder_description,omitempty"`
+	Archived             bool           `gorm:"column:archived; default:false" json:"archived,omitempty"`
+	Completed            bool           `gorm:"column:completed; default:false" json:"completed,omitempty"`
+	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type SavedMessagesResp struct {
-	ID          string    `json:"id,omitempty"`
-	ThreadID    string    `json:"thread_id,omitempty"`
-	MessageID   *string   `json:"message_id,omitempty"`
-	AvatarURL   string    `json:"avatar_url,omitempty"`
-	Username    string    `json:"username,omitempty"`
-	Content     string    `json:"content,omitempty"`
-	UserID      string    `json:"user_id,omitempty"`
-	ChannelID   string    `json:"channel_id,omitempty"`
-	ChannelName string    `json:"channel_name,omitempty"`
-	Type        string    `json:"type,omitempty"`         // thread or message(thread-reply)
-	ChannelType string    `json:"channel_type,omitempty"` // dm, groupDM, public, private
-	SavedAt     time.Time `json:"saved_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
+	ID          string     `json:"id,omitempty"`
+	ThreadID    string     `json:"thread_id,omitempty"`
+	MessageID   *string    `json:"message_id,omitempty"`
+	AvatarURL   string     `json:"avatar_url,omitempty"`
+	Username    string     `json:"username,omitempty"`
+	Content     string     `json:"content,omitempty"`
+	UserID      string     `json:"user_id,omitempty"`
+	ChannelID   string     `json:"channel_id,omitempty"`
+	ChannelName string     `json:"channel_name,omitempty"`
+	Type        string     `json:"type,omitempty"`         // thread or message(thread-reply)
+	ChannelType string     `json:"channel_type,omitempty"` // dm, groupDM, public, private
+	SavedAt     time.Time  `json:"saved_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at,omitempty"`
+	Overdue     bool       `json:"overdue,omitempty"`
+	OverDueTime *time.Time `json:"overdue_time,omitempty"`
 }
-
 
 type SaveThreadRequest struct {
 	ChannelsId string `json:"channels_id" validate:"required"`
@@ -61,6 +68,16 @@ type SavedMessageIds struct {
 	UserID         string
 	SavedMessageID string
 	ChannelID      string
+}
+
+type SetRemainderRequest struct {
+	Type        string    `json:"type" validate:"required"` // thread or message
+	ChannelsId  string    `json:"channels_id" validate:"required"`
+	ThreadId    string    `json:"thread_id" validate:"required"`
+	MessageId   *string   `json:"message_id,omitempty"`
+	OrgId       string    `json:"org_id"`
+	UserId      string    `json:"user_id"`
+	RemainderAt time.Time `json:"remainder_at" validate:"required"`
 }
 
 func (m *SavedMessage) CreateSavedThreadRecord(db *gorm.DB) (bool, error) {
@@ -190,13 +207,12 @@ func (m *SavedMessage) CreateReplyMessageRecord(db *gorm.DB) (bool, error) {
 
 func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessagesResp, error) {
 	var (
-		org          Organisation
-		organisation *Organisation
-		messages     []SavedMessage
-		messagesResp = make([]SavedMessagesResp, 0)
+		org                     Organisation
+		organisation            *Organisation
+		messages                []SavedMessage
+		messagesResp            = make([]SavedMessagesResp, 0)
 		foundMsgs, notFoundMsgs []SavedMessagesResp
 	)
-
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
 	if !exists {
@@ -289,6 +305,12 @@ func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]Sav
 			}
 			return resp
 		}
+
+		if msg.RemainderAt.Before(time.Now().UTC()) {
+			mr.Overdue = true
+		}
+		
+		mr.OverDueTime = msg.RemainderAt
 
 		if msg.MessageID != nil {
 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
@@ -444,4 +466,36 @@ func (m *SavedMessage) DeleteSavedMessagesByChannelID(db *gorm.DB, channelID, us
 	}
 
 	return nil
+}
+
+func (m *SavedMessage) UpdateSavedMessageRemainder(db *gorm.DB, req SetRemainderRequest, update map[string]any) (int, error) {
+	var (
+		savedMessage SavedMessage
+		query        string
+		args         []any
+	)
+
+	if req.MessageId == nil {
+		query = "thread_id = ? AND type = ? AND user_id = ?"
+		args = []any{req.ThreadId, req.Type, req.UserId}
+	} else {
+		query = "message_id = ? AND thread_id = ? AND type = ? AND user_id = ?"
+		args = []any{*req.MessageId, req.ThreadId, req.Type, req.UserId}
+	}
+
+	exists := postgresql.CheckExists(db, &savedMessage, query, args...)
+	if !exists {
+		return http.StatusNotFound, errors.New("saved message or thread not found")
+	}
+
+	res, err := postgresql.UpdateFields(db, &savedMessage, update, query, args...)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update saved message reminder: %w", err)
+	}
+
+	if res.RowsAffected == 0 {
+		return http.StatusConflict, errors.New("no rows were updated")
+	}
+
+	return http.StatusOK, nil
 }

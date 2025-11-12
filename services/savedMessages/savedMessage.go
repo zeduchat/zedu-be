@@ -192,7 +192,6 @@ func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMes
 			ChannelId: ids.ChannelID,
 		}
 
-
 		err = centrifuge.PublishChannel(logger, ids.ChannelID, notification)
 		if err != nil {
 			logger.Error("Error Publishing saved thread event to with destination id: %s error: %v", ids.ChannelID, err.Error())

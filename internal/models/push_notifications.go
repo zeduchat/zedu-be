@@ -10,4 +10,5 @@ type PushRequest struct {
 	Username    string `json:"username"`
 	UserIds     []string
 	Payload     any
+	Title       string `json:"title"`
 }

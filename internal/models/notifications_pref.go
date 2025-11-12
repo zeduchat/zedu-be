@@ -18,28 +18,29 @@ type SectionType string
 type ChannelType string
 
 var (
-	Updated              NotificationType = "updated"
-	AgentUpdate          NotificationType = "agent_update"
-	Deleted              NotificationType = "deleted"
-	NewMessage           NotificationType = "new_message"
-	StatusUpdate         NotificationType = "status_update"
-	UnReadThreadChange   NotificationType = "unread_thread_change"
-	ChannelMention       NotificationType = "channel_mention"
-	ThreadReply          NotificationType = "thread_reply"
-	ReplyCountChange     NotificationType = "reply_count_change"
-	PinnedMessageEvent   NotificationType = "pinned_message_event"
-	UnPinnedMessageEvent NotificationType = "unpinned_message_event"
-	SavedMessageEvent    NotificationType = "saved_message_event"
-	UnSavedMessageEvent  NotificationType = "unsaved_message_event"
-	ReactionEvent        NotificationType = "reaction_event"
-	ThreadSection        SectionType      = "thread_message"
-	ReplySection         SectionType      = "reply_message"
-	ChannelsSection      SectionType      = "channels_section"
-	DmChannelsSection    SectionType      = "dm_channels_section"
-	AgentChannelsSection SectionType      = "agent_channels_section"
-	Channel              ChannelType      = "channel"
-	DMChannel            ChannelType      = "dm_channel"
-	GroupDMChannel       ChannelType      = "group_dm_channel"
+	Updated               NotificationType = "updated"
+	AgentUpdate           NotificationType = "agent_update"
+	Deleted               NotificationType = "deleted"
+	NewMessage            NotificationType = "new_message"
+	StatusUpdate          NotificationType = "status_update"
+	UnReadThreadChange    NotificationType = "unread_thread_change"
+	ChannelMention        NotificationType = "channel_mention"
+	ThreadReply           NotificationType = "thread_reply"
+	ReplyCountChange      NotificationType = "reply_count_change"
+	PinnedMessageEvent    NotificationType = "pinned_message_event"
+	UnPinnedMessageEvent  NotificationType = "unpinned_message_event"
+	SavedMessageEvent     NotificationType = "saved_message_event"
+	UnSavedMessageEvent   NotificationType = "unsaved_message_event"
+	ReactionEvent         NotificationType = "reaction_event"
+	SavedMessageRemainder NotificationType = "saved_message_remainder"
+	ThreadSection         SectionType      = "thread_message"
+	ReplySection          SectionType      = "reply_message"
+	ChannelsSection       SectionType      = "channels_section"
+	DmChannelsSection     SectionType      = "dm_channels_section"
+	AgentChannelsSection  SectionType      = "agent_channels_section"
+	Channel               ChannelType      = "channel"
+	DMChannel             ChannelType      = "dm_channel"
+	GroupDMChannel        ChannelType      = "group_dm_channel"
 )
 
 type Content struct {
@@ -112,6 +113,9 @@ var Notification = map[NotificationType]Content{
 	},
 	ThreadReply: Content{
 		NotificationType: ThreadReply,
+	},
+	SavedMessageRemainder: Content{
+		NotificationType: SavedMessageRemainder,
 	},
 }
 
