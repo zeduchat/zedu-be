@@ -81,6 +81,20 @@ type SetRemainderRequest struct {
 	RemainderAt time.Time `json:"remainder_at" validate:"required"`
 }
 
+type MarkCompleteSavedMessageRequest struct {
+	Completed      *bool  `json:"completed" validate:"required"`
+	UserId         string `json:"user_id"`
+	OrgId          string `json:"org_id"`
+	SavedMessageID string `json:"-"`
+}
+
+type ArchiveSavedMessageRequest struct {
+	UserId         string `json:"user_id"`
+	OrgId          string `json:"org_id"`
+	SavedMessageID string `json:"-"`
+	Archived       *bool  `json:"archived" validate:"required"`
+}
+
 func (m *SavedMessage) CreateSavedThreadRecord(db *gorm.DB) (bool, error) {
 	var (
 		org          Organisation
@@ -204,160 +218,6 @@ func (m *SavedMessage) CreateReplyMessageRecord(db *gorm.DB) (bool, error) {
 	}
 
 	return true, nil // saved
-}
-
-func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessagesResp, error) {
-	var (
-		org                     Organisation
-		organisation            *Organisation
-		messages                []SavedMessage
-		messagesResp            = make([]SavedMessagesResp, 0)
-		foundMsgs, notFoundMsgs []SavedMessagesResp
-	)
-
-	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
-	if !exists {
-		return nil, errors.New("organisation not found")
-	}
-
-	isMember, err := organisation.CheckUserIsMemberOfOrg(ids.UserID, ids.OrgID, db)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, errors.New("user is not a member of organisation")
-	}
-
-	err = postgresql.SelectAllFromDb(db, "", &messages, "org_id = ? AND user_id = ?", ids.OrgID, ids.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve saved messages: %w", err)
-	}
-
-	resolveChannelName := func(db *gorm.DB, channelID string) string {
-		var dmchan DmChannels
-		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
-			return "Direct Message"
-		}
-		var ch Channels
-		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
-			return ch.Name
-		}
-
-		return "unknown"
-	}
-
-	resolveChannelType := func(db *gorm.DB, channelID, user_id, org_id string) string {
-		var (
-			dmChannels   DmChannels
-			userChannels UserChannels
-		)
-		chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user_id)
-		dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
-
-		if !(dmChanExist || chanExist) {
-			return "unknown"
-		}
-
-		if dmChanExist {
-			var dmChannel DmChannels
-			exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ?", channelID)
-			if !exists {
-				return "unknown"
-			}
-
-			if dmChannel.ChatType == "bot" {
-				return "Bot"
-			} else {
-				if dmChannel.ChannelType == "dm" {
-					return "Direct Message"
-				} else {
-					return "Group Direct Message"
-				}
-			}
-		}
-
-		if chanExist {
-			var channels Channels
-			exists := postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", channelID, org_id)
-			if !exists {
-				return "unknown"
-			}
-
-			if channels.IsPrivate {
-				return "Private Channel"
-			} else {
-				return "Public"
-			}
-		}
-		return "unknown"
-	}
-
-	for _, msg := range messages {
-		var (
-			t  ThreadDocument
-			m  MessageDocument
-			mr SavedMessagesResp
-		)
-
-		populateNotFoundDocument := func() SavedMessagesResp {
-			resp := SavedMessagesResp{
-				Content:   "A message you saved was not found.",
-				AvatarURL: "",
-			}
-			return resp
-		}
-
-		if msg.RemainderAt.Before(time.Now().UTC()) {
-			mr.Overdue = true
-		}
-
-		mr.OverDueTime = msg.RemainderAt
-
-		if msg.MessageID != nil {
-			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
-				resp := populateNotFoundDocument()
-				notFoundMsgs = append(notFoundMsgs, resp)
-				continue
-			}
-
-			mr.ID = msg.ID
-			mr.ThreadID = msg.ThreadID
-			mr.MessageID = msg.MessageID
-			mr.AvatarURL = m.AvatarURL
-			mr.Username = m.Username
-			mr.Content = m.Content
-			mr.SavedAt = msg.CreatedAt
-			mr.UserID = m.UserID
-			mr.Type = "message"
-			mr.ChannelID = m.ChannelsID
-			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
-			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
-		} else {
-			if err := t.GetThreadById(msg.ThreadID); err != nil {
-				resp := populateNotFoundDocument()
-				notFoundMsgs = append(notFoundMsgs, resp)
-				continue
-			}
-
-			mr.ID = msg.ID
-			mr.ThreadID = msg.ThreadID
-			mr.MessageID = nil
-			mr.AvatarURL = t.AvatarURL
-			mr.Username = t.Username
-			mr.Content = t.Content
-			mr.SavedAt = msg.CreatedAt
-			mr.UserID = t.UserId
-			mr.Type = "thread"
-			mr.ChannelID = t.ChannelsID
-			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
-			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
-		}
-
-		foundMsgs = append(foundMsgs, mr)
-	}
-
-	messagesResp = append(foundMsgs, notFoundMsgs...)
-	return messagesResp, nil
 }
 
 func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, ids SavedMessageIds) error {
@@ -501,13 +361,537 @@ func (m *SavedMessage) UpdateSavedMessageRemainder(db *gorm.DB, req SetRemainder
 	return http.StatusOK, nil
 }
 
-func (m *SavedMessage) GetByUserAndThread(db *gorm.DB, userID, orgID, channelID, threadID string) (*SavedMessage, error) {
-	var savedMessage SavedMessage
+func (m *SavedMessage) UpdateSavedMessageCompletion(db *gorm.DB, logger *utility.Logger, req MarkCompleteSavedMessageRequest, update map[string]any) (int, error) {
+	var (
+		savedMessage SavedMessage
+	)
 
-	err, _ := postgresql.SelectOneFromDb(db, &savedMessage, "user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ?", userID, orgID, channelID, threadID)
+	exists := postgresql.CheckExists(db, &savedMessage, "id = ? AND user_id = ?", req.SavedMessageID, req.UserId)
+	if !exists {
+		return http.StatusNotFound, errors.New("saved message not found")
+	}
+
+	if savedMessage.Completed {
+		logger.Info("Saved message %s for user %s is already marked as complete", req.SavedMessageID, req.UserId)
+		return http.StatusOK, nil
+	}
+
+	res, err := postgresql.UpdateFields(db, &savedMessage, update, "id = ? AND user_id = ?", req.SavedMessageID, req.UserId)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update saved message completion: %w", err)
+	}
+
+	if res.RowsAffected == 0 {
+		return http.StatusConflict, errors.New("no rows were updated")
+	}
+
+	*m = savedMessage
+	return http.StatusOK, nil
+}
+
+func (m *SavedMessage) UpdateSavedMessageArchiveStatus(db *gorm.DB, req ArchiveSavedMessageRequest, update map[string]any) (int, error) {
+	var (
+		savedMessage SavedMessage
+	)
+
+	exists := postgresql.CheckExists(db, &savedMessage, "id = ? AND user_id = ?", req.SavedMessageID, req.UserId)
+	if !exists {
+		return http.StatusNotFound, errors.New("saved message not found")
+	}
+
+	res, err := postgresql.UpdateFields(db, &savedMessage, update, "id = ? AND user_id = ?", req.SavedMessageID, req.UserId)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update saved message archive status: %w", err)
+	}
+
+	if res.RowsAffected == 0 {
+		return http.StatusConflict, errors.New("no rows were updated")
+	}
+
+	return http.StatusOK, nil
+}
+
+func (m *SavedMessage) GetByUserAndThread(db *gorm.DB, userID, orgID, channelID, threadID, msgType string, messageID *string) (*SavedMessage, error) {
+	var savedMessages SavedMessage
+
+	if messageID == nil {
+		err, _ := postgresql.SelectOneFromDb(db, &savedMessages, "user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ? AND type = ?", userID, orgID, channelID, threadID, msgType)
+		if err != nil {
+			return nil, err
+		}
+
+		return &savedMessages, nil
+	}
+
+	err, _ := postgresql.SelectOneFromDb(db, &savedMessages, "user_id = ? AND org_id = ? AND channels_id = ? AND thread_id = ? AND message_id = ? AND type = ?", userID, orgID, channelID, threadID, *messageID, msgType)
 	if err != nil {
 		return nil, err
 	}
-
-	return &savedMessage, nil
+	return &savedMessages, nil
 }
+
+// func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessagesResp, error) {
+// 	var (
+// 		org                     Organisation
+// 		organisation            *Organisation
+// 		messages                []SavedMessage
+// 		messagesResp            = make([]SavedMessagesResp, 0)
+// 		foundMsgs, notFoundMsgs []SavedMessagesResp
+// 	)
+
+// 	exists := postgresql.CheckExists(db, &org, "id = ?", ids.OrgID)
+// 	if !exists {
+// 		return nil, errors.New("organisation not found")
+// 	}
+
+// 	isMember, err := organisation.CheckUserIsMemberOfOrg(ids.UserID, ids.OrgID, db)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if !isMember {
+// 		return nil, errors.New("user is not a member of organisation")
+// 	}
+
+// 	err = postgresql.SelectAllFromDb(db, "", &messages, "org_id = ? AND user_id = ?", ids.OrgID, ids.UserID)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to retrieve saved messages: %w", err)
+// 	}
+
+// 	resolveChannelName := func(db *gorm.DB, channelID string) string {
+// 		var dmchan DmChannels
+// 		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
+// 			return "Direct Message"
+// 		}
+// 		var ch Channels
+// 		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
+// 			return ch.Name
+// 		}
+
+// 		return "unknown"
+// 	}
+
+// 	resolveChannelType := func(db *gorm.DB, channelID, user_id, org_id string) string {
+// 		var (
+// 			dmChannels   DmChannels
+// 			userChannels UserChannels
+// 		)
+// 		chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user_id)
+// 		dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
+
+// 		if !(dmChanExist || chanExist) {
+// 			return "unknown"
+// 		}
+
+// 		if dmChanExist {
+// 			var dmChannel DmChannels
+// 			exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ?", channelID)
+// 			if !exists {
+// 				return "unknown"
+// 			}
+
+// 			if dmChannel.ChatType == "bot" {
+// 				return "Bot"
+// 			} else {
+// 				if dmChannel.ChannelType == "dm" {
+// 					return "Direct Message"
+// 				} else {
+// 					return "Group Direct Message"
+// 				}
+// 			}
+// 		}
+
+// 		if chanExist {
+// 			var channels Channels
+// 			exists := postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", channelID, org_id)
+// 			if !exists {
+// 				return "unknown"
+// 			}
+
+// 			if channels.IsPrivate {
+// 				return "Private Channel"
+// 			} else {
+// 				return "Public"
+// 			}
+// 		}
+// 		return "unknown"
+// 	}
+
+// 	for _, msg := range messages {
+// 		var (
+// 			t  ThreadDocument
+// 			m  MessageDocument
+// 			mr SavedMessagesResp
+// 		)
+
+// 		populateNotFoundDocument := func() SavedMessagesResp {
+// 			resp := SavedMessagesResp{
+// 				Content:   "A message you saved was not found.",
+// 				AvatarURL: "",
+// 			}
+// 			return resp
+// 		}
+
+// 		if msg.RemainderAt.Before(time.Now().UTC()) {
+// 			mr.Overdue = true
+// 		}
+
+// 		mr.OverDueTime = msg.RemainderAt
+
+// 		if msg.MessageID != nil {
+// 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
+// 				resp := populateNotFoundDocument()
+// 				notFoundMsgs = append(notFoundMsgs, resp)
+// 				continue
+// 			}
+
+// 			mr.ID = msg.ID
+// 			mr.ThreadID = msg.ThreadID
+// 			mr.MessageID = msg.MessageID
+// 			mr.AvatarURL = m.AvatarURL
+// 			mr.Username = m.Username
+// 			mr.Content = m.Content
+// 			mr.SavedAt = msg.CreatedAt
+// 			mr.UserID = m.UserID
+// 			mr.Type = "message"
+// 			mr.ChannelID = m.ChannelsID
+// 			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
+// 			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
+// 		} else {
+// 			if err := t.GetThreadById(msg.ThreadID); err != nil {
+// 				resp := populateNotFoundDocument()
+// 				notFoundMsgs = append(notFoundMsgs, resp)
+// 				continue
+// 			}
+
+// 			mr.ID = msg.ID
+// 			mr.ThreadID = msg.ThreadID
+// 			mr.MessageID = nil
+// 			mr.AvatarURL = t.AvatarURL
+// 			mr.Username = t.Username
+// 			mr.Content = t.Content
+// 			mr.SavedAt = msg.CreatedAt
+// 			mr.UserID = t.UserId
+// 			mr.Type = "thread"
+// 			mr.ChannelID = t.ChannelsID
+// 			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
+// 			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
+// 		}
+
+// 		foundMsgs = append(foundMsgs, mr)
+// 	}
+
+// 	messagesResp = append(foundMsgs, notFoundMsgs...)
+// 	return messagesResp, nil
+// }
+
+// func (m *SavedMessage) GetCompletedSavedMessages(db *gorm.DB, orgID, userID string) ([]SavedMessagesResp, error) {
+// 	var (
+// 		org                     Organisation
+// 		organisation            *Organisation
+// 		messages                []SavedMessage
+// 		messagesResp            = make([]SavedMessagesResp, 0)
+// 		foundMsgs, notFoundMsgs []SavedMessagesResp
+// 	)
+
+// 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+// 	if !exists {
+// 		return nil, errors.New("organisation not found")
+// 	}
+
+// 	isMember, err := organisation.CheckUserIsMemberOfOrg(userID, orgID, db)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if !isMember {
+// 		return nil, errors.New("user is not a member of organisation")
+// 	}
+
+// 	err = postgresql.SelectAllFromDb(db, "", &messages, "org_id = ? AND user_id = ? AND completed = ?", orgID, userID, true)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to retrieve completed saved messages: %w", err)
+// 	}
+
+// 	resolveChannelName := func(db *gorm.DB, channelID string) string {
+// 		var dmchan DmChannels
+// 		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
+// 			return "Direct Message"
+// 		}
+// 		var ch Channels
+// 		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
+// 			return ch.Name
+// 		}
+
+// 		return "unknown"
+// 	}
+
+// 	resolveChannelType := func(db *gorm.DB, channelID, user_id, org_id string) string {
+// 		var (
+// 			dmChannels   DmChannels
+// 			userChannels UserChannels
+// 		)
+// 		chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user_id)
+// 		dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
+
+// 		if !(dmChanExist || chanExist) {
+// 			return "unknown"
+// 		}
+
+// 		if dmChanExist {
+// 			var dmChannel DmChannels
+// 			exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ?", channelID)
+// 			if !exists {
+// 				return "unknown"
+// 			}
+
+// 			if dmChannel.ChatType == "bot" {
+// 				return "Bot"
+// 			} else {
+// 				if dmChannel.ChannelType == "dm" {
+// 					return "Direct Message"
+// 				} else {
+// 					return "Group Direct Message"
+// 				}
+// 			}
+// 		}
+
+// 		if chanExist {
+// 			var channels Channels
+// 			exists := postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", channelID, org_id)
+// 			if !exists {
+// 				return "unknown"
+// 			}
+
+// 			if channels.IsPrivate {
+// 				return "Private Channel"
+// 			} else {
+// 				return "Public"
+// 			}
+// 		}
+// 		return "unknown"
+// 	}
+
+// 	for _, msg := range messages {
+// 		var (
+// 			t  ThreadDocument
+// 			m  MessageDocument
+// 			mr SavedMessagesResp
+// 		)
+
+// 		populateNotFoundDocument := func() SavedMessagesResp {
+// 			resp := SavedMessagesResp{
+// 				Content:   "A message you saved was not found.",
+// 				AvatarURL: "",
+// 			}
+// 			return resp
+// 		}
+
+// 		if msg.RemainderAt.Before(time.Now().UTC()) {
+// 			mr.Overdue = true
+// 		}
+
+// 		mr.OverDueTime = msg.RemainderAt
+
+// 		if msg.MessageID != nil {
+// 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
+// 				resp := populateNotFoundDocument()
+// 				notFoundMsgs = append(notFoundMsgs, resp)
+// 				continue
+// 			}
+
+// 			mr.ID = msg.ID
+// 			mr.ThreadID = msg.ThreadID
+// 			mr.MessageID = msg.MessageID
+// 			mr.AvatarURL = m.AvatarURL
+// 			mr.Username = m.Username
+// 			mr.Content = m.Content
+// 			mr.SavedAt = msg.CreatedAt
+// 			mr.UserID = m.UserID
+// 			mr.Type = "message"
+// 			mr.ChannelID = m.ChannelsID
+// 			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
+// 			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
+// 		} else {
+// 			if err := t.GetThreadById(msg.ThreadID); err != nil {
+// 				resp := populateNotFoundDocument()
+// 				notFoundMsgs = append(notFoundMsgs, resp)
+// 				continue
+// 			}
+
+// 			mr.ID = msg.ID
+// 			mr.ThreadID = msg.ThreadID
+// 			mr.MessageID = nil
+// 			mr.AvatarURL = t.AvatarURL
+// 			mr.Username = t.Username
+// 			mr.Content = t.Content
+// 			mr.SavedAt = msg.CreatedAt
+// 			mr.UserID = t.UserId
+// 			mr.Type = "thread"
+// 			mr.ChannelID = t.ChannelsID
+// 			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
+// 			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
+// 		}
+
+// 		foundMsgs = append(foundMsgs, mr)
+// 	}
+
+// 	messagesResp = append(foundMsgs, notFoundMsgs...)
+
+// 	return messagesResp, nil
+
+// }
+
+// func (m *SavedMessage) GetArchivedSavedMessages(db *gorm.DB, orgID, userID string) ([]SavedMessagesResp, error) {
+// 	var (
+// 		org                     Organisation
+// 		organisation            *Organisation
+// 		messages                []SavedMessage
+// 		messagesResp            = make([]SavedMessagesResp, 0)
+// 		foundMsgs, notFoundMsgs []SavedMessagesResp
+// 	)
+
+// 	exists := postgresql.CheckExists(db, &org, "id = ?", orgID)
+// 	if !exists {
+// 		return nil, errors.New("organisation not found")
+// 	}
+
+// 	isMember, err := organisation.CheckUserIsMemberOfOrg(userID, orgID, db)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if !isMember {
+// 		return nil, errors.New("user is not a member of organisation")
+// 	}
+
+// 	err = postgresql.SelectAllFromDb(db, "", &messages, "org_id = ? AND user_id = ? AND archived = ?", orgID, userID, true)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to retrieve archived saved messages: %w", err)
+// 	}
+
+// 	resolveChannelName := func(db *gorm.DB, channelID string) string {
+// 		var dmchan DmChannels
+// 		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
+// 			return "Direct Message"
+// 		}
+// 		var ch Channels
+// 		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
+// 			return ch.Name
+// 		}
+
+// 		return "unknown"
+// 	}
+
+// 	resolveChannelType := func(db *gorm.DB, channelID, user_id, org_id string) string {
+// 		var (
+// 			dmChannels   DmChannels
+// 			userChannels UserChannels
+// 		)
+// 		chanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user_id)
+// 		dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", channelID)
+
+// 		if !(dmChanExist || chanExist) {
+// 			return "unknown"
+// 		}
+
+// 		if dmChanExist {
+// 			var dmChannel DmChannels
+// 			exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ?", channelID)
+// 			if !exists {
+// 				return "unknown"
+// 			}
+
+// 			if dmChannel.ChatType == "bot" {
+// 				return "Bot"
+// 			} else {
+// 				if dmChannel.ChannelType == "dm" {
+// 					return "Direct Message"
+// 				} else {
+// 					return "Group Direct Message"
+// 				}
+// 			}
+// 		}
+
+// 		if chanExist {
+// 			var channels Channels
+// 			exists := postgresql.CheckExists(db, &channels, "id = ? AND organisation_id = ?", channelID, org_id)
+// 			if !exists {
+// 				return "unknown"
+// 			}
+
+// 			if channels.IsPrivate {
+// 				return "Private Channel"
+// 			} else {
+// 				return "Public"
+// 			}
+// 		}
+// 		return "unknown"
+// 	}
+
+// 	for _, msg := range messages {
+// 		var (
+// 			t  ThreadDocument
+// 			m  MessageDocument
+// 			mr SavedMessagesResp
+// 		)
+
+// 		populateNotFoundDocument := func() SavedMessagesResp {
+// 			resp := SavedMessagesResp{
+// 				Content:   "A message you saved was not found.",
+// 				AvatarURL: "",
+// 			}
+// 			return resp
+// 		}
+
+// 		if msg.RemainderAt.Before(time.Now().UTC()) {
+// 			mr.Overdue = true
+// 		}
+
+// 		mr.OverDueTime = msg.RemainderAt
+
+// 		if msg.MessageID != nil {
+// 			if err := m.GetMessageById(db, *msg.MessageID); err != nil {
+// 				resp := populateNotFoundDocument()
+// 				notFoundMsgs = append(notFoundMsgs, resp)
+// 				continue
+// 			}
+
+// 			mr.ID = msg.ID
+// 			mr.ThreadID = msg.ThreadID
+// 			mr.MessageID = msg.MessageID
+// 			mr.AvatarURL = m.AvatarURL
+// 			mr.Username = m.Username
+// 			mr.Content = m.Content
+// 			mr.SavedAt = msg.CreatedAt
+// 			mr.UserID = m.UserID
+// 			mr.Type = "message"
+// 			mr.ChannelID = m.ChannelsID
+// 			mr.ChannelName = resolveChannelName(db, m.ChannelsID)
+// 			mr.ChannelType = resolveChannelType(db, m.ChannelsID, msg.UserID, msg.OrgId)
+// 		} else {
+// 			if err := t.GetThreadById(msg.ThreadID); err != nil {
+// 				resp := populateNotFoundDocument()
+// 				notFoundMsgs = append(notFoundMsgs, resp)
+// 				continue
+// 			}
+
+// 			mr.ID = msg.ID
+// 			mr.ThreadID = msg.ThreadID
+// 			mr.MessageID = nil
+// 			mr.AvatarURL = t.AvatarURL
+// 			mr.Username = t.Username
+// 			mr.Content = t.Content
+// 			mr.SavedAt = msg.CreatedAt
+// 			mr.UserID = t.UserId
+// 			mr.Type = "thread"
+// 			mr.ChannelID = t.ChannelsID
+// 			mr.ChannelName = resolveChannelName(db, t.ChannelsID)
+// 			mr.ChannelType = resolveChannelType(db, t.ChannelsID, msg.UserID, msg.OrgId)
+// 		}
+
+// 		foundMsgs = append(foundMsgs, mr)
+// 	}
+
+// 	messagesResp = append(foundMsgs, notFoundMsgs...)
+
+// 	return messagesResp, nil
+
+// }

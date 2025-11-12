@@ -23,12 +23,12 @@ func SavedMessages(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		savedMessagesUrl.GET("/:org_id/saved/message", savedMessages.GetAllSavedMessages)
 		savedMessagesUrl.DELETE("/:org_id/saved/message/:smId", savedMessages.DeleteSavedMessageByID)
 
-		//remainder
 		savedMessagesUrl.PUT("/:org_id/set-remainder", savedMessages.SetRemainder)
-		// savedMessagesUrl.PUT("/:org_id/edit-remainder", savedMessages.EditRemainder)
-		//archive & mark complete
-		// savedMessagesUrl.POST("/:org_id/archive-saved-message/:smId", savedMessages.ArchiveSavedMessage)
-		// savedMessagesUrl.POST("/:org_id/mark-complete-saved-message/:smId", savedMessages.MarkCompleteSavedMessage)
+		savedMessagesUrl.PUT("/:org_id/archive-saved/:smId", savedMessages.ArchiveSavedMessage)
+		savedMessagesUrl.PUT("/:org_id/mark-complete/:smId", savedMessages.MarkCompleteSavedMessage)
+
+		savedMessagesUrl.GET("/:org_id/saved/completed", savedMessages.GetCompletedSavedMessages)
+		savedMessagesUrl.GET("/:org_id/saved/archived", savedMessages.GetArchivedSavedMessages)
 	}
 
 	return r
