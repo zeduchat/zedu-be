@@ -175,6 +175,79 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 		return http.StatusInternalServerError, fmt.Errorf("failed to create credential: %w", err)
 	}
 
+	// Get skill from db
+	var agentWorkflow AgentWorkflow
+	err = db.Where("org_id = ? AND agent_id = ?", cred.OrgId, cred.AgentId).First(&agentWorkflow).Error
+	
+	if err != nil {
+		return http.StatusNotFound, fmt.Errorf("failed to fetch workflow: %w", err)
+	}
+	
+	// Get skill from db
+	var agentSkill AgentSkill
+	err = db.Select("id, skill_id, agent_id, node_type").
+			Where("skill_id = ? AND agent_id = ?", cred.SkillId, cred.AgentId).
+			First(&agentSkill).Error
+	
+	if err != nil {
+		return http.StatusNotFound, fmt.Errorf("failed to fetch skill: %w", err)
+	}
+	fmt.Println("agentSkill.NodeType")
+	fmt.Println(agentSkill.NodeType)
+	fmt.Println(agentSkill)
+	fmt.Println(cred)
+	
+	// Add credential to workflow
+	rawEntry := agentWorkflow.RawEntry
+	
+	nodes, ok := rawEntry["nodes"].([]interface{})
+	if !ok {
+		return http.StatusNotFound, errors.New("workflow has no nodes")
+	}
+	
+	
+	// Update the credentials for the node matching the skill nodetype in the workflow
+	for i, node := range nodes {
+		nodeMap, ok := node.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if nodeMap["type"] == agentSkill.NodeType {
+			fmt.Println("Found a matching type")
+			credentials, ok := nodeMap["credentials"].(map[string]interface{})
+			if !ok {
+				credentials = make(map[string]interface{})
+			}
+
+			credentials[dbCredential.Name] = map[string]interface{} {
+				"id": dbCredential.ID,
+				"name": dbCredential.Name,
+			}
+
+			nodeMap["credentials"] = credentials
+			nodes[i] = nodeMap
+			
+		}
+	}
+
+	rawEntry["nodes"] = nodes
+
+	wfUpdates := map[string]any{
+		"raw_entry": rawEntry,
+	}
+
+	result := db.Model(&AgentWorkflow{}).
+		Where("workflow_id = ? AND agent_id = ?", agentWorkflow.WorkflowId, agentWorkflow.AgentId).
+		Updates(wfUpdates)
+
+	if result.Error != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update agent workflow: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return http.StatusNotFound, errors.New("no workflow record updated")
+	}
 
 	return http.StatusCreated, nil
 }
