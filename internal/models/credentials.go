@@ -175,7 +175,6 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 		return http.StatusInternalServerError, fmt.Errorf("failed to create credential: %w", err)
 	}
 
-	// Get skill from db
 	var agentWorkflow AgentWorkflow
 	err = db.Where("org_id = ? AND agent_id = ?", cred.OrgId, cred.AgentId).First(&agentWorkflow).Error
 	
@@ -183,7 +182,6 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 		return http.StatusNotFound, fmt.Errorf("failed to fetch workflow: %w", err)
 	}
 	
-	// Get skill from db
 	var agentSkill AgentSkill
 	err = db.Select("id, skill_id, agent_id, node_type").
 			Where("skill_id = ? AND agent_id = ?", cred.SkillId, cred.AgentId).
@@ -192,12 +190,7 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 	if err != nil {
 		return http.StatusNotFound, fmt.Errorf("failed to fetch skill: %w", err)
 	}
-	fmt.Println("agentSkill.NodeType")
-	fmt.Println(agentSkill.NodeType)
-	fmt.Println(agentSkill)
-	fmt.Println(cred)
 	
-	// Add credential to workflow
 	rawEntry := agentWorkflow.RawEntry
 	
 	nodes, ok := rawEntry["nodes"].([]interface{})
