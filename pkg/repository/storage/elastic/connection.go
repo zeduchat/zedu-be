@@ -19,6 +19,9 @@ func ConnectToElastic(logger *utility.Logger, EConfig config.ElasticDb) *elastic
 		Addresses: []string{
 			EConfig.ElasticEndpoint,
 		},
+		// Transport: &http.Transport{
+		// 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // uncomment for local instances of elasticsearch
+		// },
 	}
 	client, err := elasticsearch.NewClient(cfg)
 	if err != nil {
