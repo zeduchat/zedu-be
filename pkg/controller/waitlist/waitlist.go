@@ -40,7 +40,7 @@ func (base *Controller) SubscribeWaitListLetter(c *gin.Context) {
 		return
 	}
 
-	err = waitlist.WaitlistLetterSubscribe(&req, base.Db.Postgresql, base.ExtReq)
+	err = waitlist.WaitlistLetterSubscribe(req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		if err.Error() == "email already subscribed" {
 			rd := utility.BuildErrorResponse(http.StatusConflict, "error", err.Error(), "failed to subscribe email", nil)

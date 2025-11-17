@@ -26,7 +26,7 @@ type WaitlistRequest struct {
 
 func (n *Waitlist) CreateWaitlist(db *gorm.DB, req WaitlistRequest) error {
 
-	if postgresql.CheckExists(db, &n, "email = ?", email) {
+	if postgresql.CheckExists(db, &n, "email = ?", req.Email) {
 		return errors.New("email already subscribed")
 	}
 

@@ -12,13 +12,13 @@ import (
 	"github.com/hngprojects/telex_be/services/actions/names"
 )
 
-func WaitlistLetterSubscribe(req *models.WaitlistRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func WaitlistLetterSubscribe(req models.WaitlistRequest, db *gorm.DB, extReq request.ExternalRequest) error {
 
 	var waitlist models.Waitlist
 
 	req.Email = strings.ToLower(req.Email)
 
-	if err := waitlist.CreateWaitlist(db, req.Email); err != nil {
+	if err := waitlist.CreateWaitlist(db, req); err != nil {
 		return err
 	}
 
