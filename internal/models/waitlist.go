@@ -24,13 +24,15 @@ type WaitlistRequest struct {
 	Name  string `json:"name" validate:"required"`
 }
 
-func (n *Waitlist) CreateWaitlist(db *gorm.DB, email string) error {
+func (n *Waitlist) CreateWaitlist(db *gorm.DB, req WaitlistRequest) error {
 
 	if postgresql.CheckExists(db, &n, "email = ?", email) {
 		return errors.New("email already subscribed")
 	}
 
 	n.ID = utility.GenerateUUID()
+	n.Email = req.Email
+	n.Name = req.Name
 
 	err := postgresql.CreateOneRecord(db, &n)
 
