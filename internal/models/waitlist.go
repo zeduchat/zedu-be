@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type Waitlist struct {
@@ -19,7 +20,7 @@ type Waitlist struct {
 }
 
 type WaitlistRequest struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email" validate:"required"`
 	Name  string `json:"name" validate:"required"`
 }
 
@@ -28,6 +29,8 @@ func (n *Waitlist) CreateWaitlist(db *gorm.DB, email string) error {
 	if postgresql.CheckExists(db, &n, "email = ?", email) {
 		return errors.New("email already subscribed")
 	}
+
+	n.ID = utility.GenerateUUID()
 
 	err := postgresql.CreateOneRecord(db, &n)
 
