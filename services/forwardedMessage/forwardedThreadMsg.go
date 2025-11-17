@@ -50,7 +50,7 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		return nil, userErr
 	}
 
-	if err := originalMsg.GetThreadById(db.Postgresql, req.ThreadId); err != nil {
+	if err := originalMsg.GetThreadById(req.ThreadId); err != nil {
 		return nil, err
 	}
 

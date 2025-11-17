@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -14,10 +16,13 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/telexai"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -1075,4 +1080,62 @@ func PublishAgent(req models.PublishAgentRequest, db *gorm.DB) (*models.AgentRes
 	}
 
 	return resp, code, nil
+}
+
+func GenerateAgentInfo(c *gin.Context, reqs models.GenerateInfoRequest, agent_id string, db *storage.Database, extReq request.ExternalRequest, logger *utility.Logger) (models.GenerateInfoResponse, int, error) {
+	var orgInt models.OrganisationIntegrations
+
+	exists := postgresql.CheckExists(db.Postgresql, &orgInt, "integration_id = ?", agent_id)
+	if !exists {
+		logger.Error("Organisation does not have that agent")
+		return models.GenerateInfoResponse{}, http.StatusNotFound, errors.New("organisation does not have that agent")
+	}
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Join(wd)
+	promptPath := filepath.Join(projectRoot, "static", "prompts", "generateAgentInfo.txt")
+	systemPrompt, err := utility.ReadSystemPromptFromFile(promptPath)
+	if err != nil {
+		logger.Error("Error reading system prompt file: ", err)
+		return models.GenerateInfoResponse{}, http.StatusInternalServerError, fmt.Errorf("error reading system prompt file: %w", err)
+	}
+
+	req := models.TelexAIChatCompletionsReq{
+		Messages: []external_models.TelexAIOpenRouterMessage{
+			{
+				Role:    "system",
+				Content: systemPrompt,
+			},
+			{
+				Role:    "user",
+				Content: reqs.Description,
+			},
+		},
+	}
+
+	ids := models.IDS{
+		AgentID:        agent_id,
+		OrganisationID: orgInt.OrgID,
+	}
+
+	response, code, err := telexai.RespondToChat(c.Writer, db, logger, req, extReq, ids)
+	if err != nil {
+		logger.Error("Error generating agent info: ", err)
+		return models.GenerateInfoResponse{}, code, fmt.Errorf("error generating agent info: %w", err)
+	}
+
+	content, err := telexai.ExtractChatContent(response)
+	if err != nil {
+		logger.Error("Error extracting chat content: ", err)
+	}
+
+	resp := models.GenerateInfoResponse{}
+
+	err = json.Unmarshal([]byte(content), &resp)
+	if err != nil {
+		logger.Error("Error unmarshalling chat content: ", err)
+		return models.GenerateInfoResponse{}, http.StatusInternalServerError, fmt.Errorf("error unmarshalling chat content: %w", err)
+	}
+
+	return resp, http.StatusOK, nil
 }

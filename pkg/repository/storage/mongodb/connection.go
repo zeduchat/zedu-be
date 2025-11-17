@@ -46,9 +46,7 @@ func (m *MongoStore) IsClientAvailable() bool {
 
 func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB, store *MongoStore) {
 	clientOptions := options.Client().ApplyURI(MongoConfig.Mongo_URI)
-	// clientOptions.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
 	clientOptions.SetConnectTimeout(10 * time.Second)
-	// clientOptions.SetRetryWrites(true).SetRetryReads(true)
 
 	retryDelay := 5 * time.Second
 

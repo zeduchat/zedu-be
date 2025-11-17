@@ -37,7 +37,7 @@ func (base *Controller) GetAllUserOrgThreads(c *gin.Context) {
 		return
 	}
 
-	usersData, paginationResponse, code, err := service.GetAllUserOrgThreads(orgID, base.Db.Postgresql, c)
+	usersData, paginationResponse, code, err := service.GetAllUserOrgThreads(orgID, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))

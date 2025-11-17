@@ -54,7 +54,6 @@ func ProcessNotification(req Job, logger *utility.Logger) error {
 	}
 
 	return nil
-
 }
 
 func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
@@ -102,6 +101,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		Message:     feed.Content,
 		UserId:      userId,
 		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
+		Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
 	}
 
 	err = push_notifications.PushFCMToUsers(pushReq, logger, db)
@@ -141,6 +141,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				Message:     feed.Content,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
+				Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
 			}
 
 			err = push_notifications.PushFCMToUser(pushReq, logger, db)
@@ -191,6 +192,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				Message:     feed.Content,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
+				Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
 			}
 
 			err = push_notifications.PushFCMToUsers(pushReq, logger, db)
@@ -206,4 +208,3 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 	return typeCall[notifPayload.ChannelType]()
 }
-

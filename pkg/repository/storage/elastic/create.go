@@ -15,6 +15,7 @@ func CreateIndex(client *elasticsearch.Client, indexName string, mapping any, lo
 
 	res, err := client.Indices.Exists([]string{indexName})
 	if err != nil {
+		logger.Info("error checking if index exists")
 		return err
 	}
 	defer res.Body.Close()
