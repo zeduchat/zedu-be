@@ -1,0 +1,125 @@
+name: PR Automation Suite
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # 1. Commit Message Validation
+  commit-message-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const commits = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const conventionalCommitRegex = /^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\([a-z]+\))?: .{1,50}$/;
+            const errors = [];
+
+            for (const commit of commits.data) {
+              const message = commit.commit.message.split('\n')[0];
+              if (!conventionalCommitRegex.test(message)) {
+                errors.push(`❌ "${message}" - Use: type(scope): description`);
+              }
+            }
+
+            if (errors.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `## 📝 Commit Message Validation\n\n${errors.join('\n')}\n\n**Format:** \`type(scope): description\``
+              });
+            }
+
+  # 2. AI Code Review
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Code Review
+        uses: coderabbitai/ai-pr-reviewer@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 3. Code Quality Checks
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Run golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+          golangci-lint run --out-format=colored-line-number
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+  # 4. File Changes Diagram
+  file-diagram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate file changes diagram
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            let diagram = "## 📁 File Changes Overview\\n\\n";
+            diagram += "```mermaid\\n";
+            diagram += "graph TD\\n";
+            diagram += "    A[PR Changes] --> B[Go Files]\\n";
+            diagram += "    A --> C[Config Files]\\n";
+            diagram += "    A --> D[Documentation]\\n";
+            diagram += "    A --> E[Other Files]\\n";
+            diagram += "```\\n\\n";
+            
+            // File summary
+            const fileTypes = {
+              'Go Files': files.filter(f => f.filename.endsWith('.go')),
+              'Config Files': files.filter(f => f.filename.endsWith('.yml') || f.filename.endsWith('.yaml') || f.filename.endsWith('.json')),
+              'Documentation': files.filter(f => f.filename.endsWith('.md')),
+              'Other': files.filter(f => !f.filename.endsWith('.go') && !f.filename.endsWith('.yml') && !f.filename.endsWith('.yaml') && !f.filename.endsWith('.md') && !f.filename.endsWith('.json'))
+            };
+            
+            diagram += "### File Summary:\\n";
+            for (const [type, typeFiles] of Object.entries(fileTypes)) {
+              if (typeFiles.length > 0) {
+                diagram += `\\n**${type}**: ${typeFiles.length} file(s)\\n`;
+                typeFiles.slice(0, 3).forEach(file => {
+                  const status = file.status === 'added' ? '🆕' : 
+                               file.status === 'modified' ? '✏️' : '🗑️';
+                  diagram += `- ${status} ${file.filename}\\n`;
+                });
+                if (typeFiles.length > 3) {
+                  diagram += `- ... and ${typeFiles.length - 3} more\\n`;
+                }
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: diagram
+            });
