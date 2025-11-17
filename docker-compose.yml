@@ -80,26 +80,6 @@ services:
     networks:
       - telex_network
 
-  # TypeSense Search Engine
-  typesense:
-    image: typesense/typesense:26.0
-    container_name: telex_typesense
-    environment:
-      TYPESENSE_DATA_DIR: /data
-      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-typesensetestapikey}
-    volumes:
-      - typesense_data:/data
-    ports:
-      - "8108:8108"
-    command: --data-dir /data --api-key=${TYPESENSE_API_KEY:-typesensetestapikey} --enable-cors
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8108/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - telex_network
-
   # Elasticsearch
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0

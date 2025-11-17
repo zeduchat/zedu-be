@@ -9,7 +9,7 @@ The **Telex API** is a scalable Go-based backend service that integrates multipl
 - Redis caching
 - MinIO for object storage
 - MongoDB support
-- TypeSense for search indexing
+- TypeSense for search indexing     <--No longer in use -->
 - Elasticsearch integration
 - Stripe for payments
 - RabbitMQ for async task queues
@@ -28,7 +28,7 @@ The **Telex API** is a scalable Go-based backend service that integrates multipl
 - MinIO
 - MongoDB
 - RabbitMQ
-- TypeSense
+- TypeSense         <--No longer in use -->
 - Elasticsearch
 - Firebase (Service Account Key)
 - Stripe account (for API key)
