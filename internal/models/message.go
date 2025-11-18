@@ -32,7 +32,7 @@ type Message struct {
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 	ThreadID   uuid.UUID      `gorm:"type:uuid;null;index" json:"thread_id"`
 	Mentions   []Mention      `gorm:"foreignKey:MessageID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mentions,omitempty"`
-	AvatarURL  string         `json:"avatar_url,omitempty"`
+	AvatarURL  string         `json:"avatar_url"`
 	UserType   string         `json:"user_type"`
 	IsPinned   bool           `json:"is_pinned"`
 	IsSaved    bool           `gorm:"type:bool;default:false" json:"is_saved"`

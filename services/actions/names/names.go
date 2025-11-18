@@ -23,6 +23,7 @@ const (
 	SendLoginAlertMail                 NotificationName = "send_login_Alert_mail"
 	SendPushNotification               NotificationName = "send_push_notification"
 	SendMassPushNotification           NotificationName = "send_mass_push_notification"
+	SendWaitListLetterMail             NotificationName = "send_wait_list_letter"
 )
 
 func Check() {
