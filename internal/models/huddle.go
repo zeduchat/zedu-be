@@ -4,11 +4,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 const (
@@ -63,7 +63,7 @@ type HuddleCreateResponse struct {
 
 func (h *Huddle) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
-		h.ID = uuid.NewString()
+		h.ID = utility.GenerateUUID()
 	}
 	if h.Status == "" {
 		h.Status = HuddleStatusActive
@@ -76,7 +76,7 @@ func (h *Huddle) BeforeCreate(tx *gorm.DB) error {
 
 func (hp *HuddleParticipant) BeforeCreate(tx *gorm.DB) error {
 	if hp.ID == "" {
-		hp.ID = uuid.NewString()
+		hp.ID = utility.GenerateUUID()
 	}
 	if hp.Status == "" {
 		hp.Status = HuddleParticipantStatusActive
@@ -88,6 +88,12 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 	return postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, userID)
 }
 
-func ChannelExists(db *gorm.DB, channelID string) bool {
-	return postgresql.CheckExists(db, &Channels{}, "id = ?", channelID)
+type HuddleEventPayload struct {
+	Event        string    `json:"event"`
+	HuddleID     string    `json:"huddle_id"`
+	ChannelID    string    `json:"channel_id"`
+	HostID       string    `json:"host_id"`
+	Participants []string  `json:"participants"`
+	CreatedAt    time.Time `json:"created_at"`
+	Status       string    `json:"status"`
 }
