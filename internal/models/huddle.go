@@ -35,15 +35,14 @@ type Huddle struct {
 }
 
 type HuddleParticipant struct {
-	ID         string     `gorm:"type:uuid;primaryKey" json:"id"`
-	HuddleID   string     `gorm:"type:uuid;index;not null" json:"huddle_id"`
-	UserID     string     `gorm:"type:uuid;index;not null" json:"user_id"`
-	Status     string     `gorm:"type:text;not null;default:'active'" json:"status"`
-	IsMuted    bool       `gorm:"type:boolean;default:false" json:"is_muted"`
-	IsCameraOn bool       `gorm:"type:boolean;default:false" json:"is_camera_on"`
-	JoinedAt   time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
-	LeftAt     *time.Time `gorm:"column:left_at" json:"left_at"`
-	CreatedAt  time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	ID        string     `gorm:"type:uuid;primaryKey" json:"id"`
+	HuddleID  string     `gorm:"type:uuid;index;not null" json:"huddle_id"`
+	UserID    string     `gorm:"type:uuid;index;not null" json:"user_id"`
+	Status    string     `gorm:"type:text;not null;default:'active'" json:"status"`
+	IsMuted   bool       `gorm:"type:boolean;default:false" json:"is_muted"`
+	JoinedAt  time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
+	LeftAt    *time.Time `gorm:"column:left_at" json:"left_at"`
+	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
 type CreateHuddleRequest struct {
