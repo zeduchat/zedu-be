@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -19,7 +18,13 @@ import (
 func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.CreateHuddleRequest, hostID string) (models.HuddleCreateResponse, int, error) {
 	var resp models.HuddleCreateResponse
 
-	if !models.ChannelExists(db.Postgresql, req.ChannelID) {
+	chModel := models.Channels{}
+	exists, err := chModel.CheckChannelExists(db.Postgresql, req.ChannelID)
+	if err != nil {
+		logger.Error("failed to verify channel existence: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to verify channel")
+	}
+	if !exists {
 		return resp, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
@@ -31,7 +36,7 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 
 	now := time.Now().UTC()
 	huddle := models.Huddle{
-		ID:              uuid.NewString(),
+		ID:              utility.GenerateUUID(),
 		ChannelID:       req.ChannelID,
 		HostID:          hostID,
 		Participants:    participants,
@@ -42,7 +47,7 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 		UpdatedAt:       now,
 	}
 
-	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
+	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&huddle).Error; err != nil {
 			return err
 		}
@@ -50,7 +55,7 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 		participantRows := make([]models.HuddleParticipant, 0, len(participants))
 		for _, pid := range participants {
 			participantRows = append(participantRows, models.HuddleParticipant{
-				ID:       uuid.NewString(),
+				ID:       utility.GenerateUUID(),
 				HuddleID: huddle.ID,
 				UserID:   pid,
 				Status:   models.HuddleParticipantStatusActive,
@@ -80,15 +85,23 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 		Participants: participants,
 	}
 
-	notification := map[string]any{
-		"event":        "huddle_started",
-		"huddle_id":    huddle.ID,
-		"channel_id":   huddle.ChannelID,
-		"host_id":      huddle.HostID,
-		"participants": participants,
-		"created_at":   huddle.HuddleStartTime,
-		"status":       huddle.Status,
+	eventPayload := models.HuddleEventPayload{
+		Event:        string(models.HuddleStarted),
+		HuddleID:     huddle.ID,
+		ChannelID:    huddle.ChannelID,
+		HostID:       huddle.HostID,
+		Participants: participants,
+		CreatedAt:    huddle.HuddleStartTime,
+		Status:       huddle.Status,
 	}
+
+	notification := models.Notification[models.HuddleStarted]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = eventPayload
+	notification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: huddle.ChannelID,
+	}
+	notification.NotificationId = utility.GenerateUUID()
 
 	if err := centrifuge.PublishChannel(logger, huddle.ChannelID, notification); err != nil {
 		logger.Error("failed to publish huddle event: %v", err)
