@@ -1,0 +1,2 @@
+ALTER TABLE public.huddle_participants 
+ADD COLUMN IF NOT EXISTS is_camera_on BOOLEAN NOT NULL DEFAULT FALSE;
