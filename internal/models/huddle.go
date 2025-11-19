@@ -35,14 +35,15 @@ type Huddle struct {
 }
 
 type HuddleParticipant struct {
-	ID        string     `gorm:"type:uuid;primaryKey" json:"id"`
-	HuddleID  string     `gorm:"type:uuid;index;not null" json:"huddle_id"`
-	UserID    string     `gorm:"type:uuid;index;not null" json:"user_id"`
-	Status    string     `gorm:"type:text;not null;default:'active'" json:"status"`
-	IsMuted   bool       `gorm:"type:boolean;default:false" json:"is_muted"`
-	JoinedAt  time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
-	LeftAt    *time.Time `gorm:"column:left_at" json:"left_at"`
-	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	ID         string     `gorm:"type:uuid;primaryKey" json:"id"`
+	HuddleID   string     `gorm:"type:uuid;index;not null" json:"huddle_id"`
+	UserID     string     `gorm:"type:uuid;index;not null" json:"user_id"`
+	Status     string     `gorm:"type:text;not null;default:'active'" json:"status"`
+	IsMuted    bool       `gorm:"type:boolean;default:false" json:"is_muted"`
+	IsCameraOn bool       `gorm:"type:boolean;default:false" json:"is_camera_on"`
+	JoinedAt   time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
+	LeftAt     *time.Time `gorm:"column:left_at" json:"left_at"`
+	CreatedAt  time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
 type CreateHuddleRequest struct {
@@ -96,4 +97,25 @@ type HuddleEventPayload struct {
 	ParticipantIDs []string  `json:"participant_ids"`
 	CreatedAt      time.Time `json:"created_at"`
 	Status         string    `json:"status"`
+}
+
+type UpdateCameraRequest struct {
+	UserID string `json:"user_id" validate:"required,uuid"`
+	Status bool   `json:"status" validate:"required"`
+}
+
+type UpdateCameraResponse struct {
+	HuddleID   string `json:"huddle_id"`
+	UserID     string `json:"user_id"`
+	IsCameraOn bool   `json:"is_camera_on"`
+	UpdatedAt  string `json:"updated_at"`
+}
+
+type CameraStatusEventPayload struct {
+	Event      string `json:"event"`
+	HuddleID   string `json:"huddle_id"`
+	ChannelID  string `json:"channel_id"`
+	UserID     string `json:"user_id"`
+	IsCameraOn bool   `json:"is_camera_on"`
+	Timestamp  string `json:"timestamp"`
 }
