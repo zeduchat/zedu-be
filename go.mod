@@ -39,6 +39,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/riverqueue/river v0.25.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.25.0
+	github.com/riverqueue/river/rivertype v0.25.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.19.0
@@ -92,7 +93,6 @@ require (
 	github.com/riverqueue/apiframe v0.0.0-20250916014855-104fabdb8335 // indirect
 	github.com/riverqueue/river/riverdriver v0.25.0 // indirect
 	github.com/riverqueue/river/rivershared v0.25.0 // indirect
-	github.com/riverqueue/river/rivertype v0.25.0 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/sony/gobreaker v0.5.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
