@@ -17,12 +17,10 @@ import (
 func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID string, req models.UpdateCameraRequest, requestingUserID string) (models.UpdateCameraResponse, int, error) {
 	var resp models.UpdateCameraResponse
 
-	// Verify the requesting user is the same as the user in the request
 	if requestingUserID != req.UserID {
 		return resp, http.StatusForbidden, errors.New("you can only toggle your own camera")
 	}
 
-	// Check if huddle exists and is active
 	var huddle models.Huddle
 	err := db.Postgresql.Where("id = ?", huddleID).First(&huddle).Error
 	if err != nil {
@@ -33,12 +31,10 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch huddle")
 	}
 
-	// Check if huddle is still active
 	if huddle.Status != models.HuddleStatusActive {
 		return resp, http.StatusBadRequest, errors.New("huddle is not active")
 	}
 
-	// Find the participant record
 	var participant models.HuddleParticipant
 	err = db.Postgresql.Where("huddle_id = ? AND user_id = ?", huddleID, req.UserID).First(&participant).Error
 	if err != nil {
@@ -49,12 +45,10 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant")
 	}
 
-	// Check if participant is still active
 	if participant.Status != models.HuddleParticipantStatusActive {
 		return resp, http.StatusBadRequest, errors.New("you are no longer active in this huddle")
 	}
 
-	// Update camera status
 	now := time.Now().UTC()
 	err = db.Postgresql.Model(&participant).Updates(map[string]interface{}{
 		"is_camera_on": req.Status,
@@ -64,7 +58,6 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 		return resp, http.StatusInternalServerError, errors.New("failed to update camera status")
 	}
 
-	// Build response
 	resp = models.UpdateCameraResponse{
 		HuddleID:   huddleID,
 		UserID:     req.UserID,
@@ -72,7 +65,6 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 		UpdatedAt:  now.Format(time.RFC3339),
 	}
 
-	// Emit real-time event
 	eventPayload := models.CameraStatusEventPayload{
 		Event:      string(models.CameraStatusChanged),
 		HuddleID:   huddleID,
@@ -92,7 +84,6 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 
 	if err := centrifuge.PublishChannel(logger, huddle.ChannelID, notification); err != nil {
 		logger.Error("failed to publish camera status event: %v", err)
-		// Don't fail the request if event emission fails
 	}
 
 	logger.Info("camera status updated successfully for user %s in huddle %s", req.UserID, huddleID)
