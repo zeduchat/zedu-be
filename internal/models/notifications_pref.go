@@ -37,6 +37,7 @@ var (
 	SavedMessageCompletionEvent NotificationType = "saved_message_completion_event"
 	ArchiveSavedMessage         NotificationType = "archive_saved_message"
 	UnArchiveSavedMessage       NotificationType = "unarchive_saved_message"
+	HuddleStarted               NotificationType = "huddle_started"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -129,6 +130,9 @@ var Notification = map[NotificationType]Content{
 	},
 	UnArchiveSavedMessage: Content{
 		NotificationType: UnArchiveSavedMessage,
+	},
+	HuddleStarted: Content{
+		NotificationType: HuddleStarted,
 	},
 	UpdatedMedia: Content{
 		NotificationType: UpdatedMedia,
