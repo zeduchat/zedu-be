@@ -177,5 +177,5 @@ type JoinHuddleResponse struct {
 	UserID         string    `json:"user_id"`
 	Status         string    `json:"status"`
 	JoinedAt       time.Time `json:"joined_at"`
-	ParticipantIDs []string  `json:"participants"`
+	ParticipantIDs []string  `json:"participant_ids"`
 }
