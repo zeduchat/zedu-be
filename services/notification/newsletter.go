@@ -43,3 +43,37 @@ func (n NotificationObject) SendNewsletterMail() error {
 
 	return send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
 }
+
+func (n NotificationObject) SendWaitListletterMail() error {
+	var (
+		notificationData     = models.SendWaitlistletterSubscriptionMail{}
+		subject              = "Subject: Waitlist Confirmation"
+		templateFileName     = "waitlist.html"
+		baseTemplateFileName = ""
+		configData           = config.GetConfig()
+	)
+
+	err := json.Unmarshal([]byte(n.Notification.Data), &notificationData)
+	if err != nil {
+		return fmt.Errorf("error decoding saved notification data, %v", err)
+	}
+
+	loginUrl := fmt.Sprintf("%v/auth/login", configData.App.FRONTEND_URL)
+	blogUrl := fmt.Sprintf("%v/blogs", configData.App.FRONTEND_URL)
+	contactUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
+	unsubscribeUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
+
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":       thisOrThatStr(notificationData.Email, "there!"),
+		"login_url":       loginUrl,
+		"blog_url":        blogUrl,
+		"contact_us_url":  contactUrl,
+		"unsubscribe_url": unsubscribeUrl,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error converting data to map, %v, %v", err, strings.Join([]string{err.Error()}, ", "))
+	}
+
+	return send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
+}

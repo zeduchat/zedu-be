@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
+		models.Waitlist{},
 		models.AgentSkill{},
 		models.Task{},
 		models.GeneralWorkflow{},

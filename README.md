@@ -9,7 +9,7 @@ The **Telex API** is a scalable Go-based backend service that integrates multipl
 - Redis caching
 - MinIO for object storage
 - MongoDB support
-- TypeSense for search indexing
+- TypeSense for search indexing     <--No longer in use -->
 - Elasticsearch integration
 - Stripe for payments
 - RabbitMQ for async task queues
@@ -22,13 +22,13 @@ The **Telex API** is a scalable Go-based backend service that integrates multipl
 
 ## Prerequisites
 
-- Go >= 1.19
+- Go >= 1.24
 - PostgreSQL
 - Redis
 - MinIO
 - MongoDB
 - RabbitMQ
-- TypeSense
+- TypeSense         <--No longer in use -->
 - Elasticsearch
 - Firebase (Service Account Key)
 - Stripe account (for API key)
@@ -53,7 +53,7 @@ Make sure all services are installed and running locally or in Docker containers
    cd telex_be
 ```
 
-3. Copy app.env.sample into app.env.
+3. Copy `app-sample.env` into `app.env`.
    Swap out values if necessary. If you're using the Docker environment, remember to set any network host (e.g localhost) in your .env file to the name of the corresponding service in the `docker-compose.yaml` file.
 
 4. Install Go dependencies.
@@ -84,4 +84,4 @@ Make sure all services are installed and running locally or in Docker containers
 
 4. Push to the branch: `git push origin feature/your-feature`.
 
-5. Open a pull requests
+5. Open a pull request.

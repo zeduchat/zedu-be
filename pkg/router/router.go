@@ -64,6 +64,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Admin(r, ApiVersion, validator, db, logger)
 	Huddles(r, ApiVersion, validator, db, logger)
 
+	Waitlist(r, ApiVersion, validator, db, logger)
 	Search(r, ApiVersion, validator, db, logger)
 	Agents(r, ApiVersion, validator, db, logger)
 	Mongogrations(r, ApiVersion, validator, db, logger)

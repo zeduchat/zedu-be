@@ -64,6 +64,10 @@ type SendNewsletterSubscriptionMail struct {
 	Email string `json:"email"  validate:"required"`
 }
 
+type SendWaitlistletterSubscriptionMail struct {
+	Email string `json:"email"  validate:"required"`
+}
+
 type SendPasswordChangeConfirmationMail struct {
 	Email string `json:"email"  validate:"required"`
 }
