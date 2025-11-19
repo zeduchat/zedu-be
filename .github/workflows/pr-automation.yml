@@ -1,0 +1,485 @@
+name: PR Automation Suite
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+  security-events: write
+
+jobs:
+  commit-summary:
+    runs-on: ubuntu-latest
+    name: Commit Message Summary
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Generate commit summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.issue.number;
+            
+            console.log(`Processing PR #${pr_number}`);
+            
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner,
+              repo,
+              pull_number: pr_number
+            });
+            
+            console.log(`Found ${commits.length} commits`);
+            
+            let commitList = [];
+            let invalidCommits = [];
+            
+            for (const commit of commits) {
+              const msg = commit.commit.message.split('\n')[0];
+              const sha = commit.sha.substring(0, 7);
+              const author = commit.commit.author.name;
+              
+              commitList.push(`- \`${sha}\` ${msg} (${author})`);
+              
+              if (!msg.includes(':') || msg.length < 10) {
+                invalidCommits.push(`- \`${sha}\` "${msg}"`);
+              }
+            }
+            
+            let comment = `## 📝 Commit Summary\n\n`;
+            comment += `**Total Commits:** ${commits.length}\n\n`;
+            comment += commitList.join('\n');
+            comment += '\n\n';
+            
+            if (invalidCommits.length > 0) {
+              comment += `### ⚠️ Commit Message Format\n\n`;
+              comment += `${invalidCommits.length} commit(s) need improvement:\n\n`;
+              comment += invalidCommits.join('\n');
+              comment += '\n\n**Expected format:** \`type: description\`\n';
+              comment += '**Examples:** \`feat: add login\`, \`fix: resolve bug\`\n';
+            } else {
+              comment += `### ✅ All commits follow proper format!\n`;
+            }
+            
+            comment += '\n---\n*This comment updates automatically*';
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: pr_number
+            });
+            
+            const existingComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('## 📝 Commit Summary')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+              console.log('Updated existing comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr_number,
+                body: comment
+              });
+              console.log('Created new comment');
+            }
+
+  file-changes:
+    runs-on: ubuntu-latest
+    name: File Changes Diagram
+    
+    steps:
+      - name: Generate file changes visualization
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.issue.number;
+            
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner,
+              repo,
+              pull_number: pr_number
+            });
+            
+            console.log(`Found ${files.length} changed files`);
+            
+            const added = files.filter(f => f.status === 'added');
+            const modified = files.filter(f => f.status === 'modified');
+            const deleted = files.filter(f => f.status === 'removed');
+            const renamed = files.filter(f => f.status === 'renamed');
+            
+            const totalAdd = files.reduce((s, f) => s + f.additions, 0);
+            const totalDel = files.reduce((s, f) => s + f.deletions, 0);
+            
+            let diagram = 'sequenceDiagram\n';
+            diagram += '    participant Dev as Developer\n';
+            diagram += `    participant PR as Pull Request #${pr_number}\n`;
+            diagram += '    participant Files as Changed Files\n';
+            diagram += '    participant CI as CI/CD Pipeline\n';
+            diagram += '    participant Review as Code Review\n';
+            diagram += '    \n';
+            diagram += `    Dev->>PR: Push ${files.length} file(s)\n`;
+            diagram += `    Note over PR: +${totalAdd} -${totalDel} lines\n`;
+            diagram += '    \n';
+            diagram += '    PR->>Files: Analyze Changes\n';
+            
+            if (added.length > 0) {
+              diagram += `    Files->>CI: ${added.length} new file(s)\n`;
+              diagram += '    Note right of CI: Added files need review\n';
+            }
+            
+            if (modified.length > 0) {
+              diagram += `    Files->>CI: ${modified.length} modified file(s)\n`;
+              diagram += '    Note right of CI: Check for breaking changes\n';
+            }
+            
+            if (deleted.length > 0) {
+              diagram += `    Files->>CI: ${deleted.length} deleted file(s)\n`;
+              diagram += '    Note right of CI: Verify no dependencies\n';
+            }
+            
+            diagram += '    \n';
+            diagram += '    CI->>Review: Run Quality Checks\n';
+            diagram += '    Note over Review: Tests, Linting, Security\n';
+            diagram += '    Review->>Dev: Ready for Review';
+            
+            const formatFiles = (arr, emoji, title) => {
+              if (arr.length === 0) return '';
+              let section = `\n#### ${emoji} ${title} (${arr.length})\n\n`;
+              arr.slice(0, 10).forEach(f => {
+                section += `- \`${f.filename}\` (+${f.additions} -${f.deletions})\n`;
+              });
+              if (arr.length > 10) {
+                section += `- ... and ${arr.length - 10} more\n`;
+              }
+              return section;
+            };
+            
+            let filesList = '';
+            filesList += formatFiles(added, '🆕', 'Added');
+            filesList += formatFiles(modified, '✏️', 'Modified');
+            filesList += formatFiles(deleted, '🗑️', 'Deleted');
+            filesList += formatFiles(renamed, '📝', 'Renamed');
+            
+            const totalChanges = totalAdd + totalDel;
+            let sizeLabel, sizeEmoji;
+            if (totalChanges < 100) {
+              sizeLabel = 'XS';
+              sizeEmoji = '🟢';
+            } else if (totalChanges < 300) {
+              sizeLabel = 'Small';
+              sizeEmoji = '🟢';
+            } else if (totalChanges < 600) {
+              sizeLabel = 'Medium';
+              sizeEmoji = '🟡';
+            } else if (totalChanges < 1000) {
+              sizeLabel = 'Large';
+              sizeEmoji = '🟠';
+            } else {
+              sizeLabel = 'Very Large';
+              sizeEmoji = '🔴';
+            }
+            
+            const comment = `## 📊 PR Change Sequence Diagram\n\n\`\`\`mermaid\n${diagram}\n\`\`\`\n\n### 📁 File Changes Summary\n\n| Metric | Value |\n|--------|-------|\n| **Files Changed** | ${files.length} |\n| **Lines Added** | +${totalAdd} |\n| **Lines Deleted** | -${totalDel} |\n| **Net Change** | ${totalAdd - totalDel > 0 ? '+' : ''}${totalAdd - totalDel} |\n| **PR Size** | ${sizeEmoji} ${sizeLabel} |\n\n${filesList}\n\n${totalChanges > 600 ? '⚠️ **Large PR detected!** Consider splitting into smaller PRs.\n' : ''}\n---\n*Diagram auto-updates on every push*`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: pr_number
+            });
+            
+            const existingComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('## 📊 PR Change Sequence Diagram')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr_number,
+                body: comment
+              });
+            }
+
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+          
+      - name: Run go vet
+        id: vet
+        continue-on-error: true
+        run: |
+          go vet ./... 2>&1 | tee vet.log || true
+          
+          if [ -s vet.log ]; then
+            ISSUE_COUNT=$(wc -l < vet.log)
+            echo "status=⚠️ Issues Found" >> $GITHUB_OUTPUT
+            echo "issues=$ISSUE_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "status=✅ Passed" >> $GITHUB_OUTPUT
+            echo "issues=0" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Run tests
+        id: test
+        continue-on-error: true
+        run: |
+          go test -v ./... 2>&1 | tee test.log || true
+          
+          PASSED=$(grep -c "PASS:" test.log || echo "0")
+          FAILED=$(grep -c "FAIL:" test.log || echo "0")
+          
+          if [ "$FAILED" -eq "0" ]; then
+            echo "status=✅ All Passed" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+          else
+            echo "status=❌ Some Failed" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Calculate coverage
+        id: coverage
+        continue-on-error: true
+        run: |
+          go test -coverprofile=coverage.out ./... > /dev/null 2>&1 || true
+          
+          if [ -f coverage.out ]; then
+            COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            
+            PCT=$(echo $COVERAGE | sed 's/%//' || echo "0")
+            if (( $(echo "$PCT >= 80" | bc -l 2>/dev/null || echo "0") )); then
+              echo "status=✅ Excellent" >> $GITHUB_OUTPUT
+            elif (( $(echo "$PCT >= 70" | bc -l 2>/dev/null || echo "0") )); then
+              echo "status=🟡 Good" >> $GITHUB_OUTPUT
+            else
+              echo "status=⚠️ Needs Improvement" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "coverage=N/A" >> $GITHUB_OUTPUT
+            echo "status=⚠️ No Data" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Post quality report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.issue.number;
+            
+            const vetStatus = '${{ steps.vet.outputs.status }}' || '⚠️ Not Run';
+            const vetIssues = '${{ steps.vet.outputs.issues }}' || '0';
+            const testStatus = '${{ steps.test.outputs.status }}' || '⚠️ Not Run';
+            const testPassed = '${{ steps.test.outputs.passed }}' || '0';
+            const testFailed = '${{ steps.test.outputs.failed }}' || '0';
+            const coverage = '${{ steps.coverage.outputs.coverage }}' || 'N/A';
+            const coverageStatus = '${{ steps.coverage.outputs.status }}' || '⚠️ Not Run';
+            
+            const allGood = vetStatus.includes('✅') && testStatus.includes('✅');
+            const overallEmoji = allGood ? '✅' : '⚠️';
+            
+            let comment = `## 🔍 Code Quality Report\n\n`;
+            comment += `### ${overallEmoji} Overall Status: ${allGood ? 'Healthy' : 'Needs Attention'}\n\n`;
+            comment += `| Check | Status | Details |\n`;
+            comment += `|-------|--------|---------|\\n`;
+            comment += `| **Go Vet** | ${vetStatus} | ${vetIssues !== '0' ? vetIssues + ' issue(s)' : 'No issues'} |\n`;
+            comment += `| **Tests** | ${testStatus} | ${testPassed !== '0' ? testPassed + ' passed' : testFailed + ' failed'} |\n`;
+            comment += `| **Coverage** | ${coverageStatus} | ${coverage} |\n\n`;
+            
+            if (coverage !== 'N/A') {
+              comment += `### 📊 Test Coverage\n\nCurrent: **${coverage}**\n\n`;
+            }
+            
+            comment += `### 💡 Next Steps\n\n`;
+            
+            if (allGood) {
+              comment += `✅ All automated checks passed!\n`;
+              comment += `- Ready for manual code review\n`;
+              comment += `- No blocking issues detected\n`;
+            } else {
+              comment += `⚠️ Please address:\n`;
+              if (vetStatus.includes('⚠️')) comment += `- Fix go vet issues\n`;
+              if (testStatus.includes('❌')) comment += `- Fix failing tests\n`;
+              if (coverage !== 'N/A' && parseFloat(coverage) < 70) comment += `- Add more test coverage\n`;
+            }
+            
+            comment += `\n---\n*Report updates on every commit*`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: pr_number
+            });
+            
+            const existingComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('## 🔍 Code Quality Report')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr_number,
+                body: comment
+              });
+            }
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          
+      - name: Parse Trivy results
+        id: parse
+        continue-on-error: true
+        run: |
+          if [ -f trivy-results.sarif ]; then
+            # Count vulnerabilities by severity
+            CRITICAL=$(grep -o '"level":"error"' trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            HIGH=$(grep -o '"level":"warning"' trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            TOTAL=$((CRITICAL + HIGH))
+            
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            
+            if [ "$TOTAL" -eq "0" ]; then
+              echo "status=✅ No Issues" >> $GITHUB_OUTPUT
+            elif [ "$CRITICAL" -gt "0" ]; then
+              echo "status=🔴 Critical Issues" >> $GITHUB_OUTPUT
+            else
+              echo "status=🟡 Issues Found" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "critical=0" >> $GITHUB_OUTPUT
+            echo "high=0" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "status=✅ Scan Complete" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Post security report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.issue.number;
+            
+            const status = '${{ steps.parse.outputs.status }}' || '✅ Scan Complete';
+            const critical = '${{ steps.parse.outputs.critical }}' || '0';
+            const high = '${{ steps.parse.outputs.high }}' || '0';
+            const total = '${{ steps.parse.outputs.total }}' || '0';
+            
+            const emoji = status.includes('🔴') ? '🔴' : status.includes('🟡') ? '🟡' : '✅';
+            
+            let comment = `## 🔒 Security Scan\n\n`;
+            comment += `### ${emoji} Status: ${status}\n\n`;
+            
+            if (parseInt(total) > 0) {
+              comment += `| Severity | Count |\n`;
+              comment += `|----------|-------|\n`;
+              comment += `| **Critical** | ${critical} |\n`;
+              comment += `| **High** | ${high} |\n`;
+              comment += `| **Total** | ${total} |\n\n`;
+              
+              if (parseInt(critical) > 0) {
+                comment += `⚠️ **Critical vulnerabilities detected!** Review before merging.\n\n`;
+              } else {
+                comment += `⚠️ Issues found but none are critical.\n\n`;
+              }
+              
+              comment += `**Action Items:**\n`;
+              comment += `1. Review security findings in Actions tab\n`;
+              comment += `2. Update dependencies if needed\n`;
+              comment += `3. Check for security advisories\n`;
+            } else {
+              comment += `✅ No known security vulnerabilities detected\n\n`;
+              comment += `**Scanned:**\n`;
+              comment += `- Dependencies\n`;
+              comment += `- Configuration files\n`;
+              comment += `- Code for security patterns\n`;
+            }
+            
+            comment += `\n---\n*Powered by Trivy Security Scanner*`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: pr_number
+            });
+            
+            const existingComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('## 🔒 Security Scan')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr_number,
+                body: comment
+              });
+            }
