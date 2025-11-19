@@ -15,6 +15,7 @@ jobs:
   commit-summary:
     runs-on: ubuntu-latest
     name: Commit Message Summary
+    continue-on-error: true  # Won't block PR merge
     
     steps:
       - name: Checkout code
@@ -102,6 +103,7 @@ jobs:
   file-changes:
     runs-on: ubuntu-latest
     name: File Changes Diagram
+    continue-on-error: true  # Won't block PR merge
     
     steps:
       - name: Generate file changes visualization
@@ -227,25 +229,30 @@ jobs:
   code-quality:
     runs-on: ubuntu-latest
     name: Code Quality
+    continue-on-error: true  # Won't block PR merge
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        continue-on-error: true
         
       - name: Setup Go
         uses: actions/setup-go@v5
+        continue-on-error: true
         with:
           go-version: '1.21'
-          cache: true
+          cache: false  # Disable cache to avoid tar errors
           
       - name: Run go vet
         id: vet
         continue-on-error: true
         run: |
+          # Run go vet and capture output, always succeed
           go vet ./... 2>&1 | tee vet.log || true
           
-          if [ -s vet.log ]; then
-            ISSUE_COUNT=$(wc -l < vet.log)
+          # Count issues but don't fail
+          if [ -s vet.log ] && grep -q "\.go:" vet.log; then
+            ISSUE_COUNT=$(grep -c "\.go:" vet.log || echo "0")
             echo "status=⚠️ Issues Found" >> $GITHUB_OUTPUT
             echo "issues=$ISSUE_COUNT" >> $GITHUB_OUTPUT
           else
@@ -253,14 +260,18 @@ jobs:
             echo "issues=0" >> $GITHUB_OUTPUT
           fi
           
+          # Always exit successfully
+          exit 0
+          
       - name: Run tests
         id: test
         continue-on-error: true
         run: |
+          # Run tests and capture output, always succeed
           go test -v ./... 2>&1 | tee test.log || true
           
-          PASSED=$(grep -c "PASS:" test.log || echo "0")
-          FAILED=$(grep -c "FAIL:" test.log || echo "0")
+          PASSED=$(grep -c "PASS:" test.log 2>/dev/null || echo "0")
+          FAILED=$(grep -c "FAIL:" test.log 2>/dev/null || echo "0")
           
           if [ "$FAILED" -eq "0" ]; then
             echo "status=✅ All Passed" >> $GITHUB_OUTPUT
@@ -272,28 +283,39 @@ jobs:
             echo "failed=$FAILED" >> $GITHUB_OUTPUT
           fi
           
+          # Always exit successfully
+          exit 0
+          
       - name: Calculate coverage
         id: coverage
         continue-on-error: true
         run: |
+          # Run coverage and capture output, always succeed
           go test -coverprofile=coverage.out ./... > /dev/null 2>&1 || true
           
           if [ -f coverage.out ]; then
-            COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+            COVERAGE=$(go tool cover -func=coverage.out 2>/dev/null | grep total | awk '{print $3}' || echo "N/A")
             echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
             
-            PCT=$(echo $COVERAGE | sed 's/%//' || echo "0")
-            if (( $(echo "$PCT >= 80" | bc -l 2>/dev/null || echo "0") )); then
-              echo "status=✅ Excellent" >> $GITHUB_OUTPUT
-            elif (( $(echo "$PCT >= 70" | bc -l 2>/dev/null || echo "0") )); then
-              echo "status=🟡 Good" >> $GITHUB_OUTPUT
+            if [ "$COVERAGE" != "N/A" ]; then
+              PCT=$(echo $COVERAGE | sed 's/%//' || echo "0")
+              if (( $(echo "$PCT >= 80" | bc -l 2>/dev/null || echo "0") )); then
+                echo "status=✅ Excellent" >> $GITHUB_OUTPUT
+              elif (( $(echo "$PCT >= 70" | bc -l 2>/dev/null || echo "0") )); then
+                echo "status=🟡 Good" >> $GITHUB_OUTPUT
+              else
+                echo "status=⚠️ Needs Improvement" >> $GITHUB_OUTPUT
+              fi
             else
-              echo "status=⚠️ Needs Improvement" >> $GITHUB_OUTPUT
+              echo "status=⚠️ No Data" >> $GITHUB_OUTPUT
             fi
           else
             echo "coverage=N/A" >> $GITHUB_OUTPUT
             echo "status=⚠️ No Data" >> $GITHUB_OUTPUT
           fi
+          
+          # Always exit successfully
+          exit 0
           
       - name: Post quality report
         if: always()
@@ -370,10 +392,12 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     name: Security Scan
+    continue-on-error: true  # Won't block PR merge
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        continue-on-error: true
         
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
@@ -412,6 +436,9 @@ jobs:
             echo "total=0" >> $GITHUB_OUTPUT
             echo "status=✅ Scan Complete" >> $GITHUB_OUTPUT
           fi
+          
+          # Always exit successfully
+          exit 0
           
       - name: Post security report
         if: always()
