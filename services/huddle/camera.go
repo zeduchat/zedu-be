@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-// UpdateCameraStatus updates the camera status for a participant in a huddle
+// UpdateCameraStatus broadcasts camera status without persisting to database
 func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID string, req models.UpdateCameraRequest, requestingUserID string) (models.UpdateCameraResponse, int, error) {
 	var resp models.UpdateCameraResponse
 
@@ -36,28 +36,17 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 	}
 
 	var participant models.HuddleParticipant
-	err = db.Postgresql.Where("huddle_id = ? AND user_id = ?", huddleID, req.UserID).First(&participant).Error
+	err = db.Postgresql.Where("huddle_id = ? AND user_id = ? AND status = ?",
+		huddleID, req.UserID, models.HuddleParticipantStatusActive).First(&participant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return resp, http.StatusNotFound, errors.New("you are not a participant in this huddle")
+			return resp, http.StatusNotFound, errors.New("you are not an active participant in this huddle")
 		}
-		logger.Error("failed to fetch participant: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant")
-	}
-
-	if participant.Status != models.HuddleParticipantStatusActive {
-		return resp, http.StatusBadRequest, errors.New("you are no longer active in this huddle")
+		logger.Error("failed to verify participant: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to verify participant")
 	}
 
 	now := time.Now().UTC()
-	err = db.Postgresql.Model(&participant).Updates(map[string]interface{}{
-		"is_camera_on": req.Status,
-	}).Error
-	if err != nil {
-		logger.Error("failed to update camera status: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to update camera status")
-	}
-
 	resp = models.UpdateCameraResponse{
 		HuddleID:   huddleID,
 		UserID:     req.UserID,
@@ -84,8 +73,9 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID s
 
 	if err := centrifuge.PublishChannel(logger, huddle.ChannelID, notification); err != nil {
 		logger.Error("failed to publish camera status event: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to broadcast camera status")
 	}
 
-	logger.Info("camera status updated successfully for user %s in huddle %s", req.UserID, huddleID)
+	logger.Info("camera status broadcasted successfully for user %s in huddle %s", req.UserID, huddleID)
 	return resp, http.StatusOK, nil
 }
