@@ -39,7 +39,7 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 		ID:              utility.GenerateUUID(),
 		ChannelID:       req.ChannelID,
 		HostID:          hostID,
-		Participants:    participants,
+		ParticipantIDs:  participants,
 		HuddleStartTime: now,
 		IsLiveStatus:    true,
 		Status:          models.HuddleStatusActive,
@@ -76,23 +76,23 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 	}
 
 	resp = models.HuddleCreateResponse{
-		HuddleID:     huddle.ID,
-		HostID:       huddle.HostID,
-		ChannelID:    huddle.ChannelID,
-		Status:       huddle.Status,
-		CreatedAt:    huddle.CreatedAt,
-		StartedAt:    huddle.HuddleStartTime,
-		Participants: participants,
+		HuddleID:       huddle.ID,
+		HostID:         huddle.HostID,
+		ChannelID:      huddle.ChannelID,
+		Status:         huddle.Status,
+		CreatedAt:      huddle.CreatedAt,
+		StartedAt:      huddle.HuddleStartTime,
+		ParticipantIDs: participants,
 	}
 
 	eventPayload := models.HuddleEventPayload{
-		Event:        string(models.HuddleStarted),
-		HuddleID:     huddle.ID,
-		ChannelID:    huddle.ChannelID,
-		HostID:       huddle.HostID,
-		Participants: participants,
-		CreatedAt:    huddle.HuddleStartTime,
-		Status:       huddle.Status,
+		Event:          string(models.HuddleStarted),
+		HuddleID:       huddle.ID,
+		ChannelID:      huddle.ChannelID,
+		HostID:         huddle.HostID,
+		ParticipantIDs: participants,
+		CreatedAt:      huddle.HuddleStartTime,
+		Status:         huddle.Status,
 	}
 
 	notification := models.Notification[models.HuddleStarted]
