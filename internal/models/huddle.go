@@ -25,7 +25,7 @@ type Huddle struct {
 	ID              string         `gorm:"type:uuid;primaryKey" json:"id"`
 	ChannelID       string         `gorm:"type:uuid;not null;index" json:"channel_id"`
 	HostID          string         `gorm:"type:uuid;not null;index" json:"host_id"`
-	Participants    pq.StringArray `gorm:"type:text[];not null" json:"participants"`
+	ParticipantIDs  pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
 	HuddleStartTime time.Time      `gorm:"column:huddle_start_time;autoCreateTime" json:"huddle_start_time"`
 	HuddleEndTime   *time.Time     `gorm:"column:huddle_end_time" json:"huddle_end_time"`
 	IsLiveStatus    bool           `gorm:"column:is_live_status;default:true" json:"is_live_status"`
@@ -52,13 +52,13 @@ type CreateHuddleRequest struct {
 }
 
 type HuddleCreateResponse struct {
-	HuddleID     string    `json:"huddle_id"`
-	HostID       string    `json:"host_id"`
-	ChannelID    string    `json:"channel_id"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"created_at"`
-	StartedAt    time.Time `json:"started_at"`
-	Participants []string  `json:"participants"`
+	HuddleID       string    `json:"huddle_id"`
+	HostID         string    `json:"host_id"`
+	ChannelID      string    `json:"channel_id"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	StartedAt      time.Time `json:"started_at"`
+	ParticipantIDs []string  `json:"participant_ids"`
 }
 
 func (h *Huddle) BeforeCreate(tx *gorm.DB) error {
@@ -68,7 +68,7 @@ func (h *Huddle) BeforeCreate(tx *gorm.DB) error {
 	if h.Status == "" {
 		h.Status = HuddleStatusActive
 	}
-	if len(h.Participants) == 0 {
+	if len(h.ParticipantIDs) == 0 {
 		return errors.New("participants cannot be empty")
 	}
 	return nil
@@ -89,11 +89,11 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 }
 
 type HuddleEventPayload struct {
-	Event        string    `json:"event"`
-	HuddleID     string    `json:"huddle_id"`
-	ChannelID    string    `json:"channel_id"`
-	HostID       string    `json:"host_id"`
-	Participants []string  `json:"participants"`
-	CreatedAt    time.Time `json:"created_at"`
-	Status       string    `json:"status"`
+	Event          string    `json:"event"`
+	HuddleID       string    `json:"huddle_id"`
+	ChannelID      string    `json:"channel_id"`
+	HostID         string    `json:"host_id"`
+	ParticipantIDs []string  `json:"participant_ids"`
+	CreatedAt      time.Time `json:"created_at"`
+	Status         string    `json:"status"`
 }
