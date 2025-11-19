@@ -135,65 +135,17 @@ func uniqueParticipants(hostID string, extras []string) []string {
 func JoinHuddle(db *storage.Database, logger *utility.Logger, huddleID string, userID string) (models.JoinHuddleResponse, int, error) {
 	var resp models.JoinHuddleResponse
 
-	// Fetch the huddle
-	var huddle models.Huddle
-	if err := db.Postgresql.Where("id = ?", huddleID).First(&huddle).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return resp, http.StatusBadRequest, errors.New("huddle does not exist")
-		}
-		logger.Error("failed to fetch huddle: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to fetch huddle")
-	}
-
-	// Verify huddle is active
-	if huddle.Status != models.HuddleStatusActive {
-		return resp, http.StatusBadRequest, errors.New("huddle is not active")
-	}
-
-	// Check if user is in the channel
-	if !models.IsUserInChannel(db.Postgresql, huddle.ChannelID, userID) {
-		return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
-	}
-
-	// Check if user is already in huddle
-	for _, participantID := range huddle.ParticipantIDs {
-		if participantID == userID {
-			return resp, http.StatusBadRequest, errors.New("user is already in the huddle")
-		}
+	huddle, statusCode, err := validateJoinHuddle(db, logger, huddleID, userID)
+	if err != nil {
+		return resp, statusCode, err
 	}
 
 	timestamp := time.Now().UTC()
 
-	// Add user to huddle
-	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
-		// Update participants array
-		if err := huddle.AddUserToHuddle(tx, userID); err != nil {
-			return err
-		}
-
-		// Create participant record
-		participant := models.HuddleParticipant{
-			ID:       utility.GenerateUUID(),
-			HuddleID: huddle.ID,
-			UserID:   userID,
-			Status:   models.HuddleParticipantStatusActive,
-			IsMuted:  false,
-			JoinedAt: timestamp,
-		}
-
-		if err := tx.Create(&participant).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		logger.Error("failed to add user to huddle: %v", err)
-		return resp, http.StatusBadRequest, errors.New("could not update huddle participants")
+	if err := addUserToHuddleTransaction(db, logger, &huddle, userID, timestamp); err != nil {
+		return resp, http.StatusBadRequest, err
 	}
 
-	// Fetch updated huddle
 	if err := db.Postgresql.Where("id = ?", huddleID).First(&huddle).Error; err != nil {
 		logger.Error("failed to fetch updated huddle: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated huddle")
@@ -208,7 +160,66 @@ func JoinHuddle(db *storage.Database, logger *utility.Logger, huddleID string, u
 		ParticipantIDs: huddle.ParticipantIDs,
 	}
 
-	// Emit Centrifugo event
+	publishJoinHuddleEvent(logger, huddle, timestamp)
+
+	return resp, http.StatusOK, nil
+}
+
+func validateJoinHuddle(db *storage.Database, logger *utility.Logger, huddleID, userID string) (models.Huddle, int, error) {
+	var huddle models.Huddle
+
+	if err := db.Postgresql.Where("id = ?", huddleID).First(&huddle).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return huddle, http.StatusBadRequest, errors.New("huddle does not exist")
+		}
+		logger.Error("failed to fetch huddle: %v", err)
+		return huddle, http.StatusInternalServerError, errors.New("failed to fetch huddle")
+	}
+
+	if huddle.Status != models.HuddleStatusActive {
+		return huddle, http.StatusBadRequest, errors.New("huddle is not active")
+	}
+
+	if !models.IsUserInChannel(db.Postgresql, huddle.ChannelID, userID) {
+		return huddle, http.StatusForbidden, errors.New("user is not a member of the channel")
+	}
+
+	for _, participantID := range huddle.ParticipantIDs {
+		if participantID == userID {
+			return huddle, http.StatusBadRequest, errors.New("user is already in the huddle")
+		}
+	}
+
+	return huddle, http.StatusOK, nil
+}
+
+func addUserToHuddleTransaction(db *storage.Database, logger *utility.Logger, huddle *models.Huddle, userID string, timestamp time.Time) error {
+	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
+		if err := huddle.AddUserToHuddle(tx, userID); err != nil {
+			return err
+		}
+
+		participant := models.HuddleParticipant{
+			ID:       utility.GenerateUUID(),
+			HuddleID: huddle.ID,
+			UserID:   userID,
+			Status:   models.HuddleParticipantStatusActive,
+			IsMuted:  false,
+			JoinedAt: timestamp,
+		}
+
+		return tx.Create(&participant).Error
+	})
+
+	if err != nil {
+		logger.Error("failed to add user to huddle: %v", err)
+		return errors.New("could not update huddle participants")
+	}
+
+	return nil
+}
+
+func publishJoinHuddleEvent(logger *utility.Logger, huddle models.Huddle, timestamp time.Time) {
 	eventPayload := models.HuddleEventPayload{
 		Event:          string(models.UserJoinedHuddle),
 		HuddleID:       huddle.ID,
@@ -230,6 +241,4 @@ func JoinHuddle(db *storage.Database, logger *utility.Logger, huddleID string, u
 	if err := centrifuge.PublishChannel(logger, huddle.ChannelID, notification); err != nil {
 		logger.Error("failed to publish join huddle event: %v", err)
 	}
-
-	return resp, http.StatusOK, nil
 }
