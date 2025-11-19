@@ -210,7 +210,7 @@ func JoinHuddle(db *storage.Database, logger *utility.Logger, huddleID string, u
 
 	// Emit Centrifugo event
 	eventPayload := models.HuddleEventPayload{
-		Event:          "user_joined_huddle",
+		Event:          string(models.UserJoinedHuddle),
 		HuddleID:       huddle.ID,
 		ChannelID:      huddle.ChannelID,
 		HostID:         huddle.HostID,
@@ -219,7 +219,7 @@ func JoinHuddle(db *storage.Database, logger *utility.Logger, huddleID string, u
 		Status:         huddle.Status,
 	}
 
-	notification := models.Notification[models.HuddleStarted]
+	notification := models.Notification[models.UserJoinedHuddle]
 	notification.SectionType = models.ChannelsSection
 	notification.Content = eventPayload
 	notification.ModificationDetails = &models.ModificationDetails{
