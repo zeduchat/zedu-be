@@ -127,3 +127,23 @@ type HuddleNoteResponse struct {
 type HuddleNotesListResponse struct {
 	Notes []HuddleNoteResponse `json:"notes"`
 }
+type UpdateCameraRequest struct {
+	UserID string `json:"user_id" validate:"required,uuid"`
+	Status bool   `json:"status" validate:"required"`
+}
+
+type UpdateCameraResponse struct {
+	HuddleID   string `json:"huddle_id"`
+	UserID     string `json:"user_id"`
+	IsCameraOn bool   `json:"is_camera_on"`
+	UpdatedAt  string `json:"updated_at"`
+}
+
+type CameraStatusEventPayload struct {
+	Event      string `json:"event"`
+	HuddleID   string `json:"huddle_id"`
+	ChannelID  string `json:"channel_id"`
+	UserID     string `json:"user_id"`
+	IsCameraOn bool   `json:"is_camera_on"`
+	Timestamp  string `json:"timestamp"`
+}
