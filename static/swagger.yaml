@@ -23991,7 +23991,7 @@ components:
         - appearance
         - notification_method_email
 
-      responses:
+  responses:
         UnauthorizedError:
           description: Authentication information is missing or invalid
           content:
@@ -24020,23 +24020,23 @@ components:
                     type: string
                     example: Not Found
 
-        parameters:
-          PageLimitParam:
-            name: page
-            in: query
-            description: Page number for pagination
-            required: false
-            schema:
-              type: integer
-              default: 1
-          LimitParam:
-            name: limit
-            in: query
-            description: Number of items per page
-            required: false
-            schema:
-              type: integer
-              default: 10
+  parameters:
+    PageLimitParam:
+      name: page
+      in: query
+      description: Page number for pagination
+      required: false
+      schema:
+        type: integer
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        default: 10
 
   securitySchemes:
     bearerAuth:
