@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-// UpdateCameraStatus broadcasts camera status without persisting to database
+// UpdateCameraStatus broadcasts camera status
 func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, huddleID string, req models.UpdateCameraRequest, requestingUserID string) (models.UpdateCameraResponse, int, error) {
 	var resp models.UpdateCameraResponse
 
