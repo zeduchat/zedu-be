@@ -60,6 +60,14 @@ func (base *Controller) Create(c *gin.Context) {
 func (base *Controller) Join(c *gin.Context) {
 	huddleID := c.Param("id")
 
+	valid := utility.IsValidUUID(huddleID)
+	if !valid {
+		base.Logger.Info("invalid huddle ID format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid huddle ID format", "failed to decode huddle ID", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
 		base.Logger.Info("unable to fetch user claims")
