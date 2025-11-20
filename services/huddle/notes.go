@@ -85,7 +85,7 @@ func GetHuddleNotes(db *storage.Database, logger *utility.Logger, huddleID strin
 	}
 
 	var notes []models.HuddleNote
-	err = db.Postgresql.Where("huddle_id = ?", huddleID).Order("created_at ASC").Find(&notes).Error
+	err = db.Postgresql.Where("huddle_id = ? AND user_id = ?", huddleID, userID).Order("created_at ASC").Find(&notes).Error
 	if err != nil {
 		logger.Error("failed to fetch huddle notes: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch huddle notes")
