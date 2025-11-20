@@ -22,13 +22,6 @@ func (base *Controller) UpdateCamera(c *gin.Context) {
 		return
 	}
 
-	if huddleID == "" {
-		base.Logger.Info("missing huddle ID")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "huddle ID is required", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	var req models.UpdateCameraRequest
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
