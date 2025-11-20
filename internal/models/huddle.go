@@ -47,6 +47,7 @@ type HuddleParticipant struct {
 	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
+// CreateHuddleRequest represents the request to create a huddle
 type CreateHuddleRequest struct {
 	ChannelID      string   `json:"channel_id" validate:"required,uuid"`
 	ParticipantIDs []string `json:"participant_ids"`
