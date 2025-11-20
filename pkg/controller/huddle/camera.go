@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -13,6 +14,14 @@ import (
 
 func (base *Controller) UpdateCamera(c *gin.Context) {
 	huddleID := c.Param("id")
+
+	if _, err := uuid.Parse(huddleID); err != nil {
+		base.Logger.Error("invalid huddle id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid huddle id format", "failed to decode huddle id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	if huddleID == "" {
 		base.Logger.Info("missing huddle ID")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "huddle ID is required", nil, nil)
