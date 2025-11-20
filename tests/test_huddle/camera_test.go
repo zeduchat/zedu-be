@@ -23,17 +23,14 @@ import (
 func TestUpdateCamera(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
-
 	validatorRef := validator.New()
 	db := storage.Connection()
 
-	// prepare controllers
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	router, _ := SetupHuddlesTestRouter()
 
-	// create a user and login
 	userEmail := utility.GenerateUUID() + "@qa.team"
 	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
 	login := models.LoginRequestModel{Email: signUp.Email, Password: signUp.Password}
@@ -44,13 +41,11 @@ func TestUpdateCamera(t *testing.T) {
 		t.Fatalf("failed to obtain login token")
 	}
 
-	// fetch created user from DB
 	var user models.User
 	if err := db.Postgresql.Where("email = ?", signUp.Email).First(&user).Error; err != nil {
 		t.Fatalf("failed to fetch created user: %v", err)
 	}
 
-	// create an active huddle and participant for the user
 	huddleID := utility.GenerateUUID()
 	h := models.Huddle{ID: huddleID, ChannelID: utility.GenerateUUID(), HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, HuddleStartTime: time.Now().UTC()}
 	if err := db.Postgresql.Create(&h).Error; err != nil {
@@ -77,18 +72,15 @@ func TestUpdateCamera(t *testing.T) {
 	})
 
 	t.Run("ForbiddenWhenTogglingOtherUser", func(t *testing.T) {
-		// create second user
 		otherEmail := utility.GenerateUUID() + "@qa.team"
 		otherSign := models.CreateUserRequestModel{Email: otherEmail, Password: "password"}
 
-		// signup other user
 		tst.SignupUser(t, router, authController, otherSign, false)
 		var other models.User
 		if err := db.Postgresql.Where("email = ?", otherSign.Email).First(&other).Error; err != nil {
 			t.Fatalf("failed to fetch other user: %v", err)
 		}
 
-		// request toggling camera for other user while authenticated as first user
 		reqBody := models.UpdateCameraRequest{UserID: other.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPut, "/api/v1/huddles/"+huddleID+"/camera", bytes.NewBuffer(b))
@@ -102,7 +94,6 @@ func TestUpdateCamera(t *testing.T) {
 	})
 
 	t.Run("NonParticipantReturns404", func(t *testing.T) {
-		// create a non-participant user and login as them
 		nonEmail := utility.GenerateUUID() + "@qa.team"
 		nonSign := models.CreateUserRequestModel{Email: nonEmail, Password: "password"}
 		nonLogin := models.LoginRequestModel{Email: nonSign.Email, Password: nonSign.Password}
