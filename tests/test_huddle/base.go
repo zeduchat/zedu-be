@@ -26,6 +26,9 @@ func SetupHuddlesTestRouter() (*gin.Engine, *huddle.Controller) {
 	huddleGroup := r.Group("/api/v1/huddles", middleware.Authorize(huddleController.Db.Postgresql))
 	{
 		huddleGroup.PUT("/:id/camera", huddleController.UpdateCamera)
+		huddleGroup.POST("/:id/notes", huddleController.CreateNote)
+		huddleGroup.GET("/:id/notes", huddleController.GetNotes)
+		huddleGroup.PATCH("/:id/notes/:note_id", huddleController.UpdateNote)
 	}
 
 	return r, huddleController
