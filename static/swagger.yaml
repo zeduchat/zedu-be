@@ -24051,3 +24051,119 @@ components:
       description: |
         Notification token required to access these endpoints.  
         This replaces the Bearer authentication for unauthenticated connection/subscription tokens.
+
+paths:
+  /huddles/{id}/camera:
+    patch:
+      tags:
+        - huddles
+      summary: Toggle camera status
+      description: Updates the camera status (on/off) for a participant in an active huddle. Broadcasts the change to other participants via Centrifuge.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the huddle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCameraRequest"
+      responses:
+        "200":
+          description: Camera status updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UpdateCameraResponse"
+        "400":
+          description: Bad Request (Invalid ID or Huddle inactive)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized (Token missing or invalid)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (User can only toggle their own camera)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Huddle does not exist or User is not a participant)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Validation Failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+components:
+  schemas:
+    UpdateCameraRequest:
+      type: object
+      required:
+        - user_id
+        - status
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user updating the camera
+        status:
+          type: boolean
+          description: True for camera ON, False for camera OFF
+
+    UpdateCameraResponse:
+      type: object
+      properties:
+        huddle_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        is_camera_on:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Request successful"
+        status_code:
+          type: integer
+          example: 200
