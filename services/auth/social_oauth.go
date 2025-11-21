@@ -39,28 +39,41 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		org          models.Organisation
 	)
 
-	var googleOAuthConfig = &oauth2.Config{
-		ClientID:     config.Config.Google.CLIENT_ID,
-		ClientSecret: config.Config.Google.CLIENT_SECRET,
-		RedirectURL:  config.Config.Google.REDIRECT_URI,
-		Scopes:       []string{"openid", "email", "profile"},
-		Endpoint:     google.Endpoint,
-	}
+	clientID := config.Config.Google.CLIENT_ID
 
-	token, err := googleOAuthConfig.Exchange(context.Background(), req.Token)
-	if err != nil {
-		return responseData, http.StatusBadRequest, fmt.Errorf("failed to exchange code: %v", err)
-	}
+	// Detect if token is a JWT (ID token) or authorization code
+	if isGoogleIDToken(req.Token) {
+		// Direct ID token validation (mobile/web clients using Google Sign-In SDK)
+		resp, err := idtoken.Validate(context.Background(), req.Token, clientID)
+		if err != nil {
+			return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate id_token: %v", err)
+		}
+		userClaims = resp.Claims
+	} else {
+		// Authorization code exchange flow (traditional OAuth 2.0)
+		googleOAuthConfig := &oauth2.Config{
+			ClientID:     clientID,
+			ClientSecret: config.Config.Google.CLIENT_SECRET,
+			RedirectURL:  config.Config.Google.REDIRECT_URI,
+			Scopes:       []string{"openid", "email", "profile"},
+			Endpoint:     google.Endpoint,
+		}
 
-	idToken := token.Extra("id_token")
-	if idToken == nil {
-		return responseData, http.StatusBadRequest, fmt.Errorf("id_token missing from token exchange")
-	}
+		token, err := googleOAuthConfig.Exchange(context.Background(), req.Token)
+		if err != nil {
+			return responseData, http.StatusBadRequest, fmt.Errorf("failed to exchange code: %v", err)
+		}
 
-	resp, err := idtoken.Validate(context.Background(), idToken.(string), googleOAuthConfig.ClientID)
-	userClaims = resp.Claims
-	if err != nil {
-		return responseData, http.StatusBadRequest, fmt.Errorf("an error occured: %v", err.Error())
+		idTokenValue := token.Extra("id_token")
+		if idTokenValue == nil {
+			return responseData, http.StatusBadRequest, fmt.Errorf("id_token missing from token exchange")
+		}
+
+		resp, err := idtoken.Validate(context.Background(), idTokenValue.(string), clientID)
+		if err != nil {
+			return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate id_token: %v", err)
+		}
+		userClaims = resp.Claims
 	}
 
 	var (
@@ -189,4 +202,15 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
 	return responseData, http.StatusCreated, nil
+}
+
+// isGoogleIDToken checks if the token is a JWT (ID token) or an authorization code.
+// Google ID tokens are JWTs that start with "eyJ" (base64 encoded '{"')
+// and contain exactly 3 parts separated by dots (header.payload.signature).
+func isGoogleIDToken(token string) bool {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	return strings.HasPrefix(token, "eyJ")
 }
