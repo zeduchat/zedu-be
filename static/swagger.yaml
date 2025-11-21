@@ -20720,30 +20720,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized (Token missing or invalid)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden (User can only toggle their own camera)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
         "404":
           description: Not Found (Huddle does not exist or User is not a participant)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-        "422":
-          description: Validation Failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
         "500":
           description: Internal Server Error
           content:
@@ -20791,30 +20773,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-        "422":
-          description: Validation Failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
         "500":
           description: Internal Server Error
           content:
@@ -20854,18 +20818,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
         "404":
           description: Not Found
           content:
@@ -20926,30 +20879,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-        "422":
-          description: Validation Failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
         "500":
           description: Internal Server Error
           content:

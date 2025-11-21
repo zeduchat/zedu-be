@@ -154,8 +154,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      typesense:
-        condition: service_healthy
       elasticsearch:
         condition: service_healthy
       rabbitmq:
@@ -170,7 +168,6 @@ services:
       REDIS_HOST: redis
       MONGO_URI: mongodb://admin:password@mongodb:27017
       MINIO_ENDPOINT: minio:9000
-      TYPESENSE_API_URL: http://typesense:8108
       ELASTIC_URL: http://elasticsearch:9200
       RABBITMQ_CONNECTION: amqp://admin:password@rabbitmq:5672/
       CENTRIFUGE_URL: http://centrifugo:8000
@@ -206,8 +203,6 @@ volumes:
   mongodb_data:
     driver: local
   minio_data:
-    driver: local
-  typesense_data:
     driver: local
   elasticsearch_data:
     driver: local
