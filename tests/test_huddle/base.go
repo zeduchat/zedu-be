@@ -29,6 +29,7 @@ func SetupHuddlesTestRouter() (*gin.Engine, *huddle.Controller) {
 		huddleGroup.POST("/:id/notes", huddleController.CreateNote)
 		huddleGroup.GET("/:id/notes", huddleController.GetNotes)
 		huddleGroup.PATCH("/:id/notes/:note_id", huddleController.UpdateNote)
+		huddleGroup.POST("/create", huddleController.Create)
 	}
 
 	return r, huddleController
