@@ -18,14 +18,13 @@ import (
 func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.CreateHuddleRequest, hostID string) (models.HuddleCreateResponse, int, error) {
 	var resp models.HuddleCreateResponse
 
-	chModel := models.Channels{}
-	exists, err := chModel.CheckChannelExists(db.Postgresql, req.ChannelID)
-	if err != nil {
-		logger.Error("failed to verify channel existence: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to verify channel")
-	}
-	if !exists {
-		return resp, http.StatusNotFound, errors.New("channel does not exist")
+	var channel models.Channels
+	if err := db.Postgresql.Where("id = ?", req.ChannelID).First(&channel).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return resp, http.StatusNotFound, errors.New("channel does not exist")
+		}
+		logger.Error("failed to fetch channel: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch channel")
 	}
 
 	if !models.IsUserInChannel(db.Postgresql, req.ChannelID, hostID) {
@@ -47,7 +46,7 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 		UpdatedAt:       now,
 	}
 
-	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
+	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&huddle).Error; err != nil {
 			return err
 		}
@@ -64,7 +63,7 @@ func CreateHuddle(db *storage.Database, logger *utility.Logger, req models.Creat
 			})
 		}
 
-		if err := postgresql.CreateMultipleRecords(tx, &participantRows, len(participantRows)); err != nil {
+		if err := postgresql.CreateMultipleRecords(tx, &participantRows, len(participants)); err != nil {
 			return err
 		}
 
