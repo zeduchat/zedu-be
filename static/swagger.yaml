@@ -20680,6 +20680,217 @@ paths:
                     credentials: {}
 
 
+  /huddles/{id}/camera:
+    patch:
+      tags:
+        - huddles
+      summary: Toggle camera status
+      description: Updates the camera status (on/off) for a participant in an active huddle. Broadcasts the change to other participants via Centrifuge.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the huddle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCameraRequest"
+      responses:
+        "200":
+          description: Camera status updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UpdateCameraResponse"
+        "400":
+          description: Bad Request (Invalid ID or Huddle inactive)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: Not Found (Huddle does not exist or User is not a participant)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /huddles/{id}/notes:
+    post:
+      tags:
+        - huddles
+      summary: Create a huddle note
+      description: Creates a new note for a specific huddle.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the huddle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHuddleNoteRequest"
+      responses:
+        "201":
+          description: Note created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/HuddleNoteResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    get:
+      tags:
+        - huddles
+      summary: Get huddle notes
+      description: Retrieves all user notes for a specific huddle.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the huddle
+      responses:
+        "200":
+          description: Notes retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/HuddleNotesListResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /huddles/{id}/notes/{note_id}:
+    patch:
+      tags:
+        - huddles
+      summary: Update a huddle note
+      description: Updates an existing note in a huddle.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the huddle
+        - in: path
+          name: note_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateHuddleNoteRequest"
+      responses:
+        "200":
+          description: Note updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/HuddleNoteResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 components:
   schemas:
     OptInSchema:
@@ -23991,7 +24202,7 @@ components:
         - appearance
         - notification_method_email
 
-      responses:
+  responses:
         UnauthorizedError:
           description: Authentication information is missing or invalid
           content:
@@ -24020,112 +24231,24 @@ components:
                     type: string
                     example: Not Found
 
-        parameters:
-          PageLimitParam:
-            name: page
-            in: query
-            description: Page number for pagination
-            required: false
-            schema:
-              type: integer
-              default: 1
-          LimitParam:
-            name: limit
-            in: query
-            description: Number of items per page
-            required: false
-            schema:
-              type: integer
-              default: 10
+  parameters:
+    PageLimitParam:
+      name: page
+      in: query
+      description: Page number for pagination
+      required: false
+      schema:
+        type: integer
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        default: 10
 
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-    NotificationTokenHeader:
-      type: apiKey
-      in: header
-      name: X-Notification-Token
-      description: |
-        Notification token required to access these endpoints.  
-        This replaces the Bearer authentication for unauthenticated connection/subscription tokens.
-
-paths:
-  /huddles/{id}/camera:
-    patch:
-      tags:
-        - huddles
-      summary: Toggle camera status
-      description: Updates the camera status (on/off) for a participant in an active huddle. Broadcasts the change to other participants via Centrifuge.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          description: The unique UUID of the huddle
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateCameraRequest"
-      responses:
-        "200":
-          description: Camera status updated successfully
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/SuccessResponse"
-                  - type: object
-                    properties:
-                      data:
-                        $ref: "#/components/schemas/UpdateCameraResponse"
-        "400":
-          description: Bad Request (Invalid ID or Huddle inactive)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized (Token missing or invalid)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "403":
-          description: Forbidden (User can only toggle their own camera)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForbiddenErrorSchema"
-        "404":
-          description: Not Found (Huddle does not exist or User is not a participant)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NotFoundErrorSchema"
-        "422":
-          description: Validation Failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
-components:
-  schemas:
     UpdateCameraRequest:
       type: object
       required:
@@ -24155,6 +24278,53 @@ components:
           type: string
           format: date-time
 
+    CreateHuddleNoteRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: The content of the note
+
+    UpdateHuddleNoteRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: The updated content of the note
+
+    HuddleNoteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        huddle_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    HuddleNotesListResponse:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/HuddleNoteResponse"
+
     SuccessResponse:
       type: object
       properties:
@@ -24167,3 +24337,17 @@ components:
         status_code:
           type: integer
           example: 200
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+    NotificationTokenHeader:
+      type: apiKey
+      in: header
+      name: X-Notification-Token
+      description: |
+        Notification token required to access these endpoints.  
+        This replaces the Bearer authentication for unauthenticated connection/subscription tokens.
+

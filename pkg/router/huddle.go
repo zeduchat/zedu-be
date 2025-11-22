@@ -22,6 +22,9 @@ func Huddles(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	huddleGroup := r.Group(fmt.Sprintf("%v/huddles", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 	{
 		huddleGroup.POST("/create", ctrl.Create)
+		huddleGroup.POST("/:id/notes", ctrl.CreateNote)
+		huddleGroup.GET("/:id/notes", ctrl.GetNotes)
+		huddleGroup.PATCH("/:id/notes/:note_id", ctrl.UpdateNote)
 		huddleGroup.PATCH("/:id/camera", ctrl.UpdateCamera)
 	}
 

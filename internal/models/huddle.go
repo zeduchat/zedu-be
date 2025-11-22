@@ -101,6 +101,36 @@ type HuddleEventPayload struct {
 	Status         string    `json:"status"`
 }
 
+type HuddleNote struct {
+	ID        string    `gorm:"type:uuid;primaryKey" json:"id"`
+	HuddleID  string    `gorm:"type:uuid;not null;index" json:"huddle_id"`
+	UserID    string    `gorm:"type:uuid;not null;index" json:"user_id"`
+	Note      string    `gorm:"type:text;not null" json:"note"`
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+}
+
+type CreateHuddleNoteRequest struct {
+	Note string `json:"note" validate:"required"`
+}
+
+type UpdateHuddleNoteRequest struct {
+	Note string `json:"note" validate:"required"`
+}
+
+type HuddleNoteResponse struct {
+	ID        string    `json:"id"`
+	HuddleID  string    `json:"huddle_id"`
+	UserID    string    `json:"user_id"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type HuddleNotesListResponse struct {
+	Notes []HuddleNoteResponse `json:"notes"`
+}
+
 type UpdateCameraRequest struct {
 	UserID string `json:"user_id" validate:"required,uuid"`
 	Status bool   `json:"status" validate:"required"`

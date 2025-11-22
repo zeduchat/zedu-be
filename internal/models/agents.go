@@ -1882,11 +1882,11 @@ func UpdateCustomAgent(db *gorm.DB, ids map[string]string) error {
 }
 
 func ValidateAgentApiKey(db *gorm.DB, apiKey string) (string, string, error) {
-	var agentSettings CustomIntegrationsSetting
+	var orgIntegration OrganisationIntegrations
 
 	err := db.
-		Where("setting_entry::jsonb -> 'auth_credentials' ->> 'agent_api_key' = ?", apiKey).
-		First(&agentSettings).Error
+		Where("pre_shared_key = ?", apiKey).
+		First(&orgIntegration).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1895,7 +1895,7 @@ func ValidateAgentApiKey(db *gorm.DB, apiKey string) (string, string, error) {
 		return "", "", fmt.Errorf("error querying agent settings: %v", err)
 	}
 
-	return agentSettings.OrgID, agentSettings.IntegrationID, nil
+	return orgIntegration.OrgID, orgIntegration.IntegrationID, nil
 }
 
 func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, error) {
