@@ -20726,6 +20726,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
+  /huddles/create:
+    post:
+      tags:
+        - huddles
+      summary: Create a huddle
+      description: Starts a new huddle in a channel. Host is auto-added to participants.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHuddleRequest"
+      responses:
+        "201":
+          description: Huddle created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/HuddleCreateResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User not in channel or lacks permission)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Channel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
         "500":
           description: Internal Server Error
           content:
@@ -24278,6 +24328,46 @@ components:
           type: string
           format: date-time
 
+    CreateHuddleRequest:
+      type: object
+      required:
+        - channel_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    HuddleCreateResponse:
+      type: object
+      properties:
+        huddle_id:
+          type: string
+          format: uuid
+        host_id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
     CreateHuddleNoteRequest:
       type: object
       required:
@@ -24350,4 +24440,3 @@ components:
       description: |
         Notification token required to access these endpoints.  
         This replaces the Bearer authentication for unauthenticated connection/subscription tokens.
-
