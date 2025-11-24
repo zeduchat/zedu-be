@@ -26,7 +26,6 @@ func Huddles(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		huddleGroup.GET("/:id/notes", ctrl.GetNotes)
 		huddleGroup.PATCH("/:id/notes/:note_id", ctrl.UpdateNote)
 		huddleGroup.PATCH("/:id/camera", ctrl.UpdateCamera)
-		huddleGroup.PATCH("/:id/viewer", ctrl.SetActiveScreen)
 	}
 
 	return r
