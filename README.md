@@ -81,7 +81,8 @@ Make sure all services are installed and running locally or in Docker containers
 2. Create your feature branch: `git checkout -b feature/your-feature`.
 
 3. Commit your changes: `git commit -am 'Add some feature'`.
+   
 
-4. Push to the branch: `git push origin feature/your-feature`.
+5. Push to the branch: `git push origin feature/your-feature`.
 
-5. Open a pull request.
+6. Open a pull request.
