@@ -24,22 +24,22 @@ func Setup(logger *utility.Logger, name string) *Configuration {
 	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
-		// remove from fatal to Printf to check env
 		log.Printf("Error reading config file, %s", err)
-		log.Printf("Reading from environment variable")
-
-		viper.AutomaticEnv()
-
-		var config BaseConfig
-
-		// bind config keys to viper
-		err := BindKeys(viper.GetViper(), config)
-		if err != nil {
-			log.Fatalf("Unable to bindkeys in struct, %v", err)
-		}
+		log.Printf("Will attempt to read from environment variables only")
+	} else {
+		log.Printf("Successfully loaded config from file: %s", viper.ConfigFileUsed())
 	}
 
-	err := viper.Unmarshal(&baseConfiguration)
+	viper.AutomaticEnv()
+
+	var config BaseConfig
+
+	err := BindKeys(viper.GetViper(), config)
+	if err != nil {
+		log.Fatalf("Unable to bind keys in struct, %v", err)
+	}
+
+	err = viper.Unmarshal(&baseConfiguration)
 	if err != nil {
 		log.Fatalf("Unable to decode into struct, %v", err)
 	}

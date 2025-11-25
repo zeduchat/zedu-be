@@ -28,7 +28,7 @@ type ShareableInviteRequest struct {
 }
 
 type ChangeStatus struct {
-	Status       bool   `json:"status" validate:"required, oneof=true false`
+	Status       bool   `json:"status" validate:"required"`
 	InvitationID string `gorm:"type:uuid" json:"invitation_id" validate:"required"`
 }
 
