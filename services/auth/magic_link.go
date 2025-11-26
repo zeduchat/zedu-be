@@ -57,7 +57,7 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 	magic := models.MagicLink{
 		ID:        utility.GenerateUUID(),
 		Email:     strings.ToLower(userEmail),
-		Token:     strconv.Itoa(resetToken),
+		Token:     resetToken,
 		ExpiresAt: time.Now().Add(time.Duration(config.App.ResetPasswordDuration) * time.Minute),
 	}
 

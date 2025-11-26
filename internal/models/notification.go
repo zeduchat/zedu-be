@@ -17,7 +17,7 @@ type NotificationRecord struct {
 
 type SendOTP struct {
 	Email    string `json:"email"  validate:"required"`
-	OtpToken int    `json:"otp_token"  validate:"required"`
+	OtpToken string `json:"otp_token"  validate:"required"`
 }
 
 type SendWelcomeMail struct {
