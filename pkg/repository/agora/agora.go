@@ -67,8 +67,8 @@ func (s *AgoraService) GenerateRTCToken(channelName, userID string, expireTimeIn
 }
 
 // GetAgoraToken generates an Agora RTC token for a user to join a buzz
-func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.BuzzAgoraTokenResponse, int, error) {
-	var resp models.BuzzAgoraTokenResponse
+func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.AgoraTokenResponse, int, error) {
+	var resp models.AgoraTokenResponse
 
 	service := Client.Service
 	if service == nil {
@@ -97,7 +97,7 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
 	}
 
-	resp = models.BuzzAgoraTokenResponse{
+	resp = models.AgoraTokenResponse{
 		Token:       token,
 		AppId:       service.appId,
 		ChannelName: buzzID,
