@@ -24,25 +24,43 @@ jobs:
       #     sudo apt update
       #     sudo apt install -y sshpass
 
+      # - name: Build and stop on failure
+      #   run: |
+      #     sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+      #       cd '"$APP_DIR"'
+      #       git reset --hard
+      #       git pull origin '"$BRANCH"'
+      #       go build -o '"$APP_BINARY"'
+      #     '
+        
+      # - name: Run DB migrations
+      #   run: |
+      #     sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+      #       cd '"$APP_DIR"'
+      #       echo "Running DB migrations..."
+      #       make migrate-safe-up
+      #     '
+
+      # - name: Restart app
+      #   run: |
+      #     sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+      #       supervisorctl restart '"$SUPERVISOR_PROCESS"'
+      #     '
+
       - name: Build and stop on failure
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
             cd '"$APP_DIR"'
             git reset --hard
             git pull origin '"$BRANCH"'
             go build -o '"$APP_BINARY"'
-          '
+          
         
       - name: Run DB migrations
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
             cd '"$APP_DIR"'
             echo "Running DB migrations..."
             make migrate-safe-up
-          '
 
       - name: Restart app
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
             supervisorctl restart '"$SUPERVISOR_PROCESS"'
-          '
