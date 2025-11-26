@@ -14204,6 +14204,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
+  /device-tokens:
+    post:
+      tags:
+        - Device Tokens
+      security:
+        - bearerAuth: []
+      summary: Register or update a device token
+      description: Saves a device token for the authenticated user. If the token already exists for the user, it will be updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDeviceTokenRequest"
+      responses:
+        "201":
+          description: Device token registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/RegisterDeviceTokenResponse"
+        "200":
+          description: Device token updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/RegisterDeviceTokenResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
   /wnstoken:
     post:
       tags:
@@ -24414,6 +24470,43 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/HuddleNoteResponse"
+
+    RegisterDeviceTokenRequest:
+      type: object
+      required:
+        - device_token
+      properties:
+        device_token:
+          type: string
+          description: The push notification token for the device
+        platform:
+          type: string
+          description: Platform/provider for the token (e.g., fcm, apns, webpush)
+        device_id:
+          type: string
+          description: Optional client-generated device identifier
+
+    RegisterDeviceTokenResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        device_token:
+          type: string
+        platform:
+          type: string
+        device_id:
+          type: string
+        last_seen:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     SuccessResponse:
       type: object
