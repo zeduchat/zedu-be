@@ -27,9 +27,9 @@ type Controller struct {
 func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
 	config := config.GetConfig()
 	
-	path := "/chat/completions"
-
-	openRouterURL := config.OpenRouter.BaseUrl + path
+    path := c.Request.URL.Path
+    path = strings.TrimPrefix(path, "/api/v1/telexai")
+    openRouterURL := config.OpenRouter.BaseUrl + path
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -72,13 +72,7 @@ func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		base.Logger.Error("Failed to read response body from OpenRouter", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read response", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
+	c.Status(resp.StatusCode)
 
 	for key, values := range resp.Header {
 		for _, value := range values {
@@ -86,7 +80,13 @@ func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
 		}
 	}
 
-	c.Data(resp.StatusCode, resp.Header.Get("Content-Type"), respBody)
+	_, err = io.Copy(c.Writer, resp.Body)
+    if err != nil {
+		base.Logger.Error("Failed to read response body from OpenRouter", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read response", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+    }
 }
 
 func (base *Controller) RespondToChat(c *gin.Context) {
