@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -286,4 +287,60 @@ func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string
 	}
 
 	return nil
+}
+
+// This function provides the validation and updating of the filename.
+func UpdateFileName(db *gorm.DB, fileId, newFileName, orgID, userID string, logger *utility.Logger) (*models.UploadedFileResponse, error) {
+	trimmed, err := Validate(newFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	fileResponse, err := GetFileDetailsByID(db, fileId)
+	if err != nil {
+		return nil, err
+	}
+	if fileResponse == nil {
+		return nil, fmt.Errorf("file does not exist")
+	}
+	err = fileResponse.UpdateFileName(db, fileId, trimmed)
+	if err != nil {
+		return nil, err
+	}
+	fileResponse, err = GetFileDetailsByID(db, fileId)
+	if err != nil {
+		return nil, err
+	}	
+	notification := models.Notification[models.UpdatedMedia]
+	notification.SectionType = models.ThreadSection
+	notification.Content = fileResponse
+	notification.ModificationDetails = &models.ModificationDetails{
+		UserId: userID,
+		OrgId:  orgID,
+	}
+	userChannelID := fmt.Sprintf("%s/%s", orgID, userID)
+	if err := centrifuge.PublishChannel(logger, userChannelID, notification); err != nil {
+		logger.Error("Error Publishing notification event: %v", err)
+	}
+
+	return fileResponse, nil
+}
+
+// Function that does the validation heavy lifting.
+func Validate(filename string) (string, error) {
+	trimmed := strings.TrimSpace(filename)
+	if strings.HasPrefix(trimmed, ".") {
+		return "", fmt.Errorf("filename cannot start with a period")
+	}
+	if trimmed == "" {
+		return "", fmt.Errorf("file name cannot be empty")
+	}
+	if len(trimmed) > 255 {
+		return "", fmt.Errorf("file name too long")
+	}
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s._-]+$`)
+	if !validPattern.MatchString(trimmed) {
+		return "", fmt.Errorf("filename contains invalid characters")
+	}
+	return trimmed, nil
 }

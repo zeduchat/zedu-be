@@ -14577,6 +14577,180 @@ paths:
                     nullable: true
                     example: null
 
+    put:
+      tags:
+        - File Management
+      summary: Update file name
+      description: Renames a file by updating its metadata in the database. The actual file in storage remains unchanged. Notifies all connected clients in real-time.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file to rename
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_name
+              properties:
+                file_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: New name for the file. Must not be empty, cannot exceed 255 characters, and must contain only alphanumeric characters, spaces, dots, dashes, and underscores.
+                  example: "Updated Document.pdf"
+      responses:
+        "200":
+          description: File name updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File name updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Updated Document.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+        "400":
+          description: Bad request - invalid file name
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Failed to update file name"
+                  error:
+                    type: string
+                    example: "filename contains invalid characters"
+              examples:
+                empty_name:
+                  summary: Empty file name
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Failed to update file name"
+                    error: "file name cannot be empty"
+                invalid_characters:
+                  summary: Invalid characters
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Failed to update file name"
+                    error: "filename contains invalid characters"
+                too_long:
+                  summary: Name too long
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Failed to update file name"
+                    error: "file name too long"
+                starts_with_dot:
+                  summary: Name starts with period
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Failed to update file name"
+                    error: "filename cannot start with a period"
+        "401":
+          description: Unauthorized - authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: "authentication required"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Failed to update file name"
+                  error:
+                    type: string
+                    example: "file does not exist"
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 422
+                  message:
+                    type: string
+                    example: "Validation failed"
+                  error:
+                    type: object
+                    properties:
+                      file_name:
+                        type: string
+                        example: "file_name is a required field"
+
   /organisations/{organisation_id}/group-dms:
     get:
       tags:

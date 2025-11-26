@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
@@ -106,5 +107,43 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	base.Logger.Info("Files deleted successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+func (base *Controller) UpdateFileName(c *gin.Context) {
+	fileID := c.Param("id")
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+	var req models.RenameFileRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	resp, err := services.UpdateFileName(base.Db.Postgresql, fileID, req.FileName, orgID, userID, base.Logger)
+	if err != nil {
+		base.Logger.Error("error updating file name")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to update file name", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	base.Logger.Info("File name updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File name updated successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
