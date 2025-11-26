@@ -92,7 +92,7 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 
 	// Generate token using buzz ID as channel name
 	token, err := service.GenerateRTCToken(buzzID, userID, expireTimeInSeconds)
-	if err != nil {
+	if err != nil{
 		logger.Error("Failed to generate Agora token: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
 	}
