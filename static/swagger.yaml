@@ -28,6 +28,8 @@ tags:
     description: API for channels endpoint
   - name: tokens
     description: API for centrifuge token related endpoints
+  - name: agora
+    description: API for generating Agora RTC/RTM tokens
   - name: blogs
     description: API for blogs
   - name: contact
@@ -14315,6 +14317,141 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
+  /agora/rtc-token:
+    post:
+      tags:
+        - agora
+      security:
+        - bearerAuth: []
+      summary: Generate Agora RTC token
+      description: Creates an RTC token for a given channel. Defaults to token_type=userAccount and expiry_seconds=3600.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgoraTokenRequest"
+      responses:
+        "200":
+          description: RTC token generated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AgoraTokenResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /agora/rtm-token:
+    post:
+      tags:
+        - agora
+      security:
+        - bearerAuth: []
+      summary: Generate Agora RTM token
+      description: Creates an RTM token for the authenticated user (or provided uid). Defaults expiry_seconds=3600.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgoraTokenRequest"
+      responses:
+        "200":
+          description: RTM token generated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AgoraTokenResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /agora/rte-token:
+    post:
+      tags:
+        - agora
+      security:
+        - bearerAuth: []
+      summary: Generate both RTC and RTM tokens
+      description: Generates both RTC and RTM tokens for the given channel/user in one call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgoraTokenRequest"
+      responses:
+        "200":
+          description: RTC and RTM tokens generated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AgoraTokenResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
   /webpush:
     post:
       tags:
@@ -24507,6 +24644,37 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    AgoraTokenRequest:
+      type: object
+      required:
+        - channel_name
+        - role
+      properties:
+        channel_name:
+          type: string
+          description: Agora channel name
+        role:
+          type: string
+          enum: [publisher, subscriber]
+        token_type:
+          type: string
+          enum: [uid, userAccount]
+          description: Defaults to userAccount. When uid, the uid must be numeric.
+        uid:
+          type: string
+          description: Optional; defaults to authenticated user_id when omitted.
+        expiry_seconds:
+          type: integer
+          description: Lifetime in seconds (default 3600, min 60, max 86400)
+
+    AgoraTokenResponse:
+      type: object
+      properties:
+        rtc_token:
+          type: string
+        rtm_token:
+          type: string
 
     SuccessResponse:
       type: object
