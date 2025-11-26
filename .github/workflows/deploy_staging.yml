@@ -5,10 +5,11 @@ on:
   push:
     branches:
       - staging
+      - testing
 
 jobs:
   update_and_restart_app:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       SSH_USERNAME: ${{ secrets.TELEX_SERVER_SSH_USER }}
       SSH_HOST: ${{ secrets.TELEX_SERVER_SSH_HOST }}
@@ -18,30 +19,48 @@ jobs:
       APP_BINARY: telexbe_staging
       SUPERVISOR_PROCESS: telexbe_staging
     steps:
-      - name: Install sshpass
-        run: |
-          sudo apt update
-          sudo apt install -y sshpass
+      # - name: Install sshpass
+      #   run: |
+      #     sudo apt update
+      #     sudo apt install -y sshpass
+
+      # - name: Build and stop on failure
+      #   run: |
+      #     sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+      #       cd '"$APP_DIR"'
+      #       git reset --hard
+      #       git pull origin '"$BRANCH"'
+      #       go build -o '"$APP_BINARY"'
+      #     '
+        
+      # - name: Run DB migrations
+      #   run: |
+      #     sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+      #       cd '"$APP_DIR"'
+      #       echo "Running DB migrations..."
+      #       make migrate-safe-up
+      #     '
+
+      # - name: Restart app
+      #   run: |
+      #     sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
+      #       supervisorctl restart '"$SUPERVISOR_PROCESS"'
+      #     '
 
       - name: Build and stop on failure
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
-            cd '"$APP_DIR"'
+            cd "$APP_DIR"
             git reset --hard
-            git pull origin '"$BRANCH"'
-            go build -o '"$APP_BINARY"'
-          '
+            git pull origin "$BRANCH"
+            go build -o "$APP_BINARY"
+          
         
       - name: Run DB migrations
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
-            cd '"$APP_DIR"'
+            cd "$APP_DIR"
             echo "Running DB migrations..."
             make migrate-safe-up
-          '
 
       - name: Restart app
         run: |
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST '
-            supervisorctl restart '"$SUPERVISOR_PROCESS"'
-          '
+            supervisorctl restart "$SUPERVISOR_PROCESS"

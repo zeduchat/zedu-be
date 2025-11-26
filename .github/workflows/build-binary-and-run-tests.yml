@@ -4,16 +4,19 @@ on:
   pull_request:
     branches:
       - staging
+  push:
+    branches:
+      - testing
 
 jobs:
   build_and_test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       TEST_USERNAME: postgres
       TEST_PASSWORD: password
       TEST_DB_NAME: db_name # must match details in app-sample.env
       TEST_DB_HOST: localhost
-      TEST_DB_PORT: 5432
+      TEST_DB_PORT: 5433
       TEST_MIGRATE: true
 
     services:
@@ -24,7 +27,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.TEST_PASSWORD }}
           POSTGRES_DB: ${{ env.TEST_DB_NAME }}
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd="pg_isready -U $TEST_USERNAME -d $TEST_DB_NAME"
           --health-interval=10s
