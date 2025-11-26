@@ -38,6 +38,7 @@ var (
 	ArchiveSavedMessage         NotificationType = "archive_saved_message"
 	UnArchiveSavedMessage       NotificationType = "unarchive_saved_message"
 	HuddleStarted               NotificationType = "huddle_started"
+	UserJoinedHuddle            NotificationType = "user_joined_huddle"
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
@@ -134,6 +135,9 @@ var Notification = map[NotificationType]Content{
 	},
 	HuddleStarted: Content{
 		NotificationType: HuddleStarted,
+	},
+	UserJoinedHuddle: Content{
+		NotificationType: UserJoinedHuddle,
 	},
 	UpdatedMedia: Content{
 		NotificationType: UpdatedMedia,

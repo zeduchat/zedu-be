@@ -130,3 +130,115 @@ func uniqueParticipants(hostID string, extras []string) []string {
 
 	return result
 }
+
+// JoinHuddle allows a user to join an existing huddle
+func JoinHuddle(db *storage.Database, logger *utility.Logger, huddleID string, userID string) (models.JoinHuddleResponse, int, error) {
+	var resp models.JoinHuddleResponse
+
+	huddle, statusCode, err := validateJoinHuddle(db, logger, huddleID, userID)
+	if err != nil {
+		return resp, statusCode, err
+	}
+
+	timestamp := time.Now().UTC()
+
+	if err := addUserToHuddleTransaction(db, logger, &huddle, userID, timestamp); err != nil {
+		return resp, http.StatusBadRequest, err
+	}
+
+	if err := db.Postgresql.Where("id = ?", huddleID).First(&huddle).Error; err != nil {
+		logger.Error("failed to fetch updated huddle: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated huddle")
+	}
+
+	resp = models.JoinHuddleResponse{
+		HuddleID:       huddle.ID,
+		ChannelID:      huddle.ChannelID,
+		UserID:         userID,
+		Status:         huddle.Status,
+		JoinedAt:       timestamp,
+		ParticipantIDs: huddle.ParticipantIDs,
+	}
+
+	publishJoinHuddleEvent(logger, huddle, timestamp)
+
+	return resp, http.StatusOK, nil
+}
+
+func validateJoinHuddle(db *storage.Database, logger *utility.Logger, huddleID, userID string) (models.Huddle, int, error) {
+	var huddle models.Huddle
+
+	if err := db.Postgresql.Where("id = ?", huddleID).First(&huddle).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return huddle, http.StatusBadRequest, errors.New("huddle does not exist")
+		}
+		logger.Error("failed to fetch huddle: %v", err)
+		return huddle, http.StatusInternalServerError, errors.New("failed to fetch huddle")
+	}
+
+	if huddle.Status != models.HuddleStatusActive {
+		return huddle, http.StatusBadRequest, errors.New("huddle is not active")
+	}
+
+	if !models.IsUserInChannel(db.Postgresql, huddle.ChannelID, userID) {
+		return huddle, http.StatusForbidden, errors.New("user is not a member of the channel")
+	}
+
+	for _, participantID := range huddle.ParticipantIDs {
+		if participantID == userID {
+			return huddle, http.StatusBadRequest, errors.New("user is already in the huddle")
+		}
+	}
+
+	return huddle, http.StatusOK, nil
+}
+
+func addUserToHuddleTransaction(db *storage.Database, logger *utility.Logger, huddle *models.Huddle, userID string, timestamp time.Time) error {
+	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
+		if err := huddle.AddUserToHuddle(tx, userID); err != nil {
+			return err
+		}
+
+		participant := models.HuddleParticipant{
+			ID:       utility.GenerateUUID(),
+			HuddleID: huddle.ID,
+			UserID:   userID,
+			Status:   models.HuddleParticipantStatusActive,
+			IsMuted:  false,
+			JoinedAt: timestamp,
+		}
+
+		return tx.Create(&participant).Error
+	})
+
+	if err != nil {
+		logger.Error("failed to add user to huddle: %v", err)
+		return errors.New("could not update huddle participants")
+	}
+
+	return nil
+}
+
+func publishJoinHuddleEvent(logger *utility.Logger, huddle models.Huddle, timestamp time.Time) {
+	eventPayload := models.HuddleEventPayload{
+		Event:          string(models.UserJoinedHuddle),
+		HuddleID:       huddle.ID,
+		ChannelID:      huddle.ChannelID,
+		HostID:         huddle.HostID,
+		ParticipantIDs: huddle.ParticipantIDs,
+		CreatedAt:      timestamp,
+		Status:         huddle.Status,
+	}
+
+	notification := models.Notification[models.UserJoinedHuddle]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = eventPayload
+	notification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: huddle.ChannelID,
+	}
+	notification.NotificationId = utility.GenerateUUID()
+
+	if err := centrifuge.PublishChannel(logger, huddle.ChannelID, notification); err != nil {
+		logger.Error("failed to publish join huddle event: %v", err)
+	}
+}

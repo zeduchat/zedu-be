@@ -148,3 +148,65 @@ type CameraStatusEventPayload struct {
 	IsCameraOn bool   `json:"is_camera_on"`
 	Timestamp  string `json:"timestamp"`
 }
+
+// AddUserToHuddle adds a user to a huddle as a participant
+func (h *Huddle) AddUserToHuddle(db *gorm.DB, userID string) error {
+	// Validate inputs
+	if h.ID == "" {
+		return errors.New("huddle does not exist")
+	}
+	if userID == "" {
+		return errors.New("invalid user ID")
+	}
+
+	// Check if user is in the channel
+	if !IsUserInChannel(db, h.ChannelID, userID) {
+		return errors.New("user is not a member of the channel")
+	}
+
+	// Check if huddle exists
+	var huddle Huddle
+	if err := db.Where("id = ?", h.ID).First(&huddle).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("huddle does not exist")
+		}
+		return err
+	}
+
+	// Check if huddle is active
+	if huddle.Status != HuddleStatusActive {
+		return errors.New("huddle is not active")
+	}
+
+	// Check if user is already in the huddle
+	for _, participantID := range huddle.ParticipantIDs {
+		if participantID == userID {
+			return errors.New("user is already in the huddle")
+		}
+	}
+
+	// Add user to participants array
+	return updateHuddleParticipants(db, h.ID, append(huddle.ParticipantIDs, userID))
+}
+
+// updateHuddleParticipants updates the participants array of a huddle
+func updateHuddleParticipants(db *gorm.DB, huddleID string, participants pq.StringArray) error {
+	return db.Model(&Huddle{}).
+		Where("id = ?", huddleID).
+		Update("participants", participants).Error
+}
+
+// JoinHuddleRequest represents the request to join a huddle
+type JoinHuddleRequest struct {
+	HuddleID string `json:"huddle_id" validate:"required,uuid"`
+}
+
+// JoinHuddleResponse represents the response after joining a huddle
+type JoinHuddleResponse struct {
+	HuddleID       string    `json:"huddle_id"`
+	ChannelID      string    `json:"channel_id"`
+	UserID         string    `json:"user_id"`
+	Status         string    `json:"status"`
+	JoinedAt       time.Time `json:"joined_at"`
+	ParticipantIDs []string  `json:"participant_ids"`
+}
