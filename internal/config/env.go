@@ -27,6 +27,7 @@ type Configuration struct {
 	Admin        Admin
 	Google       Google
 	WebPush      WebPush
+	Agora        Agora
 }
 
 type BaseConfig struct {
@@ -135,6 +136,9 @@ type BaseConfig struct {
 	GOOGLE_REDIRECT_URI  string `mapstructure:"GOOGLE_REDIRECT_URI"`
 	PubKey               string `mapstructure:"NEXT_PUBLIC_VAPID_PUBLIC_KEY"`
 	PrivKey              string `mapstructure:"NEXT_PUBLIC_VAPID_PRIVATE_KEY"`
+
+	AGORA_APP_ID          string `mapstructure:"AGORA_APP_ID"`
+	AGORA_APP_CERTIFICATE string `mapstructure:"AGORA_APP_CERTIFICATE"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -283,6 +287,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		WebPush: WebPush{
 			PubKey:  config.PubKey,
 			PrivKey: config.PrivKey,
+		},
+		Agora: Agora{
+			AppId:          config.AGORA_APP_ID,
+			AppCertificate: config.AGORA_APP_CERTIFICATE,
 		},
 	}
 }
