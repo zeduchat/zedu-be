@@ -19,10 +19,10 @@ jobs:
       APP_BINARY: telexbe_staging
       SUPERVISOR_PROCESS: telexbe_staging
     steps:
-      - name: Install sshpass
-        run: |
-          sudo apt update
-          sudo apt install -y sshpass
+      # - name: Install sshpass
+      #   run: |
+      #     sudo apt update
+      #     sudo apt install -y sshpass
 
       - name: Build and stop on failure
         run: |
