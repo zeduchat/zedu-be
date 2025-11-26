@@ -35,7 +35,7 @@ func NewAgoraService(logger *utility.Logger, config config.Agora) *AgoraService 
 	return service
 }
 
-// GenerateRTCToken creates an Agora RTC token for a user to join a huddle channel
+// GenerateRTCToken creates an Agora RTC token for a user to join a buzz channel
 // expireTimeInSeconds: token expiration time in seconds (0 = use default 2 hours)
 func (s *AgoraService) GenerateRTCToken(channelName, userID string, expireTimeInSeconds uint32) (string, error) {
 	if s.appId == "" || s.appCertificate == "" {
@@ -66,9 +66,9 @@ func (s *AgoraService) GenerateRTCToken(channelName, userID string, expireTimeIn
 	return token, nil
 }
 
-// GetAgoraToken generates an Agora RTC token for a user to join a huddle
-func GetAgoraToken(db *storage.Database, logger *utility.Logger, huddleID, userID string) (models.HuddleAgoraTokenResponse, int, error) {
-	var resp models.HuddleAgoraTokenResponse
+// GetAgoraToken generates an Agora RTC token for a user to join a buzz
+func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.BuzzAgoraTokenResponse, int, error) {
+	var resp models.BuzzAgoraTokenResponse
 
 	service := Client.Service
 	if service == nil {
@@ -78,7 +78,7 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, huddleID, userI
 	// Validate buzz exists and is active
 	var buzz models.Buzz
 	if err := db.Postgresql.Where("id = ? AND status = ? AND is_live_status = ?",
-		huddleID, models.BuzzStatusActive, true).First(&buzz).Error; err != nil {
+		buzzID, models.BuzzStatusActive, true).First(&buzz).Error; err != nil {
 		return resp, http.StatusNotFound, errors.New("buzz not found or not active")
 	}
 
@@ -90,21 +90,21 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, huddleID, userI
 	// Calculate dynamic token expiration based on buzz duration
 	expireTimeInSeconds := calculateTokenExpiration(buzz.BuzzStartTime, logger)
 
-	// Generate token using huddle ID as channel name
-	token, err := service.GenerateRTCToken(huddleID, userID, expireTimeInSeconds)
+	// Generate token using buzz ID as channel name
+	token, err := service.GenerateRTCToken(buzzID, userID, expireTimeInSeconds)
 	if err != nil {
 		logger.Error("Failed to generate Agora token: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
 	}
 
-	resp = models.HuddleAgoraTokenResponse{
+	resp = models.BuzzAgoraTokenResponse{
 		Token:       token,
 		AppId:       service.appId,
-		ChannelName: huddleID,
+		ChannelName: buzzID,
 		UID:         0, // Using 0 for string-based user accounts
 	}
 
-	logger.Info("Generated Agora token for user %s in buzz %s", userID, huddleID)
+	logger.Info("Generated Agora token for user %s in buzz %s", userID, buzzID)
 	return resp, http.StatusOK, nil
 }
 
