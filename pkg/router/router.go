@@ -69,6 +69,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Agents(r, ApiVersion, validator, db, logger)
 	Mongogrations(r, ApiVersion, validator, db, logger)
 	FcmToken(r, ApiVersion, validator, db, logger)
+	Agora(r, ApiVersion, validator, db, logger)
 	DeviceTokens(r, ApiVersion, validator, db, logger)
 	TelexAI(r, ApiVersion, validator, db, logger)
 	GetRecentLogs(r, ApiVersion, validator, db, logger)
