@@ -310,7 +310,7 @@ func UpdateFileName(db *gorm.DB, fileId, newFileName, orgID, userID string, logg
 	fileResponse, err = GetFileDetailsByID(db, fileId)
 	if err != nil {
 		return nil, err
-	}	
+	}
 	notification := models.Notification[models.UpdatedMedia]
 	notification.SectionType = models.ThreadSection
 	notification.Content = fileResponse
