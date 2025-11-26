@@ -92,7 +92,7 @@ func (base *Controller) Join(c *gin.Context) {
 
 // GetAgoraToken generates an Agora RTC token for joining a buzz
 func (base *Controller) GetAgoraToken(c *gin.Context) {
-	var req models.AgoraTokenRequest
+	var req models.BuzzAgoraTokenRequest
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {

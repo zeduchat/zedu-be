@@ -1,12 +1,12 @@
 package models
 
-// AgoraTokenRequest is the request to get an Agora RTC token
-type AgoraTokenRequest struct {
+// BuzzAgoraTokenRequest is the request to get an Agora RTC token for a buzz
+type BuzzAgoraTokenRequest struct {
 	BuzzID string `json:"buzz_id" validate:"required,uuid"`
 }
 
-// AgoraTokenResponse contains the Agora RTC token and connection details
-type AgoraTokenResponse struct {
+// BuzzAgoraTokenResponse contains the Agora RTC token and connection details for a buzz
+type BuzzAgoraTokenResponse struct {
 	Token       string `json:"token"`
 	AppId       string `json:"app_id"`
 	ChannelName string `json:"channel_name"`
