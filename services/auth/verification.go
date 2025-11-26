@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -53,7 +52,7 @@ func VerifyEmailReq(userEmail string, db *gorm.DB, extReq request.ExternalReques
 	reset := models.PasswordReset{
 		ID:        utility.GenerateUUID(),
 		Email:     strings.ToLower(userEmail),
-		Token:     strconv.Itoa(resetToken),
+		Token:     resetToken,
 		ExpiresAt: time.Now().Add(time.Duration(config.App.ResetPasswordDuration) * time.Minute),
 	}
 
