@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net/url"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -44,16 +43,15 @@ func RandomString(length int) string {
 	return processedString + string(padding)
 }
 
-func GenerateOTP(max int) (int, error) {
-	b := make([]byte, max)
-	n, err := io.ReadFull(crand.Reader, b)
-	if n != max {
-		panic(err)
+func GenerateOTP(length int) (string, error) {
+	b := make([]byte, length)
+	if _, err := io.ReadFull(crand.Reader, b); err != nil {
+		return "", err
 	}
 	for i := 0; i < len(b); i++ {
 		b[i] = table[int(b[i])%len(table)]
 	}
-	return strconv.Atoi(string(b))
+	return string(b), nil
 }
 
 func GenerateInvitationToken() (string, error) {
