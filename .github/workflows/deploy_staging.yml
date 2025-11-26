@@ -49,18 +49,18 @@ jobs:
 
       - name: Build and stop on failure
         run: |
-            cd '"$APP_DIR"'
+            cd "$APP_DIR"
             git reset --hard
-            git pull origin '"$BRANCH"'
-            go build -o '"$APP_BINARY"'
+            git pull origin "$BRANCH"
+            go build -o "$APP_BINARY"
           
         
       - name: Run DB migrations
         run: |
-            cd '"$APP_DIR"'
+            cd "$APP_DIR"
             echo "Running DB migrations..."
             make migrate-safe-up
 
       - name: Restart app
         run: |
-            supervisorctl restart '"$SUPERVISOR_PROCESS"'
+            supervisorctl restart "$SUPERVISOR_PROCESS"
