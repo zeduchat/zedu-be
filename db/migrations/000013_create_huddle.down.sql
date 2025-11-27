@@ -1,2 +1,2 @@
-DROP INDEX IF EXISTS idx_buzz_channel_id;
-DROP TABLE IF EXISTS public.buzz;
+DROP INDEX IF EXISTS idx_huddles_channel_id;
+DROP TABLE IF EXISTS public.huddles;
