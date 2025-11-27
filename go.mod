@@ -8,7 +8,6 @@ toolchain go1.24.7
 
 require (
 	firebase.google.com/go/v4 v4.15.2
-	github.com/AgoraIO-Community/go-tokenbuilder v1.3.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/anthonycorbacho/slack-webhook v1.0.1
 	github.com/centrifugal/gocent v2.2.0+incompatible
