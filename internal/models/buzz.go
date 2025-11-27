@@ -12,31 +12,31 @@ import (
 )
 
 const (
-	HuddleStatusActive = "active"
-	HuddleStatusEnded  = "ended"
+	BuzzStatusActive = "active"
+	BuzzStatusEnded  = "ended"
 )
 
 const (
-	HuddleParticipantStatusActive = "active"
-	HuddleParticipantStatusLeft   = "left"
+	BuzzParticipantStatusActive = "active"
+	BuzzParticipantStatusLeft   = "left"
 )
 
-type Huddle struct {
-	ID              string         `gorm:"type:uuid;primaryKey" json:"id"`
-	ChannelID       string         `gorm:"type:uuid;not null;index" json:"channel_id"`
-	HostID          string         `gorm:"type:uuid;not null;index" json:"host_id"`
-	ParticipantIDs  pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
-	HuddleStartTime time.Time      `gorm:"column:huddle_start_time;autoCreateTime" json:"huddle_start_time"`
-	HuddleEndTime   *time.Time     `gorm:"column:huddle_end_time" json:"huddle_end_time"`
-	IsLiveStatus    bool           `gorm:"column:is_live_status;default:true" json:"is_live_status"`
-	Status          string         `gorm:"type:text;default:'active'" json:"status"`
-	CreatedAt       time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+type Buzz struct {
+	ID             string         `gorm:"type:uuid;primaryKey" json:"id"`
+	ChannelID      string         `gorm:"type:uuid;not null;index" json:"channel_id"`
+	HostID         string         `gorm:"type:uuid;not null;index" json:"host_id"`
+	ParticipantIDs pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
+	BuzzStartTime  time.Time      `gorm:"column:Buzz_start_time;autoCreateTime" json:"Buzz_start_time"`
+	BuzzEndTime    *time.Time     `gorm:"column:Buzz_end_time" json:"Buzz_end_time"`
+	IsLiveStatus   bool           `gorm:"column:is_live_status;default:true" json:"is_live_status"`
+	Status         string         `gorm:"type:text;default:'active'" json:"status"`
+	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-type HuddleParticipant struct {
+type BuzzParticipant struct {
 	ID        string     `gorm:"type:uuid;primaryKey" json:"id"`
-	HuddleID  string     `gorm:"type:uuid;index;not null" json:"huddle_id"`
+	BuzzID    string     `gorm:"type:uuid;index;not null" json:"Buzz_id"`
 	UserID    string     `gorm:"type:uuid;index;not null" json:"user_id"`
 	Status    string     `gorm:"type:text;not null;default:'active'" json:"status"`
 	IsMuted   bool       `gorm:"type:boolean;default:false" json:"is_muted"`
@@ -45,14 +45,14 @@ type HuddleParticipant struct {
 	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
-type CreateHuddleRequest struct {
+type CreateBuzzRequest struct {
 	ChannelID      string   `json:"channel_id" validate:"required,uuid"`
 	ParticipantIDs []string `json:"participant_ids"`
 	OrganisationID string   `json:"organisation_id,omitempty"`
 }
 
-type HuddleCreateResponse struct {
-	HuddleID       string    `json:"huddle_id"`
+type BuzzCreateResponse struct {
+	BuzzID         string    `json:"Buzz_id"`
 	HostID         string    `json:"host_id"`
 	ChannelID      string    `json:"channel_id"`
 	Status         string    `json:"status"`
@@ -61,12 +61,12 @@ type HuddleCreateResponse struct {
 	ParticipantIDs []string  `json:"participant_ids"`
 }
 
-func (h *Huddle) BeforeCreate(tx *gorm.DB) error {
+func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
 		h.ID = utility.GenerateUUID()
 	}
 	if h.Status == "" {
-		h.Status = HuddleStatusActive
+		h.Status = BuzzStatusActive
 	}
 	if len(h.ParticipantIDs) == 0 {
 		return errors.New("participants cannot be empty")
@@ -74,12 +74,12 @@ func (h *Huddle) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-func (hp *HuddleParticipant) BeforeCreate(tx *gorm.DB) error {
+func (hp *BuzzParticipant) BeforeCreate(tx *gorm.DB) error {
 	if hp.ID == "" {
 		hp.ID = utility.GenerateUUID()
 	}
 	if hp.Status == "" {
-		hp.Status = HuddleParticipantStatusActive
+		hp.Status = BuzzParticipantStatusActive
 	}
 	return nil
 }
@@ -88,9 +88,9 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 	return postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, userID)
 }
 
-type HuddleEventPayload struct {
+type BuzzEventPayload struct {
 	Event          string    `json:"event"`
-	HuddleID       string    `json:"huddle_id"`
+	BuzzID         string    `json:"Buzz_id"`
 	ChannelID      string    `json:"channel_id"`
 	HostID         string    `json:"host_id"`
 	ParticipantIDs []string  `json:"participant_ids"`
@@ -98,34 +98,34 @@ type HuddleEventPayload struct {
 	Status         string    `json:"status"`
 }
 
-type HuddleNote struct {
+type BuzzNote struct {
 	ID        string    `gorm:"type:uuid;primaryKey" json:"id"`
-	HuddleID  string    `gorm:"type:uuid;not null;index" json:"huddle_id"`
+	BuzzID    string    `gorm:"type:uuid;not null;index" json:"Buzz_id"`
 	UserID    string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	Note      string    `gorm:"type:text;not null" json:"note"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-type CreateHuddleNoteRequest struct {
+type CreateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
 
-type UpdateHuddleNoteRequest struct {
+type UpdateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
 
-type HuddleNoteResponse struct {
+type BuzzNoteResponse struct {
 	ID        string    `json:"id"`
-	HuddleID  string    `json:"huddle_id"`
+	BuzzID    string    `json:"Buzz_id"`
 	UserID    string    `json:"user_id"`
 	Note      string    `json:"note"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type HuddleNotesListResponse struct {
-	Notes []HuddleNoteResponse `json:"notes"`
+type BuzzNotesListResponse struct {
+	Notes []BuzzNoteResponse `json:"notes"`
 }
 
 type UpdateCameraRequest struct {
@@ -134,7 +134,7 @@ type UpdateCameraRequest struct {
 }
 
 type UpdateCameraResponse struct {
-	HuddleID   string `json:"huddle_id"`
+	BuzzID     string `json:"Buzz_id"`
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
 	UpdatedAt  string `json:"updated_at"`
@@ -142,18 +142,18 @@ type UpdateCameraResponse struct {
 
 type CameraStatusEventPayload struct {
 	Event      string `json:"event"`
-	HuddleID   string `json:"huddle_id"`
+	BuzzID     string `json:"Buzz_id"`
 	ChannelID  string `json:"channel_id"`
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
 	Timestamp  string `json:"timestamp"`
 }
 
-// AddUserToHuddle adds a user to a huddle as a participant
-func (h *Huddle) AddUserToHuddle(db *gorm.DB, userID string) error {
+// AddUserToBuzz adds a user to a Buzz as a participant
+func (h *Buzz) AddUserToBuzz(db *gorm.DB, userID string) error {
 	// Validate inputs
 	if h.ID == "" {
-		return errors.New("huddle does not exist")
+		return errors.New("Buzz does not exist")
 	}
 	if userID == "" {
 		return errors.New("invalid user ID")
@@ -164,46 +164,46 @@ func (h *Huddle) AddUserToHuddle(db *gorm.DB, userID string) error {
 		return errors.New("user is not a member of the channel")
 	}
 
-	// Check if huddle exists
-	var huddle Huddle
-	if err := db.Where("id = ?", h.ID).First(&huddle).Error; err != nil {
+	// Check if Buzz exists
+	var Buzz Buzz
+	if err := db.Where("id = ?", h.ID).First(&Buzz).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("huddle does not exist")
+			return errors.New("Buzz does not exist")
 		}
 		return err
 	}
 
-	// Check if huddle is active
-	if huddle.Status != HuddleStatusActive {
-		return errors.New("huddle is not active")
+	// Check if Buzz is active
+	if Buzz.Status != BuzzStatusActive {
+		return errors.New("Buzz is not active")
 	}
 
-	// Check if user is already in the huddle
-	for _, participantID := range huddle.ParticipantIDs {
+	// Check if user is already in the Buzz
+	for _, participantID := range Buzz.ParticipantIDs {
 		if participantID == userID {
-			return errors.New("user is already in the huddle")
+			return errors.New("user is already in the Buzz")
 		}
 	}
 
 	// Add user to participants array
-	return updateHuddleParticipants(db, h.ID, append(huddle.ParticipantIDs, userID))
+	return updateBuzzParticipants(db, h.ID, append(Buzz.ParticipantIDs, userID))
 }
 
-// updateHuddleParticipants updates the participants array of a huddle
-func updateHuddleParticipants(db *gorm.DB, huddleID string, participants pq.StringArray) error {
-	return db.Model(&Huddle{}).
-		Where("id = ?", huddleID).
+// updateBuzzParticipants updates the participants array of a Buzz
+func updateBuzzParticipants(db *gorm.DB, BuzzID string, participants pq.StringArray) error {
+	return db.Model(&Buzz{}).
+		Where("id = ?", BuzzID).
 		Update("participants", participants).Error
 }
 
-// JoinHuddleRequest represents the request to join a huddle
-type JoinHuddleRequest struct {
-	HuddleID string `json:"huddle_id" validate:"required,uuid"`
+// JoinBuzzRequest represents the request to join a Buzz
+type JoinBuzzRequest struct {
+	BuzzID string `json:"Buzz_id" validate:"required,uuid"`
 }
 
-// JoinHuddleResponse represents the response after joining a huddle
-type JoinHuddleResponse struct {
-	HuddleID       string    `json:"huddle_id"`
+// JoinBuzzResponse represents the response after joining a Buzz
+type JoinBuzzResponse struct {
+	BuzzID         string    `json:"Buzz_id"`
 	ChannelID      string    `json:"channel_id"`
 	UserID         string    `json:"user_id"`
 	Status         string    `json:"status"`

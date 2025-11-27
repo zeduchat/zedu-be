@@ -1,4 +1,4 @@
-package huddle
+package buzz
 
 import (
 	"net/http"
@@ -8,16 +8,16 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
-	"github.com/hngprojects/telex_be/services/huddle"
+	"github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func (base *Controller) UpdateCamera(c *gin.Context) {
-	huddleID := c.Param("id")
+	buzzID := c.Param("id")
 
-	if _, err := uuid.Parse(huddleID); err != nil {
-		base.Logger.Error("invalid huddle id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid huddle id format", "failed to decode huddle id", nil)
+	if _, err := uuid.Parse(buzzID); err != nil {
+		base.Logger.Error("invalid buzz id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id format", "failed to decode buzz id", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -46,7 +46,7 @@ func (base *Controller) UpdateCamera(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := huddle.UpdateCameraStatus(base.Db, base.Logger, huddleID, req, userID.(string))
+	resp, code, err := buzz.UpdateCameraStatus(base.Db, base.Logger, buzzID, req, userID.(string))
 	if err != nil {
 		base.Logger.Error("failed to update camera status: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

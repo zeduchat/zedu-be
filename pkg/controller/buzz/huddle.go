@@ -1,4 +1,4 @@
-package huddle
+package buzz
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/huddle"
+	"github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -20,7 +20,7 @@ type Controller struct {
 }
 
 func (base *Controller) Create(c *gin.Context) {
-	var req models.CreateHuddleRequest
+	var req models.CreateBuzzRequest
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
@@ -31,39 +31,39 @@ func (base *Controller) Create(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		base.Logger.Info("error parsing huddle request body")
+		base.Logger.Info("error parsing buzz request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := base.Validator.Struct(&req); err != nil {
-		base.Logger.Info("validation failed for huddle request")
+		base.Logger.Info("validation failed for buzz request")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	resp, code, err := huddle.CreateHuddle(base.Db, base.Logger, req, userID.(string))
+	resp, code, err := buzz.CreateBuzz(base.Db, base.Logger, req, userID.(string))
 	if err != nil {
-		base.Logger.Error("failed to create huddle: %v", err)
+		base.Logger.Error("failed to create buzz: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("huddle created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "huddle created successfully", resp)
+	base.Logger.Info("buzz created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "buzz created successfully", resp)
 	c.JSON(http.StatusCreated, rd)
 }
 
 func (base *Controller) Join(c *gin.Context) {
-	huddleID := c.Param("id")
+	buzzID := c.Param("id")
 
-	valid := utility.IsValidUUID(huddleID)
+	valid := utility.IsValidUUID(buzzID)
 	if !valid {
-		base.Logger.Info("invalid huddle ID format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid huddle ID format", "failed to decode huddle ID", nil)
+		base.Logger.Info("invalid buzz ID format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz ID format", "failed to decode buzz ID", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -76,15 +76,15 @@ func (base *Controller) Join(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := huddle.JoinHuddle(base.Db, base.Logger, huddleID, userID.(string))
+	resp, code, err := buzz.JoinBuzz(base.Db, base.Logger, buzzID, userID.(string))
 	if err != nil {
-		base.Logger.Error("failed to join huddle: %v", err)
+		base.Logger.Error("failed to join buzz: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("user joined huddle successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "user joined huddle successfully", resp)
+	base.Logger.Info("user joined buzz successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "user joined buzz successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
