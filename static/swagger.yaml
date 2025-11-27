@@ -24325,6 +24325,43 @@ components:
           items:
             $ref: "#/components/schemas/BuzzNoteResponse"
 
+    RegisterDeviceTokenRequest:
+      type: object
+      required:
+        - device_token
+      properties:
+        device_token:
+          type: string
+          description: The push notification token for the device
+        platform:
+          type: string
+          description: Platform/provider for the token (e.g., fcm, apns, webpush)
+        device_id:
+          type: string
+          description: Optional client-generated device identifier
+
+    RegisterDeviceTokenResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        device_token:
+          type: string
+        platform:
+          type: string
+        device_id:
+          type: string
+        last_seen:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     SuccessResponse:
       type: object
       properties:

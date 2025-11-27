@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
+	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/firebase"
 	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
@@ -42,6 +43,7 @@ func main() {
 	redis.ConnectToRedis(logger, configuration.Redis)
 	minio.ConnectToMinio(logger, configuration.Minio)
 	centrifuge.NewCentrifugoService(logger, configuration.Centrifuge)
+	agora.NewAgoraService(logger, configuration.Agora)
 	typesense.ConnectToTypeSense(logger, configuration.TypeSense)
 	models.SetStripeMap(configuration.Stripe)
 	models.SetMapPackagePriceID(configuration.Stripe)

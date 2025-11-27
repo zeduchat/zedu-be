@@ -8,6 +8,7 @@ toolchain go1.24.7
 
 require (
 	firebase.google.com/go/v4 v4.15.2
+	github.com/AgoraIO-Community/go-tokenbuilder v1.3.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/anthonycorbacho/slack-webhook v1.0.1
 	github.com/centrifugal/gocent v2.2.0+incompatible
@@ -68,6 +69,7 @@ require (
 	cloud.google.com/go/longrunning v0.6.2 // indirect
 	cloud.google.com/go/monitoring v1.21.2 // indirect
 	cloud.google.com/go/storage v1.49.0 // indirect
+	github.com/AgoraIO-Community/go-tokenbuilder v1.3.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.48.1 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.48.1 // indirect
