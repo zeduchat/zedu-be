@@ -1,6 +1,7 @@
 package buzz
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -127,4 +128,43 @@ func (base *Controller) GetAgoraToken(c *gin.Context) {
 	base.Logger.Info("Agora token generated successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agora token generated successfully", resp)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) LeaveBuzz(c *gin.Context) {
+	buzzID, ok := c.Params.Get("id")
+	if !ok || !(utility.IsValidUUID(buzzID)) {
+		base.Logger.Error("invalid request param: buzz id is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userIDInterface, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		base.Logger.Error("user_id is not of type string")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "user_id is not of type string", errors.New("user_id is not of type string"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	data, statusCode, err := buzz.LeaveBuzz(base.Db, base.Logger, buzzID, userID)
+
+	if err != nil {
+		base.Logger.Error("Failed to leave buzz: %v", err)
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("user %s left buzz %s successfully", userID, buzzID)
+	rd := utility.BuildSuccessResponse(statusCode, "user left buzz successfully", data)
+	c.JSON(statusCode, rd)
 }

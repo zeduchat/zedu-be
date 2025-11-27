@@ -124,7 +124,7 @@ func PublishLeaveBuzzEvent(logger *utility.Logger, channelID, buzzID string, pub
 	err = client.Publish(context.Background(), buzzChannelID, payload)
 
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to sub-channel %s: %v", buzzChannelID, err))
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to buzzChannelID %s: %v", buzzChannelID, err))
 		return err
 	}
 
