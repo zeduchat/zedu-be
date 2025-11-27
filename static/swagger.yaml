@@ -12003,7 +12003,7 @@ paths:
                   minLength: 101
                   description: Detailed explanation of how the agent works. Must be more than 100 characters.
                   example: |
-                    This agent connects to multiple data sources and leverages AI models to provide 
+                    This agent connects to multiple data sources and leverages AI models to provide
                     insights in real-time. It integrates seamlessly with your workflow...
                 benefits:
                   type: string
@@ -12017,7 +12017,7 @@ paths:
                   minLength: 101
                   description: Explanation of why users should choose this agent. Must be more than 100 characters.
                   example: |
-                    This agent offers unique value by combining advanced machine learning algorithms with 
+                    This agent offers unique value by combining advanced machine learning algorithms with
                     user-friendly integrations across multiple platforms...
                 short_description:
                   type: string
@@ -12067,7 +12067,7 @@ paths:
       summary: Generate informational content for an agent
       description: >
         Generates structured informational content for a given agent, including
-        how it works, benefits, why to use it, and illustrative snapshots.  
+        how it works, benefits, why to use it, and illustrative snapshots.
         Requires authentication.
       security:
         - bearerAuth: []
@@ -12090,10 +12090,10 @@ paths:
                   type: string
                   description: The textual description of the agent for which informational content should be generated.
                   example: >
-                    This home organizer is a practical and efficient tool designed to help create orderly and functional living spaces. 
-                    It offers decluttering tips using methods like the KonMari approach, suggests suitable storage solutions for different rooms or items, 
-                    and provides strategies to optimize space and reduce stress. The advice is tailored to the user's home size, lifestyle, and budget, 
-                    including maintenance routines to keep things organized. It responds with clear, actionable lists, before-and-after ideas, 
+                    This home organizer is a practical and efficient tool designed to help create orderly and functional living spaces.
+                    It offers decluttering tips using methods like the KonMari approach, suggests suitable storage solutions for different rooms or items,
+                    and provides strategies to optimize space and reduce stress. The advice is tailored to the user's home size, lifestyle, and budget,
+                    including maintenance routines to keep things organized. It responds with clear, actionable lists, before-and-after ideas,
                     and encouragement to support gradual progress in home organization.
       responses:
         "200":
@@ -12277,7 +12277,7 @@ paths:
     get:
       summary: Get all skill categories
       description: >
-        Fetch a list of all available categories for skills 
+        Fetch a list of all available categories for skills
         in the marketplace.
       tags:
         - Marketplace
@@ -20607,7 +20607,7 @@ paths:
                 credentials:
                   type: object
                   description: JSON payload representing workflow details
-                
+
       responses:
         "201":
           description: Credentials created successfully
@@ -20644,7 +20644,7 @@ paths:
                   type: array
                   items:
                     type: object
-                    properties: 
+                    properties:
                     - id: "0198e565-018e-7692-8e23-8a267accdb87"
                       name: "Pirate weather API key"
 
@@ -20891,6 +20891,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/{id}/leave:
+    post:
+      tags:
+        - buzz
+      summary: Leave a buzz (call)
+      description: Remove the current user from a buzz and handle host reassignment if needed
+      operationId: leaveBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz (call)
+      responses:
+        "200":
+          description: Successfully left the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzLeaveResponseSchema"
+        "400":
+          description: Bad request - user not in buzz or buzz not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz or user does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     OptInSchema:
@@ -24278,6 +24328,60 @@ components:
           type: string
           format: date-time
 
+    BuzzLeaveResponseSchema:
+      type: object
+      required:
+        - buzz_id
+        - participant_id
+        - left_at
+        - buzz_ended
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        participant_id:
+          type: string
+          format: uuid
+          description: The ID of the user who left the buzz
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        new_host_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The new host ID if the previous host left (null if host didn't change)
+          example: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"
+        left_at:
+          type: string
+          format: date-time
+          description: Timestamp when the user left the buzz (UTC)
+          example: "2024-11-27T10:30:45Z"
+        buzz_ended:
+          type: boolean
+          description: Whether the buzz ended due to no participants remaining
+          example: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - message
+        - code
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: "error"
+        message:
+          type: string
+          description: Error message describing what went wrong
+          example: "user is not in the buzz"
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+
     CreateBuzzNoteRequest:
       type: object
       required:
@@ -24385,6 +24489,5 @@ components:
       in: header
       name: X-Notification-Token
       description: |
-        Notification token required to access these endpoints.  
+        Notification token required to access these endpoints.
         This replaces the Bearer authentication for unauthenticated connection/subscription tokens.
-

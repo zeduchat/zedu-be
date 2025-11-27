@@ -61,6 +61,14 @@ type BuzzCreateResponse struct {
 	ParticipantIDs []string  `json:"participant_ids"`
 }
 
+type BuzzLeaveResponse struct {
+	BuzzID        string    `json:"buzz_id"`
+	ParticipantID string    `json:"participant_id"`
+	NewHostID     string    `json:"new_host_id,omitempty"`
+	LeftAt        time.Time `json:"left_at"`
+	BuzzEnded     bool      `json:"buzz_ended"`
+}
+
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
 		h.ID = utility.GenerateUUID()
@@ -96,6 +104,14 @@ type BuzzEventPayload struct {
 	ParticipantIDs []string  `json:"participant_ids"`
 	CreatedAt      time.Time `json:"created_at"`
 	Status         string    `json:"status"`
+}
+
+type BuzzLeaveEventPayload struct {
+	UserID       string `json:"user_id"`
+	UserName     string `json:"user_name"`
+	HuddleStatus string `json:"huddle_status"`
+	HostChanged  bool   `json:"host_changed"`
+	BuzzEventPayload
 }
 
 type BuzzNote struct {

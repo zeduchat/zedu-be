@@ -39,6 +39,7 @@ var (
 	UnArchiveSavedMessage       NotificationType = "unarchive_saved_message"
 	BuzzStarted                 NotificationType = "buzz_started"
 	UserJoinedBuzz              NotificationType = "user_joined_buzz"
+	UserLeftBuzz                NotificationType = "user_left_buzz"
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
