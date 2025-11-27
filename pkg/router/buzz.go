@@ -23,6 +23,7 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	{
 		buzzGroup.POST("/create", ctrl.Create)
 		buzzGroup.POST("/:id/join", ctrl.Join)
+		buzzGroup.POST("/token", ctrl.GetAgoraToken)
 		buzzGroup.POST("/:id/notes", ctrl.CreateNote)
 		buzzGroup.GET("/:id/notes", ctrl.GetNotes)
 		buzzGroup.PATCH("/:id/notes/:note_id", ctrl.UpdateNote)

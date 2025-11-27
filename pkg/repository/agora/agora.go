@@ -75,20 +75,20 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, huddleID, userI
 		return resp, http.StatusInternalServerError, errors.New("Agora service not initialized")
 	}
 
-	// Validate huddle exists and is active
-	var huddle models.Huddle
+	// Validate buzz exists and is active
+	var buzz models.Buzz
 	if err := db.Postgresql.Where("id = ? AND status = ? AND is_live_status = ?",
-		huddleID, models.HuddleStatusActive, true).First(&huddle).Error; err != nil {
-		return resp, http.StatusNotFound, errors.New("huddle not found or not active")
+		huddleID, models.BuzzStatusActive, true).First(&buzz).Error; err != nil {
+		return resp, http.StatusNotFound, errors.New("buzz not found or not active")
 	}
 
 	// Validate user is a participant
-	if !isUserParticipant(huddle.ParticipantIDs, userID) {
-		return resp, http.StatusForbidden, errors.New("user is not a participant in this huddle")
+	if !isUserParticipant(buzz.ParticipantIDs, userID) {
+		return resp, http.StatusForbidden, errors.New("user is not a participant in this buzz")
 	}
 
-	// Calculate dynamic token expiration based on huddle duration
-	expireTimeInSeconds := calculateTokenExpiration(huddle.HuddleStartTime, logger)
+	// Calculate dynamic token expiration based on buzz duration
+	expireTimeInSeconds := calculateTokenExpiration(buzz.BuzzStartTime, logger)
 
 	// Generate token using huddle ID as channel name
 	token, err := service.GenerateRTCToken(huddleID, userID, expireTimeInSeconds)
@@ -104,7 +104,7 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, huddleID, userI
 		UID:         0, // Using 0 for string-based user accounts
 	}
 
-	logger.Info("Generated Agora token for user %s in huddle %s", userID, huddleID)
+	logger.Info("Generated Agora token for user %s in buzz %s", userID, huddleID)
 	return resp, http.StatusOK, nil
 }
 
@@ -118,19 +118,19 @@ func isUserParticipant(participants []string, userID string) bool {
 	return false
 }
 
-// calculateTokenExpiration calculates dynamic token expiration based on huddle duration
-func calculateTokenExpiration(huddleStartTime time.Time, logger *utility.Logger) uint32 {
+// calculateTokenExpiration calculates dynamic token expiration based on buzz duration
+func calculateTokenExpiration(buzzStartTime time.Time, logger *utility.Logger) uint32 {
 	const (
-		maxHuddleDurationHours = 4    // Maximum allowed huddle duration (4 hours)
-		minTokenValidityMinutes = 15  // Minimum token validity (15 minutes safety buffer)
+		maxBuzzDurationHours    = 4  // Maximum allowed buzz duration (4 hours)
+		minTokenValidityMinutes = 15 // Minimum token validity (15 minutes safety buffer)
 	)
 
-	// Calculate elapsed time since huddle started
-	elapsedTime := time.Since(huddleStartTime)
+	// Calculate elapsed time since buzz started
+	elapsedTime := time.Since(buzzStartTime)
 	elapsedSeconds := int64(elapsedTime.Seconds())
 
-	// Calculate maximum huddle duration in seconds
-	maxDurationSeconds := int64(maxHuddleDurationHours * 3600)
+	// Calculate maximum buzz duration in seconds
+	maxDurationSeconds := int64(maxBuzzDurationHours * 3600)
 
 	// Calculate remaining time until max duration
 	remainingSeconds := maxDurationSeconds - elapsedSeconds
@@ -141,14 +141,14 @@ func calculateTokenExpiration(huddleStartTime time.Time, logger *utility.Logger)
 	// Use the greater of remaining time or minimum validity
 	tokenExpiry := math.Max(float64(remainingSeconds), float64(minValiditySeconds))
 
-	// Cap at max duration if huddle just started
+	// Cap at max duration if buzz just started
 	if tokenExpiry > float64(maxDurationSeconds) {
 		tokenExpiry = float64(maxDurationSeconds)
 	}
 
 	expirySeconds := uint32(tokenExpiry)
 
-	logger.Info("Token expiration calculated: huddle running for %.2f minutes, token valid for %.2f minutes",
+	logger.Info("Token expiration calculated: buzz running for %.2f minutes, token valid for %.2f minutes",
 		elapsedTime.Minutes(), float64(expirySeconds)/60)
 
 	return expirySeconds

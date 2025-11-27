@@ -90,9 +90,9 @@ func (base *Controller) Join(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-// GetAgoraToken generates an Agora RTC token for joining a huddle
+// GetAgoraToken generates an Agora RTC token for joining a buzz
 func (base *Controller) GetAgoraToken(c *gin.Context) {
-	var req models.HuddleAgoraTokenRequest
+	var req models.BuzzAgoraTokenRequest
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
@@ -116,7 +116,7 @@ func (base *Controller) GetAgoraToken(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := agora.GetAgoraToken(base.Db, base.Logger, req.HuddleID, userID.(string))
+	resp, code, err := agora.GetAgoraToken(base.Db, base.Logger, req.BuzzID, userID.(string))
 	if err != nil {
 		base.Logger.Error("failed to generate Agora token: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
