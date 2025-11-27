@@ -79,9 +79,9 @@ func AuthMigrationModels() []any {
 		models.CreditUsage{},
 		models.Admin{},
 		models.IntegrationBills{},
-		models.Huddle{},
-		models.HuddleParticipant{},
-		models.HuddleNote{},
+		models.Buzz{},
+		models.BuzzParticipant{},
+		models.BuzzNote{},
 	} // an array of db models, example: User{}
 }
 

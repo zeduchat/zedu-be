@@ -1,4 +1,4 @@
-package test_huddle
+package test_buzz
 
 import (
 	"bytes"
@@ -15,8 +15,8 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/buzz"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
-	"github.com/hngprojects/telex_be/pkg/controller/huddle"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -24,7 +24,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestHuddleEndpoints(t *testing.T) {
+func TestBuzzEndpoints(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -46,7 +46,7 @@ func TestHuddleEndpoints(t *testing.T) {
 		Password: userSignUpData.Password,
 	}
 
-	// Create second user (will join huddle)
+	// Create second user (will join buzz)
 	user2UUID := utility.GenerateUUID()
 	user2SignUpData := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("testuser2%v@qa.team", user2UUID),
@@ -118,23 +118,23 @@ func TestHuddleEndpoints(t *testing.T) {
 	userChannel.Username = user2SignUpData.UserName
 	db.Postgresql.Create(&userChannel)
 
-	// Create huddle
-	huddleController := huddle.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	createHuddleReq := models.CreateHuddleRequest{
+	// Create buzz
+	buzzController := buzz.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	createBuzzReq := models.CreateBuzzRequest{
 		ChannelID: channelID,
 	}
 
-	var huddleID string
+	var buzzID string
 	{
 		r := gin.Default()
-		huddleUrl := r.Group("/api/v1/huddles", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 		{
-			huddleUrl.POST("/create", huddleController.Create)
+			buzzUrl.POST("/create", buzzController.Create)
 		}
 
 		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(createHuddleReq)
-		req, _ := http.NewRequest(http.MethodPost, "/api/v1/huddles/create", &b)
+		json.NewEncoder(&b).Encode(createBuzzReq)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -143,7 +143,7 @@ func TestHuddleEndpoints(t *testing.T) {
 
 		data := tst.ParseResponse(rr)
 		if responseData, ok := data["data"].(map[string]interface{}); ok {
-			huddleID = responseData["huddle_id"].(string)
+			buzzID = responseData["buzz_id"].(string)
 		}
 	}
 
@@ -158,50 +158,50 @@ func TestHuddleEndpoints(t *testing.T) {
 		Token        string
 	}{
 		{
-			Name: "Create Huddle Action",
-			RequestBody: models.CreateHuddleRequest{
+			Name: "Create Buzz Action",
+			RequestBody: models.CreateBuzzRequest{
 				ChannelID: channelID,
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "huddle created successfully",
+			Message:      "buzz created successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: "/api/v1/huddles/create"},
+			RequestURI:   url.URL{Path: "/api/v1/buzz/create"},
 			Token:        token,
 		},
 		{
-			Name:         "Join Huddle Action - Success",
+			Name:         "Join Buzz Action - Success",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusOK,
-			Message:      "user joined huddle successfully",
+			Message:      "user joined buzz successfully",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/huddles/%s/join", huddleID)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/buzz/%s/join", buzzID)},
 			Token:        token2,
 		},
 		{
-			Name:         "Join Huddle Action - Already Joined",
+			Name:         "Join Buzz Action - Already Joined",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "user is already in the huddle",
+			Message:      "user is already in the buzz",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/huddles/%s/join", huddleID)},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/buzz/%s/join", buzzID)},
 			Token:        token,
 		},
 		{
-			Name:         "Join Huddle Action - Invalid Huddle ID",
+			Name:         "Join Buzz Action - Invalid Buzz ID",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "invalid huddle ID format",
+			Message:      "invalid buzz ID format",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: "/api/v1/huddles/invalid-uuid/join"},
+			RequestURI:   url.URL{Path: "/api/v1/buzz/invalid-uuid/join"},
 			Token:        token,
 		},
 		{
-			Name:         "Join Huddle Action - Non-existent Huddle",
+			Name:         "Join Buzz Action - Non-existent Buzz",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "huddle does not exist",
+			Message:      "buzz does not exist",
 			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/huddles/%s/join", utility.GenerateUUID())},
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/buzz/%s/join", utility.GenerateUUID())},
 			Token:        token,
 		},
 	}
@@ -209,10 +209,10 @@ func TestHuddleEndpoints(t *testing.T) {
 	for _, test := range tests {
 		r := gin.Default()
 
-		huddleUrl := r.Group("/api/v1/huddles", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 		{
-			huddleUrl.POST("/create", huddleController.Create)
-			huddleUrl.POST("/:id/join", huddleController.Join)
+			buzzUrl.POST("/create", buzzController.Create)
+			buzzUrl.POST("/:id/join", buzzController.Join)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {

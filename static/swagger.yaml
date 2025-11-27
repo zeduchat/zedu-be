@@ -20680,12 +20680,12 @@ paths:
                     credentials: {}
 
 
-  /huddles/{id}/camera:
+  /buzz/{id}/camera:
     patch:
       tags:
-        - huddles
+        - buzz
       summary: Toggle camera status
-      description: Updates the camera status (on/off) for a participant in an active huddle. Broadcasts the change to other participants via Centrifuge.
+      description: Updates the camera status (on/off) for a participant in an active buzz. Broadcasts the change to other participants via Centrifuge.
       security:
         - bearerAuth: []
       parameters:
@@ -20695,7 +20695,7 @@ paths:
             type: string
             format: uuid
           required: true
-          description: The unique UUID of the huddle
+          description: The unique UUID of the buzz
       requestBody:
         required: true
         content:
@@ -20715,13 +20715,13 @@ paths:
                       data:
                         $ref: "#/components/schemas/UpdateCameraResponse"
         "400":
-          description: Bad Request (Invalid ID or Huddle inactive)
+          description: Bad Request (Invalid ID or Buzz inactive)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
         "404":
-          description: Not Found (Huddle does not exist or User is not a participant)
+          description: Not Found (Buzz does not exist or User is not a participant)
           content:
             application/json:
               schema:
@@ -20733,12 +20733,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-  /huddles/{id}/notes:
+  /buzz/{id}/notes:
     post:
       tags:
-        - huddles
-      summary: Create a huddle note
-      description: Creates a new note for a specific huddle.
+        - buzz
+      summary: Create a buzz note
+      description: Creates a new note for a specific buzz.
       security:
         - bearerAuth: []
       parameters:
@@ -20748,13 +20748,13 @@ paths:
             type: string
             format: uuid
           required: true
-          description: The unique UUID of the huddle
+          description: The unique UUID of the buzz
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateHuddleNoteRequest"
+              $ref: "#/components/schemas/CreateBuzzNoteRequest"
       responses:
         "201":
           description: Note created successfully
@@ -20766,7 +20766,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: "#/components/schemas/HuddleNoteResponse"
+                        $ref: "#/components/schemas/BuzzNoteResponse"
         "400":
           description: Bad Request
           content:
@@ -20787,9 +20787,9 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
     get:
       tags:
-        - huddles
-      summary: Get huddle notes
-      description: Retrieves all user notes for a specific huddle.
+        - buzz
+      summary: Get buzz notes
+      description: Retrieves all user notes for a specific buzz.
       security:
         - bearerAuth: []
       parameters:
@@ -20799,7 +20799,7 @@ paths:
             type: string
             format: uuid
           required: true
-          description: The unique UUID of the huddle
+          description: The unique UUID of the buzz
       responses:
         "200":
           description: Notes retrieved successfully
@@ -20811,7 +20811,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: "#/components/schemas/HuddleNotesListResponse"
+                        $ref: "#/components/schemas/BuzzNotesListResponse"
         "400":
           description: Bad Request
           content:
@@ -20832,12 +20832,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-  /huddles/{id}/notes/{note_id}:
+  /buzz/{id}/notes/{note_id}:
     patch:
       tags:
-        - huddles
-      summary: Update a huddle note
-      description: Updates an existing note in a huddle.
+        - buzz
+      summary: Update a buzz note
+      description: Updates an existing note in a buzz.
       security:
         - bearerAuth: []
       parameters:
@@ -20847,7 +20847,7 @@ paths:
             type: string
             format: uuid
           required: true
-          description: The unique UUID of the huddle
+          description: The unique UUID of the buzz
         - in: path
           name: note_id
           schema:
@@ -20860,7 +20860,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateHuddleNoteRequest"
+              $ref: "#/components/schemas/UpdateBuzzNoteRequest"
       responses:
         "200":
           description: Note updated successfully
@@ -20872,7 +20872,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: "#/components/schemas/HuddleNoteResponse"
+                        $ref: "#/components/schemas/BuzzNoteResponse"
         "400":
           description: Bad Request
           content:
@@ -24266,7 +24266,7 @@ components:
     UpdateCameraResponse:
       type: object
       properties:
-        huddle_id:
+        buzz_id:
           type: string
           format: uuid
         user_id:
@@ -24278,7 +24278,7 @@ components:
           type: string
           format: date-time
 
-    CreateHuddleNoteRequest:
+    CreateBuzzNoteRequest:
       type: object
       required:
         - note
@@ -24287,7 +24287,7 @@ components:
           type: string
           description: The content of the note
 
-    UpdateHuddleNoteRequest:
+    UpdateBuzzNoteRequest:
       type: object
       required:
         - note
@@ -24296,13 +24296,13 @@ components:
           type: string
           description: The updated content of the note
 
-    HuddleNoteResponse:
+    BuzzNoteResponse:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        huddle_id:
+        buzz_id:
           type: string
           format: uuid
         user_id:
@@ -24317,13 +24317,13 @@ components:
           type: string
           format: date-time
 
-    HuddleNotesListResponse:
+    BuzzNotesListResponse:
       type: object
       properties:
         notes:
           type: array
           items:
-            $ref: "#/components/schemas/HuddleNoteResponse"
+            $ref: "#/components/schemas/BuzzNoteResponse"
 
     SuccessResponse:
       type: object
