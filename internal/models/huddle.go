@@ -21,6 +21,7 @@ const (
 	HuddleParticipantStatusLeft   = "left"
 )
 
+// Huddle represents a huddle in the system
 type Huddle struct {
 	ID              string         `gorm:"type:uuid;primaryKey" json:"id"`
 	ChannelID       string         `gorm:"type:uuid;not null;index" json:"channel_id"`
@@ -34,6 +35,7 @@ type Huddle struct {
 	UpdatedAt       time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
+// HuddleParticipant represents the participants in the huddle
 type HuddleParticipant struct {
 	ID        string     `gorm:"type:uuid;primaryKey" json:"id"`
 	HuddleID  string     `gorm:"type:uuid;index;not null" json:"huddle_id"`
@@ -45,6 +47,7 @@ type HuddleParticipant struct {
 	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
+// CreateHuddleRequest represents the request to create a huddle
 type CreateHuddleRequest struct {
 	ChannelID      string   `json:"channel_id" validate:"required,uuid"`
 	ParticipantIDs []string `json:"participant_ids"`
