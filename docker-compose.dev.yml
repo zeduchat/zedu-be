@@ -1,0 +1,312 @@
+name: telex_be_dev
+
+services:
+  postgres:
+    container_name: postgres_telex
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: telex_db
+    ports:
+      - "5432:5432"
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+
+    networks:
+      - telex_be
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U postgres -d telex_db'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    container_name: redis_telex
+    restart: unless-stopped
+    command: redis-server --save 20 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - telex_be
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  elasticsearch:
+      image: elastic/elasticsearch:8.11.0
+      container_name: elasticsearch
+      restart: unless-stopped
+      ports:
+        - "9200:9200"
+        - "9300:9300"
+      environment:
+        - discovery.type=single-node
+        - xpack.security.enabled=true
+        - ELASTIC_PASSWORD=changeme
+        - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      volumes:
+        - esdata:/usr/share/elasticsearch/data
+      networks:
+        - telex_be
+      healthcheck:
+        test: ["CMD", "curl", "-s", "-f", "http://localhost:9200/_cluster/health?pretty"]
+        interval: 10s
+        timeout: 10s
+        retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq_telex
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitMQ
+      RABBITMQ_DEFAULT_PASS: rabbitMQ
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - telex_be
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  mongodb:
+    image: mongo:6
+    container_name: mongodb_telex
+    restart: unless-stopped
+    ports:
+    - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongodb
+      MONGO_INITDB_ROOT_PASSWORD: mongodb
+    volumes:
+      - mongo_data:/var/lib/mongodb
+    networks:
+      - telex_be
+    healthcheck:
+      test: >
+        mongosh --eval "db.adminCommand('ping')" --username mongodb --password mongodb --authenticationDatabase admin
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-admin
+    restart: unless-stopped
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin@admin.com
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:mongodb@mongodb:27017
+      ME_CONFIG_BASICAUTH: 'true'
+    networks:
+        - telex_be
+    depends_on:
+      mongodb:
+        condition: service_healthy
+  minio:
+    image: minio/minio:latest
+    container_name: minio_telex
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: "minio_access_key"
+      MINIO_ROOT_PASSWORD: "minio_secret_key"
+    volumes:
+      - minio_data:/minio_data
+    networks:
+      - telex_be
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    container_name: centrifugo
+    command: >
+      sh -c "sleep 5 && centrifugo -c /etc/centrifugo/config.dev.json"
+    volumes:
+      - ./config.dev.json:/etc/centrifugo/config.dev.json
+    ports:
+      - "8000:8000"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - telex_be
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: telex-backend
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8019
+      SERVER_SECRET: "myGeneric32LengthSecretKeyForDev"
+      SERVER_ENCKEY: "someGeneric32LengthKeyLikeThat12"
+      SERVER_ACCESSTOKENEXPIREDURATION: 2
+      REQUEST_PER_SECOND: 6
+      TRUSTED_PROXIES: '["192.168.0.1", "192.168.0.2"]'
+      EXEMPT_FROM_THROTTLE: '["127.0.0.1", "192.168.0.2", "::1"]'
+      APP_NAME: local
+      APP_URL: http://localhost:8019
+      RESET_PASSWORD_DURATION: 6
+      WEBHOOK_API_URL: http://ping.something.again
+      FRONTEND_URL: http://staging.telex.im
+
+      # Postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_CONNECTION: pgsql
+      TIMEZONE: Africa/Lagos
+      SSLMODE: disable
+      USERNAME: postgres
+      PASSWORD: password
+      DB_NAME: telex_db
+      MIGRATE: true
+
+      # Test DB
+      TEST_DB_HOST: postgres
+      TEST_DB_PORT: 5432
+      TEST_DB_CONNECTION: pgsql
+      TEST_TIMEZONE: Africa/Lagos
+      TEST_SSLMODE: disable
+      TEST_USERNAME: postgres
+      TEST_PASSWORD: password
+      TEST_DB_NAME: telex_db
+      TEST_MIGRATE: true
+      IPSTACK_KEY: "generic_ipstack_dev_key"
+      IPSTACK_BASE_URL: http://api.ipstack.com
+
+      # MAIL
+      MAIL_SERVER: smtp.gmail.com
+      MAIL_PASSWORD: "generic_mail_password"
+      MAIL_USERNAME: "test_sender@gmail.com"
+      MAIL_PORT: 587
+
+      # Redis
+      REDIS_PORT: 6379
+      REDIS_HOST: redis
+      REDIS_DB: 0
+
+      # Centrifuge
+      HMAC_SECRET: "DoHardThingsGenericSecret"
+      CENTRIFUGE_URL: "http://centrifugo:8000"
+      CENTRIFUGE_API_KEY: "generic_centrifuge_api_key"
+
+      # Minio
+      MINIO_ENDPOINT: "http://minio:9000"
+      BUCKET_NAME: "dev-bucket"
+      BUCKET_ACCESS_KEY: "minio_access_key"
+      BUKCET_SECRET_KEY: "minio_secret_key"
+
+      # Typesense
+      TYPESENSE_API_URL: "http://typesense:8108"
+      TYPESENSE_API_KEY: "typesense_search_key"
+
+      # SlackTelex
+      SLACK_CLIENT_ID: "slack_client_id_placeholder"
+      SLACK_CLIENT_SECRET: "slack_client_secret_placeholder"
+      SLACK_REDIRECT_URI: "http://localhost:8019/slack/redirect"
+      SLACK_BASE_URL: "https://slack.com"
+      SLACK_MANIFEST_URL: "https://manifest.slack.com"
+      SLACK_REFRESH_TOKEN: "slack_refresh_token_placeholder"
+
+      STRIPE_KEY: "stripe_dev_secret_key"
+      STRIPE_BASIC_ID: "price_basic_id_dev"
+      STRIPE_ADVANCED_ID: "price_advanced_id_dev"
+      STRIPE_PREMIUM_ID: "price_premium_id_dev"
+
+      TELEX_LOGIN_CHANNEL: "telex_login_dev_channel"
+      TELEX_SIGNUP_CHANNEL: "telex_signup_dev_channel"
+
+      # RabbitMQ
+      RABBITMQ_CONNECTION: amqp://rabbitMQ:rabbitMQ@rabbitmq:5672/
+      RABBITMQ_EXCHANGE: some_exchange
+
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_API_KEY: "elastic_api_key_placeholder"
+
+      FIREBASE_SERVICE_FILE_PATH: "/app/firebase-dev.json"
+
+      # MongoDB
+      MONGO_URI: mongodb://mongodb:mongodb@mongodb:27017
+      MONGO_DB_NAME: telex_db
+      OPENROUTER_API_KEY: "openrouter_api_key_placeholder"
+      OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1"
+
+      # GOOGLE
+      GOOGLE_CLIENT_ID: "google_client_id_placeholder"
+      GOOGLE_CLIENT_SECRET: "google_client_secret_placeholder"
+      GOOGLE_REDIRECT_URI: "http://localhost:8019/google/redirect"
+
+    ports:
+      - "8019:8019"
+
+    volumes:
+      - .:/app
+      - ./scripts/init-database-local.sql:/docker-entrypoint-initdb.d/init-databases.sql
+
+    networks:
+      - telex_be
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8019/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      centrifugo:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  mongo_data:
+    driver: local
+  esdata:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  telex_be:
+    driver: bridge

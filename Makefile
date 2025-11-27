@@ -34,3 +34,11 @@ migrate-safe-up:
 	@echo "Running safe migration..."
 	@make fix-dirty
 	@make migrate-up
+
+start-dev:
+	@echo "Running docker compose up..."
+	docker compose -f docker-compose.dev.yml up --build
+
+dev-clean:
+	@echo "Cleaning docker compose..."
+	docker compose -f docker-compose.dev.yml down -v
