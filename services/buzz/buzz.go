@@ -154,13 +154,8 @@ func validateJoinBuzz(db *storage.Database, logger *utility.Logger, buzzID, user
 		return buzz, status, err
 	}
 
-	for _, participantID := range buzz.ParticipantIDs {
-		if participantID == userID {
-			return buzz, http.StatusBadRequest, errors.New("user is already in the buzz")
-		}
-	}
-
 	return buzz, http.StatusOK, nil
+
 }
 
 func validateLeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
@@ -357,7 +352,6 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	}
 
 	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
-	logger.Info(buzz.Status)
 
 	return &models.BuzzLeaveResponse{
 		BuzzID:        buzzID,
