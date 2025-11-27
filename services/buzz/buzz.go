@@ -2,7 +2,6 @@ package buzz
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -169,10 +168,6 @@ func validateLeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, use
 	if err != nil {
 		logger.Error("failed to validate buzz: %v", err)
 		return buzz, status, err
-	}
-
-	if buzz.Status != models.BuzzStatusActive {
-		return buzz, http.StatusBadRequest, fmt.Errorf("call has ended")
 	}
 
 	seenUser := false
@@ -357,7 +352,6 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	}
 
 	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
-	logger.Info(buzz.Status)
 
 	return &models.BuzzLeaveResponse{
 		BuzzID:        buzzID,
