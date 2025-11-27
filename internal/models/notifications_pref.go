@@ -37,7 +37,8 @@ var (
 	SavedMessageCompletionEvent NotificationType = "saved_message_completion_event"
 	ArchiveSavedMessage         NotificationType = "archive_saved_message"
 	UnArchiveSavedMessage       NotificationType = "unarchive_saved_message"
-	HuddleStarted               NotificationType = "huddle_started"
+	BuzzStarted                 NotificationType = "buzz_started"
+	UserJoinedBuzz              NotificationType = "user_joined_buzz"
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
@@ -132,8 +133,11 @@ var Notification = map[NotificationType]Content{
 	UnArchiveSavedMessage: Content{
 		NotificationType: UnArchiveSavedMessage,
 	},
-	HuddleStarted: Content{
-		NotificationType: HuddleStarted,
+	BuzzStarted: Content{
+		NotificationType: BuzzStarted,
+	},
+	UserJoinedBuzz: Content{
+		NotificationType: UserJoinedBuzz,
 	},
 	UpdatedMedia: Content{
 		NotificationType: UpdatedMedia,

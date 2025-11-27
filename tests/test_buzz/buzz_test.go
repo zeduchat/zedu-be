@@ -1,4 +1,4 @@
-package test_huddle
+package test_buzz
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
@@ -18,7 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestHuddle(t *testing.T) {
+func TestBuzz(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 	validatorRef := validator.New()
@@ -28,7 +29,7 @@ func TestHuddle(t *testing.T) {
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	channelController := channel.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
-	router, _ := SetupHuddlesTestRouter()
+	router, _ := SetupBuzzTestRouter()
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
 	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
@@ -53,14 +54,14 @@ func TestHuddle(t *testing.T) {
 	if channelID == "" {
 		t.Fatal("failed to obtain channelID")
 	}
-	t.Run("CreateHuddleSuccess", func(t *testing.T) {
-		reqBody := models.CreateHuddleRequest{
+	t.Run("CreateBuzzSuccess", func(t *testing.T) {
+		reqBody := models.CreateBuzzRequest{
 			ChannelID:      channelID,
 			OrganisationID: user.CurrentOrg.String(),
 		}
 		var b bytes.Buffer
 		json.NewEncoder(&b).Encode(reqBody)
-		req, err := http.NewRequest(http.MethodPost, "/api/v1/huddles/create", &b)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,9 +78,9 @@ func TestHuddle(t *testing.T) {
 		if !ok {
 			t.Fatal("expected data to be a map")
 		}
-		huddleID, ok := dataM["huddle_id"].(string)
-		if !ok || huddleID == "" {
-			t.Errorf("expected huddle_id to be non-empty")
+		buzzID, ok := dataM["buzz_id"].(string)
+		if !ok || buzzID == "" {
+			t.Errorf("expected buzz_id to be non-empty")
 		}
 		hostID, ok := dataM["host_id"].(string)
 		if !ok || hostID == "" {
@@ -105,13 +106,13 @@ func TestHuddle(t *testing.T) {
 	})
 
 	t.Run("InvalidChannelIDReturns404", func(t *testing.T) {
-		reqBody := models.CreateHuddleRequest{
+		reqBody := models.CreateBuzzRequest{
 			ChannelID:      utility.GenerateUUID(),
 			OrganisationID: user.CurrentOrg.String(),
 		}
 		var b bytes.Buffer
 		json.NewEncoder(&b).Encode(reqBody)
-		req, err := http.NewRequest(http.MethodPost, "/api/v1/huddles/create", &b)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -125,13 +126,13 @@ func TestHuddle(t *testing.T) {
 	})
 
 	t.Run("InvalidOrganisationIDReturns404", func(t *testing.T) {
-		reqBody := models.CreateHuddleRequest{
+		reqBody := models.CreateBuzzRequest{
 			ChannelID:      channelID,
 			OrganisationID: utility.GenerateUUID(),
 		}
 		var b bytes.Buffer
 		json.NewEncoder(&b).Encode(reqBody)
-		req, err := http.NewRequest(http.MethodPost, "/api/v1/huddles/create", &b)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		if err != nil {
 			t.Fatal(err)
 		}

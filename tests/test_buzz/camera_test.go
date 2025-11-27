@@ -1,4 +1,4 @@
-package test_huddle
+package test_buzz
 
 import (
 	"bytes"
@@ -29,7 +29,7 @@ func TestUpdateCamera(t *testing.T) {
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
-	router, _ := SetupHuddlesTestRouter()
+	router, _ := SetupBuzzTestRouter()
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
 	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
@@ -46,22 +46,22 @@ func TestUpdateCamera(t *testing.T) {
 		t.Fatalf("failed to fetch created user: %v", err)
 	}
 
-	huddleID := utility.GenerateUUID()
-	h := models.Huddle{ID: huddleID, ChannelID: utility.GenerateUUID(), HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, HuddleStartTime: time.Now().UTC()}
+	buzzID := utility.GenerateUUID()
+	h := models.Buzz{ID: buzzID, ChannelID: utility.GenerateUUID(), HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, BuzzStartTime: time.Now().UTC()}
 	if err := db.Postgresql.Create(&h).Error; err != nil {
-		t.Fatalf("failed to create huddle: %v", err)
+		t.Fatalf("failed to create buzz: %v", err)
 	}
 
-	hp := models.HuddleParticipant{HuddleID: huddleID, UserID: user.ID}
+	hp := models.BuzzParticipant{BuzzID: buzzID, UserID: user.ID}
 	if err := db.Postgresql.Create(&hp).Error; err != nil {
-		t.Fatalf("failed to create huddle participant: %v", err)
+		t.Fatalf("failed to create buzz participant: %v", err)
 	}
 
 	t.Run("UpdateCameraSuccess", func(t *testing.T) {
 		reqBody := models.UpdateCameraRequest{UserID: user.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/huddles/"+huddleID+"/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -83,7 +83,7 @@ func TestUpdateCamera(t *testing.T) {
 
 		reqBody := models.UpdateCameraRequest{UserID: other.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/huddles/"+huddleID+"/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -110,7 +110,7 @@ func TestUpdateCamera(t *testing.T) {
 
 		reqBody := models.UpdateCameraRequest{UserID: non.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/huddles/"+huddleID+"/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+nonToken)
 
@@ -120,10 +120,10 @@ func TestUpdateCamera(t *testing.T) {
 		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
 	})
 
-	t.Run("InvalidHuddleIDReturns400", func(t *testing.T) {
+	t.Run("InvalidBuzzIDReturns400", func(t *testing.T) {
 		reqBody := models.UpdateCameraRequest{UserID: user.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/huddles/invalid-id/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/invalid-id/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 

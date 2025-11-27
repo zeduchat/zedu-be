@@ -1,4 +1,4 @@
-package test_huddle
+package test_buzz
 
 import (
 	"bytes"
@@ -18,11 +18,11 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestHuddleNotes(t *testing.T) {
-	router, huddleController := SetupHuddlesTestRouter()
-	logger := huddleController.Logger
-	db := huddleController.Db
-	validatorRef := huddleController.Validator
+func TestBuzzNotes(t *testing.T) {
+	router, buzzController := SetupBuzzTestRouter()
+	logger := buzzController.Logger
+	db := buzzController.Db
+	validatorRef := buzzController.Validator
 
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
@@ -42,24 +42,24 @@ func TestHuddleNotes(t *testing.T) {
 		t.Fatalf("failed to fetch created user: %v", err)
 	}
 
-	huddleID := utility.GenerateUUID()
-	h := models.Huddle{ID: huddleID, ChannelID: utility.GenerateUUID(), HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, HuddleStartTime: time.Now().UTC()}
+	buzzID := utility.GenerateUUID()
+	h := models.Buzz{ID: buzzID, ChannelID: utility.GenerateUUID(), HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, BuzzStartTime: time.Now().UTC()}
 	if err := db.Postgresql.Create(&h).Error; err != nil {
-		t.Fatalf("failed to create huddle: %v", err)
+		t.Fatalf("failed to create buzz: %v", err)
 	}
 
-	hp := models.HuddleParticipant{HuddleID: huddleID, UserID: user.ID}
+	hp := models.BuzzParticipant{BuzzID: buzzID, UserID: user.ID}
 	if err := db.Postgresql.Create(&hp).Error; err != nil {
-		t.Fatalf("failed to create huddle participant: %v", err)
+		t.Fatalf("failed to create buzz participant: %v", err)
 	}
 
 	var noteID string
 
 	t.Run("CreateNoteSuccess", func(t *testing.T) {
-		reqBody := models.CreateHuddleNoteRequest{Note: "This is a test note"}
+		reqBody := models.CreateBuzzNoteRequest{Note: "This is a test note"}
 		b, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPost, "/api/v1/huddles/"+huddleID+"/notes", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/"+buzzID+"/notes", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -72,14 +72,14 @@ func TestHuddleNotes(t *testing.T) {
 		json.Unmarshal(rr.Body.Bytes(), &resp)
 		data := resp["data"].(map[string]interface{})
 		noteID = data["id"].(string)
-		tst.AssertResponseMessage(t, resp["message"].(string), "huddle note created successfully")
+		tst.AssertResponseMessage(t, resp["message"].(string), "buzz note created successfully")
 	})
 
 	t.Run("CreateNoteValidationFailed", func(t *testing.T) {
-		reqBody := models.CreateHuddleNoteRequest{Note: ""}
+		reqBody := models.CreateBuzzNoteRequest{Note: ""}
 		b, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPost, "/api/v1/huddles/"+huddleID+"/notes", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/"+buzzID+"/notes", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -90,7 +90,7 @@ func TestHuddleNotes(t *testing.T) {
 	})
 
 	t.Run("GetNotesSuccess", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, "/api/v1/huddles/"+huddleID+"/notes", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/buzz/"+buzzID+"/notes", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		rr := httptest.NewRecorder()
@@ -107,10 +107,10 @@ func TestHuddleNotes(t *testing.T) {
 	})
 
 	t.Run("UpdateNoteSuccess", func(t *testing.T) {
-		reqBody := models.UpdateHuddleNoteRequest{Note: "Updated note content"}
+		reqBody := models.UpdateBuzzNoteRequest{Note: "Updated note content"}
 		b, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/huddles/"+huddleID+"/notes/"+noteID, bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/"+buzzID+"/notes/"+noteID, bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -120,7 +120,7 @@ func TestHuddleNotes(t *testing.T) {
 		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 		var resp map[string]interface{}
 		json.Unmarshal(rr.Body.Bytes(), &resp)
-		tst.AssertResponseMessage(t, resp["message"].(string), "huddle note updated successfully")
+		tst.AssertResponseMessage(t, resp["message"].(string), "buzz note updated successfully")
 	})
 
 	t.Run("UpdateNoteForbidden", func(t *testing.T) {
@@ -133,16 +133,16 @@ func TestHuddleNotes(t *testing.T) {
 		tst.SignupUser(t, tempRouter, authController, otherSign, false)
 		otherToken := tst.GetLoginToken(t, tempRouter, authController, otherLogin)
 
-		// Add other user to huddle so they are a participant (otherwise they get 403 for not being participant)
+		// Add other user to buzz so they are a participant (otherwise they get 403 for not being participant)
 		var otherUser models.User
 		db.Postgresql.Where("email = ?", otherEmail).First(&otherUser)
-		hp := models.HuddleParticipant{HuddleID: huddleID, UserID: otherUser.ID}
+		hp := models.BuzzParticipant{BuzzID: buzzID, UserID: otherUser.ID}
 		db.Postgresql.Create(&hp)
 
-		reqBody := models.UpdateHuddleNoteRequest{Note: "Malicious update"}
+		reqBody := models.UpdateBuzzNoteRequest{Note: "Malicious update"}
 		b, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/huddles/"+huddleID+"/notes/"+noteID, bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/"+buzzID+"/notes/"+noteID, bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+otherToken)
 

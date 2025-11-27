@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"context"
+
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
@@ -21,6 +23,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -43,6 +46,16 @@ func Setup() *utility.Logger {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 	}
+
+	// Initialize River client for background jobs
+	ctx := context.Background()
+	riverClient, err := riverqueueBg.SetupRiver(ctx, config.TestDatabase, logger, db)
+	if err != nil {
+		logger.Error("Failed to initialize River client: ", err)
+	} else {
+		db.River = riverClient
+	}
+
 	return logger
 }
 

@@ -1,0 +1,48 @@
+{
+  "client": {
+    "token": {
+      "hmac_secret_key": "DoHardThingsGenericSecret"
+    },
+    "allowed_origins": ["*"]
+  },
+  "http_api": {
+    "key": "generic_centrifuge_api_key"
+  },
+  "admin": {
+    "password": "password",
+    "secret": "secret",
+    "enabled": true
+  },
+  "broker": {
+    "type": "redis",
+    "address": "redis:6379"
+  },
+  "engine": {
+    "type": "redis",
+    "redis" : {
+      "address": "redis://:@redis:6379/0"
+    }
+  },
+  "leave-huddle": {
+    "without_namespace": {
+      "allow_subscribe_for_client": true
+    }
+  },
+    "health": {
+    "enabled": true
+  },
+  "channel": {
+    "without_namespace": {
+      "presence": true
+    }
+  },
+    "namespaces": [
+        {
+            "name": "huddle",
+            "presence": true,
+            "history_size": 20,
+            "history_ttl": "60s"
+        }
+    ]
+
+}

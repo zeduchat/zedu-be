@@ -1,26 +1,28 @@
-package huddle
+package buzz
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/huddle"
+	"github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-type Controller struct {
-	Db        *storage.Database
-	Validator *validator.Validate
-	Logger    *utility.Logger
-}
+func (base *Controller) UpdateCamera(c *gin.Context) {
+	buzzID := c.Param("id")
 
-func (base *Controller) Create(c *gin.Context) {
-	var req models.CreateHuddleRequest
+	if _, err := uuid.Parse(buzzID); err != nil {
+		base.Logger.Error("invalid buzz id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id format", "failed to decode buzz id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var req models.UpdateCameraRequest
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
@@ -31,28 +33,28 @@ func (base *Controller) Create(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		base.Logger.Info("error parsing huddle request body")
+		base.Logger.Info("error parsing camera update request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := base.Validator.Struct(&req); err != nil {
-		base.Logger.Info("validation failed for huddle request")
+		base.Logger.Info("validation failed for camera update request")
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	resp, code, err := huddle.CreateHuddle(base.Db, base.Logger, req, userID.(string))
+	resp, code, err := buzz.UpdateCameraStatus(base.Db, base.Logger, buzzID, req, userID.(string))
 	if err != nil {
-		base.Logger.Error("failed to create huddle: %v", err)
+		base.Logger.Error("failed to update camera status: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("huddle created successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "huddle created successfully", resp)
-	c.JSON(http.StatusCreated, rd)
+	base.Logger.Info("camera status updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "camera status updated successfully", resp)
+	c.JSON(http.StatusOK, rd)
 }
