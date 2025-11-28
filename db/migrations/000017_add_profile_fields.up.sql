@@ -1,0 +1,3 @@
+ALTER TABLE profiles ADD COLUMN workspace_id VARCHAR(255);
+ALTER TABLE profiles ADD COLUMN track VARCHAR(255);
+ALTER TABLE profiles ADD COLUMN links TEXT[];

@@ -21534,6 +21534,18 @@ components:
         name_pronounciation:
           type: string
           format: string
+        workspace_id:
+          type: string
+          description: Workspace ID for the user
+        track:
+          type: string
+          description: User's track or specialization
+        links:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: List of user profile links
       example:
         email: "newemail@example.com"
         full_name: "New Full Name"
@@ -21589,6 +21601,21 @@ components:
           type: string
           format: date-time
           example: "0001-01-01T00:00:00Z"
+        workspace_id:
+          type: string
+          example: "Toyosi vs Airtel WWE special"
+          description: Workspace ID for the user
+        track:
+          type: string
+          example: "UI/UX Design"
+          description: User's track or specialization
+        links:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ["https://portfolio.com", "https://linkedin.com/in/toyosi"]
+          description: List of user profile links
 
     NotFoundErrorSchema:
       type: object
@@ -21638,57 +21665,6 @@ components:
               username:
                 type: string
                 example: "cyberguru"
-              action_type:
-                type: string
-                example: "some action for guru"
-              status:
-                type: string
-                example: "success"
-              created_at:
-                type: string
-                format: date-time
-                example: "2024-08-20T02:21:36.893485-05:00"
-              messages:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      example: "3bcc7d41-a960-4006-b9fc-923a241a9003"
-                    content:
-                      type: string
-                      example: "some content2"
-                    channels_id:
-                      type: string
-                      example: "01916476-b76b-7588-b9f5-2e8094088dc3"
-                    user_id:
-                      type: string
-                      example: "01916474-ab82-7587-ae01-847d103b7ee3"
-                    username:
-                      type: string
-                      example: "cyberguru"
-                    created_at:
-                      type: string
-                      format: date-time
-                      example: "2024-09-27T10:45:24.361-05:00"
-                    updated_at:
-                      type: string
-                      format: date-time
-                      example: "2024-08-22T07:38:57.922988Z"
-                    thread_id:
-                      type: string
-                      example: "01916b4d-babc-7aa9-a430-c420e3290578"
-                    mentions:
-                      type: string
-                      nullable: true
-                      example: null
-                    avatar_url:
-                      type: string
-                      example: "http://91.229.239.238:7100/telex-dev-bucket/public/profile_pics/profile_pic_18ff64dd6692.jpeg"
-              message_count:
-                type: integer
-                example: 0
               last_reply:
                 type: string
                 format: date-time

@@ -196,6 +196,9 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		Text:              userProfile.Profile.Text,
 		StatusTimeout:     userProfile.Profile.StatusTimeout,
 		PauseNotification: userProfile.Profile.PauseNotification,
+		WorkspaceID:       userProfile.Profile.WorkspaceID,
+		Track:             userProfile.Profile.Track,
+		Links:             []string(userProfile.Profile.Links),
 	}
 }
 
