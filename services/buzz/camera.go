@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -21,29 +20,20 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, buzzID str
 		return resp, http.StatusForbidden, errors.New("you can only toggle your own camera")
 	}
 
-	var buzz models.Buzz
-	err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error
+	// Validate buzz is active and user is an active participant (buzz state + participant validation)
+	buzz, err := permissions.CanPerformBuzzAction(db.Postgresql, buzzID, requestingUserID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err == permissions.ErrBuzzNotFound {
 			return resp, http.StatusNotFound, errors.New("buzz not found")
 		}
-		logger.Error("failed to fetch buzz: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to fetch buzz")
-	}
-
-	if buzz.Status != models.BuzzStatusActive {
-		return resp, http.StatusBadRequest, errors.New("buzz is not active")
-	}
-
-	var participant models.BuzzParticipant
-	err = db.Postgresql.Where("buzz_id = ? AND user_id = ? AND status = ?",
-		buzzID, req.UserID, models.BuzzParticipantStatusActive).First(&participant).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return resp, http.StatusNotFound, errors.New("you are not an active participant in this buzz")
+		if err == permissions.ErrBuzzEnded {
+			return resp, http.StatusConflict, errors.New("buzz has ended")
 		}
-		logger.Error("failed to verify participant: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to verify participant")
+		if err == permissions.ErrNotActiveParticipant {
+			return resp, http.StatusForbidden, errors.New("you are not an active participant in this buzz")
+		}
+		logger.Error("failed to validate permissions: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to validate permissions")
 	}
 
 	now := time.Now().UTC()

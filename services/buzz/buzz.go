@@ -9,9 +9,9 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -19,23 +19,26 @@ import (
 func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
 
-	chModel := models.Channels{}
-	exists, err := chModel.CheckChannelExists(db.Postgresql, req.ChannelID)
+	// Validate permissions (channel existence, host membership, concurrent buzz prevention)
+	err := permissions.CanCreateBuzz(db.Postgresql, req.ChannelID, hostID)
 	if err != nil {
-		logger.Error("failed to verify channel existence: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to verify channel")
+		if err == permissions.ErrChannelNotFound {
+			return resp, http.StatusNotFound, errors.New("channel does not exist")
+		}
+		if err == permissions.ErrNotChannelMember {
+			return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
+		}
+		if err == permissions.ErrBuzzAlreadyActive {
+			return resp, http.StatusConflict, errors.New("channel already has an active buzz")
+		}
+		logger.Error("permission validation failed: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to validate permissions")
 	}
-	if !exists {
-		return resp, http.StatusNotFound, errors.New("channel does not exist")
-	}
-
-	if !models.IsUserInChannel(db.Postgresql, req.ChannelID, hostID) {
-		return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
-	}
-
-	participants := uniqueParticipants(hostID, req.ParticipantIDs)
 
 	now := time.Now().UTC()
+	// Only the host auto-joins on creation; others must explicitly join via /join endpoint
+	participants := []string{hostID}
+
 	buzz := models.Buzz{
 		ID:             utility.GenerateUUID(),
 		ChannelID:      req.ChannelID,
@@ -53,19 +56,17 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 			return err
 		}
 
-		participantRows := make([]models.BuzzParticipant, 0, len(participants))
-		for _, pid := range participants {
-			participantRows = append(participantRows, models.BuzzParticipant{
-				ID:       utility.GenerateUUID(),
-				BuzzID:   buzz.ID,
-				UserID:   pid,
-				Status:   models.BuzzParticipantStatusActive,
-				IsMuted:  false,
-				JoinedAt: now,
-			})
+		// Create participant record for the host only
+		hostParticipant := models.BuzzParticipant{
+			ID:       utility.GenerateUUID(),
+			BuzzID:   buzz.ID,
+			UserID:   hostID,
+			Status:   models.BuzzParticipantStatusActive,
+			IsMuted:  false,
+			JoinedAt: now,
 		}
 
-		if err := postgresql.CreateMultipleRecords(tx, &participantRows, len(participantRows)); err != nil {
+		if err := tx.Create(&hostParticipant).Error; err != nil {
 			return err
 		}
 
@@ -111,28 +112,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	return resp, http.StatusCreated, nil
 }
 
-func uniqueParticipants(hostID string, extras []string) []string {
-	seen := map[string]bool{}
-	var result []string
-
-	seen[hostID] = true
-	result = append(result, hostID)
-
-	for _, id := range extras {
-		if id == "" {
-			continue
-		}
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		result = append(result, id)
-	}
-
-	return result
-}
-
-// Joinbuzz allows a user to join an existing buzz
+// JoinBuzz allows a user to join an existing buzz
 func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.JoinBuzzResponse, int, error) {
 	var resp models.JoinBuzzResponse
 
@@ -174,13 +154,8 @@ func validateJoinBuzz(db *storage.Database, logger *utility.Logger, buzzID, user
 		return buzz, status, err
 	}
 
-	for _, participantID := range buzz.ParticipantIDs {
-		if participantID == userID {
-			return buzz, http.StatusBadRequest, errors.New("user is already in the buzz")
-		}
-	}
-
 	return buzz, http.StatusOK, nil
+
 }
 
 func validateLeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
@@ -212,21 +187,26 @@ func validateLeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, use
 func validateBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
 	var buzz models.Buzz
 
-	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return buzz, http.StatusBadRequest, errors.New("buzz does not exist")
+	// Validate permissions (buzz state, channel membership, not already in buzz)
+	activeBuzz, err := permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
+	if err != nil {
+		if err == permissions.ErrBuzzNotFound {
+			return buzz, http.StatusNotFound, errors.New("buzz does not exist")
 		}
-		logger.Error("failed to fetch buzz: %v", err)
-		return buzz, http.StatusInternalServerError, errors.New("failed to fetch buzz")
+		if err == permissions.ErrBuzzEnded {
+			return buzz, http.StatusConflict, errors.New("buzz has ended")
+		}
+		if err == permissions.ErrNotChannelMember {
+			return buzz, http.StatusForbidden, errors.New("user is not a member of the channel")
+		}
+		if err == permissions.ErrAlreadyInBuzz {
+			return buzz, http.StatusBadRequest, errors.New("user is already in the buzz")
+		}
+		logger.Error("failed to validate join permissions: %v", err)
+		return buzz, http.StatusInternalServerError, errors.New("failed to validate permissions")
 	}
 
-	if buzz.Status != models.BuzzStatusActive {
-		return buzz, http.StatusBadRequest, errors.New("buzz is not active")
-	}
-
-	if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) {
-		return buzz, http.StatusForbidden, errors.New("user is not a member of the channel")
-	}
+	buzz = *activeBuzz
 
 	return buzz, http.StatusOK, nil
 
@@ -343,18 +323,18 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		return nil, http.StatusInternalServerError, errors.New("failed to update participant")
 	}
 
-	txErr, err := postgresql.SelectOneFromDb(tx, &profile, "userid = ?", userID)
-
-	if txErr != nil {
+	if err := tx.Where("userid = ?", userID).First(&profile).Error; err != nil {
 		tx.Rollback()
-		if errors.Is(txErr, gorm.ErrRecordNotFound) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, http.StatusNotFound, errors.New("user not found")
 		}
-		return nil, http.StatusInternalServerError, txErr
+		logger.Error("Failed to fetch user profile: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to fetch user profile")
 	}
-	if err != nil {
-		tx.Rollback()
-		return nil, http.StatusInternalServerError, err
+
+	if err := tx.Commit().Error; err != nil {
+		logger.Error("Failed to commit transaction: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to commit changes")
 	}
 
 	if err := tx.Commit().Error; err != nil {
