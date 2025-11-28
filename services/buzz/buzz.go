@@ -342,11 +342,6 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		return nil, http.StatusInternalServerError, errors.New("failed to commit changes")
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		logger.Error("Failed to commit transaction: %v", err)
-		return nil, http.StatusInternalServerError, errors.New("failed to commit changes")
-	}
-
 	publishPayload := models.BuzzLeaveEventPayload{
 		HuddleStatus: buzz.Status,
 		HostChanged:  !(newHostID == ""),
