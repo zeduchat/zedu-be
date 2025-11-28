@@ -20870,6 +20870,8 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/CreateBuzzRequest"
+            example:
+              channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
       responses:
         "201":
           description: Buzz created successfully
@@ -20882,6 +20884,18 @@ paths:
                     properties:
                       data:
                         $ref: "#/components/schemas/BuzzCreateResponse"
+              example:
+                status: "success"
+                status_code: 201
+                message: "buzz created successfully"
+                data:
+                  Buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+                  channel_id: "019acc68-aced-721e-9f18-6aa207cf8445"
+                  status: "active"
+                  created_at: "2025-11-28T22:39:03.527809+01:00"
+                  started_at: "2025-11-28T22:39:03.527809+01:00"
+                  participant_ids: ["019acc68-a23f-721d-b4e8-d81fcbbc7e93"]
         "400":
           description: Bad Request (Invalid channel ID)
           content:
@@ -20906,6 +20920,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConflictErrorSchema"
+              example:
+                status: "error"
+                status_code: 409
+                message: "channel already has an active buzz"
+                error: {}
         "500":
           description: Internal Server Error
           content:
@@ -20941,12 +20960,28 @@ paths:
                     properties:
                       data:
                         $ref: "#/components/schemas/JoinBuzzResponse"
+              example:
+                status: "success"
+                status_code: 200
+                message: "user joined buzz successfully"
+                data:
+                  Buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  channel_id: "019acc68-aced-721e-9f18-6aa207cf8445"
+                  user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
+                  status: "active"
+                  joined_at: "2025-11-28T22:39:04.123456+01:00"
+                  participant_ids: ["019acc68-a23f-721d-b4e8-d81fcbbc7e93", "019acc68-af5e-721e-b21f-e94f8f3d8b44"]
         "400":
           description: Bad Request (Invalid buzz ID or already in buzz)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+              example:
+                status: "error"
+                status_code: 400
+                message: "user is already in the buzz"
+                error: {}
         "403":
           description: Forbidden (User not a channel member)
           content:
@@ -20986,6 +21021,8 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/BuzzAgoraTokenRequest"
+            example:
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
       responses:
         "200":
           description: Agora token generated successfully
@@ -20998,6 +21035,15 @@ paths:
                     properties:
                       data:
                         $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+              example:
+                status: "success"
+                status_code: 200
+                message: "Agora token generated successfully"
+                data:
+                  token: "007eJxSYOCa/57rpumU/+Xvr7db8M1lqsVCQpYTdK..."
+                  app_id: "your-agora-app-id"
+                  channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  uid: 0
         "400":
           description: Bad Request (Invalid buzz ID)
           content:
