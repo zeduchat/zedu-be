@@ -1,0 +1,3 @@
+ALTER TABLE profiles DROP COLUMN IF EXISTS workspace_id;
+ALTER TABLE profiles DROP COLUMN IF EXISTS track;
+ALTER TABLE profiles DROP COLUMN IF EXISTS links;

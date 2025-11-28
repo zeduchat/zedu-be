@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -32,32 +33,38 @@ type Profile struct {
 	Text              string         `gorm:"type:varchar(255)" json:"text"`
 	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
 	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
+	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
+	Track             string         `gorm:"type:varchar(255)" json:"track"`
+	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
 }
 
 type ProfileSummary struct {
-	ID                string `json:"id"`
-	Email             string `json:"email"`
-	Phone             string `json:"phone"`
-	FirstName         string `json:"first_name"`
-	LastName          string `json:"last_name"`
-	FullName          string `json:"full_name"`
-	UserName          string `json:"username"`
-	AvatarURL         string `json:"avatar_url"`
-	UserId            string `json:"user_id"`
-	Deactivated       bool   `json:"deactivated"`
-	CreatedAt         string `json:"created_at"`
-	UpdatedAt         string `json:"updated_at"`
-	DeletedAt         string `json:"deleted_at"`
-	ProfileUpdated    bool   `json:"profile_updated"`
-	IsOnboarded       bool   `json:"is_onboarded"`
-	DisplayName       string `json:"display_name"`
-	Title             string `json:"title"`
-	NamePronunciation string `json:"name_pronounciation"`
-	Timezone          string `json:"timezone"`
-	Icon              string `json:"icon"`
-	Text              string `json:"text"`
-	PauseNotification bool   `json:"pause_notification"`
-	StatusTimeout     string `json:"status_timeout"`
+	ID                string   `json:"id"`
+	Email             string   `json:"email"`
+	Phone             string   `json:"phone"`
+	FirstName         string   `json:"first_name"`
+	LastName          string   `json:"last_name"`
+	FullName          string   `json:"full_name"`
+	UserName          string   `json:"username"`
+	AvatarURL         string   `json:"avatar_url"`
+	UserId            string   `json:"user_id"`
+	Deactivated       bool     `json:"deactivated"`
+	CreatedAt         string   `json:"created_at"`
+	UpdatedAt         string   `json:"updated_at"`
+	DeletedAt         string   `json:"deleted_at"`
+	ProfileUpdated    bool     `json:"profile_updated"`
+	IsOnboarded       bool     `json:"is_onboarded"`
+	DisplayName       string   `json:"display_name"`
+	Title             string   `json:"title"`
+	NamePronunciation string   `json:"name_pronounciation"`
+	Timezone          string   `json:"timezone"`
+	Icon              string   `json:"icon"`
+	Text              string   `json:"text"`
+	PauseNotification bool     `json:"pause_notification"`
+	StatusTimeout     string   `json:"status_timeout"`
+	WorkspaceID       string   `json:"workspace_id"`
+	Track             string   `json:"track"`
+	Links             []string `json:"links"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -72,6 +79,9 @@ type UpdateUserProfileRequest struct {
 	NamePronunciation string `json:"name_pronounciation"`
 	Timezone          string `json:"timezone"`
 	AvatarUpdate      bool
+	WorkspaceID       string   `json:"workspace_id"`
+	Track             string   `json:"track"`
+	Links             []string `json:"links"`
 }
 
 type UpdateProfileStatus struct {
@@ -99,6 +109,9 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		Title:             req.Title,
 		NamePronunciation: req.NamePronunciation,
 		Timezone:          req.Timezone,
+		WorkspaceID:       req.WorkspaceID,
+		Track:             req.Track,
+		Links:             pq.StringArray(req.Links),
 	}
 
 	query := "userid = ?"
@@ -217,3 +230,6 @@ func (p *Profile) GetProfileByUserId(db *gorm.DB, userId string) error {
 	}
 	return nil
 }
+
+// updateProfileLinks updates the `links` text[] column for a user's profile.
+// helper removed: Links are updated as part of the main update using pq.StringArray
