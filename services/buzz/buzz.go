@@ -33,6 +33,8 @@ func mapPermissionError(err error, action string) (int, string) {
 		return http.StatusForbidden, "you must be an active participant"
 	case permissions.ErrChannelNotFound:
 		return http.StatusNotFound, "channel does not exist"
+	case permissions.ErrBuzzAlreadyActive:
+		return http.StatusConflict, "channel already has an active buzz"
 	default:
 		return http.StatusInternalServerError, fmt.Sprintf("failed to validate %s permissions", action)
 	}
@@ -42,20 +44,12 @@ func mapPermissionError(err error, action string) (int, string) {
 func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
 
-	// Validate permissions (channel existence, host membership, concurrent buzz prevention)
+	// Validate permissions using centralized permission check
 	err := permissions.CanCreateBuzz(db.Postgresql, req.ChannelID, hostID)
 	if err != nil {
-		if err == permissions.ErrChannelNotFound {
-			return resp, http.StatusNotFound, errors.New("channel does not exist")
-		}
-		if err == permissions.ErrNotChannelMember {
-			return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
-		}
-		if err == permissions.ErrBuzzAlreadyActive {
-			return resp, http.StatusConflict, errors.New("channel already has an active buzz")
-		}
-		logger.Error("permission validation failed: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to validate permissions")
+		statusCode, errMsg := mapPermissionError(err, "create")
+		logger.Error("permission check failed for user %s creating buzz in channel %s: %v", hostID, req.ChannelID, err)
+		return resp, statusCode, errors.New(errMsg)
 	}
 
 	now := time.Now().UTC()

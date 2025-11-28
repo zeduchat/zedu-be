@@ -24,7 +24,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestBuzzEndpoints(t *testing.T) {
+func TestBuzzJoin(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -158,17 +158,6 @@ func TestBuzzEndpoints(t *testing.T) {
 		Token        string
 	}{
 		{
-			Name: "Create Buzz Action - Duplicate (Channel Already Has Active Buzz)",
-			RequestBody: models.CreateBuzzRequest{
-				ChannelID: channelID,
-			},
-			ExpectedCode: http.StatusConflict,
-			Message:      "channel already has an active buzz",
-			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: "/api/v1/buzz/create"},
-			Token:        token,
-		},
-		{
 			Name:         "Join Buzz Action - Success",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusOK,
@@ -211,8 +200,7 @@ func TestBuzzEndpoints(t *testing.T) {
 
 		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 		{
-			buzzUrl.POST("/create", buzzController.Create)
-			buzzUrl.POST("/:buzz_id/join", buzzController.Join)
+			buzzUrl.POST("/:id/join", buzzController.Join)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {
