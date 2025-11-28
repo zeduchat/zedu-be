@@ -140,9 +140,6 @@ var Notification = map[NotificationType]Content{
 	UserJoinedBuzz: Content{
 		NotificationType: UserJoinedBuzz,
 	},
-	// BuzzEnded: Content{
-	// 	NotificationType: BuzzEnded,
-	// }, // TODO: Add when implementing EndBuzz endpoint
 	UpdatedMedia: Content{
 		NotificationType: UpdatedMedia,
 		Content:          ModificationDetails{},
