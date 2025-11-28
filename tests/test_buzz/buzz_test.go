@@ -56,8 +56,7 @@ func TestBuzz(t *testing.T) {
 	}
 	t.Run("CreateBuzzSuccess", func(t *testing.T) {
 		reqBody := models.CreateBuzzRequest{
-			ChannelID:      channelID,
-			OrganisationID: user.CurrentOrg.String(),
+			ChannelID: channelID,
 		}
 		var b bytes.Buffer
 		json.NewEncoder(&b).Encode(reqBody)
@@ -107,28 +106,7 @@ func TestBuzz(t *testing.T) {
 
 	t.Run("InvalidChannelIDReturns404", func(t *testing.T) {
 		reqBody := models.CreateBuzzRequest{
-			ChannelID:      utility.GenerateUUID(),
-			OrganisationID: user.CurrentOrg.String(),
-		}
-		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(reqBody)
-		req, err := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+token)
-
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
-	})
-
-	t.Run("InvalidOrganisationIDReturns404", func(t *testing.T) {
-		reqBody := models.CreateBuzzRequest{
-			ChannelID:      channelID,
-			OrganisationID: utility.GenerateUUID(),
+			ChannelID: utility.GenerateUUID(),
 		}
 		var b bytes.Buffer
 		json.NewEncoder(&b).Encode(reqBody)

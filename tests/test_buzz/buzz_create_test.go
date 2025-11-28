@@ -127,6 +127,10 @@ func TestBuzzCreate(t *testing.T) {
 		if responseData["participant_ids"] == nil {
 			t.Error("Expected participant_ids in response")
 		}
+		// Verify agora_token is present (can be nil if generation fails)
+		if _, exists := responseData["agora_token"]; !exists {
+			t.Error("Expected agora_token field in response")
+		}
 	})
 
 	t.Run("Create Buzz - Duplicate (Channel Already Has Active Buzz)", func(t *testing.T) {

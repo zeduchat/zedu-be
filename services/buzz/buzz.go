@@ -94,6 +94,17 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, http.StatusInternalServerError, errors.New("failed to create buzz")
 	}
 
+	// Generate Agora token for the host (optional - don't fail creation if token generation fails)
+	var agoraTokenPtr *models.BuzzAgoraTokenResponse
+	agoraTokenResp, _, err := agora.GetAgoraToken(db, logger, buzz.ID, hostID)
+	if err != nil {
+		logger.Error("failed to generate Agora token for host %s: %v", hostID, err)
+		// Set to nil if token generation fails, but allow creation to proceed
+		agoraTokenPtr = nil
+	} else {
+		agoraTokenPtr = &agoraTokenResp
+	}
+
 	resp = models.BuzzCreateResponse{
 		BuzzID:         buzz.ID,
 		HostID:         buzz.HostID,
@@ -102,6 +113,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		CreatedAt:      buzz.CreatedAt,
 		StartedAt:      buzz.BuzzStartTime,
 		ParticipantIDs: participants,
+		AgoraToken:     agoraTokenPtr,
 	}
 
 	eventPayload := models.BuzzEventPayload{
