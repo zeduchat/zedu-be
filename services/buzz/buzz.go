@@ -166,6 +166,45 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 }
 
 func validateJoinBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
+	buzz, status, err := validateBuzz(db, logger, buzzID, userID)
+
+	if err != nil {
+		logger.Error("failed to validate buzz: %v", err)
+		return buzz, status, err
+	}
+
+	for _, participantID := range buzz.ParticipantIDs {
+		if participantID == userID {
+			return buzz, http.StatusBadRequest, errors.New("user is already in the buzz")
+		}
+	}
+
+	return buzz, http.StatusOK, nil
+}
+
+func validateLeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
+	buzz, status, err := validateBuzz(db, logger, buzzID, userID)
+
+	if err != nil {
+		logger.Error("failed to validate buzz: %v", err)
+		return buzz, status, err
+	}
+
+	seenUser := false
+	for _, participantID := range buzz.ParticipantIDs {
+		if participantID == userID {
+			seenUser = true
+			break
+		}
+	}
+	if !(seenUser) {
+		return buzz, http.StatusBadRequest, errors.New("user is not in the buzz")
+	}
+
+	return buzz, http.StatusOK, nil
+}
+
+func validateBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
 	var buzz models.Buzz
 
 	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
@@ -184,13 +223,8 @@ func validateJoinBuzz(db *storage.Database, logger *utility.Logger, buzzID, user
 		return buzz, http.StatusForbidden, errors.New("user is not a member of the channel")
 	}
 
-	for _, participantID := range buzz.ParticipantIDs {
-		if participantID == userID {
-			return buzz, http.StatusBadRequest, errors.New("user is already in the buzz")
-		}
-	}
-
 	return buzz, http.StatusOK, nil
+
 }
 
 func addUserToBuzzTransaction(db *storage.Database, logger *utility.Logger, buzz *models.Buzz, userID string, timestamp time.Time) error {
@@ -241,4 +275,102 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, notification); err != nil {
 		logger.Error("failed to publish join buzz event: %v", err)
 	}
+}
+
+func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (*models.BuzzLeaveResponse, int, error) {
+	var (
+		profile   models.Profile
+		newHostID = ""
+		buzzEnded = false
+	)
+
+	buzz, status, err := validateLeaveBuzz(db, logger, buzzID, userID)
+	if err != nil {
+		return nil, status, err
+	}
+
+	tx := db.Postgresql.Begin()
+	if tx.Error != nil {
+		logger.Error("Failed to begin transaction: %v", tx.Error)
+		return nil, http.StatusInternalServerError, errors.New("failed to start transaction")
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			logger.Error("Transaction panicked: %v", r)
+		}
+	}()
+
+	newParticipants := make([]string, 0, len(buzz.ParticipantIDs)-1)
+	for _, id := range buzz.ParticipantIDs {
+		if id != userID {
+			newParticipants = append(newParticipants, id)
+		}
+	}
+
+	if userID == buzz.HostID && len(newParticipants) > 0 {
+		buzz.HostID = newParticipants[0]
+		newHostID = newParticipants[0]
+	}
+	// no participant left - end call
+	if len(newParticipants) == 0 {
+		now := time.Now().UTC()
+		buzz.BuzzEndTime = &now
+		buzz.Status = models.BuzzStatusEnded
+		buzz.IsLiveStatus = false
+		buzzEnded = true
+	}
+
+	buzz.ParticipantIDs = newParticipants
+
+	if err = tx.Model(&buzz).Updates(buzz).Error; err != nil {
+		tx.Rollback()
+		logger.Error("Failed to update buzz: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to update buzz")
+	}
+
+	if err = tx.Model(&models.BuzzParticipant{}).
+		Where("buzz_id = ? AND user_id = ?", buzzID, userID).
+		Update("status", models.BuzzParticipantStatusLeft).Error; err != nil {
+		tx.Rollback()
+		logger.Error("Failed to update participant status: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to update participant")
+	}
+
+	txErr, err := postgresql.SelectOneFromDb(tx, &profile, "userid = ?", userID)
+
+	if txErr != nil {
+		tx.Rollback()
+		if errors.Is(txErr, gorm.ErrRecordNotFound) {
+			return nil, http.StatusNotFound, errors.New("user not found")
+		}
+		return nil, http.StatusInternalServerError, txErr
+	}
+	if err != nil {
+		tx.Rollback()
+		return nil, http.StatusInternalServerError, err
+	}
+
+	publishPayload := models.BuzzLeaveEventPayload{
+		HuddleStatus: buzz.Status,
+		HostChanged:  !(newHostID == ""),
+		BuzzEventPayload: models.BuzzEventPayload{
+			Event:          string(models.UserLeftBuzz),
+			BuzzID:         buzzID,
+			HostID:         buzz.HostID,
+			ParticipantIDs: newParticipants,
+			Status:         models.BuzzStatusActive,
+		},
+	}
+
+	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
+
+	return &models.BuzzLeaveResponse{
+		BuzzID:        buzzID,
+		ParticipantID: userID,
+		NewHostID:     newHostID,
+		LeftAt:        time.Now().UTC(),
+		BuzzEnded:     buzzEnded,
+	}, http.StatusOK, nil
 }
