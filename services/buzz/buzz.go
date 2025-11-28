@@ -10,6 +10,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
+	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -132,6 +133,13 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated buzz")
 	}
 
+	// Generate Agora token for the user
+	agoraTokenResp, _, err := agora.GetAgoraToken(db, logger, buzzID, userID)
+	if err != nil {
+		logger.Error("failed to generate Agora token for user %s: %v", userID, err)
+		return resp, http.StatusInternalServerError, errors.New("failed to generate Agora token")
+	}
+
 	resp = models.JoinBuzzResponse{
 		BuzzID:         buzz.ID,
 		ChannelID:      buzz.ChannelID,
@@ -139,6 +147,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		Status:         buzz.Status,
 		JoinedAt:       timestamp,
 		ParticipantIDs: buzz.ParticipantIDs,
+		AgoraToken:     &agoraTokenResp,
 	}
 
 	publishJoinBuzzEvent(logger, buzz, timestamp)

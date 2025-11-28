@@ -212,7 +212,7 @@ func TestBuzzEndpoints(t *testing.T) {
 		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 		{
 			buzzUrl.POST("/create", buzzController.Create)
-			buzzUrl.POST("/:id/join", buzzController.Join)
+			buzzUrl.POST("/:buzz_id/join", buzzController.Join)
 		}
 
 		t.Run(test.Name, func(t *testing.T) {
@@ -245,6 +245,45 @@ func TestBuzzEndpoints(t *testing.T) {
 					tst.AssertResponseMessage(t, message.(string), test.Message)
 				} else {
 					tst.AssertResponseMessage(t, "", test.Message)
+				}
+			}
+
+			// Additional assertions for successful join
+			if test.Name == "Join Buzz Action - Success" && test.ExpectedCode == http.StatusOK {
+				responseData, ok := data["data"].(map[string]interface{})
+				if !ok {
+					t.Fatal("Expected data field in response")
+				}
+
+				// Verify agora_token is present in response
+				agoraToken, ok := responseData["agora_token"].(map[string]interface{})
+				if !ok {
+					t.Fatal("Expected agora_token field in join response")
+				}
+
+				// Verify agora_token has required fields
+				if agoraToken["token"] == nil || agoraToken["token"].(string) == "" {
+					t.Error("Expected non-empty token in agora_token")
+				}
+				if agoraToken["app_id"] == nil || agoraToken["app_id"].(string) == "" {
+					t.Error("Expected non-empty app_id in agora_token")
+				}
+				if agoraToken["channel_name"] == nil || agoraToken["channel_name"].(string) == "" {
+					t.Error("Expected non-empty channel_name in agora_token")
+				}
+				if agoraToken["uid"] == nil {
+					t.Error("Expected uid field in agora_token")
+				}
+
+				// Verify other join response fields
+				if responseData["Buzz_id"] != buzzID {
+					t.Errorf("Expected buzz_id %s, got %v", buzzID, responseData["Buzz_id"])
+				}
+				if responseData["channel_id"] != channelID {
+					t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
+				}
+				if responseData["participant_ids"] == nil {
+					t.Error("Expected participant_ids in response")
 				}
 			}
 		})

@@ -219,10 +219,11 @@ type JoinBuzzRequest struct {
 
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
-	BuzzID         string    `json:"Buzz_id"`
-	ChannelID      string    `json:"channel_id"`
-	UserID         string    `json:"user_id"`
-	Status         string    `json:"status"`
-	JoinedAt       time.Time `json:"joined_at"`
-	ParticipantIDs []string  `json:"participant_ids"`
+	BuzzID         string                  `json:"Buzz_id"`
+	ChannelID      string                  `json:"channel_id"`
+	UserID         string                  `json:"user_id"`
+	Status         string                  `json:"status"`
+	JoinedAt       time.Time               `json:"joined_at"`
+	ParticipantIDs []string                `json:"participant_ids"`
+	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
 }
