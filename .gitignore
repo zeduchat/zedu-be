@@ -47,3 +47,4 @@ cypress_tests/cypress/reports
 
 river_queue_logs/
 elastic-start-local/
+.DS_Store
