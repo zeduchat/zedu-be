@@ -47,7 +47,7 @@ type Threads struct {
 	UserType                 string                    `json:"user_type"`
 	Count                    int                       `json:"frequency,omitempty"`
 	UserId                   string                    `json:"user_id"`
-	Media                    []UploadedFileResponse    `json:"media,omitempty"`
+	Media                    []File                    `json:"media,omitempty"`
 	Mentions                 []Mention                 `json:"mentions,omitempty"`
 	OrgansationID            string                    `json:"org_id,omitempty"`
 	State                    string                    `json:"state,omitempty"`
@@ -82,7 +82,7 @@ type ThreadDocument struct {
 	IsPinned                 bool                      `json:"is_pinned"`
 	Messages                 []MessageDocument         `json:"messages,omitempty"`
 	Count                    int                       `json:"frequency,omitempty"`
-	Media                    []UploadedFileResponse    `json:"media,omitempty"`
+	Media                    []File                    `json:"media,omitempty"`
 	Mentions                 []Mention                 `json:"mentions,omitempty"`
 	State                    string                    `json:"state,omitempty"`
 	IsSaved                  bool                      `json:"is_saved,omitempty"`
@@ -257,7 +257,7 @@ type Mention struct {
 
 type CreateThreadMsgReq struct {
 	Content    string                 `json:"content" validate:"required"`
-	Media      []UploadedFileResponse `json:"media"`
+	Media      []File `json:"media"`
 	Mentions   []Mention              `json:"mentions"`
 	ChannelsID string                 `json:"channels_id"`
 	Message    string                 `json:"message"`
@@ -281,7 +281,7 @@ type CreateThreadMsgReq2 struct {
 type BotReturnRequest struct {
 	ChannelID      string                 `json:"channel_id" validate:"required"`
 	Content        string                 `json:"message"  validate:"required"`
-	Media          []UploadedFileResponse `json:"media"`
+	Media          []File `json:"media"`
 	State          string                 `json:"state"`
 	Mentions       []Mention              `json:"mentions"`
 	ThreadId       string                 `json:"thread_id" validate:"required"`
@@ -305,7 +305,7 @@ type FeedMessageRequest struct {
 	ThreadId                 string                    `json:"thread_id"`
 	OrgId                    string                    `json:"org_id"`
 	UserId                   string                    `json:"user_id"`
-	Media                    []UploadedFileResponse    `json:"media"`
+	Media                    []File    `json:"media"`
 	UserType                 string                    `json:"user_type"`
 	Id                       string                    `json:"id,omitempty"`
 	State                    string                    `json:"state"`
@@ -639,9 +639,9 @@ func (c *Threads) UpdateThreadWithScript(db *gorm.DB, req map[string]any) (*Thre
 	return c, nil
 }
 
-func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Threads, error) {
+func (c *Threads) DeleteThreadMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []File) (*Threads, error) {
 	var (
-		fileModel UploadedFileResponse
+		fileModel File
 		firstErr  error
 	)
 

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -35,7 +36,7 @@ func TestUpdateFileName(t *testing.T) {
 		Email:       fmt.Sprintf("testfileuser%v@qa.team", currUUID),
 		FirstName:   "Test",
 		LastName:    "FileUser",
-		PhoneNumber: "1234567890",
+		PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
 		Password:    "password123",
 		UserName:    fmt.Sprintf("test_fileuser%v", currUUID),
 	}
@@ -63,14 +64,28 @@ func TestUpdateFileName(t *testing.T) {
 		t.Fatal("Failed to get authentication token")
 	}
 
-	// Create a test file entry
-	testFile := models.UploadedFileResponse{
-		ID:       utility.GenerateUUID(),
-		FileName: "original_file.txt",
-		FileType: "txt",
-		MimeType: "text/plain",
-		FileLink: "https://example.com/test-file.txt",
+	var user models.User
+	db.Postgresql.Preload("Organisations").Where("email = ?", userSignUpData.Email).First(&user)
+
+	if len(user.Organisations) == 0 {
+		t.Fatal("User has no organisations")
 	}
+
+	// Create a test file entry
+	testFile := models.File{
+		ID:             utility.GenerateUUID(),
+		FileName:       "original_file.txt",
+		FileType:       "txt",
+		MimeType:       "text/plain",
+		FileLink:       "https://example.com/test-file.txt",
+		OrganisationID: user.Organisations[0].ID,
+		UserID:         user.ID,
+	}
+
+	var org models.Organisation
+	// assuming user is owner of an org created during signup
+	db.Postgresql.Where("owner_id = ?", user.ID).First(&org)
+	testFile.OrganisationID = org.ID
 
 	err := testFile.CreateFileRecord(db.Postgresql)
 	if err != nil {
@@ -79,7 +94,7 @@ func TestUpdateFileName(t *testing.T) {
 
 	// Cleanup after test
 	defer func() {
-		db.Postgresql.Where("id = ?", testFile.ID).Delete(&models.UploadedFileResponse{})
+		db.Postgresql.Where("id = ?", testFile.ID).Delete(&models.File{})
 	}()
 
 	fileController := fileManagement.Controller{

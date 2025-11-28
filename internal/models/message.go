@@ -40,28 +40,28 @@ type Message struct {
 }
 
 type MessageDocument struct {
-	ID             string                 `json:"id,omitempty"`
-	Content        string                 `json:"message"`
-	OrganisationID string                 `json:"org_id"`
-	ChannelsID     string                 `json:"channels_id"`
-	UserID         string                 `json:"user_id"`
-	Username       string                 `json:"username"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt         `json:"-"`
-	AgentMessage   bool                   `json:"-"`
-	UserType       string                 `json:"user_type"`
-	ThreadID       uuid.UUID              `json:"thread_id"`
-	AvatarURL      string                 `json:"avatar_url"`
-	Edited         bool                   `json:"edited"`
-	FullName       string                 `json:"full_name"`
-	Email          string                 `json:"email"`
-	Media          []UploadedFileResponse `json:"media,omitempty"`
-	IsPinned       bool                   `json:"is_pinned"`
-	IsSaved        bool                   `json:"is_saved"`
-	Mentions       []Mention              `json:"mentions,omitempty"`
-	PinnedDetails  PinnedDetails          `json:"pinned_details,omitempty"`
-	Reactions      []ReactionDetails      `json:"reactions"`
+	ID             string            `json:"id,omitempty"`
+	Content        string            `json:"message"`
+	OrganisationID string            `json:"org_id"`
+	ChannelsID     string            `json:"channels_id"`
+	UserID         string            `json:"user_id"`
+	Username       string            `json:"username"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt    `json:"-"`
+	AgentMessage   bool              `json:"-"`
+	UserType       string            `json:"user_type"`
+	ThreadID       uuid.UUID         `json:"thread_id"`
+	AvatarURL      string            `json:"avatar_url"`
+	Edited         bool              `json:"edited"`
+	FullName       string            `json:"full_name"`
+	Email          string            `json:"email"`
+	Media          []File            `json:"media,omitempty"`
+	IsPinned       bool              `json:"is_pinned"`
+	IsSaved        bool              `json:"is_saved"`
+	Mentions       []Mention         `json:"mentions,omitempty"`
+	PinnedDetails  PinnedDetails     `json:"pinned_details,omitempty"`
+	Reactions      []ReactionDetails `json:"reactions"`
 }
 
 var MessageMapping = map[string]any{
@@ -123,7 +123,7 @@ type CreateMessageRequest struct {
 	ThreadId   string                 `json:"thread_id" validate:"required"`
 	OrgId      string                 `json:"org_id"`
 	AgentName  string                 `json:"agent_name"`
-	Media      []UploadedFileResponse `json:"media"`
+	Media      []File `json:"media"`
 	Mentions   []Mention              `json:"mentions"`
 }
 
@@ -140,7 +140,7 @@ type ForwardThreadMessageRequest struct {
 	ThreadId             string                 `json:"thread_id" validate:"required"`               //thread id of the message to forward
 	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
 	Content              string                 `json:"content"`
-	Media                []UploadedFileResponse `json:"media"`
+	Media                []File `json:"media"`
 	Mentions             []Mention              `json:"mentions"`
 
 	UserId     string `json:"user_id"`
@@ -152,7 +152,7 @@ type ForwardReplyMessageRequest struct {
 	MessageId            string                 `json:"message_id" validate:"required"`
 	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
 	Content              string                 `json:"content"`
-	Media                []UploadedFileResponse `json:"media"`
+	Media                []File `json:"media"`
 	Mentions             []Mention              `json:"mentions"`
 
 	UserId     string `json:"user_id"`
@@ -431,9 +431,9 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 	return updateResp, nil
 }
 
-func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []UploadedFileResponse) (*Message, error) {
+func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, mediaFiles []File) (*Message, error) {
 	var (
-		fileModel UploadedFileResponse
+		fileModel File
 		firstErr  error
 	)
 
