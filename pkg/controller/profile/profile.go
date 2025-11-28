@@ -116,6 +116,45 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	req.Timezone = c.Request.FormValue("timezone")
 	req.Title = c.Request.FormValue("title")
 	req.NamePronunciation = c.Request.FormValue("name_pronounciation")
+	req.WorkspaceID = c.Request.FormValue("workspace_id")
+	req.Track = c.Request.FormValue("track")
+	links := c.Request.Form["links"]
+	if len(links) > 0 {
+		req.Links = links
+	}
+
+	if len(req.FullName) < 2 || len(req.FullName) > 100 {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Name must be between 2 and 100 characters", nil, nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if req.WorkspaceID != "" {
+		if len(req.WorkspaceID) > 100 {
+			rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Workspace ID too long", nil, nil)
+			c.JSON(http.StatusUnprocessableEntity, rd)
+			return
+		}
+
+		// allow alphanum, spaces, dashes, max 100 chars for workspaceId
+		for _, r := range req.WorkspaceID {
+			if !(r == '-' || r == ' ' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')) {
+				rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Workspace ID contains invalid characters", nil, nil)
+				c.JSON(http.StatusUnprocessableEntity, rd)
+				return
+			}
+		}
+	}
+
+	if len(req.Links) > 0 {
+		for _, link := range req.Links {
+			if !utility.IsValidURL(link) {
+				rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Invalid link URL: "+link, nil, nil)
+				c.JSON(http.StatusUnprocessableEntity, rd)
+				return
+			}
+		}
+	}
 
 	err = base.Validator.Struct(&req)
 	if err != nil {

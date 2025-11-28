@@ -180,3 +180,24 @@ func ValidateTimeRange(value string) bool {
 	}
 	return true
 }
+func IsValidURL(urlStr string) bool {
+	u, err := url.ParseRequestURI(urlStr)
+	if err != nil {
+		return false
+	}
+
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return false
+	}
+
+	if u.Host == "" {
+		return false
+	}
+
+	if !strings.Contains(u.Host, ".") {
+		return false
+	}
+
+	return true
+}
