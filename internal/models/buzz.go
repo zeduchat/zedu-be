@@ -17,8 +17,9 @@ const (
 )
 
 const (
-	BuzzParticipantStatusActive = "active"
-	BuzzParticipantStatusLeft   = "left"
+	BuzzParticipantStatusActive   = "active"
+	BuzzParticipantStatusLeft     = "left"
+	BuzzParticipantStatusInactive = "inactive"
 )
 
 type Buzz struct {
@@ -46,13 +47,12 @@ type BuzzParticipant struct {
 }
 
 type CreateBuzzRequest struct {
-	ChannelID      string   `json:"channel_id" validate:"required,uuid"`
-	ParticipantIDs []string `json:"participant_ids"`
-	OrganisationID string   `json:"organisation_id,omitempty"`
+	ChannelID      string `json:"channel_id" validate:"required,uuid"`
+	OrganisationID string `json:"organisation_id,omitempty"`
 }
 
 type BuzzCreateResponse struct {
-	BuzzID         string    `json:"Buzz_id"`
+	BuzzID         string    `json:"buzz_id"`
 	HostID         string    `json:"host_id"`
 	ChannelID      string    `json:"channel_id"`
 	Status         string    `json:"status"`
