@@ -30,6 +30,7 @@ func SetupBuzzTestRouter() (*gin.Engine, *buzz.Controller) {
 		buzzGroup.GET("/:id/notes", buzzController.GetNotes)
 		buzzGroup.PATCH("/:id/notes/:note_id", buzzController.UpdateNote)
 		buzzGroup.POST("/create", buzzController.Create)
+		buzzGroup.POST("/:id/leave", buzzController.LeaveBuzz)
 	}
 
 	return r, buzzController

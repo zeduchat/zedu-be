@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models/migrations"
 	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/controller/buzz"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/invitation"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
@@ -251,4 +252,38 @@ func CreateInvitation(t *testing.T, r *gin.Engine, db *storage.Database, invite 
 	invite_id := invitation.ID
 
 	return invite_token, invite_id
+}
+
+func CreateBuzz(t *testing.T, r *gin.Engine, buzzContoller buzz.Controller, db *storage.Database, createBuzzReq models.CreateBuzzRequest, token string) (string, string) {
+	var (
+		createBuzzPath = "/api/v1/buzz/create"
+		createBuzzURI  = url.URL{Path: createBuzzPath}
+	)
+	buzzUrl := r.Group(fmt.Sprintf("%v", "/api/buzz/create"), middleware.Authorize(db.Postgresql))
+	{
+		buzzUrl.POST("/", buzzContoller.Create)
+	}
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(createBuzzReq)
+	req, err := http.NewRequest(http.MethodPost, createBuzzURI.String(), &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		return "", ""
+	}
+
+	data := ParseResponse(rr)
+	dataM := data["data"].(map[string]any)
+	buzzID := dataM["buzz_id"].(string)
+	hostID := dataM["host_id"].(string)
+	return buzzID, hostID
 }
