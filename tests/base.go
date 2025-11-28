@@ -45,6 +45,7 @@ func Setup() *utility.Logger {
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
+		seed.SeedPlans(logger, db.Postgresql)
 	}
 
 	// Initialize River client for background jobs
@@ -116,6 +117,10 @@ func SignupUser(t *testing.T, r *gin.Engine, auth auth.Controller, userSignUpDat
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated && rr.Code != http.StatusOK {
+		t.Logf("Registration failed with status %d. Response: %s", rr.Code, rr.Body.String())
+	}
 }
 
 func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData models.LoginRequestModel) string {
