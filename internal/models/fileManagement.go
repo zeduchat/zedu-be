@@ -17,6 +17,10 @@ type UploadRequest struct {
 	Files []*multipart.FileHeader `form:"files" binding:"required"`
 }
 
+type RenameFileRequest struct {
+	FileName string `json:"file_name" binding:"required" validate:"required,min=1,max=255"`
+}
+
 type UploadedFileResponse struct {
 	ID       string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
 	FileName string `gorm:"column:file_name; not null" json:"file_name"`
@@ -58,6 +62,15 @@ func (file *UploadedFileResponse) GetFileCountByLink(db *gorm.DB, fileLink strin
 	}
 
 	return count, nil
+}
+
+func (file *UploadedFileResponse) UpdateFileName(db *gorm.DB, fileID string, newFileName string) error {
+	err := db.Model(&UploadedFileResponse{}).Where("id = ?", fileID).Update("file_name", newFileName).Error
+	if err != nil {
+		return err
+	}
+	_, err = file.GetFileByID(db, fileID)
+	return err
 }
 
 func (file *UploadedFileResponse) DeleteFileByID(db *gorm.DB, fileID string) error {
