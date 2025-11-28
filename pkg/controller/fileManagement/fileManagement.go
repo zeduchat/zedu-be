@@ -63,7 +63,7 @@ func (base *Controller) UploadController(c *gin.Context) {
 		}
 		defer file.Close()
 
-		fileData, err := services.UploadFiles(base.Db.Postgresql, base.Logger, file, fileHeader, req.FolderID, orgID, userID)
+		fileData, err := services.UploadFile(base.Db.Postgresql, base.Logger, file, fileHeader, req.FolderID, orgID, userID)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err.Error(), nil)
 			c.JSON(http.StatusBadRequest, rd)

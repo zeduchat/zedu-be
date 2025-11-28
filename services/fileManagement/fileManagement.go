@@ -87,7 +87,7 @@ func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	return true, fmt.Errorf("file %s exists in bucket %s", fileName, bucketName)
 }
 
-func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, header *multipart.FileHeader, folderID, orgID, userID string) (*models.File, error) {
+func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header *multipart.FileHeader, folderID, orgID, userID string) (*models.File, error) {
 	var generatedUrl string
 	minioClient := storage.DB.Minio
 	bucketName := config.Config.Minio.BucketName
@@ -156,7 +156,9 @@ func UploadFiles(db *gorm.DB, logger *utility.Logger, file multipart.File, heade
 			UserID:         userID,
 			FolderID:       fID,
 		}
+
 		storageErr := newFileEntry.CreateFileRecord(db)
+
 		if storageErr != nil {
 			errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
 			utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
