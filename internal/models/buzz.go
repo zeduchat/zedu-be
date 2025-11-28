@@ -52,7 +52,7 @@ type CreateBuzzRequest struct {
 }
 
 type BuzzCreateResponse struct {
-	BuzzID         string    `json:"Buzz_id"`
+	BuzzID         string    `json:"buzz_id"`
 	HostID         string    `json:"host_id"`
 	ChannelID      string    `json:"channel_id"`
 	Status         string    `json:"status"`
