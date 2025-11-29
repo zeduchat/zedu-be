@@ -88,7 +88,6 @@ type BaseConfig struct {
 	BUCKET_NAME       string `mapstructure:"BUCKET_NAME"`
 	BUCKET_ACCESS_KEY string `mapstructure:"BUCKET_ACCESS_KEY"`
 	BUKCET_SECRET_KEY string `mapstructure:"BUKCET_SECRET_KEY"`
-	MINIO_USE_SSL     bool   `mapstructure:"MINIO_USE_SSL"`
 
 	SLACK_CLIENT_ID     string `mapstructure:"SLACK_CLIENT_ID"`
 	SLACK_CLIENT_SECRET string `mapstructure:"SLACK_CLIENT_SECRET"`
@@ -223,7 +222,6 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			BucketName:    config.BUCKET_NAME,
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
-			UseSSL:        config.MINIO_USE_SSL,
 		},
 
 		Slack: Slack{
