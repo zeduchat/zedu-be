@@ -20862,23 +20862,6 @@ paths:
         - buzz
       summary: Get Agora RTC token
       description: Generates an Agora RTC token for a user to connect to a buzz audio/video channel. User must be an active participant in the buzz. Token expires dynamically based on buzz duration (max 4 hours).
-  /buzz/create:
-    post:
-      tags:
-        - buzz
-      summary: Create a new buzz (video/audio call)
-      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token.
-      operationId: createBuzz
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BuzzAgoraTokenRequest"
-            example:
-              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
       responses:
         "200":
           description: Agora token generated successfully
@@ -20925,6 +20908,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
               $ref: "#/components/schemas/CreateBuzzRequest"
+  /buzz/create:
+    post:
+      tags:
+        - buzz
+      summary: Create a new buzz (video/audio call)
+      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token.
+      operationId: createBuzz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuzzAgoraTokenRequest"
+            example:
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
       responses:
         "201":
           description: Buzz created successfully
