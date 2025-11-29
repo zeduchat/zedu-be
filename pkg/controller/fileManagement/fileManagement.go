@@ -1,7 +1,6 @@
 package fileManagement
 
 import (
-	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +11,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	services "github.com/hngprojects/telex_be/services/fileManagement"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -41,17 +39,7 @@ func (base *Controller) UploadController(c *gin.Context) {
 		return
 	}
 
-	claims, exists := c.Get("userClaims")
-	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	userClaims := claims.(jwt.MapClaims)
-	userID := userClaims["user_id"].(string)
-	orgID := userClaims["org_id"].(string)
-
-	var uploadedFiles []*models.File
+	var uploadedFiles []*models.UploadedFileResponse
 
 	for _, fileHeader := range req.Files {
 		file, err := fileHeader.Open()
@@ -62,7 +50,7 @@ func (base *Controller) UploadController(c *gin.Context) {
 		}
 		defer file.Close()
 
-		fileData, err := services.UploadFile(base.Db.Postgresql, base.Logger, file, fileHeader, req.FolderID, orgID, userID)
+		fileData, err := services.UploadFiles(base.Db.Postgresql, base.Logger, file, fileHeader)
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err.Error(), nil)
 			c.JSON(http.StatusBadRequest, rd)
@@ -79,11 +67,6 @@ func (base *Controller) UploadController(c *gin.Context) {
 
 func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
-	if !utility.IsValidUUID(fileId) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
 	if err != nil {
@@ -99,11 +82,6 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 
 func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
-	if !utility.IsValidUUID(fileId) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 	thread_id := c.Query("thread_id")
 
 	if _, err := uuid.Parse(thread_id); thread_id != "" && err != nil {
@@ -131,14 +109,8 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
-
 func (base *Controller) UpdateFileName(c *gin.Context) {
 	fileID := c.Param("id")
-	if !utility.IsValidUUID(fileID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		base.Logger.Info("error getting claims")
@@ -173,158 +145,5 @@ func (base *Controller) UpdateFileName(c *gin.Context) {
 	}
 	base.Logger.Info("File name updated successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File name updated successfully", resp)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) CreateFolder(c *gin.Context) {
-	var req struct {
-		Name     string  `json:"name" binding:"required"`
-		ParentID *string `json:"parent_id"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if req.ParentID != nil && !utility.IsValidUUID(*req.ParentID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid parent_id format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	claims, _ := c.Get("userClaims")
-	userClaims := claims.(jwt.MapClaims)
-	userID := userClaims["user_id"].(string)
-	orgID := userClaims["org_id"].(string)
-
-	folder, err := services.CreateFolder(base.Db.Postgresql, req.Name, orgID, userID, req.ParentID)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create folder", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "Folder created successfully", folder)
-	c.JSON(http.StatusCreated, rd)
-}
-
-func (base *Controller) GetFolders(c *gin.Context) {
-	claims, _ := c.Get("userClaims")
-	userClaims := claims.(jwt.MapClaims)
-	orgID := userClaims["org_id"].(string)
-
-	parentID := c.Query("parent_id")
-	var pID *string
-	if parentID != "" {
-		if !utility.IsValidUUID(parentID) {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid parent_id format", nil, nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
-		}
-		pID = &parentID
-	}
-
-	folders, err := services.GetFolders(base.Db.Postgresql, orgID, pID)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Folders fetched successfully", folders)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) DeleteFolder(c *gin.Context) {
-	folderID := c.Param("id")
-	if !utility.IsValidUUID(folderID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder ID format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	err := services.DeleteFolder(base.Db.Postgresql, folderID)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete folder", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Folder deleted successfully", nil)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) MoveFile(c *gin.Context) {
-	fileID := c.Param("id")
-	if !utility.IsValidUUID(fileID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	var req struct {
-		FolderID string `json:"folder_id"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if !utility.IsValidUUID(req.FolderID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder ID format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	file, err := services.MoveFile(base.Db.Postgresql, fileID, req.FolderID)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to move file", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	rd := utility.BuildSuccessResponse(http.StatusOK, "File moved successfully", file)
-	c.JSON(http.StatusOK, rd)
-}
-
-func (base *Controller) GetFiles(c *gin.Context) {
-	claims, _ := c.Get("userClaims")
-	userClaims := claims.(jwt.MapClaims)
-	userID := userClaims["user_id"].(string)
-	orgID := userClaims["org_id"].(string)
-
-	queryParams := make(map[string]string)
-	queryParams["mode"] = c.Query("mode")
-
-	folderID := c.Query("folder_id")
-	if folderID != "" && !utility.IsValidUUID(folderID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder_id format", nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	queryParams["folder_id"] = folderID
-	queryParams["search"] = c.Query("search")
-	queryParams["type"] = c.Query("type")
-
-	pagination := postgresql.GetPagination(c)
-	page, limit := pagination.Page, pagination.Limit
-
-	files, count, err := services.GetFiles(base.Db.Postgresql, orgID, userID, queryParams, page, limit)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch files", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	totalPages := int(math.Ceil(float64(count) / float64(limit)))
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     page,
-		PageCount:       len(files),
-		TotalPagesCount: totalPages,
-		TotalItems:      count,
-	}
-
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Files fetched successfully", map[string]interface{}{
-		"files":      files,
-		"pagination": paginationResponse,
-	})
 	c.JSON(http.StatusOK, rd)
 }
