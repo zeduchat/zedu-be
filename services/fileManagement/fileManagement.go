@@ -451,12 +451,14 @@ func GetFiles(db *gorm.DB, orgID, userID string, queryParams map[string]string, 
 	case "mine":
 		query = query.Where("files.user_id = ?", userID)
 	case "shared":
-		// Get channels the user is in
+		// Get channels the user is in will check for messageid for dm files when it'll be implemented
+
 		var userChannels []string
 		err := db.Model(&models.UserChannels{}).Where("user_id = ?", userID).Pluck("channels_id", &userChannels).Error
 		if err != nil {
 			return nil, 0, err
 		}
+
 		if len(userChannels) > 0 {
 			query = query.Where("files.channel_id IN ?", userChannels)
 		} else {
