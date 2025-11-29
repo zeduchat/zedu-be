@@ -56,8 +56,7 @@ func TestBuzzLeave(t *testing.T) {
 	}
 
 	createBuzzData := models.CreateBuzzRequest{
-		OrganisationID: user.CurrentOrg.String(),
-		ChannelID:      channelID,
+		ChannelID: channelID,
 	}
 
 	t.Run("LeaveBuzzSuccess", func(t *testing.T) {

@@ -24,7 +24,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func TestBuzzEndpoints(t *testing.T) {
+func TestBuzzJoin(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -158,17 +158,6 @@ func TestBuzzEndpoints(t *testing.T) {
 		Token        string
 	}{
 		{
-			Name: "Create Buzz Action",
-			RequestBody: models.CreateBuzzRequest{
-				ChannelID: channelID,
-			},
-			ExpectedCode: http.StatusCreated,
-			Message:      "buzz created successfully",
-			Method:       http.MethodPost,
-			RequestURI:   url.URL{Path: "/api/v1/buzz/create"},
-			Token:        token,
-		},
-		{
 			Name:         "Join Buzz Action - Success",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusOK,
@@ -198,7 +187,7 @@ func TestBuzzEndpoints(t *testing.T) {
 		{
 			Name:         "Join Buzz Action - Non-existent Buzz",
 			RequestBody:  nil,
-			ExpectedCode: http.StatusBadRequest,
+			ExpectedCode: http.StatusNotFound,
 			Message:      "buzz does not exist",
 			Method:       http.MethodPost,
 			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/buzz/%s/join", utility.GenerateUUID())},
@@ -211,7 +200,6 @@ func TestBuzzEndpoints(t *testing.T) {
 
 		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 		{
-			buzzUrl.POST("/create", buzzController.Create)
 			buzzUrl.POST("/:id/join", buzzController.Join)
 		}
 
@@ -245,6 +233,43 @@ func TestBuzzEndpoints(t *testing.T) {
 					tst.AssertResponseMessage(t, message.(string), test.Message)
 				} else {
 					tst.AssertResponseMessage(t, "", test.Message)
+				}
+			}
+
+			// Additional assertions for successful join
+			if test.Name == "Join Buzz Action - Success" && test.ExpectedCode == http.StatusOK {
+				responseData, ok := data["data"].(map[string]interface{})
+				if !ok {
+					t.Fatal("Expected data field in response")
+				}
+
+				// Verify agora_token is present in response (may be nil if Agora not configured)
+				if agoraToken, ok := responseData["agora_token"].(map[string]interface{}); ok && agoraToken != nil {
+					// Verify agora_token has required fields when present
+					if agoraToken["token"] == nil || agoraToken["token"].(string) == "" {
+						t.Error("Expected non-empty token in agora_token")
+					}
+					if agoraToken["app_id"] == nil || agoraToken["app_id"].(string) == "" {
+						t.Error("Expected non-empty app_id in agora_token")
+					}
+					if agoraToken["channel_name"] == nil || agoraToken["channel_name"].(string) == "" {
+						t.Error("Expected non-empty channel_name in agora_token")
+					}
+					if agoraToken["uid"] == nil {
+						t.Error("Expected uid field in agora_token")
+					}
+				}
+				// Note: agora_token can be nil if Agora service is not configured (e.g., in tests)
+
+				// Verify other join response fields
+				if responseData["Buzz_id"] != buzzID {
+					t.Errorf("Expected buzz_id %s, got %v", buzzID, responseData["Buzz_id"])
+				}
+				if responseData["channel_id"] != channelID {
+					t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
+				}
+				if responseData["participant_ids"] == nil {
+					t.Error("Expected participant_ids in response")
 				}
 			}
 		})
