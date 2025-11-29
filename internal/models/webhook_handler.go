@@ -28,17 +28,17 @@ type FeedWebHookRequest struct {
 }
 
 type FeedQueue struct {
-	ChannelsId string    `json:"channel_id"`
-	ThreadId   string    `json:"thread_id"`
-	AgentName  string    `json:"agent_name"`
-	UserId     string    `json:"user_id"`
-	AgentId    string    `json:"agent_id"`
-	ReturnUrl  string    `json:"return_url"`
-	Content    string    `json:"message"`
-	Type       string    `json:"type"`
-	OrgId      string    `json:"org_id"`
-	Media      []File    `json:"media"`
-	Mentions   []Mention `json:"mentions"`
+	ChannelsId string                 `json:"channel_id"`
+	ThreadId   string                 `json:"thread_id"`
+	AgentName  string                 `json:"agent_name"`
+	UserId     string                 `json:"user_id"`
+	AgentId    string                 `json:"agent_id"`
+	ReturnUrl  string                 `json:"return_url"`
+	Content    string                 `json:"message"`
+	Type       string                 `json:"type"`
+	OrgId      string                 `json:"org_id"`
+	Media      []UploadedFileResponse `json:"media"`
+	Mentions   []Mention              `json:"mentions"`
 }
 
 type QueueFeed struct {
