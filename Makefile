@@ -23,7 +23,7 @@ fix-dirty:
 	if echo "$$MIGRATION_OUTPUT" | grep -q "dirty"; then \
 		VERSION=$$(echo "$$MIGRATION_OUTPUT" | grep -oE '^[0-9]+'); \
 		PREV_VERSION=$$((VERSION - 1)); \
-		echo "Dirty state detected. Forcing to version $$PREV_VERSION and running migrate-down"; \
+		echo "Dirty state detected. Forcing to version $$PREV_VERSION"; \
 		make migrate-force version=$$PREV_VERSION; \
 		make migrate-down; \
 	else \

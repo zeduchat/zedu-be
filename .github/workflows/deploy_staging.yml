@@ -59,7 +59,7 @@ jobs:
         run: |
             cd "$APP_DIR"
             echo "Running DB migrations..."
-            make migrate-safe-up
+            yes | make migrate-safe-up
 
       - name: Restart app
         run: |
