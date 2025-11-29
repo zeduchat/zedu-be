@@ -273,6 +273,32 @@ func RespondToInvitation(db *storage.Database, logger *utility.Logger, req model
 	return resp, http.StatusOK, nil
 }
 
+// GetPendingInvitations retrieves all pending invitations for a user and transforms them to response format
+func GetPendingInvitations(db *storage.Database, logger *utility.Logger, userID string) ([]models.BuzzInvitationResponse, int, error) {
+	var responses []models.BuzzInvitationResponse
+
+	var invitations []models.BuzzInvitation
+	if err := db.Postgresql.Preload("Inviter").Where("invitee_id = ?", userID).Find(&invitations).Error; err != nil {
+		logger.Error("failed to fetch pending invitations: %v", err)
+		return responses, http.StatusInternalServerError, errors.New("failed to fetch invitations")
+	}
+
+	// Transform to response format
+	for _, inv := range invitations {
+		responses = append(responses, models.BuzzInvitationResponse{
+			InvitationID: inv.ID,
+			BuzzID:       inv.BuzzID,
+			ChannelID:    inv.ChannelID,
+			InviterID:    inv.InviterID,
+			InviterName:  inv.Inviter.UserName,
+			Status:       inv.Status,
+			InvitedAt:    inv.InvitedAt,
+		})
+	}
+
+	return responses, http.StatusOK, nil
+}
+
 // publishInvitationEvent sends a real-time notification to the invitee
 func publishInvitationEvent(logger *utility.Logger, invitation models.BuzzInvitation, inviterName string) error {
 	eventPayload := models.BuzzInvitationEventPayload{

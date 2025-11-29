@@ -135,26 +135,12 @@ func (base *Controller) GetPendingInvitations(c *gin.Context) {
 		return
 	}
 
-	invitations, err := models.GetPendingInvitationsForUser(base.Db.Postgresql, userID.(string))
+	responses, code, err := buzz.GetPendingInvitations(base.Db, base.Logger, userID.(string))
 	if err != nil {
 		base.Logger.Error("failed to fetch pending invitations: %v", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch invitations", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
-	}
-
-	// Transform to response format
-	var responses []models.BuzzInvitationResponse
-	for _, inv := range invitations {
-		responses = append(responses, models.BuzzInvitationResponse{
-			InvitationID: inv.ID,
-			BuzzID:       inv.BuzzID,
-			ChannelID:    inv.ChannelID,
-			InviterID:    inv.InviterID,
-			InviterName:  inv.Inviter.UserName,
-			Status:       inv.Status,
-			InvitedAt:    inv.InvitedAt,
-		})
 	}
 
 	responseData := map[string]interface{}{
