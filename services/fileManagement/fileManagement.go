@@ -98,6 +98,11 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 		return nil, fmt.Errorf("file exceeds max size")
 	}
 
+	var fID *string
+	if folderID != "" {
+		fID = &folderID
+	}
+
 	fileHash, hashErr := HashFile(file)
 	if hashErr != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("failed to hash file: %v", hashErr))
@@ -140,9 +145,19 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 		// if file exists, we create a new record for the user/org pointing to the same physical file
 		utility.LogAndPrint(logger, "File exists, creating a new DB entry for current user or org")
 
-		var fID *string
-		if folderID != "" {
-			fID = &folderID
+		// Check if a file record with the same metadata already exists
+		var duplicateFile models.File
+		query := db.Where("file_name = ? AND organisation_id = ? AND user_id = ? AND file_link = ?", header.Filename, orgID, userID, existingFile.FileLink)
+
+		if fID != nil {
+			query = query.Where("folder_id = ?", *fID)
+		} else {
+			query = query.Where("folder_id IS NULL")
+		}
+
+		if err := query.First(&duplicateFile).Error; err == nil {
+			utility.LogAndPrint(logger, "File record already exists, returning existing record")
+			return &duplicateFile, nil
 		}
 
 		newFileEntry := models.File{
@@ -176,11 +191,6 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 
 		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
-
-		var fID *string
-		if folderID != "" {
-			fID = &folderID
-		}
 
 		response := models.File{
 			ID:             utility.GenerateUUID(),

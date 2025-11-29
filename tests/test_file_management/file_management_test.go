@@ -108,6 +108,43 @@ func TestFileManagement(t *testing.T) {
 		fileID = f["id"].(string)
 	})
 
+	t.Run("UploadDuplicateFile", func(t *testing.T) {
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("files", "test_file.txt")
+		if err != nil {
+			t.Fatal(err)
+		}
+		part.Write([]byte("This is a test file content"))
+		writer.Close()
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/files/upload-files?folder_id=%s", folderID), body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("UploadDuplicateFile failed with status %d. Response: %s", rr.Code, rr.Body.String())
+		}
+
+		resp := tests.ParseResponse(rr)
+		files, ok := resp["data"].([]interface{})
+		if !ok {
+			t.Fatalf("Expected data to be a list, got %T", resp["data"])
+		}
+		if len(files) == 0 {
+			t.Fatal("Expected at least one file in response")
+		}
+		f := files[0].(map[string]interface{})
+		duplicateFileID := f["id"].(string)
+
+		if duplicateFileID != fileID {
+			t.Errorf("Expected duplicate upload to return existing file ID %s, got %s", fileID, duplicateFileID)
+		}
+	})
+
 	t.Run("MoveFile", func(t *testing.T) {
 		reqBody := map[string]string{
 			"folder_id": folderID,

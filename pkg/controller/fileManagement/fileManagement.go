@@ -79,6 +79,11 @@ func (base *Controller) UploadController(c *gin.Context) {
 
 func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
+	if !utility.IsValidUUID(fileId) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
 	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
 	if err != nil {
@@ -94,6 +99,11 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 
 func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
+	if !utility.IsValidUUID(fileId) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 	thread_id := c.Query("thread_id")
 
 	if _, err := uuid.Parse(thread_id); thread_id != "" && err != nil {
@@ -124,6 +134,11 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 func (base *Controller) UpdateFileName(c *gin.Context) {
 	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		base.Logger.Info("error getting claims")
@@ -168,6 +183,12 @@ func (base *Controller) CreateFolder(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if req.ParentID != nil && !utility.IsValidUUID(*req.ParentID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid parent_id format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
