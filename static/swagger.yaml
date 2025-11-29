@@ -4563,6 +4563,351 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/search-members:
+    post:
+      tags:
+        - buzz
+      summary: Search channel members to invite
+      description: Searches for channel members that can be invited to an active buzz. Returns member information including whether they are already in the buzz or have pending invitations.
+      operationId: searchChannelMembers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchChannelMembersRequest"
+            example:
+              channel_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              query: "john"
+              limit: 50
+      responses:
+        "200":
+          description: Members retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/SearchChannelMembersResponse"
+              example:
+                status: "success"
+                status_code: 200
+                message: "members retrieved successfully"
+                data:
+                  members:
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      username: "johndoe"
+                      full_name: "John Doe"
+                      email: "john@example.com"
+                      avatar_url: "https://example.com/avatar.jpg"
+                      is_in_buzz: false
+                      is_invited: false
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      username: "janesmith"
+                      full_name: "Jane Smith"
+                      email: "jane@example.com"
+                      avatar_url: "https://example.com/avatar2.jpg"
+                      is_in_buzz: true
+                      is_invited: false
+                  total: 2
+        "400":
+          description: Bad Request (Invalid request body)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User is not a member of the channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or not active)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/invite:
+    post:
+      tags:
+        - buzz
+      summary: Invite users to a buzz
+      description: Sends invitations to multiple users to join an active buzz. Inviter must be an active participant. Invitees receive real-time notifications via Centrifuge. Users already in the buzz or not in the channel are skipped gracefully.
+      operationId: inviteUsersToBuzz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteUsersToBuzzRequest"
+            example:
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              invitee_ids:
+                - "019acc68-ad4f-721e-9c4b-d2064d445226"
+                - "019acc68-ad4f-721e-9c4b-d2064d445227"
+                - "019acc68-ad4f-721e-9c4b-d2064d445228"
+      responses:
+        "201":
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InviteUsersToBuzzResponse"
+              example:
+                status: "success"
+                status_code: 201
+                message: "successfully sent 2 invitation(s)"
+                data:
+                  buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  invited_user_ids:
+                    - "019acc68-ad4f-721e-9c4b-d2064d445226"
+                    - "019acc68-ad4f-721e-9c4b-d2064d445227"
+                  failed_user_ids:
+                    - "019acc68-ad4f-721e-9c4b-d2064d445228"
+                  invitations_sent: 2
+                  message: "sent 2 invitation(s), 1 failed"
+        "400":
+          description: Bad Request (Invalid request or no invitations sent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User is not an active participant in the buzz)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or not active)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/invitation/respond:
+    post:
+      tags:
+        - buzz
+      summary: Accept or decline a buzz invitation
+      description: Allows a user to respond to a buzz invitation. If accepted, the user automatically joins the buzz and receives an Agora RTC token. If declined, the invitation is marked as declined and can be re-sent later.
+      operationId: respondToInvitation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RespondToInvitationRequest"
+            examples:
+              accept:
+                summary: Accept invitation
+                value:
+                  invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  accept: true
+              decline:
+                summary: Decline invitation
+                value:
+                  invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  accept: false
+      responses:
+        "200":
+          description: Invitation responded to successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/RespondToInvitationResponse"
+              examples:
+                accepted:
+                  summary: Invitation accepted
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "invitation accepted and joined buzz"
+                    data:
+                      invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      status: "accepted"
+                      agora_token:
+                        token: "007eJxSYOCa/57rpumU/+Xvr7db8M1lqsVCQpYTdK..."
+                        app_id: "your-agora-app-id"
+                        channel_name: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                        uid: 0
+                declined:
+                  summary: Invitation declined
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "invitation declined"
+                    data:
+                      invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      status: "declined"
+        "400":
+          description: Bad Request (Invalid request or invitation already responded to)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User is not authorized to respond to this invitation)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Invitation does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "410":
+          description: Gone (Buzz has ended, invitation expired)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/invitations/pending:
+    get:
+      tags:
+        - buzz
+      summary: Get pending invitations
+      description: Retrieves all pending buzz invitations for the authenticated user. Only returns invitations that have not been accepted, declined, or expired.
+      operationId: getPendingInvitations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pending invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          invitations:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                invitation_id:
+                                  type: string
+                                  format: uuid
+                                buzz_id:
+                                  type: string
+                                  format: uuid
+                                channel_id:
+                                  type: string
+                                  format: uuid
+                                inviter_id:
+                                  type: string
+                                  format: uuid
+                                inviter_name:
+                                  type: string
+                                status:
+                                  type: string
+                                invited_at:
+                                  type: string
+                                  format: date-time
+                          total:
+                            type: integer
+                            example: 2
+              example:
+                status: "success"
+                status_code: 200
+                message: "pending invitations retrieved"
+                data:
+                  invitations:
+                    - invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      channel_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      inviter_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                      inviter_name: "johndoe"
+                      status: "pending"
+                      invited_at: "2024-01-15T10:30:00Z"
+                    - invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445229"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445230"
+                      channel_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      inviter_id: "019acc68-ad4f-721e-9c4b-d2064d445231"
+                      inviter_name: "janesmith"
+                      status: "pending"
+                      invited_at: "2024-01-15T11:00:00Z"
+                  total: 2
+        "401":
+          description: Unauthorized (Authentication required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /subscriptions/list/{orgId}:
     get:
       summary: List subscriptions for an organization
@@ -21328,6 +21673,167 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    SearchChannelMembersRequest:
+      type: object
+      required:
+        - channel_id
+        - buzz_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the channel
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the buzz
+          example: "019acc68-ad4f-721e-9c4b-d2064d445226"
+        query:
+          type: string
+          description: Optional search term to filter members by name or email
+          example: "john"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum number of members to return (default 50)
+          example: 50
+
+    ChannelMemberInfo:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        username:
+          type: string
+          example: "johndoe"
+        full_name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/avatar.jpg"
+        is_in_buzz:
+          type: boolean
+          description: Whether the user is currently in the buzz
+          example: false
+        is_invited:
+          type: boolean
+          description: Whether the user has a pending invitation
+          example: false
+
+    SearchChannelMembersResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelMemberInfo"
+        total:
+          type: integer
+          example: 25
+
+    InviteUsersToBuzzRequest:
+      type: object
+      required:
+        - buzz_id
+        - invitee_ids
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the buzz
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        invitee_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs to invite to the buzz
+          example:
+            - "019acc68-ad4f-721e-9c4b-d2064d445226"
+            - "019acc68-ad4f-721e-9c4b-d2064d445227"
+
+    InviteUsersToBuzzResponse:
+      type: object
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        invited_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs successfully invited
+          example:
+            - "019acc68-ad4f-721e-9c4b-d2064d445226"
+        failed_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs that failed to receive invitations
+          example:
+            - "019acc68-ad4f-721e-9c4b-d2064d445227"
+        invitations_sent:
+          type: integer
+          description: Number of invitations successfully sent
+          example: 1
+        message:
+          type: string
+          example: "sent 1 invitation(s), 1 failed"
+
+    RespondToInvitationRequest:
+      type: object
+      required:
+        - invitation_id
+        - accept
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the invitation
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        accept:
+          type: boolean
+          description: True to accept the invitation, false to decline
+          example: true
+
+    RespondToInvitationResponse:
+      type: object
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        buzz_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445226"
+        status:
+          type: string
+          enum: [accepted, declined]
+          example: "accepted"
+        message:
+          type: string
+          example: "invitation accepted and joined buzz"
+        agora_token:
+          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+          description: Agora token for joining the buzz (only present if accepted)
+
 
     CreateBuzzRequest:
       type: object
