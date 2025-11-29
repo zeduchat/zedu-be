@@ -356,6 +356,12 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
 	logger.Info(buzz.Status)
 
+	if buzzEnded {
+		if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
+			logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
+		}
+	}
+
 	return &models.BuzzLeaveResponse{
 		BuzzID:        buzzID,
 		ParticipantID: userID,
