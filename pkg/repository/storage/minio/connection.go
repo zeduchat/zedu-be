@@ -14,10 +14,9 @@ import (
 
 func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Client {
 	vsn := configBucket
-
 	minioClient, err := minio.New(vsn.MinioEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(vsn.AccessKey, vsn.Secret, ""),
-		Secure: vsn.UseSSL,
+		Secure: true,
 	})
 
 	if err != nil {
@@ -36,13 +35,8 @@ func ConnectToMinio(logger *utility.Logger, configBucket config.Minio) *minio.Cl
 	if exists {
 		utility.LogAndPrint(logger, fmt.Sprintf("Bucket %s exists", vsn.BucketName))
 	} else {
-		utility.LogAndPrint(logger, fmt.Sprintf("Bucket %s does not exist. Creating it...", vsn.BucketName))
-		err = minioClient.MakeBucket(context.Background(), vsn.BucketName, minio.MakeBucketOptions{})
-		if err != nil {
-			utility.LogAndPrint(logger, fmt.Sprintf("Failed to create bucket: %v", err))
-			return nil
-		}
-		utility.LogAndPrint(logger, fmt.Sprintf("Successfully created bucket %s", vsn.BucketName))
+		utility.LogAndPrint(logger, fmt.Sprintf("Bucket does not %s exists", vsn.BucketName))
+		return nil
 	}
 
 	storage.DB.Minio = minioClient

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
-	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	storage "github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -15,40 +14,19 @@ import (
 )
 
 type UploadRequest struct {
-	Files    []*multipart.FileHeader `form:"files" binding:"required"`
-	FolderID string                  `form:"folder_id"`
+	Files []*multipart.FileHeader `form:"files" binding:"required"`
 }
 
 type RenameFileRequest struct {
 	FileName string `json:"file_name" binding:"required" validate:"required,min=1,max=255"`
 }
 
-type File struct {
-	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	FileName       string         `gorm:"column:file_name; not null" json:"file_name"`
-	FileType       string         `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
-	MimeType       string         `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
-	FileLink       string         `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
-	Size           int64          `gorm:"column:size" json:"size"`
-	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
-	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
-	FolderID       *string        `gorm:"column:folder_id; type:uuid" json:"folder_id"`
-	ChannelID      *string        `gorm:"column:channel_id; type:uuid" json:"channel_id"`
-	MessageID      *string        `gorm:"column:message_id; type:uuid" json:"message_id"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
-}
-
-type Folder struct {
-	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	Name           string         `gorm:"column:name; type:varchar(255); not null" json:"name"`
-	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
-	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
-	ParentID       *string        `gorm:"column:parent_id; type:uuid" json:"parent_id"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+type UploadedFileResponse struct {
+	ID       string `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
+	FileName string `gorm:"column:file_name; not null" json:"file_name"`
+	FileType string `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
+	MimeType string `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
+	FileLink string `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
 }
 
 type FileType struct {
@@ -56,7 +34,7 @@ type FileType struct {
 	Category string `json:"category"`
 }
 
-func (file *File) CreateFileRecord(db *gorm.DB) error {
+func (file *UploadedFileResponse) CreateFileRecord(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, &file)
 	if err != nil {
 		return err
@@ -64,7 +42,7 @@ func (file *File) CreateFileRecord(db *gorm.DB) error {
 	return nil
 }
 
-func (file *File) GetFileByID(db *gorm.DB, fileID string) (*File, error) {
+func (file *UploadedFileResponse) GetFileByID(db *gorm.DB, fileID string) (*UploadedFileResponse, error) {
 	query := db.Where("id = ?", fileID)
 
 	err := query.First(&file).Error
@@ -75,7 +53,7 @@ func (file *File) GetFileByID(db *gorm.DB, fileID string) (*File, error) {
 	return file, nil
 }
 
-func (file *File) GetFileCountByLink(db *gorm.DB, fileLink string) (int64, error) {
+func (file *UploadedFileResponse) GetFileCountByLink(db *gorm.DB, fileLink string) (int64, error) {
 	var count int64
 
 	err := db.Model(&file).Where("file_link = ?", fileLink).Count(&count).Error
@@ -86,8 +64,8 @@ func (file *File) GetFileCountByLink(db *gorm.DB, fileLink string) (int64, error
 	return count, nil
 }
 
-func (file *File) UpdateFileName(db *gorm.DB, fileID string, newFileName string) error {
-	err := db.Model(&File{}).Where("id = ?", fileID).Update("file_name", newFileName).Error
+func (file *UploadedFileResponse) UpdateFileName(db *gorm.DB, fileID string, newFileName string) error {
+	err := db.Model(&UploadedFileResponse{}).Where("id = ?", fileID).Update("file_name", newFileName).Error
 	if err != nil {
 		return err
 	}
@@ -95,10 +73,10 @@ func (file *File) UpdateFileName(db *gorm.DB, fileID string, newFileName string)
 	return err
 }
 
-func (file *File) DeleteFileByID(db *gorm.DB, fileID string) error {
+func (file *UploadedFileResponse) DeleteFileByID(db *gorm.DB, fileID string) error {
 	query := db.Where("id = ?", fileID)
 
-	err := query.Delete(&File{}).Error
+	err := query.Delete(&UploadedFileResponse{}).Error
 	if err != nil {
 		return err
 	}
