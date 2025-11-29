@@ -1,2 +1,2 @@
-CREATE UNIQUE INDEX IF NOT EXISTS idx_organisation_integrations_pre_shared_key
+CREATE UNIQUE INDEX idx_organisation_integrations_pre_shared_key
 ON organisation_integrations (pre_shared_key);
