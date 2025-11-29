@@ -10,29 +10,46 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
+	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 )
 
+// mapPermissionError maps permission errors to HTTP status codes and user-friendly messages
+func mapPermissionError(err error, action string) (int, string) {
+	switch err {
+	case permissions.ErrBuzzNotFound:
+		return http.StatusNotFound, "buzz does not exist"
+	case permissions.ErrBuzzEnded:
+		return http.StatusConflict, "buzz has ended"
+	case permissions.ErrNotChannelMember:
+		return http.StatusForbidden, "user is not a member of the channel"
+	case permissions.ErrAlreadyInBuzz:
+		return http.StatusBadRequest, "user is already in the buzz"
+	case permissions.ErrNotHost:
+		return http.StatusForbidden, "only the buzz host can perform this action"
+	case permissions.ErrNotActiveParticipant:
+		return http.StatusForbidden, "you must be an active participant"
+	case permissions.ErrChannelNotFound:
+		return http.StatusNotFound, "channel does not exist"
+	case permissions.ErrBuzzAlreadyActive:
+		return http.StatusConflict, "channel already has an active buzz"
+	default:
+		return http.StatusInternalServerError, fmt.Sprintf("failed to validate %s permissions", action)
+	}
+}
+
 // CreateBuzz creates a new buzz, adds the host as the first participant, and emits a realtime event.
 func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
 
-	// Validate permissions (channel existence, host membership, concurrent buzz prevention)
+	// Validate permissions using centralized permission check
 	err := permissions.CanCreateBuzz(db.Postgresql, req.ChannelID, hostID)
 	if err != nil {
-		if err == permissions.ErrChannelNotFound {
-			return resp, http.StatusNotFound, errors.New("channel does not exist")
-		}
-		if err == permissions.ErrNotChannelMember {
-			return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
-		}
-		if err == permissions.ErrBuzzAlreadyActive {
-			return resp, http.StatusConflict, errors.New("channel already has an active buzz")
-		}
-		logger.Error("permission validation failed: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to validate permissions")
+		statusCode, errMsg := mapPermissionError(err, "create")
+		logger.Error("permission check failed for user %s creating buzz in channel %s: %v", hostID, req.ChannelID, err)
+		return resp, statusCode, errors.New(errMsg)
 	}
 
 	now := time.Now().UTC()
@@ -77,6 +94,17 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, http.StatusInternalServerError, errors.New("failed to create buzz")
 	}
 
+	// Generate Agora token for the host (optional - don't fail creation if token generation fails)
+	var agoraTokenPtr *models.BuzzAgoraTokenResponse
+	agoraTokenResp, _, err := agora.GetAgoraToken(db, logger, buzz.ID, hostID)
+	if err != nil {
+		logger.Error("failed to generate Agora token for host %s: %v", hostID, err)
+		// Set to nil if token generation fails, but allow creation to proceed
+		agoraTokenPtr = nil
+	} else {
+		agoraTokenPtr = &agoraTokenResp
+	}
+
 	resp = models.BuzzCreateResponse{
 		BuzzID:         buzz.ID,
 		HostID:         buzz.HostID,
@@ -85,6 +113,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		CreatedAt:      buzz.CreatedAt,
 		StartedAt:      buzz.BuzzStartTime,
 		ParticipantIDs: participants,
+		AgoraToken:     agoraTokenPtr,
 	}
 
 	eventPayload := models.BuzzEventPayload{
@@ -116,20 +145,37 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.JoinBuzzResponse, int, error) {
 	var resp models.JoinBuzzResponse
 
-	buzz, statusCode, err := validateJoinBuzz(db, logger, buzzID, userID)
+	// Validate all join permissions using centralized permission check
+	buzz, err := permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
 	if err != nil {
-		return resp, statusCode, err
+		statusCode, errMsg := mapPermissionError(err, "join")
+		logger.Error("permission check failed for user %s joining buzz %s: %v", userID, buzzID, err)
+		return resp, statusCode, errors.New(errMsg)
 	}
 
 	timestamp := time.Now().UTC()
 
-	if err := addUserToBuzzTransaction(db, logger, &buzz, userID, timestamp); err != nil {
-		return resp, http.StatusBadRequest, err
+	// Add user to buzz in transaction
+	if err := addUserToBuzzTransaction(db, logger, buzz, userID, timestamp); err != nil {
+		logger.Error("failed to add user to buzz transaction: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to join buzz")
 	}
 
-	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
+	// Fetch updated buzz with new participant
+	if err := db.Postgresql.Where("id = ?", buzzID).First(buzz).Error; err != nil {
 		logger.Error("failed to fetch updated buzz: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated buzz")
+	}
+
+	// Generate Agora token for the user (optional - don't fail join if token generation fails)
+	var agoraTokenPtr *models.BuzzAgoraTokenResponse
+	agoraTokenResp, _, err := agora.GetAgoraToken(db, logger, buzzID, userID)
+	if err != nil {
+		logger.Error("failed to generate Agora token for user %s: %v", userID, err)
+		// Set to nil if token generation fails, but allow join to proceed
+		agoraTokenPtr = nil
+	} else {
+		agoraTokenPtr = &agoraTokenResp
 	}
 
 	resp = models.JoinBuzzResponse{
@@ -139,77 +185,28 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		Status:         buzz.Status,
 		JoinedAt:       timestamp,
 		ParticipantIDs: buzz.ParticipantIDs,
+		AgoraToken:     agoraTokenPtr,
 	}
 
-	publishJoinBuzzEvent(logger, buzz, timestamp)
+	publishJoinBuzzEvent(logger, *buzz, timestamp)
 
 	return resp, http.StatusOK, nil
 }
 
-func validateJoinBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
-	buzz, status, err := validateBuzz(db, logger, buzzID, userID)
-
-	if err != nil {
-		logger.Error("failed to validate buzz: %v", err)
-		return buzz, status, err
-	}
-
-	return buzz, http.StatusOK, nil
-
-}
-
 func validateLeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
-	buzz, status, err := validateBuzz(db, logger, buzzID, userID)
-
-	if err != nil {
-		logger.Error("failed to validate buzz: %v", err)
-		return buzz, status, err
-	}
-
-	if buzz.Status != models.BuzzStatusActive {
-		return buzz, http.StatusBadRequest, fmt.Errorf("call has ended.")
-	}
-
-	seenUser := false
-	for _, participantID := range buzz.ParticipantIDs {
-		if participantID == userID {
-			seenUser = true
-			break
-		}
-	}
-	if !(seenUser) {
-		return buzz, http.StatusBadRequest, errors.New("user is not in the buzz")
-	}
-
-	return buzz, http.StatusOK, nil
-}
-
-func validateBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.Buzz, int, error) {
 	var buzz models.Buzz
 
-	// Validate permissions (buzz state, channel membership, not already in buzz)
-	activeBuzz, err := permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
+	// Use CanPerformBuzzAction to validate: buzz is active AND user is an active participant
+	activeBuzz, err := permissions.CanPerformBuzzAction(db.Postgresql, buzzID, userID)
 	if err != nil {
-		if err == permissions.ErrBuzzNotFound {
-			return buzz, http.StatusNotFound, errors.New("buzz does not exist")
-		}
-		if err == permissions.ErrBuzzEnded {
-			return buzz, http.StatusConflict, errors.New("buzz has ended")
-		}
-		if err == permissions.ErrNotChannelMember {
-			return buzz, http.StatusForbidden, errors.New("user is not a member of the channel")
-		}
-		if err == permissions.ErrAlreadyInBuzz {
-			return buzz, http.StatusBadRequest, errors.New("user is already in the buzz")
-		}
-		logger.Error("failed to validate join permissions: %v", err)
-		return buzz, http.StatusInternalServerError, errors.New("failed to validate permissions")
+		statusCode, errMsg := mapPermissionError(err, "leave")
+		logger.Error("permission check failed for user %s leaving buzz %s: %v", userID, buzzID, err)
+		return buzz, statusCode, errors.New(errMsg)
 	}
 
 	buzz = *activeBuzz
 
 	return buzz, http.StatusOK, nil
-
 }
 
 func addUserToBuzzTransaction(db *storage.Database, logger *utility.Logger, buzz *models.Buzz, userID string, timestamp time.Time) error {
@@ -358,6 +355,12 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 
 	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
 	logger.Info(buzz.Status)
+
+	if buzzEnded {
+		if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
+			logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
+		}
+	}
 
 	return &models.BuzzLeaveResponse{
 		BuzzID:        buzzID,

@@ -104,6 +104,8 @@ tags:
     description: API endpoints for agents tasks
   - name: Translator
     description: API endpoints for telex markdown to json formatting engine
+  - name: buzz
+    description: API endpoints for buzz (audio/video calls) feature
 
 paths:
   # Auth paths
@@ -4560,6 +4562,351 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/search-members:
+    post:
+      tags:
+        - buzz
+      summary: Search channel members to invite
+      description: Searches for channel members that can be invited to an active buzz. Returns member information including whether they are already in the buzz or have pending invitations.
+      operationId: searchChannelMembers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchChannelMembersRequest"
+            example:
+              channel_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              query: "john"
+              limit: 50
+      responses:
+        "200":
+          description: Members retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/SearchChannelMembersResponse"
+              example:
+                status: "success"
+                status_code: 200
+                message: "members retrieved successfully"
+                data:
+                  members:
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      username: "johndoe"
+                      full_name: "John Doe"
+                      email: "john@example.com"
+                      avatar_url: "https://example.com/avatar.jpg"
+                      is_in_buzz: false
+                      is_invited: false
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      username: "janesmith"
+                      full_name: "Jane Smith"
+                      email: "jane@example.com"
+                      avatar_url: "https://example.com/avatar2.jpg"
+                      is_in_buzz: true
+                      is_invited: false
+                  total: 2
+        "400":
+          description: Bad Request (Invalid request body)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User is not a member of the channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or not active)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/invite:
+    post:
+      tags:
+        - buzz
+      summary: Invite users to a buzz
+      description: Sends invitations to multiple users to join an active buzz. Inviter must be an active participant. Invitees receive real-time notifications via Centrifuge. Users already in the buzz or not in the channel are skipped gracefully.
+      operationId: inviteUsersToBuzz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteUsersToBuzzRequest"
+            example:
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              invitee_ids:
+                - "019acc68-ad4f-721e-9c4b-d2064d445226"
+                - "019acc68-ad4f-721e-9c4b-d2064d445227"
+                - "019acc68-ad4f-721e-9c4b-d2064d445228"
+      responses:
+        "201":
+          description: Invitations sent successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/InviteUsersToBuzzResponse"
+              example:
+                status: "success"
+                status_code: 201
+                message: "successfully sent 2 invitation(s)"
+                data:
+                  buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  invited_user_ids:
+                    - "019acc68-ad4f-721e-9c4b-d2064d445226"
+                    - "019acc68-ad4f-721e-9c4b-d2064d445227"
+                  failed_user_ids:
+                    - "019acc68-ad4f-721e-9c4b-d2064d445228"
+                  invitations_sent: 2
+                  message: "sent 2 invitation(s), 1 failed"
+        "400":
+          description: Bad Request (Invalid request or no invitations sent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User is not an active participant in the buzz)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or not active)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/invitation/respond:
+    post:
+      tags:
+        - buzz
+      summary: Accept or decline a buzz invitation
+      description: Allows a user to respond to a buzz invitation. If accepted, the user automatically joins the buzz and receives an Agora RTC token. If declined, the invitation is marked as declined and can be re-sent later.
+      operationId: respondToInvitation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RespondToInvitationRequest"
+            examples:
+              accept:
+                summary: Accept invitation
+                value:
+                  invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  accept: true
+              decline:
+                summary: Decline invitation
+                value:
+                  invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  accept: false
+      responses:
+        "200":
+          description: Invitation responded to successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/RespondToInvitationResponse"
+              examples:
+                accepted:
+                  summary: Invitation accepted
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "invitation accepted and joined buzz"
+                    data:
+                      invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      status: "accepted"
+                      agora_token:
+                        token: "007eJxSYOCa/57rpumU/+Xvr7db8M1lqsVCQpYTdK..."
+                        app_id: "your-agora-app-id"
+                        channel_name: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                        uid: 0
+                declined:
+                  summary: Invitation declined
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "invitation declined"
+                    data:
+                      invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      status: "declined"
+        "400":
+          description: Bad Request (Invalid request or invitation already responded to)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User is not authorized to respond to this invitation)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Invitation does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "410":
+          description: Gone (Buzz has ended, invitation expired)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/invitations/pending:
+    get:
+      tags:
+        - buzz
+      summary: Get pending invitations
+      description: Retrieves all pending buzz invitations for the authenticated user. Only returns invitations that have not been accepted, declined, or expired.
+      operationId: getPendingInvitations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pending invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          invitations:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                invitation_id:
+                                  type: string
+                                  format: uuid
+                                buzz_id:
+                                  type: string
+                                  format: uuid
+                                channel_id:
+                                  type: string
+                                  format: uuid
+                                inviter_id:
+                                  type: string
+                                  format: uuid
+                                inviter_name:
+                                  type: string
+                                status:
+                                  type: string
+                                invited_at:
+                                  type: string
+                                  format: date-time
+                          total:
+                            type: integer
+                            example: 2
+              example:
+                status: "success"
+                status_code: 200
+                message: "pending invitations retrieved"
+                data:
+                  invitations:
+                    - invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      channel_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      inviter_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                      inviter_name: "johndoe"
+                      status: "pending"
+                      invited_at: "2024-01-15T10:30:00Z"
+                    - invitation_id: "019acc68-ad4f-721e-9c4b-d2064d445229"
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445230"
+                      channel_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      inviter_id: "019acc68-ad4f-721e-9c4b-d2064d445231"
+                      inviter_name: "janesmith"
+                      status: "pending"
+                      invited_at: "2024-01-15T11:00:00Z"
+                  total: 2
+        "401":
+          description: Unauthorized (Authentication required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /subscriptions/list/{orgId}:
     get:
@@ -14336,14 +14683,11 @@ paths:
             schema:
               type: object
               properties:
-                  files:
-                    type: array
-                    items:
-                      type: string
-                      format: binary
-                  folder_id:
+                files:
+                  type: array
+                  items:
                     type: string
-                    description: Folder ID
+                    format: binary
       security:
         - bearerAuth: []
       responses:
@@ -14461,8 +14805,25 @@ paths:
                     type: string
                     example: "Files located successfully"
                   data:
-                    $ref: "#/components/schemas/File"
-
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Deployment and Rollback Procedure.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
         "404":
           description: File not found
           content:
@@ -14651,7 +15012,25 @@ paths:
                     type: string
                     example: "File name updated successfully"
                   data:
-                    $ref: '#/components/schemas/File'
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      file_name:
+                        type: string
+                        example: "Updated Document.pdf"
+                      file_type:
+                        type: string
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
         "400":
           description: Bad request - invalid file name
           content:
@@ -20822,6 +21201,162 @@ paths:
                     credentials: {}
 
 
+  /buzz/token:
+    post:
+      tags:
+        - buzz
+      summary: Get Agora RTC token
+      description: Generates an Agora RTC token for a user to connect to a buzz audio/video channel. User must be an active participant in the buzz. Token expires dynamically based on buzz duration (max 4 hours).
+      responses:
+        "200":
+          description: Agora token generated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+              example:
+                status: "success"
+                status_code: 200
+                message: "Agora token generated successfully"
+                data:
+                  token: "007eJxSYOCa/57rpumU/+Xvr7db8M1lqsVCQpYTdK..."
+                  app_id: "your-agora-app-id"
+                  channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  uid: 0
+        "400":
+          description: Bad Request (Invalid buzz ID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User not a participant in the buzz)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or not active)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+              $ref: "#/components/schemas/CreateBuzzRequest"
+  /buzz/create:
+    post:
+      tags:
+        - buzz
+      summary: Create a new buzz (video/audio call)
+      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token.
+      operationId: createBuzz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuzzAgoraTokenRequest"
+            example:
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+      responses:
+        "201":
+          description: Buzz created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzCreateResponse"
+        "400":
+          description: Bad request - invalid channel ID or active buzz already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - channel does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/{id}/join:
+    post:
+      tags:
+        - buzz
+      summary: Join a buzz (video/audio call)
+      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token for real-time communication.
+      operationId: joinBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz to join
+      responses:
+        "200":
+          description: Successfully joined the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzJoinResponseSchema"
+        "400":
+          description: Bad request - buzz not active or already a participant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz or channel does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /buzz/{id}/camera:
     patch:
       tags:
@@ -21083,311 +21618,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-
-  /files/folders:
-    post:
-      tags:
-        - File Management
-      summary: Create folder
-      description: Create a new folder for organizing files
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                parent_id:
-                  type: string
-              required:
-                - name
-      responses:
-        "201":
-          description: Folder created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: Folder created successfully
-                  status_code:
-                    type: integer
-                    example: 201
-                  data:
-                    $ref: "#/components/schemas/Folder"
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-    get:
-      tags:
-        - File Management
-      summary: Get folders
-      description: Get list of folders, optionally filtered by parent folder
-      parameters:
-        - in: query
-          name: parent_id
-          schema:
-            type: string
-          required: false
-          description: Parent Folder ID
-      responses:
-        "200":
-          description: Folders fetched successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: Folders fetched successfully
-                  status_code:
-                    type: integer
-                    example: 200
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Folder"
-        "500":
-          description: Failed to fetch folders
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
-  /files/folders/{id}:
-    delete:
-      tags:
-        - File Management
-      summary: Delete folder
-      description: Delete a folder and its contents (soft delete)
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: Folder ID
-      responses:
-        "200":
-          description: Folder deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: Folder deleted successfully
-                  status_code:
-                    type: integer
-                    example: 200
-        "500":
-          description: Failed to delete folder
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
-  /files/{id}/move:
-    put:
-      tags:
-        - File Management
-      summary: Move file
-      description: Move a file to a different folder
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: File ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                folder_id:
-                  type: string
-              required:
-                - folder_id
-      responses:
-        "200":
-          description: File moved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: File moved successfully
-                  status_code:
-                    type: integer
-                    example: 200
-                  data:
-                    $ref: "#/components/schemas/File"
-        "500":
-          description: Failed to move file
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
-
-
-  /files:
-    get:
-      tags:
-        - File Management
-      summary: Get files
-      description: Get list of files with filtering, searching, and pagination
-      parameters:
-        - in: query
-          name: mode
-          schema:
-            type: string
-            enum: [all, mine, shared, trash]
-          required: false
-          description: Mode (all, mine, shared, trash)
-        - in: query
-          name: folder_id
-          schema:
-            type: string
-          required: false
-          description: Folder ID
-        - in: query
-          name: search
-          schema:
-            type: string
-          required: false
-          description: Search term
-        - in: query
-          name: type
-          schema:
-            type: string
-          required: false
-          description: File type
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-          required: false
-          description: Page number
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-          required: false
-          description: Items per page
-      responses:
-        "200":
-          description: Files fetched successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: Files fetched successfully
-                  status_code:
-                    type: integer
-                    example: 200
-                  data:
-                    type: object
-                    properties:
-                      files:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/File"
-                      pagination:
-                        type: object
-                        properties:
-                          current_page:
-                            type: integer
-                          page_count:
-                            type: integer
-                          total_pages_count:
-                            type: integer
-                          total_items:
-                            type: integer
-        "500":
-          description: Failed to fetch files
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-
 components:
   schemas:
-    File:
-      type: object
-      properties:
-        id:
-          type: string
-        file_name:
-          type: string
-        file_type:
-          type: string
-        file_link:
-          type: string
-        size:
-          type: integer
-        folder_id:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        channel_id:
-          type: string
-        message_id:
-          type: string
-        owner_name:
-          type: string
-        owner_avatar:
-          type: string
-    Folder:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        parent_id:
-          type: string
-        created_at:
-          type: string
-          format: date-time
     OptInSchema:
       type: object
       required:
@@ -21412,6 +21644,440 @@ components:
         message:
           type: string
           example: "Email already opted in, please use a different email or stay tuned"
+
+    UpdateCameraRequest:
+      type: object
+      required:
+        - user_id
+        - status
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user updating the camera
+        status:
+          type: boolean
+          description: True for camera ON, False for camera OFF
+
+    UpdateCameraResponse:
+      type: object
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        is_camera_on:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+
+    SearchChannelMembersRequest:
+      type: object
+      required:
+        - channel_id
+        - buzz_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the channel
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the buzz
+          example: "019acc68-ad4f-721e-9c4b-d2064d445226"
+        query:
+          type: string
+          description: Optional search term to filter members by name or email
+          example: "john"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum number of members to return (default 50)
+          example: 50
+
+    ChannelMemberInfo:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        username:
+          type: string
+          example: "johndoe"
+        full_name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/avatar.jpg"
+        is_in_buzz:
+          type: boolean
+          description: Whether the user is currently in the buzz
+          example: false
+        is_invited:
+          type: boolean
+          description: Whether the user has a pending invitation
+          example: false
+
+    SearchChannelMembersResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelMemberInfo"
+        total:
+          type: integer
+          example: 25
+
+    InviteUsersToBuzzRequest:
+      type: object
+      required:
+        - buzz_id
+        - invitee_ids
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the buzz
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        invitee_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs to invite to the buzz
+          example:
+            - "019acc68-ad4f-721e-9c4b-d2064d445226"
+            - "019acc68-ad4f-721e-9c4b-d2064d445227"
+
+    InviteUsersToBuzzResponse:
+      type: object
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        invited_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs successfully invited
+          example:
+            - "019acc68-ad4f-721e-9c4b-d2064d445226"
+        failed_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs that failed to receive invitations
+          example:
+            - "019acc68-ad4f-721e-9c4b-d2064d445227"
+        invitations_sent:
+          type: integer
+          description: Number of invitations successfully sent
+          example: 1
+        message:
+          type: string
+          example: "sent 1 invitation(s), 1 failed"
+
+    RespondToInvitationRequest:
+      type: object
+      required:
+        - invitation_id
+        - accept
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+          description: The unique UUID of the invitation
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        accept:
+          type: boolean
+          description: True to accept the invitation, false to decline
+          example: true
+
+    RespondToInvitationResponse:
+      type: object
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        buzz_id:
+          type: string
+          format: uuid
+          example: "019acc68-ad4f-721e-9c4b-d2064d445226"
+        status:
+          type: string
+          enum: [accepted, declined]
+          example: "accepted"
+        message:
+          type: string
+          example: "invitation accepted and joined buzz"
+        agora_token:
+          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+          description: Agora token for joining the buzz (only present if accepted)
+
+
+    CreateBuzzRequest:
+      type: object
+      required:
+        - channel_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz will be created
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+
+    BuzzCreateResponse:
+      type: object
+      required:
+        - buzz_id
+        - host_id
+        - channel_id
+        - status
+        - created_at
+        - started_at
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the created buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the user who created the buzz (host)
+          example: "7ca8c921-adbe-22e2-91c5-11d15fd541d9"
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz is created
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        status:
+          type: string
+          description: Current status of the buzz
+          enum: [active, ended]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the buzz was created (UTC)
+          example: "2024-11-27T10:00:00Z"
+        started_at:
+          type: string
+          format: date-time
+          description: Timestamp when the buzz started (UTC)
+          example: "2024-11-27T10:00:00Z"
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of participant IDs (initially just the host)
+          example: ["7ca8c921-adbe-22e2-91c5-11d15fd541d9"]
+        agora_token:
+          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+
+    BuzzJoinResponseSchema:
+      type: object
+      required:
+        - buzz_id
+        - channel_id
+        - user_id
+        - status
+        - joined_at
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz is happening
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user who joined
+          example: "7ca8c921-adbe-22e2-91c5-11d15fd541d9"
+        status:
+          type: string
+          description: Current status of the buzz
+          example: "active"
+        joined_at:
+          type: string
+          format: date-time
+          description: Timestamp when the user joined the buzz (UTC)
+          example: "2024-11-27T10:15:30Z"
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of all current participant IDs in the buzz
+          example: ["7ca8c921-adbe-22e2-91c5-11d15fd541d9", "8db9d032-becd-33f3-a2d6-22e26ge652e0"]
+        agora_token:
+          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+
+    BuzzAgoraTokenResponse:
+      type: object
+      required:
+        - token
+        - app_id
+        - channel_name
+        - uid
+      properties:
+        token:
+          type: string
+          description: The Agora RTC token for authentication
+          example: "006abcd1234567890efghijklmnopqrstuvwxyz"
+        app_id:
+          type: string
+          description: The Agora application ID
+          example: "a1b2c3d4e5f6g7h8i9j0"
+        channel_name:
+          type: string
+          description: The Agora channel name (usually the buzz ID)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        uid:
+          type: integer
+          format: uint32
+          description: The user's unique identifier in the Agora channel
+          example: 12345
+
+    BuzzLeaveResponseSchema:
+      type: object
+      required:
+        - buzz_id
+        - participant_id
+        - left_at
+        - buzz_ended
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        participant_id:
+          type: string
+          format: uuid
+          description: The ID of the user who left the buzz
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        new_host_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The new host ID if the previous host left (null if host didn't change)
+          example: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"
+        left_at:
+          type: string
+          format: date-time
+          description: Timestamp when the user left the buzz (UTC)
+          example: "2024-11-27T10:30:45Z"
+        buzz_ended:
+          type: boolean
+          description: Whether the buzz ended due to no participants remaining
+          example: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - message
+        - code
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: "error"
+        message:
+          type: string
+          description: Error message describing what went wrong
+          example: "user is not in the buzz"
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+
+    CreateBuzzNoteRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: The content of the note
+
+    UpdateBuzzNoteRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: The updated content of the note
+
+    BuzzNoteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buzz_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BuzzNotesListResponse:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuzzNoteResponse"
+
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Request successful"
+        status_code:
+          type: integer
+          example: 200
 
     GetAllIntegrationAppResponse:
       type: object
@@ -23217,19 +23883,6 @@ components:
         data:
           $ref: "#/components/schemas/JobPost"
 
-    ErrorResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: error
-        status_code:
-          type: integer
-          example: 400
-        message:
-          type: string
-          example: An error occurred
-
     addUserToOrganizationReq:
       type: object
       properties:
@@ -24849,6 +25502,134 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BuzzNoteResponse"
+
+    CreateBuzzRequest:
+      type: object
+      required:
+        - channel_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+          description: The UUID of the channel where the buzz will be created
+        organisation_id:
+          type: string
+          format: uuid
+          description: Optional organization ID
+      example:
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+
+    BuzzCreateResponse:
+      type: object
+      properties:
+        Buzz_id:
+          type: string
+          format: uuid
+          description: The unique ID of the created buzz
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the user who created the buzz
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel where the buzz was created
+        status:
+          type: string
+          enum: [active, ended]
+          description: Current status of the buzz
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Array of participant user IDs (initially contains only the host)
+      example:
+        Buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        status: "active"
+        created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        participant_ids: ["0198dd2d-7650-7ab7-b141-97e6ac2a7b43"]
+
+    JoinBuzzResponse:
+      type: object
+      properties:
+        Buzz_id:
+          type: string
+          format: uuid
+          description: The unique ID of the buzz
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel where the buzz is taking place
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user who joined
+        status:
+          type: string
+          enum: [active]
+          description: Participant status
+        joined_at:
+          type: string
+          format: date-time
+          description: When the user joined the buzz
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Updated array of all participant user IDs
+      example:
+        Buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        status: "active"
+        joined_at: "2025-11-28T12:05:00Z"
+        participant_ids: ["host-id", "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"]
+
+    BuzzAgoraTokenRequest:
+      type: object
+      required:
+        - buzz_id
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The UUID of the buzz to generate a token for
+      example:
+        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+
+    BuzzAgoraTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The Agora RTC token for connecting to the buzz channel
+        app_id:
+          type: string
+          description: The Agora App ID
+        channel_name:
+          type: string
+          description: The Agora channel name (same as buzz_id)
+        uid:
+          type: integer
+          description: User ID for Agora (0 for string-based accounts)
+      example:
+        token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
+        app_id: "your-agora-app-id"
+        channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        uid: 0
 
     RegisterDeviceTokenRequest:
       type: object
