@@ -197,6 +197,11 @@ func (base *Controller) GetFolders(c *gin.Context) {
 	parentID := c.Query("parent_id")
 	var pID *string
 	if parentID != "" {
+		if !utility.IsValidUUID(parentID) {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid parent_id format", nil, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
 		pID = &parentID
 	}
 
@@ -213,6 +218,11 @@ func (base *Controller) GetFolders(c *gin.Context) {
 
 func (base *Controller) DeleteFolder(c *gin.Context) {
 	folderID := c.Param("id")
+	if !utility.IsValidUUID(folderID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 	err := services.DeleteFolder(base.Db.Postgresql, folderID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete folder", err.Error(), nil)
@@ -225,11 +235,22 @@ func (base *Controller) DeleteFolder(c *gin.Context) {
 
 func (base *Controller) MoveFile(c *gin.Context) {
 	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 	var req struct {
 		FolderID string `json:"folder_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if !utility.IsValidUUID(req.FolderID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -252,7 +273,14 @@ func (base *Controller) GetFiles(c *gin.Context) {
 
 	queryParams := make(map[string]string)
 	queryParams["mode"] = c.Query("mode")
-	queryParams["folder_id"] = c.Query("folder_id")
+
+	folderID := c.Query("folder_id")
+	if folderID != "" && !utility.IsValidUUID(folderID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder_id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	queryParams["folder_id"] = folderID
 	queryParams["search"] = c.Query("search")
 	queryParams["type"] = c.Query("type")
 
