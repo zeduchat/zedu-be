@@ -52,12 +52,12 @@ type CreateBuzzRequest struct {
 
 // ParticipantMetadata contains detailed information about a buzz participant
 type ParticipantMetadata struct {
-	UserID    string  `json:"user_id"`
-	UserName  string  `json:"username"`
-	FullName  string  `json:"full_name"`
-	AvatarURL *string `json:"avatar_url,omitempty"`
-	JoinedAt  string  `json:"joined_at"`
-	Status    string  `json:"status"`
+	UserID    string 	 `json:"user_id"`
+	UserName  string 	 `json:"username"`
+	FullName  string 	 `json:"full_name"`
+	AvatarURL *string 	 `json:"avatar_url,omitempty"`
+	JoinedAt  time.Time  `json:"joined_at"`
+	Status    string 	 `json:"status"`
 }
 
 type BuzzCreateResponse struct {
