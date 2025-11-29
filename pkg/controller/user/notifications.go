@@ -9,9 +9,8 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func (base *Controller) GetUserNotificationSettings(c *gin.Context) {
-
-	respData, code, err := service.GetUserNotificationSettings(base.Db.Postgresql, c)
+func (base *Controller) GetUserNotificationPreferences(c *gin.Context) {
+	respData, code, err := service.GetUserNotificationPreferences(base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
@@ -43,7 +42,7 @@ func (base *Controller) UpdateUserNotificationSettings(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := service.UpdateUserNotificationSettings(req, base.Db.Postgresql, c)
+	respData, code, err := service.UpdateUserNotificationPreferences(req, base.Db.Postgresql, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
@@ -55,4 +54,47 @@ func (base *Controller) UpdateUserNotificationSettings(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User notification preferences updated successfully", respData)
 	c.JSON(http.StatusOK, rd)
 
+}
+
+func (base *Controller) GetNotificationSettings(c *gin.Context) {
+	respData, code, err := service.GetEffectiveNotificationSettings(base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "User notification settings retrieved successfully", respData)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) UpdateNotificationSetting(c *gin.Context) {
+	var req models.NotificationSettingsUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := service.UpdateUserNotificationSetting(req, base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "User notification settings updated successfully", respData)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) ResetNotificationSettings(c *gin.Context) {
+	code, err := service.ResetNotificationSettings(base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "User notification settings has been reset successfully", "")
+	c.JSON(code, rd)
 }
