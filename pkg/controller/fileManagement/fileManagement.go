@@ -3,7 +3,6 @@ package fileManagement
 import (
 	"math"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -284,13 +283,8 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	queryParams["search"] = c.Query("search")
 	queryParams["type"] = c.Query("type")
 
-	page, limit := 1, 10
-	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
-		page = p
-	}
-	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
-		limit = l
-	}
+	pagination := postgresql.GetPagination(c)
+	page, limit := pagination.Page, pagination.Limit
 
 	files, count, err := services.GetFiles(base.Db.Postgresql, orgID, userID, queryParams, page, limit)
 	if err != nil {
@@ -300,7 +294,7 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	}
 
 	totalPages := int(math.Ceil(float64(count) / float64(limit)))
-	pagination := postgresql.PaginationResponse{
+	paginationResponse := postgresql.PaginationResponse{
 		CurrentPage:     page,
 		PageCount:       len(files),
 		TotalPagesCount: totalPages,
@@ -309,7 +303,7 @@ func (base *Controller) GetFiles(c *gin.Context) {
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Files fetched successfully", map[string]interface{}{
 		"files":      files,
-		"pagination": pagination,
+		"pagination": paginationResponse,
 	})
 	c.JSON(http.StatusOK, rd)
 }
