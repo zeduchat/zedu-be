@@ -11,7 +11,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -30,8 +29,6 @@ import (
 func FormatFileName(filename string) string {
 	return strings.ReplaceAll(filename, " ", "_")
 }
-
-const maxFileSize = 200 * 1024 * 1024
 
 func DetectMimeType(file multipart.File) (string, error) {
 	buffer := make([]byte, 512)
@@ -87,29 +84,23 @@ func FileExists(logger *utility.Logger, fileName string) (bool, error) {
 	return true, fmt.Errorf("file %s exists in bucket %s", fileName, bucketName)
 }
 
-func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header *multipart.FileHeader, folderID, orgID, userID string) (*models.File, error) {
+func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFileParams) (*models.File, error) {
 	var generatedUrl string
 	minioClient := storage.DB.Minio
 	bucketName := config.Config.Minio.BucketName
 
-	if header.Size > maxFileSize {
-		errMsg := "file exceeds max size"
-		utility.LogAndPrint(logger, errMsg)
-		return nil, fmt.Errorf("file exceeds max size")
-	}
-
 	var fID *string
-	if folderID != "" {
-		fID = &folderID
+	if params.FolderID != "" {
+		fID = &params.FolderID
 	}
 
-	fileHash, hashErr := HashFile(file)
+	fileHash, hashErr := HashFile(params.File)
 	if hashErr != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("failed to hash file: %v", hashErr))
 		return nil, fmt.Errorf("failed to hash file: %v", hashErr)
 	}
 
-	if seeker, ok := file.(io.Seeker); ok {
+	if seeker, ok := params.File.(io.Seeker); ok {
 		_, err := seeker.Seek(0, io.SeekStart)
 		if err != nil {
 			utility.LogAndPrint(logger, fmt.Sprintf("failed to seek file: %v", err))
@@ -117,13 +108,13 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 		}
 	}
 
-	mimeType, mimeTypeErr := DetectMimeType(file)
+	mimeType, mimeTypeErr := DetectMimeType(params.File)
 	if mimeTypeErr != nil {
 		utility.LogAndPrint(logger, fmt.Sprintf("could not detect file type: %v", mimeTypeErr.Error()))
 		return nil, fmt.Errorf("could not detect file type: %w", mimeTypeErr)
 	}
 
-	extension := filepath.Ext(header.Filename)
+	extension := filepath.Ext(params.Header.Filename)
 	hashedFileName := fmt.Sprintf("%s%s", fileHash, extension)
 	encodedFilePath := "public/file-uploads/" + hashedFileName
 
@@ -147,7 +138,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 
 		// check if a file record with the same metadata already exists
 		var duplicateFile models.File
-		query := db.Where("file_name = ? AND organisation_id = ? AND user_id = ? AND file_link = ?", header.Filename, orgID, userID, existingFile.FileLink)
+		query := db.Where("file_name = ? AND organisation_id = ? AND user_id = ? AND file_link = ?", params.Header.Filename, params.OrgID, params.UserID, existingFile.FileLink)
 
 		if fID != nil {
 			query = query.Where("folder_id = ?", *fID)
@@ -162,13 +153,13 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 
 		newFileEntry := models.File{
 			ID:             utility.GenerateUUID(),
-			FileName:       header.Filename,
-			FileType:       filepath.Ext(header.Filename)[1:],
+			FileName:       params.Header.Filename,
+			FileType:       filepath.Ext(params.Header.Filename)[1:],
 			MimeType:       mimeType,
 			FileLink:       existingFile.FileLink,
-			Size:           header.Size,
-			OrganisationID: orgID,
-			UserID:         userID,
+			Size:           params.Header.Size,
+			OrganisationID: params.OrgID,
+			UserID:         params.UserID,
 			FolderID:       fID,
 		}
 
@@ -182,7 +173,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 		return &newFileEntry, nil
 
 	} else {
-		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, file, header.Size, minio.PutObjectOptions{ContentType: mimeType})
+		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, params.File, params.Header.Size, minio.PutObjectOptions{ContentType: mimeType})
 		if err != nil {
 			errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
 			utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err.Error()))
@@ -194,13 +185,13 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 
 		response := models.File{
 			ID:             utility.GenerateUUID(),
-			FileName:       header.Filename,
-			FileType:       filepath.Ext(header.Filename)[1:],
+			FileName:       params.Header.Filename,
+			FileType:       filepath.Ext(params.Header.Filename)[1:],
 			MimeType:       mimeType,
 			FileLink:       generatedUrl,
-			Size:           header.Size,
-			OrganisationID: orgID,
-			UserID:         userID,
+			Size:           params.Header.Size,
+			OrganisationID: params.OrgID,
+			UserID:         params.UserID,
 			FolderID:       fID,
 		}
 
@@ -215,13 +206,13 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 	}
 }
 
-func CreateFolder(db *gorm.DB, name, orgID, userID string, parentID *string) (*models.Folder, error) {
+func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder, error) {
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
-		Name:           name,
-		OrganisationID: orgID,
-		UserID:         userID,
-		ParentID:       parentID,
+		Name:           params.Name,
+		OrganisationID: params.OrgID,
+		UserID:         params.UserID,
+		ParentID:       params.ParentID,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
 	if err != nil {
@@ -369,24 +360,20 @@ func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string
 }
 
 // method to validate and update  filename.
-func UpdateFileName(db *gorm.DB, fileId, newFileName, orgID, userID string, logger *utility.Logger) (*models.File, error) {
-	trimmed, err := Validate(newFileName)
-	if err != nil {
-		return nil, err
-	}
+func UpdateFileName(db *gorm.DB, logger *utility.Logger, params models.UpdateFileNameParams) (*models.File, error) {
 
-	fileResponse, err := GetFileDetailsByID(db, fileId)
+	fileResponse, err := GetFileDetailsByID(db, params.FileID)
 	if err != nil {
 		return nil, err
 	}
 	if fileResponse == nil {
 		return nil, fmt.Errorf("file does not exist")
 	}
-	err = fileResponse.UpdateFileName(db, fileId, trimmed)
+	err = fileResponse.UpdateFileName(db, params.FileID, params.NewFileName)
 	if err != nil {
 		return nil, err
 	}
-	fileResponse, err = GetFileDetailsByID(db, fileId)
+	fileResponse, err = GetFileDetailsByID(db, params.FileID)
 	if err != nil {
 		return nil, err
 	}
@@ -394,34 +381,15 @@ func UpdateFileName(db *gorm.DB, fileId, newFileName, orgID, userID string, logg
 	notification.SectionType = models.ThreadSection
 	notification.Content = fileResponse
 	notification.ModificationDetails = &models.ModificationDetails{
-		UserId: userID,
-		OrgId:  orgID,
+		UserId: params.UserID,
+		OrgId:  params.OrgID,
 	}
-	userChannelID := fmt.Sprintf("%s/%s", orgID, userID)
+	userChannelID := fmt.Sprintf("%s/%s", params.OrgID, params.UserID)
 	if err := centrifuge.PublishChannel(logger, userChannelID, notification); err != nil {
 		logger.Error("Error Publishing notification event: %v", err)
 	}
 
 	return fileResponse, nil
-}
-
-// method for the validation heavy lifting.
-func Validate(filename string) (string, error) {
-	trimmed := strings.TrimSpace(filename)
-	if strings.HasPrefix(trimmed, ".") {
-		return "", fmt.Errorf("filename cannot start with a period")
-	}
-	if trimmed == "" {
-		return "", fmt.Errorf("file name cannot be empty")
-	}
-	if len(trimmed) > 255 {
-		return "", fmt.Errorf("file name too long")
-	}
-	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s._-]+$`)
-	if !validPattern.MatchString(trimmed) {
-		return "", fmt.Errorf("filename contains invalid characters")
-	}
-	return trimmed, nil
 }
 
 func MoveFile(db *gorm.DB, fileID, folderID string) (*models.File, error) {
@@ -443,28 +411,29 @@ func MoveFile(db *gorm.DB, fileID, folderID string) (*models.File, error) {
 	return &file, err
 }
 
-func GetFiles(db *gorm.DB, orgID, userID string, queryParams map[string]string, page, limit int) ([]models.File, int64, error) {
+func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, error) {
 	var files []models.File
 	var count int64
 
-	offset := (page - 1) * limit
+	offset := (params.Page - 1) * params.Limit
+	queryParams := params.QueryParams
 
 	query := db.Model(&models.File{}).
 		Select("files.*, profiles.full_name as owner_name, profiles.avatar_url as owner_avatar").
 		Joins("LEFT JOIN profiles ON profiles.userid = files.user_id").
-		Where("files.organisation_id = ?", orgID)
+		Where("files.organisation_id = ?", params.OrgID)
 
 	// mode options: all, mine, shared, trash
 	mode := queryParams["mode"]
 
 	switch mode {
 	case "mine":
-		query = query.Where("files.user_id = ?", userID)
+		query = query.Where("files.user_id = ?", params.UserID)
 	case "shared":
 		// Get channels the user is in will check for messageid for dm files when it'll be implemented
 
 		var userChannels []string
-		err := db.Model(&models.UserChannels{}).Where("user_id = ?", userID).Pluck("channels_id", &userChannels).Error
+		err := db.Model(&models.UserChannels{}).Where("user_id = ?", params.UserID).Pluck("channels_id", &userChannels).Error
 		if err != nil {
 			return nil, 0, err
 		}
@@ -500,6 +469,6 @@ func GetFiles(db *gorm.DB, orgID, userID string, queryParams map[string]string, 
 		query = query.Where("files.file_type = ?", fileType)
 	}
 
-	err := query.Count(&count).Offset(offset).Limit(limit).Find(&files).Error
+	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
 	return files, count, err
 }

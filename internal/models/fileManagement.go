@@ -23,6 +23,36 @@ type RenameFileRequest struct {
 	FileName string `json:"file_name" binding:"required" validate:"required,min=1,max=255"`
 }
 
+type UploadFileParams struct {
+	File     multipart.File
+	Header   *multipart.FileHeader
+	FolderID string
+	OrgID    string
+	UserID   string
+}
+
+type CreateFolderParams struct {
+	Name     string
+	OrgID    string
+	UserID   string
+	ParentID *string
+}
+
+type UpdateFileNameParams struct {
+	FileID      string
+	NewFileName string
+	OrgID       string
+	UserID      string
+}
+
+type GetFilesParams struct {
+	OrgID       string
+	UserID      string
+	QueryParams map[string]string
+	Page        int
+	Limit       int
+}
+
 type File struct {
 	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
 	FileName       string         `gorm:"column:file_name; not null" json:"file_name"`

@@ -1,8 +1,12 @@
 package fileManagement
 
 import (
+	"fmt"
 	"math"
 	"net/http"
+
+	"regexp"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -22,6 +26,27 @@ type Controller struct {
 	Validator *validator.Validate
 	Logger    *utility.Logger
 	ExtReq    request.ExternalRequest
+}
+
+const maxFileSize = 200 * 1024 * 1024
+
+// method for the validation heavy lifting.
+func Validate(filename string) (string, error) {
+	trimmed := strings.TrimSpace(filename)
+	if strings.HasPrefix(trimmed, ".") {
+		return "", fmt.Errorf("filename cannot start with a period")
+	}
+	if trimmed == "" {
+		return "", fmt.Errorf("file name cannot be empty")
+	}
+	if len(trimmed) > 255 {
+		return "", fmt.Errorf("file name too long")
+	}
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9\s._-]+$`)
+	if !validPattern.MatchString(trimmed) {
+		return "", fmt.Errorf("filename contains invalid characters")
+	}
+	return trimmed, nil
 }
 
 func (base *Controller) UploadController(c *gin.Context) {
@@ -54,6 +79,11 @@ func (base *Controller) UploadController(c *gin.Context) {
 	var uploadedFiles []*models.File
 
 	for _, fileHeader := range req.Files {
+		if fileHeader.Size > maxFileSize {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "File exceeds max size", "File too large", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
 		file, err := fileHeader.Open()
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file", err, nil)
@@ -62,7 +92,13 @@ func (base *Controller) UploadController(c *gin.Context) {
 		}
 		defer file.Close()
 
-		fileData, err := services.UploadFile(base.Db.Postgresql, base.Logger, file, fileHeader, req.FolderID, orgID, userID)
+		fileData, err := services.UploadFile(base.Db.Postgresql, base.Logger, models.UploadFileParams{
+			File:     file,
+			Header:   fileHeader,
+			FolderID: req.FolderID,
+			OrgID:    orgID,
+			UserID:   userID,
+		})
 		if err != nil {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Upload failed", err.Error(), nil)
 			c.JSON(http.StatusBadRequest, rd)
@@ -164,7 +200,19 @@ func (base *Controller) UpdateFileName(c *gin.Context) {
 		return
 	}
 
-	resp, err := services.UpdateFileName(base.Db.Postgresql, fileID, req.FileName, orgID, userID, base.Logger)
+	trimmed, err := Validate(req.FileName)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, err := services.UpdateFileName(base.Db.Postgresql, base.Logger, models.UpdateFileNameParams{
+		FileID:      fileID,
+		NewFileName: trimmed,
+		OrgID:       orgID,
+		UserID:      userID,
+	})
 	if err != nil {
 		base.Logger.Error("error updating file name")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to update file name", err.Error(), nil)
@@ -198,7 +246,12 @@ func (base *Controller) CreateFolder(c *gin.Context) {
 	userID := userClaims["user_id"].(string)
 	orgID := userClaims["org_id"].(string)
 
-	folder, err := services.CreateFolder(base.Db.Postgresql, req.Name, orgID, userID, req.ParentID)
+	folder, err := services.CreateFolder(base.Db.Postgresql, models.CreateFolderParams{
+		Name:     req.Name,
+		OrgID:    orgID,
+		UserID:   userID,
+		ParentID: req.ParentID,
+	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create folder", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -307,7 +360,13 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	pagination := postgresql.GetPagination(c)
 	page, limit := pagination.Page, pagination.Limit
 
-	files, count, err := services.GetFiles(base.Db.Postgresql, orgID, userID, queryParams, page, limit)
+	files, count, err := services.GetFiles(base.Db.Postgresql, models.GetFilesParams{
+		OrgID:       orgID,
+		UserID:      userID,
+		QueryParams: queryParams,
+		Page:        pagination.Page,
+		Limit:       pagination.Limit,
+	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch files", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)

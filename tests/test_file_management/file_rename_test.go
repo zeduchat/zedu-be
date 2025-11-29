@@ -194,7 +194,7 @@ func TestUpdateFileName(t *testing.T) {
 		tests.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
 
 		response := tests.ParseResponse(rr)
-		if response["message"] != "Failed to update file name" {
+		if response["message"] != "Validation failed" {
 			t.Errorf("Expected error message about invalid characters")
 		}
 	})
