@@ -460,29 +460,21 @@ func GetFiles(db *gorm.DB, orgID, userID string, queryParams map[string]string, 
 		if len(userChannels) > 0 {
 			query = query.Where("files.channel_id IN ?", userChannels)
 		} else {
-			// User is in no channels, return empty or handle as needed.
-			// For now, returning files where channel_id is null might be wrong if we strictly want shared files.
-			// Let's assume shared means "in a channel I have access to".
-			// If no channels, then no shared files.
+
 			return []models.File{}, 0, nil
 		}
 	case "trash":
 		query = query.Unscoped().Where("files.deleted_at IS NOT NULL")
 	default:
 		// "all" or default: view all files in org (that are not deleted)
-		// Usually "all" might imply "all files I have access to".
-		// For simplicity/admin view, we keep org-wide.
-		// But if we want to restrict to "public" or "my channels", logic would be more complex.
-		// Current existing logic was just orgID. Keeping it consistent but adding deleted_at check.
+
 		query = query.Where("files.deleted_at IS NULL")
 	}
 
 	if folderID, ok := queryParams["folder_id"]; ok && folderID != "" {
 		query = query.Where("files.folder_id = ?", folderID)
 	} else if mode != "trash" && mode != "search" && mode != "shared" {
-		// Only filter by root folder if not searching, not in trash, and not in shared mode
-		// Shared mode files might be in folders or not, but usually we list them as a flat list or by channel.
-		// For now, let's not restrict by folder_id IS NULL for shared mode unless explicitly asked.
+
 		if _, searching := queryParams["search"]; !searching {
 			query = query.Where("files.folder_id IS NULL")
 		}
