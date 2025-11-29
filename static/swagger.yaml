@@ -20856,6 +20856,59 @@ paths:
                     credentials: {}
 
 
+  /buzz/create:
+    post:
+      tags:
+        - buzz
+      summary: Create a new buzz (video/audio call)
+      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token.
+      operationId: createBuzz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBuzzRequest"
+      responses:
+        "201":
+          description: Buzz created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzCreateResponse"
+        "400":
+          description: Bad request - invalid channel ID or active buzz already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - channel does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /buzz/{id}/join:
     post:
       tags:
@@ -21221,6 +21274,67 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    CreateBuzzRequest:
+      type: object
+      required:
+        - channel_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz will be created
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+
+    BuzzCreateResponse:
+      type: object
+      required:
+        - buzz_id
+        - host_id
+        - channel_id
+        - status
+        - created_at
+        - started_at
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the created buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the user who created the buzz (host)
+          example: "7ca8c921-adbe-22e2-91c5-11d15fd541d9"
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz is created
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        status:
+          type: string
+          description: Current status of the buzz
+          enum: [active, ended]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the buzz was created (UTC)
+          example: "2024-11-27T10:00:00Z"
+        started_at:
+          type: string
+          format: date-time
+          description: Timestamp when the buzz started (UTC)
+          example: "2024-11-27T10:00:00Z"
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of participant IDs (initially just the host)
+          example: ["7ca8c921-adbe-22e2-91c5-11d15fd541d9"]
+        agora_token:
+          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
 
     BuzzJoinResponseSchema:
       type: object
