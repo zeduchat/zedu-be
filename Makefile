@@ -26,9 +26,6 @@ fix-dirty:
 		echo "Dirty state detected. Forcing to version $$PREV_VERSION"; \
 		make migrate-force version=$$PREV_VERSION; \
 		make migrate-down; \
-	elif echo "$$MIGRATION_OUTPUT" | grep -q "version -1"; then \
-		echo "No migrations applied yet. Initializing..."; \
-		make migrate-force version=0; \
 	else \
 		echo "Migration state is clean. No action needed."; \
 	fi
