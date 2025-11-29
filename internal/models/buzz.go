@@ -50,15 +50,25 @@ type CreateBuzzRequest struct {
 	ChannelID string `json:"channel_id" validate:"required,uuid"`
 }
 
+// ParticipantMetadata contains detailed information about a buzz participant
+type ParticipantMetadata struct {
+	UserID    string  `json:"user_id"`
+	UserName  string  `json:"username"`
+	FullName  string  `json:"full_name"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
+	JoinedAt  string  `json:"joined_at"`
+	Status    string  `json:"status"`
+}
+
 type BuzzCreateResponse struct {
-	BuzzID         string                  `json:"buzz_id"`
-	HostID         string                  `json:"host_id"`
-	ChannelID      string                  `json:"channel_id"`
-	Status         string                  `json:"status"`
-	CreatedAt      time.Time               `json:"created_at"`
-	StartedAt      time.Time               `json:"started_at"`
-	ParticipantIDs []string                `json:"participant_ids"`
-	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
+	BuzzID       string                  `json:"buzz_id"`
+	HostID       string                  `json:"host_id"`
+	ChannelID    string                  `json:"channel_id"`
+	Status       string                  `json:"status"`
+	CreatedAt    time.Time               `json:"created_at"`
+	StartedAt    time.Time               `json:"started_at"`
+	Participants []ParticipantMetadata   `json:"participants"`
+	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 type BuzzLeaveResponse struct {
@@ -219,13 +229,13 @@ type JoinBuzzRequest struct {
 
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
-	BuzzID         string                  `json:"Buzz_id"`
-	ChannelID      string                  `json:"channel_id"`
-	UserID         string                  `json:"user_id"`
-	Status         string                  `json:"status"`
-	JoinedAt       time.Time               `json:"joined_at"`
-	ParticipantIDs []string                `json:"participant_ids"`
-	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
+	BuzzID       string                  `json:"Buzz_id"`
+	ChannelID    string                  `json:"channel_id"`
+	UserID       string                  `json:"user_id"`
+	Status       string                  `json:"status"`
+	JoinedAt     time.Time               `json:"joined_at"`
+	Participants []ParticipantMetadata   `json:"participants"`
+	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 // Buzz Invitation Models and helper functions

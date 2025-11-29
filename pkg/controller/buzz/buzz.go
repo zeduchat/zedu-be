@@ -117,7 +117,7 @@ func (base *Controller) GetAgoraToken(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := agora.GetAgoraToken(base.Db, base.Logger, req.BuzzID, userID.(string))
+	resp, code, err := agora.GetAgoraToken(base.Db, base.Logger, req.BuzzID, userID.(string), req.UID)
 	if err != nil {
 		base.Logger.Error("failed to generate Agora token: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -125,7 +125,7 @@ func (base *Controller) GetAgoraToken(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("Agora token generated successfully")
+	base.Logger.Info("Agora token generated successfully for UID: %s", req.UID)
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Agora token generated successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
