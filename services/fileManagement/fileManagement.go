@@ -145,7 +145,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, file multipart.File, header
 		// if file exists, we create a new record for the user/org pointing to the same physical file
 		utility.LogAndPrint(logger, "File exists, creating a new DB entry for current user or org")
 
-		// Check if a file record with the same metadata already exists
+		// check if a file record with the same metadata already exists
 		var duplicateFile models.File
 		query := db.Where("file_name = ? AND organisation_id = ? AND user_id = ? AND file_link = ?", header.Filename, orgID, userID, existingFile.FileLink)
 
