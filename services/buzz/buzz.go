@@ -10,7 +10,6 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
-	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -38,6 +37,32 @@ func mapPermissionError(err error, action string) (int, string) {
 	default:
 		return http.StatusInternalServerError, fmt.Sprintf("failed to validate %s permissions", action)
 	}
+}
+
+// getParticipantsMetadata fetches detailed metadata for all participants in a buzz
+func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMetadata, error) {
+	var participants []models.ParticipantMetadata
+
+	query := `
+		SELECT
+			bp.user_id,
+			p.username,
+			CONCAT(u.first_name, ' ', u.last_name) as full_name,
+			p.avatar_url,
+			bp.joined_at,
+			bp.status
+		FROM buzz_participants bp
+		JOIN users u ON bp.user_id = u.id
+		JOIN profiles p ON u.id = p.user_id
+		WHERE bp.buzz_id = ?
+		ORDER BY bp.joined_at ASC
+	`
+
+	if err := db.Raw(query, buzzID).Scan(&participants).Error; err != nil {
+		return nil, err
+	}
+
+	return participants, nil
 }
 
 // CreateBuzz creates a new buzz, adds the host as the first participant, and emits a realtime event.
@@ -94,26 +119,22 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, http.StatusInternalServerError, errors.New("failed to create buzz")
 	}
 
-	// Generate Agora token for the host (optional - don't fail creation if token generation fails)
-	var agoraTokenPtr *models.BuzzAgoraTokenResponse
-	agoraTokenResp, _, err := agora.GetAgoraToken(db, logger, buzz.ID, hostID)
+	// Fetch participant metadata
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
 	if err != nil {
-		logger.Error("failed to generate Agora token for host %s: %v", hostID, err)
-		// Set to nil if token generation fails, but allow creation to proceed
-		agoraTokenPtr = nil
-	} else {
-		agoraTokenPtr = &agoraTokenResp
+		logger.Error("failed to fetch participant metadata: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
 	resp = models.BuzzCreateResponse{
-		BuzzID:         buzz.ID,
-		HostID:         buzz.HostID,
-		ChannelID:      buzz.ChannelID,
-		Status:         buzz.Status,
-		CreatedAt:      buzz.CreatedAt,
-		StartedAt:      buzz.BuzzStartTime,
-		ParticipantIDs: participants,
-		AgoraToken:     agoraTokenPtr,
+		BuzzID:       buzz.ID,
+		HostID:       buzz.HostID,
+		ChannelID:    buzz.ChannelID,
+		Status:       buzz.Status,
+		CreatedAt:    buzz.CreatedAt,
+		StartedAt:    buzz.BuzzStartTime,
+		Participants: participantMetadata,
+		AgoraToken:   nil, // Token must be requested separately via /buzz/token endpoint with UID
 	}
 
 	eventPayload := models.BuzzEventPayload{
@@ -167,25 +188,21 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated buzz")
 	}
 
-	// Generate Agora token for the user (optional - don't fail join if token generation fails)
-	var agoraTokenPtr *models.BuzzAgoraTokenResponse
-	agoraTokenResp, _, err := agora.GetAgoraToken(db, logger, buzzID, userID)
+	// Fetch participant metadata
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
 	if err != nil {
-		logger.Error("failed to generate Agora token for user %s: %v", userID, err)
-		// Set to nil if token generation fails, but allow join to proceed
-		agoraTokenPtr = nil
-	} else {
-		agoraTokenPtr = &agoraTokenResp
+		logger.Error("failed to fetch participant metadata: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
 	resp = models.JoinBuzzResponse{
-		BuzzID:         buzz.ID,
-		ChannelID:      buzz.ChannelID,
-		UserID:         userID,
-		Status:         buzz.Status,
-		JoinedAt:       timestamp,
-		ParticipantIDs: buzz.ParticipantIDs,
-		AgoraToken:     agoraTokenPtr,
+		BuzzID:       buzz.ID,
+		ChannelID:    buzz.ChannelID,
+		UserID:       userID,
+		Status:       buzz.Status,
+		JoinedAt:     timestamp,
+		Participants: participantMetadata,
+		AgoraToken:   nil, // Token must be requested separately via /buzz/token endpoint with UID
 	}
 
 	publishJoinBuzzEvent(logger, *buzz, timestamp)

@@ -37,7 +37,8 @@ func NewAgoraService(logger *utility.Logger, config config.Agora) *AgoraService 
 
 // GenerateRTCToken creates an Agora RTC token for a user to join a buzz channel
 // expireTimeInSeconds: token expiration time in seconds (0 = use default 2 hours)
-func (s *AgoraService) GenerateRTCToken(channelName, userID string, expireTimeInSeconds uint32) (string, error) {
+// uid: Agora user account (string UUID) for participant tracking
+func (s *AgoraService) GenerateRTCToken(channelName, userID string, uid string, expireTimeInSeconds uint32) (string, error) {
 	if s.appId == "" || s.appCertificate == "" {
 		return "", errors.New("Agora App ID or App Certificate not configured")
 	}
@@ -47,13 +48,13 @@ func (s *AgoraService) GenerateRTCToken(channelName, userID string, expireTimeIn
 		expireTimeInSeconds = 7200 // 2 hours
 	}
 
-	// Build token with UID (user can publish and subscribe)
+	// Build token with provided UID string (user can publish and subscribe)
 	// Role: 1 = publisher (can publish and subscribe)
-	token, err := rtctokenbuilder.BuildTokenWithUid(
+	token, err := rtctokenbuilder.BuildTokenWithAccount(
 		s.appId,
 		s.appCertificate,
 		channelName,
-		0, // Use 0 for string-based user accounts
+		uid, // Use provided UID (string UUID) for participant tracking
 		rtctokenbuilder.RolePublisher, // RolePublisher allows both publish and subscribe
 		expireTimeInSeconds,
 	)
@@ -62,12 +63,12 @@ func (s *AgoraService) GenerateRTCToken(channelName, userID string, expireTimeIn
 		return "", fmt.Errorf("failed to generate Agora RTC token: %w", err)
 	}
 
-	s.logger.Info("Generated Agora RTC token for user %s in channel %s (expires in %d seconds)", userID, channelName, expireTimeInSeconds)
+	s.logger.Info("Generated Agora RTC token for user %s (UID: %s) in channel %s (expires in %d seconds)", userID, uid, channelName, expireTimeInSeconds)
 	return token, nil
 }
 
 // GetAgoraToken generates an Agora RTC token for a user to join a buzz
-func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.BuzzAgoraTokenResponse, int, error) {
+func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID string, uid string) (models.BuzzAgoraTokenResponse, int, error) {
 	var resp models.BuzzAgoraTokenResponse
 
 	service := Client.Service
@@ -90,8 +91,8 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 	// Calculate dynamic token expiration based on buzz duration
 	expireTimeInSeconds := calculateTokenExpiration(buzz.BuzzStartTime, logger)
 
-	// Generate token using buzz ID as channel name
-	token, err := service.GenerateRTCToken(buzzID, userID, expireTimeInSeconds)
+	// Generate token using buzz ID as channel name and provided UID
+	token, err := service.GenerateRTCToken(buzzID, userID, uid, expireTimeInSeconds)
 	if err != nil {
 		logger.Error("Failed to generate Agora token: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -101,10 +102,10 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 		Token:       token,
 		AppId:       service.appId,
 		ChannelName: buzzID,
-		UID:         0, // Using 0 for string-based user accounts
+		UID:         uid,
 	}
 
-	logger.Info("Generated Agora token for user %s in buzz %s", userID, buzzID)
+	logger.Info("Generated Agora token for user %s (UID: %s) in buzz %s", userID, uid, buzzID)
 	return resp, http.StatusOK, nil
 }
 
