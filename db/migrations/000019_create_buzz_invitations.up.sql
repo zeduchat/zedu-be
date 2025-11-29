@@ -1,3 +1,6 @@
+ALTER TABLE public.profiles 
+ADD CONSTRAINT uq_profiles_userid UNIQUE (userid);
+
 CREATE TABLE IF NOT EXISTS public.buzz_invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     buzz_id UUID NOT NULL,

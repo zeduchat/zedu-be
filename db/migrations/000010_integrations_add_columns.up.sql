@@ -1,6 +1,6 @@
 -- UP Migration: Add all missing columns to integrations table
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "id" uuid;
-ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "name" varchar(255) NOT NULL;
+ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "name" varchar(255);
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "app_url" varchar(255);
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "app_logo" varchar(255);
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "auth_url" varchar(255);
@@ -8,7 +8,7 @@ ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "app_description" text;
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "integration_type" varchar(255);
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "is_system_integration" boolean;
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "is_active" boolean DEFAULT true;
-ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "created_at" timestamptz NOT NULL;
+ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "created_at" timestamptz;
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "updated_at" timestamptz;
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "json_url" varchar(255);
 ALTER TABLE "integrations" ADD COLUMN IF NOT EXISTS "category" text DEFAULT 'default';
