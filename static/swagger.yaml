@@ -105,7 +105,7 @@ tags:
   - name: Translator
     description: API endpoints for telex markdown to json formatting engine
   - name: buzz
-    description: API endpoints for buzz (video/audio call) operations
+    description: API endpoints for buzz (audio/video calls) feature
 
 paths:
   # Auth paths
@@ -20856,6 +20856,58 @@ paths:
                     credentials: {}
 
 
+  /buzz/token:
+    post:
+      tags:
+        - buzz
+      summary: Get Agora RTC token
+      description: Generates an Agora RTC token for a user to connect to a buzz audio/video channel. User must be an active participant in the buzz. Token expires dynamically based on buzz duration (max 4 hours).
+      responses:
+        "200":
+          description: Agora token generated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+              example:
+                status: "success"
+                status_code: 200
+                message: "Agora token generated successfully"
+                data:
+                  token: "007eJxSYOCa/57rpumU/+Xvr7db8M1lqsVCQpYTdK..."
+                  app_id: "your-agora-app-id"
+                  channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  uid: 0
+        "400":
+          description: Bad Request (Invalid buzz ID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Forbidden (User not a participant in the buzz)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or not active)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+              $ref: "#/components/schemas/CreateBuzzRequest"
   /buzz/create:
     post:
       tags:
@@ -20870,7 +20922,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateBuzzRequest"
+              $ref: "#/components/schemas/BuzzAgoraTokenRequest"
+            example:
+              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
       responses:
         "201":
           description: Buzz created successfully
@@ -24813,6 +24867,313 @@ components:
         type: integer
         default: 10
 
+    UpdateCameraRequest:
+      type: object
+      required:
+        - user_id
+        - status
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user updating the camera
+        status:
+          type: boolean
+          description: True for camera ON, False for camera OFF
+
+    UpdateCameraResponse:
+      type: object
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        is_camera_on:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+
+    BuzzLeaveResponseSchema:
+      type: object
+      required:
+        - buzz_id
+        - participant_id
+        - left_at
+        - buzz_ended
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        participant_id:
+          type: string
+          format: uuid
+          description: The ID of the user who left the buzz
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        new_host_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The new host ID if the previous host left (null if host didn't change)
+          example: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"
+        left_at:
+          type: string
+          format: date-time
+          description: Timestamp when the user left the buzz (UTC)
+          example: "2024-11-27T10:30:45Z"
+        buzz_ended:
+          type: boolean
+          description: Whether the buzz ended due to no participants remaining
+          example: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - message
+        - code
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: "error"
+        message:
+          type: string
+          description: Error message describing what went wrong
+          example: "user is not in the buzz"
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+
+    CreateBuzzNoteRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: The content of the note
+
+    UpdateBuzzNoteRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          description: The updated content of the note
+
+    BuzzNoteResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buzz_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BuzzNotesListResponse:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuzzNoteResponse"
+
+    CreateBuzzRequest:
+      type: object
+      required:
+        - channel_id
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+          description: The UUID of the channel where the buzz will be created
+        organisation_id:
+          type: string
+          format: uuid
+          description: Optional organization ID
+      example:
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+
+    BuzzCreateResponse:
+      type: object
+      properties:
+        Buzz_id:
+          type: string
+          format: uuid
+          description: The unique ID of the created buzz
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the user who created the buzz
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel where the buzz was created
+        status:
+          type: string
+          enum: [active, ended]
+          description: Current status of the buzz
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Array of participant user IDs (initially contains only the host)
+      example:
+        Buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        status: "active"
+        created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        participant_ids: ["0198dd2d-7650-7ab7-b141-97e6ac2a7b43"]
+
+    JoinBuzzResponse:
+      type: object
+      properties:
+        Buzz_id:
+          type: string
+          format: uuid
+          description: The unique ID of the buzz
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel where the buzz is taking place
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user who joined
+        status:
+          type: string
+          enum: [active]
+          description: Participant status
+        joined_at:
+          type: string
+          format: date-time
+          description: When the user joined the buzz
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Updated array of all participant user IDs
+      example:
+        Buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        status: "active"
+        joined_at: "2025-11-28T12:05:00Z"
+        participant_ids: ["host-id", "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"]
+
+    BuzzAgoraTokenRequest:
+      type: object
+      required:
+        - buzz_id
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The UUID of the buzz to generate a token for
+      example:
+        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+
+    BuzzAgoraTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The Agora RTC token for connecting to the buzz channel
+        app_id:
+          type: string
+          description: The Agora App ID
+        channel_name:
+          type: string
+          description: The Agora channel name (same as buzz_id)
+        uid:
+          type: integer
+          description: User ID for Agora (0 for string-based accounts)
+      example:
+        token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
+        app_id: "your-agora-app-id"
+        channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        uid: 0
+
+    RegisterDeviceTokenRequest:
+      type: object
+      required:
+        - device_token
+      properties:
+        device_token:
+          type: string
+          description: The push notification token for the device
+        platform:
+          type: string
+          description: Platform/provider for the token (e.g., fcm, apns, webpush)
+        device_id:
+          type: string
+          description: Optional client-generated device identifier
+
+    RegisterDeviceTokenResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        device_token:
+          type: string
+        platform:
+          type: string
+        device_id:
+          type: string
+        last_seen:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Request successful"
+        status_code:
+          type: integer
+          example: 200
   securitySchemes:
     bearerAuth:
       type: http
