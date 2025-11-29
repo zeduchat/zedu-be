@@ -47,18 +47,18 @@ type BuzzParticipant struct {
 }
 
 type CreateBuzzRequest struct {
-	ChannelID      string `json:"channel_id" validate:"required,uuid"`
-	OrganisationID string `json:"organisation_id,omitempty"`
+	ChannelID string `json:"channel_id" validate:"required,uuid"`
 }
 
 type BuzzCreateResponse struct {
-	BuzzID         string    `json:"buzz_id"`
-	HostID         string    `json:"host_id"`
-	ChannelID      string    `json:"channel_id"`
-	Status         string    `json:"status"`
-	CreatedAt      time.Time `json:"created_at"`
-	StartedAt      time.Time `json:"started_at"`
-	ParticipantIDs []string  `json:"participant_ids"`
+	BuzzID         string                  `json:"buzz_id"`
+	HostID         string                  `json:"host_id"`
+	ChannelID      string                  `json:"channel_id"`
+	Status         string                  `json:"status"`
+	CreatedAt      time.Time               `json:"created_at"`
+	StartedAt      time.Time               `json:"started_at"`
+	ParticipantIDs []string                `json:"participant_ids"`
+	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 type BuzzLeaveResponse struct {
@@ -219,10 +219,11 @@ type JoinBuzzRequest struct {
 
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
-	BuzzID         string    `json:"Buzz_id"`
-	ChannelID      string    `json:"channel_id"`
-	UserID         string    `json:"user_id"`
-	Status         string    `json:"status"`
-	JoinedAt       time.Time `json:"joined_at"`
-	ParticipantIDs []string  `json:"participant_ids"`
+	BuzzID         string                  `json:"Buzz_id"`
+	ChannelID      string                  `json:"channel_id"`
+	UserID         string                  `json:"user_id"`
+	Status         string                  `json:"status"`
+	JoinedAt       time.Time               `json:"joined_at"`
+	ParticipantIDs []string                `json:"participant_ids"`
+	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
 }
