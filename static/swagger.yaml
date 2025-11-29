@@ -14683,11 +14683,14 @@ paths:
             schema:
               type: object
               properties:
-                files:
-                  type: array
-                  items:
+                  files:
+                    type: array
+                    items:
+                      type: string
+                      format: binary
+                  folder_id:
                     type: string
-                    format: binary
+                    description: Folder ID
       security:
         - bearerAuth: []
       responses:
@@ -14805,25 +14808,8 @@ paths:
                     type: string
                     example: "Files located successfully"
                   data:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
-                        type: string
-                        example: "Deployment and Rollback Procedure.pdf"
-                      file_type:
-                        type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+                    $ref: "#/components/schemas/File"
+
         "404":
           description: File not found
           content:
@@ -15012,25 +14998,7 @@ paths:
                     type: string
                     example: "File name updated successfully"
                   data:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
-                        type: string
-                        example: "Updated Document.pdf"
-                      file_type:
-                        type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+                    $ref: '#/components/schemas/File'
         "400":
           description: Bad request - invalid file name
           content:
@@ -21618,8 +21586,311 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+
+  /files/folders:
+    post:
+      tags:
+        - File Management
+      summary: Create folder
+      description: Create a new folder for organizing files
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                parent_id:
+                  type: string
+              required:
+                - name
+      responses:
+        "201":
+          description: Folder created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Folder created successfully
+                  status_code:
+                    type: integer
+                    example: 201
+                  data:
+                    $ref: "#/components/schemas/Folder"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+    get:
+      tags:
+        - File Management
+      summary: Get folders
+      description: Get list of folders, optionally filtered by parent folder
+      parameters:
+        - in: query
+          name: parent_id
+          schema:
+            type: string
+          required: false
+          description: Parent Folder ID
+      responses:
+        "200":
+          description: Folders fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Folders fetched successfully
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Folder"
+        "500":
+          description: Failed to fetch folders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /files/folders/{id}:
+    delete:
+      tags:
+        - File Management
+      summary: Delete folder
+      description: Delete a folder and its contents (soft delete)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: Folder ID
+      responses:
+        "200":
+          description: Folder deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Folder deleted successfully
+                  status_code:
+                    type: integer
+                    example: 200
+        "500":
+          description: Failed to delete folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /files/{id}/move:
+    put:
+      tags:
+        - File Management
+      summary: Move file
+      description: Move a file to a different folder
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: File ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folder_id:
+                  type: string
+              required:
+                - folder_id
+      responses:
+        "200":
+          description: File moved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: File moved successfully
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: "#/components/schemas/File"
+        "500":
+          description: Failed to move file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+
+
+  /files:
+    get:
+      tags:
+        - File Management
+      summary: Get files
+      description: Get list of files with filtering, searching, and pagination
+      parameters:
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [all, mine, shared, trash]
+          required: false
+          description: Mode (all, mine, shared, trash)
+        - in: query
+          name: folder_id
+          schema:
+            type: string
+          required: false
+          description: Folder ID
+        - in: query
+          name: search
+          schema:
+            type: string
+          required: false
+          description: Search term
+        - in: query
+          name: type
+          schema:
+            type: string
+          required: false
+          description: File type
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          required: false
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          required: false
+          description: Items per page
+      responses:
+        "200":
+          description: Files fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Files fetched successfully
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      files:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/File"
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                          page_count:
+                            type: integer
+                          total_pages_count:
+                            type: integer
+                          total_items:
+                            type: integer
+        "500":
+          description: Failed to fetch files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
 components:
   schemas:
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+        file_name:
+          type: string
+        file_type:
+          type: string
+        file_link:
+          type: string
+        size:
+          type: integer
+        folder_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        channel_id:
+          type: string
+        message_id:
+          type: string
+        owner_name:
+          type: string
+        owner_avatar:
+          type: string
+    Folder:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parent_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
     OptInSchema:
       type: object
       required:

@@ -222,6 +222,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			BucketName:    config.BUCKET_NAME,
 			AccessKey:     config.BUCKET_ACCESS_KEY,
 			Secret:        config.BUKCET_SECRET_KEY,
+			UseSSL:        true,
 		},
 
 		Slack: Slack{
