@@ -26,7 +26,7 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.GET("/users/organisations", user.GetAUserOrganisation)
 		userUrl.GET("/users/:user_id/login-audit", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserLoginAudit)
 		userUrl.GET("/users/:user_id/sessions", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserSessions)
-		userUrl.GET("/users/notification-preferences", user.GetNotificationSettings)
+		userUrl.GET("/users/notification-preferences", user.GetUserNotificationSettings)
 		userUrl.PUT("/users/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.UpdateAUser)
 		userUrl.PUT("/users/revoke-session", middleware.CheckIsDeactivated(db.Postgresql), user.RevokeUserAccessToken)
 		userUrl.PUT("/users/switch-org", middleware.CheckIsDeactivated(db.Postgresql), user.SwitchUserOrg)
@@ -36,11 +36,6 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
 		userUrl.GET("/users/:user_id/organisations/:org_id/roles", user.GetUserRoleInOrganisation)
 		userUrl.GET("/users/me", auth.FetchUser)
-
-		userUrl.GET("/notifications", user.GetNotificationSettings)
-		userUrl.PUT("/notifications", user.UpdateNotificationSetting)
-
-		userUrl.PUT("/notifications/reset", user.ResetNotificationSettings)
 	}
 	{
 		adminUrl.GET("/users", user.GetAllUsers)
