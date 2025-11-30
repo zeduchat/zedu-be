@@ -1,0 +1,2 @@
+ALTER TABLE files DROP COLUMN IF EXISTS channel_id;
+ALTER TABLE files DROP COLUMN IF EXISTS message_id;
