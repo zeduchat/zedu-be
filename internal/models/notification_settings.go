@@ -106,7 +106,7 @@ type NotificationSettings struct {
 	ShowPreview         bool                `gorm:"default:false" json:"show_preview"`
 }
 
-// Notification Preferences Modes
+// Notification Preferences Request Modes
 type NotificationSettingsUpdateRequest struct {
 	MessageNotification *MessageNotification `json:"message_notification,omitempty"`
 	GroupNotification   *GroupNotification   `json:"group_notification,omitempty"`
