@@ -21578,18 +21578,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BuzzAgoraTokenRequest"
-            example:
-              buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+              $ref: "#/components/schemas/CreateBuzzRequest"
       responses:
         "201":
           description: Buzz created successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BuzzCreateResponse"
+                $ref: "#/components/schemas/BuzzCreateResponseSchema"
         "400":
-          description: Bad request - invalid channel ID or active buzz already exists
+          description: Bad requegst - invalid channel ID or active buzz already exists
           content:
             application/json:
               schema:
@@ -22214,124 +22212,125 @@ components:
           description: The ID of the channel where the buzz will be created
           example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 
-    BuzzCreateResponse:
+    BuzzCreateResponseSchema:
       type: object
-      required:
-        - buzz_id
-        - host_id
-        - channel_id
-        - status
-        - created_at
-        - started_at
       properties:
         buzz_id:
           type: string
           format: uuid
-          description: The unique identifier of the created buzz
-          example: "550e8400-e29b-41d4-a716-446655440000"
+          description: The unique ID of the created buzz
         host_id:
           type: string
           format: uuid
-          description: The ID of the user who created the buzz (host)
-          example: "7ca8c921-adbe-22e2-91c5-11d15fd541d9"
+          description: The ID of the user who created the buzz
         channel_id:
           type: string
           format: uuid
-          description: The ID of the channel where the buzz is created
-          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+          description: The channel where the buzz was created
         status:
           type: string
-          description: Current status of the buzz
           enum: [active, ended]
-          example: "active"
+          description: Current status of the buzz
         created_at:
           type: string
           format: date-time
-          description: Timestamp when the buzz was created (UTC)
-          example: "2024-11-27T10:00:00Z"
+          description: When the buzz was created
         started_at:
           type: string
           format: date-time
-          description: Timestamp when the buzz started (UTC)
-          example: "2024-11-27T10:00:00Z"
-        participant_ids:
+          description: When the buzz started
+        participants:
           type: array
           items:
-            type: string
-            format: uuid
-          description: List of participant IDs (initially just the host)
-          example: ["7ca8c921-adbe-22e2-91c5-11d15fd541d9"]
+            $ref: "#/components/schemas/ParticipantMetadata"
+          description: Array of participant metadata (initially contains only the host)
         agora_token:
-          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+          allOf:
+            - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+          nullable: true
+          description: Agora RTC token and connection details (null if token generation fails)
+      example:
+        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        status: "active"
+        created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        participants:
+          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+            username: "hostuser"
+            full_name: "Host User"
+            avatar_url: "https://example.com/avatars/host.jpg"
+            joined_at: "2025-11-28T12:00:00Z"
+            status: "active"
+        agora_token:
+          token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
+          app_id: "your-agora-app-id"
+          channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+          uid: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
 
     BuzzJoinResponseSchema:
       type: object
-      required:
-        - buzz_id
-        - channel_id
-        - user_id
-        - status
-        - joined_at
       properties:
         buzz_id:
           type: string
           format: uuid
-          description: The unique identifier of the buzz
-          example: "550e8400-e29b-41d4-a716-446655440000"
+          description: The unique ID of the buzz
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the buzz host
         channel_id:
           type: string
           format: uuid
-          description: The ID of the channel where the buzz is happening
-          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+          description: The channel where the buzz is taking place
         user_id:
           type: string
           format: uuid
           description: The ID of the user who joined
-          example: "7ca8c921-adbe-22e2-91c5-11d15fd541d9"
         status:
           type: string
-          description: Current status of the buzz
-          example: "active"
+          enum: [active]
+          description: Buzz status
         joined_at:
           type: string
           format: date-time
-          description: Timestamp when the user joined the buzz (UTC)
-          example: "2024-11-27T10:15:30Z"
-        participant_ids:
+          description: When the user joined the buzz
+        participants:
           type: array
           items:
-            type: string
-            format: uuid
-          description: List of all current participant IDs in the buzz
-          example: ["7ca8c921-adbe-22e2-91c5-11d15fd541d9", "8db9d032-becd-33f3-a2d6-22e26ge652e0"]
+            $ref: "#/components/schemas/ParticipantMetadata"
+          description: Updated array of all participant metadata
         agora_token:
-          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
-
-    BuzzAgoraTokenResponse:
-      type: object
-      required:
-        - token
-        - app_id
-        - channel_name
-        - uid
-      properties:
-        token:
-          type: string
-          description: The Agora RTC token for authentication
-          example: "006abcd1234567890efghijklmnopqrstuvwxyz"
-        app_id:
-          type: string
-          description: The Agora application ID
-          example: "a1b2c3d4e5f6g7h8i9j0"
-        channel_name:
-          type: string
-          description: The Agora channel name (usually the buzz ID)
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        uid:
-          type: integer
-          format: uint32
-          description: The user's unique identifier in the Agora channel
-          example: 12345
+          allOf:
+            - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
+          nullable: true
+          description: Agora RTC token and connection details (null if token generation fails)
+      example:
+        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
+        status: "active"
+        joined_at: "2025-11-28T12:05:00Z"
+        participants:
+          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+            username: "hostuser"
+            full_name: "Host User"
+            avatar_url: "https://example.com/avatars/host.jpg"
+            joined_at: "2025-11-28T12:00:00Z"
+            status: "active"
+          - user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
+            username: "joininguser"
+            full_name: "Joining User"
+            avatar_url: "https://example.com/avatars/joiner.jpg"
+            joined_at: "2025-11-28T12:05:00Z"
+            status: "active"
+        agora_token:
+          token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
+          app_id: "your-agora-app-id"
+          channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+          uid: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
 
     BuzzLeaveResponseSchema:
       type: object
@@ -25870,125 +25869,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BuzzNoteResponse"
-
-    CreateBuzzRequest:
-      type: object
-      required:
-        - channel_id
-      properties:
-        channel_id:
-          type: string
-          format: uuid
-          description: The UUID of the channel where the buzz will be created
-        organisation_id:
-          type: string
-          format: uuid
-          description: Optional organization ID
-      example:
-        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-
-    BuzzCreateResponse:
-      type: object
-      properties:
-        buzz_id:
-          type: string
-          format: uuid
-          description: The unique ID of the created buzz
-        host_id:
-          type: string
-          format: uuid
-          description: The ID of the user who created the buzz
-        channel_id:
-          type: string
-          format: uuid
-          description: The channel where the buzz was created
-        status:
-          type: string
-          enum: [active, ended]
-          description: Current status of the buzz
-        created_at:
-          type: string
-          format: date-time
-          description: When the buzz was created
-        started_at:
-          type: string
-          format: date-time
-          description: When the buzz started
-        participants:
-          type: array
-          items:
-            $ref: "#/components/schemas/ParticipantMetadata"
-          description: Array of participant metadata (initially contains only the host)
-        agora_token:
-          nullable: true
-          description: Agora token is null - must request separately via /buzz/token with UID
-      example:
-        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        status: "active"
-        created_at: "2025-11-28T12:00:00Z"
-        started_at: "2025-11-28T12:00:00Z"
-        participants:
-          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-            username: "hostuser"
-            full_name: "Host User"
-            avatar_url: "https://example.com/avatars/host.jpg"
-            joined_at: "2025-11-28T12:00:00Z"
-            status: "active"
-        agora_token: null
-
-    JoinBuzzResponse:
-      type: object
-      properties:
-        Buzz_id:
-          type: string
-          format: uuid
-          description: The unique ID of the buzz
-        channel_id:
-          type: string
-          format: uuid
-          description: The channel where the buzz is taking place
-        user_id:
-          type: string
-          format: uuid
-          description: The ID of the user who joined
-        status:
-          type: string
-          enum: [active]
-          description: Buzz status
-        joined_at:
-          type: string
-          format: date-time
-          description: When the user joined the buzz
-        participants:
-          type: array
-          items:
-            $ref: "#/components/schemas/ParticipantMetadata"
-          description: Updated array of all participant metadata
-        agora_token:
-          nullable: true
-          description: Agora token is null - must request separately via /buzz/token with UID
-      example:
-        Buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
-        status: "active"
-        joined_at: "2025-11-28T12:05:00Z"
-        participants:
-          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-            username: "hostuser"
-            full_name: "Host User"
-            avatar_url: "https://example.com/avatars/host.jpg"
-            joined_at: "2025-11-28T12:00:00Z"
-            status: "active"
-          - user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
-            username: "joininguser"
-            full_name: "Joining User"
-            avatar_url: "https://example.com/avatars/joiner.jpg"
-            joined_at: "2025-11-28T12:05:00Z"
-            status: "active"
-        agora_token: null
 
     ParticipantMetadata:
       type: object
