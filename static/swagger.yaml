@@ -14870,17 +14870,26 @@ paths:
     delete:
       tags:
         - File Management
-      summary: Deletes file details by ID
-      description: Deletes file metadata and a file link from the database using a unique file ID.
+      summary: Delete file by ID
+      description: |
+        Permanently removes a file record and, when applicable, deletes the physical object from storage. Only the file owner or members with the `can_delete_any_file` permission can delete files inside their organisation.
       parameters:
         - name: id
           in: path
           required: true
-          description: The unique ID of the file
+          description: Unique ID of the file to delete
           schema:
             type: string
             format: uuid
             example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+        - name: thread_id
+          in: query
+          required: false
+          description: Optional thread ID to unlink the file from a thread document
+          schema:
+            type: string
+            format: uuid
+            example: "0198a6f2-e1fe-77b0-9382-a0ddc510bec3"
       security:
         - bearerAuth: []
       responses:
@@ -14899,27 +14908,49 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Files deleted successfully"
+                    example: "File deleted successfully"
                   data:
                     type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
-                        type: string
-                        example: "Deployment and Rollback Procedure.pdf"
-                      file_type:
-                        type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+                    nullable: true
+                    example: null
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: "Unauthorized"
+                  error:
+                    type: string
+                    example: "Token could not be found!"
+        "403":
+          description: User is not allowed to delete the file
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: "Forbidden"
+                  error:
+                    type: string
+                    example: "You do not have permission to delete this file"
         "404":
           description: File not found
           content:
