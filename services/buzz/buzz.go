@@ -47,7 +47,7 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 		SELECT
 			bp.user_id,
 			p.user_name as username,
-			CONCAT(u.name) as full_name,
+			COALESCE(p.full_name, CONCAT(p.first_name, ' ', p.last_name)) as full_name,
 			p.avatar_url,
 			bp.joined_at,
 			bp.status
