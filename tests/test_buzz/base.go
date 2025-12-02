@@ -34,6 +34,7 @@ func SetupBuzzTestRouter() (*gin.Engine, *buzz.Controller) {
 		buzzGroup.PATCH("/:id/notes/:note_id", buzzController.UpdateNote)
 		buzzGroup.POST("/create", buzzController.Create)
 		buzzGroup.POST("/:id/leave", buzzController.LeaveBuzz)
+		buzzGroup.POST("/:id/end", buzzController.EndBuzz)
 		buzzGroup.POST("/search-members", buzzController.SearchChannelMembers)
 		buzzGroup.POST("/invite", buzzController.InviteUsersToBuzz)
 		buzzGroup.POST("/invitation/respond", buzzController.RespondToInvitation)
@@ -45,6 +46,10 @@ func SetupBuzzTestRouter() (*gin.Engine, *buzz.Controller) {
 
 // SetupBuzzInvitationTestRouter sets up router with invitation endpoints
 func SetupBuzzInvitationTestRouter() (*gin.Engine, *buzz.Controller) {
+	return SetupBuzzTestRouter()
+}
+
+func SetupBuzzEndTestRouter() (*gin.Engine, *buzz.Controller) {
 	return SetupBuzzTestRouter()
 }
 
