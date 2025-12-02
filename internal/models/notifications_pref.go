@@ -40,6 +40,7 @@ var (
 	BuzzStarted                 NotificationType = "buzz_started"
 	UserJoinedBuzz              NotificationType = "user_joined_buzz"
 	UserLeftBuzz                NotificationType = "user_left_buzz"
+	BuzzEnded                   NotificationType = "buzz_ended"
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"

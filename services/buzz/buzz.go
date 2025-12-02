@@ -46,14 +46,14 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 	query := `
 		SELECT
 			bp.user_id,
-			p.username,
-			CONCAT(u.first_name, ' ', u.last_name) as full_name,
+			p.user_name as username,
+			CONCAT(u.name) as full_name,
 			p.avatar_url,
 			bp.joined_at,
 			bp.status
 		FROM buzz_participants bp
 		JOIN users u ON bp.user_id = u.id
-		JOIN profiles p ON u.id = p.user_id
+		JOIN profiles p ON u.id = p.userid
 		WHERE bp.buzz_id = ?
 		ORDER BY bp.joined_at ASC
 	`
@@ -386,4 +386,102 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		LeftAt:        time.Now().UTC(),
 		BuzzEnded:     buzzEnded,
 	}, http.StatusOK, nil
+}
+
+// EndBuzz allows the host to explicitly end a buzz for all participants
+func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string) (*models.BuzzEndResponse, int, error) {
+	var buzz models.Buzz
+
+	// Fetch the buzz
+	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("buzz not found: %s", buzzID)
+			return nil, http.StatusNotFound, errors.New("buzz does not exist")
+		}
+		logger.Error("failed to fetch buzz: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to fetch buzz")
+	}
+
+	// Check if buzz is already ended
+	if buzz.Status == models.BuzzStatusEnded {
+		logger.Error("buzz already ended: %s", buzzID)
+		return nil, http.StatusConflict, errors.New("buzz has already ended")
+	}
+
+	// Validate that the user is the host
+	if buzz.HostID != hostID {
+		logger.Error("user %s is not the host of buzz %s", hostID, buzzID)
+		return nil, http.StatusForbidden, errors.New("only the host can end the buzz")
+	}
+
+	now := time.Now().UTC()
+
+	// Update buzz status in transaction
+	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
+		// Update buzz to ended status
+		buzz.Status = models.BuzzStatusEnded
+		buzz.IsLiveStatus = false
+		buzz.BuzzEndTime = &now
+		buzz.UpdatedAt = now
+
+		if err := tx.Model(&buzz).Updates(buzz).Error; err != nil {
+			return err
+		}
+
+		// Update all active participants to left status
+		if err := tx.Model(&models.BuzzParticipant{}).
+			Where("buzz_id = ? AND status = ?", buzzID, models.BuzzParticipantStatusActive).
+			Updates(map[string]interface{}{
+				"status":  models.BuzzParticipantStatusLeft,
+				"left_at": now,
+			}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		logger.Error("failed to end buzz: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to end buzz")
+	}
+
+	// Expire all pending invitations for this buzz
+	if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
+		logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
+	}
+
+	// Publish buzz ended event
+	eventPayload := models.BuzzEventPayload{
+		Event:          string(models.BuzzEnded),
+		BuzzID:         buzz.ID,
+		ChannelID:      buzz.ChannelID,
+		HostID:         buzz.HostID,
+		ParticipantIDs: []string{}, // Empty since all participants have left
+		CreatedAt:      now,
+		Status:         buzz.Status,
+	}
+
+	notification := models.Notification[models.BuzzEnded]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = eventPayload
+	notification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: buzz.ChannelID,
+	}
+	notification.NotificationId = utility.GenerateUUID()
+
+	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, notification); err != nil {
+		logger.Error("failed to publish buzz ended event: %v", err)
+	}
+
+	resp := &models.BuzzEndResponse{
+		BuzzID:    buzz.ID,
+		ChannelID: buzz.ChannelID,
+		HostID:    buzz.HostID,
+		EndedAt:   now,
+		Status:    buzz.Status,
+	}
+
+	logger.Info("buzz %s ended by host %s", buzzID, hostID)
+	return resp, http.StatusOK, nil
 }

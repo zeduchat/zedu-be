@@ -21927,6 +21927,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/end:
+    post:
+      tags:
+        - buzz
+      summary: End a buzz (call)
+      description: Allows the host to explicitly end the buzz for all participants
+      operationId: endBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz (call) to end
+      responses:
+        "200":
+          description: Successfully ended the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzEndResponseSchema"
+        "403":
+          description: Forbidden - only the host can end the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Conflict - buzz has already ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     FileSchema:
@@ -22365,6 +22414,42 @@ components:
           type: boolean
           description: Whether the buzz ended due to no participants remaining
           example: false
+
+    BuzzEndResponseSchema:
+      type: object
+      required:
+        - buzz_id
+        - channel_id
+        - host_id
+        - ended_at
+        - status
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique identifier of the buzz
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz took place
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the host who ended the buzz
+          example: "7ca8c920-adbe-22e2-91c5-11d15fe541d9"
+        ended_at:
+          type: string
+          format: date-time
+          description: Timestamp when the buzz was ended (UTC)
+          example: "2024-11-27T10:30:45Z"
+        status:
+          type: string
+          description: The status of the buzz after ending
+          example: "ended"
+          enum:
+            - ended
 
     ErrorResponse:
       type: object
