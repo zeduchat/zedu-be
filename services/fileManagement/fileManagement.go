@@ -122,7 +122,9 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 	if existsErr != nil && !exists {
 		utility.LogAndPrint(logger, fmt.Sprintf("error: %v.", existsErr.Error()))
 		return nil, existsErr
-	} else if exists {
+	}
+
+	if exists {
 		utility.LogAndPrint(logger, "checking for file existence")
 		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
@@ -188,41 +190,42 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 
 		return newFileEntry, nil
 
-	} else {
-		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, params.File, params.Header.Size, minio.PutObjectOptions{ContentType: mimeType})
-		if err != nil {
-			errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err.Error()))
-			return nil, errMsg
-		}
-
-		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
-		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
-
-		saveParams := CreateAndSaveFileParams{
-			UploadParams: params,
-			FileLink:     generatedUrl,
-			MimeType:     mimeType,
-			FolderID:     fID,
-		}
-		response, storageErr := createAndSaveFile(db, saveParams)
-		if storageErr != nil {
-			// rollback file from MinIO if DB save fails
-			utility.LogAndPrint(logger, "Failed to save file details to DB, rolling back MinIO upload...")
-			removeErr := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
-			if removeErr != nil {
-				utility.LogAndPrint(logger, fmt.Sprintf("Failed to rollback MinIO upload for %s: %v", encodedFilePath, removeErr))
-			} else {
-				utility.LogAndPrint(logger, fmt.Sprintf("Successfully rolled back MinIO upload for %s", encodedFilePath))
-			}
-
-			errMsg := fmt.Errorf("error saving file details: %w", storageErr)
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
-			return nil, errMsg
-		}
-
-		return response, nil
 	}
+
+	_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, params.File, params.Header.Size, minio.PutObjectOptions{ContentType: mimeType})
+	if err != nil {
+		errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err.Error()))
+		return nil, errMsg
+	}
+
+	(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
+	generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
+
+	saveParams := CreateAndSaveFileParams{
+		UploadParams: params,
+		FileLink:     generatedUrl,
+		MimeType:     mimeType,
+		FolderID:     fID,
+	}
+	response, storageErr := createAndSaveFile(db, saveParams)
+	if storageErr != nil {
+		// rollback file from MinIO if DB save fails
+		utility.LogAndPrint(logger, "Failed to save file details to DB, rolling back MinIO upload...")
+		removeErr := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
+		if removeErr != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("Failed to rollback MinIO upload for %s: %v", encodedFilePath, removeErr))
+		} else {
+			utility.LogAndPrint(logger, fmt.Sprintf("Successfully rolled back MinIO upload for %s", encodedFilePath))
+		}
+
+		errMsg := fmt.Errorf("error saving file details: %w", storageErr)
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
+		return nil, errMsg
+	}
+
+	return response, nil
+
 }
 
 type CreateAndSaveFileParams struct {
