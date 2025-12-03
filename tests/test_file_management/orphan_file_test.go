@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,6 +141,69 @@ func TestOrphanFileRecovery(t *testing.T) {
 
 		if file.FileLink != fileLink {
 			t.Errorf("Expected file link to match original: %s, got %s", fileLink, file.FileLink)
+		}
+	})
+
+	t.Run("TestRollbackOnDBFailure", func(t *testing.T) {
+		/* use an invalid folder_id to trigger DB error
+		   error would be
+			{
+		    "status": "error",
+		    "status_code": 400,
+		    "message": "Upload failed",
+		    "error": "error saving new file details: ERROR: invalid input syntax for type uuid: \"invalid folder_id \" (SQLSTATE 22P02)"
+			}
+
+		*/
+		uniqueExt := "rollbacktest"
+		fileName := "rollback_test_invalid_folder." + uniqueExt
+		invalidFolderID := "invalid-uuid-string"
+
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		part, _ := writer.CreateFormFile("files", fileName)
+		part.Write([]byte("test content"))
+
+		writer.WriteField("folder_id", invalidFolderID)
+
+		writer.Close()
+
+		req, _ := http.NewRequest("POST", "/api/v1/files/upload-files", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// expect failure due to DB error
+		if w.Code == http.StatusOK || w.Code == http.StatusCreated {
+			t.Fatalf("Expected upload to fail due to invalid folder_id, but got status %d", w.Code)
+		}
+
+		// verify file does not exist in MinIO (rollback)
+
+		doneCh := make(chan struct{})
+		defer close(doneCh)
+
+		objectCh := minioClient.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{
+			Prefix:    "public/file-uploads/",
+			Recursive: true,
+		})
+
+		found := false
+		for object := range objectCh {
+			if object.Err != nil {
+				t.Logf("Error listing objects: %v", object.Err)
+				continue
+			}
+			if strings.HasSuffix(object.Key, "."+uniqueExt) {
+				found = true
+				break
+			}
+		}
+
+		if found {
+			t.Fatal("File was found in MinIO, rollback failed")
 		}
 	})
 }
