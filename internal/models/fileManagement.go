@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -149,4 +150,73 @@ func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
 	}
 
 	return nil
+}
+
+func (file *File) GetFileCategory() string {
+	mimeType := strings.ToLower(file.MimeType)
+
+	if strings.Contains(mimeType, "pdf") ||
+		strings.Contains(mimeType, "document") ||
+		strings.Contains(mimeType, "word") ||
+		strings.Contains(mimeType, "text") ||
+		strings.Contains(mimeType, "rtf") ||
+		strings.HasSuffix(mimeType, "doc") ||
+		strings.HasSuffix(mimeType, "docx") ||
+		strings.HasSuffix(mimeType, "txt") ||
+		strings.HasSuffix(mimeType, "odt") {
+		return "documents"
+	}
+
+	if strings.Contains(mimeType, "spreadsheet") ||
+		strings.Contains(mimeType, "excel") ||
+		strings.HasSuffix(mimeType, "xls") ||
+		strings.HasSuffix(mimeType, "xlsx") ||
+		strings.HasSuffix(mimeType, "csv") ||
+		strings.HasSuffix(mimeType, "ods") {
+		return "spreadsheets"
+	}
+
+	if strings.HasPrefix(mimeType, "image/") {
+		return "images"
+	}
+
+	if strings.HasPrefix(mimeType, "video/") {
+		return "videos"
+	}
+
+	if strings.HasPrefix(mimeType, "audio/") {
+		return "music"
+	}
+
+	return "other"
+}
+
+func GetDateRangeFilter(filter string) (start, end *time.Time) {
+	now := time.Now()
+
+	switch strings.ToLower(filter) {
+	case "today":
+		startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		endOfDay := startOfDay.Add(24 * time.Hour)
+		return &startOfDay, &endOfDay
+
+	case "last_7_days":
+		start := now.AddDate(0, 0, -7)
+		return &start, &now
+
+	case "last_30_days":
+		start := now.AddDate(0, 0, -30)
+		return &start, &now
+
+	case "this_year":
+		startOfYear := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		return &startOfYear, &now
+
+	case "last_year":
+		startOfLastYear := time.Date(now.Year()-1, 1, 1, 0, 0, 0, 0, now.Location())
+		endOfLastYear := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		return &startOfLastYear, &endOfLastYear
+	}
+
+	return nil, nil
 }
