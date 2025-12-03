@@ -129,6 +129,27 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 		var existingFile models.File
 		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket but not in DB. Creating new record for: %s", existingFileURL))
+
+				// persists file details and skip MinIO upload since it's already there
+				saveParams := CreateAndSaveFileParams{
+					UploadParams: params,
+					FileLink:     existingFileURL,
+					MimeType:     mimeType,
+					FolderID:     fID,
+				}
+
+				newFileEntry, storageErr := createAndSaveFile(db, saveParams)
+				if storageErr != nil {
+					errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
+					utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
+					return nil, errMsg
+				}
+
+				return newFileEntry, nil
+			}
+
 			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata in database: %v", err.Error()))
 			return nil, fmt.Errorf("file exists in Minio bucket. failed to retrieve existing metadata in database: %v", err)
 		}
@@ -151,26 +172,21 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 			return &duplicateFile, nil
 		}
 
-		newFileEntry := models.File{
-			ID:             utility.GenerateUUID(),
-			FileName:       params.Header.Filename,
-			FileType:       filepath.Ext(params.Header.Filename)[1:],
-			MimeType:       mimeType,
-			FileLink:       existingFile.FileLink,
-			Size:           params.Header.Size,
-			OrganisationID: params.OrgID,
-			UserID:         params.UserID,
-			FolderID:       fID,
+		saveParams := CreateAndSaveFileParams{
+			UploadParams: params,
+			FileLink:     existingFile.FileLink,
+			MimeType:     mimeType,
+			FolderID:     fID,
 		}
-
-		storageErr := newFileEntry.CreateFileRecord(db)
+		newFileEntry, storageErr := createAndSaveFile(db, saveParams)
 
 		if storageErr != nil {
 			errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
 			utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
 			return nil, errMsg
 		}
-		return &newFileEntry, nil
+
+		return newFileEntry, nil
 
 	} else {
 		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, params.File, params.Header.Size, minio.PutObjectOptions{ContentType: mimeType})
@@ -183,27 +199,56 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
 		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
-		response := models.File{
-			ID:             utility.GenerateUUID(),
-			FileName:       params.Header.Filename,
-			FileType:       filepath.Ext(params.Header.Filename)[1:],
-			MimeType:       mimeType,
-			FileLink:       generatedUrl,
-			Size:           params.Header.Size,
-			OrganisationID: params.OrgID,
-			UserID:         params.UserID,
-			FolderID:       fID,
+		saveParams := CreateAndSaveFileParams{
+			UploadParams: params,
+			FileLink:     generatedUrl,
+			MimeType:     mimeType,
+			FolderID:     fID,
 		}
-
-		storageErr := response.CreateFileRecord(db)
+		response, storageErr := createAndSaveFile(db, saveParams)
 		if storageErr != nil {
+			// rollback file from MinIO if DB save fails
+			utility.LogAndPrint(logger, "Failed to save file details to DB, rolling back MinIO upload...")
+			removeErr := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
+			if removeErr != nil {
+				utility.LogAndPrint(logger, fmt.Sprintf("Failed to rollback MinIO upload for %s: %v", encodedFilePath, removeErr))
+			} else {
+				utility.LogAndPrint(logger, fmt.Sprintf("Successfully rolled back MinIO upload for %s", encodedFilePath))
+			}
+
 			errMsg := fmt.Errorf("error saving file details: %w", storageErr)
 			utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
 			return nil, errMsg
 		}
 
-		return &response, nil
+		return response, nil
 	}
+}
+
+type CreateAndSaveFileParams struct {
+	UploadParams models.UploadFileParams
+	FileLink     string
+	MimeType     string
+	FolderID     *string
+}
+
+func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.File, error) {
+	newFileEntry := models.File{
+		ID:             utility.GenerateUUID(),
+		FileName:       params.UploadParams.Header.Filename,
+		FileType:       filepath.Ext(params.UploadParams.Header.Filename)[1:],
+		MimeType:       params.MimeType,
+		FileLink:       params.FileLink,
+		Size:           params.UploadParams.Header.Size,
+		OrganisationID: params.UploadParams.OrgID,
+		UserID:         params.UploadParams.UserID,
+		FolderID:       params.FolderID,
+	}
+
+	if err := newFileEntry.CreateFileRecord(db); err != nil {
+		return nil, err
+	}
+	return &newFileEntry, nil
 }
 
 func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder, error) {
