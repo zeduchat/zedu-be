@@ -182,9 +182,6 @@ func TestOrphanFileRecovery(t *testing.T) {
 
 		// verify file does not exist in MinIO (rollback)
 
-		doneCh := make(chan struct{})
-		defer close(doneCh)
-
 		objectCh := minioClient.ListObjects(context.Background(), bucketName, minio.ListObjectsOptions{
 			Prefix:    "public/file-uploads/",
 			Recursive: true,
