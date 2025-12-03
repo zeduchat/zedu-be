@@ -79,6 +79,14 @@ type BuzzLeaveResponse struct {
 	BuzzEnded     bool      `json:"buzz_ended"`
 }
 
+type BuzzEndResponse struct {
+	BuzzID    string    `json:"buzz_id"`
+	ChannelID string    `json:"channel_id"`
+	HostID    string    `json:"host_id"`
+	EndedAt   time.Time `json:"ended_at"`
+	Status    string    `json:"status"`
+}
+
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
 		h.ID = utility.GenerateUUID()
