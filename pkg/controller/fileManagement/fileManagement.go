@@ -299,6 +299,74 @@ func (base *Controller) DeleteFolder(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) DeleteMultipleFiles(c *gin.Context) {
+	var req models.DeleteMultipleFilesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	successCount, failureCount, errs := services.DeleteMultipleFiles(base.Logger, base.Db, req.IDs, req.Permanent)
+
+	responseMsg := fmt.Sprintf("Bulk delete completed. Success: %d, Failed: %d", successCount, failureCount)
+	responseData := map[string]interface{}{
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"errors":        utility.ErrorsToStrings(errs),
+	}
+
+	if failureCount > 0 && successCount == 0 {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", responseMsg, nil, responseData)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, responseMsg, responseData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) DeleteMultipleFolders(c *gin.Context) {
+	var req models.DeleteMultipleFoldersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	successCount, failureCount, errs := services.DeleteMultipleFolders(base.Db.Postgresql, req.IDs, req.Permanent)
+
+	responseMsg := fmt.Sprintf("Bulk delete completed. Success: %d, Failed: %d", successCount, failureCount)
+	responseData := map[string]interface{}{
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"errors":        utility.ErrorsToStrings(errs),
+	}
+
+	if failureCount > 0 && successCount == 0 {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", responseMsg, nil, responseData)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, responseMsg, responseData)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) MoveFile(c *gin.Context) {
 	fileID := c.Param("id")
 	if !utility.IsValidUUID(fileID) {

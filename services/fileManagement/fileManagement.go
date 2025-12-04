@@ -383,6 +383,57 @@ func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *m
 	return nil
 }
 
+func DeleteMultipleFiles(logger *utility.Logger, db *storage.Database, fileIDs []string, permanent bool) (int, int, []error) {
+	successCount := 0
+	failureCount := 0
+	var errs []error
+
+	for _, fileID := range fileIDs {
+		var file *models.File
+		var err error
+
+		if permanent {
+			file, err = GetFileDetailsByIDUnscoped(db.Postgresql, fileID)
+		} else {
+			file, err = GetFileDetailsByID(db.Postgresql, fileID)
+		}
+
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to find file %s: %v", fileID, err))
+			continue
+		}
+
+		err = DeleteFileDetailsByID(logger, db, file, fileID, "", permanent)
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to delete file %s: %v", fileID, err))
+		} else {
+			successCount++
+		}
+	}
+
+	return successCount, failureCount, errs
+}
+
+func DeleteMultipleFolders(db *gorm.DB, folderIDs []string, permanent bool) (int, int, []error) {
+	successCount := 0
+	failureCount := 0
+	var errs []error
+
+	for _, folderID := range folderIDs {
+		err := DeleteFolder(db, folderID, permanent)
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to delete folder %s: %v", folderID, err))
+		} else {
+			successCount++
+		}
+	}
+
+	return successCount, failureCount, errs
+}
+
 func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string, logger *utility.Logger) error {
 
 	var (

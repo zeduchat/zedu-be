@@ -31,6 +31,9 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 
 		fileManagementUrl.PUT("/:id/move", fileManagement.MoveFile)
 
+		fileManagementUrl.DELETE("", fileManagement.DeleteMultipleFiles)
+		fileManagementUrl.DELETE("/folders", fileManagement.DeleteMultipleFolders)
+
 		fileManagementUrl.GET("", fileManagement.GetFiles)
 	}
 

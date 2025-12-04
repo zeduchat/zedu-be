@@ -39,6 +39,16 @@ type CreateFolderParams struct {
 	UserID         string
 }
 
+type DeleteMultipleFilesRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
+}
+
+type DeleteMultipleFoldersRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
+}
+
 type UpdateFileNameParams struct {
 	FileID      string
 	NewFileName string
