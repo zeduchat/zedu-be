@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"testing"
 	"time"
@@ -300,11 +301,14 @@ func TestFileFilters(t *testing.T) {
 	var imageFileID, docFileID, videoFileID string
 
 	t.Run("SetupTestFiles", func(t *testing.T) {
-		imageFileID = uploadTestFile(t, r, token, "test_image.jpg", "image/jpeg", []byte("fake image content"))
+		// JPEG magic number: FF D8 FF
+		imageFileID = uploadTestFile(t, r, token, "test_image.jpg", "image/jpeg", []byte("\xFF\xD8\xFF\xE0"))
 
-		docFileID = uploadTestFile(t, r, token, "test_doc.pdf", "application/pdf", []byte("fake pdf content"))
+		// PDF magic number: %PDF-
+		docFileID = uploadTestFile(t, r, token, "test_doc.pdf", "application/pdf", []byte("%PDF-1.4"))
 
-		videoFileID = uploadTestFile(t, r, token, "test_video.mp4", "video/mp4", []byte("fake video content"))
+		// MP4 magic number (ftyp box)
+		videoFileID = uploadTestFile(t, r, token, "test_video.mp4", "video/mp4", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00"))
 
 		db.Postgresql.Model(&models.File{}).Where("id = ?", docFileID).
 			Update("updated_at", time.Now().AddDate(0, 0, -10))
@@ -588,7 +592,10 @@ func uploadTestFile(t *testing.T, r http.Handler, token, filename, mimeType stri
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
-	part, err := writer.CreateFormFile("files", filename)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "files", filename))
+	h.Set("Content-Type", mimeType)
+	part, err := writer.CreatePart(h)
 	if err != nil {
 		t.Fatal(err)
 	}
