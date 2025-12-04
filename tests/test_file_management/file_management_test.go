@@ -202,7 +202,7 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
-	t.Run("DeleteFile", func(t *testing.T) {
+	t.Run("DeleteFile_Soft", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s", fileID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
@@ -248,7 +248,39 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
-	t.Run("DeleteFolder", func(t *testing.T) {
+	t.Run("DeleteFile_Permanent", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s?permanent=true", fileID), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// verify hard delete in DB
+		var file models.File
+		err := db.Postgresql.Unscoped().Where("id = ?", fileID).First(&file).Error
+		if err == nil {
+			t.Errorf("File should be permanently deleted")
+		}
+	})
+
+	var fileInFolderID string
+
+	t.Run("DeleteFolder_Soft", func(t *testing.T) {
+
+		// upload a file to the folder first
+		fileInFolderID = uploadTestFile(t, r, token, "test_file_in_folder.txt", "text/plain", []byte("content"))
+
+		// move it to the folder
+		moveBody := []byte(fmt.Sprintf(`{"folder_id": "%s"}`, folderID))
+		moveReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/files/%s/move", fileInFolderID), bytes.NewBuffer(moveBody))
+		moveReq.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+		moveReq.Header.Set("Content-Type", "application/json")
+		moveRr := httptest.NewRecorder()
+		r.ServeHTTP(moveRr, moveReq)
+		tests.AssertStatusCode(t, moveRr.Code, http.StatusOK)
+
 		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s", folderID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
@@ -257,11 +289,48 @@ func TestFileManagement(t *testing.T) {
 
 		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
 
-		// verify folder was deleted
+		// verify folder was soft deleted
 		var folder models.Folder
-		err := db.Postgresql.Where("id = ?", folderID).First(&folder).Error
+		err := db.Postgresql.Unscoped().Where("id = ?", folderID).First(&folder).Error
+		if err != nil {
+			t.Errorf("Folder should exist (soft deleted)")
+		}
+		if !folder.DeletedAt.Valid {
+			t.Errorf("Folder should be soft deleted")
+		}
+
+		// verify file in folder was soft deleted
+		var file models.File
+		err = db.Postgresql.Unscoped().Where("id = ?", fileInFolderID).First(&file).Error
+		if err != nil {
+			t.Errorf("File in folder should exist")
+		}
+		if !file.DeletedAt.Valid {
+			t.Errorf("File in folder should be soft deleted")
+		}
+	})
+
+	t.Run("DeleteFolder_Permanent", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s?permanent=true", folderID), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// verify folder was hard deleted
+		var folder models.Folder
+		err := db.Postgresql.Unscoped().Where("id = ?", folderID).First(&folder).Error
 		if err == nil {
-			t.Errorf("Folder should be deleted")
+			t.Errorf("Folder should be permanently deleted")
+		}
+
+		// verify file in folder was hard deleted
+		var file models.File
+		err = db.Postgresql.Unscoped().Where("id = ?", fileInFolderID).First(&file).Error
+		if err == nil {
+			t.Errorf("File in folder should be permanently deleted")
 		}
 	})
 }

@@ -63,6 +63,7 @@ func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Con
 		fileUrl.PUT("/:id/move", fileController.MoveFile)
 		fileUrl.POST("/upload-files", fileController.UploadController)
 		fileUrl.DELETE("/file/:id", fileController.DeleteFileDetailsByID)
+		fileUrl.PUT("/file/:id/restore", fileController.RestoreFile)
 
 		fileUrl.GET("", fileController.GetFiles)
 	}
