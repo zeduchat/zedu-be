@@ -13461,6 +13461,105 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/media-preferences:
+    get:
+      tags:
+        - user
+      summary: Get user media preferences
+      security:
+        - bearerAuth: []
+      description: Retrieves the media preferences for a specific user. If device_id is provided, returns device-specific preferences with fallback to user-level preferences.
+      parameters:
+        - name: device_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional device ID for device-specific preferences
+      responses:
+        "200":
+          description: Media preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPreferencesResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+    put:
+      tags:
+        - user
+      summary: Update user media preferences
+      security:
+        - bearerAuth: []
+      description: Updates the media preferences for a specific user. Supports partial updates. If device_id is provided, updates device-specific preferences; otherwise updates user-level preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaPreferencesUpdateSchema"
+      responses:
+        "200":
+          description: Media preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPreferencesResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Device not found (when device_id is provided)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /optin:
     post:
       tags:
@@ -25692,6 +25791,98 @@ components:
         - to_hour
         - appearance
         - notification_method_email
+
+    MediaPreferencesUpdateSchema:
+      type: object
+      description: Request body for updating media preferences. All fields are optional for partial updates.
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional device ID for device-specific preferences
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        auto_download_photos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for photos
+          example: "wifi_only"
+        auto_download_audio:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for audio files
+          example: "wifi_only"
+        auto_download_documents:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for documents
+          example: "wifi_only"
+        auto_download_videos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for videos
+          example: "wifi_only"
+        upload_quality:
+          type: string
+          enum: ["standard", "high", "original"]
+          description: Upload quality preference
+          example: "standard"
+
+    MediaPreferencesResponseSchema:
+      type: object
+      description: Response schema for media preferences
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the media preferences record
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_id:
+          type: string
+          format: uuid
+          description: User ID associated with these preferences
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        device_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Device ID if these are device-specific preferences, null for user-level preferences
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        auto_download_photos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for photos
+          example: "wifi_only"
+        auto_download_audio:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for audio files
+          example: "wifi_only"
+        auto_download_documents:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for documents
+          example: "wifi_only"
+        auto_download_videos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for videos
+          example: "wifi_only"
+        upload_quality:
+          type: string
+          enum: ["standard", "high", "original"]
+          description: Upload quality preference
+          example: "standard"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the preferences were created
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the preferences were last updated
+          example: "2024-01-15T10:30:00Z"
 
   responses:
         UnauthorizedError:
