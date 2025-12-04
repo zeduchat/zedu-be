@@ -120,13 +120,26 @@ func TestUploadFolderWithFiles(t *testing.T) {
 		}
 	})
 
-	t.Run("UploadFolderWithFiles_WithParentFolder", func(t *testing.T) {
-		// First create a parent folder
+	t.Run("UploadFolderWithFiles_MultipleFilesInFolder", func(t *testing.T) {
 		body := new(bytes.Buffer)
 		writer := multipart.NewWriter(body)
-		writer.WriteField("folder_name", "Parent Folder")
-		part, _ := writer.CreateFormFile("files", "parent_file.txt")
-		part.Write([]byte("parent content"))
+		writer.WriteField("folder_name", "Multi File Folder")
+
+		// Add multiple files
+		files := []struct {
+			name    string
+			content string
+		}{
+			{"file1.txt", "content 1"},
+			{"file2.txt", "content 2"},
+			{"file3.txt", "content 3"},
+			{"file4.txt", "content 4"},
+		}
+
+		for _, file := range files {
+			part, _ := writer.CreateFormFile("files", file.name)
+			part.Write([]byte(file.content))
+		}
 		writer.Close()
 
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/upload-folder", body)
@@ -136,37 +149,21 @@ func TestUploadFolderWithFiles(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		resp := tests.ParseResponse(rr)
-		data := resp["data"].(map[string]interface{})
-		parentFolder := data["folder"].(map[string]interface{})
-		parentFolderID := parentFolder["id"].(string)
-
-		// Now create a subfolder
-		body2 := new(bytes.Buffer)
-		writer2 := multipart.NewWriter(body2)
-		writer2.WriteField("folder_name", "Subfolder")
-		writer2.WriteField("parent_id", parentFolderID)
-		part2, _ := writer2.CreateFormFile("files", "sub_file.txt")
-		part2.Write([]byte("subfolder content"))
-		writer2.Close()
-
-		req2, _ := http.NewRequest(http.MethodPost, "/api/v1/files/upload-folder", body2)
-		req2.Header.Set("Content-Type", writer2.FormDataContentType())
-		req2.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
-
-		rr2 := httptest.NewRecorder()
-		r.ServeHTTP(rr2, req2)
-
-		if rr2.Code != http.StatusCreated {
-			t.Fatalf("Subfolder creation failed with status %d. Response: %s", rr2.Code, rr2.Body.String())
+		if rr.Code != http.StatusCreated {
+			t.Fatalf("Multiple files upload failed with status %d. Response: %s", rr.Code, rr.Body.String())
 		}
 
-		resp2 := tests.ParseResponse(rr2)
-		data2 := resp2["data"].(map[string]interface{})
-		subfolder := data2["folder"].(map[string]interface{})
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		uploadedFiles := data["files"].([]interface{})
 
-		if subfolder["parent_id"].(string) != parentFolderID {
-			t.Errorf("Expected subfolder parent_id to be %s, got %s", parentFolderID, subfolder["parent_id"].(string))
+		if len(uploadedFiles) != 4 {
+			t.Errorf("Expected 4 files, got %d", len(uploadedFiles))
+		}
+
+		fileCount, ok := data["file_count"].(float64)
+		if !ok || int(fileCount) != 4 {
+			t.Errorf("Expected file_count to be 4, got %v", fileCount)
 		}
 	})
 
