@@ -17943,7 +17943,7 @@ paths:
       tags:
         - Saved Messages
       summary: Get all saved messages
-      description: Retrieves all saved messages for an organization.
+      description: Retrieves all saved messages for an organization. Results are paginated and sorted by newest first (created_at desc).
       security:
         - bearerAuth: []
       parameters:
@@ -17952,6 +17952,8 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: "#/components/parameters/PageLimitParam"
+        - $ref: "#/components/parameters/LimitParam"
       responses:
         "200":
           description: Messages retrieved successfully
@@ -18012,6 +18014,29 @@ paths:
                           type: string
                           format: date-time
                           example: "0001-01-01T00:00:00Z"
+                        overdue:
+                          type: boolean
+                          example: false
+                        overdue_time:
+                          type: string
+                          format: date-time
+                          nullable: true
+                          example: null
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 20
+                      total_items:
+                        type: integer
+                        example: 95
 
   /organisations/{org_id}/saved/archived:
     get:
