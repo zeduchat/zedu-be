@@ -80,6 +80,8 @@ func AuthMigrationModels() []any {
 		models.CreditUsage{},
 		models.Admin{},
 		models.IntegrationBills{},
+		models.MediaPreferences{},
+		models.DeviceRegistry{},
 		models.Buzz{},
 		models.BuzzParticipant{},
 		models.BuzzNote{},
