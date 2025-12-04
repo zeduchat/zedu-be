@@ -21506,7 +21506,7 @@ paths:
       tags:
         - buzz
       summary: Get Agora RTC token
-      description: Generates an Agora RTC token for a user to connect to a buzz audio/video channel. User must be an active participant in the buzz. Token expires dynamically based on buzz duration (max 4 hours). Requires a unique UID for participant tracking in Agora.
+      description: Generates an Agora RTC token for a user to connect to a buzz audio/video channel. User must be an active participant in the buzz. Token is valid for 4 hours (matches maximum buzz duration). Requires a unique UID for participant tracking in Agora. Note that tokens are automatically provided when creating or joining a buzz, so this endpoint is typically only needed for token refresh scenarios.
       security:
         - bearerAuth: []
       requestBody:
@@ -21569,7 +21569,7 @@ paths:
       tags:
         - buzz
       summary: Create a new buzz (video/audio call)
-      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token.
+      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency.
       operationId: createBuzz
       security:
         - bearerAuth: []
@@ -21622,7 +21622,7 @@ paths:
       tags:
         - buzz
       summary: Join a buzz (video/audio call)
-      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token for real-time communication.
+      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token (valid for 4 hours) for real-time communication. Token is generated before adding user to ensure consistency.
       operationId: joinBuzz
       security:
         - bearerAuth: []
@@ -22297,7 +22297,7 @@ components:
           allOf:
             - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           nullable: true
-          description: Agora RTC token and connection details (null if token generation fails)
+          description: Agora RTC token and connection details (valid for 4 hours - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
       example:
         buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -22354,7 +22354,7 @@ components:
           allOf:
             - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           nullable: true
-          description: Agora RTC token and connection details (null if token generation fails)
+          description: Agora RTC token and connection details (valid for 4 hours - matches maximum buzz duration). If token generation fails, the join operation will fail with HTTP 500.
       example:
         buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"

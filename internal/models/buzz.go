@@ -238,6 +238,7 @@ type JoinBuzzRequest struct {
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
 	BuzzID       string                  `json:"Buzz_id"`
+	HostID       string                  `json:"host_id"`
 	ChannelID    string                  `json:"channel_id"`
 	UserID       string                  `json:"user_id"`
 	Status       string                  `json:"status"`

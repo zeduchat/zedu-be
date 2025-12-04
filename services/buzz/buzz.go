@@ -10,9 +10,14 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
+	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
+)
+
+const (
+	errorAgoraNotInitialized = "agora service not initialized"
 )
 
 // mapPermissionError maps permission errors to HTTP status codes and user-friendly messages
@@ -77,6 +82,14 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, statusCode, errors.New(errMsg)
 	}
 
+
+	// Fail on Agora service not available before permission checks
+	service := agora.Client.Service
+	if service == nil {
+		logger.Error(errorAgoraNotInitialized)
+		return resp, http.StatusInternalServerError, errors.New(errorAgoraNotInitialized)
+	}
+
 	now := time.Now().UTC()
 	// Only the host auto-joins on creation; others must explicitly join via /join endpoint
 	participants := []string{hostID}
@@ -91,6 +104,21 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		Status:         models.BuzzStatusActive,
 		CreatedAt:      now,
 		UpdatedAt:      now,
+	}
+
+	// Generate Agora token BEFORE creating buzz in database (using hostID as UID)
+	// Use constant for token expiration (4 hours)
+	token, err := service.GenerateRTCToken(buzz.ID, hostID, hostID, agora.DefaultTokenExpirationSeconds)
+	if err != nil {
+		logger.Error("failed to generate Agora token for host: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
+	}
+
+	agoraToken := models.BuzzAgoraTokenResponse{
+		Token:       token,
+		AppId:       service.GetAppId(),
+		ChannelName: buzz.ID,
+		UID:         hostID,
 	}
 
 	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
@@ -134,7 +162,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		CreatedAt:    buzz.CreatedAt,
 		StartedAt:    buzz.BuzzStartTime,
 		Participants: participantMetadata,
-		AgoraToken:   nil, // Token must be requested separately via /buzz/token endpoint with UID
+		AgoraToken:   &agoraToken,
 	}
 
 	eventPayload := models.BuzzEventPayload{
@@ -166,6 +194,13 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.JoinBuzzResponse, int, error) {
 	var resp models.JoinBuzzResponse
 
+	// Fail-fast: Check Agora service availability before permission checks
+	service := agora.Client.Service
+	if service == nil {
+		logger.Error(errorAgoraNotInitialized)
+		return resp, http.StatusInternalServerError, errors.New(errorAgoraNotInitialized)
+	}
+
 	// Validate all join permissions using centralized permission check
 	buzz, err := permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
 	if err != nil {
@@ -176,17 +211,35 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	timestamp := time.Now().UTC()
 
+	// Generate Agora token BEFORE adding user to buzz (using userID as UID)
+	// This way if token generation fails, we haven't polluted the database
+	// Use constant for token expiration (4 hours)
+	token, err := service.GenerateRTCToken(buzzID, userID, userID, agora.DefaultTokenExpirationSeconds)
+	if err != nil {
+		logger.Error("failed to generate Agora token for user: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
+	}
+
+	agoraToken := models.BuzzAgoraTokenResponse{
+		Token:       token,
+		AppId:       service.GetAppId(),
+		ChannelName: buzzID,
+		UID:         userID,
+	}
+
 	// Add user to buzz in transaction
 	if err := addUserToBuzzTransaction(db, logger, buzz, userID, timestamp); err != nil {
 		logger.Error("failed to add user to buzz transaction: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to join buzz")
 	}
 
-	// Fetch updated buzz with new participant
-	if err := db.Postgresql.Where("id = ?", buzzID).First(buzz).Error; err != nil {
+	// Fetch updated buzz with new participant using fresh variable to avoid pointer issues
+	var updatedBuzz models.Buzz
+	if err := db.Postgresql.Where("id = ?", buzzID).First(&updatedBuzz).Error; err != nil {
 		logger.Error("failed to fetch updated buzz: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated buzz")
 	}
+	buzz = &updatedBuzz
 
 	// Fetch participant metadata
 	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
@@ -197,12 +250,13 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	resp = models.JoinBuzzResponse{
 		BuzzID:       buzz.ID,
+		HostID:       buzz.HostID,
 		ChannelID:    buzz.ChannelID,
 		UserID:       userID,
 		Status:       buzz.Status,
 		JoinedAt:     timestamp,
 		Participants: participantMetadata,
-		AgoraToken:   nil, // Token must be requested separately via /buzz/token endpoint with UID
+		AgoraToken:   &agoraToken,
 	}
 
 	publishJoinBuzzEvent(logger, *buzz, timestamp)
@@ -351,11 +405,6 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		return nil, http.StatusInternalServerError, errors.New("failed to commit changes")
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		logger.Error("Failed to commit transaction: %v", err)
-		return nil, http.StatusInternalServerError, errors.New("failed to commit changes")
-	}
-
 	publishPayload := models.BuzzLeaveEventPayload{
 		HuddleStatus: buzz.Status,
 		HostChanged:  !(newHostID == ""),
@@ -390,34 +439,18 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 
 // EndBuzz allows the host to explicitly end a buzz for all participants
 func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string) (*models.BuzzEndResponse, int, error) {
-	var buzz models.Buzz
-
-	// Fetch the buzz
-	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("buzz not found: %s", buzzID)
-			return nil, http.StatusNotFound, errors.New("buzz does not exist")
-		}
-		logger.Error("failed to fetch buzz: %v", err)
-		return nil, http.StatusInternalServerError, errors.New("failed to fetch buzz")
-	}
-
-	// Check if buzz is already ended
-	if buzz.Status == models.BuzzStatusEnded {
-		logger.Error("buzz already ended: %s", buzzID)
-		return nil, http.StatusConflict, errors.New("buzz has already ended")
-	}
-
-	// Validate that the user is the host
-	if buzz.HostID != hostID {
-		logger.Error("user %s is not the host of buzz %s", hostID, buzzID)
-		return nil, http.StatusForbidden, errors.New("only the host can end the buzz")
+	// Use centralized permission check
+	buzz, err := permissions.CanPerformHostAction(db.Postgresql, buzzID, hostID)
+	if err != nil {
+		statusCode, errMsg := mapPermissionError(err, "end")
+		logger.Error("permission check failed for user %s ending buzz %s: %v", hostID, buzzID, err)
+		return nil, statusCode, errors.New(errMsg)
 	}
 
 	now := time.Now().UTC()
 
 	// Update buzz status in transaction
-	err := db.Postgresql.Transaction(func(tx *gorm.DB) error {
+	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
 		// Update buzz to ended status
 		buzz.Status = models.BuzzStatusEnded
 		buzz.IsLiveStatus = false
