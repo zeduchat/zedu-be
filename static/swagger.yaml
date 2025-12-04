@@ -15351,7 +15351,9 @@ paths:
       tags:
         - File Management
       summary: List files
-      description: Retrieves a list of files with filtering and pagination.
+      description: |
+        Retrieves a list of files with advanced filtering and pagination.
+        Filters can be used independently or combined with existing filters for powerful file organization.
       security:
         - bearerAuth: []
       parameters:
@@ -15362,6 +15364,7 @@ paths:
           schema:
             type: string
             enum: [all, mine, shared, trash]
+          example: mine
         - name: folder_id
           in: query
           required: false
@@ -15369,32 +15372,70 @@ paths:
           schema:
             type: string
             format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
         - name: search
           in: query
           required: false
-          description: Search by file name
+          description: Search by file name (case-insensitive partial match)
           schema:
             type: string
+          example: "report"
         - name: type
           in: query
           required: false
-          description: Filter by file type
+          description: Filter by file extension type
           schema:
             type: string
+          example: "pdf"
+        - name: file_category
+          in: query
+          required: false
+          description: |
+            Filter by file category based on MIME type.
+            Categories automatically group related file types:
+            - **documents**: PDF, Word, Text files (.pdf, .doc, .docx, .txt, etc.)
+            - **spreadsheets**: Excel, CSV files (.xls, .xlsx, .csv, etc.)
+            - **images**: All image formats (.jpg, .png, .gif, .svg, etc.)
+            - **videos**: All video formats (.mp4, .avi, .mov, etc.)
+            - **music**: All audio formats (.mp3, .wav, .flac, etc.)
+          schema:
+            type: string
+            enum: [documents, spreadsheets, images, videos, music]
+          example: "documents"
+        - name: date_modified
+          in: query
+          required: false
+          description: |
+            Filter by when the file was last modified.
+            Filters based on the file's `updated_at` timestamp:
+            - **today**: Files modified today (00:00 to 23:59 current day)
+            - **last_7_days**: Files modified in the past 7 days
+            - **last_30_days**: Files modified in the past 30 days
+            - **this_year**: Files modified from January 1st of current year to now
+            - **last_year**: Files modified during the entire previous calendar year
+          schema:
+            type: string
+            enum: [today, last_7_days, last_30_days, this_year, last_year]
+          example: "last_7_days"
         - name: page
           in: query
           required: false
-          description: Page number
+          description: Page number for pagination
           schema:
             type: integer
             default: 1
+            minimum: 1
+          example: 1
         - name: limit
           in: query
           required: false
-          description: Items per page
+          description: Number of items per page
           schema:
             type: integer
             default: 10
+            minimum: 1
+            maximum: 100
+          example: 20
       responses:
         "200":
           description: Files fetched successfully
@@ -15424,12 +15465,134 @@ paths:
                         properties:
                           current_page:
                             type: integer
+                            example: 1
                           page_count:
                             type: integer
+                            example: 10
                           total_pages_count:
                             type: integer
+                            example: 5
                           total_items:
                             type: integer
+                            example: 47
+              examples:
+                basic_response:
+                  summary: Basic file list
+                  value:
+                    status: success
+                    status_code: 200
+                    message: "Files fetched successfully"
+                    data:
+                      files:
+                        - id: "550e8400-e29b-41d4-a716-446655440000"
+                          file_name: "Q4_Report.pdf"
+                          file_type: "pdf"
+                          mime_type: "application/pdf"
+                          file_link: "https://storage.example.com/files/..."
+                          size: 2048576
+                          organisation_id: "660e8400-e29b-41d4-a716-446655440000"
+                          user_id: "770e8400-e29b-41d4-a716-446655440000"
+                          folder_id: null
+                          created_at: "2024-12-01T10:30:00Z"
+                          updated_at: "2024-12-04T14:20:00Z"
+                      pagination:
+                        current_page: 1
+                        page_count: 10
+                        total_pages_count: 1
+                        total_items: 10
+                filtered_by_category:
+                  summary: Filtered by file category
+                  value:
+                    status: success
+                    status_code: 200
+                    message: "Files fetched successfully"
+                    data:
+                      files:
+                        - id: "550e8400-e29b-41d4-a716-446655440000"
+                          file_name: "vacation.jpg"
+                          file_type: "jpg"
+                          mime_type: "image/jpeg"
+                          file_link: "https://storage.example.com/files/..."
+                          size: 1024000
+                          organisation_id: "660e8400-e29b-41d4-a716-446655440000"
+                          user_id: "770e8400-e29b-41d4-a716-446655440000"
+                          folder_id: "880e8400-e29b-41d4-a716-446655440000"
+                          created_at: "2024-12-03T09:15:00Z"
+                          updated_at: "2024-12-03T09:15:00Z"
+                      pagination:
+                        current_page: 1
+                        page_count: 5
+                        total_pages_count: 1
+                        total_items: 5
+                combined_filters:
+                  summary: Combined filters (category + date + search)
+                  value:
+                    status: success
+                    status_code: 200
+                    message: "Files fetched successfully"
+                    data:
+                      files:
+                        - id: "550e8400-e29b-41d4-a716-446655440000"
+                          file_name: "Monthly_Report_Nov.pdf"
+                          file_type: "pdf"
+                          mime_type: "application/pdf"
+                          file_link: "https://storage.example.com/files/..."
+                          size: 3145728
+                          organisation_id: "660e8400-e29b-41d4-a716-446655440000"
+                          user_id: "770e8400-e29b-41d4-a716-446655440000"
+                          folder_id: null
+                          created_at: "2024-11-30T16:45:00Z"
+                          updated_at: "2024-12-02T11:30:00Z"
+                      pagination:
+                        current_page: 1
+                        page_count: 1
+                        total_pages_count: 1
+                        total_items: 1
+        "400":
+          description: Bad request - Invalid filter parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                  error:
+                    type: string
+              examples:
+                invalid_file_category:
+                  summary: Invalid file category
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Invalid file_category. Valid values: documents, spreadsheets, images, videos, music"
+                    error: null
+                invalid_date_filter:
+                  summary: Invalid date modified filter
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Invalid date_modified. Valid values: today, last_7_days, last_30_days, this_year, last_year"
+                    error: null
+                invalid_folder_id:
+                  summary: Invalid folder ID format
+                  value:
+                    status: error
+                    status_code: 400
+                    message: "Invalid folder_id format"
+                    error: null
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedSchema"
         "500":
           description: Internal server error
           content:

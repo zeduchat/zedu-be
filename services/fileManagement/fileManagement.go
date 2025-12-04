@@ -469,6 +469,45 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 		query = query.Where("files.file_type = ?", fileType)
 	}
 
+	if fileCategory, ok := queryParams["file_category"]; ok && fileCategory != "" {
+		switch strings.ToLower(fileCategory) {
+		case "documents":
+			query = query.Where(`(
+				files.mime_type LIKE '%pdf%' OR
+				files.mime_type LIKE '%document%' OR
+				files.mime_type LIKE '%word%' OR
+				files.mime_type LIKE '%text%' OR
+				files.mime_type LIKE '%rtf%' OR
+				files.mime_type LIKE '%doc' OR
+				files.mime_type LIKE '%docx' OR
+				files.mime_type LIKE '%txt' OR
+				files.mime_type LIKE '%odt'
+			)`)
+		case "spreadsheets":
+			query = query.Where(`(
+				files.mime_type LIKE '%spreadsheet%' OR
+				files.mime_type LIKE '%excel%' OR
+				files.mime_type LIKE '%xls' OR
+				files.mime_type LIKE '%xlsx' OR
+				files.mime_type LIKE '%csv' OR
+				files.mime_type LIKE '%ods'
+			)`)
+		case "images":
+			query = query.Where("files.mime_type LIKE 'image/%'")
+		case "videos":
+			query = query.Where("files.mime_type LIKE 'video/%'")
+		case "music":
+			query = query.Where("files.mime_type LIKE 'audio/%'")
+		}
+	}
+
+	if dateFilter, ok := queryParams["date_modified"]; ok && dateFilter != "" {
+		startDate, endDate := models.GetDateRangeFilter(dateFilter)
+		if startDate != nil && endDate != nil {
+			query = query.Where("files.updated_at BETWEEN ? AND ?", startDate, endDate)
+		}
+	}
+
 	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
 	return files, count, err
 }

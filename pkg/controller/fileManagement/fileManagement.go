@@ -357,6 +357,42 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	queryParams["search"] = c.Query("search")
 	queryParams["type"] = c.Query("type")
 
+	fileCategory := c.Query("file_category")
+	if fileCategory != "" {
+		validCategories := map[string]bool{
+			"documents":    true,
+			"spreadsheets": true,
+			"images":       true,
+			"videos":       true,
+			"music":        true,
+		}
+		if !validCategories[strings.ToLower(fileCategory)] {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error",
+				"Invalid file_category. Valid values: documents, spreadsheets, images, videos, music", nil, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		queryParams["file_category"] = fileCategory
+	}
+
+	dateModified := c.Query("date_modified")
+	if dateModified != "" {
+		validDateFilters := map[string]bool{
+			"today":        true,
+			"last_7_days":  true,
+			"last_30_days": true,
+			"this_year":    true,
+			"last_year":    true,
+		}
+		if !validDateFilters[strings.ToLower(dateModified)] {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error",
+				"Invalid date_modified. Valid values: today, last_7_days, last_30_days, this_year, last_year", nil, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		queryParams["date_modified"] = dateModified
+	}
+
 	pagination := postgresql.GetPagination(c)
 	page, limit := pagination.Page, pagination.Limit
 
