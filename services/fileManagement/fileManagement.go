@@ -293,13 +293,23 @@ func DeleteFolder(db *gorm.DB, folderID string) error {
 	return err
 }
 
-func UpdateFolder(db *gorm.DB, folderID, name string) (*models.Folder, error) {
+func UpdateFolder(db *gorm.DB, params models.UpdateFolderParams) (*models.Folder, error) {
 	var folder models.Folder
-	err := db.Where("id = ?", folderID).First(&folder).Error
+	err := db.Where("id = ? AND organisation_id = ?", params.FolderID, params.OrgID).First(&folder).Error
 	if err != nil {
 		return nil, err
 	}
-	folder.Name = name
+
+	// check permissions
+	if folder.UserID != params.UserID {
+		return nil, fmt.Errorf("unauthorized to update this folder")
+	}
+
+	if folder.Name == params.Name {
+		return &folder, nil
+	}
+
+	folder.Name = params.Name
 	err = db.Save(&folder).Error
 	return &folder, err
 }
