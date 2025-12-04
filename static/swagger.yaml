@@ -26374,10 +26374,10 @@ components:
           description: User's unique ID
         username:
           type: string
-          description: User's username
+          description: User's username (falls back to first_name if user_name is empty)
         full_name:
           type: string
-          description: User's full name (first + last)
+          description: User's full name (falls back to first_name + last_name if full_name is empty)
         avatar_url:
           type: string
           nullable: true
@@ -26390,6 +26390,16 @@ components:
           type: string
           enum: [active, left, inactive]
           description: Participant's current status in the buzz
+        status_sticker:
+          type: string
+          nullable: true
+          enum: [raise_hand, brb, away]
+          description: Current status sticker displayed for the participant (optional)
+        sticker_set_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the status sticker was set (null if no sticker)
       example:
         user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
         username: "johndoe"
@@ -26397,6 +26407,8 @@ components:
         avatar_url: "https://example.com/avatars/johndoe.jpg"
         joined_at: "2025-11-28T22:39:03.527809Z"
         status: "active"
+        status_sticker: null
+        sticker_set_at: null
 
     BuzzAgoraTokenRequest:
       type: object
