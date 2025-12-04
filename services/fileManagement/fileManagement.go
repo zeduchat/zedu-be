@@ -258,9 +258,8 @@ func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
 		Name:           params.Name,
-		OrganisationID: params.OrgID,
+		OrganisationID: params.OrganizationID,
 		UserID:         params.UserID,
-		ParentID:       params.ParentID,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
 	if err != nil {
@@ -576,10 +575,9 @@ func UploadFolderWithFiles(db *gorm.DB, logger *utility.Logger, req models.Uploa
 	var newFolder *models.Folder
 	err := db.Transaction(func(tx *gorm.DB) error {
 		uploadedFolder := models.CreateFolderParams{
-			Name:     req.FolderName,
-			OrgID:    req.OrgID,
-			UserID:   req.UserID,
-			ParentID: req.ParentID,
+			Name:           req.FolderName,
+			OrganizationID: req.OrgID,
+			UserID:         req.UserID,
 		}
 		var err error
 		newFolder, err = CreateFolder(tx, uploadedFolder)

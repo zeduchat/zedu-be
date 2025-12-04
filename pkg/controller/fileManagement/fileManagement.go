@@ -303,10 +303,9 @@ func (base *Controller) CreateFolder(c *gin.Context) {
 	orgID := userClaims["org_id"].(string)
 
 	folder, err := services.CreateFolder(base.Db.Postgresql, models.CreateFolderParams{
-		Name:     req.Name,
-		OrgID:    orgID,
-		UserID:   userID,
-		ParentID: req.ParentID,
+		Name:           req.Name,
+		OrganizationID: orgID,
+		UserID:         userID,
 	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create folder", err.Error(), nil)
@@ -537,5 +536,3 @@ func (base *Controller) UpdateFolderName(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Folder name updated successfully", folder)
 	c.JSON(http.StatusOK, rd)
 }
-
-// Function For Uploading a Folder with Files

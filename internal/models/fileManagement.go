@@ -45,10 +45,10 @@ type UploadFolderWithFilesParams struct {
 }
 
 type CreateFolderParams struct {
-	Name     string
-	OrgID    string
-	UserID   string
-	ParentID *string
+	Name           string
+	Description    string
+	OrganizationID string
+	UserID         string
 }
 
 type UpdateFileNameParams struct {
