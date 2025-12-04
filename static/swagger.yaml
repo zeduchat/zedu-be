@@ -22139,6 +22139,200 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/reaction:
+    post:
+      tags:
+        - buzz
+      summary: Send an ephemeral reaction in a buzz call
+      description: Sends a temporary reaction (emoji, effect, or gif) that is broadcast to all participants in real-time but not persisted to the database
+      operationId: sendBuzzReaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz (call)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reaction_type
+                - content
+              properties:
+                reaction_type:
+                  type: string
+                  enum: [emoji, effect, gif]
+                  description: The type of reaction being sent
+                content:
+                  type: string
+                  description: The reaction content (emoji code like "👍", effect name like "fireworks", or gif URL)
+            examples:
+              emoji:
+                summary: Send an emoji reaction
+                value:
+                  reaction_type: emoji
+                  content: "👍"
+              effect:
+                summary: Send an effect reaction
+                value:
+                  reaction_type: effect
+                  content: "fireworks"
+              gif:
+                summary: Send a gif reaction
+                value:
+                  reaction_type: gif
+                  content: "https://media.giphy.com/media/example.gif"
+      responses:
+        "200":
+          description: Reaction sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: reaction sent successfully
+        "400":
+          description: Bad request - invalid reaction type or missing content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not an active participant in the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/{id}/sticker:
+    post:
+      tags:
+        - buzz
+      summary: Update status sticker in a buzz call
+      description: Sets or clears a persistent status sticker (raise_hand, brb, away) that is stored in the database and broadcast to all participants. Pass null to clear the sticker.
+      operationId: updateBuzzSticker
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz (call)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sticker:
+                  type: string
+                  nullable: true
+                  enum: [raise_hand, brb, away, null]
+                  description: The status sticker to set, or null to clear the current sticker
+            examples:
+              raise_hand:
+                summary: Raise hand
+                value:
+                  sticker: raise_hand
+              brb:
+                summary: Be right back
+                value:
+                  sticker: brb
+              away:
+                summary: Mark as away
+                value:
+                  sticker: away
+              clear:
+                summary: Clear sticker
+                value:
+                  sticker: null
+      responses:
+        "200":
+          description: Sticker updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: sticker updated successfully
+                  data:
+                    type: object
+                    properties:
+                      buzz_id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      sticker:
+                        type: string
+                        nullable: true
+                        enum: [raise_hand, brb, away]
+                      sticker_set_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+        "400":
+          description: Bad request - invalid sticker value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not an active participant in the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     FileSchema:
