@@ -35,6 +35,8 @@ func SetupBuzzTestRouter() (*gin.Engine, *buzz.Controller) {
 		buzzGroup.POST("/create", buzzController.Create)
 		buzzGroup.POST("/:id/leave", buzzController.LeaveBuzz)
 		buzzGroup.POST("/:id/end", buzzController.EndBuzz)
+		buzzGroup.POST("/:id/reaction", buzzController.SendReaction)
+		buzzGroup.POST("/:id/sticker", buzzController.UpdateSticker)
 		buzzGroup.POST("/search-members", buzzController.SearchChannelMembers)
 		buzzGroup.POST("/invite", buzzController.InviteUsersToBuzz)
 		buzzGroup.POST("/invitation/respond", buzzController.RespondToInvitation)

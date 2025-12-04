@@ -36,14 +36,16 @@ type Buzz struct {
 }
 
 type BuzzParticipant struct {
-	ID        string     `gorm:"type:uuid;primaryKey" json:"id"`
-	BuzzID    string     `gorm:"type:uuid;index;not null" json:"Buzz_id"`
-	UserID    string     `gorm:"type:uuid;index;not null" json:"user_id"`
-	Status    string     `gorm:"type:text;not null;default:'active'" json:"status"`
-	IsMuted   bool       `gorm:"type:boolean;default:false" json:"is_muted"`
-	JoinedAt  time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
-	LeftAt    *time.Time `gorm:"column:left_at" json:"left_at"`
-	CreatedAt time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	ID            string     `gorm:"type:uuid;primaryKey" json:"id"`
+	BuzzID        string     `gorm:"type:uuid;index;not null" json:"Buzz_id"`
+	UserID        string     `gorm:"type:uuid;index;not null" json:"user_id"`
+	Status        string     `gorm:"type:text;not null;default:'active'" json:"status"`
+	IsMuted       bool       `gorm:"type:boolean;default:false" json:"is_muted"`
+	StatusSticker *string    `gorm:"type:varchar(50)" json:"status_sticker,omitempty"`
+	StickerSetAt  *time.Time `gorm:"column:sticker_set_at" json:"sticker_set_at,omitempty"`
+	JoinedAt      time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
+	LeftAt        *time.Time `gorm:"column:left_at" json:"left_at"`
+	CreatedAt     time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
 type CreateBuzzRequest struct {
@@ -52,12 +54,14 @@ type CreateBuzzRequest struct {
 
 // ParticipantMetadata contains detailed information about a buzz participant
 type ParticipantMetadata struct {
-	UserID    string 	 `json:"user_id"`
-	UserName  string 	 `json:"username"`
-	FullName  string 	 `json:"full_name"`
-	AvatarURL *string 	 `json:"avatar_url,omitempty"`
-	JoinedAt  time.Time  `json:"joined_at"`
-	Status    string 	 `json:"status"`
+	UserID        string     `json:"user_id"`
+	UserName      string     `json:"username"`
+	FullName      string     `json:"full_name"`
+	AvatarURL     *string    `json:"avatar_url,omitempty"`
+	JoinedAt      time.Time  `json:"joined_at"`
+	Status        string     `json:"status"`
+	StatusSticker *string    `json:"status_sticker,omitempty"`
+	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
 }
 
 type BuzzCreateResponse struct {
@@ -388,4 +392,50 @@ func CheckInvitationExists(db *gorm.DB, buzzID, inviteeID string) (bool, error) 
 		Where("buzz_id = ? AND invitee_id = ? AND status = ?", buzzID, inviteeID, BuzzInvitationPending).
 		Count(&count).Error
 	return count > 0, err
+}
+
+// BuzzReactionPayload represents an ephemeral reaction event (not persisted, real-time only)
+type BuzzReactionPayload struct {
+	Event        string    `json:"event"` // Always "buzz_reaction"
+	BuzzID       string    `json:"buzz_id"`
+	ChannelID    string    `json:"channel_id"`
+	UserID       string    `json:"user_id"`
+	UserName     string    `json:"username"`
+	ReactionType string    `json:"reaction_type"` // "emoji", "effect", "gif"
+	Content      string    `json:"content"`       // emoji code, effect name, or gif URL
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+// SendBuzzReactionRequest represents the request to send an ephemeral reaction
+type SendBuzzReactionRequest struct {
+	BuzzID       string `json:"buzz_id" validate:"required,uuid"`
+	ReactionType string `json:"reaction_type" validate:"required,oneof=emoji effect gif"`
+	Content      string `json:"content" validate:"required"`
+}
+
+// BuzzStickerUpdateRequest represents the request to update a status sticker
+type BuzzStickerUpdateRequest struct {
+	BuzzID  string  `json:"buzz_id" validate:"required,uuid"`
+	Sticker *string `json:"sticker" validate:"omitempty,oneof=raise_hand brb away"` // null to clear
+}
+
+// BuzzStickerUpdateResponse represents the response after updating a sticker
+type BuzzStickerUpdateResponse struct {
+	BuzzID       string     `json:"buzz_id"`
+	UserID       string     `json:"user_id"`
+	Sticker      *string    `json:"sticker"`
+	StickerSetAt *time.Time `json:"sticker_set_at,omitempty"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+// BuzzStickerPayload represents a status sticker change event (broadcast via Centrifuge)
+type BuzzStickerPayload struct {
+	Event        string     `json:"event"` // "buzz_sticker_update"
+	BuzzID       string     `json:"buzz_id"`
+	ChannelID    string     `json:"channel_id"`
+	UserID       string     `json:"user_id"`
+	UserName     string     `json:"username"`
+	Sticker      *string    `json:"sticker"`
+	StickerSetAt *time.Time `json:"sticker_set_at,omitempty"`
+	Timestamp    time.Time  `json:"timestamp"`
 }
