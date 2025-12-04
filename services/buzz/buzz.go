@@ -51,14 +51,24 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 	query := `
 		SELECT
 			bp.user_id,
-			p.user_name as username,
-			COALESCE(p.full_name, CONCAT(p.first_name, ' ', p.last_name)) as full_name,
+			COALESCE(NULLIF(TRIM(p.user_name), ''), p.first_name, '') as user_name,
+			COALESCE(
+				NULLIF(TRIM(p.full_name), ''), 
+				CASE 
+					WHEN TRIM(p.last_name) IS NOT NULL AND TRIM(p.last_name) != '' 
+					THEN CONCAT(TRIM(p.first_name), ' ', TRIM(p.last_name))
+					ELSE TRIM(p.first_name)
+				END,
+				''
+			) as full_name,
 			p.avatar_url,
 			bp.joined_at,
-			bp.status
+			bp.status,
+			bp.status_sticker,
+			bp.sticker_set_at
 		FROM buzz_participants bp
 		JOIN users u ON bp.user_id = u.id
-		JOIN profiles p ON u.id = p.userid
+		LEFT JOIN profiles p ON u.id = p.userid
 		WHERE bp.buzz_id = ?
 		ORDER BY bp.joined_at ASC
 	`
