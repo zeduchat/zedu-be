@@ -14770,6 +14770,55 @@ paths:
                     nullable: true
                     example: null
 
+  /files/file/{id}/restore:
+    put:
+      tags:
+        - File Management
+      summary: Restore a soft-deleted file
+      description: Restores a file that has been soft-deleted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File restored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File restored successfully"
+                  data:
+                    $ref: "#/components/schemas/FileSchema"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
   /files/file/{id}:
     get:
       tags:
@@ -15141,27 +15190,22 @@ paths:
     post:
       tags:
         - File Management
-      summary: Create a folder
+      summary: Create a new folder
       description: Creates a new folder for organizing files.
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - name
               properties:
                 name:
                   type: string
                   example: "Project Documents"
-                parent_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                  example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+              required:
+                - name
+      security:
+        - bearerAuth: []
       responses:
         "201":
           description: Folder created successfully
@@ -15182,11 +15226,17 @@ paths:
                   data:
                     $ref: "#/components/schemas/FolderSchema"
         "400":
-          description: Invalid input
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -15196,18 +15246,10 @@ paths:
     get:
       tags:
         - File Management
-      summary: List folders
-      description: Retrieves a list of folders.
+      summary: Get all folders
+      description: Retrieves a list of folders for the organization.
       security:
         - bearerAuth: []
-      parameters:
-        - name: parent_id
-          in: query
-          required: false
-          description: Filter by parent folder ID
-          schema:
-            type: string
-            format: uuid
       responses:
         "200":
           description: Folders fetched successfully
@@ -15229,6 +15271,12 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/FolderSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -15240,15 +15288,13 @@ paths:
     put:
       tags:
         - File Management
-      summary: Rename a folder
-      description: Renames a folder by ID.
-      security:
-        - bearerAuth: []
+      summary: Update folder name
+      description: Updates the name of an existing folder.
       parameters:
         - name: id
           in: path
           required: true
-          description: Folder ID
+          description: The unique ID of the folder
           schema:
             type: string
             format: uuid
@@ -15261,12 +15307,14 @@ paths:
               properties:
                 folder_name:
                   type: string
-                  example: "New Folder Name"
+                  example: "New Project Name"
               required:
                 - folder_name
+      security:
+        - bearerAuth: []
       responses:
         "200":
-          description: Folder renamed successfully
+          description: Folder name updated successfully
           content:
             application/json:
               schema:
@@ -15282,29 +15330,53 @@ paths:
                     type: string
                     example: "Folder name updated successfully"
                   data:
-                    $ref: "#/components/schemas/Folder"
+                    $ref: "#/components/schemas/FolderSchema"
         "400":
-          description: Invalid input or ID format
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     delete:
       tags:
         - File Management
       summary: Delete a folder
-      description: Deletes a folder by ID.
-      security:
-        - bearerAuth: []
+      description: Deletes a folder by ID. Use `permanent=true` for permanent deletion.
       parameters:
         - name: id
           in: path
           required: true
-          description: Folder ID
+          description: The unique ID of the folder
           schema:
             type: string
             format: uuid
+        - name: permanent
+          in: query
+          required: false
+          description: Set to true to permanently delete the folder and its contents.
+          schema:
+            type: boolean
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Folder deleted successfully
@@ -15325,12 +15397,19 @@ paths:
                   data:
                     type: object
                     nullable: true
+                    example: null
         "400":
-          description: Invalid ID format
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
