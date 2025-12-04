@@ -569,3 +569,47 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
 	return files, count, err
 }
+
+// Function to handle folder uploads with files
+func UploadFolderWithFiles(db *gorm.DB, logger *utility.Logger, req models.UploadFolderWithFilesParams) (*models.Folder, []*models.File, error) {
+	var uploadedFiles []*models.File
+	var newFolder *models.Folder
+	err := db.Transaction(func(tx *gorm.DB) error {
+		uploadedFolder := models.CreateFolderParams{
+			Name:     req.FolderName,
+			OrgID:    req.OrgID,
+			UserID:   req.UserID,
+			ParentID: req.ParentID,
+		}
+		var err error
+		newFolder, err = CreateFolder(tx, uploadedFolder)
+		if err != nil {
+			return err
+		}
+		for _, fileHeader := range req.Files {
+			realFile, err := fileHeader.Open()
+			if err != nil {
+				return err
+			}
+			defer realFile.Close()
+			uploadedFile, err := UploadFile(tx, logger, models.UploadFileParams{
+				File:     realFile,
+				Header:   fileHeader,
+				FolderID: newFolder.ID,
+				OrgID:    req.OrgID,
+				UserID:   req.UserID,
+			})
+			if err != nil {
+				return err
+			}
+			uploadedFiles = append(uploadedFiles, uploadedFile)
+
+		}
+		return nil
+
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return newFolder, uploadedFiles, nil
+}

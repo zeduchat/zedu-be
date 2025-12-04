@@ -14770,6 +14770,222 @@ paths:
                     nullable: true
                     example: null
 
+  /files/upload-folder:
+    post:
+      tags:
+        - File Management
+      summary: Upload a folder with multiple files
+      description: Creates a new folder and uploads multiple files into it in a single atomic transaction. If any operation fails, the entire transaction is rolled back.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - folder_name
+                - files
+              properties:
+                folder_name:
+                  type: string
+                  description: Name of the folder to create
+                  example: "Project Documents"
+                parent_id:
+                  type: string
+                  format: uuid
+                  description: Optional parent folder ID for creating nested folders
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                files:
+                  type: array
+                  description: Array of files to upload into the folder
+                  items:
+                    type: string
+                    format: binary
+                  minItems: 1
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Folder and files uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Folder uploaded successfully"
+                  data:
+                    type: object
+                    properties:
+                      folder:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                            example: "123e4567-e89b-12d3-a456-426614174000"
+                          name:
+                            type: string
+                            example: "Project Documents"
+                          organisation_id:
+                            type: string
+                            format: uuid
+                            example: "987e6543-e21b-12d3-a456-426614174000"
+                          user_id:
+                            type: string
+                            format: uuid
+                            example: "456e7890-e12b-34d5-b678-901234567890"
+                          parent_id:
+                            type: string
+                            format: uuid
+                            nullable: true
+                            example: null
+                          created_at:
+                            type: string
+                            format: date-time
+                            example: "2025-12-04T10:30:00Z"
+                          updated_at:
+                            type: string
+                            format: date-time
+                            example: "2025-12-04T10:30:00Z"
+                      files:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                              example: "789e0123-e45b-67d8-c901-234567890abc"
+                            file_name:
+                              type: string
+                              example: "report.pdf"
+                            file_type:
+                              type: string
+                              example: "pdf"
+                            mime_type:
+                              type: string
+                              example: "application/pdf"
+                            file_link:
+                              type: string
+                              format: uri
+                              example: "https://storage.telex.im/bucket/file-uploads/abc123.pdf"
+                            size:
+                              type: integer
+                              example: 2048576
+                            folder_id:
+                              type: string
+                              format: uuid
+                              example: "123e4567-e89b-12d3-a456-426614174000"
+                            organisation_id:
+                              type: string
+                              format: uuid
+                              example: "987e6543-e21b-12d3-a456-426614174000"
+                            user_id:
+                              type: string
+                              format: uuid
+                              example: "456e7890-e12b-34d5-b678-901234567890"
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2025-12-04T10:30:05Z"
+                            updated_at:
+                              type: string
+                              format: date-time
+                              example: "2025-12-04T10:30:05Z"
+                      file_count:
+                        type: integer
+                        example: 3
+
+        "400":
+          description: Bad request - invalid input or file upload failure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Folder upload failed"
+                  error:
+                    type: string
+                    example: "File exceeds max size"
+
+        "401":
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: "Unauthorized"
+                  error:
+                    type: string
+                    example: "User not authenticated"
+
+        "422":
+          description: Unprocessable Entity - validation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 422
+                  message:
+                    type: string
+                    example: "Validation failed"
+                  error:
+                    type: object
+                    example:
+                      folder_name: "folder_name is required"
+                      files: "files is required"
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Database transaction failed"
+
   /files/file/{id}:
     get:
       tags:

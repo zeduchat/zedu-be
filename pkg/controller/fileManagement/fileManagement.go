@@ -49,6 +49,62 @@ func Validate(filename string) (string, error) {
 	return trimmed, nil
 }
 
+// UploadFolderWithFiles Handles Folder Uploads
+func (base *Controller) UploadFolderWithFiles(c *gin.Context) {
+	var req models.FolderWithFilesRequest
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+	for _, fileHeader := range req.Files {
+		if fileHeader.Size > maxFileSize {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "File exceeds max size", fmt.Sprintf("File '%s' is too large", fileHeader.Filename), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	}
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+	folderWithFilesParams := models.UploadFolderWithFilesParams{
+		FolderName: req.FolderName,
+		ParentID:   req.ParentID,
+		Files:      req.Files,
+		OrgID:      orgID,
+		UserID:     userID,
+	}
+
+	folder, files, err := services.UploadFolderWithFiles(base.Db.Postgresql, base.Logger, folderWithFilesParams)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Folder upload failed", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	response := models.FolderUploadResponse{
+		Folder:    folder,
+		Files:     files,
+		FileCount: len(files),
+	}
+	base.Logger.Info("Folder uploaded successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Folder uploaded successfully", response)
+	c.JSON(http.StatusCreated, rd)
+
+}
+
 func (base *Controller) UploadController(c *gin.Context) {
 	var req models.UploadRequest
 
@@ -481,3 +537,5 @@ func (base *Controller) UpdateFolderName(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Folder name updated successfully", folder)
 	c.JSON(http.StatusOK, rd)
 }
+
+// Function For Uploading a Folder with Files
