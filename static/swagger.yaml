@@ -25205,6 +25205,34 @@ components:
                 type: string
                 format: date-time
                 example: "0001-01-01T00:13:35+00:13"
+              active_buzz:
+                type: object
+                nullable: true
+                description: "Information about the currently active buzz in this channel (null if no buzz is ongoing)"
+                properties:
+                  buzz_id:
+                    type: string
+                    format: uuid
+                    description: "ID of the active buzz"
+                    example: "019acc55-25e5-734c-be43-54c46b30d34a"
+                  host_id:
+                    type: string
+                    format: uuid
+                    description: "ID of the user who started the buzz"
+                    example: "019acc55-2312-7349-8e41-277a9100503c"
+                  host_name:
+                    type: string
+                    description: "Name of the buzz host"
+                    example: "John Doe"
+                  participant_count:
+                    type: integer
+                    description: "Number of active participants in the buzz"
+                    example: 3
+                  started_at:
+                    type: string
+                    format: date-time
+                    description: "When the buzz was started"
+                    example: "2025-12-04T10:30:00Z"
               messages:
                 type: array
                 items:
