@@ -593,6 +593,11 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 	return files, count, err
 }
 
+var (
+	ErrFileNotDeleted      = errors.New("file is not deleted")
+	ErrUnauthorizedRestore = errors.New("unauthorized to restore this file")
+)
+
 func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error) {
 	var file models.File
 
@@ -604,7 +609,7 @@ func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error
 
 	// check permissions
 	if file.UserID != userID {
-		return nil, fmt.Errorf("unauthorized to restore this file")
+		return nil, ErrUnauthorizedRestore
 	}
 
 	// restore the file by clearing [deleted_at]
