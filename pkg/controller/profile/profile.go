@@ -123,7 +123,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 		req.Links = links
 	}
 
-	if len(req.FullName) < 2 || len(req.FullName) > 100 {
+	if req.FullName != "" && (len(req.FullName) < 2 || len(req.FullName) > 100) {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Name must be between 2 and 100 characters", nil, nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
