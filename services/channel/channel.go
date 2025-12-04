@@ -396,6 +396,54 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 	return nil
 }
 
+func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMultipleMembersRequest, logger *utility.Logger) error {
+	var (
+		ch   models.Channels
+		user models.User
+	)
+
+	removedUserIds, err := ch.RemoveMultipleUsersFromChannel(db.Postgresql, req)
+	if err != nil {
+		return err
+	}
+
+	usernames := []string{}
+	
+	for _, userId := range removedUserIds {
+		userDetails, err := user.GetUserByID(db.Postgresql, userId)
+		if err != nil {
+			logger.Error("Failed to get user %s username", userId)
+			continue
+		}
+		if userDetails.Profile.UserName == "" {
+			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		}
+		if userDetails.Profile.UserName != "" {
+			usernames = append(usernames, "@"+userDetails.Profile.UserName)
+		}
+	}
+
+	if len(usernames) == 0 {
+		return nil
+	}
+
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    fmt.Sprintf("left #%s: %s", ch.Name, strings.Join(usernames, ", ")),
+		Type:       "system",
+		UserId:     req.UserID,
+		ChannelsID: ch.ID,
+		OrgId:      ch.OrganisationID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	if _, err := thread.SaveThreadMessage(systemMsg, db, logger); err != nil {
+		logger.Error("failed to save system message for channel %s", ch.Name)
+	}
+
+	logger.Info("Added system message for users leaving the channel")
+	return nil
+}
+
 func ArchiveChannel(db *gorm.DB, channelId string, req models.ArchiveChannelRequest) (bool, int, error) {
 	var channel models.Channels
 
