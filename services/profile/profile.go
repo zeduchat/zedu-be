@@ -50,29 +50,30 @@ func IsSameOrganization(db *gorm.DB, reqUserID string, targetUserID string) (int
 	return http.StatusOK, nil
 }
 
-func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, error) {
+func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, *models.Profile, error) {
 	var user models.User
 	var userProfile models.Profile
 
 	if err := user.UpdateUserEmail(db, req, userId); err != nil {
-		return http.StatusInternalServerError, err
+		return http.StatusInternalServerError, nil, err
 	}
 
 	if len(file) > 0 && ext != "" {
 		avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
 		if err != nil {
-			return http.StatusInternalServerError, err
+			return http.StatusInternalServerError, nil, err
 		}
 
 		req.AvatarURL = avatarURL
 		req.AvatarUpdate = true
 	}
 
-	if err := userProfile.UpdateProfileFields(db, req, userId, logger); err != nil {
-		return http.StatusBadRequest, err
+	updatedProfile, err := userProfile.UpdateProfileFields(db, req, userId, logger)
+	if err != nil {
+		return http.StatusBadRequest, nil, err
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, updatedProfile, nil
 }
 
 func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) (int, error) {

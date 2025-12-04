@@ -213,7 +213,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	code, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
+	code, data, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Profile not found", err, nil)
@@ -226,7 +226,7 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 	}
 
 	base.Logger.Info("Profile updated successfully")
-	rd := utility.BuildSuccessResponse(code, "Profile updated successfully", nil)
+	rd := utility.BuildSuccessResponse(code, "Profile updated successfully", data)
 	c.JSON(http.StatusOK, rd)
 }
 
