@@ -15237,6 +15237,59 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /files/folders/{id}:
+    put:
+      tags:
+        - File Management
+      summary: Rename a folder
+      description: Renames a folder by ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Folder ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folder_name:
+                  type: string
+                  example: "New Folder Name"
+              required:
+                - folder_name
+      responses:
+        "200":
+          description: Folder renamed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Folder name updated successfully"
+                  data:
+                    $ref: "#/components/schemas/Folder"
+        "400":
+          description: Invalid input or ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
     delete:
       tags:
         - File Management

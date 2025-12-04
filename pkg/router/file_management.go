@@ -25,6 +25,7 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 
 		fileManagementUrl.POST("/folders", fileManagement.CreateFolder)
 		fileManagementUrl.GET("/folders", fileManagement.GetFolders)
+		fileManagementUrl.PUT("/folders/:id", fileManagement.UpdateFolderName)
 		fileManagementUrl.DELETE("/folders/:id", fileManagement.DeleteFolder)
 
 		fileManagementUrl.PUT("/:id/move", fileManagement.MoveFile)

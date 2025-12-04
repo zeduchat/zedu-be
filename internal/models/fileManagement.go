@@ -44,6 +44,18 @@ type UpdateFileNameParams struct {
 	NewFileName string
 	OrgID       string
 	UserID      string
+	FolderID    string
+}
+
+type RenameFolderRequest struct {
+	FolderName string `json:"folder_name" binding:"required" validate:"required,min=1,max=255"`
+}
+
+type UpdateFolderParams struct {
+	FolderID string
+	Name     string
+	OrgID    string
+	UserID   string
 }
 
 type GetFilesParams struct {
