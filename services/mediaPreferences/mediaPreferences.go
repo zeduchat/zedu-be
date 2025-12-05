@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofrs/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -38,6 +39,8 @@ func ValidateDeviceExists(db *gorm.DB, deviceID string) error {
 func UpdateMediaPreferences(req models.UpdateMediaPreferencesRequest, userID string, db *gorm.DB, logger *utility.Logger) (*models.MediaPreferencesResponse, int, error) {
 	var pref models.MediaPreferences
 
+	validate := validator.New()
+
 	// Validate user exists
 	var user models.User
 	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
@@ -45,37 +48,15 @@ func UpdateMediaPreferences(req models.UpdateMediaPreferencesRequest, userID str
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
 
+	// Validate request using go-playground validator (oneof/uuid tags defined on the struct)
+	if err := validate.Struct(req); err != nil {
+		return nil, http.StatusUnprocessableEntity, err
+	}
+
 	// Validate device_id if provided
 	if req.DeviceID != nil && *req.DeviceID != "" {
 		if err := ValidateDeviceExists(db, *req.DeviceID); err != nil {
 			return nil, http.StatusBadRequest, fmt.Errorf("device not found: %v", err)
-		}
-	}
-
-	// Validate individual field values
-	if req.AutoDownloadPhotos != "" {
-		if err := models.ValidateAutoDownload(req.AutoDownloadPhotos); err != nil {
-			return nil, http.StatusBadRequest, err
-		}
-	}
-	if req.AutoDownloadAudio != "" {
-		if err := models.ValidateAutoDownload(req.AutoDownloadAudio); err != nil {
-			return nil, http.StatusBadRequest, err
-		}
-	}
-	if req.AutoDownloadDocuments != "" {
-		if err := models.ValidateAutoDownload(req.AutoDownloadDocuments); err != nil {
-			return nil, http.StatusBadRequest, err
-		}
-	}
-	if req.AutoDownloadVideos != "" {
-		if err := models.ValidateAutoDownload(req.AutoDownloadVideos); err != nil {
-			return nil, http.StatusBadRequest, err
-		}
-	}
-	if req.UploadQuality != "" {
-		if err := models.ValidateUploadQuality(req.UploadQuality); err != nil {
-			return nil, http.StatusBadRequest, err
 		}
 	}
 
@@ -217,6 +198,7 @@ func UpdateMediaPreferences(req models.UpdateMediaPreferencesRequest, userID str
 // GetMediaPreferences retrieves media preferences for a user, with optional device-specific overrides
 func GetMediaPreferences(userID string, deviceID *string, db *gorm.DB, logger *utility.Logger) (*models.MediaPreferencesResponse, int, error) {
 	var pref models.MediaPreferences
+	validate := validator.New()
 
 	// Validate user exists
 	var user models.User
@@ -227,6 +209,11 @@ func GetMediaPreferences(userID string, deviceID *string, db *gorm.DB, logger *u
 
 	// Validate device_id if provided
 	if deviceID != nil && *deviceID != "" {
+		if err := validate.Struct(struct {
+			DeviceID *string `validate:"omitempty,uuid"`
+		}{DeviceID: deviceID}); err != nil {
+			return nil, http.StatusUnprocessableEntity, err
+		}
 		if err := ValidateDeviceExists(db, *deviceID); err != nil {
 			return nil, http.StatusBadRequest, fmt.Errorf("device not found: %v", err)
 		}
@@ -256,21 +243,28 @@ func GetMediaPreferences(userID string, deviceID *string, db *gorm.DB, logger *u
 // for a user, with optional device-specific reset
 func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, logger *utility.Logger) (*models.MediaPreferencesResponse, int, error) {
 	var pref models.MediaPreferences
-	
+
+	validate := validator.New()
+
 	// Validate user exists
 	var user models.User
 	exists := postgresql.CheckExists(db, &user, "id = ?", userID)
 	if !exists {
 		return nil, http.StatusNotFound, errors.New("user not found")
 	}
-	
+
 	// Validate device_id if provided
 	if deviceID != nil && *deviceID != "" {
+		if err := validate.Struct(struct {
+			DeviceID *string `validate:"omitempty,uuid"`
+		}{DeviceID: deviceID}); err != nil {
+			return nil, http.StatusUnprocessableEntity, err
+		}
 		if err := ValidateDeviceExists(db, *deviceID); err != nil {
 			return nil, http.StatusBadRequest, fmt.Errorf("device not found: %v", err)
 		}
 	}
-	
+
 	// Determine if this is a device-specific or user-level reset
 	if deviceID != nil && *deviceID != "" {
 		// Device-specific reset
@@ -278,7 +272,7 @@ func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, log
 		if err != nil {
 			return nil, http.StatusBadRequest, fmt.Errorf("invalid device_id format")
 		}
-		
+
 		// Check if device preferences exist
 		err = db.Where("user_id = ? AND device_id = ?", userID, deviceUUID).First(&pref).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -287,13 +281,13 @@ func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, log
 			if err != nil {
 				return nil, http.StatusBadRequest, fmt.Errorf("invalid user_id format")
 			}
-			
+
 			// Get user-level preferences for defaults
 			userPref, err := pref.GetOrCreateUserPreferences(db, userID)
 			if err != nil {
 				return nil, http.StatusInternalServerError, fmt.Errorf("failed to get user preferences: %v", err)
 			}
-			
+
 			pref = models.MediaPreferences{
 				ID:                    utility.GenerateUUID(),
 				UserID:                userUUID,
@@ -304,7 +298,7 @@ func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, log
 				AutoDownloadVideos:    "wifi_only",
 				UploadQuality:         userPref.UploadQuality, // Keep user-level upload quality
 			}
-			
+
 			if err := pref.Create(db); err != nil {
 				return nil, http.StatusInternalServerError, fmt.Errorf("failed to create device preferences: %v", err)
 			}
@@ -318,11 +312,11 @@ func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, log
 				"auto_download_documents": "wifi_only",
 				"auto_download_videos":    "wifi_only",
 			}
-			
+
 			if err := pref.Update(db, updates); err != nil {
 				return nil, http.StatusInternalServerError, fmt.Errorf("failed to reset device preferences: %v", err)
 			}
-			
+
 			// Reload to get updated values
 			if err := db.Where("user_id = ? AND device_id = ?", userID, deviceUUID).First(&pref).Error; err != nil {
 				return nil, http.StatusInternalServerError, fmt.Errorf("failed to reload device preferences: %v", err)
@@ -334,9 +328,9 @@ func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, log
 		if err != nil {
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to get user preferences: %v", err)
 		}
-		
+
 		pref = userPref
-		
+
 		// Reset user-level preferences
 		updates := map[string]interface{}{
 			"auto_download_photos":    "wifi_only",
@@ -344,17 +338,17 @@ func ResetAutoDownloadSettings(userID string, deviceID *string, db *gorm.DB, log
 			"auto_download_documents": "wifi_only",
 			"auto_download_videos":    "wifi_only",
 		}
-		
+
 		if err := pref.Update(db, updates); err != nil {
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to reset user preferences: %v", err)
 		}
-		
+
 		// Reload to get updated values
 		if err := db.Where("user_id = ? AND device_id IS NULL", userID).First(&pref).Error; err != nil {
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to reload user preferences: %v", err)
 		}
 	}
-	
+
 	response := pref.ToResponse()
 	return &response, http.StatusOK, nil
 }

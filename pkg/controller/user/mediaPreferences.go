@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -121,7 +122,7 @@ func (base *Controller) UpdateMediaPreferences(c *gin.Context) {
 // ResetAutoDownloadSettings resets all auto-download settings to default values
 func (base *Controller) ResetAutoDownloadSettings(c *gin.Context) {
 	var req models.ResetAutoDownloadRequest
-	
+
 	// Extract user_id from JWT claims
 	claims, exists := c.Get("userClaims")
 	if !exists {
@@ -129,7 +130,7 @@ func (base *Controller) ResetAutoDownloadSettings(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
-	
+
 	userClaims := claims.(jwt.MapClaims)
 	userID, ok := userClaims["user_id"].(string)
 	if !ok {
@@ -137,31 +138,33 @@ func (base *Controller) ResetAutoDownloadSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	// Validate user_id format
 	if _, err := uuid.Parse(userID); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid user_id format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	// Bind request body (device_id is optional)
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		// If no body is provided, that's okay - we'll reset user-level preferences
-		req = models.ResetAutoDownloadRequest{}
-	}
-	
-	// Validate request if body was provided
-	if req.DeviceID != nil {
-		err = base.Validator.Struct(&req)
-		if err != nil {
-			rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
-			c.JSON(http.StatusUnprocessableEntity, rd)
+		// Allow empty body (user-level reset)
+		if !errors.Is(err, io.EOF) {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
 	}
-	
+
+	// Validate request using go-playground validator (oneof/uuid)
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
 	// Call service layer
 	respData, code, err := mediaPreferencesService.ResetAutoDownloadSettings(userID, req.DeviceID, base.Db.Postgresql, base.Logger)
 	if err != nil {
@@ -169,9 +172,9 @@ func (base *Controller) ResetAutoDownloadSettings(c *gin.Context) {
 		c.JSON(code, rd)
 		return
 	}
-	
+
 	base.Logger.Info("Auto-download settings reset successfully")
-	
+
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Auto-download settings reset successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
