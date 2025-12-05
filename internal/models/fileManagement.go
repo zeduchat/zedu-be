@@ -134,8 +134,8 @@ func (file *File) UpdateFileName(db *gorm.DB, fileID string, newFileName string)
 	if err != nil {
 		return err
 	}
-	_, err = file.GetFileByID(db, fileID)
-	return err
+	file.FileName = newFileName
+	return nil
 }
 
 func (file *File) DeleteFileByID(db *gorm.DB, fileID string) error {
