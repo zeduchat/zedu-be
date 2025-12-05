@@ -82,7 +82,7 @@ func logUnauthorizedAvatarAccess(logger *utility.Logger, authenticatedUserID, ta
 	)
 }
 
-func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, error) {
+func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, *models.Profile, error) {
 	var user models.User
 	var userProfile models.Profile
 
@@ -91,32 +91,33 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
 	if err != nil {
 		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
-		return http.StatusInternalServerError, fmt.Errorf("failed to verify ownership: %w", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to verify ownership: %w", err)
 	}
 	if !isOwner {
 		logUnauthorizedAvatarAccess(logger, userId, userId, "update")
-		return http.StatusForbidden, errors.New("you do not have permission to modify this avatar")
+		return http.StatusForbidden, nil, errors.New("you do not have permission to modify this avatar")
 	}
 
 	if err := user.UpdateUserEmail(db, req, userId); err != nil {
-		return http.StatusInternalServerError, err
+		return http.StatusInternalServerError, nil, err
 	}
 
 	if len(file) > 0 && ext != "" {
 		avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
 		if err != nil {
-			return http.StatusInternalServerError, err
+			return http.StatusInternalServerError, nil, err
 		}
 
 		req.AvatarURL = avatarURL
 		req.AvatarUpdate = true
 	}
 
-	if err := userProfile.UpdateProfileFields(db, req, userId, logger); err != nil {
-		return http.StatusBadRequest, err
+	updatedProfile, err := userProfile.UpdateProfileFields(db, req, userId, logger)
+	if err != nil {
+		return http.StatusBadRequest, nil, err
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, updatedProfile, nil
 }
 
 func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) (int, error) {
@@ -289,6 +290,9 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 	if req.Expiry != nil {
 		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
 	}
+	if req.Visibility != nil {
+		updates["status_visibility"] = *req.Visibility
+	}
 
 	if len(updates) == 0 {
 		return models.UserStatus{}, http.StatusBadRequest, errors.New("no fields to update")
@@ -311,10 +315,16 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		}
 	}
 
+	visibility := "public"
+	if profile.StatusVisibility != "" {
+		visibility = profile.StatusVisibility
+	}
+
 	status := models.UserStatus{
-		Text:   profile.Text,
-		Emoji:  profile.Icon,
-		Expiry: expiry,
+		Text:       profile.Text,
+		Emoji:      profile.Icon,
+		Expiry:     expiry,
+		Visibility: visibility,
 	}
 
 	if logger != nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/savedMessages"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -127,7 +128,7 @@ func (base *Controller) ArchiveSavedMessage(c *gin.Context) {
 		return
 	}
 
-		err := c.ShouldBindJSON(&req)
+	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -188,15 +189,24 @@ func (base *Controller) GetCompletedSavedMessages(c *gin.Context) {
 		UserID:         userId,
 	}
 
-	resp, err := savedMessages.GetCompletedSavedMessages(base.Db, base.Logger, ids)
+	pagination := postgresql.GetPagination(c)
+
+	resp, paginationResponse, err := savedMessages.GetCompletedSavedMessages(base.Db, base.Logger, ids, pagination)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to get completed saved messages", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Completed saved messages retrieved successfully", resp)
-	c.JSON(http.StatusOK, rd)	
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  paginationResponse.TotalItems,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Completed saved messages retrieved successfully", resp, paginationData)
+	c.JSON(http.StatusOK, rd)
 
 }
 func (base *Controller) GetArchivedSavedMessages(c *gin.Context) {
@@ -224,14 +234,23 @@ func (base *Controller) GetArchivedSavedMessages(c *gin.Context) {
 		UserID:         userId,
 	}
 
-	resp, err := savedMessages.GetArchivedSavedMessages(base.Db, base.Logger, ids)
+	pagination := postgresql.GetPagination(c)
+
+	resp, paginationResponse, err := savedMessages.GetArchivedSavedMessages(base.Db, base.Logger, ids, pagination)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to get archived saved messages", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Archived saved messages retrieved successfully", resp)
-	c.JSON(http.StatusOK, rd)	
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  paginationResponse.TotalItems,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Archived saved messages retrieved successfully", resp, paginationData)
+	c.JSON(http.StatusOK, rd)
 
 }

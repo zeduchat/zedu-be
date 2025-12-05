@@ -1,11 +1,12 @@
 package fileManagement
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
-
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -141,6 +142,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 		return
 	}
 	thread_id := c.Query("thread_id")
+	permanent, _ := strconv.ParseBool(c.Query("permanent"))
 
 	if _, err := uuid.Parse(thread_id); thread_id != "" && err != nil {
 		base.Logger.Error("invalid thread id format", err)
@@ -149,14 +151,22 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 		return
 	}
 
-	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
+	var file *models.File
+	var err error
+
+	if permanent {
+		file, err = services.GetFileDetailsByIDUnscoped(base.Db.Postgresql, fileId)
+	} else {
+		file, err = services.GetFileDetailsByID(base.Db.Postgresql, fileId)
+	}
+
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
-	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db, file, fileId, thread_id)
+	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db, file, fileId, thread_id, permanent)
 	if deleteErr != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "File not deleted", deleteErr.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -226,17 +236,10 @@ func (base *Controller) UpdateFileName(c *gin.Context) {
 
 func (base *Controller) CreateFolder(c *gin.Context) {
 	var req struct {
-		Name     string  `json:"name" binding:"required"`
-		ParentID *string `json:"parent_id"`
+		Name string `json:"name" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	if req.ParentID != nil && !utility.IsValidUUID(*req.ParentID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid parent_id format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -247,10 +250,9 @@ func (base *Controller) CreateFolder(c *gin.Context) {
 	orgID := userClaims["org_id"].(string)
 
 	folder, err := services.CreateFolder(base.Db.Postgresql, models.CreateFolderParams{
-		Name:     req.Name,
-		OrgID:    orgID,
-		UserID:   userID,
-		ParentID: req.ParentID,
+		Name:           req.Name,
+		OrganisationID: orgID,
+		UserID:         userID,
 	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create folder", err.Error(), nil)
@@ -267,18 +269,7 @@ func (base *Controller) GetFolders(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	orgID := userClaims["org_id"].(string)
 
-	parentID := c.Query("parent_id")
-	var pID *string
-	if parentID != "" {
-		if !utility.IsValidUUID(parentID) {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid parent_id format", nil, nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
-		}
-		pID = &parentID
-	}
-
-	folders, err := services.GetFolders(base.Db.Postgresql, orgID, pID)
+	folders, err := services.GetFolders(base.Db.Postgresql, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -296,13 +287,83 @@ func (base *Controller) DeleteFolder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	err := services.DeleteFolder(base.Db.Postgresql, folderID)
+	permanent, _ := strconv.ParseBool(c.Query("permanent"))
+
+	err := services.DeleteFolder(base.Db.Postgresql, folderID, permanent)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete folder", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Folder deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) DeleteMultipleFiles(c *gin.Context) {
+	var req models.DeleteMultipleFilesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	successCount, failureCount, errs := services.DeleteMultipleFiles(base.Logger, base.Db, req.IDs, req.Permanent)
+
+	responseMsg := fmt.Sprintf("Bulk delete completed. Success: %d, Failed: %d", successCount, failureCount)
+	responseData := map[string]interface{}{
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"errors":        utility.ErrorsToStrings(errs),
+	}
+
+	if failureCount > 0 && successCount == 0 {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", responseMsg, nil, responseData)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, responseMsg, responseData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) DeleteMultipleFolders(c *gin.Context) {
+	var req models.DeleteMultipleFoldersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	successCount, failureCount, errs := services.DeleteMultipleFolders(base.Db.Postgresql, req.IDs, req.Permanent)
+
+	responseMsg := fmt.Sprintf("Bulk delete completed. Success: %d, Failed: %d", successCount, failureCount)
+	responseData := map[string]interface{}{
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"errors":        utility.ErrorsToStrings(errs),
+	}
+
+	if failureCount > 0 && successCount == 0 {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", responseMsg, nil, responseData)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, responseMsg, responseData)
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -357,6 +418,42 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	queryParams["search"] = c.Query("search")
 	queryParams["type"] = c.Query("type")
 
+	fileCategory := c.Query("file_category")
+	if fileCategory != "" {
+		validCategories := map[string]bool{
+			"documents":    true,
+			"spreadsheets": true,
+			"images":       true,
+			"videos":       true,
+			"music":        true,
+		}
+		if !validCategories[strings.ToLower(fileCategory)] {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error",
+				"Invalid file_category. Valid values: documents, spreadsheets, images, videos, music", nil, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		queryParams["file_category"] = fileCategory
+	}
+
+	dateModified := c.Query("date_modified")
+	if dateModified != "" {
+		validDateFilters := map[string]bool{
+			"today":        true,
+			"last_7_days":  true,
+			"last_30_days": true,
+			"this_year":    true,
+			"last_year":    true,
+		}
+		if !validDateFilters[strings.ToLower(dateModified)] {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error",
+				"Invalid date_modified. Valid values: today, last_7_days, last_30_days, this_year, last_year", nil, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		queryParams["date_modified"] = dateModified
+	}
+
 	pagination := postgresql.GetPagination(c)
 	page, limit := pagination.Page, pagination.Limit
 
@@ -385,5 +482,101 @@ func (base *Controller) GetFiles(c *gin.Context) {
 		"files":      files,
 		"pagination": paginationResponse,
 	})
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateFolderName(c *gin.Context) {
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	folderID := c.Param("id")
+	if !utility.IsValidUUID(folderID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid folder ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	var req models.RenameFolderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	trimmed, err := Validate(req.FolderName)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	folder, err := services.UpdateFolder(base.Db.Postgresql, models.UpdateFolderParams{
+		FolderID: folderID,
+		Name:     trimmed,
+		OrgID:    orgID,
+		UserID:   userID,
+	})
+
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to update folder name", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Folder name updated successfully", folder)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) RestoreFile(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	file, err := services.RestoreFile(base.Db.Postgresql, fileID, userID)
+	if err != nil {
+		if errors.Is(err, services.ErrFileNotDeleted) {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "File is not deleted", err.Error(), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		if errors.Is(err, services.ErrUnauthorizedRestore) {
+			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", err.Error(), nil)
+			c.JSON(http.StatusUnauthorized, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found or could not be restored", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File restored successfully", file)
 	c.JSON(http.StatusOK, rd)
 }

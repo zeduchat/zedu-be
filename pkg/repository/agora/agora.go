@@ -3,9 +3,7 @@ package agora
 import (
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
-	"time"
 
 	rtctokenbuilder "github.com/AgoraIO-Community/go-tokenbuilder/rtctokenbuilder"
 
@@ -13,6 +11,11 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
+)
+
+const (
+	// DefaultTokenExpirationSeconds is the default token expiration time (4 hours - matches max buzz duration)
+	DefaultTokenExpirationSeconds = 14400
 )
 
 // AgoraService handles Agora RTC token generation
@@ -35,12 +38,20 @@ func NewAgoraService(logger *utility.Logger, config config.Agora) *AgoraService 
 	return service
 }
 
+// GetAppId returns the Agora App ID
+func (s *AgoraService) GetAppId() string {
+	return s.appId
+}
+
+// check Agora config
+func (s *AgoraService) IsHealthy() bool {
+	return s.appId != "" && s.appCertificate != ""
+}
+
 // GenerateRTCToken creates an Agora RTC token for a user to join a buzz channel
-// expireTimeInSeconds: token expiration time in seconds (0 = use default 2 hours)
-// uid: Agora user account (string UUID) for participant tracking
 func (s *AgoraService) GenerateRTCToken(channelName, userID string, uid string, expireTimeInSeconds uint32) (string, error) {
-	if s.appId == "" || s.appCertificate == "" {
-		return "", errors.New("Agora App ID or App Certificate not configured")
+	if !s.IsHealthy() {
+		return "", errors.New("agora App ID or App Certificate not configured")
 	}
 
 	// Default to 2 hours if not specified
@@ -48,14 +59,13 @@ func (s *AgoraService) GenerateRTCToken(channelName, userID string, uid string, 
 		expireTimeInSeconds = 7200 // 2 hours
 	}
 
-	// Build token with provided UID string (user can publish and subscribe)
-	// Role: 1 = publisher (can publish and subscribe)
+
 	token, err := rtctokenbuilder.BuildTokenWithAccount(
 		s.appId,
 		s.appCertificate,
 		channelName,
-		uid, // Use provided UID (string UUID) for participant tracking
-		rtctokenbuilder.RolePublisher, // RolePublisher allows both publish and subscribe
+		uid,
+		rtctokenbuilder.RolePublisher,
 		expireTimeInSeconds,
 	)
 
@@ -73,7 +83,7 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 
 	service := Client.Service
 	if service == nil {
-		return resp, http.StatusInternalServerError, errors.New("Agora service not initialized")
+		return resp, http.StatusInternalServerError, errors.New("agora service not initialized")
 	}
 
 	// Validate buzz exists and is active
@@ -88,8 +98,8 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 		return resp, http.StatusForbidden, errors.New("user is not a participant in this buzz")
 	}
 
-	// Calculate dynamic token expiration based on buzz duration
-	expireTimeInSeconds := calculateTokenExpiration(buzz.BuzzStartTime, logger)
+	// Use Agora default token expiration (4 hours)
+	expireTimeInSeconds := uint32(DefaultTokenExpirationSeconds)
 
 	// Generate token using buzz ID as channel name and provided UID
 	token, err := service.GenerateRTCToken(buzzID, userID, uid, expireTimeInSeconds)
@@ -117,40 +127,4 @@ func isUserParticipant(participants []string, userID string) bool {
 		}
 	}
 	return false
-}
-
-// calculateTokenExpiration calculates dynamic token expiration based on buzz duration
-func calculateTokenExpiration(buzzStartTime time.Time, logger *utility.Logger) uint32 {
-	const (
-		maxBuzzDurationHours    = 4  // Maximum allowed buzz duration (4 hours)
-		minTokenValidityMinutes = 15 // Minimum token validity (15 minutes safety buffer)
-	)
-
-	// Calculate elapsed time since buzz started
-	elapsedTime := time.Since(buzzStartTime)
-	elapsedSeconds := int64(elapsedTime.Seconds())
-
-	// Calculate maximum buzz duration in seconds
-	maxDurationSeconds := int64(maxBuzzDurationHours * 3600)
-
-	// Calculate remaining time until max duration
-	remainingSeconds := maxDurationSeconds - elapsedSeconds
-
-	// Ensure minimum token validity (15 minutes)
-	minValiditySeconds := int64(minTokenValidityMinutes * 60)
-
-	// Use the greater of remaining time or minimum validity
-	tokenExpiry := math.Max(float64(remainingSeconds), float64(minValiditySeconds))
-
-	// Cap at max duration if buzz just started
-	if tokenExpiry > float64(maxDurationSeconds) {
-		tokenExpiry = float64(maxDurationSeconds)
-	}
-
-	expirySeconds := uint32(tokenExpiry)
-
-	logger.Info("Token expiration calculated: buzz running for %.2f minutes, token valid for %.2f minutes",
-		elapsedTime.Minutes(), float64(expirySeconds)/60)
-
-	return expirySeconds
 }
