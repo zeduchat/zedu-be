@@ -168,6 +168,18 @@ func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMe
 	return messageCollection, paginationResponse, nil
 }
 
+func GetSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) (*models.SavedMessage, error) {
+	var savedMessage *models.SavedMessage
+
+	err := savedMessage.GetSavedMessageByID(db, ids)
+	if err != nil {
+		logger.Error("An error occurred while fetching messages from Postgres: %v", err)
+		return nil, err
+	}
+
+	return savedMessage, nil
+}
+
 func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) error {
 	var savedMessage models.SavedMessage
 

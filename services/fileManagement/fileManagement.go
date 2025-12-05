@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/minio/minio-go/v7"
@@ -236,6 +237,7 @@ type CreateAndSaveFileParams struct {
 }
 
 func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.File, error) {
+	now := time.Now()
 	newFileEntry := models.File{
 		ID:             utility.GenerateUUID(),
 		FileName:       params.UploadParams.Header.Filename,
@@ -246,6 +248,7 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 		OrganisationID: params.UploadParams.OrgID,
 		UserID:         params.UploadParams.UserID,
 		FolderID:       params.FolderID,
+		LastAccessedAt: &now,
 	}
 
 	if err := newFileEntry.CreateFileRecord(db); err != nil {
@@ -254,12 +257,23 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 	return &newFileEntry, nil
 }
 
+func countItemsInFolder(db *gorm.DB, folderID string) uint64 {
+	var count int64
+	db.Model(&models.File{}).Where("folder_id = ?", folderID).Count(&count)
+	if count < 0 {
+		return 0
+	}
+
+	return uint64(count)
+}
+
 func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder, error) {
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
 		Name:           params.Name,
 		OrganisationID: params.OrganisationID,
 		UserID:         params.UserID,
+		ItemCount:      0,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
 	if err != nil {
@@ -273,7 +287,39 @@ func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 	query := db.Where("organisation_id = ?", orgID)
 
 	err := query.Find(&folders).Error
-	return folders, err
+	if err != nil {
+		return folders, err
+	}
+
+	type FolderCount struct {
+		FolderID string
+		Count    int64
+	}
+	var folderCounts []FolderCount
+
+	err = db.Model(&models.File{}).
+		Select("folder_id, count(*) as count").
+		Where("organisation_id = ? AND folder_id IS NOT NULL", orgID).
+		Group("folder_id").
+		Scan(&folderCounts).Error
+
+	if err != nil {
+		return folders, err
+	}
+
+	// map counts to folders
+	countMap := make(map[string]uint64, len(folderCounts))
+	for _, fc := range folderCounts {
+		if fc.Count > 0 {
+			countMap[fc.FolderID] = uint64(fc.Count)
+		}
+	}
+
+	for i := range folders {
+		folders[i].ItemCount = countMap[folders[i].ID]
+	}
+
+	return folders, nil
 }
 
 func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {
@@ -315,6 +361,11 @@ func UpdateFolder(db *gorm.DB, params models.UpdateFolderParams) (*models.Folder
 
 	folder.Name = params.Name
 	err = db.Save(&folder).Error
+
+	if err == nil {
+		folder.ItemCount = countItemsInFolder(db, folder.ID)
+	}
+
 	return &folder, err
 }
 
@@ -505,6 +556,9 @@ func UpdateFileName(db *gorm.DB, logger *utility.Logger, params models.UpdateFil
 	if err != nil {
 		return nil, err
 	}
+	// Silent update for recency
+	go UpdateFileLastAccessedAt(db, params.FileID)
+
 	// fileResponse is now updated with the new name
 	notification := models.Notification[models.UpdatedMedia]
 	notification.SectionType = models.ThreadSection
@@ -641,6 +695,34 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 	return files, count, err
 }
 
+func GetFileInfo(db *gorm.DB, params models.File) *models.FileInfoResponse {
+	sharedIn := []string{}
+	if params.ChannelID != nil {
+		var channel models.Channels
+		err := db.Select("name").Where("id = ?", *params.ChannelID).First(&channel).Error
+		if err == nil {
+			sharedIn = append(sharedIn, channel.Name)
+		}
+	}
+
+	// Fetch username from profile
+	var profile models.Profile
+	owner := params.UserID // fallback to user ID
+	err := db.Select("user_name").Where("userid = ?", params.UserID).First(&profile).Error
+	if err == nil && profile.UserName != "" {
+		owner = profile.UserName
+	}
+
+	response := &models.FileInfoResponse{
+		Owner:        owner,
+		DateUploaded: params.CreatedAt,
+		LastUpdated:  params.UpdatedAt,
+		SharedIn:     sharedIn,
+	}
+	return response
+
+}
+
 var (
 	ErrFileNotDeleted      = errors.New("file is not deleted")
 	ErrUnauthorizedRestore = errors.New("unauthorized to restore this file")
@@ -668,4 +750,29 @@ func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error
 	}
 
 	return &file, nil
+}
+
+func UpdateFileLastAccessedAt(db *gorm.DB, fileID string) {
+
+	err := db.Model(&models.File{}).Where("id = ?", fileID).
+		Update("last_accessed_at", time.Now()).Error
+
+	if err != nil {
+		fmt.Printf("Failed to update last_accessed_at for file %s: %v\n", fileID, err)
+	}
+}
+
+func GetRecentFiles(db *gorm.DB, userID string, orgID string, limit int) ([]models.File, error) {
+	var files []models.File
+
+	query := db.Where("user_id = ? AND organisation_id = ?", userID, orgID).
+		Order("last_accessed_at DESC").
+		Limit(limit).
+		Find(&files)
+
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	return files, nil
 }

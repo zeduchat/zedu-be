@@ -2127,6 +2127,77 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/{user_id}/status:
+    patch:
+      tags:
+        - user
+      summary: Partially update a user's status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID of the user whose status is being updated
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartialStatusUpdateRequest"
+      responses:
+        "200":
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: User status updated successfully
+                  data:
+                    $ref: "#/components/schemas/UserStatusResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /users/switch-org:
     put:
       tags:
@@ -3530,6 +3601,55 @@ paths:
                       message:
                         type: string
                         example: success
+
+  /channels/remove-multiple:
+    post:
+      tags:
+        - channels
+      summary: Remove Multiple Users from a Channel
+      description: Removes multiple users from the specified channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  example: 0191943c-d263-71f2-99d5-82ae6afe2da4
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    example: 0191a069-7123-7dbe-a1d5-36a882f08521
+      responses:
+        200:
+          description: Users removed from channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: users removed from channel successfully
+                  data:
+                    type: object
+        400:
+          description: Failed to remove users from channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
 
   /channels/{channel_id}/archive:
     put:
@@ -14916,6 +15036,131 @@ paths:
                     nullable: true
                     example: null
 
+  /files/file/{id}/info:
+    get:
+      tags:
+        - File Management
+      summary: Retrieve file information by ID
+      description: Fetches detailed information about a file including owner, upload date, last updated date, and channels where it's shared.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File info successfully retrieved"
+                  data:
+                    type: object
+                    properties:
+                      owner:
+                        type: string
+                        format: uuid
+                        description: The user ID of the file owner
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      date_uploaded:
+                        type: string
+                        format: date-time
+                        description: The date and time when the file was uploaded
+                        example: "2025-12-05T10:30:00Z"
+                      last_updated:
+                        type: string
+                        format: date-time
+                        description: The date and time when the file was last modified
+                        example: "2025-12-05T15:45:00Z"
+                      shared_in:
+                        type: array
+                        description: List of channel names where the file is shared
+                        items:
+                          type: string
+                        example: ["general", "project-updates"]
+        "400":
+          description: Invalid file ID format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid file ID format"
+                  error:
+                    type: object
+                    nullable: true
+                  data:
+                    type: object
+                    nullable: true
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+                  data:
+                    type: object
+                    nullable: true
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+
     delete:
       tags:
         - File Management
@@ -15175,6 +15420,47 @@ paths:
                       file_name:
                         type: string
                         example: "file_name is a required field"
+
+  /files/recent:
+    get:
+      tags:
+        - File Management
+      summary: Get recent files
+      description: Retrieve a list of files recently accessed by the user within the organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+            maximum: 30
+          description: Number of recent files to return (max 30)
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Recent files fetched successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FileSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /files/folders:
     post:
@@ -18360,6 +18646,152 @@ paths:
                   message:
                     type: string
                     example: Saved message marked as complete successfully
+  /organisations/{org_id}/saved/message/{smId}:
+    get:
+      tags:
+        - Saved Messages
+      summary: Get saved message by id
+      description: Retrieves a saved message by id.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+
+        - name: smId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Message retrieved sucessfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Message retrievwed successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "019a72c6-f42d-7587-b0ba-17c06f8b16f1"
+                      channels_id:
+                        type: string
+                        format: uuid
+                        description: ID of the channel the message belongs to.
+                        example: "019891f4-ba4e-7bfb-9592-f03aad81adca"
+                      org_id:
+                        type: string
+                        format: uuid
+                        description: ID of the organization the message belongs to.
+                        example: "01983184-8a02-75c6-9956-e43a3056f143"
+                      user_id:
+                        type: string
+                        format: uuid
+                        description: ID of the user who saved the message.
+                        example: "01983184-8a02-75c6-9956-e43a3056f143"
+                      type:
+                        type: string
+                        description: Type of the saved item (e.g., 'message', 'file').
+                        example: "message"
+                      message_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                        description: ID of the actual message/content. Nullable.
+                        example: "019a72c3-166d-7587-98be-3aa8eba15539"
+                      thread_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                        description: ID of the thread the message belongs to.
+                        example: "019a72c6-0988-7587-a2b5-2c3add1d7962"
+                      created_at:
+                        type: string
+                        format: date-time
+                        description: Timestamp when the saved message record was created.
+                        example: "2025-12-05T12:26:39Z"
+                      remainder_message:
+                        type: boolean
+                        description: Flag indicating if this is a remainder/reminder message.
+                        example: false
+                      remainder_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        description: Timestamp for when the reminder should be sent. Nullable.
+                        example: "2026-01-01T10:00:00Z"
+                      remainder_description:
+                        type: string
+                        nullable: true
+                        description: Optional text description for the reminder. Nullable.
+                        example: "Follow up on this topic next week"
+                      river_job_id:
+                        type: integer
+                        format: int64
+                        nullable: true
+                        description: ID of the background job (River) associated with the reminder. Nullable.
+                        example: 45678
+                      archived:
+                        type: boolean
+                        description: Flag indicating if the saved message has been archived.
+                        example: false
+                      completed:
+                        type: boolean
+                        description: Flag indicating if the reminder/task has been completed.
+                        example: false
+        "400":
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: invalid saved message id format
+                  error:
+                    type: string
+                    example: unable to parse saved message id
+        "404":
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: message not found
+                  error:
+                    type: string
+                    example: record not found
 
   /organisations/{org_id}/saved/message:
     get:
@@ -22017,7 +22449,7 @@ paths:
       tags:
         - buzz
       summary: Create a new buzz (video/audio call)
-      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency.
+      description: "Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.**"
       operationId: createBuzz
       security:
         - bearerAuth: []
@@ -22620,6 +23052,54 @@ paths:
 
 components:
   schemas:
+    PartialStatusUpdateRequest:
+      type: object
+      description: Partial status payload; at least one field must be provided.
+      properties:
+        text:
+          type: string
+          maxLength: 255
+          example: "In a meeting"
+        emoji:
+          type: string
+          maxLength: 64
+          example: ":spiral_calendar_pad:"
+        expiry:
+          type: integer
+          format: int64
+          description: Unix timestamp in seconds after which the status expires
+          example: 1715107200
+        visibility:
+          type: string
+          enum:
+            - public
+            - contacts
+            - private
+          description: Status visibility level
+          example: "public"
+
+    UserStatusResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "In a meeting"
+        emoji:
+          type: string
+          example: ":spiral_calendar_pad:"
+        expiry:
+          type: integer
+          format: int64
+          example: 1715107200
+        visibility:
+          type: string
+          enum:
+            - public
+            - contacts
+            - private
+          description: Status visibility level
+          example: "public"
+
     FileSchema:
       type: object
       properties:
@@ -22652,10 +23132,16 @@ components:
         updated_at:
           type: string
           format: date-time
+        last_accessed_at:
+          type: string
+          format: date-time
 
     FolderSchema:
       type: object
       properties:
+        item_count:
+          type: integer
+          example: 0
         id:
           type: string
           format: uuid
@@ -22667,10 +23153,6 @@ components:
         user_id:
           type: string
           format: uuid
-        parent_id:
-          type: string
-          format: uuid
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -22900,7 +23382,7 @@ components:
         channel_id:
           type: string
           format: uuid
-          description: The ID of the channel where the buzz will be created
+          description: "The ID of the channel where the buzz will be created. Can be a regular channel, DM channel, or group DM channel ID."
           example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 
     BuzzCreateResponseSchema:
@@ -22918,6 +23400,10 @@ components:
           type: string
           format: uuid
           description: The channel where the buzz was created
+        channel_type:
+          type: string
+          enum: [channel, dm_channel, group_dm_channel]
+          description: "Type of channel: 'channel' (regular organization channel), 'dm_channel' (1-on-1 DM), 'group_dm_channel' (group DM)"
         status:
           type: string
           enum: [active, ended]
