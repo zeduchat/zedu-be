@@ -247,6 +247,7 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 		OrganisationID: params.UploadParams.OrgID,
 		UserID:         params.UploadParams.UserID,
 		FolderID:       params.FolderID,
+		LastAccessedAt: time.Now(),
 	}
 
 	if err := newFileEntry.CreateFileRecord(db); err != nil {
@@ -554,6 +555,9 @@ func UpdateFileName(db *gorm.DB, logger *utility.Logger, params models.UpdateFil
 	if err != nil {
 		return nil, err
 	}
+	// Silent update for recency
+	go UpdateFileLastAccessedAt(db, params.FileID)
+
 	// fileResponse is now updated with the new name
 	notification := models.Notification[models.UpdatedMedia]
 	notification.SectionType = models.ThreadSection
