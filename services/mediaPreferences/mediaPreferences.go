@@ -83,38 +83,37 @@ func UpdateMediaPreferences(req models.UpdateMediaPreferencesRequest, userID str
 				return nil, http.StatusInternalServerError, fmt.Errorf("failed to get user preferences: %v", err)
 			}
 
+			// Set defaults from user preferences, override with provided values
+			autoDownloadPhotos := userPref.AutoDownloadPhotos
+			if req.AutoDownloadPhotos != "" {
+				autoDownloadPhotos = req.AutoDownloadPhotos
+			}
+			autoDownloadAudio := userPref.AutoDownloadAudio
+			if req.AutoDownloadAudio != "" {
+				autoDownloadAudio = req.AutoDownloadAudio
+			}
+			autoDownloadDocuments := userPref.AutoDownloadDocuments
+			if req.AutoDownloadDocuments != "" {
+				autoDownloadDocuments = req.AutoDownloadDocuments
+			}
+			autoDownloadVideos := userPref.AutoDownloadVideos
+			if req.AutoDownloadVideos != "" {
+				autoDownloadVideos = req.AutoDownloadVideos
+			}
+			uploadQuality := userPref.UploadQuality
+			if req.UploadQuality != "" {
+				uploadQuality = req.UploadQuality
+			}
+
 			pref = models.MediaPreferences{
 				ID:                    utility.GenerateUUID(),
 				UserID:                userUUID,
 				DeviceID:              &deviceUUID,
-				AutoDownloadPhotos:    userPref.AutoDownloadPhotos,
-				AutoDownloadAudio:     userPref.AutoDownloadAudio,
-				AutoDownloadDocuments: userPref.AutoDownloadDocuments,
-				AutoDownloadVideos:    userPref.AutoDownloadVideos,
-				UploadQuality:         userPref.UploadQuality,
-			}
-
-			// Update only provided fields
-			updates := make(map[string]interface{})
-			if req.AutoDownloadPhotos != "" {
-				updates["auto_download_photos"] = req.AutoDownloadPhotos
-				pref.AutoDownloadPhotos = req.AutoDownloadPhotos
-			}
-			if req.AutoDownloadAudio != "" {
-				updates["auto_download_audio"] = req.AutoDownloadAudio
-				pref.AutoDownloadAudio = req.AutoDownloadAudio
-			}
-			if req.AutoDownloadDocuments != "" {
-				updates["auto_download_documents"] = req.AutoDownloadDocuments
-				pref.AutoDownloadDocuments = req.AutoDownloadDocuments
-			}
-			if req.AutoDownloadVideos != "" {
-				updates["auto_download_videos"] = req.AutoDownloadVideos
-				pref.AutoDownloadVideos = req.AutoDownloadVideos
-			}
-			if req.UploadQuality != "" {
-				updates["upload_quality"] = req.UploadQuality
-				pref.UploadQuality = req.UploadQuality
+				AutoDownloadPhotos:    autoDownloadPhotos,
+				AutoDownloadAudio:     autoDownloadAudio,
+				AutoDownloadDocuments: autoDownloadDocuments,
+				AutoDownloadVideos:    autoDownloadVideos,
+				UploadQuality:         uploadQuality,
 			}
 
 			if err := pref.Create(db); err != nil {

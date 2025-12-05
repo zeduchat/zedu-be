@@ -23,6 +23,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/invitation"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -42,6 +43,7 @@ func Setup() *utility.Logger {
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
 	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
 	elastic.ConnectToElastic(logger, config.Elastic)
+	agora.NewAgoraService(logger, config.Agora)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
 		migrations.RunAllMigrations(db)

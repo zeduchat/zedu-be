@@ -280,4 +280,163 @@ func TestUpdateFileName(t *testing.T) {
 
 		tests.AssertStatusCode(t, rr.Code, http.StatusUnauthorized)
 	})
+
+	t.Run("TestUpdateFolderName", func(t *testing.T) {
+		r, _, authController, _ := SetupFileManagementTestRouter()
+
+		// Create a test folder using the API
+		createFolderData := models.CreateFolderParams{
+			Name: "original_folder",
+		}
+
+		createPath := "/api/v1/files/folders"
+		createURI := url.URL{Path: createPath}
+
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(createFolderData)
+		req, err := http.NewRequest(http.MethodPost, createURI.String(), &b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusCreated)
+
+		response := tests.ParseResponse(rr)
+		data := response["data"].(map[string]interface{})
+		folderID := data["id"].(string)
+
+		t.Run("UpdateFolderName_Success", func(t *testing.T) {
+			renameData := models.RenameFolderRequest{
+				FolderName: "renamed_folder",
+			}
+
+			updatePath := fmt.Sprintf("/api/v1/files/folders/%s", folderID)
+			updateURI := url.URL{Path: updatePath}
+
+			var b bytes.Buffer
+			json.NewEncoder(&b).Encode(renameData)
+			req, err := http.NewRequest(http.MethodPut, updateURI.String(), &b)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+			response := tests.ParseResponse(rr)
+			tests.AssertResponseMessage(t, response["message"].(string), "Folder name updated successfully")
+
+			// Verify DB update
+			var updatedFolder models.Folder
+			db.Postgresql.Where("id = ?", folderID).First(&updatedFolder)
+			if updatedFolder.Name != "renamed_folder" {
+				t.Errorf("Expected folder name 'renamed_folder', got '%s'", updatedFolder.Name)
+			}
+		})
+
+		t.Run("UpdateFolderName_EmptyName", func(t *testing.T) {
+			renameData := models.RenameFolderRequest{
+				FolderName: "",
+			}
+
+			updatePath := fmt.Sprintf("/api/v1/files/folders/%s", folderID)
+			updateURI := url.URL{Path: updatePath}
+
+			var b bytes.Buffer
+			json.NewEncoder(&b).Encode(renameData)
+			req, err := http.NewRequest(http.MethodPut, updateURI.String(), &b)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			tests.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+		})
+
+		t.Run("UpdateFolderName_Unauthorized", func(t *testing.T) {
+			// create another user
+			otherUserUUID := uuid.New().String()
+			otherUser := models.CreateUserRequestModel{
+				Email:       fmt.Sprintf("otheruser%v@qa.team", otherUserUUID),
+				FirstName:   "Other",
+				LastName:    "User",
+				PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
+				Password:    "password123",
+				UserName:    fmt.Sprintf("other_user%v", otherUserUUID),
+			}
+
+			tests.SignupUser(t, r, *authController, otherUser, false)
+
+			loginData := models.LoginRequestModel{
+				Email:    otherUser.Email,
+				Password: otherUser.Password,
+			}
+			otherToken := tests.GetLoginToken(t, r, *authController, loginData)
+
+			renameData := models.RenameFolderRequest{
+				FolderName: "hacked_folder",
+			}
+
+			updatePath := fmt.Sprintf("/api/v1/files/folders/%s", folderID)
+			updateURI := url.URL{Path: updatePath}
+
+			var b bytes.Buffer
+			json.NewEncoder(&b).Encode(renameData)
+			req, err := http.NewRequest(http.MethodPut, updateURI.String(), &b)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", otherToken))
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			tests.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+		})
+
+		t.Run("UpdateFolderName_NotFound", func(t *testing.T) {
+			renameData := models.RenameFolderRequest{
+				FolderName: "new_name",
+			}
+
+			nonExistentID := utility.GenerateUUID()
+			updatePath := fmt.Sprintf("/api/v1/files/folders/%s", nonExistentID)
+			updateURI := url.URL{Path: updatePath}
+
+			var b bytes.Buffer
+			json.NewEncoder(&b).Encode(renameData)
+			req, err := http.NewRequest(http.MethodPut, updateURI.String(), &b)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code == http.StatusOK {
+				t.Errorf("Expected failure for non-existent folder, got 200")
+			}
+		})
+	})
 }
