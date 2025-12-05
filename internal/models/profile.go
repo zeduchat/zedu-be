@@ -108,10 +108,10 @@ type PartialStatusUpdate struct {
 // SetStatusRequest holds fields for setting a new status via POST.
 // Text is required; emoji, expiry, and visibility are optional.
 type SetStatusRequest struct {
-	Text       string  `json:"text" binding:"required"`
-	Emoji      *string `json:"emoji,omitempty"`
-	Expiry     *int64  `json:"expiry,omitempty"`
-	Visibility *string `json:"visibility,omitempty"`
+	Text       string  `json:"text" validate:"required,min=1,max=255"`
+	Emoji      *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace"`
+	Expiry     *int64  `json:"expiry,omitempty" validate:"omitempty,min=0"`
+	Visibility *string `json:"visibility,omitempty" validate:"omitempty,oneof=public contacts private"`
 	UserID     string  `json:"-"`
 }
 

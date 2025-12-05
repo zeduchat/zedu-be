@@ -243,25 +243,11 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 
 // SetUserStatus sets a new status for the authenticated user.
 func (base *Controller) SetUserStatus(c *gin.Context) {
-	userID := c.Param("user_id")
-
-	if !utility.IsValidUUID(userID) {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	userClaims := common.GetAllUserClaims(c)
-	loggedUserID, ok := userClaims["user_id"].(string)
+	userID, ok := userClaims["user_id"].(string)
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
 		c.JSON(http.StatusUnauthorized, rd)
-		return
-	}
-
-	if loggedUserID != userID {
-		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to set another user's status", "forbidden", nil)
-		c.JSON(http.StatusForbidden, rd)
 		return
 	}
 
@@ -272,9 +258,16 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 		return
 	}
 
-	if code, err := validateSetStatusInput(&req); err != nil {
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		c.JSON(code, rd)
+	// Trim text before validation
+	req.Text = strings.TrimSpace(req.Text)
+	if req.Emoji != nil {
+		*req.Emoji = strings.TrimSpace(*req.Emoji)
+	}
+
+	// Validate using go-playground validator
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
@@ -332,46 +325,6 @@ func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 	}
 
 	if req.Emoji != nil {
-		if len(*req.Emoji) > 64 {
-			return http.StatusBadRequest, errors.New("emoji must not exceed 64 characters")
-		}
-
-		if strings.ContainsAny(*req.Emoji, " \t\n\r") {
-			return http.StatusBadRequest, errors.New("emoji must not contain whitespace")
-		}
-	}
-
-	if req.Expiry != nil && *req.Expiry < 0 {
-		return http.StatusBadRequest, errors.New("expiry must be a non-negative unix timestamp (seconds)")
-	}
-
-	if req.Visibility != nil {
-		validVisibilities := map[string]bool{
-			"public":   true,
-			"contacts": true,
-			"private":  true,
-		}
-		if !validVisibilities[*req.Visibility] {
-			return http.StatusBadRequest, errors.New("visibility must be one of: public, contacts, private")
-		}
-	}
-
-	return 0, nil
-}
-
-func validateSetStatusInput(req *models.SetStatusRequest) (int, error) {
-	// Text is required and must not be empty after trimming
-	req.Text = strings.TrimSpace(req.Text)
-	if req.Text == "" {
-		return http.StatusBadRequest, errors.New("text is required and cannot be empty")
-	}
-
-	if len(req.Text) > 255 {
-		return http.StatusBadRequest, errors.New("text must not exceed 255 characters")
-	}
-
-	if req.Emoji != nil {
-		*req.Emoji = strings.TrimSpace(*req.Emoji)
 		if len(*req.Emoji) > 64 {
 			return http.StatusBadRequest, errors.New("emoji must not exceed 64 characters")
 		}
