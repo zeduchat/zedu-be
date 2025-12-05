@@ -105,7 +105,6 @@ type Folder struct {
 	OrganisationID string         `gorm:"type:uuid;not null" json:"organisation_id"`
 	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
 	Name           string         `gorm:"type:varchar(255);not null" json:"name"`
-	Description    string         `gorm:"type:text" json:"description"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
