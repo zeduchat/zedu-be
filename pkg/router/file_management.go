@@ -23,6 +23,7 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		fileManagementUrl.GET("/file/:id/info", fileManagement.GetFileInfo)
 		fileManagementUrl.DELETE("/file/:id", fileManagement.DeleteFileDetailsByID)
 		fileManagementUrl.PUT("/file/:id", fileManagement.UpdateFileName)
+		fileManagementUrl.PUT("/file/:id/restore", fileManagement.RestoreFile)
 
 		fileManagementUrl.POST("/folders", fileManagement.CreateFolder)
 		fileManagementUrl.GET("/folders", fileManagement.GetFolders)
@@ -30,6 +31,9 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		fileManagementUrl.DELETE("/folders/:id", fileManagement.DeleteFolder)
 
 		fileManagementUrl.PUT("/:id/move", fileManagement.MoveFile)
+
+		fileManagementUrl.DELETE("", fileManagement.DeleteMultipleFiles)
+		fileManagementUrl.DELETE("/folders", fileManagement.DeleteMultipleFolders)
 
 		fileManagementUrl.GET("", fileManagement.GetFiles)
 	}
