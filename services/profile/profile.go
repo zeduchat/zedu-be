@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -58,20 +61,17 @@ func VerifyAvatarOwnership(db *gorm.DB, authenticatedUserID, targetUserID string
 		return false, nil
 	}
 
-	// Verify that the user exists in the database
+	// Verify that the target user exists
 	var user models.User
-	exists := db.Where("id = ?", authenticatedUserID).First(&user).Error
-	if exists != nil {
-		if errors.Is(exists, gorm.ErrRecordNotFound) {
-			return false, nil
-		}
-		return false, exists
+	_, err := postgresql.SelectOneFromDb(db, &user, "id = ?", targetUserID)
+	if err != nil {
+		return false, fmt.Errorf("user not found: %w", err)
 	}
 
 	return true, nil
 }
 
-// logUnauthorizedAvatarAccess logs unauthorized avatar access attempts for security monitoring
+// logUnauthorizedAvatarAccess logs unauthorized avatar access attempts
 func logUnauthorizedAvatarAccess(logger *utility.Logger, authenticatedUserID, targetUserID, operation string) {
 	logger.Error(
 		"Unauthorized avatar access attempt",
@@ -86,11 +86,12 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 	var user models.User
 	var userProfile models.Profile
 
-	// Verify ownership before allowing any avatar operations
+	// Verify ownership before allowing any profile updates (including avatar)
+	// userId is the authenticated user ID from JWT, so we verify it matches and user exists
 	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
 	if err != nil {
 		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
-		return http.StatusInternalServerError, nil, errors.New("failed to verify avatar ownership")
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to verify ownership: %w", err)
 	}
 	if !isOwner {
 		logUnauthorizedAvatarAccess(logger, userId, userId, "update")
@@ -123,10 +124,11 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 	var Profile models.Profile
 
 	// Verify ownership before allowing avatar deletion
+	// userId is the authenticated user ID from JWT, so we verify it matches and user exists
 	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
 	if err != nil {
 		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
-		return http.StatusInternalServerError, errors.New("failed to verify avatar ownership")
+		return http.StatusInternalServerError, fmt.Errorf("failed to verify ownership: %w", err)
 	}
 	if !isOwner {
 		logUnauthorizedAvatarAccess(logger, userId, userId, "delete")
@@ -265,4 +267,87 @@ func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *ut
 	}
 
 	return http.StatusCreated, nil
+}
+
+// PartialUpdateProfileStatus applies a partial status patch atomically and returns the updated status.
+func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
+	var profile models.Profile
+
+	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.UserStatus{}, http.StatusNotFound, fmt.Errorf("profile not found for user")
+		}
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
+	}
+
+	updates := map[string]any{}
+	if req.Text != nil {
+		updates["text"] = *req.Text
+	}
+	if req.Emoji != nil {
+		updates["icon"] = *req.Emoji
+	}
+	if req.Expiry != nil {
+		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
+	}
+	if req.Visibility != nil {
+		updates["status_visibility"] = *req.Visibility
+	}
+
+	if len(updates) == 0 {
+		return models.UserStatus{}, http.StatusBadRequest, errors.New("no fields to update")
+	}
+
+	if err := db.Model(&models.Profile{}).
+		Where("userid = ?", req.UserID).
+		Updates(updates).Error; err != nil {
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to update status: %w", err)
+	}
+
+	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
+	}
+
+	expiry := int64(0)
+	if profile.StatusTimeout != "" {
+		if parsed, err := strconv.ParseInt(profile.StatusTimeout, 10, 64); err == nil {
+			expiry = parsed
+		}
+	}
+
+	visibility := "public"
+	if profile.StatusVisibility != "" {
+		visibility = profile.StatusVisibility
+	}
+
+	status := models.UserStatus{
+		Text:       profile.Text,
+		Emoji:      profile.Icon,
+		Expiry:     expiry,
+		Visibility: visibility,
+	}
+
+	if logger != nil {
+		logger.Info("status updated", "user_id", req.UserID)
+		notification := models.Notification[models.StatusUpdate]
+		notification.SectionType = models.ChannelsSection
+		notification.NotificationId = utility.GenerateUUID()
+		notification.ModificationDetails = &models.ModificationDetails{
+			UserId: req.UserID,
+		}
+		notification.Content = struct {
+			UserID string            `json:"user_id"`
+			Status models.UserStatus `json:"status"`
+		}{
+			UserID: req.UserID,
+			Status: status,
+		}
+
+		channelID := fmt.Sprintf("user:%s", req.UserID)
+		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
+			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
+		}
+	}
+
+	return status, http.StatusOK, nil
 }

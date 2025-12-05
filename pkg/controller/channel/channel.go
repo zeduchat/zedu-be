@@ -690,6 +690,45 @@ func (base *Controller) AddMultipleMembersToChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) RemoveMultipleMembersFromChannel(c *gin.Context) {
+	var req models.RemoveMultipleMembersRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to fetch user claims", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to fetch user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	req.UserID = userID.(string)
+
+	if err := channel.RemoveMultipleMembersFromChannel(base.Db, req, base.Logger); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to remove users from channel", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("users removed from channel successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "users removed from channel successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) ArchiveChannel(c *gin.Context) {
 	channelId := c.Param("channelId")
 	var req models.ArchiveChannelRequest

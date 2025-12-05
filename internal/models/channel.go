@@ -167,6 +167,12 @@ type AddMultipleMembersRequest struct {
 	UserID    string   `json:"-"`
 }
 
+type RemoveMultipleMembersRequest struct {
+	ChannelID string   `json:"channel_id" validate:"required"`
+	UserIDs   []string `json:"user_ids" validate:"required,dive,required,uuid"`
+	UserID    string   `json:"-"`
+}
+
 type ArchiveChannelRequest struct {
 	Archived bool   `json:"archived"`
 	UserId   string `json:"user_id" `
@@ -544,6 +550,49 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 	err := postgresql.CreateMultipleRecords(db, userChanList, len(userChanList))
 	if err != nil {
 		return validUserIds, fmt.Errorf("could not add users to channel: %v", err)
+	}
+
+	return validUserIds, nil
+}
+
+func (r *Channels) RemoveMultipleUsersFromChannel(db *gorm.DB, req RemoveMultipleMembersRequest) ([]string, error) {
+	var (
+		channelID    = req.ChannelID
+		validUserIds []string
+		missingUsers []string
+	)
+
+	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
+	if !exists {
+		return validUserIds, errors.New("channel does not exist")
+	}
+
+	// Ensure remover is part of the channel to avoid arbitrary removals.
+	removerExists := postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, req.UserID)
+	if !removerExists {
+		return validUserIds, errors.New("removal denied, remover not in channel")
+	}
+
+	for _, user := range req.UserIDs {
+		var userChannels UserChannels
+		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
+		if !exist {
+			missingUsers = append(missingUsers, user)
+			continue
+		}
+
+		if err := postgresql.DeleteRecordFromDb(db, &userChannels); err != nil {
+			return validUserIds, fmt.Errorf("could not remove user %s from channel: %v", user, err)
+		}
+		validUserIds = append(validUserIds, user)
+	}
+
+	if len(validUserIds) == 0 {
+		return validUserIds, errors.New("no provided users are members of the channel")
+	}
+
+	if len(missingUsers) > 0 {
+		return validUserIds, fmt.Errorf("users not in channel: %s", strings.Join(missingUsers, ", "))
 	}
 
 	return validUserIds, nil
