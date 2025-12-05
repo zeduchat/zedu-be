@@ -15301,6 +15301,47 @@ paths:
                         type: string
                         example: "file_name is a required field"
 
+  /files/recent:
+    get:
+      tags:
+        - File Management
+      summary: Get recent files
+      description: Retrieve a list of files recently accessed by the user within the organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+            maximum: 30
+          description: Number of recent files to return (max 30)
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Recent files fetched successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FileSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /files/folders:
     post:
       tags:
@@ -22775,6 +22816,9 @@ components:
           type: string
           format: date-time
         updated_at:
+          type: string
+          format: date-time
+        last_accessed_at:
           type: string
           format: date-time
 

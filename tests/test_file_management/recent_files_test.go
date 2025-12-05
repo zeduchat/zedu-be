@@ -163,13 +163,12 @@ func TestRecentFiles(t *testing.T) {
 		var fileAfter models.File
 		db.Postgresql.Where("id = ?", fileID).First(&fileAfter)
 
-		if !fileAfter.LastAccessedAt.After(lastAccessBefore) && !fileAfter.LastAccessedAt.IsZero() {
-			t.Logf("Before: %v, After: %v", lastAccessBefore, fileAfter.LastAccessedAt)
+		if lastAccessBefore == nil || (lastAccessBefore == nil && fileAfter.LastAccessedAt == nil) {
+			t.Error("LastAccessedAt should have been updated from nil")
+		}
 
-			// If before was zero, after should be non-zero
-			if lastAccessBefore.IsZero() && fileAfter.LastAccessedAt.IsZero() {
-				t.Error("LastAccessedAt should have been updated from zero")
-			}
+		if fileAfter.LastAccessedAt.After(*lastAccessBefore) {
+			t.Logf("Before: %v, After: %v", lastAccessBefore, fileAfter.LastAccessedAt)
 		}
 	})
 

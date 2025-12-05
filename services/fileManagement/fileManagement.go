@@ -237,6 +237,7 @@ type CreateAndSaveFileParams struct {
 }
 
 func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.File, error) {
+	now := time.Now()
 	newFileEntry := models.File{
 		ID:             utility.GenerateUUID(),
 		FileName:       params.UploadParams.Header.Filename,
@@ -247,7 +248,7 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 		OrganisationID: params.UploadParams.OrgID,
 		UserID:         params.UploadParams.UserID,
 		FolderID:       params.FolderID,
-		LastAccessedAt: time.Now(),
+		LastAccessedAt: &now,
 	}
 
 	if err := newFileEntry.CreateFileRecord(db); err != nil {
