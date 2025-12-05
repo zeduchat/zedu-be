@@ -9,6 +9,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -155,16 +156,16 @@ func SaveThreadReplyForLater(req models.SaveMessageRequest, db *gorm.DB, logger 
 	return &messageToSave, true, nil
 }
 
-func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) ([]models.SavedMessagesResp, error) {
+func GetAllSavedMessages(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds, pagination postgresql.Pagination) ([]models.SavedMessagesResp, postgresql.PaginationResponse, error) {
 	var savedMessage *models.SavedMessage
 
-	messageCollection, err := savedMessage.GetSavedMessages(db, ids)
+	messageCollection, paginationResponse, err := savedMessage.GetSavedMessages(db, ids, pagination)
 	if err != nil {
 		logger.Error("An error occurred while fetching messages from Postgres: %v", err)
-		return nil, err
+		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	return messageCollection, nil
+	return messageCollection, paginationResponse, nil
 }
 
 func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMessageIds) error {
@@ -177,7 +178,7 @@ func DeleteSavedMessage(db *gorm.DB, logger *utility.Logger, ids models.SavedMes
 	}
 
 	ids.ChannelID = savedMessage.ChannelsID
-	
+
 	deleteErr := savedMessage.DeleteSavedMessageByID(db)
 	if deleteErr != nil {
 		logger.Error("An error occurred while deleting saved message: %v", deleteErr)

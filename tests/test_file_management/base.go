@@ -55,13 +55,18 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 
 func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Controller, db *storage.Database) {
 	fileUrl := r.Group("/api/v1/files", middleware.Authorize(db.Postgresql))
+
 	{
 		fileUrl.POST("/folders", fileController.CreateFolder)
 		fileUrl.GET("/folders", fileController.GetFolders)
+		fileUrl.PUT("/folders/:id", fileController.UpdateFolderName)
 		fileUrl.DELETE("/folders/:id", fileController.DeleteFolder)
 		fileUrl.PUT("/:id/move", fileController.MoveFile)
 		fileUrl.POST("/upload-files", fileController.UploadController)
 		fileUrl.DELETE("/file/:id", fileController.DeleteFileDetailsByID)
+		fileUrl.PUT("/file/:id/restore", fileController.RestoreFile)
+		fileUrl.DELETE("", fileController.DeleteMultipleFiles)
+		fileUrl.DELETE("/folders", fileController.DeleteMultipleFolders)
 
 		fileUrl.GET("", fileController.GetFiles)
 	}
