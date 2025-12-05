@@ -3531,6 +3531,55 @@ paths:
                         type: string
                         example: success
 
+  /channels/remove-multiple:
+    post:
+      tags:
+        - channels
+      summary: Remove Multiple Users from a Channel
+      description: Removes multiple users from the specified channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  example: 0191943c-d263-71f2-99d5-82ae6afe2da4
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    example: 0191a069-7123-7dbe-a1d5-36a882f08521
+      responses:
+        200:
+          description: Users removed from channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: users removed from channel successfully
+                  data:
+                    type: object
+        400:
+          description: Failed to remove users from channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
   /channels/{channel_id}/archive:
     put:
       summary: Archive or unarchive a channel
