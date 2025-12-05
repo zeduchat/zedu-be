@@ -669,3 +669,55 @@ func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error
 
 	return &file, nil
 }
+
+// UploadFolderWithFiles creates a folder and uploads multiple files to it atomically
+func UploadFolderWithFiles(db *gorm.DB, logger *utility.Logger, req models.UploadFolderWithFilesParams) (*models.Folder, []*models.File, error) {
+	var newFolder *models.Folder
+	var uploadedFiles []*models.File
+	var err error
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// Create the folder first
+		folderParams := models.CreateFolderParams{
+			Name:           req.FolderName,
+			OrganisationID: req.OrgID,
+			UserID:         req.UserID,
+		}
+		newFolder, err = CreateFolder(tx, folderParams)
+		if err != nil {
+			return err
+		}
+
+		// Upload each file to the folder
+		for _, fileHeader := range req.Files {
+			file, err := fileHeader.Open()
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			uploadParams := models.UploadFileParams{
+				File:     file,
+				Header:   fileHeader,
+				FolderID: newFolder.ID,
+				OrgID:    req.OrgID,
+				UserID:   req.UserID,
+			}
+
+			uploadedFile, err := UploadFile(tx, logger, uploadParams)
+			if err != nil {
+				return err
+			}
+
+			uploadedFiles = append(uploadedFiles, uploadedFile)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return newFolder, uploadedFiles, nil
+}
