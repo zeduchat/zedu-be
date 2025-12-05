@@ -93,6 +93,23 @@ type UpdateProfileStatus struct {
 	UserId            string
 }
 
+// PartialStatusUpdate holds optional fields for status patch requests.
+// Pointer fields let us detect whether a field was supplied so we can
+// avoid overwriting existing values.
+type PartialStatusUpdate struct {
+	Text   *string `json:"text"`
+	Emoji  *string `json:"emoji"`
+	Expiry *int64  `json:"expiry"`
+	UserID string  `json:"-"`
+}
+
+// UserStatus represents the persisted status for responses.
+type UserStatus struct {
+	Text   string `json:"text"`
+	Emoji  string `json:"emoji"`
+	Expiry int64  `json:"expiry"`
+}
+
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) error {
 	var userProfile Profile
 
