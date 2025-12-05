@@ -13,6 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -632,13 +633,14 @@ func (base *Controller) PinFile(c *gin.Context) {
 		OrganisationID: orgID,
 	}
 
-	if err := services.PinFile(base.Db.Postgresql, base.Db.Redis, &pinnedFile); err != nil {
+	resp, err := services.PinFile(base.Db.Postgresql, base.Logger, base.Db.Redis, &pinnedFile)
+	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to pin file", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "File pinned successfully", pinnedFile)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "File pinned successfully", resp)
 	c.JSON(http.StatusCreated, rd)
 }
 
@@ -666,7 +668,12 @@ func (base *Controller) UnpinFile(c *gin.Context) {
 		OrganisationID: orgID,
 	}
 
-	if err := services.UnpinFile(base.Db.Postgresql, base.Db.Redis, &pinnedFile); err != nil {
+	if err := services.UnpinFile(base.Db.Postgresql, base.Logger, base.Db.Redis, &pinnedFile); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not pinned", "File is not in your favorites", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to unpin file", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -687,7 +694,7 @@ func (base *Controller) GetPinnedFiles(c *gin.Context) {
 	userID := userClaims["user_id"].(string)
 	orgID := userClaims["org_id"].(string)
 
-	files, err := services.GetPinnedFiles(base.Db.Postgresql, base.Db.Redis, userID, orgID)
+	files, err := services.GetPinnedFiles(base.Db.Postgresql, base.Logger, base.Db.Redis, userID, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch pinned files", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)

@@ -16,6 +16,11 @@ type PinnedFile struct {
 	PinnedAt       time.Time `gorm:"autoCreateTime" json:"pinned_at"`
 }
 
+type PinnedFileResponse struct {
+	PinnedFileID string `json:"pinned_file_id"`
+	File         File   `json:"file" gorm:"embedded"`
+}
+
 func (p *PinnedFile) PinFile(db *gorm.DB) error {
 	if p.ID == "" {
 		p.ID = uuid.New().String()
@@ -29,7 +34,16 @@ func (p *PinnedFile) PinFile(db *gorm.DB) error {
 }
 
 func (p *PinnedFile) UnpinFile(db *gorm.DB) error {
-	return db.Where("organisation_id = ? AND user_id = ? AND file_id = ?", p.OrganisationID, p.UserID, p.FileID).Delete(&PinnedFile{}).Error
+	result := db.Where("organisation_id = ? AND user_id = ? AND (file_id = ? OR id = ?)", p.OrganisationID, p.UserID, p.FileID, p.FileID).Delete(&PinnedFile{})
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
 
 func (p *PinnedFile) GetPinnedFiles(db *gorm.DB, userID, orgID string) ([]File, error) {
