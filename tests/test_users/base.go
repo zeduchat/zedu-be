@@ -45,6 +45,8 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 		userController.GetUserLoginAudit)
 	r.GET("/api/v1/users/:user_id/status", middleware.Authorize(userController.Db.Postgresql),
 		userController.GetUserStatus)
+	r.POST("/api/v1/users/:user_id/status", middleware.Authorize(userController.Db.Postgresql),
+		userController.SetUserStatus)
 	r.PATCH("/api/v1/users/:user_id/status", middleware.Authorize(userController.Db.Postgresql),
 		userController.PatchUserStatus)
 	r.PUT("/api/v1/users/revoke-session", middleware.Authorize(userController.Db.Postgresql),

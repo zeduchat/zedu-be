@@ -105,6 +105,16 @@ type PartialStatusUpdate struct {
 	UserID     string  `json:"-"`
 }
 
+// SetStatusRequest holds fields for setting a new status via POST.
+// Text is required; emoji, expiry, and visibility are optional.
+type SetStatusRequest struct {
+	Text       string  `json:"text" binding:"required"`
+	Emoji      *string `json:"emoji,omitempty"`
+	Expiry     *int64  `json:"expiry,omitempty"`
+	Visibility *string `json:"visibility,omitempty"`
+	UserID     string  `json:"-"`
+}
+
 // UserStatus represents the persisted status for responses.
 type UserStatus struct {
 	Text       string `json:"text"`

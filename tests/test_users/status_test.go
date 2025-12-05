@@ -389,3 +389,544 @@ func TestGetUserStatus(t *testing.T) {
 		}
 	})
 }
+
+func TestSetUserStatus(t *testing.T) {
+	_, userController := SetupUsersTestRouter()
+	db := userController.Db.Postgresql
+
+	currUUID := utility.GenerateUUID()
+	password, _ := utility.HashPassword("password")
+
+	user := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "Set Status User",
+		Email:    fmt.Sprintf("set_status_user_%s@qa.team", currUUID),
+		Password: password,
+	}
+
+	otherUser := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "Other Set Status User",
+		Email:    fmt.Sprintf("other_set_status_user_%s@qa.team", currUUID),
+		Password: password,
+	}
+
+	db.Create(&user)
+	db.Create(&otherUser)
+	db.Create(&models.Profile{
+		ID:            utility.GenerateUUID(),
+		Userid:        user.ID,
+		Text:          "old status",
+		Icon:          ":old:",
+		StatusTimeout: "0",
+	})
+
+	setup := func() (*gin.Engine, *auth.Controller) {
+		router, userController := SetupUsersTestRouter()
+		authController := auth.Controller{
+			Db:        userController.Db,
+			Validator: userController.Validator,
+			Logger:    userController.Logger,
+			ExtReq:    userController.ExtReq,
+		}
+
+		return router, &authController
+	}
+
+	t.Run("successfully sets status with all fields", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		expiry := time.Now().Add(30 * time.Minute).Unix()
+		payload := map[string]any{
+			"text":       "In a meeting",
+			"emoji":      ":spiral_calendar_pad:",
+			"expiry":     expiry,
+			"visibility": "public",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusCreated)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["text"].(string); got != payload["text"] {
+			t.Fatalf("unexpected text: want %q got %q", payload["text"], got)
+		}
+		if got := data["emoji"].(string); got != payload["emoji"] {
+			t.Fatalf("unexpected emoji: want %q got %q", payload["emoji"], got)
+		}
+		if got := int64(data["expiry"].(float64)); got != expiry {
+			t.Fatalf("unexpected expiry: want %d got %d", expiry, got)
+		}
+		if got := data["visibility"].(string); got != payload["visibility"] {
+			t.Fatalf("unexpected visibility: want %q got %q", payload["visibility"], got)
+		}
+
+		var updated models.Profile
+		if err := db.Where("userid = ?", user.ID).First(&updated).Error; err != nil {
+			t.Fatalf("failed to fetch updated profile: %v", err)
+		}
+		if updated.Text != payload["text"] || updated.Icon != payload["emoji"] {
+			t.Fatalf("profile not updated; got text=%q icon=%q", updated.Text, updated.Icon)
+		}
+		if updated.StatusTimeout != fmt.Sprintf("%d", expiry) {
+			t.Fatalf("status_timeout not updated; got %q want %d", updated.StatusTimeout, expiry)
+		}
+		if updated.StatusVisibility != payload["visibility"] {
+			t.Fatalf("status_visibility not updated; got %q want %q", updated.StatusVisibility, payload["visibility"])
+		}
+	})
+
+	t.Run("successfully sets status with only required text field", func(t *testing.T) {
+		router, authController := setup()
+
+		userMinimal := models.User{
+			ID:       utility.GenerateUUID(),
+			Name:     "Minimal Status User",
+			Email:    fmt.Sprintf("minimal_status_user_%s@qa.team", utility.GenerateUUID()),
+			Password: password,
+		}
+		db.Create(&userMinimal)
+		db.Create(&models.Profile{
+			ID:     utility.GenerateUUID(),
+			Userid: userMinimal.ID,
+		})
+
+		loginData := models.LoginRequestModel{
+			Email:    userMinimal.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "Working on a project",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", userMinimal.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusCreated)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["text"].(string); got != payload["text"] {
+			t.Fatalf("unexpected text: want %q got %q", payload["text"], got)
+		}
+		if got := data["emoji"].(string); got != "" {
+			t.Fatalf("unexpected emoji: want empty string got %q", got)
+		}
+		if got := int64(data["expiry"].(float64)); got != 0 {
+			t.Fatalf("unexpected expiry: want 0 got %d", got)
+		}
+		if got := data["visibility"].(string); got != "public" {
+			t.Fatalf("unexpected visibility: want %q got %q", "public", got)
+		}
+	})
+
+	t.Run("successfully sets status with different visibility options", func(t *testing.T) {
+		router, authController := setup()
+
+		userContacts := models.User{
+			ID:       utility.GenerateUUID(),
+			Name:     "Contacts Visibility User",
+			Email:    fmt.Sprintf("contacts_visibility_user_%s@qa.team", utility.GenerateUUID()),
+			Password: password,
+		}
+		db.Create(&userContacts)
+		db.Create(&models.Profile{
+			ID:     utility.GenerateUUID(),
+			Userid: userContacts.ID,
+		})
+
+		loginData := models.LoginRequestModel{
+			Email:    userContacts.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":       "Available for contacts",
+			"visibility": "contacts",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", userContacts.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["visibility"].(string); got != "contacts" {
+			t.Fatalf("unexpected visibility: want %q got %q", "contacts", got)
+		}
+
+		var updated models.Profile
+		if err := db.Where("userid = ?", userContacts.ID).First(&updated).Error; err != nil {
+			t.Fatalf("failed to fetch updated profile: %v", err)
+		}
+		if updated.StatusVisibility != "contacts" {
+			t.Fatalf("status_visibility not updated; got %q want %q", updated.StatusVisibility, "contacts")
+		}
+	})
+
+	t.Run("returns bad request when text is empty", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns bad request when text is missing", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"emoji": ":smile:",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns bad request when text exceeds 255 characters", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		longText := make([]byte, 256)
+		for i := range longText {
+			longText[i] = 'a'
+		}
+		payload := map[string]any{
+			"text": string(longText),
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns bad request when emoji contains whitespace", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":  "Status with bad emoji",
+			"emoji": "bad emoji",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns bad request when emoji exceeds 64 characters", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		longEmoji := make([]byte, 65)
+		for i := range longEmoji {
+			longEmoji[i] = 'e'
+		}
+		payload := map[string]any{
+			"text":  "Status with long emoji",
+			"emoji": string(longEmoji),
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns bad request when expiry is negative", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":   "Status with negative expiry",
+			"expiry": -1,
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns bad request when visibility is invalid", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":       "Status with invalid visibility",
+			"visibility": "invalid",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns forbidden when setting another user's status", func(t *testing.T) {
+		router, authController := setup()
+
+		db.Create(&models.Profile{
+			ID:     utility.GenerateUUID(),
+			Userid: otherUser.ID,
+		})
+
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "Trying to set other user's status",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", otherUser.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusForbidden)
+	})
+
+	t.Run("returns bad request for invalid UUID format", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "Status text",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/users/invalid-uuid/status", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("returns unauthorized when no token provided", func(t *testing.T) {
+		router, _ := setup()
+
+		payload := map[string]any{
+			"text": "Status text",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnauthorized)
+	})
+
+	t.Run("returns not found when profile does not exist", func(t *testing.T) {
+		router, authController := setup()
+
+		userNoProfile := models.User{
+			ID:       utility.GenerateUUID(),
+			Name:     "No Profile User",
+			Email:    fmt.Sprintf("no_profile_user_%s@qa.team", utility.GenerateUUID()),
+			Password: password,
+		}
+		db.Create(&userNoProfile)
+		// Don't create profile
+
+		loginData := models.LoginRequestModel{
+			Email:    userNoProfile.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "Status text",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", userNoProfile.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusNotFound)
+	})
+
+	t.Run("trims whitespace from text", func(t *testing.T) {
+		router, authController := setup()
+
+		userTrimmed := models.User{
+			ID:       utility.GenerateUUID(),
+			Name:     "Trimmed Text User",
+			Email:    fmt.Sprintf("trimmed_text_user_%s@qa.team", utility.GenerateUUID()),
+			Password: password,
+		}
+		db.Create(&userTrimmed)
+		db.Create(&models.Profile{
+			ID:     utility.GenerateUUID(),
+			Userid: userTrimmed.ID,
+		})
+
+		loginData := models.LoginRequestModel{
+			Email:    userTrimmed.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "  Trimmed text  ",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", userTrimmed.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["text"].(string); got != "Trimmed text" {
+			t.Fatalf("unexpected text: want %q got %q", "Trimmed text", got)
+		}
+	})
+}

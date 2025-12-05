@@ -352,6 +352,94 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 	return status, http.StatusOK, nil
 }
 
+// SetUserStatus sets a new status for a user and returns the saved status.
+// Text is required; emoji, expiry, and visibility are optional.
+func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
+	var profile models.Profile
+
+	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.UserStatus{}, http.StatusNotFound, fmt.Errorf("profile not found for user")
+		}
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
+	}
+
+	updates := map[string]any{
+		"text": req.Text,
+	}
+
+	if req.Emoji != nil {
+		updates["icon"] = *req.Emoji
+	} else {
+		updates["icon"] = ""
+	}
+
+	if req.Expiry != nil {
+		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
+	} else {
+		updates["status_timeout"] = ""
+	}
+
+	if req.Visibility != nil {
+		updates["status_visibility"] = *req.Visibility
+	} else {
+		updates["status_visibility"] = "public"
+	}
+
+	if err := db.Model(&models.Profile{}).
+		Where("userid = ?", req.UserID).
+		Updates(updates).Error; err != nil {
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to update status: %w", err)
+	}
+
+	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
+	}
+
+	expiry := int64(0)
+	if profile.StatusTimeout != "" {
+		if parsed, err := strconv.ParseInt(profile.StatusTimeout, 10, 64); err == nil {
+			expiry = parsed
+		}
+	}
+
+	visibility := "public"
+	if profile.StatusVisibility != "" {
+		visibility = profile.StatusVisibility
+	}
+
+	status := models.UserStatus{
+		Text:       profile.Text,
+		Emoji:      profile.Icon,
+		Expiry:     expiry,
+		Visibility: visibility,
+	}
+
+	if logger != nil {
+		logger.Info("status set", "user_id", req.UserID)
+		notification := models.Notification[models.StatusUpdate]
+		notification.SectionType = models.ChannelsSection
+		notification.NotificationId = utility.GenerateUUID()
+		notification.ModificationDetails = &models.ModificationDetails{
+			UserId: req.UserID,
+		}
+		notification.Content = struct {
+			UserID string            `json:"user_id"`
+			Status models.UserStatus `json:"status"`
+		}{
+			UserID: req.UserID,
+			Status: status,
+		}
+
+		channelID := fmt.Sprintf("user:%s", req.UserID)
+		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
+			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
+		}
+	}
+
+	return status, http.StatusCreated, nil
+}
+
 // GetUserStatus retrieves the current status for a user.
 // Returns a UserStatus object with default values if no status is set or profile not found.
 func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
