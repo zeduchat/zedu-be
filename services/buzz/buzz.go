@@ -92,6 +92,12 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, statusCode, errors.New(errMsg)
 	}
 
+	// Determine channel type (regular, DM, or group DM)
+	channelType, err := permissions.GetChannelType(db.Postgresql, req.ChannelID)
+	if err != nil {
+		logger.Error("failed to determine channel type for channel %s: %v", req.ChannelID, err)
+		return resp, http.StatusInternalServerError, errors.New("failed to determine channel type")
+	}
 
 	// Fail on Agora service not available before permission checks
 	service := agora.Client.Service
@@ -107,6 +113,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	buzz := models.Buzz{
 		ID:             utility.GenerateUUID(),
 		ChannelID:      req.ChannelID,
+		ChannelType:    channelType,
 		HostID:         hostID,
 		ParticipantIDs: participants,
 		BuzzStartTime:  now,

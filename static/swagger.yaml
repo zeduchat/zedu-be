@@ -22262,7 +22262,7 @@ paths:
       tags:
         - buzz
       summary: Create a new buzz (video/audio call)
-      description: Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency.
+      description: "Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.**"
       operationId: createBuzz
       security:
         - bearerAuth: []
@@ -23193,7 +23193,7 @@ components:
         channel_id:
           type: string
           format: uuid
-          description: The ID of the channel where the buzz will be created
+          description: "The ID of the channel where the buzz will be created. Can be a regular channel, DM channel, or group DM channel ID."
           example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 
     BuzzCreateResponseSchema:
@@ -23211,6 +23211,10 @@ components:
           type: string
           format: uuid
           description: The channel where the buzz was created
+        channel_type:
+          type: string
+          enum: [channel, dm_channel, group_dm_channel]
+          description: "Type of channel: 'channel' (regular organization channel), 'dm_channel' (1-on-1 DM), 'group_dm_channel' (group DM)"
         status:
           type: string
           enum: [active, ended]

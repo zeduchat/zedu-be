@@ -20,6 +20,26 @@ var (
 	ErrAlreadyInBuzz        = errors.New("user is already in the buzz")
 )
 
+// GetChannelType determines the type of channel (regular, DM, or group DM)
+func GetChannelType(db *gorm.DB, channelID string) (string, error) {
+	// Check regular channels first
+	var channel models.Channels
+	if err := db.Where("id = ?", channelID).First(&channel).Error; err == nil {
+		return models.ChannelTypeRegular, nil
+	}
+
+	// Check DM channels table
+	var dmChannel models.DmChannels
+	if err := db.Where("channel_id = ?", channelID).First(&dmChannel).Error; err == nil {
+		if dmChannel.ChannelType == "group_dm" {
+			return models.ChannelTypeGroupDM, nil
+		}
+		return models.ChannelTypeDM, nil
+	}
+
+	return "", ErrChannelNotFound
+}
+
 // IsHost checks if the user is the buzz host
 func IsHost(db *gorm.DB, buzzID, userID string) (bool, error) {
 	var buzz models.Buzz
@@ -138,15 +158,35 @@ func CanPerformHostAction(db *gorm.DB, buzzID, userID string) (*models.Buzz, err
 	return buzz, nil
 }
 
-// CanCreateBuzz validates if a user can create a buzz in a channel
+// CanCreateBuzz validates if a user can create a buzz in a channel (regular, DM, or group DM)
 func CanCreateBuzz(db *gorm.DB, channelID, hostID string) error {
-	// Check if channel exists
+	// Check if channel exists in any table (channels, dm_channels, or channel_participants)
+	channelExists := false
+
+	// Check regular channels
 	chModel := models.Channels{}
-	exists, err := chModel.CheckChannelExists(db, channelID)
-	if err != nil {
-		return err
+	exists, _ := chModel.CheckChannelExists(db, channelID)
+	if exists {
+		channelExists = true
 	}
-	if !exists {
+
+	// Check DM channels
+	if !channelExists {
+		var dmChannel models.DmChannels
+		if err := db.Where("channel_id = ?", channelID).First(&dmChannel).Error; err == nil {
+			channelExists = true
+		}
+	}
+
+	// Check group DM channels (via channel_participants)
+	if !channelExists {
+		var participant models.ChannelParticipant
+		if err := db.Where("channel_id = ?", channelID).First(&participant).Error; err == nil {
+			channelExists = true
+		}
+	}
+
+	if !channelExists {
 		return ErrChannelNotFound
 	}
 
