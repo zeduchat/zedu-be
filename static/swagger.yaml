@@ -16137,6 +16137,14 @@ paths:
                   message:
                     type: string
                     example: "File pinned successfully"
+                  data:
+                    type: object
+                    properties:
+                      pinned_file_id:
+                        type: string
+                        format: uuid
+                      file:
+                        $ref: "#/components/schemas/FileSchema"
         "400":
           description: Bad Request
           content:
@@ -16165,6 +16173,7 @@ paths:
           schema:
             type: string
             format: uuid
+          description: Unique identifier of the file or the pinned file record
       responses:
         "200":
           description: File unpinned successfully
@@ -16224,7 +16233,13 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: "#/components/schemas/FileSchema"
+                      type: object
+                      properties:
+                        pinned_file_id:
+                          type: string
+                          format: uuid
+                        file:
+                          $ref: "#/components/schemas/FileSchema"
         "401":
           description: Unauthorized
           content:
