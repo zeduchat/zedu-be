@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -122,7 +123,6 @@ func MarkCompleteSavedMessage(req models.MarkCompleteSavedMessageRequest, db *st
 		logger.Info("Successfully Published Saved Message Completion Notification to with destination id: %s", req.SavedMessageID)
 	}
 
-
 	return resp, nil
 }
 
@@ -162,26 +162,26 @@ func ArchiveSavedMessage(req models.ArchiveSavedMessageRequest, db *storage.Data
 	return resp, nil
 }
 
-func GetCompletedSavedMessages(db *storage.Database, logger *utility.Logger, ids models.IDS) ([]models.SavedMessagesResp, error) {
+func GetCompletedSavedMessages(db *storage.Database, logger *utility.Logger, ids models.IDS, pagination postgresql.Pagination) ([]models.SavedMessagesResp, postgresql.PaginationResponse, error) {
 	var savedMessage models.SavedMessage
 
-	messages, err := savedMessage.GetCompletedSavedMessages(db.Postgresql, ids.OrganisationID, ids.UserID)
+	messages, paginationResponse, err := savedMessage.GetCompletedSavedMessages(db.Postgresql, ids.OrganisationID, ids.UserID, pagination)
 	if err != nil {
 		logger.Error("An error occurred while fetching completed saved messages from Postgres: %v", err)
-		return nil, err
+		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	return messages, nil
+	return messages, paginationResponse, nil
 }
 
-func GetArchivedSavedMessages(db *storage.Database, logger *utility.Logger, ids models.IDS) ([]models.SavedMessagesResp, error) {
+func GetArchivedSavedMessages(db *storage.Database, logger *utility.Logger, ids models.IDS, pagination postgresql.Pagination) ([]models.SavedMessagesResp, postgresql.PaginationResponse, error) {
 	var savedMessage models.SavedMessage
 
-	messages, err := savedMessage.GetArchivedSavedMessages(db.Postgresql, ids.OrganisationID, ids.UserID)
+	messages, paginationResponse, err := savedMessage.GetArchivedSavedMessages(db.Postgresql, ids.OrganisationID, ids.UserID, pagination)
 	if err != nil {
 		logger.Error("An error occurred while fetching completed saved messages from Postgres: %v", err)
-		return nil, err
+		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	return messages, nil
+	return messages, paginationResponse, nil
 }

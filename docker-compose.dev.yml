@@ -223,7 +223,7 @@ services:
       CENTRIFUGE_API_KEY: "generic_centrifuge_api_key"
 
       # Minio
-      MINIO_ENDPOINT: "http://minio:9000"
+      MINIO_ENDPOINT: "minio:9000"
       BUCKET_NAME: "dev-bucket"
       BUCKET_ACCESS_KEY: "minio_access_key"
       BUKCET_SECRET_KEY: "minio_secret_key"
