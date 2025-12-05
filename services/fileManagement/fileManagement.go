@@ -254,12 +254,23 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 	return &newFileEntry, nil
 }
 
+func countItemsInFolder(db *gorm.DB, folderID string) uint64 {
+	var count int64
+	db.Model(&models.File{}).Where("folder_id = ?", folderID).Count(&count)
+	if count < 0 {
+		return 0
+	}
+
+	return uint64(count)
+}
+
 func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder, error) {
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
 		Name:           params.Name,
 		OrganisationID: params.OrganisationID,
 		UserID:         params.UserID,
+		ItemCount:      0,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
 	if err != nil {
@@ -347,6 +358,11 @@ func UpdateFolder(db *gorm.DB, params models.UpdateFolderParams) (*models.Folder
 
 	folder.Name = params.Name
 	err = db.Save(&folder).Error
+
+	if err == nil {
+		folder.ItemCount = countItemsInFolder(db, folder.ID)
+	}
+
 	return &folder, err
 }
 
