@@ -25437,6 +25437,34 @@ components:
                 type: string
                 format: date-time
                 example: "0001-01-01T00:13:35+00:13"
+              active_buzz:
+                type: object
+                nullable: true
+                description: "Information about the currently active buzz in this channel (null if no buzz is ongoing)"
+                properties:
+                  buzz_id:
+                    type: string
+                    format: uuid
+                    description: "ID of the active buzz"
+                    example: "019acc55-25e5-734c-be43-54c46b30d34a"
+                  host_id:
+                    type: string
+                    format: uuid
+                    description: "ID of the user who started the buzz"
+                    example: "019acc55-2312-7349-8e41-277a9100503c"
+                  host_name:
+                    type: string
+                    description: "Name of the buzz host"
+                    example: "John Doe"
+                  participant_count:
+                    type: integer
+                    description: "Number of active participants in the buzz"
+                    example: 3
+                  started_at:
+                    type: string
+                    format: date-time
+                    description: "When the buzz was started"
+                    example: "2025-12-04T10:30:00Z"
               messages:
                 type: array
                 items:
@@ -26606,10 +26634,10 @@ components:
           description: User's unique ID
         username:
           type: string
-          description: User's username
+          description: User's username (falls back to first_name if user_name is empty)
         full_name:
           type: string
-          description: User's full name (first + last)
+          description: User's full name (falls back to first_name + last_name if full_name is empty)
         avatar_url:
           type: string
           nullable: true
@@ -26622,6 +26650,16 @@ components:
           type: string
           enum: [active, left, inactive]
           description: Participant's current status in the buzz
+        status_sticker:
+          type: string
+          nullable: true
+          enum: [raise_hand, brb, away]
+          description: Current status sticker displayed for the participant (optional)
+        sticker_set_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the status sticker was set (null if no sticker)
       example:
         user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
         username: "johndoe"
@@ -26629,6 +26667,8 @@ components:
         avatar_url: "https://example.com/avatars/johndoe.jpg"
         joined_at: "2025-11-28T22:39:03.527809Z"
         status: "active"
+        status_sticker: null
+        sticker_set_at: null
 
     BuzzAgoraTokenRequest:
       type: object
