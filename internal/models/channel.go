@@ -516,6 +516,7 @@ func (r *Channels) RemoveMultipleUsersFromChannel(db *gorm.DB, req RemoveMultipl
 	var (
 		channelID    = req.ChannelID
 		validUserIds []string
+		missingUsers []string
 	)
 
 	exists := postgresql.CheckExists(db, &r, "id = ?", channelID)
@@ -533,6 +534,7 @@ func (r *Channels) RemoveMultipleUsersFromChannel(db *gorm.DB, req RemoveMultipl
 		var userChannels UserChannels
 		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
 		if !exist {
+			missingUsers = append(missingUsers, user)
 			continue
 		}
 
@@ -544,6 +546,10 @@ func (r *Channels) RemoveMultipleUsersFromChannel(db *gorm.DB, req RemoveMultipl
 
 	if len(validUserIds) == 0 {
 		return validUserIds, errors.New("no provided users are members of the channel")
+	}
+
+	if len(missingUsers) > 0 {
+		return validUserIds, fmt.Errorf("users not in channel: %s", strings.Join(missingUsers, ", "))
 	}
 
 	return validUserIds, nil
