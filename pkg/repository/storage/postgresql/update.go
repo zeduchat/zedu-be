@@ -45,6 +45,23 @@ func UpdateFields(db *gorm.DB, model any, updates any, query any, args ...any) (
 	return result, nil
 }
 
+func UpdateFieldsAndReturn(db *gorm.DB, model any, updates any, query any, args ...any) (*gorm.DB, error) {
+	result := db.Model(model).
+		Where(query, args...).
+		Updates(updates)
+
+	if result.Error != nil {
+		return result, result.Error
+	}
+
+	// Fetch the updated record
+	if err := db.Where(query, args...).First(model).Error; err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 func UpdateFieldsInTransaction(db *gorm.DB, updates []ModelUpdate) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		for _, update := range updates {

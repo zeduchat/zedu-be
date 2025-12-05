@@ -258,7 +258,7 @@ func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
 		Name:           params.Name,
-		OrganisationID: params.OrganizationID,
+		OrganisationID: params.OrganisationID,
 		UserID:         params.UserID,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
@@ -268,19 +268,25 @@ func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder
 	return &folder, nil
 }
 
-func GetFolders(db *gorm.DB, orgID string, parentID *string) ([]models.Folder, error) {
+func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 	var folders []models.Folder
 	query := db.Where("organisation_id = ?", orgID)
-	if parentID != nil {
-		query = query.Where("parent_id = ?", parentID)
-	} else {
-		query = query.Where("parent_id IS NULL")
-	}
+
 	err := query.Find(&folders).Error
 	return folders, err
 }
 
-func DeleteFolder(db *gorm.DB, folderID string) error {
+func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {
+	if permanent {
+		// hard delete folder and its files
+		err := db.Unscoped().Where("id = ?", folderID).Delete(&models.Folder{}).Error
+		if err != nil {
+			return err
+		}
+
+		return db.Unscoped().Where("folder_id = ?", folderID).Delete(&models.File{}).Error
+	}
+
 	// soft delete folder
 	err := db.Where("id = ?", folderID).Delete(&models.Folder{}).Error
 	if err != nil {
@@ -288,8 +294,7 @@ func DeleteFolder(db *gorm.DB, folderID string) error {
 	}
 
 	// soft delete the files in it too
-	err = db.Where("folder_id = ?", folderID).Delete(&models.File{}).Error
-	return err
+	return db.Where("folder_id = ?", folderID).Delete(&models.File{}).Error
 }
 
 func UpdateFolder(db *gorm.DB, params models.UpdateFolderParams) (*models.Folder, error) {
@@ -324,39 +329,109 @@ func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.File, error) {
 	return file, nil
 }
 
-func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *models.File, fileId, threadId string) error {
+func GetFileDetailsByIDUnscoped(db *gorm.DB, fileId string) (*models.File, error) {
+	var file models.File
+	err := db.Unscoped().Where("id = ?", fileId).First(&file).Error
+	if err != nil {
+		return nil, err
+	}
+	return &file, nil
+}
+
+func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *models.File, fileId, threadId string, permanent bool) error {
 	var fileModel models.File
 
-	// check if other records point to the same physical file
-	count, countErr := fileModel.GetFileCountByLink(db.Postgresql, file.FileLink)
-	if countErr != nil {
-		return countErr
-	}
+	if permanent {
 
-	// if this is the last record pointing to the file, delete from MinIO
-	if count == 1 {
-		hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+		// check if other records point to the same physical file
+		count, countErr := fileModel.GetFileCountByLink(db.Postgresql, file.FileLink)
+		if countErr != nil {
+			return countErr
+		}
 
-		minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
-		if minioErr != nil {
-			return minioErr
+		// if this is the last record pointing to the file, delete from MinIO
+		if count == 1 {
+			hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+
+			minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
+			if minioErr != nil {
+				return minioErr
+			}
+		}
+
+		// hard delete the record
+		err := db.Postgresql.Unscoped().Where("id = ?", fileId).Delete(&models.File{}).Error
+		if err != nil {
+			return err
+		}
+	} else {
+
+		// soft delete the record
+		err := fileModel.DeleteFileByID(db.Postgresql, fileId)
+		if err != nil {
+			return err
 		}
 	}
 
-	// soft delete the record
-	err := fileModel.DeleteFileByID(db.Postgresql, fileId)
-	if err != nil {
-		return err
-	}
-
 	if threadId != "" {
-		err = RemoveMediaFileFromThread(db.Elastic, threadId, fileId, logger)
+		err := RemoveMediaFileFromThread(db.Elastic, threadId, fileId, logger)
 		if err != nil {
 			logger.Error("Failed to remove media file from thread, err: %s", err)
 		}
 	}
 
 	return nil
+}
+
+func DeleteMultipleFiles(logger *utility.Logger, db *storage.Database, fileIDs []string, permanent bool) (int, int, []error) {
+	successCount := 0
+	failureCount := 0
+	var errs []error
+
+	for _, fileID := range fileIDs {
+		var file *models.File
+		var err error
+
+		if permanent {
+			file, err = GetFileDetailsByIDUnscoped(db.Postgresql, fileID)
+		} else {
+			file, err = GetFileDetailsByID(db.Postgresql, fileID)
+		}
+
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to find file %s: %v", fileID, err))
+			continue
+		}
+
+		err = DeleteFileDetailsByID(logger, db, file, fileID, "", permanent)
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to delete file %s: %v", fileID, err))
+		} else {
+			successCount++
+		}
+	}
+
+	return successCount, failureCount, errs
+}
+
+func DeleteMultipleFolders(db *gorm.DB, folderIDs []string, permanent bool) (int, int, []error) {
+	successCount := 0
+	failureCount := 0
+	var errs []error
+
+	for _, folderID := range folderIDs {
+		err := DeleteFolder(db, folderID, permanent)
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to delete folder %s: %v", folderID, err))
+		} else {
+			successCount++
+		}
+	}
+
+	return successCount, failureCount, errs
 }
 
 func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string, logger *utility.Logger) error {
@@ -430,10 +505,7 @@ func UpdateFileName(db *gorm.DB, logger *utility.Logger, params models.UpdateFil
 	if err != nil {
 		return nil, err
 	}
-	fileResponse, err = GetFileDetailsByID(db, params.FileID)
-	if err != nil {
-		return nil, err
-	}
+	// fileResponse is now updated with the new name
 	notification := models.Notification[models.UpdatedMedia]
 	notification.SectionType = models.ThreadSection
 	notification.Content = fileResponse
@@ -569,45 +641,31 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 	return files, count, err
 }
 
-// Function to handle folder uploads with files
-func UploadFolderWithFiles(db *gorm.DB, logger *utility.Logger, req models.UploadFolderWithFilesParams) (*models.Folder, []*models.File, error) {
-	var uploadedFiles []*models.File
-	var newFolder *models.Folder
-	err := db.Transaction(func(tx *gorm.DB) error {
-		uploadedFolder := models.CreateFolderParams{
-			Name:           req.FolderName,
-			OrganizationID: req.OrgID,
-			UserID:         req.UserID,
-		}
-		var err error
-		newFolder, err = CreateFolder(tx, uploadedFolder)
-		if err != nil {
-			return err
-		}
-		for _, fileHeader := range req.Files {
-			realFile, err := fileHeader.Open()
-			if err != nil {
-				return err
-			}
-			defer realFile.Close()
-			uploadedFile, err := UploadFile(tx, logger, models.UploadFileParams{
-				File:     realFile,
-				Header:   fileHeader,
-				FolderID: newFolder.ID,
-				OrgID:    req.OrgID,
-				UserID:   req.UserID,
-			})
-			if err != nil {
-				return err
-			}
-			uploadedFiles = append(uploadedFiles, uploadedFile)
+var (
+	ErrFileNotDeleted      = errors.New("file is not deleted")
+	ErrUnauthorizedRestore = errors.New("unauthorized to restore this file")
+)
 
-		}
-		return nil
+func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error) {
+	var file models.File
 
-	})
+	// use Unscoped to find soft deleted records efficiently
+	err := db.Unscoped().Where("id = ? AND deleted_at IS NOT NULL", fileID).First(&file).Error
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return newFolder, uploadedFiles, nil
+
+	// check permissions
+	if file.UserID != userID {
+		return nil, ErrUnauthorizedRestore
+	}
+
+	// restore the file by clearing [deleted_at]
+	// avoid hooks if any, and set [deleted_at] to NULL
+	err = db.Model(&file).Unscoped().UpdateColumn("deleted_at", nil).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &file, nil
 }

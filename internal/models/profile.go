@@ -93,7 +93,7 @@ type UpdateProfileStatus struct {
 	UserId            string
 }
 
-func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) error {
+func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
 	var userProfile Profile
 
 	if req.DisplayName != "" && req.UserName == "" {
@@ -118,7 +118,7 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 
 	exist := postgresql.CheckExists(db, &userProfile, query, userId)
 	if !exist {
-		return errors.New("Profile does not exists")
+		return nil, errors.New("Profile does not exists")
 	}
 
 	if req.AvatarUpdate || (req.UserName != "" && req.UserName != userProfile.UserName) {
@@ -144,16 +144,16 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		logger.Info("Successfully updated username and avatar across indexess")
 	}
 
-	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)
+	result, err := postgresql.UpdateFieldsAndReturn(db, &j, profileUpdates, query, userId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("failed to update user profile")
+		return nil, errors.New("failed to update user profile")
 	}
 
-	return nil
+	return j, nil
 }
 
 func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {

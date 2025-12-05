@@ -47,8 +47,18 @@ type UploadFolderWithFilesParams struct {
 type CreateFolderParams struct {
 	Name           string
 	Description    string
-	OrganizationID string
+	OrganisationID string
 	UserID         string
+}
+
+type DeleteMultipleFilesRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
+}
+
+type DeleteMultipleFoldersRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
 }
 
 type UpdateFileNameParams struct {
@@ -96,13 +106,13 @@ type File struct {
 }
 
 type Folder struct {
-	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	Name           string         `gorm:"column:name; type:varchar(255); not null" json:"name"`
-	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
-	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
-	ParentID       *string        `gorm:"column:parent_id; type:uuid" json:"parent_id"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
+	ID             string         `gorm:"type:uuid;primary_key" json:"id"`
+	OrganisationID string         `gorm:"type:uuid;not null" json:"organisation_id"`
+	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
+	Name           string         `gorm:"type:varchar(255);not null" json:"name"`
+	Description    string         `gorm:"type:text" json:"description"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
 
@@ -152,8 +162,8 @@ func (file *File) UpdateFileName(db *gorm.DB, fileID string, newFileName string)
 	if err != nil {
 		return err
 	}
-	_, err = file.GetFileByID(db, fileID)
-	return err
+	file.FileName = newFileName
+	return nil
 }
 
 func (file *File) DeleteFileByID(db *gorm.DB, fileID string) error {

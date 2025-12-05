@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"testing"
 	"time"
@@ -202,7 +203,7 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
-	t.Run("DeleteFile", func(t *testing.T) {
+	t.Run("DeleteFile_Soft", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s", fileID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
@@ -248,7 +249,39 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
-	t.Run("DeleteFolder", func(t *testing.T) {
+	t.Run("DeleteFile_Permanent", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s?permanent=true", fileID), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// verify hard delete in DB
+		var file models.File
+		err := db.Postgresql.Unscoped().Where("id = ?", fileID).First(&file).Error
+		if err == nil {
+			t.Errorf("File should be permanently deleted")
+		}
+	})
+
+	var fileInFolderID string
+
+	t.Run("DeleteFolder_Soft", func(t *testing.T) {
+
+		// upload a file to the folder first
+		fileInFolderID = uploadTestFile(t, r, token, "test_file_in_folder.txt", "text/plain", []byte("content"))
+
+		// move it to the folder
+		moveBody := []byte(fmt.Sprintf(`{"folder_id": "%s"}`, folderID))
+		moveReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/files/%s/move", fileInFolderID), bytes.NewBuffer(moveBody))
+		moveReq.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+		moveReq.Header.Set("Content-Type", "application/json")
+		moveRr := httptest.NewRecorder()
+		r.ServeHTTP(moveRr, moveReq)
+		tests.AssertStatusCode(t, moveRr.Code, http.StatusOK)
+
 		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s", folderID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
@@ -257,11 +290,48 @@ func TestFileManagement(t *testing.T) {
 
 		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
 
-		// verify folder was deleted
+		// verify folder was soft deleted
 		var folder models.Folder
-		err := db.Postgresql.Where("id = ?", folderID).First(&folder).Error
+		err := db.Postgresql.Unscoped().Where("id = ?", folderID).First(&folder).Error
+		if err != nil {
+			t.Errorf("Folder should exist (soft deleted)")
+		}
+		if !folder.DeletedAt.Valid {
+			t.Errorf("Folder should be soft deleted")
+		}
+
+		// verify file in folder was soft deleted
+		var file models.File
+		err = db.Postgresql.Unscoped().Where("id = ?", fileInFolderID).First(&file).Error
+		if err != nil {
+			t.Errorf("File in folder should exist")
+		}
+		if !file.DeletedAt.Valid {
+			t.Errorf("File in folder should be soft deleted")
+		}
+	})
+
+	t.Run("DeleteFolder_Permanent", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s?permanent=true", folderID), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// verify folder was hard deleted
+		var folder models.Folder
+		err := db.Postgresql.Unscoped().Where("id = ?", folderID).First(&folder).Error
 		if err == nil {
-			t.Errorf("Folder should be deleted")
+			t.Errorf("Folder should be permanently deleted")
+		}
+
+		// verify file in folder was hard deleted
+		var file models.File
+		err = db.Postgresql.Unscoped().Where("id = ?", fileInFolderID).First(&file).Error
+		if err == nil {
+			t.Errorf("File in folder should be permanently deleted")
 		}
 	})
 }
@@ -300,11 +370,14 @@ func TestFileFilters(t *testing.T) {
 	var imageFileID, docFileID, videoFileID string
 
 	t.Run("SetupTestFiles", func(t *testing.T) {
-		imageFileID = uploadTestFile(t, r, token, "test_image.jpg", "image/jpeg", []byte("fake image content"))
+		// JPEG magic number: FF D8 FF
+		imageFileID = uploadTestFile(t, r, token, "test_image.jpg", "image/jpeg", []byte("\xFF\xD8\xFF\xE0"))
 
-		docFileID = uploadTestFile(t, r, token, "test_doc.pdf", "application/pdf", []byte("fake pdf content"))
+		// PDF magic number: %PDF-
+		docFileID = uploadTestFile(t, r, token, "test_doc.pdf", "application/pdf", []byte("%PDF-1.4"))
 
-		videoFileID = uploadTestFile(t, r, token, "test_video.mp4", "video/mp4", []byte("fake video content"))
+		// MP4 magic number (ftyp box)
+		videoFileID = uploadTestFile(t, r, token, "test_video.mp4", "video/mp4", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00"))
 
 		db.Postgresql.Model(&models.File{}).Where("id = ?", docFileID).
 			Update("updated_at", time.Now().AddDate(0, 0, -10))
@@ -588,7 +661,10 @@ func uploadTestFile(t *testing.T, r http.Handler, token, filename, mimeType stri
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
-	part, err := writer.CreateFormFile("files", filename)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "files", filename))
+	h.Set("Content-Type", mimeType)
+	part, err := writer.CreatePart(h)
 	if err != nil {
 		t.Fatal(err)
 	}

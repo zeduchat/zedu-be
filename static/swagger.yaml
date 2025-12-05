@@ -14770,43 +14770,26 @@ paths:
                     nullable: true
                     example: null
 
-  /files/upload-folder:
-    post:
+  /files/file/{id}/restore:
+    put:
       tags:
         - File Management
-      summary: Upload a folder with multiple files
-      description: Creates a new folder and uploads multiple files into it in a single atomic transaction. If any operation fails, the entire transaction is rolled back.
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required:
-                - folder_name
-                - files
-              properties:
-                folder_name:
-                  type: string
-                  description: Name of the folder to create
-                  example: "Project Documents"
-                parent_id:
-                  type: string
-                  format: uuid
-                  description: Optional parent folder ID for creating nested folders
-                  example: "123e4567-e89b-12d3-a456-426614174000"
-                files:
-                  type: array
-                  description: Array of files to upload into the folder
-                  items:
-                    type: string
-                    format: binary
-                  minItems: 1
+      summary: Restore a soft deleted file
+      description: Restores a file that has been soft deleted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
       security:
         - bearerAuth: []
       responses:
-        "201":
-          description: Folder and files uploaded successfully
+        "200":
+          description: File restored successfully
           content:
             application/json:
               schema:
@@ -14817,174 +14800,24 @@ paths:
                     example: success
                   status_code:
                     type: integer
-                    example: 201
+                    example: 200
                   message:
                     type: string
-                    example: "Folder uploaded successfully"
+                    example: "File restored successfully"
                   data:
-                    type: object
-                    properties:
-                      folder:
-                        type: object
-                        properties:
-                          id:
-                            type: string
-                            format: uuid
-                            example: "123e4567-e89b-12d3-a456-426614174000"
-                          name:
-                            type: string
-                            example: "Project Documents"
-                          organisation_id:
-                            type: string
-                            format: uuid
-                            example: "987e6543-e21b-12d3-a456-426614174000"
-                          user_id:
-                            type: string
-                            format: uuid
-                            example: "456e7890-e12b-34d5-b678-901234567890"
-                          parent_id:
-                            type: string
-                            format: uuid
-                            nullable: true
-                            example: null
-                          created_at:
-                            type: string
-                            format: date-time
-                            example: "2025-12-04T10:30:00Z"
-                          updated_at:
-                            type: string
-                            format: date-time
-                            example: "2025-12-04T10:30:00Z"
-                      files:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              format: uuid
-                              example: "789e0123-e45b-67d8-c901-234567890abc"
-                            file_name:
-                              type: string
-                              example: "report.pdf"
-                            file_type:
-                              type: string
-                              example: "pdf"
-                            mime_type:
-                              type: string
-                              example: "application/pdf"
-                            file_link:
-                              type: string
-                              format: uri
-                              example: "https://storage.telex.im/bucket/file-uploads/abc123.pdf"
-                            size:
-                              type: integer
-                              example: 2048576
-                            folder_id:
-                              type: string
-                              format: uuid
-                              example: "123e4567-e89b-12d3-a456-426614174000"
-                            organisation_id:
-                              type: string
-                              format: uuid
-                              example: "987e6543-e21b-12d3-a456-426614174000"
-                            user_id:
-                              type: string
-                              format: uuid
-                              example: "456e7890-e12b-34d5-b678-901234567890"
-                            created_at:
-                              type: string
-                              format: date-time
-                              example: "2025-12-04T10:30:05Z"
-                            updated_at:
-                              type: string
-                              format: date-time
-                              example: "2025-12-04T10:30:05Z"
-                      file_count:
-                        type: integer
-                        example: 3
-
+                    $ref: "#/components/schemas/FileSchema"
         "400":
-          description: Bad request - invalid input or file upload failure
+          description: Bad Request
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 400
-                  message:
-                    type: string
-                    example: "Folder upload failed"
-                  error:
-                    type: string
-                    example: "File exceeds max size"
-
-        "401":
-          description: Unauthorized - missing or invalid authentication token
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: File not found
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 401
-                  message:
-                    type: string
-                    example: "Unauthorized"
-                  error:
-                    type: string
-                    example: "User not authenticated"
-
-        "422":
-          description: Unprocessable Entity - validation failed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 422
-                  message:
-                    type: string
-                    example: "Validation failed"
-                  error:
-                    type: object
-                    example:
-                      folder_name: "folder_name is required"
-                      files: "files is required"
-
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 500
-                  message:
-                    type: string
-                    example: "Internal server error"
-                  error:
-                    type: string
-                    example: "Database transaction failed"
+                $ref: "#/components/schemas/NotFoundErrorSchema"
 
   /files/file/{id}:
     get:
@@ -15087,7 +14920,7 @@ paths:
       tags:
         - File Management
       summary: Deletes file details by ID
-      description: Deletes file metadata and a file link from the database using a unique file ID.
+      description: Deletes file metadata and a file link from the database using a unique file ID. Use `permanent=true` for permanent deletion.
       parameters:
         - name: id
           in: path
@@ -15097,6 +14930,12 @@ paths:
             type: string
             format: uuid
             example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+        - name: permanent
+          in: query
+          required: false
+          description: Set to true to permanently delete the file.
+          schema:
+            type: boolean
       security:
         - bearerAuth: []
       responses:
@@ -15115,27 +14954,11 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Files deleted successfully"
+                    example: "File deleted successfully"
                   data:
                     type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
-                        type: string
-                        example: "Deployment and Rollback Procedure.pdf"
-                      file_type:
-                        type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+                    nullable: true
+                    example: null
         "404":
           description: File not found
           content:
@@ -15357,27 +15180,22 @@ paths:
     post:
       tags:
         - File Management
-      summary: Create a folder
+      summary: Create a new folder
       description: Creates a new folder for organizing files.
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - name
               properties:
                 name:
                   type: string
                   example: "Project Documents"
-                parent_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                  example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+              required:
+                - name
+      security:
+        - bearerAuth: []
       responses:
         "201":
           description: Folder created successfully
@@ -15398,11 +15216,17 @@ paths:
                   data:
                     $ref: "#/components/schemas/FolderSchema"
         "400":
-          description: Invalid input
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -15412,18 +15236,10 @@ paths:
     get:
       tags:
         - File Management
-      summary: List folders
-      description: Retrieves a list of folders.
+      summary: Get all folders
+      description: Retrieves a list of folders for the organization.
       security:
         - bearerAuth: []
-      parameters:
-        - name: parent_id
-          in: query
-          required: false
-          description: Filter by parent folder ID
-          schema:
-            type: string
-            format: uuid
       responses:
         "200":
           description: Folders fetched successfully
@@ -15445,6 +15261,81 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/FolderSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+    delete:
+      tags:
+        - File Management
+      summary: Bulk delete folders
+      description: Deletes multiple folders by their IDs. Supports soft and permanent deletion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["0195ca6f-a7ef-70b0-8392-a0ddc510bec3", "0195ca6f-a7ef-70b0-8392-a0ddc510bec4"]
+                permanent:
+                  type: boolean
+                  example: false
+              required:
+                - ids
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Bulk delete completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Bulk delete completed. Success: 2, Failed: 0"
+                  data:
+                    type: object
+                    properties:
+                      success_count:
+                        type: integer
+                        example: 2
+                      failure_count:
+                        type: integer
+                        example: 0
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -15456,15 +15347,13 @@ paths:
     put:
       tags:
         - File Management
-      summary: Rename a folder
-      description: Renames a folder by ID.
-      security:
-        - bearerAuth: []
+      summary: Update folder name
+      description: Updates the name of an existing folder.
       parameters:
         - name: id
           in: path
           required: true
-          description: Folder ID
+          description: The unique ID of the folder
           schema:
             type: string
             format: uuid
@@ -15477,12 +15366,14 @@ paths:
               properties:
                 folder_name:
                   type: string
-                  example: "New Folder Name"
+                  example: "New Project Name"
               required:
                 - folder_name
+      security:
+        - bearerAuth: []
       responses:
         "200":
-          description: Folder renamed successfully
+          description: Folder name updated successfully
           content:
             application/json:
               schema:
@@ -15498,29 +15389,53 @@ paths:
                     type: string
                     example: "Folder name updated successfully"
                   data:
-                    $ref: "#/components/schemas/Folder"
+                    $ref: "#/components/schemas/FolderSchema"
         "400":
-          description: Invalid input or ID format
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     delete:
       tags:
         - File Management
       summary: Delete a folder
-      description: Deletes a folder by ID.
-      security:
-        - bearerAuth: []
+      description: Deletes a folder by ID. Use `permanent=true` for permanent deletion.
       parameters:
         - name: id
           in: path
           required: true
-          description: Folder ID
+          description: The unique ID of the folder
           schema:
             type: string
             format: uuid
+        - name: permanent
+          in: query
+          required: false
+          description: Set to true to permanently delete the folder and its contents.
+          schema:
+            type: boolean
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Folder deleted successfully
@@ -15541,18 +15456,26 @@ paths:
                   data:
                     type: object
                     nullable: true
+                    example: null
         "400":
-          description: Invalid ID format
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
 
   /files/{id}/move:
     put:
@@ -15616,6 +15539,74 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /files:
+    delete:
+      tags:
+        - File Management
+      summary: Bulk delete files
+      description: Deletes multiple files by their IDs. Supports soft and permanent deletion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["0195ca6f-a7ef-70b0-8392-a0ddc510bec3", "0195ca6f-a7ef-70b0-8392-a0ddc510bec4"]
+                permanent:
+                  type: boolean
+                  example: false
+              required:
+                - ids
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Bulk delete completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Bulk delete completed. Success: 2, Failed: 0"
+                  data:
+                    type: object
+                    properties:
+                      success_count:
+                        type: integer
+                        example: 2
+                      failure_count:
+                        type: integer
+                        example: 0
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
     get:
       tags:
         - File Management
@@ -18375,7 +18366,7 @@ paths:
       tags:
         - Saved Messages
       summary: Get all saved messages
-      description: Retrieves all saved messages for an organization.
+      description: Retrieves all saved messages for an organization. Results are paginated and sorted by newest first (created_at desc).
       security:
         - bearerAuth: []
       parameters:
@@ -18384,6 +18375,8 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: "#/components/parameters/PageLimitParam"
+        - $ref: "#/components/parameters/LimitParam"
       responses:
         "200":
           description: Messages retrieved successfully
@@ -18444,6 +18437,29 @@ paths:
                           type: string
                           format: date-time
                           example: "0001-01-01T00:00:00Z"
+                        overdue:
+                          type: boolean
+                          example: false
+                        overdue_time:
+                          type: string
+                          format: date-time
+                          nullable: true
+                          example: null
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 20
+                      total_items:
+                        type: integer
+                        example: 95
 
   /organisations/{org_id}/saved/archived:
     get:
@@ -25421,6 +25437,34 @@ components:
                 type: string
                 format: date-time
                 example: "0001-01-01T00:13:35+00:13"
+              active_buzz:
+                type: object
+                nullable: true
+                description: "Information about the currently active buzz in this channel (null if no buzz is ongoing)"
+                properties:
+                  buzz_id:
+                    type: string
+                    format: uuid
+                    description: "ID of the active buzz"
+                    example: "019acc55-25e5-734c-be43-54c46b30d34a"
+                  host_id:
+                    type: string
+                    format: uuid
+                    description: "ID of the user who started the buzz"
+                    example: "019acc55-2312-7349-8e41-277a9100503c"
+                  host_name:
+                    type: string
+                    description: "Name of the buzz host"
+                    example: "John Doe"
+                  participant_count:
+                    type: integer
+                    description: "Number of active participants in the buzz"
+                    example: 3
+                  started_at:
+                    type: string
+                    format: date-time
+                    description: "When the buzz was started"
+                    example: "2025-12-04T10:30:00Z"
               messages:
                 type: array
                 items:
@@ -26590,10 +26634,10 @@ components:
           description: User's unique ID
         username:
           type: string
-          description: User's username
+          description: User's username (falls back to first_name if user_name is empty)
         full_name:
           type: string
-          description: User's full name (first + last)
+          description: User's full name (falls back to first_name + last_name if full_name is empty)
         avatar_url:
           type: string
           nullable: true
@@ -26606,6 +26650,16 @@ components:
           type: string
           enum: [active, left, inactive]
           description: Participant's current status in the buzz
+        status_sticker:
+          type: string
+          nullable: true
+          enum: [raise_hand, brb, away]
+          description: Current status sticker displayed for the participant (optional)
+        sticker_set_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the status sticker was set (null if no sticker)
       example:
         user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
         username: "johndoe"
@@ -26613,6 +26667,8 @@ components:
         avatar_url: "https://example.com/avatars/johndoe.jpg"
         joined_at: "2025-11-28T22:39:03.527809Z"
         status: "active"
+        status_sticker: null
+        sticker_set_at: null
 
     BuzzAgoraTokenRequest:
       type: object

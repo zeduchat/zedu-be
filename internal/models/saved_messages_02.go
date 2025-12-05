@@ -16,59 +16,64 @@ type SavedMessageFilter struct {
 	Archived  *bool
 }
 
-func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds) ([]SavedMessagesResp, error) {
+func (m *SavedMessage) GetSavedMessages(db *gorm.DB, ids SavedMessageIds, pagination postgresql.Pagination) ([]SavedMessagesResp, postgresql.PaginationResponse, error) {
 	filter := SavedMessageFilter{
 		OrgID:  ids.OrgID,
 		UserID: ids.UserID,
 	}
-	return m.getSavedMessagesWithFilter(db, filter)
+	return m.getSavedMessagesWithFilter(db, filter, pagination)
 }
 
-func (m *SavedMessage) GetCompletedSavedMessages(db *gorm.DB, orgID, userID string) ([]SavedMessagesResp, error) {
+func (m *SavedMessage) GetCompletedSavedMessages(db *gorm.DB, orgID, userID string, pagination postgresql.Pagination) ([]SavedMessagesResp, postgresql.PaginationResponse, error) {
 	completed := true
 	filter := SavedMessageFilter{
 		OrgID:     orgID,
 		UserID:    userID,
 		Completed: &completed,
 	}
-	return m.getSavedMessagesWithFilter(db, filter)
+	return m.getSavedMessagesWithFilter(db, filter, pagination)
 }
 
-func (m *SavedMessage) GetArchivedSavedMessages(db *gorm.DB, orgID, userID string) ([]SavedMessagesResp, error) {
+func (m *SavedMessage) GetArchivedSavedMessages(db *gorm.DB, orgID, userID string, pagination postgresql.Pagination) ([]SavedMessagesResp, postgresql.PaginationResponse, error) {
 	archived := true
 	filter := SavedMessageFilter{
 		OrgID:    orgID,
 		UserID:   userID,
 		Archived: &archived,
 	}
-	return m.getSavedMessagesWithFilter(db, filter)
+	return m.getSavedMessagesWithFilter(db, filter, pagination)
 }
 
-func (m *SavedMessage) getSavedMessagesWithFilter(db *gorm.DB, filter SavedMessageFilter) ([]SavedMessagesResp, error) {
+func (m *SavedMessage) getSavedMessagesWithFilter(db *gorm.DB, filter SavedMessageFilter, pagination postgresql.Pagination) ([]SavedMessagesResp, postgresql.PaginationResponse, error) {
 	var org Organisation
 	var organisation *Organisation
 
 	if !postgresql.CheckExists(db, &org, "id = ?", filter.OrgID) {
-		return nil, errors.New("organisation not found")
+		return nil, postgresql.PaginationResponse{}, errors.New("organisation not found")
 	}
 
 	isMember, err := organisation.CheckUserIsMemberOfOrg(filter.UserID, filter.OrgID, db)
 	if err != nil {
-		return nil, err
+		return nil, postgresql.PaginationResponse{}, err
 	}
 	if !isMember {
-		return nil, errors.New("user is not a member of organisation")
+		return nil, postgresql.PaginationResponse{}, errors.New("user is not a member of organisation")
 	}
 
-	messages, err := m.queryMessages(db, filter)
+	messages, paginationResponse, err := m.queryMessages(db, filter, pagination)
 	if err != nil {
-		return nil, err
+		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	return m.processMessages(db, messages)
+	processedMessages, err := m.processMessages(db, messages)
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	return processedMessages, paginationResponse, nil
 }
 
-func (m *SavedMessage) queryMessages(db *gorm.DB, filter SavedMessageFilter) ([]SavedMessage, error) {
+func (m *SavedMessage) queryMessages(db *gorm.DB, filter SavedMessageFilter, pagination postgresql.Pagination) ([]SavedMessage, postgresql.PaginationResponse, error) {
 	var messages []SavedMessage
 	query := "org_id = ? AND user_id = ?"
 	args := []any{filter.OrgID, filter.UserID}
@@ -83,12 +88,12 @@ func (m *SavedMessage) queryMessages(db *gorm.DB, filter SavedMessageFilter) ([]
 		args = append(args, *filter.Archived)
 	}
 
-	err := postgresql.SelectAllFromDb(db, "", &messages, query, args...)
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(db, "created_at", "desc", pagination, &messages, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve saved messages: %w", err)
+		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to retrieve saved messages: %w", err)
 	}
 
-	return messages, nil
+	return messages, paginationResponse, nil
 }
 
 func (m *SavedMessage) processMessages(db *gorm.DB, messages []SavedMessage) ([]SavedMessagesResp, error) {
