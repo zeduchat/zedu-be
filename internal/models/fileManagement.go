@@ -20,6 +20,13 @@ type UploadRequest struct {
 	FolderID string                  `form:"folder_id"`
 }
 
+type FileInfoResponse struct {
+	Owner        string    `json:"owner"`
+	DateUploaded time.Time `json:"date_uploaded"`
+	LastUpdated  time.Time `json:"last_updated"`
+	SharedIn     []string  `json:"shared_in"`
+}
+
 type RenameFileRequest struct {
 	FileName string `json:"file_name" binding:"required" validate:"required,min=1,max=255"`
 }
@@ -98,10 +105,10 @@ type Folder struct {
 	OrganisationID string         `gorm:"type:uuid;not null" json:"organisation_id"`
 	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
 	Name           string         `gorm:"type:varchar(255);not null" json:"name"`
-	Description    string         `gorm:"type:text" json:"description"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	ItemCount      uint64         `json:"item_count" gorm:"-"`
 }
 
 type FileType struct {

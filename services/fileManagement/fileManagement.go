@@ -254,12 +254,23 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 	return &newFileEntry, nil
 }
 
+func countItemsInFolder(db *gorm.DB, folderID string) uint64 {
+	var count int64
+	db.Model(&models.File{}).Where("folder_id = ?", folderID).Count(&count)
+	if count < 0 {
+		return 0
+	}
+
+	return uint64(count)
+}
+
 func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder, error) {
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
 		Name:           params.Name,
 		OrganisationID: params.OrganisationID,
 		UserID:         params.UserID,
+		ItemCount:      0,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
 	if err != nil {
@@ -273,7 +284,39 @@ func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 	query := db.Where("organisation_id = ?", orgID)
 
 	err := query.Find(&folders).Error
-	return folders, err
+	if err != nil {
+		return folders, err
+	}
+
+	type FolderCount struct {
+		FolderID string
+		Count    int64
+	}
+	var folderCounts []FolderCount
+
+	err = db.Model(&models.File{}).
+		Select("folder_id, count(*) as count").
+		Where("organisation_id = ? AND folder_id IS NOT NULL", orgID).
+		Group("folder_id").
+		Scan(&folderCounts).Error
+
+	if err != nil {
+		return folders, err
+	}
+
+	// map counts to folders
+	countMap := make(map[string]uint64, len(folderCounts))
+	for _, fc := range folderCounts {
+		if fc.Count > 0 {
+			countMap[fc.FolderID] = uint64(fc.Count)
+		}
+	}
+
+	for i := range folders {
+		folders[i].ItemCount = countMap[folders[i].ID]
+	}
+
+	return folders, nil
 }
 
 func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {
@@ -315,6 +358,11 @@ func UpdateFolder(db *gorm.DB, params models.UpdateFolderParams) (*models.Folder
 
 	folder.Name = params.Name
 	err = db.Save(&folder).Error
+
+	if err == nil {
+		folder.ItemCount = countItemsInFolder(db, folder.ID)
+	}
+
 	return &folder, err
 }
 
@@ -639,6 +687,34 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 
 	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
 	return files, count, err
+}
+
+func GetFileInfo(db *gorm.DB, params models.File) *models.FileInfoResponse {
+	sharedIn := []string{}
+	if params.ChannelID != nil {
+		var channel models.Channels
+		err := db.Select("name").Where("id = ?", *params.ChannelID).First(&channel).Error
+		if err == nil {
+			sharedIn = append(sharedIn, channel.Name)
+		}
+	}
+
+	// Fetch username from profile
+	var profile models.Profile
+	owner := params.UserID // fallback to user ID
+	err := db.Select("user_name").Where("userid = ?", params.UserID).First(&profile).Error
+	if err == nil && profile.UserName != "" {
+		owner = profile.UserName
+	}
+
+	response := &models.FileInfoResponse{
+		Owner:        owner,
+		DateUploaded: params.CreatedAt,
+		LastUpdated:  params.UpdatedAt,
+		SharedIn:     sharedIn,
+	}
+	return response
+
 }
 
 var (

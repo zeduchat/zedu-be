@@ -193,6 +193,51 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetSavedMessage(c *gin.Context) {
+	orgId := c.Param("org_id")
+	smId := c.Param("smId")
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		base.Logger.Error("Invalid organisation ID format: %v", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "unable to parse organisation id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(smId); err != nil {
+		base.Logger.Error("Invalid saved message id format: %v", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid saved message id format", "unable to parse saved message id", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+	savedMessageIds := models.SavedMessageIds{
+		UserID:         userId,
+		OrgID:          orgId,
+		SavedMessageID: smId,
+	}
+
+	resp, err := savedMessages.GetSavedMessage(base.Db.Postgresql, base.Logger, savedMessageIds)
+	if err != nil {
+		base.Logger.Error("Failed to retrieve saved message with id %s: %v", smId, err)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Message not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	base.Logger.Info("Message retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Message retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+
+}
+
 func (base *Controller) DeleteSavedMessageByID(c *gin.Context) {
 	orgId := c.Param("org_id")
 	smId := c.Param("smId")
