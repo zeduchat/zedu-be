@@ -40,6 +40,7 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		fileManagementUrl.POST("/file/:id/pin", fileManagement.PinFile)
 		fileManagementUrl.DELETE("/file/:id/pin", fileManagement.UnpinFile)
 		fileManagementUrl.GET("/favorites", fileManagement.GetPinnedFiles)
+		fileManagementUrl.GET("/recent", fileManagement.GetRecentFiles)
 	}
 
 	return r
