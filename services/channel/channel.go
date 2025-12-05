@@ -408,7 +408,7 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 	}
 
 	usernames := []string{}
-	
+
 	for _, userId := range removedUserIds {
 		userDetails, err := user.GetUserByID(db.Postgresql, userId)
 		if err != nil {
@@ -430,7 +430,7 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 	systemMsg := models.CreateThreadMsgReq{
 		Content:    fmt.Sprintf("left #%s: %s", ch.Name, strings.Join(usernames, ", ")),
 		Type:       "system",
-		UserId:     req.UserID,
+		UserId:     removedUserIds[0],
 		ChannelsID: ch.ID,
 		OrgId:      ch.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
