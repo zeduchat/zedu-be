@@ -50,9 +50,52 @@ func IsSameOrganization(db *gorm.DB, reqUserID string, targetUserID string) (int
 	return http.StatusOK, nil
 }
 
+// VerifyAvatarOwnership verifies that the authenticated user owns the target profile
+// Returns true if ownership is verified, false otherwise
+func VerifyAvatarOwnership(db *gorm.DB, authenticatedUserID, targetUserID string) (bool, error) {
+	// Verify that authenticated user ID matches target user ID
+	if authenticatedUserID != targetUserID {
+		return false, nil
+	}
+
+	// Verify that the user exists in the database
+	var user models.User
+	exists := db.Where("id = ?", authenticatedUserID).First(&user).Error
+	if exists != nil {
+		if errors.Is(exists, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, exists
+	}
+
+	return true, nil
+}
+
+// logUnauthorizedAvatarAccess logs unauthorized avatar access attempts for security monitoring
+func logUnauthorizedAvatarAccess(logger *utility.Logger, authenticatedUserID, targetUserID, operation string) {
+	logger.Error(
+		"Unauthorized avatar access attempt",
+		"authenticated_user_id", authenticatedUserID,
+		"target_user_id", targetUserID,
+		"operation", operation,
+		"timestamp", time.Now().Format(time.RFC3339),
+	)
+}
+
 func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, error) {
 	var user models.User
 	var userProfile models.Profile
+
+	// Verify ownership before allowing any avatar operations
+	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
+	if err != nil {
+		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
+		return http.StatusInternalServerError, errors.New("failed to verify avatar ownership")
+	}
+	if !isOwner {
+		logUnauthorizedAvatarAccess(logger, userId, userId, "update")
+		return http.StatusForbidden, errors.New("you do not have permission to modify this avatar")
+	}
 
 	if err := user.UpdateUserEmail(db, req, userId); err != nil {
 		return http.StatusInternalServerError, err
@@ -77,6 +120,17 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 
 func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) (int, error) {
 	var Profile models.Profile
+
+	// Verify ownership before allowing avatar deletion
+	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
+	if err != nil {
+		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
+		return http.StatusInternalServerError, errors.New("failed to verify avatar ownership")
+	}
+	if !isOwner {
+		logUnauthorizedAvatarAccess(logger, userId, userId, "delete")
+		return http.StatusForbidden, errors.New("you do not have permission to modify this avatar")
+	}
 
 	avatarURL, err := GetUserProfileImageURL(db, userId)
 	if err != nil {
