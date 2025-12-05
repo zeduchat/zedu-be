@@ -1,0 +1,38 @@
+-- Add channel_type column to buzzes table for DM/group DM support
+-- Removes FK constraint since channel_id can reference multiple tables
+
+-- Validate no orphaned buzzes exist before proceeding
+DO $$ 
+DECLARE
+    orphaned_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO orphaned_count
+    FROM public.buzzes b
+    LEFT JOIN public.channels c ON b.channel_id = c.id
+    WHERE c.id IS NULL;
+    
+    IF orphaned_count > 0 THEN
+        RAISE EXCEPTION 'Migration aborted: Found % buzzes with invalid channel_id references. Clean up data before proceeding.', orphaned_count;
+    END IF;
+END $$;
+
+-- Add column with default value (existing rows get 'channel')
+ALTER TABLE public.buzzes
+ADD COLUMN IF NOT EXISTS channel_type VARCHAR(20) NOT NULL DEFAULT 'channel';
+
+-- Add check constraint for valid types
+ALTER TABLE public.buzzes
+ADD CONSTRAINT check_buzz_channel_type CHECK (channel_type IN ('channel', 'dm_channel', 'group_dm_channel'));
+
+-- Add index for filtering by channel type
+CREATE INDEX IF NOT EXISTS idx_buzzes_channel_type ON public.buzzes (channel_type);
+
+-- Drop FK constraint to allow DM channel references
+ALTER TABLE public.buzzes
+DROP CONSTRAINT IF EXISTS fk_huddles_channel;
+
+ALTER TABLE public.buzzes
+DROP CONSTRAINT IF EXISTS fk_buzzes_channel;
+
+-- Document the column
+COMMENT ON COLUMN public.buzzes.channel_type IS 'Type: channel, dm_channel, or group_dm_channel';
