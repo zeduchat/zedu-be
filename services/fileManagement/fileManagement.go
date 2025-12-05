@@ -122,13 +122,36 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 	if existsErr != nil && !exists {
 		utility.LogAndPrint(logger, fmt.Sprintf("error: %v.", existsErr.Error()))
 		return nil, existsErr
-	} else if exists {
+	}
+
+	if exists {
 		utility.LogAndPrint(logger, "checking for file existence")
 		existingFileURL := fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
 
 		var existingFile models.File
 		err := db.Where("file_link = ?", existingFileURL).First(&existingFile).Error
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket but not in DB. Creating new record for: %s", existingFileURL))
+
+				// persists file details and skip MinIO upload since it's already there
+				saveParams := CreateAndSaveFileParams{
+					UploadParams: params,
+					FileLink:     existingFileURL,
+					MimeType:     mimeType,
+					FolderID:     fID,
+				}
+
+				newFileEntry, storageErr := createAndSaveFile(db, saveParams)
+				if storageErr != nil {
+					errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
+					utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
+					return nil, errMsg
+				}
+
+				return newFileEntry, nil
+			}
+
 			utility.LogAndPrint(logger, fmt.Sprintf("File exists in Minio bucket. Failed to retrieve existing metadata in database: %v", err.Error()))
 			return nil, fmt.Errorf("file exists in Minio bucket. failed to retrieve existing metadata in database: %v", err)
 		}
@@ -151,68 +174,92 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 			return &duplicateFile, nil
 		}
 
-		newFileEntry := models.File{
-			ID:             utility.GenerateUUID(),
-			FileName:       params.Header.Filename,
-			FileType:       filepath.Ext(params.Header.Filename)[1:],
-			MimeType:       mimeType,
-			FileLink:       existingFile.FileLink,
-			Size:           params.Header.Size,
-			OrganisationID: params.OrgID,
-			UserID:         params.UserID,
-			FolderID:       fID,
+		saveParams := CreateAndSaveFileParams{
+			UploadParams: params,
+			FileLink:     existingFile.FileLink,
+			MimeType:     mimeType,
+			FolderID:     fID,
 		}
-
-		storageErr := newFileEntry.CreateFileRecord(db)
+		newFileEntry, storageErr := createAndSaveFile(db, saveParams)
 
 		if storageErr != nil {
 			errMsg := fmt.Errorf("error saving new file details: %w", storageErr)
 			utility.LogAndPrint(logger, fmt.Sprintf("failed to save new file details to database: %v", errMsg))
 			return nil, errMsg
 		}
-		return &newFileEntry, nil
 
-	} else {
-		_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, params.File, params.Header.Size, minio.PutObjectOptions{ContentType: mimeType})
-		if err != nil {
-			errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err.Error()))
-			return nil, errMsg
-		}
+		return newFileEntry, nil
 
-		(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
-		generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
-
-		response := models.File{
-			ID:             utility.GenerateUUID(),
-			FileName:       params.Header.Filename,
-			FileType:       filepath.Ext(params.Header.Filename)[1:],
-			MimeType:       mimeType,
-			FileLink:       generatedUrl,
-			Size:           params.Header.Size,
-			OrganisationID: params.OrgID,
-			UserID:         params.UserID,
-			FolderID:       fID,
-		}
-
-		storageErr := response.CreateFileRecord(db)
-		if storageErr != nil {
-			errMsg := fmt.Errorf("error saving file details: %w", storageErr)
-			utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
-			return nil, errMsg
-		}
-
-		return &response, nil
 	}
+
+	_, err := minioClient.PutObject(context.Background(), bucketName, encodedFilePath, params.File, params.Header.Size, minio.PutObjectOptions{ContentType: mimeType})
+	if err != nil {
+		errMsg := fmt.Errorf("failed to upload file to %s: %w", encodedFilePath, err)
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to upload file to %s: %v", encodedFilePath, err.Error()))
+		return nil, errMsg
+	}
+
+	(*utility.Logger).Info(logger, fmt.Sprintf("File uploaded successfully to %s\n", encodedFilePath))
+	generatedUrl = fmt.Sprintf("https://%s/%s/%s", minioClient.EndpointURL().Host, bucketName, encodedFilePath)
+
+	saveParams := CreateAndSaveFileParams{
+		UploadParams: params,
+		FileLink:     generatedUrl,
+		MimeType:     mimeType,
+		FolderID:     fID,
+	}
+	response, storageErr := createAndSaveFile(db, saveParams)
+	if storageErr != nil {
+		// rollback file from MinIO if DB save fails
+		utility.LogAndPrint(logger, "Failed to save file details to DB, rolling back MinIO upload...")
+		removeErr := minioClient.RemoveObject(context.Background(), bucketName, encodedFilePath, minio.RemoveObjectOptions{})
+		if removeErr != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("Failed to rollback MinIO upload for %s: %v", encodedFilePath, removeErr))
+		} else {
+			utility.LogAndPrint(logger, fmt.Sprintf("Successfully rolled back MinIO upload for %s", encodedFilePath))
+		}
+
+		errMsg := fmt.Errorf("error saving file details: %w", storageErr)
+		utility.LogAndPrint(logger, fmt.Sprintf("failed to save file details to database: %v", errMsg.Error()))
+		return nil, errMsg
+	}
+
+	return response, nil
+
+}
+
+type CreateAndSaveFileParams struct {
+	UploadParams models.UploadFileParams
+	FileLink     string
+	MimeType     string
+	FolderID     *string
+}
+
+func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.File, error) {
+	newFileEntry := models.File{
+		ID:             utility.GenerateUUID(),
+		FileName:       params.UploadParams.Header.Filename,
+		FileType:       filepath.Ext(params.UploadParams.Header.Filename)[1:],
+		MimeType:       params.MimeType,
+		FileLink:       params.FileLink,
+		Size:           params.UploadParams.Header.Size,
+		OrganisationID: params.UploadParams.OrgID,
+		UserID:         params.UploadParams.UserID,
+		FolderID:       params.FolderID,
+	}
+
+	if err := newFileEntry.CreateFileRecord(db); err != nil {
+		return nil, err
+	}
+	return &newFileEntry, nil
 }
 
 func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder, error) {
 	folder := models.Folder{
 		ID:             utility.GenerateUUID(),
 		Name:           params.Name,
-		OrganisationID: params.OrgID,
+		OrganisationID: params.OrganisationID,
 		UserID:         params.UserID,
-		ParentID:       params.ParentID,
 	}
 	err := postgresql.CreateOneRecord(db, &folder)
 	if err != nil {
@@ -221,19 +268,25 @@ func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder
 	return &folder, nil
 }
 
-func GetFolders(db *gorm.DB, orgID string, parentID *string) ([]models.Folder, error) {
+func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 	var folders []models.Folder
 	query := db.Where("organisation_id = ?", orgID)
-	if parentID != nil {
-		query = query.Where("parent_id = ?", parentID)
-	} else {
-		query = query.Where("parent_id IS NULL")
-	}
+
 	err := query.Find(&folders).Error
 	return folders, err
 }
 
-func DeleteFolder(db *gorm.DB, folderID string) error {
+func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {
+	if permanent {
+		// hard delete folder and its files
+		err := db.Unscoped().Where("id = ?", folderID).Delete(&models.Folder{}).Error
+		if err != nil {
+			return err
+		}
+
+		return db.Unscoped().Where("folder_id = ?", folderID).Delete(&models.File{}).Error
+	}
+
 	// soft delete folder
 	err := db.Where("id = ?", folderID).Delete(&models.Folder{}).Error
 	if err != nil {
@@ -241,17 +294,26 @@ func DeleteFolder(db *gorm.DB, folderID string) error {
 	}
 
 	// soft delete the files in it too
-	err = db.Where("folder_id = ?", folderID).Delete(&models.File{}).Error
-	return err
+	return db.Where("folder_id = ?", folderID).Delete(&models.File{}).Error
 }
 
-func UpdateFolder(db *gorm.DB, folderID, name string) (*models.Folder, error) {
+func UpdateFolder(db *gorm.DB, params models.UpdateFolderParams) (*models.Folder, error) {
 	var folder models.Folder
-	err := db.Where("id = ?", folderID).First(&folder).Error
+	err := db.Where("id = ? AND organisation_id = ?", params.FolderID, params.OrgID).First(&folder).Error
 	if err != nil {
 		return nil, err
 	}
-	folder.Name = name
+
+	// check permissions
+	if folder.UserID != params.UserID {
+		return nil, fmt.Errorf("unauthorized to update this folder")
+	}
+
+	if folder.Name == params.Name {
+		return &folder, nil
+	}
+
+	folder.Name = params.Name
 	err = db.Save(&folder).Error
 	return &folder, err
 }
@@ -267,39 +329,109 @@ func GetFileDetailsByID(db *gorm.DB, fileId string) (*models.File, error) {
 	return file, nil
 }
 
-func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *models.File, fileId, threadId string) error {
+func GetFileDetailsByIDUnscoped(db *gorm.DB, fileId string) (*models.File, error) {
+	var file models.File
+	err := db.Unscoped().Where("id = ?", fileId).First(&file).Error
+	if err != nil {
+		return nil, err
+	}
+	return &file, nil
+}
+
+func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *models.File, fileId, threadId string, permanent bool) error {
 	var fileModel models.File
 
-	// check if other records point to the same physical file
-	count, countErr := fileModel.GetFileCountByLink(db.Postgresql, file.FileLink)
-	if countErr != nil {
-		return countErr
-	}
+	if permanent {
 
-	// if this is the last record pointing to the file, delete from MinIO
-	if count == 1 {
-		hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+		// check if other records point to the same physical file
+		count, countErr := fileModel.GetFileCountByLink(db.Postgresql, file.FileLink)
+		if countErr != nil {
+			return countErr
+		}
 
-		minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
-		if minioErr != nil {
-			return minioErr
+		// if this is the last record pointing to the file, delete from MinIO
+		if count == 1 {
+			hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+
+			minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
+			if minioErr != nil {
+				return minioErr
+			}
+		}
+
+		// hard delete the record
+		err := db.Postgresql.Unscoped().Where("id = ?", fileId).Delete(&models.File{}).Error
+		if err != nil {
+			return err
+		}
+	} else {
+
+		// soft delete the record
+		err := fileModel.DeleteFileByID(db.Postgresql, fileId)
+		if err != nil {
+			return err
 		}
 	}
 
-	// soft delete the record
-	err := fileModel.DeleteFileByID(db.Postgresql, fileId)
-	if err != nil {
-		return err
-	}
-
 	if threadId != "" {
-		err = RemoveMediaFileFromThread(db.Elastic, threadId, fileId, logger)
+		err := RemoveMediaFileFromThread(db.Elastic, threadId, fileId, logger)
 		if err != nil {
 			logger.Error("Failed to remove media file from thread, err: %s", err)
 		}
 	}
 
 	return nil
+}
+
+func DeleteMultipleFiles(logger *utility.Logger, db *storage.Database, fileIDs []string, permanent bool) (int, int, []error) {
+	successCount := 0
+	failureCount := 0
+	var errs []error
+
+	for _, fileID := range fileIDs {
+		var file *models.File
+		var err error
+
+		if permanent {
+			file, err = GetFileDetailsByIDUnscoped(db.Postgresql, fileID)
+		} else {
+			file, err = GetFileDetailsByID(db.Postgresql, fileID)
+		}
+
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to find file %s: %v", fileID, err))
+			continue
+		}
+
+		err = DeleteFileDetailsByID(logger, db, file, fileID, "", permanent)
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to delete file %s: %v", fileID, err))
+		} else {
+			successCount++
+		}
+	}
+
+	return successCount, failureCount, errs
+}
+
+func DeleteMultipleFolders(db *gorm.DB, folderIDs []string, permanent bool) (int, int, []error) {
+	successCount := 0
+	failureCount := 0
+	var errs []error
+
+	for _, folderID := range folderIDs {
+		err := DeleteFolder(db, folderID, permanent)
+		if err != nil {
+			failureCount++
+			errs = append(errs, fmt.Errorf("failed to delete folder %s: %v", folderID, err))
+		} else {
+			successCount++
+		}
+	}
+
+	return successCount, failureCount, errs
 }
 
 func RemoveMediaFileFromThread(db *elasticsearch.Client, threadID, fileID string, logger *utility.Logger) error {
@@ -373,10 +505,7 @@ func UpdateFileName(db *gorm.DB, logger *utility.Logger, params models.UpdateFil
 	if err != nil {
 		return nil, err
 	}
-	fileResponse, err = GetFileDetailsByID(db, params.FileID)
-	if err != nil {
-		return nil, err
-	}
+	// fileResponse is now updated with the new name
 	notification := models.Notification[models.UpdatedMedia]
 	notification.SectionType = models.ThreadSection
 	notification.Content = fileResponse
@@ -469,6 +598,74 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 		query = query.Where("files.file_type = ?", fileType)
 	}
 
+	if fileCategory, ok := queryParams["file_category"]; ok && fileCategory != "" {
+		switch strings.ToLower(fileCategory) {
+		case "documents":
+			query = query.Where(`(
+				files.mime_type LIKE '%pdf%' OR
+				files.mime_type LIKE '%document%' OR
+				files.mime_type LIKE '%word%' OR
+				files.mime_type LIKE '%text%' OR
+				files.mime_type LIKE '%rtf%' OR
+				files.mime_type LIKE '%doc' OR
+				files.mime_type LIKE '%docx' OR
+				files.mime_type LIKE '%txt' OR
+				files.mime_type LIKE '%odt'
+			)`)
+		case "spreadsheets":
+			query = query.Where(`(
+				files.mime_type LIKE '%spreadsheet%' OR
+				files.mime_type LIKE '%excel%' OR
+				files.mime_type LIKE '%xls' OR
+				files.mime_type LIKE '%xlsx' OR
+				files.mime_type LIKE '%csv' OR
+				files.mime_type LIKE '%ods'
+			)`)
+		case "images":
+			query = query.Where("files.mime_type LIKE 'image/%'")
+		case "videos":
+			query = query.Where("files.mime_type LIKE 'video/%'")
+		case "music":
+			query = query.Where("files.mime_type LIKE 'audio/%'")
+		}
+	}
+
+	if dateFilter, ok := queryParams["date_modified"]; ok && dateFilter != "" {
+		startDate, endDate := models.GetDateRangeFilter(dateFilter)
+		if startDate != nil && endDate != nil {
+			query = query.Where("files.updated_at BETWEEN ? AND ?", startDate, endDate)
+		}
+	}
+
 	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
 	return files, count, err
+}
+
+var (
+	ErrFileNotDeleted      = errors.New("file is not deleted")
+	ErrUnauthorizedRestore = errors.New("unauthorized to restore this file")
+)
+
+func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error) {
+	var file models.File
+
+	// use Unscoped to find soft deleted records efficiently
+	err := db.Unscoped().Where("id = ? AND deleted_at IS NOT NULL", fileID).First(&file).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// check permissions
+	if file.UserID != userID {
+		return nil, ErrUnauthorizedRestore
+	}
+
+	// restore the file by clearing [deleted_at]
+	// avoid hooks if any, and set [deleted_at] to NULL
+	err = db.Model(&file).Unscoped().UpdateColumn("deleted_at", nil).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &file, nil
 }
