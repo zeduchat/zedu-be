@@ -632,7 +632,7 @@ func (base *Controller) PinFile(c *gin.Context) {
 		OrganisationID: orgID,
 	}
 
-	if err := pinnedFile.PinFile(base.Db.Postgresql); err != nil {
+	if err := services.PinFile(base.Db.Postgresql, base.Db.Redis, &pinnedFile); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to pin file", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -666,7 +666,7 @@ func (base *Controller) UnpinFile(c *gin.Context) {
 		OrganisationID: orgID,
 	}
 
-	if err := pinnedFile.UnpinFile(base.Db.Postgresql); err != nil {
+	if err := services.UnpinFile(base.Db.Postgresql, base.Db.Redis, &pinnedFile); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to unpin file", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
@@ -687,8 +687,7 @@ func (base *Controller) GetPinnedFiles(c *gin.Context) {
 	userID := userClaims["user_id"].(string)
 	orgID := userClaims["org_id"].(string)
 
-	pinnedFile := models.PinnedFile{}
-	files, err := pinnedFile.GetPinnedFiles(base.Db.Postgresql, userID, orgID)
+	files, err := services.GetPinnedFiles(base.Db.Postgresql, base.Db.Redis, userID, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch pinned files", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
