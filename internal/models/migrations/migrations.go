@@ -74,6 +74,7 @@ func AuthMigrationModels() []any {
 		models.Testimonial{},
 		models.File{},
 		models.Folder{},
+		models.PinnedFile{},
 		models.User{},
 		models.Channels{},
 		models.UserChannels{},
