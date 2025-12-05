@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/minio/minio-go/v7"
@@ -744,4 +745,29 @@ func RestoreFile(db *gorm.DB, fileID string, userID string) (*models.File, error
 	}
 
 	return &file, nil
+}
+
+func UpdateFileLastAccessedAt(db *gorm.DB, fileID string) {
+
+	err := db.Model(&models.File{}).Where("id = ?", fileID).
+		Update("last_accessed_at", time.Now()).Error
+
+	if err != nil {
+		fmt.Printf("Failed to update last_accessed_at for file %s: %v\n", fileID, err)
+	}
+}
+
+func GetRecentFiles(db *gorm.DB, userID string, orgID string, limit int) ([]models.File, error) {
+	var files []models.File
+
+	query := db.Where("user_id = ? AND organisation_id = ?", userID, orgID).
+		Order("last_accessed_at DESC").
+		Limit(limit).
+		Find(&files)
+
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	return files, nil
 }

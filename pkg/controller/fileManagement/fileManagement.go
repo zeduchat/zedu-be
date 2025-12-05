@@ -150,6 +150,10 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 	}
 
 	base.Logger.Info("Files located successfully")
+
+	// track file access
+	go services.UpdateFileLastAccessedAt(base.Db.Postgresql, file.ID)
+
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File located successfully", file)
 	c.JSON(http.StatusOK, rd)
 }
@@ -598,5 +602,41 @@ func (base *Controller) RestoreFile(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File restored successfully", file)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetRecentFiles(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	limitStr := c.Query("limit")
+	limit := 10 // default
+	if limitStr != "" {
+		l, err := strconv.Atoi(limitStr)
+		if err == nil {
+			if l > 30 {
+				//Cap size at 30 if requested greater than 30.
+				limit = 30
+			} else if l > 0 {
+				limit = l
+			}
+		}
+	}
+
+	files, err := services.GetRecentFiles(base.Db.Postgresql, userID, orgID, limit)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch recent files", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Recent files fetched successfully", files)
 	c.JSON(http.StatusOK, rd)
 }
