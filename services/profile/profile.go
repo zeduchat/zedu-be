@@ -379,12 +379,18 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 		}
 	}
 
-	// Return status with default visibility
+	// Get visibility from profile, default to "public" if empty
+	visibility := "public"
+	if profile.StatusVisibility != "" {
+		visibility = profile.StatusVisibility
+	}
+
+	// Return status with visibility from database
 	status := models.UserStatus{
 		Text:       profile.Text,
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
-		Visibility: "public",
+		Visibility: visibility,
 	}
 
 	return status, http.StatusOK, nil
