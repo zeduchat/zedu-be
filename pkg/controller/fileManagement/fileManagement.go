@@ -616,18 +616,12 @@ func (base *Controller) GetRecentFiles(c *gin.Context) {
 	userID := userClaims["user_id"].(string)
 	orgID := userClaims["org_id"].(string)
 
-	limitStr := c.Query("limit")
-	limit := 10 // default
-	if limitStr != "" {
-		l, err := strconv.Atoi(limitStr)
-		if err == nil {
-			if l > 30 {
-				//Cap size at 30 if requested greater than 30.
-				limit = 30
-			} else if l > 0 {
-				limit = l
-			}
-		}
+	pagination := postgresql.GetPagination(c)
+	limit := pagination.Limit
+
+	//Cap size at 30 if requested greater than 30.
+	if limit > 30 {
+		limit = 30
 	}
 
 	files, err := services.GetRecentFiles(base.Db.Postgresql, userID, orgID, limit)
