@@ -22670,10 +22670,6 @@ components:
         user_id:
           type: string
           format: uuid
-        parent_id:
-          type: string
-          format: uuid
-          nullable: true
         created_at:
           type: string
           format: date-time
