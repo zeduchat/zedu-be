@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -32,10 +33,20 @@ type UploadFileParams struct {
 }
 
 type CreateFolderParams struct {
-	Name     string
-	OrgID    string
-	UserID   string
-	ParentID *string
+	Name           string
+	Description    string
+	OrganisationID string
+	UserID         string
+}
+
+type DeleteMultipleFilesRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
+}
+
+type DeleteMultipleFoldersRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
 }
 
 type UpdateFileNameParams struct {
@@ -43,6 +54,18 @@ type UpdateFileNameParams struct {
 	NewFileName string
 	OrgID       string
 	UserID      string
+	FolderID    string
+}
+
+type RenameFolderRequest struct {
+	FolderName string `json:"folder_name" binding:"required" validate:"required,min=1,max=255"`
+}
+
+type UpdateFolderParams struct {
+	FolderID string
+	Name     string
+	OrgID    string
+	UserID   string
 }
 
 type GetFilesParams struct {
@@ -71,13 +94,13 @@ type File struct {
 }
 
 type Folder struct {
-	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	Name           string         `gorm:"column:name; type:varchar(255); not null" json:"name"`
-	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
-	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
-	ParentID       *string        `gorm:"column:parent_id; type:uuid" json:"parent_id"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
+	ID             string         `gorm:"type:uuid;primary_key" json:"id"`
+	OrganisationID string         `gorm:"type:uuid;not null" json:"organisation_id"`
+	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
+	Name           string         `gorm:"type:varchar(255);not null" json:"name"`
+	Description    string         `gorm:"type:text" json:"description"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
 
@@ -121,8 +144,8 @@ func (file *File) UpdateFileName(db *gorm.DB, fileID string, newFileName string)
 	if err != nil {
 		return err
 	}
-	_, err = file.GetFileByID(db, fileID)
-	return err
+	file.FileName = newFileName
+	return nil
 }
 
 func (file *File) DeleteFileByID(db *gorm.DB, fileID string) error {
@@ -149,4 +172,73 @@ func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
 	}
 
 	return nil
+}
+
+func (file *File) GetFileCategory() string {
+	mimeType := strings.ToLower(file.MimeType)
+
+	if strings.Contains(mimeType, "pdf") ||
+		strings.Contains(mimeType, "document") ||
+		strings.Contains(mimeType, "word") ||
+		strings.Contains(mimeType, "text") ||
+		strings.Contains(mimeType, "rtf") ||
+		strings.HasSuffix(mimeType, "doc") ||
+		strings.HasSuffix(mimeType, "docx") ||
+		strings.HasSuffix(mimeType, "txt") ||
+		strings.HasSuffix(mimeType, "odt") {
+		return "documents"
+	}
+
+	if strings.Contains(mimeType, "spreadsheet") ||
+		strings.Contains(mimeType, "excel") ||
+		strings.HasSuffix(mimeType, "xls") ||
+		strings.HasSuffix(mimeType, "xlsx") ||
+		strings.HasSuffix(mimeType, "csv") ||
+		strings.HasSuffix(mimeType, "ods") {
+		return "spreadsheets"
+	}
+
+	if strings.HasPrefix(mimeType, "image/") {
+		return "images"
+	}
+
+	if strings.HasPrefix(mimeType, "video/") {
+		return "videos"
+	}
+
+	if strings.HasPrefix(mimeType, "audio/") {
+		return "music"
+	}
+
+	return "other"
+}
+
+func GetDateRangeFilter(filter string) (start, end *time.Time) {
+	now := time.Now()
+
+	switch strings.ToLower(filter) {
+	case "today":
+		startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		endOfDay := startOfDay.Add(24 * time.Hour)
+		return &startOfDay, &endOfDay
+
+	case "last_7_days":
+		start := now.AddDate(0, 0, -7)
+		return &start, &now
+
+	case "last_30_days":
+		start := now.AddDate(0, 0, -30)
+		return &start, &now
+
+	case "this_year":
+		startOfYear := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		return &startOfYear, &now
+
+	case "last_year":
+		startOfLastYear := time.Date(now.Year()-1, 1, 1, 0, 0, 0, 0, now.Location())
+		endOfLastYear := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		return &startOfLastYear, &endOfLastYear
+	}
+
+	return nil, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/savedMessages"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -165,12 +166,14 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
+	pagination := postgresql.GetPagination(c)
+
 	savedMessageIds := models.SavedMessageIds{
 		UserID: userId,
 		OrgID:  orgId,
 	}
 
-	response, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds)
+	response, paginationResponse, err := savedMessages.GetAllSavedMessages(base.Db.Postgresql, base.Logger, savedMessageIds, pagination)
 	if err != nil {
 		base.Logger.Error("Failed to retrieve saved messages: %v", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Messages not found", err.Error(), nil)
@@ -178,8 +181,15 @@ func (base *Controller) GetAllSavedMessages(c *gin.Context) {
 		return
 	}
 
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  paginationResponse.TotalItems,
+	}
+
 	base.Logger.Info("Messages retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Messages retrieved successfully", response)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Messages retrieved successfully", response, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
 

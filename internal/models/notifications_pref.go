@@ -40,7 +40,10 @@ var (
 	BuzzStarted                 NotificationType = "buzz_started"
 	UserJoinedBuzz              NotificationType = "user_joined_buzz"
 	UserLeftBuzz                NotificationType = "user_left_buzz"
+	BuzzEnded                   NotificationType = "buzz_ended"
 	CameraStatusChanged         NotificationType = "camera_status_changed"
+	BuzzReactionEvent           NotificationType = "buzz_reaction_event"
+	BuzzStickerEvent            NotificationType = "buzz_sticker_event"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -146,6 +149,12 @@ var Notification = map[NotificationType]Content{
 	},
 	CameraStatusChanged: Content{
 		NotificationType: CameraStatusChanged,
+	},
+	BuzzReactionEvent: Content{
+		NotificationType: BuzzReactionEvent,
+	},
+	BuzzStickerEvent: Content{
+		NotificationType: BuzzStickerEvent,
 	},
 }
 

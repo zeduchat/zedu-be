@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"testing"
 	"time"
@@ -202,7 +203,7 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
-	t.Run("DeleteFile", func(t *testing.T) {
+	t.Run("DeleteFile_Soft", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s", fileID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
@@ -248,7 +249,39 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
-	t.Run("DeleteFolder", func(t *testing.T) {
+	t.Run("DeleteFile_Permanent", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s?permanent=true", fileID), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// verify hard delete in DB
+		var file models.File
+		err := db.Postgresql.Unscoped().Where("id = ?", fileID).First(&file).Error
+		if err == nil {
+			t.Errorf("File should be permanently deleted")
+		}
+	})
+
+	var fileInFolderID string
+
+	t.Run("DeleteFolder_Soft", func(t *testing.T) {
+
+		// upload a file to the folder first
+		fileInFolderID = uploadTestFile(t, r, token, "test_file_in_folder.txt", "text/plain", []byte("content"))
+
+		// move it to the folder
+		moveBody := []byte(fmt.Sprintf(`{"folder_id": "%s"}`, folderID))
+		moveReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/files/%s/move", fileInFolderID), bytes.NewBuffer(moveBody))
+		moveReq.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+		moveReq.Header.Set("Content-Type", "application/json")
+		moveRr := httptest.NewRecorder()
+		r.ServeHTTP(moveRr, moveReq)
+		tests.AssertStatusCode(t, moveRr.Code, http.StatusOK)
+
 		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s", folderID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
@@ -257,11 +290,406 @@ func TestFileManagement(t *testing.T) {
 
 		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
 
-		// verify folder was deleted
+		// verify folder was soft deleted
 		var folder models.Folder
-		err := db.Postgresql.Where("id = ?", folderID).First(&folder).Error
-		if err == nil {
-			t.Errorf("Folder should be deleted")
+		err := db.Postgresql.Unscoped().Where("id = ?", folderID).First(&folder).Error
+		if err != nil {
+			t.Errorf("Folder should exist (soft deleted)")
+		}
+		if !folder.DeletedAt.Valid {
+			t.Errorf("Folder should be soft deleted")
+		}
+
+		// verify file in folder was soft deleted
+		var file models.File
+		err = db.Postgresql.Unscoped().Where("id = ?", fileInFolderID).First(&file).Error
+		if err != nil {
+			t.Errorf("File in folder should exist")
+		}
+		if !file.DeletedAt.Valid {
+			t.Errorf("File in folder should be soft deleted")
 		}
 	})
+
+	t.Run("DeleteFolder_Permanent", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s?permanent=true", folderID), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// verify folder was hard deleted
+		var folder models.Folder
+		err := db.Postgresql.Unscoped().Where("id = ?", folderID).First(&folder).Error
+		if err == nil {
+			t.Errorf("Folder should be permanently deleted")
+		}
+
+		// verify file in folder was hard deleted
+		var file models.File
+		err = db.Postgresql.Unscoped().Where("id = ?", fileInFolderID).First(&file).Error
+		if err == nil {
+			t.Errorf("File in folder should be permanently deleted")
+		}
+	})
+}
+
+func TestFileFilters(t *testing.T) {
+	r, _, authController, db := SetupFileManagementTestRouter()
+
+	currUUID := uuid.New().String()
+	userSignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("testfilters%v@qa.team", currUUID),
+		FirstName:   "Test",
+		LastName:    "FilterUser",
+		PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
+		Password:    "password123",
+		UserName:    fmt.Sprintf("test_filteruser%v", currUUID),
+	}
+
+	loginData := models.LoginRequestModel{
+		Email:    userSignUpData.Email,
+		Password: userSignUpData.Password,
+	}
+
+	tests.SignupUser(t, r, *authController, userSignUpData, false)
+	token := tests.GetLoginToken(t, r, *authController, loginData)
+
+	if token == "" {
+		t.Fatal("Failed to get authentication token")
+	}
+
+	var user models.User
+	db.Postgresql.Preload("Organisations").Where("email = ?", userSignUpData.Email).First(&user)
+	if len(user.Organisations) == 0 {
+		t.Fatal("User has no organisations")
+	}
+
+	var imageFileID, docFileID, videoFileID string
+
+	t.Run("SetupTestFiles", func(t *testing.T) {
+		// JPEG magic number: FF D8 FF
+		imageFileID = uploadTestFile(t, r, token, "test_image.jpg", "image/jpeg", []byte("\xFF\xD8\xFF\xE0"))
+
+		// PDF magic number: %PDF-
+		docFileID = uploadTestFile(t, r, token, "test_doc.pdf", "application/pdf", []byte("%PDF-1.4"))
+
+		// MP4 magic number (ftyp box)
+		videoFileID = uploadTestFile(t, r, token, "test_video.mp4", "video/mp4", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00"))
+
+		db.Postgresql.Model(&models.File{}).Where("id = ?", docFileID).
+			Update("updated_at", time.Now().AddDate(0, 0, -10))
+	})
+
+	t.Run("FilterByFileCategory_Images", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "images")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) == 0 {
+			t.Error("Expected at least one image file")
+		}
+
+		for _, f := range files {
+			file := f.(map[string]interface{})
+			mimeType := file["mime_type"].(string)
+			if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/gif" {
+				t.Errorf("Expected image mime type, got %s", mimeType)
+			}
+		}
+	})
+
+	t.Run("FilterByFileCategory_Documents", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "documents")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) == 0 {
+			t.Error("Expected at least one document file")
+		}
+
+		found := false
+		for _, f := range files {
+			file := f.(map[string]interface{})
+			if file["id"].(string) == docFileID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Expected to find uploaded PDF in documents filter")
+		}
+	})
+
+	t.Run("FilterByFileCategory_Videos", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "videos")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) == 0 {
+			t.Error("Expected at least one video file")
+		}
+	})
+
+	t.Run("FilterByFileCategory_Invalid", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "invalid_category")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+		resp := tests.ParseResponse(rr)
+		if resp["message"] == "" {
+			t.Error("Expected error message for invalid category")
+		}
+	})
+
+	t.Run("FilterByDateModified_Today", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("date_modified", "today")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) < 2 {
+			t.Error("Expected at least 2 files modified today")
+		}
+
+		for _, f := range files {
+			file := f.(map[string]interface{})
+			if file["id"].(string) == docFileID {
+				t.Error("Document file modified 10 days ago should not appear in 'today' filter")
+			}
+		}
+	})
+
+	t.Run("FilterByDateModified_Last7Days", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("date_modified", "last_7_days")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) < 2 {
+			t.Error("Expected at least 2 files in last 7 days")
+		}
+	})
+
+	t.Run("FilterByDateModified_Last30Days", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("date_modified", "last_30_days")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) < 3 {
+			t.Error("Expected all 3 files in last 30 days")
+		}
+	})
+
+	t.Run("FilterByDateModified_ThisYear", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("date_modified", "this_year")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) < 3 {
+			t.Error("Expected all files to be modified this year")
+		}
+	})
+
+	t.Run("FilterByDateModified_Invalid", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("date_modified", "invalid_date")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+		resp := tests.ParseResponse(rr)
+		if resp["message"] == "" {
+			t.Error("Expected error message for invalid date filter")
+		}
+	})
+
+	t.Run("CombineFilters_CategoryAndDate", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "images")
+		q.Set("date_modified", "today")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		for _, f := range files {
+			file := f.(map[string]interface{})
+			mimeType := file["mime_type"].(string)
+			if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/gif" {
+				t.Errorf("Expected only image files, got %s", mimeType)
+			}
+		}
+	})
+
+	t.Run("CombineFilters_WithModeAndSearch", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("mode", "mine")
+		q.Set("file_category", "documents")
+		q.Set("search", "test")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+
+		if resp["status"] != "success" {
+			t.Error("Expected successful response with combined filters")
+		}
+	})
+
+	t.Run("Cleanup", func(t *testing.T) {
+		db.Postgresql.Unscoped().Delete(&models.File{}, "id IN ?", []string{imageFileID, docFileID, videoFileID})
+	})
+}
+
+// Helper function to upload test files with specific mime types
+func uploadTestFile(t *testing.T, r http.Handler, token, filename, mimeType string, content []byte) string {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "files", filename))
+	h.Set("Content-Type", mimeType)
+	part, err := writer.CreatePart(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	part.Write(content)
+	writer.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/upload-files", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Upload failed with status %d. Response: %s", rr.Code, rr.Body.String())
+	}
+
+	resp := tests.ParseResponse(rr)
+	files := resp["data"].([]interface{})
+	if len(files) == 0 {
+		t.Fatal("No files returned from upload")
+	}
+
+	f := files[0].(map[string]interface{})
+	fileID := f["id"].(string)
+
+	return fileID
 }
