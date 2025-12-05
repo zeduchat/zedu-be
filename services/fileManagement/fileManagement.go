@@ -505,10 +505,7 @@ func UpdateFileName(db *gorm.DB, logger *utility.Logger, params models.UpdateFil
 	if err != nil {
 		return nil, err
 	}
-	fileResponse, err = GetFileDetailsByID(db, params.FileID)
-	if err != nil {
-		return nil, err
-	}
+	// fileResponse is now updated with the new name
 	notification := models.Notification[models.UpdatedMedia]
 	notification.SectionType = models.ThreadSection
 	notification.Content = fileResponse
