@@ -22771,6 +22771,14 @@ components:
           format: int64
           description: Unix timestamp in seconds after which the status expires
           example: 1715107200
+        visibility:
+          type: string
+          enum:
+            - public
+            - contacts
+            - private
+          description: Status visibility level
+          example: "public"
 
     UserStatusResponse:
       type: object
@@ -22787,6 +22795,11 @@ components:
           example: 1715107200
         visibility:
           type: string
+          enum:
+            - public
+            - contacts
+            - private
+          description: Status visibility level
           example: "public"
 
     FileSchema:

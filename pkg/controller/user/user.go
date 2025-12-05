@@ -4,10 +4,11 @@ import (
 	"errors"
 	"net/http"
 
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"strings"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -215,7 +216,7 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 		return
 	}
 
-	if req.Text == nil && req.Emoji == nil && req.Expiry == nil {
+	if req.Text == nil && req.Emoji == nil && req.Expiry == nil && req.Visibility == nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "no fields provided to update", "no fields provided to update", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -292,6 +293,17 @@ func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 
 	if req.Expiry != nil && *req.Expiry < 0 {
 		return http.StatusBadRequest, errors.New("expiry must be a non-negative unix timestamp (seconds)")
+	}
+
+	if req.Visibility != nil {
+		validVisibilities := map[string]bool{
+			"public":   true,
+			"contacts": true,
+			"private":  true,
+		}
+		if !validVisibilities[*req.Visibility] {
+			return http.StatusBadRequest, errors.New("visibility must be one of: public, contacts, private")
+		}
 	}
 
 	return 0, nil

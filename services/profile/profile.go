@@ -290,6 +290,9 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 	if req.Expiry != nil {
 		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
 	}
+	if req.Visibility != nil {
+		updates["status_visibility"] = *req.Visibility
+	}
 
 	if len(updates) == 0 {
 		return models.UserStatus{}, http.StatusBadRequest, errors.New("no fields to update")
@@ -312,11 +315,16 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		}
 	}
 
+	visibility := "public"
+	if profile.StatusVisibility != "" {
+		visibility = profile.StatusVisibility
+	}
+
 	status := models.UserStatus{
 		Text:       profile.Text,
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
-		Visibility: "public",
+		Visibility: visibility,
 	}
 
 	if logger != nil {

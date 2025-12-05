@@ -33,6 +33,7 @@ type Profile struct {
 	Text              string         `gorm:"type:varchar(255)" json:"text"`
 	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
 	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
+	StatusVisibility  string         `gorm:"type:varchar(255);default:'public'" json:"status_visibility"`
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
@@ -97,10 +98,11 @@ type UpdateProfileStatus struct {
 // Pointer fields let us detect whether a field was supplied so we can
 // avoid overwriting existing values.
 type PartialStatusUpdate struct {
-	Text   *string `json:"text"`
-	Emoji  *string `json:"emoji"`
-	Expiry *int64  `json:"expiry"`
-	UserID string  `json:"-"`
+	Text       *string `json:"text"`
+	Emoji      *string `json:"emoji"`
+	Expiry     *int64  `json:"expiry"`
+	Visibility *string `json:"visibility"`
+	UserID     string  `json:"-"`
 }
 
 // UserStatus represents the persisted status for responses.
