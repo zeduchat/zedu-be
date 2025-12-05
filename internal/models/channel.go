@@ -71,26 +71,36 @@ type GetChannelsRequest struct {
 	Name string `json:"name" validate:"required"`
 }
 
+type ActiveBuzzInfo struct {
+	BuzzID           string    `json:"buzz_id"`
+	HostID           string    `json:"host_id"`
+	HostName         string    `json:"host_name"`
+	ParticipantCount int       `json:"participant_count"`
+	StartedAt        time.Time `json:"started_at"`
+}
+
 type GetChannelResp struct {
 	Channels
-	OwnerName  string `json:"owner_name"`
-	OwnerEmail string `json:"owner_email"`
-	WebhookUrl string `json:"webhook_url"`
-	Access     bool   `json:"access"`
+	OwnerName  string          `json:"owner_name"`
+	OwnerEmail string          `json:"owner_email"`
+	WebhookUrl string          `json:"webhook_url"`
+	Access     bool            `json:"access"`
+	ActiveBuzz *ActiveBuzzInfo `json:"active_buzz,omitempty"`
 }
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl    string   `json:"webhook_url,omitempty"`
-	ThreadCount   int64    `json:"thread_count,omitempty"`
-	Access        bool     `json:"access,omitempty"`
-	MentionCount  int64    `json:"mention_count,omitempty"`
-	LastThreadId  string   `json:"last_thread_id,omitempty"`
-	MemberAvatars []string `json:"member_avatars,omitempty"`
-	MembersCount  int      `json:"members_count,omitempty"`
-	LastPostTime  string   `json:"last_post_time,omitempty"`
-	UnreadCount   int64    `json:"unread_count,omitempty"`
-	ChannelSlug   string   `json:"channel_slug"`
+	WebhookUrl    string          `json:"webhook_url,omitempty"`
+	ThreadCount   int64           `json:"thread_count,omitempty"`
+	Access        bool            `json:"access,omitempty"`
+	MentionCount  int64           `json:"mention_count,omitempty"`
+	LastThreadId  string          `json:"last_thread_id,omitempty"`
+	MemberAvatars []string        `json:"member_avatars,omitempty"`
+	MembersCount  int             `json:"members_count,omitempty"`
+	LastPostTime  string          `json:"last_post_time,omitempty"`
+	UnreadCount   int64           `json:"unread_count,omitempty"`
+	ChannelSlug   string          `json:"channel_slug"`
+	ActiveBuzz    *ActiveBuzzInfo `json:"active_buzz,omitempty"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -309,12 +319,45 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 		return chanResp, errors.New("could not get channel owner")
 	}
 
+	// check for active buzz in this channel with host and participant details
+	var activeBuzzInfo *ActiveBuzzInfo
+	var buzzData struct {
+		BuzzID           string
+		HostID           string
+		HostName         string
+		ParticipantCount int
+		StartedAt        time.Time
+	}
+
+	err = db.Raw(`
+		SELECT b.id as buzz_id, b.host_id, u.name as host_name, 
+		       b.huddle_start_time as started_at,
+		       COUNT(bp.id) as participant_count
+		FROM buzzes b
+		JOIN users u ON b.host_id = u.id
+		LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
+		WHERE b.channel_id = ? AND b.status = ? AND b.is_live_status = ?
+		GROUP BY b.id, b.host_id, u.name, b.huddle_start_time
+		LIMIT 1
+	`, BuzzParticipantStatusActive, chanReq.ChannelID, BuzzStatusActive, true).Scan(&buzzData).Error
+
+	if err == nil && buzzData.BuzzID != "" {
+		activeBuzzInfo = &ActiveBuzzInfo{
+			BuzzID:           buzzData.BuzzID,
+			HostID:           buzzData.HostID,
+			HostName:         buzzData.HostName,
+			ParticipantCount: buzzData.ParticipantCount,
+			StartedAt:        buzzData.StartedAt,
+		}
+	}
+
 	chanResp = GetChannelResp{
-		channel,
-		owner.Name,
-		owner.Email,
-		webhook.WebhookUrl,
-		access,
+		Channels:   channel,
+		OwnerName:  owner.Name,
+		OwnerEmail: owner.Email,
+		WebhookUrl: webhook.WebhookUrl,
+		Access:     access,
+		ActiveBuzz: activeBuzzInfo,
 	}
 
 	return chanResp, nil
@@ -823,6 +866,55 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		parts := strings.Split(chanResp[i].ID, "-")
 		lastPart := parts[len(parts)-1]
 		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
+	}
+
+	// Batch fetch active buzzes for all channels to avoid N+1 queries
+	if len(chanResp) > 0 {
+		channelIDs := make([]string, len(chanResp))
+		for i := range chanResp {
+			channelIDs[i] = chanResp[i].ID
+		}
+
+		var activeBuzzes []struct {
+			BuzzID           string
+			ChannelID        string
+			HostID           string
+			HostName         string
+			ParticipantCount int
+			StartedAt        time.Time
+		}
+
+		err := db.Raw(`
+			SELECT b.id as buzz_id, b.channel_id, b.host_id, u.name as host_name, 
+			       b.huddle_start_time as started_at,
+			       COUNT(bp.id) as participant_count
+			FROM buzzes b
+			JOIN users u ON b.host_id = u.id
+			LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
+			WHERE b.channel_id IN ? AND b.status = ? AND b.is_live_status = ?
+			GROUP BY b.id, b.channel_id, b.host_id, u.name, b.huddle_start_time
+		`, BuzzParticipantStatusActive, channelIDs, BuzzStatusActive, true).Scan(&activeBuzzes).Error
+
+		if err == nil {
+			// Create a map for quick lookup
+			buzzMap := make(map[string]*ActiveBuzzInfo)
+			for _, buzz := range activeBuzzes {
+				buzzMap[buzz.ChannelID] = &ActiveBuzzInfo{
+					BuzzID:           buzz.BuzzID,
+					HostID:           buzz.HostID,
+					HostName:         buzz.HostName,
+					ParticipantCount: buzz.ParticipantCount,
+					StartedAt:        buzz.StartedAt,
+				}
+			}
+
+			// Assign active buzz info to channels
+			for i := range chanResp {
+				if buzzInfo, exists := buzzMap[chanResp[i].ID]; exists {
+					chanResp[i].ActiveBuzz = buzzInfo
+				}
+			}
+		}
 	}
 
 	return chanResp, nil

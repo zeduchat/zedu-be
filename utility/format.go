@@ -185,3 +185,13 @@ func ThisOrThat(param1, param2 string) string {
 
 	return param2
 }
+
+func ErrorsToStrings(errs []error) []string {
+	var strs []string
+	for _, err := range errs {
+		if err != nil {
+			strs = append(strs, err.Error())
+		}
+	}
+	return strs
+}
