@@ -600,3 +600,101 @@ func (base *Controller) RestoreFile(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File restored successfully", file)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) PinFile(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	_, err := services.GetFileDetailsByID(base.Db.Postgresql, fileID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	pinnedFile := models.PinnedFile{
+		UserID:         userID,
+		FileID:         fileID,
+		OrganisationID: orgID,
+	}
+
+	if err := pinnedFile.PinFile(base.Db.Postgresql); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to pin file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "File pinned successfully", pinnedFile)
+	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) UnpinFile(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	pinnedFile := models.PinnedFile{
+		UserID:         userID,
+		FileID:         fileID,
+		OrganisationID: orgID,
+	}
+
+	if err := pinnedFile.UnpinFile(base.Db.Postgresql); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to unpin file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File unpinned successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetPinnedFiles(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	pinnedFile := models.PinnedFile{}
+	files, err := pinnedFile.GetPinnedFiles(base.Db.Postgresql, userID, orgID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch pinned files", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Pinned files fetched successfully", files)
+	c.JSON(http.StatusOK, rd)
+}

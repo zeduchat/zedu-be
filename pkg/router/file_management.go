@@ -36,6 +36,10 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		fileManagementUrl.DELETE("/folders", fileManagement.DeleteMultipleFolders)
 
 		fileManagementUrl.GET("", fileManagement.GetFiles)
+
+		fileManagementUrl.POST("/file/:id/pin", fileManagement.PinFile)
+		fileManagementUrl.DELETE("/file/:id/pin", fileManagement.UnpinFile)
+		fileManagementUrl.GET("/favorites", fileManagement.GetPinnedFiles)
 	}
 
 	return r
