@@ -109,6 +109,7 @@ type File struct {
 	MessageID      *string        `gorm:"column:message_id; type:uuid" json:"message_id"`
 	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
+	LastAccessedAt *time.Time     `gorm:"column:last_accessed_at" json:"last_accessed_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
 
