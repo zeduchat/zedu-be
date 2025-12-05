@@ -240,6 +240,41 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+// GetUserStatus retrieves the current status for the authenticated user.
+func (base *Controller) GetUserStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	loggedUserID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	if loggedUserID != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to view another user's status", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	status, code, err := profile.GetUserStatus(userID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get user status", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User status retrieved successfully", status)
+	c.JSON(http.StatusOK, rd)
+}
+
 func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 	if req.Text != nil && len(*req.Text) > 255 {
 		return http.StatusBadRequest, errors.New("text must not exceed 255 characters")

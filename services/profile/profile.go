@@ -313,9 +313,10 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 	}
 
 	status := models.UserStatus{
-		Text:   profile.Text,
-		Emoji:  profile.Icon,
-		Expiry: expiry,
+		Text:       profile.Text,
+		Emoji:      profile.Icon,
+		Expiry:     expiry,
+		Visibility: "public",
 	}
 
 	if logger != nil {
@@ -338,6 +339,44 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
 			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
 		}
+	}
+
+	return status, http.StatusOK, nil
+}
+
+// GetUserStatus retrieves the current status for a user.
+// Returns a UserStatus object with default values if no status is set or profile not found.
+func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
+	var profile models.Profile
+
+	// Query profile by userid
+	if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Return empty status with defaults if profile not found
+			return models.UserStatus{
+				Text:       "",
+				Emoji:      "",
+				Expiry:     0,
+				Visibility: "public",
+			}, http.StatusOK, nil
+		}
+		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
+	}
+
+	// Parse StatusTimeout string to int64 expiry timestamp
+	expiry := int64(0)
+	if profile.StatusTimeout != "" {
+		if parsed, err := strconv.ParseInt(profile.StatusTimeout, 10, 64); err == nil {
+			expiry = parsed
+		}
+	}
+
+	// Return status with default visibility
+	status := models.UserStatus{
+		Text:       profile.Text,
+		Emoji:      profile.Icon,
+		Expiry:     expiry,
+		Visibility: "public",
 	}
 
 	return status, http.StatusOK, nil

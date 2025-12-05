@@ -28,6 +28,7 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.GET("/users/:user_id/sessions", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserSessions)
 		userUrl.GET("/users/notification-preferences", user.GetUserNotificationSettings)
 		userUrl.PUT("/users/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.UpdateAUser)
+		userUrl.GET("/users/:user_id/status", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserStatus)
 		userUrl.PATCH("/users/:user_id/status", middleware.CheckIsDeactivated(db.Postgresql), user.PatchUserStatus)
 		userUrl.PUT("/users/revoke-session", middleware.CheckIsDeactivated(db.Postgresql), user.RevokeUserAccessToken)
 		userUrl.PUT("/users/switch-org", middleware.CheckIsDeactivated(db.Postgresql), user.SwitchUserOrg)

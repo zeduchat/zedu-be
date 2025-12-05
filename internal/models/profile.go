@@ -105,9 +105,10 @@ type PartialStatusUpdate struct {
 
 // UserStatus represents the persisted status for responses.
 type UserStatus struct {
-	Text   string `json:"text"`
-	Emoji  string `json:"emoji"`
-	Expiry int64  `json:"expiry"`
+	Text       string `json:"text"`
+	Emoji      string `json:"emoji"`
+	Expiry     int64  `json:"expiry"`
+	Visibility string `json:"visibility"`
 }
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
