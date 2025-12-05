@@ -29,6 +29,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/:channelId/leave", channel.LeaveChannels)
 		channelUrl.POST("/add", channel.AddMembersToChannel)
 		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
+		channelUrl.POST("/remove-multiple", channel.RemoveMultipleMembersFromChannel)
 		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
 		channelUrl.POST("/:channelId/notification-preference", channel.UpdateDeviceNotification)
 

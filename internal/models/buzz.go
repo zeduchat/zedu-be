@@ -22,9 +22,16 @@ const (
 	BuzzParticipantStatusInactive = "inactive"
 )
 
+const (
+	ChannelTypeRegular = "channel"
+	ChannelTypeDM      = "dm_channel"
+	ChannelTypeGroupDM = "group_dm_channel"
+)
+
 type Buzz struct {
 	ID             string         `gorm:"type:uuid;primaryKey" json:"id"`
 	ChannelID      string         `gorm:"type:uuid;not null;index" json:"channel_id"`
+	ChannelType    string         `gorm:"type:varchar(20);not null;default:'channel'" json:"channel_type"`
 	HostID         string         `gorm:"type:uuid;not null;index" json:"host_id"`
 	ParticipantIDs pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
 	BuzzStartTime  time.Time      `gorm:"column:Buzz_start_time;autoCreateTime" json:"Buzz_start_time"`
@@ -115,7 +122,19 @@ func (hp *BuzzParticipant) BeforeCreate(tx *gorm.DB) error {
 }
 
 func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
-	return postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, userID)
+	// Check regular channels
+	if postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, userID) {
+		return true
+	}
+	// Check DM channels
+	if postgresql.CheckExists(db, &DmChannels{}, "channel_id = ? AND user_id = ?", channelID, userID) {
+		return true
+	}
+	// Check group DM channels
+	if postgresql.CheckExists(db, &ChannelParticipant{}, "channel_id = ? AND user_id = ?", channelID, userID) {
+		return true
+	}
+	return false
 }
 
 type BuzzEventPayload struct {
