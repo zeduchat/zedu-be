@@ -49,6 +49,26 @@ func Validate(filename string) (string, error) {
 	return trimmed, nil
 }
 
+func (base *Controller) GetFileInfo(c *gin.Context) {
+	fileId := c.Param("id")
+	if !utility.IsValidUUID(fileId) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+	base.Logger.Info("Files located successfully")
+	response := services.GetFileInfo(base.Db.Postgresql, *file)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File info successfully retrieved", response)
+	c.JSON(http.StatusOK, rd)
+
+}
+
 func (base *Controller) UploadController(c *gin.Context) {
 	var req models.UploadRequest
 

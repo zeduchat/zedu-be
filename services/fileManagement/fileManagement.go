@@ -569,3 +569,31 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
 	return files, count, err
 }
+
+func GetFileInfo(db *gorm.DB, params models.File) *models.FileInfoResponse {
+	sharedIn := []string{}
+	if params.ChannelID != nil {
+		var channel models.Channels
+		err := db.Select("name").Where("id = ?", *params.ChannelID).First(&channel).Error
+		if err == nil {
+			sharedIn = append(sharedIn, channel.Name)
+		}
+	}
+
+	// Fetch username from profile
+	var profile models.Profile
+	owner := params.UserID // fallback to user ID
+	err := db.Select("user_name").Where("userid = ?", params.UserID).First(&profile).Error
+	if err == nil && profile.UserName != "" {
+		owner = profile.UserName
+	}
+
+	response := &models.FileInfoResponse{
+		Owner:        owner,
+		DateUploaded: params.CreatedAt,
+		LastUpdated:  params.UpdatedAt,
+		SharedIn:     sharedIn,
+	}
+	return response
+
+}
