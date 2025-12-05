@@ -69,36 +69,72 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			return responseData, http.StatusBadRequest, fmt.Errorf("id_token missing from token exchange")
 		}
 
-		resp, err := idtoken.Validate(context.Background(), idTokenValue.(string), clientID)
+		idTokenStr, ok := idTokenValue.(string)
+		if !ok {
+			return responseData, http.StatusBadRequest, fmt.Errorf("id_token is not a valid string")
+		}
+
+		resp, err := idtoken.Validate(context.Background(), idTokenStr, clientID)
 		if err != nil {
 			return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate id_token: %v", err)
 		}
 		userClaims = resp.Claims
 	}
 
-	var (
-		email    = strings.ToLower(userClaims["email"].(string))
-		username = strings.ToLower(userClaims["name"].(string))
-		user     models.User
-	)
-
-	if email == "" || username == "" {
-		return responseData, http.StatusNotFound, fmt.Errorf("token decode failed")
+	// Safely extract and validate claims
+	email, ok := userClaims["email"].(string)
+	if !ok || email == "" {
+		return responseData, http.StatusBadRequest, fmt.Errorf("email claim missing or invalid in token")
 	}
+	email = strings.ToLower(email)
+
+	name, ok := userClaims["name"].(string)
+	if !ok || name == "" {
+		return responseData, http.StatusBadRequest, fmt.Errorf("name claim missing or invalid in token")
+	}
+	username := strings.ToLower(name)
+
+	// Safely extract picture URL (optional claim)
+	pictureURL := ""
+	if pic, ok := userClaims["picture"].(string); ok {
+		pictureURL = pic
+	}
+
+	var user models.User
 
 	reqUser = models.CreateUserRequestModel{
 		Email: email,
 	}
 	formattedReq, err := ValidateCreateUserRequest(reqUser, db)
+	if err != nil {
+		return responseData, http.StatusBadRequest, fmt.Errorf("invalid user data: %v", err)
+	}
+
 	exists := postgresql.CheckExists(db, &user, "email = ?", formattedReq.Email)
 	if exists {
-		user, err = user.GetUserWithProfile(db, user.ID)
+		user, err = user.GetUserByEmail(db, formattedReq.Email)
 
 		if err != nil {
 			return responseData, http.StatusInternalServerError, fmt.Errorf("error fetching user %v", err.Error())
 		}
 
+		// Validate user status before allowing login
+		if user.DeletedAt.Valid {
+			return responseData, http.StatusForbidden, fmt.Errorf("account has been deleted")
+		}
+
 	} else {
+		// Generate unique username to prevent collisions
+		uniqueUsername := username
+		for i := 0; i < 5; i++ {
+			if !postgresql.CheckExists(db, &models.Profile{}, "user_name = ?", uniqueUsername) {
+				break
+			}
+			// Append random suffix if username exists
+			suffix := utility.GenerateUUID()[:8]
+			uniqueUsername = fmt.Sprintf("%s_%s", username, suffix)
+		}
+
 		user = models.User{
 			ID:             utility.GenerateUUID(),
 			Name:           username,
@@ -108,42 +144,51 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			IsOnboarded:    true,
 			Profile: models.Profile{
 				FullName:  username,
-				UserName:  username,
+				UserName:  uniqueUsername,
 				ID:        utility.GenerateUUID(),
-				AvatarURL: userClaims["picture"].(string),
+				AvatarURL: pictureURL,
 			},
 		}
-		err := user.CreateUser(db)
-		sendWelcome = true
+
+		// Wrap user and org creation in transaction to prevent orphaned users
+		err := db.Transaction(func(tx *gorm.DB) error {
+			if err := user.CreateUser(tx); err != nil {
+				return fmt.Errorf("failed to create user: %w", err)
+			}
+
+			sendWelcome = true
+
+			ipAddress := audit_utility.GetClientIP(c)
+
+			response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
+
+			info, _ := response.(external_models.IPInfoResponse)
+
+			createPersonalOrgReq := models.CreateOrgRequestModel{
+				Name:        username,
+				Description: fmt.Sprintf("%s's organization", username),
+				Email:       email,
+				Type:        "User Default Org",
+				Country:     info.Country,
+				Location:    info.Location,
+				LogoURL:     pictureURL,
+			}
+
+			org, err := organisation.CreateOrganisation(createPersonalOrgReq, tx, user.ID, logger)
+			if err != nil {
+				return fmt.Errorf("failed to create user organization: %w", err)
+			}
+
+			user.CurrentOrg = uuid.FromStringOrNil(org.ID)
+
+			if err := tx.Save(&user).Error; err != nil {
+				return fmt.Errorf("failed to update user org: %w", err)
+			}
+
+			return nil
+		})
+
 		if err != nil {
-			return responseData, http.StatusInternalServerError, err
-		}
-
-		ipAddress := audit_utility.GetClientIP(c)
-
-		response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
-
-		info, _ := response.(external_models.IPInfoResponse)
-
-		createPersonalOrgReq := models.CreateOrgRequestModel{
-			Name:        fmt.Sprintf("%s", username),
-			Description: fmt.Sprintf("%s's organization", username),
-			Email:       email,
-			Type:        "User Default Org",
-			Country:     info.Country,
-			Location:    info.Location,
-			LogoURL:     userClaims["picture"].(string),
-		}
-
-		org, err := organisation.CreateOrganisation(createPersonalOrgReq, db, user.ID, logger)
-
-		if err != nil {
-			return responseData, http.StatusInternalServerError, fmt.Errorf("failed to create user organization: %v", err)
-		}
-
-		user.CurrentOrg = uuid.FromStringOrNil(org.ID)
-
-		if err := db.Save(&user).Error; err != nil {
 			return responseData, http.StatusInternalServerError, err
 		}
 	}
@@ -205,12 +250,20 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 }
 
 // isGoogleIDToken checks if the token is a JWT (ID token) or an authorization code.
-// Google ID tokens are JWTs that start with "eyJ" (base64 encoded '{"')
-// and contain exactly 3 parts separated by dots (header.payload.signature).
+// Google ID tokens are JWTs that:
+// 1. Have exactly 3 parts separated by dots (header.payload.signature)
+// 2. Start with "eyJ" (base64 encoded '{"')
+// 3. Are longer than typical authorization codes (usually 100+ chars)
+// Authorization codes are typically 40-70 characters and don't have dots.
 func isGoogleIDToken(token string) bool {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return false
 	}
+	// JWT tokens are much longer than auth codes (typically 800+ chars)
+	if len(token) < 100 {
+		return false
+	}
+	// Check if it starts with base64 encoded JSON header
 	return strings.HasPrefix(token, "eyJ")
 }
