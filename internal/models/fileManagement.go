@@ -20,6 +20,13 @@ type UploadRequest struct {
 	FolderID string                  `form:"folder_id"`
 }
 
+type FileInfoResponse struct {
+	Owner        string    `json:"owner"`
+	DateUploaded time.Time `json:"date_uploaded"`
+	LastUpdated  time.Time `json:"last_updated"`
+	SharedIn     []string  `json:"shared_in"`
+}
+
 type RenameFileRequest struct {
 	FileName string `json:"file_name" binding:"required" validate:"required,min=1,max=255"`
 }
