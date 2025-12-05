@@ -14770,6 +14770,55 @@ paths:
                     nullable: true
                     example: null
 
+  /files/file/{id}/restore:
+    put:
+      tags:
+        - File Management
+      summary: Restore a soft deleted file
+      description: Restores a file that has been soft deleted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File restored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File restored successfully"
+                  data:
+                    $ref: "#/components/schemas/FileSchema"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
   /files/file/{id}:
     get:
       tags:
@@ -14871,7 +14920,7 @@ paths:
       tags:
         - File Management
       summary: Deletes file details by ID
-      description: Deletes file metadata and a file link from the database using a unique file ID.
+      description: Deletes file metadata and a file link from the database using a unique file ID. Use `permanent=true` for permanent deletion.
       parameters:
         - name: id
           in: path
@@ -14881,6 +14930,12 @@ paths:
             type: string
             format: uuid
             example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+        - name: permanent
+          in: query
+          required: false
+          description: Set to true to permanently delete the file.
+          schema:
+            type: boolean
       security:
         - bearerAuth: []
       responses:
@@ -14899,27 +14954,11 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Files deleted successfully"
+                    example: "File deleted successfully"
                   data:
                     type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
-                        type: string
-                        example: "Deployment and Rollback Procedure.pdf"
-                      file_type:
-                        type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+                    nullable: true
+                    example: null
         "404":
           description: File not found
           content:
@@ -15141,27 +15180,22 @@ paths:
     post:
       tags:
         - File Management
-      summary: Create a folder
+      summary: Create a new folder
       description: Creates a new folder for organizing files.
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - name
               properties:
                 name:
                   type: string
                   example: "Project Documents"
-                parent_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                  example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+              required:
+                - name
+      security:
+        - bearerAuth: []
       responses:
         "201":
           description: Folder created successfully
@@ -15182,11 +15216,17 @@ paths:
                   data:
                     $ref: "#/components/schemas/FolderSchema"
         "400":
-          description: Invalid input
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -15196,18 +15236,10 @@ paths:
     get:
       tags:
         - File Management
-      summary: List folders
-      description: Retrieves a list of folders.
+      summary: Get all folders
+      description: Retrieves a list of folders for the organization.
       security:
         - bearerAuth: []
-      parameters:
-        - name: parent_id
-          in: query
-          required: false
-          description: Filter by parent folder ID
-          schema:
-            type: string
-            format: uuid
       responses:
         "200":
           description: Folders fetched successfully
@@ -15229,6 +15261,81 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/FolderSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+    delete:
+      tags:
+        - File Management
+      summary: Bulk delete folders
+      description: Deletes multiple folders by their IDs. Supports soft and permanent deletion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["0195ca6f-a7ef-70b0-8392-a0ddc510bec3", "0195ca6f-a7ef-70b0-8392-a0ddc510bec4"]
+                permanent:
+                  type: boolean
+                  example: false
+              required:
+                - ids
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Bulk delete completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Bulk delete completed. Success: 2, Failed: 0"
+                  data:
+                    type: object
+                    properties:
+                      success_count:
+                        type: integer
+                        example: 2
+                      failure_count:
+                        type: integer
+                        example: 0
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -15240,15 +15347,13 @@ paths:
     put:
       tags:
         - File Management
-      summary: Rename a folder
-      description: Renames a folder by ID.
-      security:
-        - bearerAuth: []
+      summary: Update folder name
+      description: Updates the name of an existing folder.
       parameters:
         - name: id
           in: path
           required: true
-          description: Folder ID
+          description: The unique ID of the folder
           schema:
             type: string
             format: uuid
@@ -15261,12 +15366,14 @@ paths:
               properties:
                 folder_name:
                   type: string
-                  example: "New Folder Name"
+                  example: "New Project Name"
               required:
                 - folder_name
+      security:
+        - bearerAuth: []
       responses:
         "200":
-          description: Folder renamed successfully
+          description: Folder name updated successfully
           content:
             application/json:
               schema:
@@ -15282,29 +15389,53 @@ paths:
                     type: string
                     example: "Folder name updated successfully"
                   data:
-                    $ref: "#/components/schemas/Folder"
+                    $ref: "#/components/schemas/FolderSchema"
         "400":
-          description: Invalid input or ID format
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
     delete:
       tags:
         - File Management
       summary: Delete a folder
-      description: Deletes a folder by ID.
-      security:
-        - bearerAuth: []
+      description: Deletes a folder by ID. Use `permanent=true` for permanent deletion.
       parameters:
         - name: id
           in: path
           required: true
-          description: Folder ID
+          description: The unique ID of the folder
           schema:
             type: string
             format: uuid
+        - name: permanent
+          in: query
+          required: false
+          description: Set to true to permanently delete the folder and its contents.
+          schema:
+            type: boolean
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Folder deleted successfully
@@ -15325,18 +15456,26 @@ paths:
                   data:
                     type: object
                     nullable: true
+                    example: null
         "400":
-          description: Invalid ID format
+          description: Bad Request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
 
   /files/{id}/move:
     put:
@@ -15400,6 +15539,74 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /files:
+    delete:
+      tags:
+        - File Management
+      summary: Bulk delete files
+      description: Deletes multiple files by their IDs. Supports soft and permanent deletion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["0195ca6f-a7ef-70b0-8392-a0ddc510bec3", "0195ca6f-a7ef-70b0-8392-a0ddc510bec4"]
+                permanent:
+                  type: boolean
+                  example: false
+              required:
+                - ids
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Bulk delete completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Bulk delete completed. Success: 2, Failed: 0"
+                  data:
+                    type: object
+                    properties:
+                      success_count:
+                        type: integer
+                        example: 2
+                      failure_count:
+                        type: integer
+                        example: 0
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
     get:
       tags:
         - File Management

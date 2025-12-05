@@ -33,10 +33,20 @@ type UploadFileParams struct {
 }
 
 type CreateFolderParams struct {
-	Name     string
-	OrgID    string
-	UserID   string
-	ParentID *string
+	Name           string
+	Description    string
+	OrganisationID string
+	UserID         string
+}
+
+type DeleteMultipleFilesRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
+}
+
+type DeleteMultipleFoldersRequest struct {
+	IDs       []string `json:"ids" validate:"required,min=1,dive,uuid"`
+	Permanent bool     `json:"permanent"`
 }
 
 type UpdateFileNameParams struct {
@@ -84,13 +94,13 @@ type File struct {
 }
 
 type Folder struct {
-	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
-	Name           string         `gorm:"column:name; type:varchar(255); not null" json:"name"`
-	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
-	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
-	ParentID       *string        `gorm:"column:parent_id; type:uuid" json:"parent_id"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
+	ID             string         `gorm:"type:uuid;primary_key" json:"id"`
+	OrganisationID string         `gorm:"type:uuid;not null" json:"organisation_id"`
+	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
+	Name           string         `gorm:"type:varchar(255);not null" json:"name"`
+	Description    string         `gorm:"type:text" json:"description"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
 
