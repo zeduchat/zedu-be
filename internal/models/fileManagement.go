@@ -102,6 +102,7 @@ type Folder struct {
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	ItemCount      uint64         `json:"item_count" gorm:"-"`
 }
 
 type FileType struct {

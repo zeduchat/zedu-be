@@ -273,7 +273,39 @@ func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 	query := db.Where("organisation_id = ?", orgID)
 
 	err := query.Find(&folders).Error
-	return folders, err
+	if err != nil {
+		return folders, err
+	}
+
+	type FolderCount struct {
+		FolderID string
+		Count    int64
+	}
+	var folderCounts []FolderCount
+
+	err = db.Model(&models.File{}).
+		Select("folder_id, count(*) as count").
+		Where("organisation_id = ? AND folder_id IS NOT NULL", orgID).
+		Group("folder_id").
+		Scan(&folderCounts).Error
+
+	if err != nil {
+		return folders, err
+	}
+
+	// map counts to folders
+	countMap := make(map[string]uint64, len(folderCounts))
+	for _, fc := range folderCounts {
+		if fc.Count > 0 {
+			countMap[fc.FolderID] = uint64(fc.Count)
+		}
+	}
+
+	for i := range folders {
+		folders[i].ItemCount = countMap[folders[i].ID]
+	}
+
+	return folders, nil
 }
 
 func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {

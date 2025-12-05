@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"net/textproto"
 	"net/url"
 	"testing"
 	"time"
@@ -170,6 +169,63 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
+	t.Run("VerifyFolderCount", func(t *testing.T) {
+
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/files/folders", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		folders := resp["data"].([]interface{})
+
+		found := false
+		for _, f := range folders {
+			folder := f.(map[string]interface{})
+			if folder["id"].(string) == folderID {
+				found = true
+				if count, ok := folder["item_count"].(float64); !ok || count != 1 {
+					t.Errorf("Expected item_count 1, got %v", folder["item_count"])
+				}
+				break
+			}
+		}
+		if !found {
+			t.Error("Folder not found")
+		}
+
+		// upload another file to this folder
+		uploadTestFile(t, r, token, "second_file.txt", "text/plain", []byte("content2"), folderID)
+
+		// check count is 2
+		req2, _ := http.NewRequest(http.MethodGet, "/api/v1/files/folders", nil)
+		req2.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr2 := httptest.NewRecorder()
+		r.ServeHTTP(rr2, req2)
+
+		tests.AssertStatusCode(t, rr2.Code, http.StatusOK)
+		resp2 := tests.ParseResponse(rr2)
+		folders2 := resp2["data"].([]interface{})
+
+		found2 := false
+		for _, f := range folders2 {
+			folder := f.(map[string]interface{})
+			if folder["id"].(string) == folderID {
+				found2 = true
+				if count, ok := folder["item_count"].(float64); !ok || count != 2 {
+					t.Errorf("Expected item_count 2, got %v", folder["item_count"])
+				}
+				break
+			}
+		}
+		if !found2 {
+			t.Error("Folder not found")
+		}
+	})
+
 	t.Run("GetFiles_InFolder", func(t *testing.T) {
 		u, _ := url.Parse("/api/v1/files")
 		q := u.Query()
@@ -197,8 +253,8 @@ func TestFileManagement(t *testing.T) {
 			if pagination["current_page"] != 1.0 {
 				t.Errorf("Expected current_page to be 1, got %v", pagination["current_page"])
 			}
-			if pagination["total_items"] == 0.0 {
-				t.Errorf("Expected total_items to be > 0")
+			if pagination["total_items"] != 2.0 {
+				t.Errorf("Expected total_items to be 2, got %v", pagination["total_items"])
 			}
 		}
 	})
@@ -657,18 +713,22 @@ func TestFileFilters(t *testing.T) {
 }
 
 // Helper function to upload test files with specific mime types
-func uploadTestFile(t *testing.T, r http.Handler, token, filename, mimeType string, content []byte) string {
+func uploadTestFile(t *testing.T, r http.Handler, token, filename, mimeType string, content []byte, folderID ...string) string {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "files", filename))
-	h.Set("Content-Type", mimeType)
+	h := make(map[string][]string)
+	h["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "files", filename)}
+	h["Content-Type"] = []string{mimeType}
 	part, err := writer.CreatePart(h)
 	if err != nil {
 		t.Fatal(err)
 	}
 	part.Write(content)
+
+	if len(folderID) > 0 && folderID[0] != "" {
+		_ = writer.WriteField("folder_id", folderID[0])
+	}
 	writer.Close()
 
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/upload-files", body)

@@ -22656,6 +22656,9 @@ components:
     FolderSchema:
       type: object
       properties:
+        item_count:
+          type: integer
+          example: 0
         id:
           type: string
           format: uuid
