@@ -14916,6 +14916,131 @@ paths:
                     nullable: true
                     example: null
 
+  /files/file/{id}/info:
+    get:
+      tags:
+        - File Management
+      summary: Retrieve file information by ID
+      description: Fetches detailed information about a file including owner, upload date, last updated date, and channels where it's shared.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique ID of the file
+          schema:
+            type: string
+            format: uuid
+            example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: File information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File info successfully retrieved"
+                  data:
+                    type: object
+                    properties:
+                      owner:
+                        type: string
+                        format: uuid
+                        description: The user ID of the file owner
+                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+                      date_uploaded:
+                        type: string
+                        format: date-time
+                        description: The date and time when the file was uploaded
+                        example: "2025-12-05T10:30:00Z"
+                      last_updated:
+                        type: string
+                        format: date-time
+                        description: The date and time when the file was last modified
+                        example: "2025-12-05T15:45:00Z"
+                      shared_in:
+                        type: array
+                        description: List of channel names where the file is shared
+                        items:
+                          type: string
+                        example: ["general", "project-updates"]
+        "400":
+          description: Invalid file ID format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid file ID format"
+                  error:
+                    type: object
+                    nullable: true
+                  data:
+                    type: object
+                    nullable: true
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "File not found"
+                  error:
+                    type: string
+                    example: "record not found"
+                  data:
+                    type: object
+                    nullable: true
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 500
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+                    example: "Unexpected database failure"
+                  data:
+                    type: object
+                    nullable: true
+
     delete:
       tags:
         - File Management
