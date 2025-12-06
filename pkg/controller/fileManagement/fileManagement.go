@@ -221,6 +221,7 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
 	if !utility.IsValidUUID(fileId) {
+		base.Logger.Error("invalid file id format", errors.New("invalid file id format"))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -237,6 +238,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	userClaims := common.GetAllUserClaims(c)
 	if userClaims == nil {
+		base.Logger.Error("user claims not found")
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
@@ -244,6 +246,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	userID, ok := userClaims["user_id"].(string)
 	if !ok {
+		base.Logger.Error("user id not found")
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid user ID", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
@@ -251,6 +254,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	orgID, ok := userClaims["org_id"].(string)
 	if !ok {
+		base.Logger.Error("organization id not found")
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid organization ID", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
@@ -266,12 +270,14 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	}
 
 	if err != nil {
+		base.Logger.Error("file not found", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
 	if file.OrganisationID != orgID {
+		base.Logger.Error("file does not belong to your organization")
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "File does not belong to your organization", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
@@ -306,6 +312,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	}
 
 	if !canDelete {
+		base.Logger.Error("you do not have permission to delete this file")
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have permission to delete this file", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
@@ -313,6 +320,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db, file, fileId, thread_id, permanent)
 	if deleteErr != nil {
+		base.Logger.Error("file not deleted", deleteErr)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "File not deleted", deleteErr.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
