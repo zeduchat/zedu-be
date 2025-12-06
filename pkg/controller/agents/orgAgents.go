@@ -1331,7 +1331,7 @@ func (base *Controller) GenerateAgentInfo(c *gin.Context) {
 		return
 	}
 
-	response, code, err := agents.GenerateAgentInfo(c , req, agent_id, base.Db, base.ExtReq, base.Logger)
+	response, code, err := agents.GenerateAgentInfo(c, req, agent_id, base.Db, base.ExtReq, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to generate agent info", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to generate agent info", err, err.Error())
@@ -1445,4 +1445,23 @@ func (base *Controller) GetWorkflowCategories(c *gin.Context) {
 	base.Logger.Info("categories retrieved successfully.")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "categories retrieved successfully.", resp)
 	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetAgentDetails(c *gin.Context) {
+	agent_id := c.Param("agent_id")
+
+	// Get Details Of Agent
+	resp, code, err := agents.GetAgentDetails(agent_id, base.Db.Postgresql, c)
+	if err != nil {
+		base.Logger.Error("Failed to get agent details %v ", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to get agent details", nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	// Log response
+	base.Logger.Info("Agent details retrieved successfully")
+	// Build response
+	rd := utility.BuildSuccessResponse(code, "Agent details retrieved successfully", resp)
+	c.JSON(code, rd)
 }
