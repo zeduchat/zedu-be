@@ -1,6 +1,7 @@
 package fileManagement
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -17,8 +19,10 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	services "github.com/hngprojects/telex_be/services/fileManagement"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -32,7 +36,6 @@ type Controller struct {
 
 const maxFileSize = 200 * 1024 * 1024
 
-// method for the validation heavy lifting.
 func Validate(filename string) (string, error) {
 	trimmed := strings.TrimSpace(filename)
 	if strings.HasPrefix(trimmed, ".") {
@@ -218,6 +221,7 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	fileId := c.Param("id")
 	if !utility.IsValidUUID(fileId) {
+		base.Logger.Error("invalid file id format", errors.New("invalid file id format"))
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -232,6 +236,30 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 		return
 	}
 
+	userClaims := common.GetAllUserClaims(c)
+	if userClaims == nil {
+		base.Logger.Error("user claims not found")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	userID, ok := userClaims["user_id"].(string)
+	if !ok {
+		base.Logger.Error("user id not found")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid user ID", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	orgID, ok := userClaims["org_id"].(string)
+	if !ok {
+		base.Logger.Error("organization id not found")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid organization ID", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
 	var file *models.File
 	var err error
 
@@ -242,13 +270,57 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	}
 
 	if err != nil {
+		base.Logger.Error("file not found", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
+	if file.OrganisationID != orgID {
+		base.Logger.Error("file does not belong to your organization")
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "File does not belong to your organization", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	canDelete := false
+	if file.UserID == userID {
+		canDelete = true
+	} else {
+		roleID, ok := userClaims["role_id"].(string)
+		if ok && roleID != "" {
+			cacheKey := "role_permissions_" + roleID
+			cachedPermissions, err := rd.RedisGet(base.Db.Redis, cacheKey)
+			if err == nil && len(cachedPermissions) > 0 {
+				var permissionList models.PermissionList
+				if err := json.Unmarshal(cachedPermissions, &permissionList); err == nil {
+					if models.OrgUserHasPermission(permissionList, "can_delete_any_file") {
+						canDelete = true
+					}
+				}
+			} else {
+				var orgRole models.OrgRole
+				permissions, err := orgRole.GetAOrgRoleById(base.Db.Postgresql, roleID)
+				if err == nil {
+					rd.RedisSet(base.Db.Redis, cacheKey, permissions.Permissions.PermissionList, 24*time.Hour)
+					if models.OrgUserHasPermission(permissions.Permissions.PermissionList, "can_delete_any_file") {
+						canDelete = true
+					}
+				}
+			}
+		}
+	}
+
+	if !canDelete {
+		base.Logger.Error("you do not have permission to delete this file")
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have permission to delete this file", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db, file, fileId, thread_id, permanent)
 	if deleteErr != nil {
+		base.Logger.Error("file not deleted", deleteErr)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "File not deleted", deleteErr.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return

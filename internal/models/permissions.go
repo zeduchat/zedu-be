@@ -29,6 +29,7 @@ type PermissionList struct {
 	CanCreateWebhooks               bool `json:"can_create_webhooks"`
 	CanViewChannels                 bool `json:"can_view_channels"`
 	CanChangeUserOrgRole            bool `json:"can_change_user_org_role"`
+	CanDeleteAnyFile                bool `json:"can_delete_any_file"`
 }
 
 func (p *PermissionList) Scan(value any) error {
@@ -65,6 +66,7 @@ func OrgUserHasPermission(permissionList PermissionList, permission string) bool
 		"can_create_webhooks":                 permissionList.CanCreateWebhooks,
 		"can_view_channels":                   permissionList.CanViewChannels,
 		"can_change_user_org_role":            permissionList.CanChangeUserOrgRole,
+		"can_delete_any_file":                 permissionList.CanDeleteAnyFile,
 	}
 
 	if allowed, exists := permissionMap[permission]; exists && allowed {

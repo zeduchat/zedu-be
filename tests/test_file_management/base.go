@@ -21,7 +21,10 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 
 	db := storage.Connection()
 
-	// override SSL for testing to use HTTP instead of HTTPS
+	config.Config.Minio.MinioEndpoint = "127.0.0.1:9007"
+	config.Config.Minio.BucketName = "telex-test-bucket"
+	config.Config.Minio.AccessKey = "minioadmin"
+	config.Config.Minio.Secret = "minioadmin"
 	config.Config.Minio.UseSSL = false
 
 	minio.ConnectToMinio(logger, config.Config.Minio)
