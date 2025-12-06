@@ -65,6 +65,7 @@ func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Con
 		fileUrl.POST("/upload-files", fileController.UploadController)
 		fileUrl.GET("/file/:id/info", fileController.GetFileInfo)
 		fileUrl.GET("/file/:id", fileController.GetFileDetailsByID)
+		fileUrl.POST("/upload-folder", fileController.UploadFolderWithFiles)
 		fileUrl.DELETE("/file/:id", fileController.DeleteFileDetailsByID)
 		fileUrl.PUT("/file/:id", fileController.UpdateFileName)
 		fileUrl.PUT("/file/:id/restore", fileController.RestoreFile)
@@ -73,5 +74,9 @@ func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Con
 
 		fileUrl.GET("", fileController.GetFiles)
 		fileUrl.GET("/recent", fileController.GetRecentFiles)
+
+		fileUrl.POST("/file/:id/pin", fileController.PinFile)
+		fileUrl.DELETE("/file/:id/pin", fileController.UnpinFile)
+		fileUrl.GET("/favorites", fileController.GetPinnedFiles)
 	}
 }

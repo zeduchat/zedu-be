@@ -58,4 +58,10 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 		userController.GetUserNotificationSettings)
 	r.PUT("/api/v1/users/notification-preferences", middleware.Authorize(userController.Db.Postgresql),
 		userController.UpdateUserNotificationSettings)
+	r.GET("/api/v1/users/media-preferences", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetMediaPreferences)
+	r.PUT("/api/v1/users/media-preferences", middleware.Authorize(userController.Db.Postgresql),
+		userController.UpdateMediaPreferences)
+	r.POST("/api/v1/users/media-preferences/reset-autodownload", middleware.Authorize(userController.Db.Postgresql),
+		userController.ResetAutoDownloadSettings)
 }

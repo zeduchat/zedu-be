@@ -13,6 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -48,6 +49,62 @@ func Validate(filename string) (string, error) {
 		return "", fmt.Errorf("filename contains invalid characters")
 	}
 	return trimmed, nil
+}
+
+// UploadFolderWithFiles Handles Folder Uploads
+func (base *Controller) UploadFolderWithFiles(c *gin.Context) {
+	var req models.FolderWithFilesRequest
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+	for _, fileHeader := range req.Files {
+		if fileHeader.Size > maxFileSize {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "File exceeds max size", fmt.Sprintf("File '%s' is too large", fileHeader.Filename), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	}
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+	folderWithFilesParams := models.UploadFolderWithFilesParams{
+		FolderName: req.FolderName,
+		ParentID:   req.ParentID,
+		Files:      req.Files,
+		OrgID:      orgID,
+		UserID:     userID,
+	}
+
+	folder, files, err := services.UploadFolderWithFiles(base.Db.Postgresql, base.Logger, folderWithFilesParams)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Folder upload failed", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	response := models.FolderUploadResponse{
+		Folder:    folder,
+		Files:     files,
+		FileCount: len(files),
+	}
+	base.Logger.Info("Folder uploaded successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "Folder uploaded successfully", response)
+	c.JSON(http.StatusCreated, rd)
+
 }
 
 func (base *Controller) GetFileInfo(c *gin.Context) {
@@ -632,5 +689,108 @@ func (base *Controller) GetRecentFiles(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Recent files fetched successfully", files)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) PinFile(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	_, err := services.GetFileDetailsByID(base.Db.Postgresql, fileID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	pinnedFile := models.PinnedFile{
+		UserID:         userID,
+		FileID:         fileID,
+		OrganisationID: orgID,
+	}
+
+	resp, err := services.PinFile(base.Db.Postgresql, base.Logger, base.Db.Redis, &pinnedFile)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to pin file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "File pinned successfully", resp)
+	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) UnpinFile(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	pinnedFile := models.PinnedFile{
+		UserID:         userID,
+		FileID:         fileID,
+		OrganisationID: orgID,
+	}
+
+	if err := services.UnpinFile(base.Db.Postgresql, base.Logger, base.Db.Redis, &pinnedFile); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not pinned", "File is not in your favorites", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to unpin file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File unpinned successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetPinnedFiles(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	files, err := services.GetPinnedFiles(base.Db.Postgresql, base.Logger, base.Db.Redis, userID, orgID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch pinned files", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Pinned files fetched successfully", files)
 	c.JSON(http.StatusOK, rd)
 }
