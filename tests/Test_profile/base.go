@@ -65,4 +65,5 @@ func SetupProfileRoutes(r *gin.Engine, profileController *profile.Controller) {
 		middleware.Authorize(profileController.Db.Postgresql))
 	profileUrl.PATCH("/profile", profileController.UpdateProfile)
 	profileUrl.GET("/profile", profileController.GetUserProfile)
+	profileUrl.DELETE("/profile/image", profileController.DeleteUserProfileImage)
 }
