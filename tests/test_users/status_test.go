@@ -35,7 +35,7 @@ func TestPatchUserStatus(t *testing.T) {
 		ID:            utility.GenerateUUID(),
 		Userid:        user.ID,
 		Text:          "old",
-		Icon:          ":old:",
+		Icon:          "😊",
 		StatusTimeout: "0",
 	})
 
@@ -62,7 +62,7 @@ func TestPatchUserStatus(t *testing.T) {
 		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
 			"text":   "In a meeting",
-			"emoji":  ":spiral_calendar_pad:",
+			"emoji":  "📅",
 			"expiry": expiry,
 		}
 		body, _ := json.Marshal(payload)
@@ -172,7 +172,7 @@ func TestGetUserStatus(t *testing.T) {
 			ID:               utility.GenerateUUID(),
 			Userid:           user.ID,
 			Text:             "In a meeting",
-			Icon:             ":spiral_calendar_pad:",
+			Icon:             "📅",
 			StatusTimeout:    fmt.Sprintf("%d", expiry),
 			StatusVisibility: "public",
 		})
@@ -197,8 +197,8 @@ func TestGetUserStatus(t *testing.T) {
 		if got := data["text"].(string); got != "In a meeting" {
 			t.Fatalf("unexpected text: want %q got %q", "In a meeting", got)
 		}
-		if got := data["emoji"].(string); got != ":spiral_calendar_pad:" {
-			t.Fatalf("unexpected emoji: want %q got %q", ":spiral_calendar_pad:", got)
+		if got := data["emoji"].(string); got != "📅" {
+			t.Fatalf("unexpected emoji: want %q got %q", "📅", got)
 		}
 		if got := int64(data["expiry"].(float64)); got != expiry {
 			t.Fatalf("unexpected expiry: want %d got %d", expiry, got)
@@ -363,7 +363,7 @@ func TestGetUserStatus(t *testing.T) {
 			ID:               utility.GenerateUUID(),
 			Userid:           userCustomVisibility.ID,
 			Text:             "Working remotely",
-			Icon:             ":house:",
+			Icon:             "🏠",
 			StatusTimeout:    fmt.Sprintf("%d", expiry),
 			StatusVisibility: "workspace",
 		})
@@ -417,7 +417,7 @@ func TestSetUserStatus(t *testing.T) {
 		ID:            utility.GenerateUUID(),
 		Userid:        user.ID,
 		Text:          "old status",
-		Icon:          ":old:",
+		Icon:          "😊",
 		StatusTimeout: "0",
 	})
 
@@ -444,7 +444,7 @@ func TestSetUserStatus(t *testing.T) {
 		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
 			"text":       "In a meeting",
-			"emoji":      ":spiral_calendar_pad:",
+			"emoji":      "📅",
 			"expiry":     expiry,
 			"visibility": "public",
 		}
@@ -627,7 +627,7 @@ func TestSetUserStatus(t *testing.T) {
 		token := tests.GetLoginToken(t, router, *authController, loginData)
 
 		payload := map[string]any{
-			"emoji": ":smile:",
+			"emoji": "😊",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -927,6 +927,266 @@ func TestSetUserStatus(t *testing.T) {
 
 		if got := data["text"].(string); got != "Trimmed text" {
 			t.Fatalf("unexpected text: want %q got %q", "Trimmed text", got)
+		}
+	})
+}
+
+func TestEmojiValidation(t *testing.T) {
+	_, userController := SetupUsersTestRouter()
+	db := userController.Db.Postgresql
+
+	currUUID := utility.GenerateUUID()
+	password, _ := utility.HashPassword("password")
+
+	user := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "Emoji Test User",
+		Email:    fmt.Sprintf("emoji_test_user_%s@qa.team", currUUID),
+		Password: password,
+	}
+
+	db.Create(&user)
+	db.Create(&models.Profile{
+		ID:     utility.GenerateUUID(),
+		Userid: user.ID,
+	})
+
+	setup := func() (*gin.Engine, *auth.Controller) {
+		router, userController := SetupUsersTestRouter()
+		authController := auth.Controller{
+			Db:        userController.Db,
+			Validator: userController.Validator,
+			Logger:    userController.Logger,
+			ExtReq:    userController.ExtReq,
+		}
+
+		return router, &authController
+	}
+
+	t.Run("successfully sets status with valid Unicode emoji", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":  "Status with emoji",
+			"emoji": "😊",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["emoji"].(string); got != "😊" {
+			t.Fatalf("unexpected emoji: want %q got %q", "😊", got)
+		}
+	})
+
+	t.Run("successfully sets status with emoji sequence", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":  "Status with emoji sequence",
+			"emoji": "👨‍👩‍👧‍👦",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["emoji"].(string); got != "👨‍👩‍👧‍👦" {
+			t.Fatalf("unexpected emoji: want %q got %q", "👨‍👩‍👧‍👦", got)
+		}
+	})
+
+	t.Run("successfully sets status with emoji and skin tone", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":  "Status with skin tone emoji",
+			"emoji": "👍🏿",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["emoji"].(string); got != "👍🏿" {
+			t.Fatalf("unexpected emoji: want %q got %q", "👍🏿", got)
+		}
+	})
+
+	t.Run("returns bad request when emoji is invalid (non-emoji string)", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":  "Status with invalid emoji",
+			"emoji": "notanemoji",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		// SetUserStatus uses go-playground validator which returns 422 (Unprocessable Entity) for validation errors
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
+	})
+
+	t.Run("returns bad request when emoji contains mixed emoji and text", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text":  "Status with mixed emoji",
+			"emoji": "😊hello",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		// SetUserStatus uses go-playground validator which returns 422 (Unprocessable Entity) for validation errors
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
+	})
+
+	t.Run("successfully patches status with valid emoji", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"emoji": "🎉",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["emoji"].(string); got != "🎉" {
+			t.Fatalf("unexpected emoji: want %q got %q", "🎉", got)
+		}
+	})
+
+	t.Run("returns bad request when patching with invalid emoji", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"emoji": "invalid123",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		parsed := tests.ParseResponse(resp)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+	})
+
+	t.Run("allows empty emoji (optional field)", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *authController, loginData)
+
+		payload := map[string]any{
+			"text": "Status without emoji",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		parsed := tests.ParseResponse(resp)
+		data := parsed["data"].(map[string]any)
+
+		if got := data["emoji"].(string); got != "" {
+			t.Fatalf("unexpected emoji: want empty string got %q", got)
 		}
 	})
 }

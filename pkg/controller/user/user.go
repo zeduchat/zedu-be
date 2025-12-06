@@ -332,6 +332,10 @@ func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 		if strings.ContainsAny(*req.Emoji, " \t\n\r") {
 			return http.StatusBadRequest, errors.New("emoji must not contain whitespace")
 		}
+
+		if !utility.IsValidEmoji(*req.Emoji) {
+			return http.StatusBadRequest, errors.New("emoji must be a valid Unicode emoji")
+		}
 	}
 
 	if req.Expiry != nil && *req.Expiry < 0 {

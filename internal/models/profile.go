@@ -109,7 +109,7 @@ type PartialStatusUpdate struct {
 // Text is required; emoji, expiry, and visibility are optional.
 type SetStatusRequest struct {
 	Text       string  `json:"text" validate:"required,min=1,max=255"`
-	Emoji      *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace"`
+	Emoji      *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace,emoji"`
 	Expiry     *int64  `json:"expiry,omitempty" validate:"omitempty,min=0"`
 	Visibility *string `json:"visibility,omitempty" validate:"omitempty,oneof=public contacts private"`
 	UserID     string  `json:"-"`
