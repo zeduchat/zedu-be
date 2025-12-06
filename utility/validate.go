@@ -150,6 +150,28 @@ func ValidateDocument(doc map[string]any) error {
 	return nil
 }
 
+// emojiRegex matches Unicode emoji characters using standard Unicode property classes
+// \p{So} = Symbol, other (includes most emojis)
+// \p{Sk} = Symbol, modifier (includes skin tones and combining marks)
+// Also includes zero-width joiner (ZWJ) and variation selectors for emoji sequences
+var emojiRegex = regexp.MustCompile(`^[\p{So}\p{Sk}\x{200D}\x{FE0F}\x{20E3}]*$`)
+
+// IsValidEmoji validates that a string contains only valid Unicode emoji characters.
+// It uses regex with Unicode property classes to match emoji characters.
+// This is a public function that can be called from other packages for manual validation.
+func IsValidEmoji(s string) bool {
+	if s == "" {
+		return true // Empty string is valid (optional field)
+	}
+	// Use regex to match emoji characters using Unicode property classes
+	// \p{So} = Symbol, other (includes most emojis)
+	// \p{Sk} = Symbol, modifier (includes skin tones)
+	// \x{200D} = Zero Width Joiner (for emoji sequences)
+	// \x{FE0F} = Variation Selector-16 (emoji presentation)
+	// \x{20E3} = Combining Enclosing Keycap
+	return emojiRegex.MatchString(s)
+}
+
 func RegisterCustomValidations(v *validator.Validate) {
 
 	_ = v.RegisterValidation("timezone", func(fl validator.FieldLevel) bool {
@@ -161,6 +183,11 @@ func RegisterCustomValidations(v *validator.Validate) {
 	_ = v.RegisterValidation("no_whitespace", func(fl validator.FieldLevel) bool {
 		value := fl.Field().String()
 		return !strings.ContainsAny(value, " \t\n\r")
+	})
+
+	_ = v.RegisterValidation("emoji", func(fl validator.FieldLevel) bool {
+		value := fl.Field().String()
+		return IsValidEmoji(value)
 	})
 }
 

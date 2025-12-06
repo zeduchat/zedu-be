@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type UserOrganisation struct {
@@ -21,6 +22,7 @@ func SetupUsersTestRouter() (*gin.Engine, *user.Controller) {
 	logger := tests.Setup()
 	db := storage.Connection()
 	validator := validator.New()
+	utility.RegisterCustomValidations(validator)
 
 	userController := &user.Controller{
 		Db:        db,
