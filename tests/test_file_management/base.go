@@ -74,5 +74,9 @@ func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Con
 
 		fileUrl.GET("", fileController.GetFiles)
 		fileUrl.GET("/recent", fileController.GetRecentFiles)
+
+		fileUrl.POST("/file/:id/pin", fileController.PinFile)
+		fileUrl.DELETE("/file/:id/pin", fileController.UnpinFile)
+		fileUrl.GET("/favorites", fileController.GetPinnedFiles)
 	}
 }

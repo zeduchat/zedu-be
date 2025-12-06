@@ -16297,6 +16297,148 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /files/file/{id}/pin:
+    post:
+      tags:
+        - File Management
+      summary: Pin a file
+      description: Pins a file for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: File pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "File pinned successfully"
+                  data:
+                    type: object
+                    properties:
+                      pinned_file_id:
+                        type: string
+                        format: uuid
+                      file:
+                        $ref: "#/components/schemas/FileSchema"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
+    delete:
+      tags:
+        - File Management
+      summary: Unpin a file
+      description: Unpins a file for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the file or the pinned file record
+      responses:
+        "200":
+          description: File unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File unpinned successfully"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedSchema"
+
+
+  /files/favorites:
+    get:
+      tags:
+        - File Management
+      summary: Get pinned files
+      description: Retrieves a list of pinned files for the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pinned files fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Pinned files fetched successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pinned_file_id:
+                          type: string
+                          format: uuid
+                        file:
+                          $ref: "#/components/schemas/FileSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedSchema"
+
   /organisations/{organisation_id}/group-dms:
     get:
       tags:
