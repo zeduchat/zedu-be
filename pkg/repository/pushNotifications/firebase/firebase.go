@@ -13,6 +13,7 @@ import (
 )
 
 func ConnectFirebase(logger *utility.Logger, config config.Firebase) {
+	utility.LogAndPrint(logger, fmt.Sprint("Connect Firebase was called"))
 	opt := option.WithCredentialsFile(config.ServiceFilePath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
