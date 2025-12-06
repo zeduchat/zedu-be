@@ -58,14 +58,28 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 
 func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Controller, db *storage.Database) {
 	fileUrl := r.Group("/api/v1/files", middleware.Authorize(db.Postgresql))
+
 	{
 		fileUrl.POST("/folders", fileController.CreateFolder)
 		fileUrl.GET("/folders", fileController.GetFolders)
+		fileUrl.PUT("/folders/:id", fileController.UpdateFolderName)
 		fileUrl.DELETE("/folders/:id", fileController.DeleteFolder)
 		fileUrl.PUT("/:id/move", fileController.MoveFile)
 		fileUrl.POST("/upload-files", fileController.UploadController)
+		fileUrl.GET("/file/:id/info", fileController.GetFileInfo)
+		fileUrl.GET("/file/:id", fileController.GetFileDetailsByID)
+		fileUrl.POST("/upload-folder", fileController.UploadFolderWithFiles)
 		fileUrl.DELETE("/file/:id", fileController.DeleteFileDetailsByID)
+		fileUrl.PUT("/file/:id", fileController.UpdateFileName)
+		fileUrl.PUT("/file/:id/restore", fileController.RestoreFile)
+		fileUrl.DELETE("", fileController.DeleteMultipleFiles)
+		fileUrl.DELETE("/folders", fileController.DeleteMultipleFolders)
 
 		fileUrl.GET("", fileController.GetFiles)
+		fileUrl.GET("/recent", fileController.GetRecentFiles)
+
+		fileUrl.POST("/file/:id/pin", fileController.PinFile)
+		fileUrl.DELETE("/file/:id/pin", fileController.UnpinFile)
+		fileUrl.GET("/favorites", fileController.GetPinnedFiles)
 	}
 }

@@ -43,6 +43,12 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 		userController.AssignRoleToUser)
 	r.GET("/api/v1/users/:user_id/login-audit", middleware.Authorize(userController.Db.Postgresql),
 		userController.GetUserLoginAudit)
+	r.GET("/api/v1/users/:user_id/status", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetUserStatus)
+	r.POST("/api/v1/users/:user_id/status", middleware.Authorize(userController.Db.Postgresql),
+		userController.SetUserStatus)
+	r.PATCH("/api/v1/users/:user_id/status", middleware.Authorize(userController.Db.Postgresql),
+		userController.PatchUserStatus)
 	r.PUT("/api/v1/users/revoke-session", middleware.Authorize(userController.Db.Postgresql),
 		userController.RevokeUserAccessToken)
 	r.GET("/api/v1/users/:user_id/organisations",
@@ -52,4 +58,10 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 		userController.GetUserNotificationSettings)
 	r.PUT("/api/v1/users/notification-preferences", middleware.Authorize(userController.Db.Postgresql),
 		userController.UpdateUserNotificationSettings)
+	r.GET("/api/v1/users/media-preferences", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetMediaPreferences)
+	r.PUT("/api/v1/users/media-preferences", middleware.Authorize(userController.Db.Postgresql),
+		userController.UpdateMediaPreferences)
+	r.POST("/api/v1/users/media-preferences/reset-autodownload", middleware.Authorize(userController.Db.Postgresql),
+		userController.ResetAutoDownloadSettings)
 }

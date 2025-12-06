@@ -33,6 +33,7 @@ type Profile struct {
 	Text              string         `gorm:"type:varchar(255)" json:"text"`
 	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
 	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
+	StatusVisibility  string         `gorm:"type:varchar(255);default:'public'" json:"status_visibility"`
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
@@ -93,7 +94,36 @@ type UpdateProfileStatus struct {
 	UserId            string
 }
 
-func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) error {
+// PartialStatusUpdate holds optional fields for status patch requests.
+// Pointer fields let us detect whether a field was supplied so we can
+// avoid overwriting existing values.
+type PartialStatusUpdate struct {
+	Text       *string `json:"text"`
+	Emoji      *string `json:"emoji"`
+	Expiry     *int64  `json:"expiry"`
+	Visibility *string `json:"visibility"`
+	UserID     string  `json:"-"`
+}
+
+// SetStatusRequest holds fields for setting a new status via POST.
+// Text is required; emoji, expiry, and visibility are optional.
+type SetStatusRequest struct {
+	Text       string  `json:"text" validate:"required,min=1,max=255"`
+	Emoji      *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace"`
+	Expiry     *int64  `json:"expiry,omitempty" validate:"omitempty,min=0"`
+	Visibility *string `json:"visibility,omitempty" validate:"omitempty,oneof=public contacts private"`
+	UserID     string  `json:"-"`
+}
+
+// UserStatus represents the persisted status for responses.
+type UserStatus struct {
+	Text       string `json:"text"`
+	Emoji      string `json:"emoji"`
+	Expiry     int64  `json:"expiry"`
+	Visibility string `json:"visibility"`
+}
+
+func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
 	var userProfile Profile
 
 	if req.DisplayName != "" && req.UserName == "" {
@@ -118,7 +148,7 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 
 	exist := postgresql.CheckExists(db, &userProfile, query, userId)
 	if !exist {
-		return errors.New("Profile does not exists")
+		return nil, errors.New("Profile does not exists")
 	}
 
 	if req.AvatarUpdate || (req.UserName != "" && req.UserName != userProfile.UserName) {
@@ -144,16 +174,16 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		logger.Info("Successfully updated username and avatar across indexess")
 	}
 
-	result, err := postgresql.UpdateFields(db, &j, profileUpdates, query, userId)
+	result, err := postgresql.UpdateFieldsAndReturn(db, &j, profileUpdates, query, userId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("failed to update user profile")
+		return nil, errors.New("failed to update user profile")
 	}
 
-	return nil
+	return j, nil
 }
 
 func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {

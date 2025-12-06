@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -12,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	profile "github.com/hngprojects/telex_be/services/profile"
 	service "github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -180,6 +183,173 @@ func (base *Controller) DeactiveUser(ctx *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated successfully", nil)
 	ctx.JSON(http.StatusOK, rd)
 
+}
+
+// PatchUserStatus performs a partial, atomic update of a user's status.
+func (base *Controller) PatchUserStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	loggedUserID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	if loggedUserID != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to update another user's status", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	var req models.PartialStatusUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if req.Text == nil && req.Emoji == nil && req.Expiry == nil && req.Visibility == nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "no fields provided to update", "no fields provided to update", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if code, err := validatePartialStatusInput(&req); err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	req.UserID = userID
+
+	status, code, err := profile.PartialUpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user status", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User status updated successfully", status)
+	c.JSON(http.StatusOK, rd)
+}
+
+// SetUserStatus sets a new status for the authenticated user.
+func (base *Controller) SetUserStatus(c *gin.Context) {
+	userClaims := common.GetAllUserClaims(c)
+	userID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	var req models.SetStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Trim text before validation
+	req.Text = strings.TrimSpace(req.Text)
+	if req.Emoji != nil {
+		*req.Emoji = strings.TrimSpace(*req.Emoji)
+	}
+
+	// Validate using go-playground validator
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.UserID = userID
+
+	status, code, err := profile.SetUserStatus(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to set user status", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "User status set successfully", status)
+	c.JSON(http.StatusCreated, rd)
+}
+
+// GetUserStatus retrieves the current status for the authenticated user.
+func (base *Controller) GetUserStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	loggedUserID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	if loggedUserID != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to view another user's status", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	status, code, err := profile.GetUserStatus(userID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get user status", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User status retrieved successfully", status)
+	c.JSON(http.StatusOK, rd)
+}
+
+func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
+	if req.Text != nil && len(*req.Text) > 255 {
+		return http.StatusBadRequest, errors.New("text must not exceed 255 characters")
+	}
+
+	if req.Emoji != nil {
+		if len(*req.Emoji) > 64 {
+			return http.StatusBadRequest, errors.New("emoji must not exceed 64 characters")
+		}
+
+		if strings.ContainsAny(*req.Emoji, " \t\n\r") {
+			return http.StatusBadRequest, errors.New("emoji must not contain whitespace")
+		}
+	}
+
+	if req.Expiry != nil && *req.Expiry < 0 {
+		return http.StatusBadRequest, errors.New("expiry must be a non-negative unix timestamp (seconds)")
+	}
+
+	if req.Visibility != nil {
+		validVisibilities := map[string]bool{
+			"public":   true,
+			"contacts": true,
+			"private":  true,
+		}
+		if !validVisibilities[*req.Visibility] {
+			return http.StatusBadRequest, errors.New("visibility must be one of: public, contacts, private")
+		}
+	}
+
+	return 0, nil
 }
 
 func (base *Controller) SwitchUserOrg(c *gin.Context) {
