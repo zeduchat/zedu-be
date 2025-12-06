@@ -222,3 +222,13 @@ func GetWorkflowCategories(c *gin.Context, db *gorm.DB) (gin.H, error) {
 
 	return response, nil
 }
+
+func GetAgentDetails(agentID string, db *gorm.DB, c *gin.Context) (models.Integrations, int, error) {
+	// Get agent details
+	agent, err, code := models.GetAgentDetails(agentID, db)
+	if err != nil {
+		return agent, code, err
+	}
+
+	return agent, code, nil
+}
