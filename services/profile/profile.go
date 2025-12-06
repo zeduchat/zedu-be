@@ -161,9 +161,12 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 }
 
 func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file []byte, ext string) (string, error) {
+	// randExt is just a random integer added to the url so that whenever a new profile photo is added,
+	// it attaches the integer to the end of the constant url. And the saves it all together.
+	randExt := time.Now().Unix()
 	if file != nil {
 		picId := strings.Split(userID, "-")[4]
-		filename := fmt.Sprintf("profile_pic_%s", picId)
+		filename := fmt.Sprintf("profile_pic_%s_%d.%s", picId, randExt, ext)
 
 		avatarURL, err := GetUserProfileImageURL(db, userID)
 		if err != nil {
