@@ -157,6 +157,11 @@ func RegisterCustomValidations(v *validator.Validate) {
 		_, err := time.LoadLocation(tz)
 		return err == nil
 	})
+
+	_ = v.RegisterValidation("no_whitespace", func(fl validator.FieldLevel) bool {
+		value := fl.Field().String()
+		return !strings.ContainsAny(value, " \t\n\r")
+	})
 }
 
 func ValidateTimeRange(value string) bool {
