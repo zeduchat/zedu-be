@@ -7,7 +7,6 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -122,18 +121,27 @@ func (hp *BuzzParticipant) BeforeCreate(tx *gorm.DB) error {
 }
 
 func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
-	// Check regular channels
-	if postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, userID) {
+	// Check regular channels with explicit error handling
+	var userChannel UserChannels
+	err := db.Where("channels_id = ? AND user_id = ?", channelID, userID).First(&userChannel).Error
+	if err == nil {
 		return true
 	}
-	// Check DM channels
-	if postgresql.CheckExists(db, &DmChannels{}, "channel_id = ? AND user_id = ?", channelID, userID) {
+	
+	// Check DM channels - user can be either the creator (user_id) OR the participant (participant_id)
+	var dmChannel DmChannels
+	err = db.Where("channel_id = ? AND (user_id = ? OR participant_id = ?)", channelID, userID, userID).First(&dmChannel).Error
+	if err == nil {
 		return true
 	}
+	
 	// Check group DM channels
-	if postgresql.CheckExists(db, &ChannelParticipant{}, "channel_id = ? AND user_id = ?", channelID, userID) {
+	var participant ChannelParticipant
+	err = db.Where("channel_id = ? AND user_id = ?", channelID, userID).First(&participant).Error
+	if err == nil {
 		return true
 	}
+	
 	return false
 }
 

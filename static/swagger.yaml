@@ -2128,6 +2128,69 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /users/{user_id}/status:
+    get:
+      tags:
+        - user
+      summary: Get user's current status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID of the user whose status is being retrieved
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: User status retrieved successfully
+                  data:
+                    $ref: "#/components/schemas/UserStatusResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
     patch:
       tags:
         - user
@@ -13581,6 +13644,157 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/media-preferences:
+    get:
+      tags:
+        - user
+      summary: Get user media preferences
+      security:
+        - bearerAuth: []
+      description: Retrieves the media preferences for a specific user. If device_id is provided, returns device-specific preferences with fallback to user-level preferences.
+      parameters:
+        - name: device_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional device ID for device-specific preferences
+      responses:
+        "200":
+          description: Media preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPreferencesResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+    put:
+      tags:
+        - user
+      summary: Update user media preferences
+      security:
+        - bearerAuth: []
+      description: Updates the media preferences for a specific user. Supports partial updates. If device_id is provided, updates device-specific preferences; otherwise updates user-level preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaPreferencesUpdateSchema"
+      responses:
+        "200":
+          description: Media preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPreferencesResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Device not found (when device_id is provided)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /users/media-preferences/reset-autodownload:
+    post:
+      tags:
+        - user
+      summary: Reset auto-download settings
+      security:
+        - bearerAuth: []
+      description: Resets all auto-download settings (photos, audio, documents, videos) to default values ("wifi_only"). Upload quality is not affected. If device_id is provided, resets device-specific preferences; otherwise resets user-level preferences.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetAutoDownloadRequestSchema"
+      responses:
+        "200":
+          description: Auto-download settings reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPreferencesResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Device not found (when device_id is provided)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /optin:
     post:
       tags:
@@ -15040,17 +15254,25 @@ paths:
     get:
       tags:
         - File Management
-      summary: Retrieve file information by ID
-      description: Fetches detailed information about a file including owner, upload date, last updated date, and channels where it's shared.
+      summary: Deletes file details by ID
+      description: Deletes file metadata and a file link from the database using a unique file ID.
       parameters:
         - name: id
           in: path
           required: true
-          description: The unique ID of the file
+          description: Unique ID of the file to delete
           schema:
             type: string
             format: uuid
             example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
+        - name: thread_id
+          in: query
+          required: false
+          description: Optional thread ID to unlink the file from a thread document
+          schema:
+            type: string
+            format: uuid
+            example: "0198a6f2-e1fe-77b0-9382-a0ddc510bec3"
       security:
         - bearerAuth: []
       responses:
@@ -15069,53 +15291,27 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "File info successfully retrieved"
+                    example: "Files deleted successfully"
                   data:
                     type: object
                     properties:
-                      owner:
+                      id:
                         type: string
                         format: uuid
-                        description: The user ID of the file owner
                         example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      date_uploaded:
+                      file_name:
                         type: string
-                        format: date-time
-                        description: The date and time when the file was uploaded
-                        example: "2025-12-05T10:30:00Z"
-                      last_updated:
+                        example: "Deployment and Rollback Procedure.pdf"
+                      file_type:
                         type: string
-                        format: date-time
-                        description: The date and time when the file was last modified
-                        example: "2025-12-05T15:45:00Z"
-                      shared_in:
-                        type: array
-                        description: List of channel names where the file is shared
-                        items:
-                          type: string
-                        example: ["general", "project-updates"]
-        "400":
-          description: Invalid file ID format
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 400
-                  message:
-                    type: string
-                    example: "Invalid file ID format"
-                  error:
-                    type: object
-                    nullable: true
-                  data:
-                    type: object
-                    nullable: true
+                        example: "pdf"
+                      mime_type:
+                        type: string
+                        example: "application/pdf"
+                      file_link:
+                        type: string
+                        format: uri
+                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
         "404":
           description: File not found
           content:
@@ -16145,6 +16341,148 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
+  /files/file/{id}/pin:
+    post:
+      tags:
+        - File Management
+      summary: Pin a file
+      description: Pins a file for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: File pinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "File pinned successfully"
+                  data:
+                    type: object
+                    properties:
+                      pinned_file_id:
+                        type: string
+                        format: uuid
+                      file:
+                        $ref: "#/components/schemas/FileSchema"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
+    delete:
+      tags:
+        - File Management
+      summary: Unpin a file
+      description: Unpins a file for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the file or the pinned file record
+      responses:
+        "200":
+          description: File unpinned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File unpinned successfully"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedSchema"
+
+
+  /files/favorites:
+    get:
+      tags:
+        - File Management
+      summary: Get pinned files
+      description: Retrieves a list of pinned files for the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pinned files fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Pinned files fetched successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pinned_file_id:
+                          type: string
+                          format: uuid
+                        file:
+                          $ref: "#/components/schemas/FileSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedSchema"
 
   /organisations/{organisation_id}/group-dms:
     get:
@@ -26933,6 +27271,109 @@ components:
         - to_hour
         - appearance
         - notification_method_email
+
+    MediaPreferencesUpdateSchema:
+      type: object
+      description: Request body for updating media preferences. All fields are optional for partial updates.
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional device ID for device-specific preferences
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        auto_download_photos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for photos
+          example: "wifi_only"
+        auto_download_audio:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for audio files
+          example: "wifi_only"
+        auto_download_documents:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for documents
+          example: "wifi_only"
+        auto_download_videos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for videos
+          example: "wifi_only"
+        upload_quality:
+          type: string
+          enum: ["standard", "high", "original"]
+          description: Upload quality preference
+          example: "standard"
+
+    MediaPreferencesResponseSchema:
+      type: object
+      description: Response schema for media preferences
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the media preferences record
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        user_id:
+          type: string
+          format: uuid
+          description: User ID associated with these preferences
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        device_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Device ID if these are device-specific preferences, null for user-level preferences
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        auto_download_photos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for photos
+          example: "wifi_only"
+        auto_download_audio:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for audio files
+          example: "wifi_only"
+        auto_download_documents:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for documents
+          example: "wifi_only"
+        auto_download_videos:
+          type: string
+          enum: ["always", "wifi_only", "never"]
+          description: Auto-download setting for videos
+          example: "wifi_only"
+        upload_quality:
+          type: string
+          enum: ["standard", "high", "original"]
+          description: Upload quality preference
+          example: "standard"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the preferences were created
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the preferences were last updated
+          example: "2024-01-15T10:30:00Z"
+
+    ResetAutoDownloadRequestSchema:
+      type: object
+      description: Request body for resetting auto-download settings. All fields are optional.
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional device ID for resetting device-specific preferences. If omitted, resets user-level preferences.
+          example: "550e8400-e29b-41d4-a716-446655440000"
 
   responses:
         UnauthorizedError:

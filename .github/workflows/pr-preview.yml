@@ -1,0 +1,111 @@
+name: Deploy PR Preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+ 
+jobs:
+  deploy_preview:
+    runs-on: self-hosted
+    permissions:
+      deployments: write
+      contents: read
+      pull-requests: write
+    if: github.event.repository.fork == false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy or Update Preview
+        id: deploy
+        if: github.event.action != 'closed'
+        run: |
+          eval $(ssh-agent -s)
+          echo "${{ secrets.TELEX_SSH_KEY }}" | ssh-add -
+          
+          RAW_OUTPUT=$(ssh -o StrictHostKeyChecking=no ${{ secrets.TELEX_SSH_USER }}@${{ secrets.TELEX_SSH_HOST }} << 'ENDSSH'
+            REPO_NAME=$(basename -s .git ${{ github.repository }})
+            PR=${{ github.event.pull_request.number }}
+            BRANCH=${{ github.head_ref }}
+            PREVIEW_DIR="/var/www/previews/${REPO_NAME}/pr-$PR"
+            mkdir -p $PREVIEW_DIR
+            cd $PREVIEW_DIR
+            if [ -d ".git" ]; then
+              git fetch origin "$BRANCH" >&2
+              git reset --hard "origin/$BRANCH" >&2
+            else
+              git clone --branch "$BRANCH" "https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git" . >&2
+            fi
+            cp /var/www/telex_be_staging/app.env app.env
+            go mod tidy >&2
+            go build -o telexbe_pr >&2
+            prpreviewbe start --pr $PR --dir $PREVIEW_DIR --json
+          ENDSSH
+          )
+          OUTPUT=$(echo "$RAW_OUTPUT" | grep -o '{.*}')
+          echo "RAW OUTPUT:"
+          echo "$RAW_OUTPUT"
+          echo "CLEAN JSON:"
+          echo "$OUTPUT"
+          PORT=$(echo "$OUTPUT" | jq -r '.port')
+          DOMAIN=$(echo "$OUTPUT" | jq -r '.domain // empty')
+          URL=$(echo "$OUTPUT" | jq -r '.url // empty')
+          
+          echo "port=$PORT" >> $GITHUB_OUTPUT
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "✅ Deployment complete on port $PORT"
+          if [ -n "$URL" ]; then
+            echo "🌐 Available at: $URL"
+          fi
+          
+      - name: Determine Deployment Base URL
+        id: base
+        run: |
+          TARGET_BRANCH='${{ github.base_ref }}'
+          if [ "$TARGET_BRANCH" = "staging" ]; then
+            echo "base_url=${{ vars.TELEX_BE_STAGING_DEPLOY_BASE }}" >> $GITHUB_OUTPUT
+          elif [ "$TARGET_BRANCH" = "main" ]; then
+            echo "base_url=${{ vars.TELEX_BE_PRODUCTION_DEPLOY_BASE }}" >> $GITHUB_OUTPUT
+          else
+            echo "base_url=${{ vars.TELEX_BE_DEPLOY_BASE }}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create GitHub Deployment
+        if: github.event.action != 'closed'
+        uses: chrnorm/deployment-action@v2
+        id: deployment
+        with:
+          token: ${{ secrets.GH_PAT }}
+          environment: preview-pr-${{ github.event.pull_request.number }}
+          ref: ${{ github.head_ref }}
+          transient-environment: true
+          description: Preview
+
+      - name: Set Deployment Status
+        if: github.event.action != 'closed'
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GH_PAT }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: success
+          environment-url: ${{ steps.deploy.outputs.url || format('{0}:{1}', steps.base.outputs.base_url, steps.deploy.outputs.port) }}
+          log-url: ${{ steps.deploy.outputs.url || format('{0}:{1}', steps.base.outputs.base_url, steps.deploy.outputs.port) }}
+          description: Preview URL
+
+      - name: Cleanup Preview on PR Close
+        if: github.event.action == 'closed'
+        run: |
+          eval $(ssh-agent -s)
+          echo "${{ secrets.TELEX_SSH_KEY }}" | ssh-add -
+
+          OUTPUT=$(ssh -o StrictHostKeyChecking=no ${{ secrets.TELEX_SSH_USER }}@${{ secrets.TELEX_SSH_HOST }} << 'ENDSSH'
+            REPO_NAME=$(basename -s .git ${{ github.repository }})
+            PR=${{ github.event.pull_request.number }}
+            PREVIEW_DIR="/var/www/previews/${REPO_NAME}/pr-$PR"
+            prpreviewbe stop --pr $PR
+            rm -rf $PREVIEW_DIR
+
+          ENDSSH
+          )
+          
+          
