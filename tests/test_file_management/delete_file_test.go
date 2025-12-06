@@ -55,7 +55,7 @@ func TestDeleteFilePermissions(t *testing.T) {
 	}
 
 	createOwnerFile := func() string {
-		return uploadTestFile(t, r, ownerToken)
+		return uploadTestFileWithPermission(t, r, ownerToken)
 	}
 
 	// same org user without permission
@@ -222,7 +222,7 @@ func createRoleWithPermission(t *testing.T, db *storage.Database, orgID string, 
 	return roleID
 }
 
-func uploadTestFile(t *testing.T, r *gin.Engine, token string) string {
+func uploadTestFileWithPermission(t *testing.T, r *gin.Engine, token string) string {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("files", fmt.Sprintf("delete-check-%s.txt", stduuid.New().String()))
