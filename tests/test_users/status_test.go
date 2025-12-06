@@ -1074,9 +1074,10 @@ func TestEmojiValidation(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		// SetUserStatus uses go-playground validator which returns 422 (Unprocessable Entity) for validation errors
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when emoji contains mixed emoji and text", func(t *testing.T) {
@@ -1100,9 +1101,10 @@ func TestEmojiValidation(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		// SetUserStatus uses go-playground validator which returns 422 (Unprocessable Entity) for validation errors
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("successfully patches status with valid emoji", func(t *testing.T) {
