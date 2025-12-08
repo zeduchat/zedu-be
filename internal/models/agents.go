@@ -26,7 +26,7 @@ import (
 
 type Integrations struct {
 	ID                  string             `gorm:"type:uuid;primary_key" json:"id"`
-	Name                string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
+	Name                string             `gorm:"column:name; type:varchar(255); not null;unique" json:"name"`
 	JSONUrl             string             `gorm:"column:json_url; type:varchar(255);" json:"-"`
 	AppUrl              string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
 	AppLogo             string             `gorm:"column:app_logo; type:varchar(255);" json:"avatar"`
