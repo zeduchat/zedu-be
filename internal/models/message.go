@@ -36,7 +36,8 @@ type Message struct {
 	UserType   string         `json:"user_type"`
 	IsPinned   bool           `json:"is_pinned"`
 	IsSaved    bool           `gorm:"type:bool;default:false" json:"is_saved"`
-	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
+	Edited     bool           `gorm:"column:edited;type:bool;default:false" json:"edited,omitempty"`
+	EditedAt   *time.Time     `gorm:"column:edited_at" json:"edited_at,omitempty"`
 }
 
 type MessageDocument struct {
@@ -268,6 +269,13 @@ func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, erro
 	}
 
 	return m, nil
+}
+
+func (m *Message) UpdateMessageInPostgres(db *gorm.DB, updates map[string]interface{}) error {
+	if err := db.Model(&Message{}).Where("id = ?", m.ID).Updates(updates).Error; err != nil {
+		return fmt.Errorf("failed to update message in postgres: %w", err)
+	}
+	return nil
 }
 
 func (m *Message) UpdateMessageWithScript(db *gorm.DB, req map[string]any) (*Message, error) {
