@@ -26,6 +26,28 @@ type SearchQueryFiltersKeywords struct {
 	SortBy  string
 }
 
+type ReactionData struct {
+	MessageID  string `gorm:"column:message_id"`
+	ReactionID string `gorm:"column:reaction_id"`
+	Reaction   string `gorm:"column:reaction"`
+	UserID     string `gorm:"column:user_id"`
+	UserName   string `gorm:"column:user_name"`
+	AvatarURL  string `gorm:"column:avatar_url"`
+}
+
+type ThreadData struct {
+	ThreadID     string  `gorm:"column:id"`
+	MessageCount *int64  `gorm:"column:message_count"`
+	LastReply    *string `gorm:"column:last_reply"`
+}
+
+type ReplyUserData struct {
+	ThreadID  string `gorm:"column:thread_id"`
+	UserID    string `gorm:"column:user_id"`
+	UserName  string `gorm:"column:username"`
+	AvatarURL string `gorm:"column:avatar_url"`
+}
+
 func NewSearchQueryFilterKeywords() *SearchQueryFiltersKeywords {
 	return &SearchQueryFiltersKeywords{}
 }
@@ -395,4 +417,157 @@ func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, er
 		return nil, errors.New("error fetching channels")
 	}
 	return channs, nil
+}
+
+// FetchReactionsForMessages fetches all reactions for given message IDs
+func FetchReactionsForMessages(db *gorm.DB, messageIDs []string) (map[string][]ReactionData, error) {
+	if len(messageIDs) == 0 {
+		return make(map[string][]ReactionData), nil
+	}
+
+	var reactions []ReactionData
+	err := db.Table("reactions").
+		Select(`
+			reactions.message_id,
+			reactions.reaction_id,
+			reactions.reaction,
+			reactions.user_id,
+			users.user_name,
+			users.avatar_url
+		`).
+		Joins("LEFT JOIN users ON reactions.user_id = users.id").
+		Where("reactions.message_id IN ? AND reactions.message_id IS NOT NULL", messageIDs).
+		Scan(&reactions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Group reactions by message_id
+	reactionMap := make(map[string][]ReactionData)
+	for _, reaction := range reactions {
+		reactionMap[reaction.MessageID] = append(reactionMap[reaction.MessageID], reaction)
+	}
+
+	return reactionMap, nil
+}
+
+// FetchThreadDataForMessages fetches thread metadata for messages
+func FetchThreadDataForMessages(db *gorm.DB, messageIDs []string) (map[string]ThreadData, error) {
+	if len(messageIDs) == 0 {
+		return make(map[string]ThreadData), nil
+	}
+
+	var threadIDs []string
+	err := db.Table("messages").
+		Select("DISTINCT thread_id").
+		Where("id IN ? AND thread_id IS NOT NULL", messageIDs).
+		Pluck("thread_id", &threadIDs).Error
+
+	if err != nil || len(threadIDs) == 0 {
+		return make(map[string]ThreadData), nil
+	}
+
+	var threads []ThreadData
+	err = db.Table("threads").
+		Select("id, message_count, last_reply").
+		Where("id IN ?", threadIDs).
+		Scan(&threads).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	threadMap := make(map[string]ThreadData)
+	for _, thread := range threads {
+		threadMap[thread.ThreadID] = thread
+	}
+
+	return threadMap, nil
+}
+
+// FetchReplyUsersForThreads fetches users who replied in threads
+func FetchReplyUsersForThreads(db *gorm.DB, threadIDs []string) (map[string][]ReplyUserData, error) {
+	if len(threadIDs) == 0 {
+		return make(map[string][]ReplyUserData), nil
+	}
+
+	var replyUsers []ReplyUserData
+	err := db.Table("messages").
+		Select(`
+			DISTINCT ON (messages.thread_id, messages.user_id)
+			messages.thread_id,
+			messages.user_id,
+			messages.username,
+			messages.avatar_url
+		`).
+		Where("messages.thread_id IN ? AND messages.user_id IS NOT NULL", threadIDs).
+		Order("messages.thread_id, messages.user_id, messages.created_at DESC").
+		Scan(&replyUsers).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	replyUserMap := make(map[string][]ReplyUserData)
+	for _, user := range replyUsers {
+		replyUserMap[user.ThreadID] = append(replyUserMap[user.ThreadID], user)
+	}
+
+	return replyUserMap, nil
+}
+
+// AggregateReactions groups reactions by emoji and counts them
+func AggregateReactions(reactions []ReactionData) []utility.ReactionInfo {
+	if len(reactions) == 0 {
+		return nil
+	}
+
+	reactionGroups := make(map[string]*utility.ReactionInfo)
+
+	for _, reaction := range reactions {
+		if _, exists := reactionGroups[reaction.Reaction]; !exists {
+			reactionGroups[reaction.Reaction] = &utility.ReactionInfo{
+				ReactionID: reaction.ReactionID,
+				Emoji:      reaction.Reaction,
+				Count:      0,
+				Users:      []utility.ReactionUser{},
+			}
+		}
+
+		reactionGroups[reaction.Reaction].Count++
+		reactionGroups[reaction.Reaction].Users = append(
+			reactionGroups[reaction.Reaction].Users,
+			utility.ReactionUser{
+				UserID:    reaction.UserID,
+				UserName:  reaction.UserName,
+				AvatarURL: reaction.AvatarURL,
+			},
+		)
+	}
+
+	result := make([]utility.ReactionInfo, 0, len(reactionGroups))
+	for _, reactionInfo := range reactionGroups {
+		result = append(result, *reactionInfo)
+	}
+
+	return result
+}
+
+// ConvertReplyUsersToUtilityFormat converts database reply users to utility format
+func ConvertReplyUsersToUtilityFormat(replyUsers []ReplyUserData) []utility.ReplyUser {
+	if len(replyUsers) == 0 {
+		return nil
+	}
+
+	result := make([]utility.ReplyUser, 0, len(replyUsers))
+	for _, user := range replyUsers {
+		result = append(result, utility.ReplyUser{
+			UserID:    user.UserID,
+			UserName:  user.UserName,
+			AvatarURL: user.AvatarURL,
+		})
+	}
+
+	return result
 }
