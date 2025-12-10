@@ -17430,6 +17430,7 @@ paths:
                               type: string
                               format: uri
                               example: "https://example.com/avatar.jpg"
+
                         messages:
                           type: array
                           items:
@@ -17440,11 +17441,74 @@ paths:
                                 example: "12345"
                               message:
                                 type: string
-                                example: "Hello how are you and where do you come from"
+                                example: "Hello how are you"
                               timestamp:
                                 type: string
                                 format: date-time
-                                example: "2024-12-27T10:57:34.648525826Z"
+                                example: "2024-12-27T10:57:34Z"
+
+                              reactions:
+                                type: array
+                                description: List of reactions on the message
+                                items:
+                                  type: object
+                                  properties:
+                                    reaction_id:
+                                      type: string
+                                      format: uuid
+                                      example: "0195cdef-ab12-4567-89ef-123456789abc"
+                                    emoji:
+                                      type: string
+                                      example: "👍"
+                                    count:
+                                      type: integer
+                                      example: 5
+                                    users:
+                                      type: array
+                                      description: Users who reacted
+                                      items:
+                                        type: object
+                                        properties:
+                                          user_id:
+                                            type: string
+                                            format: uuid
+                                            example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                                          user_name:
+                                            type: string
+                                            example: "John"
+                                          avatar_url:
+                                            type: string
+                                            format: uri
+                                            example: "https://example.com/avatar.jpg"
+
+                              reply_count:
+                                type: integer
+                                example: 10
+                                description: Number of replies to the message
+
+                              last_reply_timestamp:
+                                type: string
+                                format: date-time
+                                example: "2024-12-27T15:30:00Z"
+
+                              reply_users:
+                                type: array
+                                description: Users who recently replied
+                                items:
+                                  type: object
+                                  properties:
+                                    user_id:
+                                      type: string
+                                      format: uuid
+                                      example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                                    user_name:
+                                      type: string
+                                      example: "Alice"
+                                    avatar_url:
+                                      type: string
+                                      format: uri
+                                      example: "https://example.com/avatar.jpg"
+
                         channel:
                           type: object
                           properties:
