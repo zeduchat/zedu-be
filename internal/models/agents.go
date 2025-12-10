@@ -26,7 +26,7 @@ import (
 
 type Integrations struct {
 	ID                  string             `gorm:"type:uuid;primary_key" json:"id"`
-	Name                string             `gorm:"colume:name; type:varchar(255); not null;unique" json:"name"`
+	Name                string             `gorm:"column:name; type:varchar(255); not null;unique" json:"name"`
 	JSONUrl             string             `gorm:"column:json_url; type:varchar(255);" json:"-"`
 	AppUrl              string             `gorm:"column:app_url; type:varchar(255);" json:"app_url"`
 	AppLogo             string             `gorm:"column:app_logo; type:varchar(255);" json:"avatar"`
@@ -51,7 +51,7 @@ type Integrations struct {
 	Capabilities        CapabilitiesObject `gorm:"type:jsonb" json:"capabilities"`
 	Tone                string             `gorm:"column:tone;type:varchar(255);default:friendly" json:"tone"`
 	Title               string             `gorm:"column:title;type:text;" json:"title"`
-	Visibility          string             `gorm:"column:title;type:varchar(255)" json:"visibility"`
+	Visibility          string             `gorm:"column:visibility;type:varchar(255)" json:"visibility"`
 	SystemPrompts       JSONSystemPrompts  `gorm:"type:jsonb" json:"system_prompts"`
 	Category            string             `gorm:"type:text;default:default" json:"category"`
 	Snapshot            Snapshots          `gorm:"type:jsonb" json:"snapshot"`

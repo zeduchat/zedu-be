@@ -91,12 +91,16 @@ func SeedIntegrations(logger *utility.Logger, db *gorm.DB) {
 			// },
 		}
 
-		for _, integration := range integrations {
-			if err := db.Create(&integration).Error; err != nil {
-				logger.Error("failed to seed integration: " + err.Error())
+		// Only seed if there are integrations to seed
+		if len(integrations) > 0 {
+			for _, integration := range integrations {
+				if err := db.Create(&integration).Error; err != nil {
+					logger.Error("failed to seed integration: " + err.Error())
+				}
 			}
+			logger.Info("System integrations seeded successfully.")
+		} else {
+			logger.Info("No integrations to seed, skipping...")
 		}
-
-		logger.Info("System integrations seeded successfully.")
 	}
 }

@@ -8,11 +8,13 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -83,21 +85,69 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 // CreateBuzz creates a new buzz, adds the host as the first participant, and emits a realtime event.
 func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
+	var channelID string
 
-	// Validate permissions using centralized permission check
-	err := permissions.CanCreateBuzz(db.Postgresql, req.ChannelID, hostID)
-	if err != nil {
-		statusCode, errMsg := mapPermissionError(err, "create")
-		logger.Error("permission check failed for user %s creating buzz in channel %s: %v", hostID, req.ChannelID, err)
-		return resp, statusCode, errors.New(errMsg)
+	// Handle DM channel creation if participant_id is provided
+	if req.ParticipantID != nil && *req.ParticipantID != "" {
+		logger.Info("creating buzz with new DM channel for user %s and participant %s", hostID, *req.ParticipantID)
+		
+		// Get user's organization
+		var user models.User
+		if err := db.Postgresql.Where("id = ?", hostID).First(&user).Error; err != nil {
+			logger.Error("failed to get user for DM creation: %v", err)
+			return resp, http.StatusBadRequest, errors.New("user not found")
+		}
+		
+		// Check if DM channel already exists
+		var existingDM models.DmChannels
+		exists := db.Postgresql.Where("(user_id = ? AND participant_id = ?) OR (user_id = ? AND participant_id = ?)", 
+			hostID, *req.ParticipantID, *req.ParticipantID, hostID).First(&existingDM).Error == nil
+		
+		if exists {
+			// Use existing DM channel
+			channelID = existingDM.ChannelId
+			logger.Info("using existing DM channel %s", channelID)
+		} else {
+			// Create new DM channel
+			dmReq := models.DmChannelsRequest{
+				UserId:        hostID,
+				ParticipantId: *req.ParticipantID,
+				OrgId:         user.CurrentOrg.String(),
+				ChatType:      "user",
+			}
+			
+			dmResp, code, err := dm.CreateDmChannel(dmReq, db.Postgresql, request.ExternalRequest{Logger: logger, Test: false}, db.Redis)
+			if err != nil {
+				logger.Error("failed to create DM channel: %v", err)
+				return resp, code, errors.New("failed to create DM channel for buzz")
+			}
+			channelID = dmResp.ID
+			logger.Info("created new DM channel %s", channelID)
+		}
+	} else if req.ChannelID != "" {
+		channelID = req.ChannelID
+	} else {
+		return resp, http.StatusBadRequest, errors.New("either channel_id or participant_id must be provided")
 	}
 
+	logger.Info("creating buzz for user %s in channel %s", hostID, channelID)
+
+	// Validate permissions using centralized permission check
+	err := permissions.CanCreateBuzz(db.Postgresql, channelID, hostID)
+	if err != nil {
+		statusCode, errMsg := mapPermissionError(err, "create")
+		logger.Error("buzz creation failed - permission denied for user %s in channel %s: %v", hostID, req.ChannelID, err)
+		return resp, statusCode, errors.New(errMsg)
+	}
+	logger.Info("permission validated for user %s to create buzz in channel %s", hostID, channelID)
+
 	// Determine channel type (regular, DM, or group DM)
-	channelType, err := permissions.GetChannelType(db.Postgresql, req.ChannelID)
+	channelType, err := permissions.GetChannelType(db.Postgresql, channelID)
 	if err != nil {
 		logger.Error("failed to determine channel type for channel %s: %v", req.ChannelID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to determine channel type")
 	}
+	logger.Info("determined channel type: %s for channel %s", channelType, channelID)
 
 	// Fail on Agora service not available before permission checks
 	service := agora.Client.Service
@@ -112,7 +162,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 
 	buzz := models.Buzz{
 		ID:             utility.GenerateUUID(),
-		ChannelID:      req.ChannelID,
+		ChannelID:      channelID,
 		ChannelType:    channelType,
 		HostID:         hostID,
 		ParticipantIDs: participants,
@@ -125,9 +175,10 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 
 	// Generate Agora token BEFORE creating buzz in database (using hostID as UID)
 	// Use constant for token expiration (4 hours)
+	logger.Info("generating Agora RTC token for host %s in buzz %s", hostID, buzz.ID)
 	token, err := service.GenerateRTCToken(buzz.ID, hostID, hostID, agora.DefaultTokenExpirationSeconds)
 	if err != nil {
-		logger.Error("failed to generate Agora token for host: %v", err)
+		logger.Error("buzz creation failed - Agora token generation error for host %s in buzz %s: %v", hostID, buzz.ID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
 	}
 
@@ -138,8 +189,10 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		UID:         hostID,
 	}
 
+	logger.Info("starting database transaction to create buzz %s", buzz.ID)
 	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&buzz).Error; err != nil {
+			logger.Error("transaction failed - buzz record creation error: %v", err)
 			return err
 		}
 
@@ -154,13 +207,14 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		}
 
 		if err := tx.Create(&hostParticipant).Error; err != nil {
+			logger.Error("transaction failed - buzz participant creation error: %v", err)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		logger.Error("failed to create buzz: %v", err)
+		logger.Error("buzz creation failed - database transaction error for buzz %s: %v", buzz.ID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to create buzz")
 	}
 
@@ -204,12 +258,15 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		logger.Error("failed to publish buzz event: %v", err)
 	}
 
+	logger.Info("buzz %s created successfully by user %s in channel %s (type: %s)", buzz.ID, hostID, req.ChannelID, channelType)
 	return resp, http.StatusCreated, nil
 }
 
 // JoinBuzz allows a user to join an existing buzz
 func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.JoinBuzzResponse, int, error) {
 	var resp models.JoinBuzzResponse
+
+	logger.Info("user %s attempting to join buzz %s", userID, buzzID)
 
 	// Fail-fast: Check Agora service availability before permission checks
 	service := agora.Client.Service
@@ -222,18 +279,20 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 	buzz, err := permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
 	if err != nil {
 		statusCode, errMsg := mapPermissionError(err, "join")
-		logger.Error("permission check failed for user %s joining buzz %s: %v", userID, buzzID, err)
+		logger.Error("join buzz failed - permission denied for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, statusCode, errors.New(errMsg)
 	}
+	logger.Info("permission validated for user %s to join buzz %s", userID, buzzID)
 
 	timestamp := time.Now().UTC()
 
 	// Generate Agora token BEFORE adding user to buzz (using userID as UID)
 	// This way if token generation fails, we haven't polluted the database
 	// Use constant for token expiration (4 hours)
+	logger.Info("generating Agora RTC token for user %s in buzz %s", userID, buzzID)
 	token, err := service.GenerateRTCToken(buzzID, userID, userID, agora.DefaultTokenExpirationSeconds)
 	if err != nil {
-		logger.Error("failed to generate Agora token for user: %v", err)
+		logger.Error("join buzz failed - Agora token generation error for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
 	}
 
@@ -245,8 +304,9 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 	}
 
 	// Add user to buzz in transaction
+	logger.Info("starting database transaction to add user %s to buzz %s", userID, buzzID)
 	if err := addUserToBuzzTransaction(db, logger, buzz, userID, timestamp); err != nil {
-		logger.Error("failed to add user to buzz transaction: %v", err)
+		logger.Error("join buzz failed - database transaction error for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to join buzz")
 	}
 
@@ -278,6 +338,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	publishJoinBuzzEvent(logger, *buzz, timestamp)
 
+	logger.Info("user %s successfully joined buzz %s", userID, buzzID)
 	return resp, http.StatusOK, nil
 }
 
@@ -354,10 +415,13 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		buzzEnded = false
 	)
 
+	logger.Info("user %s attempting to leave buzz %s", userID, buzzID)
+
 	buzz, status, err := validateLeaveBuzz(db, logger, buzzID, userID)
 	if err != nil {
 		return nil, status, err
 	}
+	logger.Info("validation passed for user %s to leave buzz %s", userID, buzzID)
 
 	tx := db.Postgresql.Begin()
 	if tx.Error != nil {
@@ -437,12 +501,19 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	}
 
 	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
-	logger.Info(buzz.Status)
 
 	if buzzEnded {
 		if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
 			logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
 		}
+	}
+
+	if newHostID != "" {
+		logger.Info("user %s left buzz %s - host transferred to %s", userID, buzzID, newHostID)
+	} else if buzzEnded {
+		logger.Info("user %s left buzz %s - buzz ended (no participants remaining)", userID, buzzID)
+	} else {
+		logger.Info("user %s successfully left buzz %s", userID, buzzID)
 	}
 
 	return &models.BuzzLeaveResponse{
@@ -456,6 +527,8 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 
 // EndBuzz allows the host to explicitly end a buzz for all participants
 func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string) (*models.BuzzEndResponse, int, error) {
+	logger.Info("host %s attempting to end buzz %s", hostID, buzzID)
+
 	// Use centralized permission check
 	buzz, err := permissions.CanPerformHostAction(db.Postgresql, buzzID, hostID)
 	if err != nil {
@@ -463,6 +536,7 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 		logger.Error("permission check failed for user %s ending buzz %s: %v", hostID, buzzID, err)
 		return nil, statusCode, errors.New(errMsg)
 	}
+	logger.Info("permission validated for host %s to end buzz %s", hostID, buzzID)
 
 	now := time.Now().UTC()
 
