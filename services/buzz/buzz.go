@@ -8,11 +8,13 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -83,25 +85,69 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 // CreateBuzz creates a new buzz, adds the host as the first participant, and emits a realtime event.
 func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
+	var channelID string
 
-	logger.Info("creating buzz for user %s in channel %s", hostID, req.ChannelID)
+	// Handle DM channel creation if participant_id is provided
+	if req.ParticipantID != nil && *req.ParticipantID != "" {
+		logger.Info("creating buzz with new DM channel for user %s and participant %s", hostID, *req.ParticipantID)
+		
+		// Get user's organization
+		var user models.User
+		if err := db.Postgresql.Where("id = ?", hostID).First(&user).Error; err != nil {
+			logger.Error("failed to get user for DM creation: %v", err)
+			return resp, http.StatusBadRequest, errors.New("user not found")
+		}
+		
+		// Check if DM channel already exists
+		var existingDM models.DmChannels
+		exists := db.Postgresql.Where("(user_id = ? AND participant_id = ?) OR (user_id = ? AND participant_id = ?)", 
+			hostID, *req.ParticipantID, *req.ParticipantID, hostID).First(&existingDM).Error == nil
+		
+		if exists {
+			// Use existing DM channel
+			channelID = existingDM.ChannelId
+			logger.Info("using existing DM channel %s", channelID)
+		} else {
+			// Create new DM channel
+			dmReq := models.DmChannelsRequest{
+				UserId:        hostID,
+				ParticipantId: *req.ParticipantID,
+				OrgId:         user.CurrentOrg.String(),
+				ChatType:      "user",
+			}
+			
+			dmResp, code, err := dm.CreateDmChannel(dmReq, db.Postgresql, request.ExternalRequest{Logger: logger, Test: false}, db.Redis)
+			if err != nil {
+				logger.Error("failed to create DM channel: %v", err)
+				return resp, code, errors.New("failed to create DM channel for buzz")
+			}
+			channelID = dmResp.ID
+			logger.Info("created new DM channel %s", channelID)
+		}
+	} else if req.ChannelID != "" {
+		channelID = req.ChannelID
+	} else {
+		return resp, http.StatusBadRequest, errors.New("either channel_id or participant_id must be provided")
+	}
+
+	logger.Info("creating buzz for user %s in channel %s", hostID, channelID)
 
 	// Validate permissions using centralized permission check
-	err := permissions.CanCreateBuzz(db.Postgresql, req.ChannelID, hostID)
+	err := permissions.CanCreateBuzz(db.Postgresql, channelID, hostID)
 	if err != nil {
 		statusCode, errMsg := mapPermissionError(err, "create")
 		logger.Error("buzz creation failed - permission denied for user %s in channel %s: %v", hostID, req.ChannelID, err)
 		return resp, statusCode, errors.New(errMsg)
 	}
-	logger.Info("permission validated for user %s to create buzz in channel %s", hostID, req.ChannelID)
+	logger.Info("permission validated for user %s to create buzz in channel %s", hostID, channelID)
 
 	// Determine channel type (regular, DM, or group DM)
-	channelType, err := permissions.GetChannelType(db.Postgresql, req.ChannelID)
+	channelType, err := permissions.GetChannelType(db.Postgresql, channelID)
 	if err != nil {
 		logger.Error("failed to determine channel type for channel %s: %v", req.ChannelID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to determine channel type")
 	}
-	logger.Info("determined channel type: %s for channel %s", channelType, req.ChannelID)
+	logger.Info("determined channel type: %s for channel %s", channelType, channelID)
 
 	// Fail on Agora service not available before permission checks
 	service := agora.Client.Service
@@ -116,7 +162,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 
 	buzz := models.Buzz{
 		ID:             utility.GenerateUUID(),
-		ChannelID:      req.ChannelID,
+		ChannelID:      channelID,
 		ChannelType:    channelType,
 		HostID:         hostID,
 		ParticipantIDs: participants,

@@ -23714,14 +23714,17 @@ components:
 
     CreateBuzzRequest:
       type: object
-      required:
-        - channel_id
       properties:
         channel_id:
           type: string
           format: uuid
-          description: "The ID of the channel where the buzz will be created. Can be a regular channel, DM channel, or group DM channel ID."
+          description: "The ID of an existing channel where the buzz will be created. Can be a regular channel, DM channel, or group DM channel ID. Either channel_id or participant_id must be provided."
           example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        participant_id:
+          type: string
+          format: uuid
+          description: "The ID of a user to create a new DM channel with and start a buzz. If a DM channel already exists with this user, it will be used. Either channel_id or participant_id must be provided."
+          example: "7cb8c920-9ead-22e2-90c5-11d15ge541d9"
 
     BuzzCreateResponseSchema:
       type: object

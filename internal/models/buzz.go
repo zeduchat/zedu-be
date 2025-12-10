@@ -55,7 +55,8 @@ type BuzzParticipant struct {
 }
 
 type CreateBuzzRequest struct {
-	ChannelID string `json:"channel_id" validate:"required,uuid"`
+	ChannelID     string  `json:"channel_id" validate:"omitempty,uuid"`
+	ParticipantID *string `json:"participant_id" validate:"omitempty,uuid"`
 }
 
 // ParticipantMetadata contains detailed information about a buzz participant
