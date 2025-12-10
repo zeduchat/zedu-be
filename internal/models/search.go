@@ -102,6 +102,9 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		return nil, fmt.Errorf("unexpected type for hits.hits: %T", hitsData["hits"])
 	}
 
+	var messageIDs []string
+	messageIDToResultIndex := make(map[string]int)
+
 	for _, hitItem := range hitsArray {
 		hit, ok := hitItem.(map[string]any)
 		if !ok {
@@ -118,9 +121,99 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 			continue
 		}
 
-		// Process hit and append to results
-		qResults = append(qResults, utility.ProcessMessageHit(index, source))
+		result := utility.ProcessMessageHit(index, source)
+
+		for _, msg := range result.Messages {
+			if msg.MessageID != "" {
+				messageIDs = append(messageIDs, msg.MessageID)
+				messageIDToResultIndex[msg.MessageID] = len(qResults)
+			}
+		}
+
+		qResults = append(qResults, result)
 	}
+
+	if len(messageIDs) == 0 {
+		return qResults, nil
+	}
+
+	reactionMap, err := FetchReactionsForMessages(db.Postgresql, messageIDs)
+	if err != nil {
+		fmt.Printf("Warning: failed to fetch reactions: %v\n", err)
+		reactionMap = make(map[string][]ReactionData)
+	}
+
+	var threadIDs []string
+	threadIDMap := make(map[string]string)
+
+	type MessageThread struct {
+		MessageID string `gorm:"column:id"`
+		ThreadID  string `gorm:"column:thread_id"`
+	}
+
+	var messageThreads []MessageThread
+	err = db.Postgresql.Table("messages").
+		Select("id, thread_id").
+		Where("id IN ? AND thread_id IS NOT NULL", messageIDs).
+		Scan(&messageThreads).Error
+
+	if err == nil {
+		for _, mt := range messageThreads {
+			threadIDMap[mt.MessageID] = mt.ThreadID
+			found := false
+			for _, tid := range threadIDs {
+				if tid == mt.ThreadID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				threadIDs = append(threadIDs, mt.ThreadID)
+			}
+		}
+	}
+
+	threadDataMap := make(map[string]ThreadData)
+	if len(threadIDs) > 0 {
+		threadDataMap, err = FetchThreadDataForMessages(db.Postgresql, messageIDs)
+		if err != nil {
+			fmt.Printf("Warning: failed to fetch thread data: %v\n", err)
+		}
+	}
+
+	replyUsersMap := make(map[string][]ReplyUserData)
+	if len(threadIDs) > 0 {
+		replyUsersMap, err = FetchReplyUsersForThreads(db.Postgresql, threadIDs)
+		if err != nil {
+			fmt.Printf("Warning: failed to fetch reply users: %v\n", err)
+		}
+	}
+
+	for i := range qResults {
+		for j := range qResults[i].Messages {
+			messageID := qResults[i].Messages[j].MessageID
+
+			if reactions, exists := reactionMap[messageID]; exists {
+				qResults[i].Messages[j].Reactions = AggregateReactions(reactions)
+			}
+
+			if threadID, hasThread := threadIDMap[messageID]; hasThread {
+				if threadData, exists := threadDataMap[threadID]; exists {
+					if threadData.MessageCount != nil {
+						count := int(*threadData.MessageCount)
+						qResults[i].Messages[j].ReplyCount = &count
+					}
+
+					qResults[i].Messages[j].LastReplyTimestamp = threadData.LastReply
+				}
+
+				if replyUsers, exists := replyUsersMap[threadID]; exists {
+					qResults[i].Messages[j].ReplyUsers = ConvertReplyUsersToUtilityFormat(replyUsers)
+				}
+			}
+		}
+	}
+
 	return qResults, nil
 }
 
