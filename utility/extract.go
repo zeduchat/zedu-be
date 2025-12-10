@@ -21,9 +21,13 @@ type Channel struct {
 }
 
 type MessageQuery struct {
-	MessageID string    `json:"message_id"`
-	Message   string    `json:"message"`
-	TimeStamp time.Time `json:"timestamp,omitempty"`
+	MessageID          string         `json:"message_id"`
+	Message            string         `json:"message"`
+	TimeStamp          time.Time      `json:"timestamp,omitempty"`
+	Reactions          []ReactionInfo `json:"reactions,omitempty"`
+	ReplyCount         *int           `json:"reply_count,omitempty"`
+	LastReplyTimestamp *string        `json:"last_reply_timestamp,omitempty"`
+	ReplyUsers         []ReplyUser    `json:"reply_users,omitempty"`
 }
 
 type UserQuery struct {
@@ -37,6 +41,25 @@ type SearchQueryResult struct {
 	Messages []MessageQuery `json:"messages,omitempty"`
 	Channel  Channel        `json:"channel,omitempty"`
 	Thread   Thread         `json:"thread,omitempty"`
+}
+
+type ReactionUser struct {
+	UserID    string `json:"user_id"`
+	UserName  string `json:"user_name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+type ReactionInfo struct {
+	ReactionID string         `json:"reaction_id"`
+	Emoji      string         `json:"emoji"`
+	Count      int            `json:"count"`
+	Users      []ReactionUser `json:"users"`
+}
+
+type ReplyUser struct {
+	UserID    string `json:"user_id"`
+	UserName  string `json:"user_name"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 func CheckQueryStringContainKeyword(query string) [][]string {
