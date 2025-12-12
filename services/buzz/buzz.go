@@ -82,6 +82,19 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 	return participants, nil
 }
 
+// buildBuzzMetadataResponse builds the base metadata response for a buzz
+func buildBuzzMetadataResponse(buzz *models.Buzz, participantMetadata []models.ParticipantMetadata) models.BuzzMetadataResponse {
+	return models.BuzzMetadataResponse{
+		BuzzID:       buzz.ID,
+		HostID:       buzz.HostID,
+		ChannelID:    buzz.ChannelID,
+		Status:       buzz.Status,
+		CreatedAt:    buzz.CreatedAt,
+		StartedAt:    buzz.BuzzStartTime,
+		Participants: participantMetadata,
+	}
+}
+
 // CreateBuzz creates a new buzz, adds the host as the first participant, and emits a realtime event.
 func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
@@ -225,14 +238,15 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
+	metadataResp := buildBuzzMetadataResponse(&buzz, participantMetadata)
 	resp = models.BuzzCreateResponse{
-		BuzzID:       buzz.ID,
-		HostID:       buzz.HostID,
-		ChannelID:    buzz.ChannelID,
-		Status:       buzz.Status,
-		CreatedAt:    buzz.CreatedAt,
-		StartedAt:    buzz.BuzzStartTime,
-		Participants: participantMetadata,
+		BuzzID:       metadataResp.BuzzID,
+		HostID:       metadataResp.HostID,
+		ChannelID:    metadataResp.ChannelID,
+		Status:       metadataResp.Status,
+		CreatedAt:    metadataResp.CreatedAt,
+		StartedAt:    metadataResp.StartedAt,
+		Participants: metadataResp.Participants,
 		AgoraToken:   &agoraToken,
 	}
 
@@ -325,14 +339,15 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
+	metadataResp := buildBuzzMetadataResponse(buzz, participantMetadata)
 	resp = models.JoinBuzzResponse{
-		BuzzID:       buzz.ID,
-		HostID:       buzz.HostID,
-		ChannelID:    buzz.ChannelID,
+		BuzzID:       metadataResp.BuzzID,
+		HostID:       metadataResp.HostID,
+		ChannelID:    metadataResp.ChannelID,
 		UserID:       userID,
-		Status:       buzz.Status,
+		Status:       metadataResp.Status,
 		JoinedAt:     timestamp,
-		Participants: participantMetadata,
+		Participants: metadataResp.Participants,
 		AgoraToken:   &agoraToken,
 	}
 
@@ -607,6 +622,43 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 	}
 
 	logger.Info("buzz %s ended by host %s", buzzID, hostID)
+	return resp, http.StatusOK, nil
+}
+
+// GetBuzzMetadata returns metadata for a buzz including participants information
+// Accessible to all channel members (not just buzz participants)
+func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.BuzzMetadataResponse, int, error) {
+	var resp models.BuzzMetadataResponse
+
+	logger.Info("fetching metadata for buzz %s by user %s", buzzID, userID)
+
+	// Fetch the buzz
+	var buzz models.Buzz
+	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			logger.Error("buzz not found: %s", buzzID)
+			return resp, http.StatusNotFound, errors.New("buzz not found")
+		}
+		logger.Error("failed to fetch buzz: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch buzz")
+	}
+
+	// Verify user is a member of the channel where the buzz is active
+	if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) {
+		logger.Error("user %s is not a member of channel %s", userID, buzz.ChannelID)
+		return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
+	}
+
+	// Fetch participant metadata
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
+	if err != nil {
+		logger.Error("failed to fetch participant metadata: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
+	}
+
+	resp = buildBuzzMetadataResponse(&buzz, participantMetadata)
+
+	logger.Info("successfully fetched metadata for buzz %s with %d participants", buzzID, len(participantMetadata))
 	return resp, http.StatusOK, nil
 }
 
