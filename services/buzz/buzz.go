@@ -662,8 +662,8 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 	return resp, http.StatusOK, nil
 }
 
-// GetChannelActiveBuzzIndicator returns whether a channel has an active buzz
-// Returns minimal info needed for frontend to display an indicator
+// GetChannelActiveBuzzIndicator returns whether a channel has an active buzz with participant preview
+// Returns indicator info plus participant count and a preview of first few names
 func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger, channelID string) (models.ActiveBuzzIndicator, int, error) {
 	var resp models.ActiveBuzzIndicator
 
@@ -679,6 +679,8 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 			// No active buzz - this is normal
 			logger.Info("no active buzz found in channel %s", channelID)
 			resp.IsActive = false
+			resp.ParticipantCount = 0
+			resp.RemainingParticipants = 0
 			return resp, http.StatusOK, nil
 		}
 		// Database error
@@ -686,13 +688,45 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 		return resp, http.StatusInternalServerError, errors.New("failed to check active buzz")
 	}
 
-	// Active buzz found
-	logger.Info("active buzz found in channel %s: %s", channelID, buzz.ID)
+	// Active buzz found - fetch participant metadata for preview
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	if err != nil {
+		logger.Error("failed to fetch participant metadata for indicator: %v", err)
+		// Don't fail the entire request, just return without participant preview
+		resp = models.ActiveBuzzIndicator{
+			IsActive: true,
+			BuzzID:   buzz.ID,
+			HostID:   buzz.HostID,
+			Status:   buzz.Status,
+		}
+		return resp, http.StatusOK, nil
+	}
+
+	// Build participant preview (first 2-3 names)
+	previewCount := 2
+	if len(participantMetadata) < previewCount {
+		previewCount = len(participantMetadata)
+	}
+
+	participantPreview := make([]string, previewCount)
+	for i := 0; i < previewCount; i++ {
+		participantPreview[i] = participantMetadata[i].UserName
+	}
+
+	remainingCount := len(participantMetadata) - previewCount
+	if remainingCount < 0 {
+		remainingCount = 0
+	}
+
+	logger.Info("active buzz found in channel %s: %s with %d participants", channelID, buzz.ID, len(participantMetadata))
 	resp = models.ActiveBuzzIndicator{
-		IsActive: true,
-		BuzzID:   buzz.ID,
-		HostID:   buzz.HostID,
-		Status:   buzz.Status,
+		IsActive:              true,
+		BuzzID:                buzz.ID,
+		HostID:                buzz.HostID,
+		Status:                buzz.Status,
+		ParticipantCount:      len(participantMetadata),
+		ParticipantPreview:    participantPreview,
+		RemainingParticipants: remainingCount,
 	}
 
 	return resp, http.StatusOK, nil

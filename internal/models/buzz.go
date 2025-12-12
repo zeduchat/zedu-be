@@ -109,10 +109,13 @@ type BuzzMetadataResponse struct {
 }
 
 type ActiveBuzzIndicator struct {
-	IsActive bool   `json:"is_active"`
-	BuzzID   string `json:"buzz_id,omitempty"`
-	HostID   string `json:"host_id,omitempty"`
-	Status   string `json:"status,omitempty"`
+	IsActive              bool     `json:"is_active"`
+	BuzzID                string   `json:"buzz_id,omitempty"`
+	HostID                string   `json:"host_id,omitempty"`
+	Status                string   `json:"status,omitempty"`
+	ParticipantCount      int      `json:"participant_count"`
+	ParticipantPreview    []string `json:"participant_preview"`    // First 2-3 names
+	RemainingParticipants int      `json:"remaining_participants"` // Count of others
 }
 
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
