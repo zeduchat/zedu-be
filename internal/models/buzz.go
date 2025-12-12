@@ -108,6 +108,13 @@ type BuzzMetadataResponse struct {
 	Participants []ParticipantMetadata `json:"participants"`
 }
 
+type ActiveBuzzIndicator struct {
+	IsActive bool   `json:"is_active"`
+	BuzzID   string `json:"buzz_id,omitempty"`
+	HostID   string `json:"host_id,omitempty"`
+	Status   string `json:"status,omitempty"`
+}
+
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
 		h.ID = utility.GenerateUUID()

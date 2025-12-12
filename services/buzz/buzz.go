@@ -662,6 +662,42 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 	return resp, http.StatusOK, nil
 }
 
+// GetChannelActiveBuzzIndicator returns whether a channel has an active buzz
+// Returns minimal info needed for frontend to display an indicator
+func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger, channelID string) (models.ActiveBuzzIndicator, int, error) {
+	var resp models.ActiveBuzzIndicator
+
+	logger.Info("checking for active buzz in channel %s", channelID)
+
+	// Fetch active buzz if it exists
+	var buzz models.Buzz
+	err := db.Postgresql.Where("channel_id = ? AND status = ? AND is_live_status = ?",
+		channelID, models.BuzzStatusActive, true).First(&buzz).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// No active buzz - this is normal
+			logger.Info("no active buzz found in channel %s", channelID)
+			resp.IsActive = false
+			return resp, http.StatusOK, nil
+		}
+		// Database error
+		logger.Error("failed to check active buzz in channel %s: %v", channelID, err)
+		return resp, http.StatusInternalServerError, errors.New("failed to check active buzz")
+	}
+
+	// Active buzz found
+	logger.Info("active buzz found in channel %s: %s", channelID, buzz.ID)
+	resp = models.ActiveBuzzIndicator{
+		IsActive: true,
+		BuzzID:   buzz.ID,
+		HostID:   buzz.HostID,
+		Status:   buzz.Status,
+	}
+
+	return resp, http.StatusOK, nil
+}
+
 // ForceEndBuzz forcefully ends an active buzz without permission checks - FOR TESTING ONLY
 func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (*models.BuzzEndResponse, int, error) {
 	logger.Warning("[TEST ENDPOINT] Force ending buzz %s without permission checks", buzzID)

@@ -247,6 +247,30 @@ func (base *Controller) GetMetadata(c *gin.Context) {
 	c.JSON(statusCode, rd)
 }
 
+func (base *Controller) GetChannelActiveBuzz(c *gin.Context) {
+	channelID := c.Param("channel_id")
+
+	if channelID == "" || !(utility.IsValidUUID(channelID)) {
+		base.Logger.Error("invalid request param: channel id is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id in params", errors.New("invalid channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	data, statusCode, err := buzz.GetChannelActiveBuzzIndicator(base.Db, base.Logger, channelID)
+
+	if err != nil {
+		base.Logger.Error("Failed to fetch active buzz indicator: %v", err)
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("active buzz indicator retrieved for channel %s", channelID)
+	rd := utility.BuildSuccessResponse(statusCode, "active buzz status retrieved", data)
+	c.JSON(statusCode, rd)
+}
+
 // ForceEndBuzz force ends a buzz without permission checks - FOR TESTING ONLY
 func (base *Controller) ForceEndBuzz(c *gin.Context) {
 	buzzID, ok := c.Params.Get("id")
