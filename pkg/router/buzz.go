@@ -36,6 +36,9 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.POST("/invite", ctrl.InviteUsersToBuzz)
 		buzzGroup.POST("/invitation/respond", ctrl.RespondToInvitation)
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
+		
+		// Test endpoints (no permission checks) - REMOVE IN PRODUCTION
+		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
 	}
 
 	return r
