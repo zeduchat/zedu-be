@@ -23388,6 +23388,49 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/force-end:
+    post:
+      tags:
+        - buzz
+      summary: "[TEST ONLY] Force end a buzz without permission checks"
+      description: "**⚠️ TEST ENDPOINT - REMOVE IN PRODUCTION** Forcefully ends an active buzz without verifying host permissions. Useful for testing and debugging buzz-related issues. Bypasses all authorization checks."
+      operationId: forceEndBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz to force end
+      responses:
+        "200":
+          description: Buzz force ended successfully (test mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzEndResponseSchema"
+        "400":
+          description: Bad request - invalid buzz ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist or not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     PartialStatusUpdateRequest:
