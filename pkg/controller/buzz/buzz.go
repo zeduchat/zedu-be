@@ -251,7 +251,7 @@ func (base *Controller) GetChannelActiveBuzz(c *gin.Context) {
 	channelID := c.Param("channel_id")
 
 	if channelID == "" || !(utility.IsValidUUID(channelID)) {
-		base.Logger.Error("invalid request param: channel id is invalid")
+		base.Logger.Error("invalid request param: channel id is empty or invalid")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id in params", errors.New("invalid channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
