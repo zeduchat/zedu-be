@@ -115,33 +115,45 @@ func extractMessageInfo(source map[string]any) MessageQuery {
 		TimeStamp: getTime(source, "created_at"),
 	}
 
-	// try to extract reactions and reply metadata if present in the source
+	// Extract and aggregate reactions from nested structure
 	if reactionsAny, ok := source["reactions"]; ok {
-		if arr, ok := reactionsAny.([]any); ok {
+		if arr, ok := reactionsAny.([]any); ok && len(arr) > 0 {
+			// Each reaction in ES is per-user, so we need to aggregate by emoji
+			reactionGroups := make(map[string]*ReactionInfo)
+
 			for _, r := range arr {
 				if rm, ok := r.(map[string]any); ok {
-					ri := ReactionInfo{
-						ReactionID: getString(rm, "reaction_id"),
-						Emoji:      getString(rm, "emoji"),
-						Count:      toInt(rm["count"]),
+					emoji := getString(rm, "emoji")
+					if emoji == "" {
+						continue // Skip if no emoji
 					}
-					// users inside reaction
-					if usersAny, ok := rm["users"]; ok {
-						if usersArr, ok := usersAny.([]any); ok {
-							for _, u := range usersArr {
-								if um, ok := u.(map[string]any); ok {
-									ru := ReactionUser{
-										UserID:    getString(um, "user_id"),
-										UserName:  getString(um, "user_name"),
-										AvatarURL: getString(um, "avatar_url"),
-									}
-									ri.Users = append(ri.Users, ru)
-								}
-							}
+
+					// Initialize reaction group if doesn't exist
+					if _, exists := reactionGroups[emoji]; !exists {
+						reactionGroups[emoji] = &ReactionInfo{
+							ReactionID: getString(rm, "id"), // Use first reaction's ID
+							Emoji:      emoji,
+							Count:      0,
+							Users:      []ReactionUser{},
 						}
 					}
-					mq.Reactions = append(mq.Reactions, ri)
+
+					// Increment count and add user
+					reactionGroups[emoji].Count++
+					reactionGroups[emoji].Users = append(
+						reactionGroups[emoji].Users,
+						ReactionUser{
+							UserID:    getString(rm, "user_id"),
+							UserName:  getString(rm, "user_name"),
+							AvatarURL: getString(rm, "avatar_url"),
+						},
+					)
 				}
+			}
+
+			// Convert map to slice
+			for _, reactionInfo := range reactionGroups {
+				mq.Reactions = append(mq.Reactions, *reactionInfo)
 			}
 		}
 	}

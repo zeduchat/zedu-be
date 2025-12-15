@@ -103,8 +103,11 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		return nil, fmt.Errorf("unexpected type for hits.hits: %T", hitsData["hits"])
 	}
 
+	// Process ES hits and collect IDs
 	var messageIDs []string
-	messageIDToResultIndex := make(map[string]int)
+	var missingReactionMessageIDs []string
+	threadIDsSet := make(map[string]struct{})
+	messageToThreadMap := make(map[string]string) // message_id -> thread_id
 
 	for _, hitItem := range hitsArray {
 		hit, ok := hitItem.(map[string]any)
@@ -127,75 +130,54 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		for _, msg := range result.Messages {
 			if msg.MessageID != "" {
 				messageIDs = append(messageIDs, msg.MessageID)
-				messageIDToResultIndex[msg.MessageID] = len(qResults)
+
+				// Check if reactions exist in the source
+				hasReactionsInSource := false
+				if reactionsRaw, ok := source["reactions"]; ok {
+					if reactionsArr, ok := reactionsRaw.([]any); ok && len(reactionsArr) > 0 {
+						hasReactionsInSource = true
+					}
+				}
+
+				// If message doesn't have reactions in source, mark it for fetching
+				if !hasReactionsInSource {
+					missingReactionMessageIDs = append(missingReactionMessageIDs, msg.MessageID)
+				}
+
+				// Track thread relationships - use correct field name
+				if result.Thread.ID != "" {
+					messageToThreadMap[msg.MessageID] = result.Thread.ID
+					threadIDsSet[result.Thread.ID] = struct{}{}
+				}
 			}
 		}
 
 		qResults = append(qResults, result)
 	}
 
+	// Early return if no messages
 	if len(messageIDs) == 0 {
 		return qResults, nil
 	}
 
-	// Build reaction map from ES hits when available, otherwise fetch from ES reactions index
+	// Fetch missing reactions from ES reactions index
 	reactionMap := make(map[string][]ReactionData)
-	var missingMessageIDs []string
-
-	// build thread map from ES hits
-	threadIDMap := make(map[string]string)
-	threadIDsSet := make(map[string]struct{})
-
-	for i := range qResults {
-		for j := range qResults[i].Messages {
-			mid := qResults[i].Messages[j].MessageID
-			// reactions present in hit source are already populated via utility.ProcessMessageHit
-			if len(qResults[i].Messages[j].Reactions) > 0 {
-				// convert utility.ReactionInfo to local ReactionData slice
-				for _, ri := range qResults[i].Messages[j].Reactions {
-					for _, u := range ri.Users {
-						reactionMap[mid] = append(reactionMap[mid], ReactionData{
-							MessageID:  mid,
-							ReactionID: ri.ReactionID,
-							Reaction:   ri.Emoji,
-							UserID:     u.UserID,
-							UserName:   u.UserName,
-							AvatarURL:  u.AvatarURL,
-						})
-					}
-				}
-			} else {
-				missingMessageIDs = append(missingMessageIDs, mid)
-			}
-
-			// thread id extracted from ES hit (if present)
-			tid := qResults[i].Thread.ID
-			if tid != "" {
-				threadIDMap[mid] = tid
-				threadIDsSet[tid] = struct{}{}
-			}
-		}
-	}
-
-	// Fetch reactions from ES for messages missing reactions
-	if len(missingMessageIDs) > 0 {
-		esReactions, err := FetchReactionsForMessages(db.Elastic, missingMessageIDs)
+	if len(missingReactionMessageIDs) > 0 {
+		fetchedReactions, err := FetchReactionsForMessages(db.Elastic, missingReactionMessageIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch reactions from ES: %v\n", err)
 		} else {
-			for k, v := range esReactions {
-				reactionMap[k] = append(reactionMap[k], v...)
-			}
+			reactionMap = fetchedReactions
 		}
 	}
 
-	// Build list of thread IDs
-	var threadIDs []string
+	// Convert thread IDs set to slice
+	threadIDs := make([]string, 0, len(threadIDsSet))
 	for tid := range threadIDsSet {
 		threadIDs = append(threadIDs, tid)
 	}
 
-	// Fetch thread metadata from ES (threads index)
+	// Fetch thread metadata from ES
 	threadDataMap := make(map[string]ThreadData)
 	if len(threadIDs) > 0 {
 		td, err := FetchThreadDataForThreads(db.Elastic, threadIDs)
@@ -206,7 +188,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		}
 	}
 
-	// Fetch reply users from ES (messages index) for threads
+	// Fetch reply users for threads
 	replyUsersMap := make(map[string][]ReplyUserData)
 	if len(threadIDs) > 0 {
 		rum, err := FetchReplyUsersForThreads(db.Elastic, threadIDs)
@@ -217,25 +199,31 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		}
 	}
 
+	// Second pass: Enrich results with fetched data
 	for i := range qResults {
 		for j := range qResults[i].Messages {
 			messageID := qResults[i].Messages[j].MessageID
 
-			if reactions, exists := reactionMap[messageID]; exists {
-				qResults[i].Messages[j].Reactions = AggregateReactions(reactions)
+			// Add reactions only if they were missing and we fetched them
+			if len(qResults[i].Messages[j].Reactions) == 0 {
+				if reactions, exists := reactionMap[messageID]; exists && len(reactions) > 0 {
+					qResults[i].Messages[j].Reactions = AggregateReactions(reactions)
+				}
 			}
 
-			if threadID, hasThread := threadIDMap[messageID]; hasThread {
+			// Add thread metadata if message is part of a thread
+			if threadID, hasThread := messageToThreadMap[messageID]; hasThread {
+				// Add reply count and last reply timestamp
 				if threadData, exists := threadDataMap[threadID]; exists {
 					if threadData.MessageCount != nil {
 						count := int(*threadData.MessageCount)
 						qResults[i].Messages[j].ReplyCount = &count
 					}
-
 					qResults[i].Messages[j].LastReplyTimestamp = threadData.LastReply
 				}
 
-				if replyUsers, exists := replyUsersMap[threadID]; exists {
+				// Add reply users
+				if replyUsers, exists := replyUsersMap[threadID]; exists && len(replyUsers) > 0 {
 					qResults[i].Messages[j].ReplyUsers = ConvertReplyUsersToUtilityFormat(replyUsers)
 				}
 			}
@@ -724,18 +712,52 @@ func FetchThreadDataForThreads(es *elasticsearch.Client, threadIDs []string) (ma
 	return result, nil
 }
 
-// FetchReplyUsersForThreads aggregates distinct users who replied in threads by scanning messages index
+// FetchReplyUsersForThreads uses ES aggregations for better performance
 func FetchReplyUsersForThreads(es *elasticsearch.Client, threadIDs []string) (map[string][]ReplyUserData, error) {
 	result := make(map[string][]ReplyUserData)
 	if len(threadIDs) == 0 || es == nil {
 		return result, nil
 	}
 
+	// Use composite aggregation to get distinct users per thread efficiently
 	query := map[string]any{
+		"size": 0, // We only want aggregations, not documents
 		"query": map[string]any{
-			"terms": map[string]any{"thread_id.keyword": threadIDs},
+			"bool": map[string]any{
+				"must": []any{
+					map[string]any{
+						"terms": map[string]any{"thread_id.keyword": threadIDs},
+					},
+					map[string]any{
+						"exists": map[string]any{"field": "user_id"},
+					},
+				},
+			},
 		},
-		"size": 10000,
+		"aggs": map[string]any{
+			"threads": map[string]any{
+				"terms": map[string]any{
+					"field": "thread_id.keyword",
+					"size":  len(threadIDs),
+				},
+				"aggs": map[string]any{
+					"distinct_users": map[string]any{
+						"terms": map[string]any{
+							"field": "user_id.keyword",
+							"size":  100, // Adjust based on expected max users per thread
+						},
+						"aggs": map[string]any{
+							"user_details": map[string]any{
+								"top_hits": map[string]any{
+									"_source": []string{"user_id", "username", "avatar_url"},
+									"size":    1,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	var raw any
@@ -743,51 +765,97 @@ func FetchReplyUsersForThreads(es *elasticsearch.Client, threadIDs []string) (ma
 		return nil, err
 	}
 
+	// Parse aggregation results
 	rawMap, ok := raw.(map[string]any)
 	if !ok {
 		return result, nil
 	}
-	hits, ok := rawMap["hits"].(map[string]any)
+
+	aggs, ok := rawMap["aggregations"].(map[string]any)
 	if !ok {
 		return result, nil
 	}
-	hitsArr, _ := hits["hits"].([]any)
 
-	seen := make(map[string]map[string]struct{}) // threadID -> set of userID
-	for _, h := range hitsArr {
-		if hm, ok := h.(map[string]any); ok {
-			if src, ok := hm["_source"].(map[string]any); ok {
-				var tid, uid string
-				if v, ok := src["thread_id"].(string); ok {
-					tid = v
-				}
-				if v, ok := src["user_id"].(string); ok {
-					uid = v
-				}
-				if tid == "" || uid == "" {
-					continue
-				}
-				if _, ok := seen[tid]; !ok {
-					seen[tid] = make(map[string]struct{})
-				}
-				if _, exists := seen[tid][uid]; exists {
-					continue
-				}
-				seen[tid][uid] = struct{}{}
-				var uname, aurl string
-				if v, ok := src["username"].(string); ok {
-					uname = v
-				}
-				if v, ok := src["avatar_url"].(string); ok {
-					aurl = v
-				}
-				rud := ReplyUserData{
-					ThreadID:  tid,
+	threads, ok := aggs["threads"].(map[string]any)
+	if !ok {
+		return result, nil
+	}
+
+	buckets, ok := threads["buckets"].([]any)
+	if !ok {
+		return result, nil
+	}
+
+	for _, bucket := range buckets {
+		bucketMap, ok := bucket.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		threadID, ok := bucketMap["key"].(string)
+		if !ok {
+			continue
+		}
+
+		distinctUsers, ok := bucketMap["distinct_users"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		userBuckets, ok := distinctUsers["buckets"].([]any)
+		if !ok {
+			continue
+		}
+
+		for _, userBucket := range userBuckets {
+			userBucketMap, ok := userBucket.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			userDetails, ok := userBucketMap["user_details"].(map[string]any)
+			if !ok {
+				continue
+			}
+
+			hits, ok := userDetails["hits"].(map[string]any)
+			if !ok {
+				continue
+			}
+
+			hitsArray, ok := hits["hits"].([]any)
+			if !ok || len(hitsArray) == 0 {
+				continue
+			}
+
+			firstHit, ok := hitsArray[0].(map[string]any)
+			if !ok {
+				continue
+			}
+
+			source, ok := firstHit["_source"].(map[string]any)
+			if !ok {
+				continue
+			}
+
+			var uid, uname, aurl string
+			if v, ok := source["user_id"].(string); ok {
+				uid = v
+			}
+			if v, ok := source["username"].(string); ok {
+				uname = v
+			}
+			if v, ok := source["avatar_url"].(string); ok {
+				aurl = v
+			}
+
+			if uid != "" {
+				result[threadID] = append(result[threadID], ReplyUserData{
+					ThreadID:  threadID,
 					UserID:    uid,
 					UserName:  uname,
 					AvatarURL: aurl,
-				}
-				result[tid] = append(result[tid], rud)
+				})
 			}
 		}
 	}
