@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
@@ -178,7 +179,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 
 	// Fetch reactions from ES for messages missing reactions
 	if len(missingMessageIDs) > 0 {
-		esReactions, err := FetchReactionsForMessages(db, missingMessageIDs)
+		esReactions, err := FetchReactionsForMessages(db.Elastic, missingMessageIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch reactions from ES: %v\n", err)
 		} else {
@@ -197,7 +198,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	// Fetch thread metadata from ES (threads index)
 	threadDataMap := make(map[string]ThreadData)
 	if len(threadIDs) > 0 {
-		td, err := FetchThreadDataForThreads(db, threadIDs)
+		td, err := FetchThreadDataForThreads(db.Elastic, threadIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch thread data from ES: %v\n", err)
 		} else {
@@ -208,7 +209,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	// Fetch reply users from ES (messages index) for threads
 	replyUsersMap := make(map[string][]ReplyUserData)
 	if len(threadIDs) > 0 {
-		rum, err := FetchReplyUsersForThreads(db, threadIDs)
+		rum, err := FetchReplyUsersForThreads(db.Elastic, threadIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch reply users from ES: %v\n", err)
 		} else {
@@ -595,9 +596,9 @@ func ConvertReplyUsersToUtilityFormat(replyUsers []ReplyUserData) []utility.Repl
 }
 
 // FetchReactionsForMessages fetches reactions from Elasticsearch 'reactions' index
-func FetchReactionsForMessages(db *storage.Database, messageIDs []string) (map[string][]ReactionData, error) {
+func FetchReactionsForMessages(es *elasticsearch.Client, messageIDs []string) (map[string][]ReactionData, error) {
 	result := make(map[string][]ReactionData)
-	if len(messageIDs) == 0 || db == nil || db.Elastic == nil {
+	if len(messageIDs) == 0 || es == nil {
 		return result, nil
 	}
 
@@ -609,7 +610,7 @@ func FetchReactionsForMessages(db *storage.Database, messageIDs []string) (map[s
 	}
 
 	var raw any
-	if err := elastic.SelectAll(db.Elastic, "reactions", query, &raw); err != nil {
+	if err := elastic.SelectAll(es, "reactions", query, &raw); err != nil {
 		return nil, err
 	}
 
@@ -662,9 +663,9 @@ func FetchReactionsForMessages(db *storage.Database, messageIDs []string) (map[s
 }
 
 // FetchThreadDataForThreads fetches thread metadata from ES 'threads' index
-func FetchThreadDataForThreads(db *storage.Database, threadIDs []string) (map[string]ThreadData, error) {
+func FetchThreadDataForThreads(es *elasticsearch.Client, threadIDs []string) (map[string]ThreadData, error) {
 	result := make(map[string]ThreadData)
-	if len(threadIDs) == 0 || db == nil || db.Elastic == nil {
+	if len(threadIDs) == 0 || es == nil {
 		return result, nil
 	}
 
@@ -676,7 +677,7 @@ func FetchThreadDataForThreads(db *storage.Database, threadIDs []string) (map[st
 	}
 
 	var raw any
-	if err := elastic.SelectAll(db.Elastic, "threads", query, &raw); err != nil {
+	if err := elastic.SelectAll(es, "threads", query, &raw); err != nil {
 		return nil, err
 	}
 
@@ -724,9 +725,9 @@ func FetchThreadDataForThreads(db *storage.Database, threadIDs []string) (map[st
 }
 
 // FetchReplyUsersForThreads aggregates distinct users who replied in threads by scanning messages index
-func FetchReplyUsersForThreads(db *storage.Database, threadIDs []string) (map[string][]ReplyUserData, error) {
+func FetchReplyUsersForThreads(es *elasticsearch.Client, threadIDs []string) (map[string][]ReplyUserData, error) {
 	result := make(map[string][]ReplyUserData)
-	if len(threadIDs) == 0 || db == nil || db.Elastic == nil {
+	if len(threadIDs) == 0 || es == nil {
 		return result, nil
 	}
 
@@ -738,7 +739,7 @@ func FetchReplyUsersForThreads(db *storage.Database, threadIDs []string) (map[st
 	}
 
 	var raw any
-	if err := elastic.SelectAll(db.Elastic, "messages", query, &raw); err != nil {
+	if err := elastic.SelectAll(es, "messages", query, &raw); err != nil {
 		return nil, err
 	}
 
