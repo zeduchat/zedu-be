@@ -207,3 +207,29 @@ func (base *Controller) EndBuzz(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(statusCode, "buzz ended successfully", data)
 	c.JSON(statusCode, rd)
 }
+
+// ForceEndBuzz force ends a buzz without permission checks - FOR TESTING ONLY
+func (base *Controller) ForceEndBuzz(c *gin.Context) {
+	buzzID, ok := c.Params.Get("id")
+	if !ok || !(utility.IsValidUUID(buzzID)) {
+		base.Logger.Error("invalid request param: buzz id is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Warning("[TEST ENDPOINT] Force ending buzz %s via test endpoint", buzzID)
+
+	data, statusCode, err := buzz.ForceEndBuzz(base.Db, base.Logger, buzzID)
+
+	if err != nil {
+		base.Logger.Error("Failed to force end buzz: %v", err)
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("[TEST ENDPOINT] buzz %s force ended successfully", buzzID)
+	rd := utility.BuildSuccessResponse(statusCode, "buzz force ended successfully (test endpoint)", data)
+	c.JSON(statusCode, rd)
+}
