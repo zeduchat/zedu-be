@@ -178,7 +178,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 
 	// Fetch reactions from ES for messages missing reactions
 	if len(missingMessageIDs) > 0 {
-		esReactions, err := FetchReactionsForMessagesElastic(db, missingMessageIDs)
+		esReactions, err := FetchReactionsForMessages(db, missingMessageIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch reactions from ES: %v\n", err)
 		} else {
@@ -197,7 +197,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	// Fetch thread metadata from ES (threads index)
 	threadDataMap := make(map[string]ThreadData)
 	if len(threadIDs) > 0 {
-		td, err := FetchThreadDataForThreadsElastic(db, threadIDs)
+		td, err := FetchThreadDataForThreads(db, threadIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch thread data from ES: %v\n", err)
 		} else {
@@ -208,7 +208,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	// Fetch reply users from ES (messages index) for threads
 	replyUsersMap := make(map[string][]ReplyUserData)
 	if len(threadIDs) > 0 {
-		rum, err := FetchReplyUsersForThreadsElastic(db, threadIDs)
+		rum, err := FetchReplyUsersForThreads(db, threadIDs)
 		if err != nil {
 			fmt.Printf("Warning: failed to fetch reply users from ES: %v\n", err)
 		} else {
@@ -539,104 +539,6 @@ func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, er
 	return channs, nil
 }
 
-// FetchReactionsForMessages fetches all reactions for given message IDs
-func FetchReactionsForMessages(db *gorm.DB, messageIDs []string) (map[string][]ReactionData, error) {
-	if len(messageIDs) == 0 {
-		return make(map[string][]ReactionData), nil
-	}
-
-	var reactions []ReactionData
-	err := db.Table("reactions").
-		Select(`
-			reactions.message_id,
-			reactions.reaction_id,
-			reactions.reaction,
-			reactions.user_id,
-			users.user_name,
-			users.avatar_url
-		`).
-		Joins("LEFT JOIN users ON reactions.user_id = users.id").
-		Where("reactions.message_id IN ? AND reactions.message_id IS NOT NULL", messageIDs).
-		Scan(&reactions).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Group reactions by message_id
-	reactionMap := make(map[string][]ReactionData)
-	for _, reaction := range reactions {
-		reactionMap[reaction.MessageID] = append(reactionMap[reaction.MessageID], reaction)
-	}
-
-	return reactionMap, nil
-}
-
-// FetchThreadDataForMessages fetches thread metadata for messages
-func FetchThreadDataForMessages(db *gorm.DB, messageIDs []string) (map[string]ThreadData, error) {
-	if len(messageIDs) == 0 {
-		return make(map[string]ThreadData), nil
-	}
-
-	var threadIDs []string
-	err := db.Table("messages").
-		Select("DISTINCT thread_id").
-		Where("id IN ? AND thread_id IS NOT NULL", messageIDs).
-		Pluck("thread_id", &threadIDs).Error
-
-	if err != nil || len(threadIDs) == 0 {
-		return make(map[string]ThreadData), nil
-	}
-
-	var threads []ThreadData
-	err = db.Table("threads").
-		Select("id, message_count, last_reply").
-		Where("id IN ?", threadIDs).
-		Scan(&threads).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	threadMap := make(map[string]ThreadData)
-	for _, thread := range threads {
-		threadMap[thread.ThreadID] = thread
-	}
-
-	return threadMap, nil
-}
-
-// FetchReplyUsersForThreads fetches users who replied in threads
-func FetchReplyUsersForThreads(db *gorm.DB, threadIDs []string) (map[string][]ReplyUserData, error) {
-	if len(threadIDs) == 0 {
-		return make(map[string][]ReplyUserData), nil
-	}
-
-	var replyUsers []ReplyUserData
-	err := db.Table("messages").
-		Select(`
-			DISTINCT ON (messages.thread_id, messages.user_id)
-			messages.thread_id,
-			messages.user_id,
-			messages.username,
-			messages.avatar_url
-		`).
-		Where("messages.thread_id IN ? AND messages.user_id IS NOT NULL", threadIDs).
-		Order("messages.thread_id, messages.user_id, messages.created_at DESC").
-		Scan(&replyUsers).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	replyUserMap := make(map[string][]ReplyUserData)
-	for _, user := range replyUsers {
-		replyUserMap[user.ThreadID] = append(replyUserMap[user.ThreadID], user)
-	}
-
-	return replyUserMap, nil
-}
-
 // AggregateReactions groups reactions by emoji and counts them
 func AggregateReactions(reactions []ReactionData) []utility.ReactionInfo {
 	if len(reactions) == 0 {
@@ -692,8 +594,8 @@ func ConvertReplyUsersToUtilityFormat(replyUsers []ReplyUserData) []utility.Repl
 	return result
 }
 
-// FetchReactionsForMessagesElastic fetches reactions from Elasticsearch 'reactions' index
-func FetchReactionsForMessagesElastic(db *storage.Database, messageIDs []string) (map[string][]ReactionData, error) {
+// FetchReactionsForMessages fetches reactions from Elasticsearch 'reactions' index
+func FetchReactionsForMessages(db *storage.Database, messageIDs []string) (map[string][]ReactionData, error) {
 	result := make(map[string][]ReactionData)
 	if len(messageIDs) == 0 || db == nil || db.Elastic == nil {
 		return result, nil
@@ -759,8 +661,8 @@ func FetchReactionsForMessagesElastic(db *storage.Database, messageIDs []string)
 	return result, nil
 }
 
-// FetchThreadDataForThreadsElastic fetches thread metadata from ES 'threads' index
-func FetchThreadDataForThreadsElastic(db *storage.Database, threadIDs []string) (map[string]ThreadData, error) {
+// FetchThreadDataForThreads fetches thread metadata from ES 'threads' index
+func FetchThreadDataForThreads(db *storage.Database, threadIDs []string) (map[string]ThreadData, error) {
 	result := make(map[string]ThreadData)
 	if len(threadIDs) == 0 || db == nil || db.Elastic == nil {
 		return result, nil
@@ -821,8 +723,8 @@ func FetchThreadDataForThreadsElastic(db *storage.Database, threadIDs []string) 
 	return result, nil
 }
 
-// FetchReplyUsersForThreadsElastic aggregates distinct users who replied in threads by scanning messages index
-func FetchReplyUsersForThreadsElastic(db *storage.Database, threadIDs []string) (map[string][]ReplyUserData, error) {
+// FetchReplyUsersForThreads aggregates distinct users who replied in threads by scanning messages index
+func FetchReplyUsersForThreads(db *storage.Database, threadIDs []string) (map[string][]ReplyUserData, error) {
 	result := make(map[string][]ReplyUserData)
 	if len(threadIDs) == 0 || db == nil || db.Elastic == nil {
 		return result, nil
