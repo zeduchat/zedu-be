@@ -98,6 +98,26 @@ type BuzzEndResponse struct {
 	Status    string    `json:"status"`
 }
 
+type BuzzMetadataResponse struct {
+	BuzzID       string                `json:"buzz_id"`
+	HostID       string                `json:"host_id"`
+	ChannelID    string                `json:"channel_id"`
+	Status       string                `json:"status"`
+	CreatedAt    time.Time             `json:"created_at"`
+	StartedAt    time.Time             `json:"started_at"`
+	Participants []ParticipantMetadata `json:"participants"`
+}
+
+type ActiveBuzzIndicator struct {
+	IsActive              bool     `json:"is_active"`
+	BuzzID                string   `json:"buzz_id,omitempty"`
+	HostID                string   `json:"host_id,omitempty"`
+	Status                string   `json:"status,omitempty"`
+	ParticipantCount      int      `json:"participant_count"`
+	ParticipantPreview    []string `json:"participant_preview"`    // First 2-3 names
+	RemainingParticipants int      `json:"remaining_participants"` // Count of others
+}
+
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
 		h.ID = utility.GenerateUUID()
