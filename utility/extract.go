@@ -118,27 +118,24 @@ func extractMessageInfo(source map[string]any) MessageQuery {
 	// Extract and aggregate reactions from nested structure
 	if reactionsAny, ok := source["reactions"]; ok {
 		if arr, ok := reactionsAny.([]any); ok && len(arr) > 0 {
-			// Each reaction in ES is per-user, so we need to aggregate by emoji
 			reactionGroups := make(map[string]*ReactionInfo)
 
 			for _, r := range arr {
 				if rm, ok := r.(map[string]any); ok {
 					emoji := getString(rm, "emoji")
 					if emoji == "" {
-						continue // Skip if no emoji
+						continue
 					}
 
-					// Initialize reaction group if doesn't exist
 					if _, exists := reactionGroups[emoji]; !exists {
 						reactionGroups[emoji] = &ReactionInfo{
-							ReactionID: getString(rm, "id"), // Use first reaction's ID
+							ReactionID: getString(rm, "id"),
 							Emoji:      emoji,
 							Count:      0,
 							Users:      []ReactionUser{},
 						}
 					}
 
-					// Increment count and add user
 					reactionGroups[emoji].Count++
 					reactionGroups[emoji].Users = append(
 						reactionGroups[emoji].Users,
@@ -151,7 +148,6 @@ func extractMessageInfo(source map[string]any) MessageQuery {
 				}
 			}
 
-			// Convert map to slice
 			for _, reactionInfo := range reactionGroups {
 				mq.Reactions = append(mq.Reactions, *reactionInfo)
 			}
@@ -162,7 +158,6 @@ func extractMessageInfo(source map[string]any) MessageQuery {
 	if rc, ok := source["reply_count"]; ok {
 		mq.ReplyCount = ptrInt(toInt(rc))
 	} else if rc2, ok := source["message_count"]; ok {
-		// threads may expose message_count as reply count
 		mq.ReplyCount = ptrInt(toInt(rc2))
 	}
 
