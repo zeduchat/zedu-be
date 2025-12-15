@@ -30,6 +30,25 @@ type MessageQuery struct {
 	ReplyUsers         []ReplyUser    `json:"reply_users,omitempty"`
 }
 
+type ReactionUser struct {
+	UserID    string `json:"user_id"`
+	UserName  string `json:"user_name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+type ReactionInfo struct {
+	ReactionID string         `json:"reaction_id"`
+	Emoji      string         `json:"emoji"`
+	Count      int            `json:"count"`
+	Users      []ReactionUser `json:"users,omitempty"`
+}
+
+type ReplyUser struct {
+	UserID    string `json:"user_id"`
+	UserName  string `json:"user_name"`
+	AvatarURL string `json:"avatar_url"`
+}
+
 type UserQuery struct {
 	UserID    string `json:"user_id"`
 	UserName  string `json:"user_name"`
@@ -41,25 +60,6 @@ type SearchQueryResult struct {
 	Messages []MessageQuery `json:"messages,omitempty"`
 	Channel  Channel        `json:"channel,omitempty"`
 	Thread   Thread         `json:"thread,omitempty"`
-}
-
-type ReactionUser struct {
-	UserID    string `json:"user_id"`
-	UserName  string `json:"user_name"`
-	AvatarURL string `json:"avatar_url"`
-}
-
-type ReactionInfo struct {
-	ReactionID string         `json:"reaction_id"`
-	Emoji      string         `json:"emoji"`
-	Count      int            `json:"count"`
-	Users      []ReactionUser `json:"users"`
-}
-
-type ReplyUser struct {
-	UserID    string `json:"user_id"`
-	UserName  string `json:"user_name"`
-	AvatarURL string `json:"avatar_url"`
 }
 
 func CheckQueryStringContainKeyword(query string) [][]string {
@@ -109,11 +109,77 @@ func extractUserInfo(source map[string]any) UserQuery {
 
 // extractMessageInfo extracts message-related data
 func extractMessageInfo(source map[string]any) MessageQuery {
-	return MessageQuery{
+	mq := MessageQuery{
 		MessageID: getString(source, "id"),
 		Message:   getString(source, "message"),
 		TimeStamp: getTime(source, "created_at"),
 	}
+
+	// try to extract reactions and reply metadata if present in the source
+	if reactionsAny, ok := source["reactions"]; ok {
+		if arr, ok := reactionsAny.([]any); ok {
+			for _, r := range arr {
+				if rm, ok := r.(map[string]any); ok {
+					ri := ReactionInfo{
+						ReactionID: getString(rm, "reaction_id"),
+						Emoji:      getString(rm, "emoji"),
+						Count:      toInt(rm["count"]),
+					}
+					// users inside reaction
+					if usersAny, ok := rm["users"]; ok {
+						if usersArr, ok := usersAny.([]any); ok {
+							for _, u := range usersArr {
+								if um, ok := u.(map[string]any); ok {
+									ru := ReactionUser{
+										UserID:    getString(um, "user_id"),
+										UserName:  getString(um, "user_name"),
+										AvatarURL: getString(um, "avatar_url"),
+									}
+									ri.Users = append(ri.Users, ru)
+								}
+							}
+						}
+					}
+					mq.Reactions = append(mq.Reactions, ri)
+				}
+			}
+		}
+	}
+
+	// Extract reply metadata if present
+	if rc, ok := source["reply_count"]; ok {
+		mq.ReplyCount = ptrInt(toInt(rc))
+	} else if rc2, ok := source["message_count"]; ok {
+		// threads may expose message_count as reply count
+		mq.ReplyCount = ptrInt(toInt(rc2))
+	}
+
+	if lrt, ok := source["last_reply"]; ok {
+		if s, ok := lrt.(string); ok && s != "" {
+			mq.LastReplyTimestamp = &s
+		}
+	} else if lrt2, ok := source["last_reply_timestamp"]; ok {
+		if s, ok := lrt2.(string); ok && s != "" {
+			mq.LastReplyTimestamp = &s
+		}
+	}
+
+	if ruAny, ok := source["reply_users"]; ok {
+		if arr, ok := ruAny.([]any); ok {
+			for _, u := range arr {
+				if um, ok := u.(map[string]any); ok {
+					r := ReplyUser{
+						UserID:    getString(um, "user_id"),
+						UserName:  getString(um, "user_name"),
+						AvatarURL: getString(um, "avatar_url"),
+					}
+					mq.ReplyUsers = append(mq.ReplyUsers, r)
+				}
+			}
+		}
+	}
+
+	return mq
 }
 
 // extractChannelInfo extracts channel-related data and sets channel_name for threads
@@ -152,6 +218,29 @@ func getTime(source map[string]any, key string) time.Time {
 	}
 	return time.Time{}
 }
+
+// toInt converts various numeric types to int (safe for float64 from json)
+func toInt(v any) int {
+	switch t := v.(type) {
+	case int:
+		return t
+	case int32:
+		return int(t)
+	case int64:
+		return int(t)
+	case float32:
+		return int(t)
+	case float64:
+		return int(t)
+	case string:
+		// attempt parse
+		return 0
+	default:
+		return 0
+	}
+}
+
+func ptrInt(i int) *int { return &i }
 
 func ExtractCollectionName(fullName string) string {
 	if len(fullName) > 84 {

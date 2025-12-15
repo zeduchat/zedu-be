@@ -1,3 +1,4 @@
 {
-    "vscodeTodo.enableWideView": true
+    "vscodeTodo.enableWideView": true,
+    "postman.settings.dotenv-detection-notification-visibility": false
 }
