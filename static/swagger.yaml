@@ -15254,25 +15254,17 @@ paths:
     get:
       tags:
         - File Management
-      summary: Deletes file details by ID
-      description: Deletes file metadata and a file link from the database using a unique file ID.
+      summary: Get file information
+      description: Retrieves detailed information about a file including the owner's username, upload date, last updated date, and channels where the file is shared.
       parameters:
         - name: id
           in: path
           required: true
-          description: Unique ID of the file to delete
+          description: The unique ID of the file
           schema:
             type: string
             format: uuid
             example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-        - name: thread_id
-          in: query
-          required: false
-          description: Optional thread ID to unlink the file from a thread document
-          schema:
-            type: string
-            format: uuid
-            example: "0198a6f2-e1fe-77b0-9382-a0ddc510bec3"
       security:
         - bearerAuth: []
       responses:
@@ -15291,27 +15283,62 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "Files deleted successfully"
+                    example: "File information retrieved successfully"
                   data:
                     type: object
                     properties:
-                      id:
+                      owner:
                         type: string
-                        format: uuid
-                        example: "0195ca6f-a7ef-70b0-8392-a0ddc510bec3"
-                      file_name:
+                        description: Username of the file owner
+                        example: "john_doe"
+                      date_uploaded:
                         type: string
-                        example: "Deployment and Rollback Procedure.pdf"
-                      file_type:
+                        format: date-time
+                        description: ISO 8601 timestamp of when the file was uploaded
+                        example: "2025-12-15T10:30:45Z"
+                      last_updated:
                         type: string
-                        example: "pdf"
-                      mime_type:
-                        type: string
-                        example: "application/pdf"
-                      file_link:
-                        type: string
-                        format: uri
-                        example: "https://127.0.0.1:9000/realzy-bucket/file-uploads/31f1a44c8c318f1f2ee9d849922be9b188b788b178ec6f7219af7d51bc3428bc.pdf"
+                        format: date-time
+                        description: ISO 8601 timestamp of the last file update
+                        example: "2025-12-15T14:22:10Z"
+                      shared_in:
+                        type: array
+                        description: List of channel names where the file is shared
+                        items:
+                          type: string
+                        example: ["general", "project-updates"]
+        "400":
+          description: Invalid file ID format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid file ID format"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 401
+                  message:
+                    type: string
+                    example: "Unauthorized"
         "404":
           description: File not found
           content:
@@ -15328,12 +15355,6 @@ paths:
                   message:
                     type: string
                     example: "File not found"
-                  error:
-                    type: string
-                    example: "record not found"
-                  data:
-                    type: object
-                    nullable: true
         "500":
           description: Internal server error
           content:
@@ -15350,12 +15371,6 @@ paths:
                   message:
                     type: string
                     example: "Internal server error"
-                  error:
-                    type: string
-                    example: "Unexpected database failure"
-                  data:
-                    type: object
-                    nullable: true
 
     delete:
       tags:
