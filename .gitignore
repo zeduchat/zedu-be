@@ -49,3 +49,6 @@ river_queue_logs/
 elastic-start-local/
 .DS_Store
 config.json
+
+# IDE
+.vscode/
