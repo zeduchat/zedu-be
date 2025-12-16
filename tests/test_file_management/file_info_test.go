@@ -1,10 +1,8 @@
 package test_file_management
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,40 +46,20 @@ func TestGetFileInfo(t *testing.T) {
 		t.Fatal("User has no organisations")
 	}
 
-	var fileID string
-
-	t.Run("UploadFile", func(t *testing.T) {
-		body := new(bytes.Buffer)
-		writer := multipart.NewWriter(body)
-		part, err := writer.CreateFormFile("files", "test_info_file.txt")
-		if err != nil {
-			t.Fatal(err)
-		}
-		part.Write([]byte("Test file for info endpoint"))
-		writer.Close()
-
-		req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/upload-files", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
-
-		rr := httptest.NewRecorder()
-		r.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Fatalf("UploadFile failed with status %d. Response: %s", rr.Code, rr.Body.String())
-		}
-
-		resp := tests.ParseResponse(rr)
-		files, ok := resp["data"].([]interface{})
-		if !ok {
-			t.Fatalf("Expected data to be a list, got %T", resp["data"])
-		}
-		if len(files) == 0 {
-			t.Fatal("Expected at least one file in response")
-		}
-		f := files[0].(map[string]interface{})
-		fileID = f["id"].(string)
-	})
+	// Create a test file directly in the database (no MinIO required for info endpoint test)
+	testFile := models.File{
+		ID:             uuid.New().String(),
+		FileName:       "test_info_file.txt",
+		FileType:       "txt",
+		MimeType:       "text/plain",
+		FileLink:       "https://example.com/test_info_file.txt",
+		UserID:         user.ID,
+		OrganisationID: user.Organisations[0].ID,
+	}
+	if err := db.Postgresql.Create(&testFile).Error; err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	fileID := testFile.ID
 
 	t.Run("GetFileInfo_Success", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/files/file/%s/info", fileID), nil)
@@ -114,10 +92,10 @@ func TestGetFileInfo(t *testing.T) {
 			t.Error("Expected 'shared_in' field in response")
 		}
 
-		// Verify owner matches user
+		// Verify owner matches user's username
 		owner := data["owner"].(string)
-		if owner != user.ID {
-			t.Errorf("Expected owner to be %s, got %s", user.ID, owner)
+		if owner != userSignUpData.UserName {
+			t.Errorf("Expected owner to be %s, got %s", userSignUpData.UserName, owner)
 		}
 
 		// Verify shared_in is an array
