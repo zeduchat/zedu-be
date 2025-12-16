@@ -154,20 +154,29 @@ func extractMessageInfo(source map[string]any) MessageQuery {
 		}
 	}
 
-	// Extract reply metadata if present
+	// Extract reply metadata if present (only set when > 0)
 	if rc, ok := source["reply_count"]; ok {
-		mq.ReplyCount = ptrInt(toInt(rc))
+		if v := toInt(rc); v > 0 {
+			mq.ReplyCount = ptrInt(v)
+		}
 	} else if rc2, ok := source["message_count"]; ok {
-		mq.ReplyCount = ptrInt(toInt(rc2))
+		if v := toInt(rc2); v > 0 {
+			mq.ReplyCount = ptrInt(v)
+		}
 	}
 
+	// Only set last reply timestamp when it's a valid, non-zero time
 	if lrt, ok := source["last_reply"]; ok {
 		if s, ok := lrt.(string); ok && s != "" {
-			mq.LastReplyTimestamp = &s
+			if t, err := time.Parse(time.RFC3339, s); err == nil && !t.IsZero() {
+				mq.LastReplyTimestamp = &s
+			}
 		}
 	} else if lrt2, ok := source["last_reply_timestamp"]; ok {
 		if s, ok := lrt2.(string); ok && s != "" {
-			mq.LastReplyTimestamp = &s
+			if t, err := time.Parse(time.RFC3339, s); err == nil && !t.IsZero() {
+				mq.LastReplyTimestamp = &s
+			}
 		}
 	}
 
