@@ -23446,6 +23446,104 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/metadata:
+    get:
+      tags:
+        - buzz
+      summary: Get buzz metadata
+      description: Retrieves detailed metadata for a specific buzz including all participant information. Available to any authenticated user who is a member of the buzz's channel (not just participants).
+      operationId: getBuzzMetadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz
+      responses:
+        "200":
+          description: Successfully retrieved buzz metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzMetadataResponse"
+        "400":
+          description: Bad request - invalid buzz ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the buzz's channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/channel/{channel_id}/active:
+    get:
+      tags:
+        - buzz
+      summary: Get active buzz indicator for a channel
+      description: "Retrieves a lightweight indicator showing if there's an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Useful for displaying \"X, Y, and N others are in the buzz\" on channel pages. Available to any authenticated user who is a member of the channel."
+      operationId: getChannelActiveBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: channel_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the channel
+      responses:
+        "200":
+          description: Successfully retrieved active buzz indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveBuzzIndicator"
+        "400":
+          description: Bad request - invalid channel ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - channel does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     PartialStatusUpdateRequest:
@@ -23977,6 +24075,128 @@ components:
           example: "ended"
           enum:
             - ended
+
+    BuzzMetadataResponse:
+      type: object
+      required:
+        - buzz_id
+        - host_id
+        - channel_id
+        - status
+        - created_at
+        - started_at
+        - participants
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+          description: The unique ID of the buzz
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the buzz host
+        channel_id:
+          type: string
+          format: uuid
+          description: The ID of the channel where the buzz is taking place
+        status:
+          type: string
+          enum: [active, ended]
+          description: Current status of the buzz
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParticipantMetadata"
+          description: Array of all participant metadata including active and inactive participants
+      example:
+        buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+        channel_id: "019acc68-ae2c-721e-b4f9-e91gdccb8f04"
+        status: "active"
+        created_at: "2025-11-28T10:00:00Z"
+        started_at: "2025-11-28T10:00:00Z"
+        participants:
+          - user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+            username: "tolu"
+            full_name: "Tolu Adebayo"
+            avatar_url: "https://example.com/avatars/tolu.jpg"
+            joined_at: "2025-11-28T10:00:00Z"
+            status: "active"
+            status_sticker: null
+            sticker_set_at: null
+          - user_id: "019acc68-b34g-721d-b5f0-e92hddcc9g05"
+            username: "kemi"
+            full_name: "Kemi Okonkwo"
+            avatar_url: "https://example.com/avatars/kemi.jpg"
+            joined_at: "2025-11-28T10:02:15Z"
+            status: "active"
+            status_sticker: "raise_hand"
+            sticker_set_at: "2025-11-28T10:05:30Z"
+
+    ActiveBuzzIndicator:
+      type: object
+      required:
+        - is_active
+        - participant_count
+        - participant_preview
+        - remaining_participants
+      properties:
+        is_active:
+          type: boolean
+          description: Whether there is an active buzz in the channel
+        buzz_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The unique ID of the active buzz (null if no active buzz)
+        host_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The ID of the buzz host (null if no active buzz)
+        status:
+          type: string
+          nullable: true
+          enum: [active, ended]
+          description: Current status of the buzz (null if no active buzz)
+        participant_count:
+          type: integer
+          description: Total number of participants in the active buzz (0 if no active buzz)
+          minimum: 0
+        participant_preview:
+          type: array
+          items:
+            type: string
+          description: "List of first 2-3 participant usernames for display preview"
+          example: ["tolu", "kemi"]
+        remaining_participants:
+          type: integer
+          description: Number of remaining participants not shown in preview (0 if all shown)
+          minimum: 0
+      example:
+        is_active: true
+        buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+        status: "active"
+        participant_count: 11
+        participant_preview: ["tolu", "kemi"]
+        remaining_participants: 9
+      example_no_active:
+        is_active: false
+        buzz_id: null
+        host_id: null
+        status: null
+        participant_count: 0
+        participant_preview: []
+        remaining_participants: 0
 
     ErrorResponse:
       type: object
