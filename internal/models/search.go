@@ -127,6 +127,15 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 
 		result := utility.ProcessMessageHit(index, source)
 
+		// fallback to ES _id when message id missing
+		if idStr, ok := hit["_id"].(string); ok && idStr != "" {
+			for mi := range result.Messages {
+				if result.Messages[mi].MessageID == "" {
+					result.Messages[mi].MessageID = idStr
+				}
+			}
+		}
+
 		for _, msg := range result.Messages {
 			if msg.MessageID != "" {
 				messageIDs = append(messageIDs, msg.MessageID)
