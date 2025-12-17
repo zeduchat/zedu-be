@@ -163,7 +163,7 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file []byte, ext string) (string, error) {
 	if file != nil {
 		picId := strings.Split(userID, "-")[4]
-		filename := fmt.Sprintf("profile_pic_%s", picId)
+		filename := fmt.Sprintf("profile_pic_%s.%s", picId, ext)
 
 		avatarURL, err := GetUserProfileImageURL(db, userID)
 		if err != nil {

@@ -17381,6 +17381,11 @@ paths:
         - **after:** *Find messages sent after a specific date* (e.g., `after:2024-12-25`)
         - **exact:** *Find messages matching an exact phrase* (e.g., `exact:Project deadline`)
 
+        Response contract:
+        - Arrays such as `reactions` and `reply_users` are optional and may be omitted when empty. Clients **MUST** treat missing arrays as empty lists.
+        - The `reply_count` field is omitted when its value is zero.
+        - The `last_reply_timestamp` field is omitted when there are no replies; when present it will be an RFC3339 timestamp.
+
         You can chain multiple keywords together, for example:
         `"Hello team has:meeting before:2024-12-31 from:layo"`
       security:
@@ -17445,6 +17450,7 @@ paths:
                               type: string
                               format: uri
                               example: "https://example.com/avatar.jpg"
+
                         messages:
                           type: array
                           items:
@@ -17455,11 +17461,75 @@ paths:
                                 example: "12345"
                               message:
                                 type: string
-                                example: "Hello how are you and where do you come from"
+                                example: "Hello how are you"
                               timestamp:
                                 type: string
                                 format: date-time
-                                example: "2024-12-27T10:57:34.648525826Z"
+                                example: "2024-12-27T10:57:34Z"
+
+                              reactions:
+                                type: array
+                                description: List of reactions on the message. Optional — may be omitted when empty. Clients **MUST** treat a missing field as an empty array.
+                                items:
+                                  type: object
+                                  properties:
+                                    reaction_id:
+                                      type: string
+                                      format: uuid
+                                      example: "0195cdef-ab12-4567-89ef-123456789abc"
+                                    emoji:
+                                      type: string
+                                      example: "👍"
+                                    count:
+                                      type: integer
+                                      example: 5
+                                    users:
+                                      type: array
+                                      description: Users who reacted. Optional — may be omitted when empty.
+                                      items:
+                                        type: object
+                                        properties:
+                                          user_id:
+                                            type: string
+                                            format: uuid
+                                            example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                                          user_name:
+                                            type: string
+                                            example: "John"
+                                          avatar_url:
+                                            type: string
+                                            format: uri
+                                            example: "https://example.com/avatar.jpg"
+
+                              reply_count:
+                                type: integer
+                                example: 10
+                                description: Number of replies to the message. Optional — omitted when zero.
+
+                              last_reply_timestamp:
+                                type: string
+                                format: date-time
+                                description: RFC3339 timestamp of the most recent reply. Optional — omitted if there are no replies.
+                                example: "2024-12-27T15:30:00Z"
+
+                              reply_users:
+                                type: array
+                                description: Users who recently replied. Optional — may be omitted when empty.
+                                items:
+                                  type: object
+                                  properties:
+                                    user_id:
+                                      type: string
+                                      format: uuid
+                                      example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                                    user_name:
+                                      type: string
+                                      example: "Alice"
+                                    avatar_url:
+                                      type: string
+                                      format: uri
+                                      example: "https://example.com/avatar.jpg"
+
                         channel:
                           type: object
                           properties:
