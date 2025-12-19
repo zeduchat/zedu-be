@@ -282,13 +282,17 @@ func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder
 	return &folder, nil
 }
 
-func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
+func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, int64, error) {
 	var folders []models.Folder
-	query := db.Where("organisation_id = ?", orgID)
+	var count int64
 
-	err := query.Find(&folders).Error
+	offset := (params.Page - 1) * params.Limit
+
+	query := db.Model(&models.Folder{}).Where("organisation_id = ?", params.OrgID)
+
+	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&folders).Error
 	if err != nil {
-		return folders, err
+		return folders, 0, err
 	}
 
 	type FolderCount struct {
@@ -299,12 +303,12 @@ func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 
 	err = db.Model(&models.File{}).
 		Select("folder_id, count(*) as count").
-		Where("organisation_id = ? AND folder_id IS NOT NULL", orgID).
+		Where("organisation_id = ? AND folder_id IS NOT NULL", params.OrgID).
 		Group("folder_id").
 		Scan(&folderCounts).Error
 
 	if err != nil {
-		return folders, err
+		return folders, 0, err
 	}
 
 	// map counts to folders
@@ -319,7 +323,7 @@ func GetFolders(db *gorm.DB, orgID string) ([]models.Folder, error) {
 		folders[i].ItemCount = countMap[folders[i].ID]
 	}
 
-	return folders, nil
+	return folders, count, nil
 }
 
 func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {

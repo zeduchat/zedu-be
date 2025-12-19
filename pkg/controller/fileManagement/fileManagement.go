@@ -294,14 +294,32 @@ func (base *Controller) GetFolders(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	orgID := userClaims["org_id"].(string)
 
-	folders, err := services.GetFolders(base.Db.Postgresql, orgID)
+	pagination := postgresql.GetPagination(c)
+	page, limit := pagination.Page, pagination.Limit
+
+	folders, count, err := services.GetFolders(base.Db.Postgresql, models.GetFoldersParams{
+		OrgID: orgID,
+		Page:  page,
+		Limit: limit,
+	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Folders fetched successfully", folders)
+	totalPages := int(math.Ceil(float64(count) / float64(limit)))
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     page,
+		PageCount:       len(folders),
+		TotalPagesCount: totalPages,
+		TotalItems:      count,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Folders fetched successfully", map[string]interface{}{
+		"folders":    folders,
+		"pagination": paginationResponse,
+	})
 	c.JSON(http.StatusOK, rd)
 }
 
