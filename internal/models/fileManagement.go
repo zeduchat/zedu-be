@@ -84,9 +84,10 @@ type GetFilesParams struct {
 }
 
 type GetFoldersParams struct {
-	OrgID string
-	Page  int
-	Limit int
+	OrgID       string
+	Page        int
+	Limit       int
+	QueryParams map[string]string
 }
 
 type File struct {

@@ -297,10 +297,18 @@ func (base *Controller) GetFolders(c *gin.Context) {
 	pagination := postgresql.GetPagination(c)
 	page, limit := pagination.Page, pagination.Limit
 
+	queryParams := make(map[string]string)
+	for k, v := range c.Request.URL.Query() {
+		if len(v) > 0 {
+			queryParams[k] = v[0]
+		}
+	}
+
 	folders, count, err := services.GetFolders(base.Db.Postgresql, models.GetFoldersParams{
-		OrgID: orgID,
-		Page:  page,
-		Limit: limit,
+		OrgID:       orgID,
+		Page:        page,
+		Limit:       limit,
+		QueryParams: queryParams,
 	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)

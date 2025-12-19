@@ -116,8 +116,8 @@ func TestGetFileInfo(t *testing.T) {
 
 		// Verify owner matches user
 		owner := data["owner"].(string)
-		if owner != user.ID {
-			t.Errorf("Expected owner to be %s, got %s", user.ID, owner)
+		if owner != userSignUpData.UserName {
+			t.Errorf("Expected owner to be %s, got %s", userSignUpData.UserName, owner)
 		}
 
 		// Verify shared_in is an array

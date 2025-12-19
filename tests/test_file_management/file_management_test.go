@@ -283,6 +283,51 @@ func TestFileManagement(t *testing.T) {
 		}
 	})
 
+	t.Run("GetFoldersOwnerFilter", func(t *testing.T) {
+
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("owner", "Test")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		folders := data["folders"].([]interface{})
+
+		if len(folders) == 0 {
+			t.Error("Expected folders matching owner 'Test', got 0")
+		}
+	})
+
+	t.Run("GetFoldersOwnerFilter_NoMatch", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("owner", "NonExistentUserXYZ")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		folders := data["folders"].([]interface{})
+
+		if len(folders) != 0 {
+			t.Errorf("Expected 0 folders matching owner 'NonExistentUserXYZ', got %d", len(folders))
+		}
+	})
+
 	t.Run("GetFiles_InFolder", func(t *testing.T) {
 		u, _ := url.Parse("/api/v1/files")
 		q := u.Query()

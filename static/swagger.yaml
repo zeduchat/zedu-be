@@ -15539,6 +15539,11 @@ paths:
             type: integer
             default: 15
           description: Number of items per page
+        - in: query
+          name: owner
+          schema:
+            type: string
+          description: Filter folders by owner's name
       responses:
         "200":
           description: Folders fetched successfully

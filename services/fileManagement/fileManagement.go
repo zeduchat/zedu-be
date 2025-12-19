@@ -287,8 +287,15 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, i
 	var count int64
 
 	offset := (params.Page - 1) * params.Limit
+	queryParams := params.QueryParams
 
-	query := db.Model(&models.Folder{}).Where("organisation_id = ?", params.OrgID)
+	query := db.Model(&models.Folder{}).
+		Joins("LEFT JOIN profiles ON profiles.userid = folders.user_id").
+		Where("folders.organisation_id = ?", params.OrgID)
+
+	if owner, ok := queryParams["owner"]; ok && owner != "" {
+		query = query.Where("profiles.full_name ILIKE ?", "%"+owner+"%")
+	}
 
 	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&folders).Error
 	if err != nil {
