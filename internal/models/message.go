@@ -36,7 +36,8 @@ type Message struct {
 	UserType   string         `json:"user_type"`
 	IsPinned   bool           `json:"is_pinned"`
 	IsSaved    bool           `gorm:"type:bool;default:false" json:"is_saved"`
-	Edited     bool           `gorm:"type:bool" json:"edited,omitempty"`
+	Edited     bool           `gorm:"column:edited;type:bool;default:false" json:"edited,omitempty"`
+	EditedAt   *time.Time     `gorm:"column:edited_at" json:"edited_at,omitempty"`
 }
 
 type MessageDocument struct {
@@ -116,15 +117,15 @@ var MessageMapping = map[string]any{
 }
 
 type CreateMessageRequest struct {
-	Content    string                 `json:"content" validate:"required"`
-	UserId     string                 `json:"user_id"`
-	AgentId    string                 `json:"agent_id"`
-	ChannelsId string                 `json:"channels_id"`
-	ThreadId   string                 `json:"thread_id" validate:"required"`
-	OrgId      string                 `json:"org_id"`
-	AgentName  string                 `json:"agent_name"`
-	Media      []File `json:"media"`
-	Mentions   []Mention              `json:"mentions"`
+	Content    string    `json:"content" validate:"required"`
+	UserId     string    `json:"user_id"`
+	AgentId    string    `json:"agent_id"`
+	ChannelsId string    `json:"channels_id"`
+	ThreadId   string    `json:"thread_id" validate:"required"`
+	OrgId      string    `json:"org_id"`
+	AgentName  string    `json:"agent_name"`
+	Media      []File    `json:"media"`
+	Mentions   []Mention `json:"mentions"`
 }
 
 type EditMessageRequest struct {
@@ -137,23 +138,23 @@ type EditMessageRequest struct {
 }
 
 type ForwardThreadMessageRequest struct {
-	ThreadId             string                 `json:"thread_id" validate:"required"`               //thread id of the message to forward
-	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
-	Content              string                 `json:"content"`
-	Media                []File `json:"media"`
-	Mentions             []Mention              `json:"mentions"`
+	ThreadId             string     `json:"thread_id" validate:"required"`               //thread id of the message to forward
+	ForwardedToChannelId *uuid.UUID `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
+	Content              string     `json:"content"`
+	Media                []File     `json:"media"`
+	Mentions             []Mention  `json:"mentions"`
 
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"` //current channels or DM
 }
 
 type ForwardReplyMessageRequest struct {
-	ThreadId             string                 `json:"thread_id" validate:"required"`
-	MessageId            string                 `json:"message_id" validate:"required"`
-	ForwardedToChannelId *uuid.UUID             `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
-	Content              string                 `json:"content"`
-	Media                []File `json:"media"`
-	Mentions             []Mention              `json:"mentions"`
+	ThreadId             string     `json:"thread_id" validate:"required"`
+	MessageId            string     `json:"message_id" validate:"required"`
+	ForwardedToChannelId *uuid.UUID `json:"forwarded_to_channel_id" validate:"required"` //channel to forward to
+	Content              string     `json:"content"`
+	Media                []File     `json:"media"`
+	Mentions             []Mention  `json:"mentions"`
 
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
@@ -268,6 +269,13 @@ func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, erro
 	}
 
 	return m, nil
+}
+
+func (m *Message) UpdateMessageInPostgres(db *gorm.DB, updates map[string]interface{}) error {
+	if err := db.Model(&Message{}).Where("id = ?", m.ID).Updates(updates).Error; err != nil {
+		return fmt.Errorf("failed to update message in postgres: %w", err)
+	}
+	return nil
 }
 
 func (m *Message) UpdateMessageWithScript(db *gorm.DB, req map[string]any) (*Message, error) {

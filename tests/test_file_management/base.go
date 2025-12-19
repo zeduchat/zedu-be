@@ -21,7 +21,10 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 
 	db := storage.Connection()
 
-	// override SSL for testing to use HTTP instead of HTTPS
+	config.Config.Minio.MinioEndpoint = "127.0.0.1:9007"
+	config.Config.Minio.BucketName = "telex-test-bucket"
+	config.Config.Minio.AccessKey = "minioadmin"
+	config.Config.Minio.Secret = "minioadmin"
 	config.Config.Minio.UseSSL = false
 
 	minio.ConnectToMinio(logger, config.Config.Minio)
@@ -65,6 +68,7 @@ func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Con
 		fileUrl.POST("/upload-files", fileController.UploadController)
 		fileUrl.GET("/file/:id/info", fileController.GetFileInfo)
 		fileUrl.GET("/file/:id", fileController.GetFileDetailsByID)
+		fileUrl.POST("/upload-folder", fileController.UploadFolderWithFiles)
 		fileUrl.DELETE("/file/:id", fileController.DeleteFileDetailsByID)
 		fileUrl.PUT("/file/:id", fileController.UpdateFileName)
 		fileUrl.PUT("/file/:id/restore", fileController.RestoreFile)

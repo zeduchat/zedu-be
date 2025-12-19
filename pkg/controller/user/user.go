@@ -241,6 +241,84 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+// SetUserStatus sets a new status for the authenticated user.
+func (base *Controller) SetUserStatus(c *gin.Context) {
+	userClaims := common.GetAllUserClaims(c)
+	userID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	var req models.SetStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Trim text before validation
+	req.Text = strings.TrimSpace(req.Text)
+	if req.Emoji != nil {
+		*req.Emoji = strings.TrimSpace(*req.Emoji)
+	}
+
+	// Validate using go-playground validator
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.UserID = userID
+
+	status, code, err := profile.SetUserStatus(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to set user status", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "User status set successfully", status)
+	c.JSON(http.StatusCreated, rd)
+}
+
+// GetUserStatus retrieves the current status for the authenticated user.
+func (base *Controller) GetUserStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	loggedUserID, ok := userClaims["user_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	if loggedUserID != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to view another user's status", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	status, code, err := profile.GetUserStatus(userID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "Failed to get user status", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User status retrieved successfully", status)
+	c.JSON(http.StatusOK, rd)
+}
+
 func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 	if req.Text != nil && len(*req.Text) > 255 {
 		return http.StatusBadRequest, errors.New("text must not exceed 255 characters")
@@ -253,6 +331,10 @@ func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 
 		if strings.ContainsAny(*req.Emoji, " \t\n\r") {
 			return http.StatusBadRequest, errors.New("emoji must not contain whitespace")
+		}
+
+		if !utility.IsValidEmoji(*req.Emoji) {
+			return http.StatusBadRequest, errors.New("emoji must be a valid Unicode emoji")
 		}
 	}
 

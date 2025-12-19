@@ -30,12 +30,17 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.PATCH("/:id/camera", ctrl.UpdateCamera)
 		buzzGroup.POST("/:id/leave", ctrl.LeaveBuzz)
 		buzzGroup.POST("/:id/end", ctrl.EndBuzz)
+		buzzGroup.GET("/:id/metadata", ctrl.GetMetadata)
+		buzzGroup.GET("/channel/:channel_id/active", ctrl.GetChannelActiveBuzz)
 		buzzGroup.POST("/:id/reaction", ctrl.SendReaction)
 		buzzGroup.POST("/:id/sticker", ctrl.UpdateSticker)
 		buzzGroup.POST("/search-members", ctrl.SearchChannelMembers)
 		buzzGroup.POST("/invite", ctrl.InviteUsersToBuzz)
 		buzzGroup.POST("/invitation/respond", ctrl.RespondToInvitation)
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
+		
+		// Test endpoints (no permission checks) - REMOVE IN PRODUCTION
+		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
 	}
 
 	return r

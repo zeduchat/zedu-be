@@ -146,6 +146,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		marketPage.GET("/agent/categories", agent.GetAgentCategories)
 		marketPage.GET("/skill/categories", agent.GetSkillCategories)
 		marketPage.GET("/workflow/categories", agent.GetWorkflowCategories)
+		marketPage.GET("/agent/:agent_id", agent.GetAgentDetails)
 	}
 
 	external_int := r.Group(fmt.Sprintf("%v/agents/settings", ApiVersion))

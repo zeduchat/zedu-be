@@ -40,6 +40,13 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9007:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
 
     steps:
       - name: Checkout Code
@@ -69,4 +76,4 @@ jobs:
             sleep 1
           done
       - name: Run All Tests
-        run: go test ./tests/*.go -timeout 300s
+        run: go test ./tests/... -timeout 300s

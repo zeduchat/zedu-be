@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -116,6 +117,21 @@ func (i *Integrations) GetAgentsByCategory(db *gorm.DB, c *gin.Context, categori
 		return agents, paginationResponse, err, http.StatusInternalServerError
 	}
 	return agents, paginationResponse, nil, http.StatusOK
+}
+
+func GetAgentDetails(id string, db *gorm.DB) (Integrations, error, int) {
+	var agent Integrations
+
+	// Retrieve agent details from the db
+	err := db.Where("id = ? AND title = ?", id, "public").First(&agent).Error
+	if err != nil {
+		// If error is not found
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return agent, err, http.StatusNotFound
+		}
+		return agent, err, http.StatusInternalServerError
+	}
+	return agent, nil, http.StatusOK
 }
 
 // needs more check

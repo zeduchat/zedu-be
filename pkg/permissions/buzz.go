@@ -24,17 +24,27 @@ var (
 func GetChannelType(db *gorm.DB, channelID string) (string, error) {
 	// Check regular channels first
 	var channel models.Channels
-	if err := db.Where("id = ?", channelID).First(&channel).Error; err == nil {
+	err := db.Where("id = ?", channelID).First(&channel).Error
+	if err == nil {
 		return models.ChannelTypeRegular, nil
+	}
+	// If it's not a "not found" error, it's a real database error
+	if err != gorm.ErrRecordNotFound {
+		return "", err
 	}
 
 	// Check DM channels table
 	var dmChannel models.DmChannels
-	if err := db.Where("channel_id = ?", channelID).First(&dmChannel).Error; err == nil {
+	err = db.Where("channel_id = ?", channelID).First(&dmChannel).Error
+	if err == nil {
 		if dmChannel.ChannelType == "group_dm" {
 			return models.ChannelTypeGroupDM, nil
 		}
 		return models.ChannelTypeDM, nil
+	}
+	// If it's not a "not found" error, it's a real database error
+	if err != gorm.ErrRecordNotFound {
+		return "", err
 	}
 
 	return "", ErrChannelNotFound
@@ -198,7 +208,9 @@ func CanCreateBuzz(db *gorm.DB, channelID, hostID string) error {
 	// Check if channel already has an active buzz
 	hasActiveBuzz, err := HasActiveBuzzInChannel(db, channelID)
 	if err != nil {
-		return err
+		// Log the database error but return a user-friendly error
+		// to prevent 500 errors from propagating
+		return ErrChannelNotFound
 	}
 	if hasActiveBuzz {
 		return ErrBuzzAlreadyActive

@@ -38,6 +38,18 @@ type UploadFileParams struct {
 	OrgID    string
 	UserID   string
 }
+type FolderWithFilesRequest struct {
+	FolderName string                  `form:"folder_name" binding:"required"`
+	ParentID   *string                 `form:"parent_id"`
+	Files      []*multipart.FileHeader `form:"files" binding:"required"`
+}
+type UploadFolderWithFilesParams struct {
+	FolderName string
+	ParentID   *string
+	Files      []*multipart.FileHeader
+	OrgID      string
+	UserID     string
+}
 
 type CreateFolderParams struct {
 	Name           string
@@ -117,6 +129,12 @@ type Folder struct {
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 	ItemCount      uint64         `json:"item_count" gorm:"-"`
+}
+
+type FolderUploadResponse struct {
+	Folder    *Folder `json:"folder"`
+	Files     []*File `json:"files"`
+	FileCount int     `json:"file_count"`
 }
 
 type FileType struct {

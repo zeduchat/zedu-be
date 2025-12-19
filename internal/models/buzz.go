@@ -7,7 +7,6 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -56,7 +55,8 @@ type BuzzParticipant struct {
 }
 
 type CreateBuzzRequest struct {
-	ChannelID string `json:"channel_id" validate:"required,uuid"`
+	ChannelID     string  `json:"channel_id" validate:"omitempty,uuid"`
+	ParticipantID *string `json:"participant_id" validate:"omitempty,uuid"`
 }
 
 // ParticipantMetadata contains detailed information about a buzz participant
@@ -98,6 +98,26 @@ type BuzzEndResponse struct {
 	Status    string    `json:"status"`
 }
 
+type BuzzMetadataResponse struct {
+	BuzzID       string                `json:"buzz_id"`
+	HostID       string                `json:"host_id"`
+	ChannelID    string                `json:"channel_id"`
+	Status       string                `json:"status"`
+	CreatedAt    time.Time             `json:"created_at"`
+	StartedAt    time.Time             `json:"started_at"`
+	Participants []ParticipantMetadata `json:"participants"`
+}
+
+type ActiveBuzzIndicator struct {
+	IsActive              bool     `json:"is_active"`
+	BuzzID                string   `json:"buzz_id,omitempty"`
+	HostID                string   `json:"host_id,omitempty"`
+	Status                string   `json:"status,omitempty"`
+	ParticipantCount      int      `json:"participant_count"`
+	ParticipantPreview    []string `json:"participant_preview"`    // First 2-3 names
+	RemainingParticipants int      `json:"remaining_participants"` // Count of others
+}
+
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	if h.ID == "" {
 		h.ID = utility.GenerateUUID()
@@ -122,18 +142,27 @@ func (hp *BuzzParticipant) BeforeCreate(tx *gorm.DB) error {
 }
 
 func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
-	// Check regular channels
-	if postgresql.CheckExists(db, &UserChannels{}, "channels_id = ? AND user_id = ?", channelID, userID) {
+	// Check regular channels with explicit error handling
+	var userChannel UserChannels
+	err := db.Where("channels_id = ? AND user_id = ?", channelID, userID).First(&userChannel).Error
+	if err == nil {
 		return true
 	}
-	// Check DM channels
-	if postgresql.CheckExists(db, &DmChannels{}, "channel_id = ? AND user_id = ?", channelID, userID) {
+	
+	// Check DM channels - user can be either the creator (user_id) OR the participant (participant_id)
+	var dmChannel DmChannels
+	err = db.Where("channel_id = ? AND (user_id = ? OR participant_id = ?)", channelID, userID, userID).First(&dmChannel).Error
+	if err == nil {
 		return true
 	}
+	
 	// Check group DM channels
-	if postgresql.CheckExists(db, &ChannelParticipant{}, "channel_id = ? AND user_id = ?", channelID, userID) {
+	var participant ChannelParticipant
+	err = db.Where("channel_id = ? AND user_id = ?", channelID, userID).First(&participant).Error
+	if err == nil {
 		return true
 	}
+	
 	return false
 }
 
