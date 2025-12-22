@@ -115,22 +115,24 @@ func TestBuzzCreate(t *testing.T) {
 			t.Fatal("Expected data field in response")
 		}
 
-		if responseData["buzz_id"] == nil {
-			t.Error("Expected buzz_id in response")
-		}
-		if responseData["channel_id"] != channelID {
-			t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
-		}
-		if responseData["status"] != "active" {
-			t.Error("Expected status to be 'active'")
-		}
-		if responseData["participant_ids"] == nil {
-			t.Error("Expected participant_ids in response")
-		}
-		// Verify agora_token is present (can be nil if generation fails)
-		if _, exists := responseData["agora_token"]; !exists {
-			t.Error("Expected agora_token field in response")
-		}
+		       if responseData["buzz_id"] == nil {
+			       t.Error("Expected buzz_id in response")
+		       }
+		       if responseData["channel_id"] != channelID {
+			       t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
+		       }
+		       if responseData["status"] != "active" {
+			       t.Error("Expected status to be 'active'")
+		       }
+		       // Check for 'participants' field (should be a non-empty array)
+		       participants, ok := responseData["participants"].([]interface{})
+		       if !ok || len(participants) == 0 {
+			       t.Error("Expected non-empty participants array in response")
+		       }
+		       // Verify agora_token is present (can be nil if generation fails)
+		       if _, exists := responseData["agora_token"]; !exists {
+			       t.Error("Expected agora_token field in response")
+		       }
 	})
 
 	t.Run("Create Buzz - Duplicate (Channel Already Has Active Buzz)", func(t *testing.T) {
