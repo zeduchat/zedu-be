@@ -48,7 +48,7 @@ func TestUserSignup(t *testing.T) {
 				UserName:    fmt.Sprintf("test_username%v", currUUID),
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "user created successfully",
+			   Message:      "User Created Successfully",
 		}, {
 			Name: "details already exist",
 			RequestBody: models.CreateUserRequestModel{
