@@ -268,9 +268,11 @@ func TestBuzzJoin(t *testing.T) {
 				if responseData["channel_id"] != channelID {
 					t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
 				}
-				if responseData["participant_ids"] == nil {
-					t.Error("Expected participant_ids in response")
-				}
+				   // Check for 'participants' field (should be a non-empty array)
+				   participants, ok := responseData["participants"].([]interface{})
+				   if !ok || len(participants) == 0 {
+					   t.Error("Expected non-empty participants array in response")
+				   }
 			}
 		})
 	}
