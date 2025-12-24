@@ -324,8 +324,8 @@ type BuzzInvitation struct {
 
 	// Relationships
 	Buzz    Buzz    `gorm:"foreignKey:BuzzID;references:ID" json:"-"`
-	Inviter Profile `gorm:"foreignKey:InviterID;references:UserID" json:"-"`
-	Invitee Profile `gorm:"foreignKey:InviteeID;references:UserID" json:"-"`
+	Inviter Profile `gorm:"foreignKey:InviterID;references:Userid" json:"-"`
+	Invitee Profile `gorm:"foreignKey:InviteeID;references:Userid" json:"-"`
 }
 
 func (BuzzInvitation) TableName() string {

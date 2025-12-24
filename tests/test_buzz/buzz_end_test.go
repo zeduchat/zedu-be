@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
@@ -24,8 +25,11 @@ func TestBuzzEnd(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
-	authController := auth.Controller{Db: db, Validator: validatorRef,
-		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	auth := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		}}
 	channelController := channel.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	buzzController := buzz.Controller{Db: db, Validator: validatorRef, Logger: logger}
@@ -36,8 +40,8 @@ func TestBuzzEnd(t *testing.T) {
 	hostSignUp := models.CreateUserRequestModel{Email: hostEmail, Password: "password"}
 	hostLogin := models.LoginRequestModel{Email: hostSignUp.Email, Password: hostSignUp.Password}
 
-	tst.SignupUser(t, router, authController, hostSignUp, false)
-	hostToken := tst.GetLoginToken(t, router, authController, hostLogin)
+	tst.SignupUser(t, router, auth, hostSignUp, false)
+	hostToken := tst.GetLoginToken(t, router, auth, hostLogin)
 	if hostToken == "" {
 		t.Fatalf("failed to obtain host login token")
 	}
@@ -84,7 +88,7 @@ func TestBuzzEnd(t *testing.T) {
 
 		data := tst.ParseResponse(rr)
 		dataM := data["data"].(map[string]any)
-		
+
 		if dataM["buzz_id"].(string) != buzzID {
 			t.Errorf("expected buzz_id %s, got %s", buzzID, dataM["buzz_id"].(string))
 		}
@@ -122,8 +126,8 @@ func TestBuzzEnd(t *testing.T) {
 		nonHostSignUp := models.CreateUserRequestModel{Email: nonHostEmail, Password: "password"}
 		nonHostLogin := models.LoginRequestModel{Email: nonHostSignUp.Email, Password: nonHostSignUp.Password}
 
-		tst.SignupUser(t, router, authController, nonHostSignUp, false)
-		nonHostToken := tst.GetLoginToken(t, router, authController, nonHostLogin)
+		tst.SignupUser(t, router, auth, nonHostSignUp, false)
+		nonHostToken := tst.GetLoginToken(t, router, auth, nonHostLogin)
 		if nonHostToken == "" {
 			t.Fatalf("failed to obtain non-host login token")
 		}
@@ -163,7 +167,7 @@ func TestBuzzEnd(t *testing.T) {
 		}
 
 		url := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
-		
+
 		// End buzz first time
 		req1, err := http.NewRequest(http.MethodPost, url, nil)
 		if err != nil {

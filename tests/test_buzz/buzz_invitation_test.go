@@ -19,7 +19,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -41,7 +40,7 @@ func TestBuzzInvitations(t *testing.T) {
 		UserName:    "inviter_user" + currUUID,
 		FirstName:   "Inviter",
 		LastName:    "User",
-		PhoneNumber: "+2348120001111",
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 	}
 	user1Login := models.LoginRequestModel{Email: user1Signup.Email, Password: user1Signup.Password}
 
@@ -103,7 +102,7 @@ func TestBuzzInvitations(t *testing.T) {
 		UserName:    "invitee_user" + currUUID2,
 		FirstName:   "Invitee",
 		LastName:    "User",
-		PhoneNumber: "+2348120002222",
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 	}
 	user2Login := models.LoginRequestModel{Email: user2Signup.Email, Password: user2Signup.Password}
 

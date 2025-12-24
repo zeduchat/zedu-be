@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-
-	"context"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -28,6 +27,7 @@ import (
 	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
@@ -43,6 +43,7 @@ func Setup() *utility.Logger {
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
 	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
 	elastic.ConnectToElastic(logger, config.Elastic)
+	minio.ConnectToMinio(logger, config.Minio)
 	agora.NewAgoraService(logger, config.Agora)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {

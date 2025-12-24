@@ -48,7 +48,7 @@ func TestUserSignup(t *testing.T) {
 				UserName:    fmt.Sprintf("test_username%v", currUUID),
 			},
 			ExpectedCode: http.StatusCreated,
-			   Message:      "User Created Successfully",
+			Message:      "User Created Successfully",
 		}, {
 			Name: "details already exist",
 			RequestBody: models.CreateUserRequestModel{
@@ -56,11 +56,11 @@ func TestUserSignup(t *testing.T) {
 				PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 				FirstName:   "test",
 				LastName:    "user",
-				Password:    "password",
+				Password:    "password23",
 				UserName:    fmt.Sprintf("test_username%v", currUUID),
 			},
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "user already exists with the given email",
+			Message:      "Email address already exist, use another email or signin",
 		}, {
 			Name: "invalid email",
 			RequestBody: models.CreateUserRequestModel{
@@ -162,7 +162,7 @@ func TestAdminSignup(t *testing.T) {
 				UserName:    fmt.Sprintf("test_username%v", currUUID),
 			},
 			ExpectedCode: http.StatusCreated,
-			Message:      "user created successfully",
+			Message:      "User Created Successfully",
 		}, {
 			Name: "details already exist",
 			RequestBody: models.CreateUserRequestModel{
@@ -174,7 +174,7 @@ func TestAdminSignup(t *testing.T) {
 				UserName:    fmt.Sprintf("test_username%v", currUUID),
 			},
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "user already exists with the given email",
+			Message:      "Email address already exist, use another email or signin",
 		}, {
 			Name: "invalid email",
 			RequestBody: models.CreateUserRequestModel{
