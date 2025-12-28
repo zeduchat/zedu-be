@@ -29,7 +29,7 @@ func TestBuzz(t *testing.T) {
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	channelController := channel.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
-	router, _ := SetupBuzzTestRouter()
+	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
 	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}

@@ -9,20 +9,22 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func TestBuzzNotes(t *testing.T) {
-	router, buzzController := SetupBuzzTestRouter()
-	logger := buzzController.Logger
-	db := buzzController.Db
-	validatorRef := buzzController.Validator
+	logger := tst.Setup()
+	db := storage.Connection()
+	validatorRef := validator.New()
+	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}

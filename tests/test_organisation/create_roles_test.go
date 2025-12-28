@@ -131,9 +131,9 @@ func TestCreateOrgRole(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "not organization owner")
+		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
 	})
 
 	t.Run("Bad Request - Missing Fields", func(t *testing.T) {

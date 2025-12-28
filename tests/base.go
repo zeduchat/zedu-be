@@ -191,6 +191,37 @@ func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db 
 	return channelID, channelName
 }
 
+func JoinChannel(t *testing.T, r *gin.Engine, channel channel.Controller, db *storage.Database, JoinData models.JoinChannelsRequest, token string) error {
+	var (
+		joinPath = "/api/v1/channels/"
+		joinURI  = url.URL{Path: joinPath}
+	)
+
+	channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
+	{
+		channelUrl.POST("/:channelId/join", channel.JoinChannels)
+	}
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(JoinData)
+	req, err := http.NewRequest(http.MethodPost, joinURI.String() + JoinData.ChannelsID + "/join", &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		return fmt.Errorf("expected status code %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	return nil
+}
+
 func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org organisation.Controller, orgData models.CreateOrgRequestModel, token string) (string, string, string) {
 	var (
 		orgPath = "/api/v1/organisations"
@@ -267,10 +298,6 @@ func CreateBuzz(t *testing.T, r *gin.Engine, buzzContoller buzz.Controller, db *
 		createBuzzPath = "/api/v1/buzz/create"
 		createBuzzURI  = url.URL{Path: createBuzzPath}
 	)
-	buzzUrl := r.Group(fmt.Sprintf("%v", "/api/buzz/create"), middleware.Authorize(db.Postgresql))
-	{
-		buzzUrl.POST("/", buzzContoller.Create)
-	}
 
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(createBuzzReq)

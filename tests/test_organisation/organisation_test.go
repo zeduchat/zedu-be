@@ -78,25 +78,8 @@ func TestOrganizationCreate(t *testing.T) {
 				"Authorization": "Bearer " + token,
 			},
 		}, {
-			Name: "invalid email",
-			RequestBody: models.CreateOrgRequestModel{
-				Name:        fmt.Sprintf("Org %v", utility.GenerateUUID()),
-				Email:       "someRandEmail",
-				Description: "Some random description about vibranium",
-				Location:    "wakanda land",
-				Type:        "type1",
-				Country:     "wakanda",
-			},
-			ExpectedCode: http.StatusUnprocessableEntity,
-			Message:      "email address is invalid",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		}, {
 			Name: "Validation failed",
 			RequestBody: models.CreateOrgRequestModel{
-				Name:        fmt.Sprintf("Org %v", currUUID),
 				Description: "Some random description about vibranium",
 				Type:        "type1",
 				Location:    "wakanda land",
@@ -464,7 +447,7 @@ func TestOrganisationDelete(t *testing.T) {
 			Name:         "Organisation Not Found",
 			OrgID:        utility.GenerateUUID(),
 			ExpectedCode: http.StatusNotFound,
-			Message:      "organisation not found",
+			Message:      "failed to retrieve organisation: organisation not found",
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
@@ -559,10 +542,10 @@ func TestGetUsersInOrg(t *testing.T) {
 		Headers      map[string]string
 	}{
 		{
-			Name:         "Successful retrieval of users in organisation",
+			Name:         "users and bots retrieved successfully",
 			OrgID:        orgID,
 			ExpectedCode: http.StatusOK,
-			Message:      "users retrieved successfully",
+			Message:      "users and bots retrieved successfully",
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,

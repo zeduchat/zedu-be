@@ -25,27 +25,40 @@ func TestBuzzEnd(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
-	auth := auth.Controller{Db: db, Validator: validatorRef,
-		Logger: logger, ExtReq: request.ExternalRequest{
+	auth := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
 			Logger: logger,
 			Test:   true,
-		}}
+		},
+	}
+
 	channelController := channel.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	buzzController := buzz.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	router, _ := SetupBuzzEndTestRouter()
-
+	
 	// Create host user
 	hostEmail := utility.GenerateUUID() + "@qa.team"
-	hostSignUp := models.CreateUserRequestModel{Email: hostEmail, Password: "password"}
+	hostSignUp := models.CreateUserRequestModel{
+		Email: hostEmail,
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "DMUser",
+		LastName:    "One",
+		Password:    "password",
+		UserName:    fmt.Sprintf("dmuser1_%v", utility.GenerateUUID())}
+
 	hostLogin := models.LoginRequestModel{Email: hostSignUp.Email, Password: hostSignUp.Password}
 
-	tst.SignupUser(t, router, auth, hostSignUp, false)
-	hostToken := tst.GetLoginToken(t, router, auth, hostLogin)
+	r := gin.Default()
+	tst.SignupUser(t, r, auth, hostSignUp, false)
+	hostToken := tst.GetLoginToken(t, r, auth, hostLogin)
 	if hostToken == "" {
 		t.Fatalf("failed to obtain host login token")
 	}
-
+	
+	router, _ := SetupBuzzEndTestRouter(logger, validatorRef)
 	var hostUser models.User
 	if err := db.Postgresql.Where("email = ?", hostSignUp.Email).First(&hostUser).Error; err != nil {
 		t.Fatalf("failed to fetch host user: %v", err)
@@ -54,7 +67,7 @@ func TestBuzzEnd(t *testing.T) {
 	// Create channel
 	channelData := models.CreateChannelsRequest{
 		OrganisationID: hostUser.CurrentOrg.String(),
-		Username:       hostUser.Profile.UserName,
+		Username:       hostSignUp.UserName,
 		Name:           "test_" + utility.GenerateUUID(),
 	}
 	channelID, _ := tst.CreateChannels(t, router, channelController, db, channelData, hostToken)
@@ -65,13 +78,48 @@ func TestBuzzEnd(t *testing.T) {
 	createBuzzData := models.CreateBuzzRequest{
 		ChannelID: channelID,
 	}
+	buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, hostToken)
 
-	t.Run("EndBuzzSuccessByHost", func(t *testing.T) {
-		buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, hostToken)
-		if buzzID == "" {
-			t.Fatal("failed to obtain buzzID")
+	if buzzID == "" {
+		t.Fatal("failed to obtain buzzID")
+	}
+
+	
+	t.Run("EndBuzzFailsWhenNonHostAttempts", func(t *testing.T) {
+		// Create a second user (non-host)
+		nonHostEmail := utility.GenerateUUID() + "@qa.team"
+		nonHostSignUp := models.CreateUserRequestModel{Email: nonHostEmail, Password: "password"}
+		nonHostLogin := models.LoginRequestModel{Email: nonHostSignUp.Email, Password: nonHostSignUp.Password}
+		
+		tst.SignupUser(t, router, auth, nonHostSignUp, false)
+		nonHostToken := tst.GetLoginToken(t, router, auth, nonHostLogin)
+		if nonHostToken == "" {
+			t.Fatalf("failed to obtain non-host login token")
+		}
+		
+		// Try to end buzz as non-host
+		url := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
+		req, err := http.NewRequest(http.MethodPost, url, nil)
+		if err != nil {
+			t.Fatal(err)
 		}
 
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+nonHostToken)
+		
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+		
+		data := tst.ParseResponse(rr)
+		message := data["message"].(string)
+		if message != "only the buzz host can perform this action" {
+			t.Errorf("expected error message 'only the buzz host can perform this action', got %s", message)
+		}
+	})
+	
+	t.Run("EndBuzzSuccessByHost", func(t *testing.T) {
 		url := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
 		req, err := http.NewRequest(http.MethodPost, url, nil)
 		if err != nil {
@@ -106,7 +154,7 @@ func TestBuzzEnd(t *testing.T) {
 		if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
 			t.Fatalf("failed to fetch buzz from database: %v", err)
 		}
-
+	
 		if buzz.Status != models.BuzzStatusEnded {
 			t.Errorf("expected buzz status to be 'ended', got %s", buzz.Status)
 		}
@@ -119,47 +167,6 @@ func TestBuzzEnd(t *testing.T) {
 			t.Error("expected buzz_end_time to be set")
 		}
 	})
-
-	t.Run("EndBuzzFailsWhenNonHostAttempts", func(t *testing.T) {
-		// Create a second user (non-host)
-		nonHostEmail := utility.GenerateUUID() + "@qa.team"
-		nonHostSignUp := models.CreateUserRequestModel{Email: nonHostEmail, Password: "password"}
-		nonHostLogin := models.LoginRequestModel{Email: nonHostSignUp.Email, Password: nonHostSignUp.Password}
-
-		tst.SignupUser(t, router, auth, nonHostSignUp, false)
-		nonHostToken := tst.GetLoginToken(t, router, auth, nonHostLogin)
-		if nonHostToken == "" {
-			t.Fatalf("failed to obtain non-host login token")
-		}
-
-		// Create buzz as host
-		buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, hostToken)
-		if buzzID == "" {
-			t.Fatal("failed to obtain buzzID")
-		}
-
-		// Try to end buzz as non-host
-		url := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
-		req, err := http.NewRequest(http.MethodPost, url, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+nonHostToken)
-
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
-
-		data := tst.ParseResponse(rr)
-		message := data["message"].(string)
-		if message != "only the host can end the buzz" {
-			t.Errorf("expected error message 'only the host can end the buzz', got %s", message)
-		}
-	})
-
 	t.Run("EndBuzzFailsWhenAlreadyEnded", func(t *testing.T) {
 		buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, hostToken)
 		if buzzID == "" {
@@ -195,8 +202,8 @@ func TestBuzzEnd(t *testing.T) {
 
 		data := tst.ParseResponse(rr2)
 		message := data["message"].(string)
-		if message != "buzz has already ended" {
-			t.Errorf("expected error message 'buzz has already ended', got %s", message)
+		if message != "buzz has ended" {
+			t.Errorf("expected error message 'buzz has ended', got %s", message)
 		}
 	})
 
@@ -261,26 +268,6 @@ func TestBuzzEnd(t *testing.T) {
 	})
 
 	t.Run("EndBuzzUpdatesAllParticipantsStatus", func(t *testing.T) {
-		buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, hostToken)
-		if buzzID == "" {
-			t.Fatal("failed to obtain buzzID")
-		}
-
-		// End the buzz
-		url := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
-		req, err := http.NewRequest(http.MethodPost, url, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+hostToken)
-
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
-
 		// Verify all participants are marked as left
 		var participants []models.BuzzParticipant
 		if err := db.Postgresql.Where("buzz_id = ?", buzzID).Find(&participants).Error; err != nil {
