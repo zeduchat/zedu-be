@@ -17,7 +17,7 @@ import (
 )
 
 func TestResetAutoDownloadSettings(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 
 	// Register cleanup to close connections after all subtests complete
@@ -79,7 +79,6 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 	db.Create(&deviceMediaPreferences)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -96,7 +95,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Reset without device_id (user-level)
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/users/media-preferences/reset-autodownload", nil)
@@ -140,7 +139,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Reset with device_id
 		resetData := models.ResetAutoDownloadRequest{
@@ -189,7 +188,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Create a new device without preferences
 		newDeviceID := utility.GenerateUUID()
@@ -246,7 +245,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    newUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Reset (should create preferences)
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/users/media-preferences/reset-autodownload", nil)
@@ -276,7 +275,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		invalidDeviceID := "invalid-uuid"
 		resetData := models.ResetAutoDownloadRequest{
@@ -300,7 +299,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		nonExistentDeviceID := utility.GenerateUUID()
 		resetData := models.ResetAutoDownloadRequest{
@@ -343,7 +342,7 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Send empty JSON body
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/users/media-preferences/reset-autodownload", bytes.NewReader([]byte("{}")))

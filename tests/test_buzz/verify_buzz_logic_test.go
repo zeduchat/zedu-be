@@ -413,25 +413,43 @@ func TestJoinBuzzScenarios(t *testing.T) {
 	channelID := utility.GenerateUUID()
 	orgID := utility.GenerateUUID()
 
+	org := models.Organisation{
+		ID:          orgID,
+		Name:        fmt.Sprintf("TestOrg%s", currUUID),
+		Description: "Test organization",
+		OwnerID:     user1ID,
+	}
+	if err := db.Postgresql.Create(&org).Error; err != nil {
+		t.Logf("Organization might already exist: %v", err)
+	}
+
 	channel := models.Channels{
 		ID:             channelID,
 		Name:           fmt.Sprintf("join-test-channel-%s", currUUID),
 		Description:    "Test channel for join buzz",
 		OrganisationID: orgID,
 		CreatedAt:      time.Now(),
+		OwnerId:        user1ID,
 	}
-	db.Postgresql.Create(&channel)
+	if err := db.Postgresql.Create(&channel).Error; err != nil {
+		t.Logf("Channel might already exist: %v", err)
+	}
 
-	db.Postgresql.Create(&models.UserChannels{
+	if err := db.Postgresql.Create(&models.UserChannels{
 		ChannelsID: channelID,
 		UserID:     user1ID,
 		CreatedAt:  time.Now(),
-	})
-	db.Postgresql.Create(&models.UserChannels{
+	}).Error; err != nil {
+		t.Logf("UserChannels might already exist: %v", err)
+	}
+
+	if err := db.Postgresql.Create(&models.UserChannels{
 		ChannelsID: channelID,
 		UserID:     user2ID,
 		CreatedAt:  time.Now(),
-	})
+	}).Error; err != nil {
+		t.Logf("UserChannels might already exist: %v", err)
+	}
 
 	// User1 creates a buzz
 	buzzID := utility.GenerateUUID()
@@ -448,7 +466,9 @@ func TestJoinBuzzScenarios(t *testing.T) {
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
-	db.Postgresql.Create(&buzz)
+	if err := db.Postgresql.Create(&buzz).Error; err != nil {
+		t.Logf("Buzz might already exist: %v", err)
+	}
 
 	buzzParticipant := models.BuzzParticipant{
 		ID:       utility.GenerateUUID(),

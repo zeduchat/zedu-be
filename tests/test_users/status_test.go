@@ -17,7 +17,7 @@ import (
 )
 
 func TestPatchUserStatus(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 
 	currUUID := utility.GenerateUUID()
@@ -40,7 +40,6 @@ func TestPatchUserStatus(t *testing.T) {
 	})
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -57,7 +56,7 @@ func TestPatchUserStatus(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
@@ -107,7 +106,7 @@ func TestPatchUserStatus(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"emoji":  "bad emoji", // whitespace not allowed
@@ -129,7 +128,7 @@ func TestPatchUserStatus(t *testing.T) {
 }
 
 func TestGetUserStatus(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 
 	currUUID := utility.GenerateUUID()
@@ -153,7 +152,6 @@ func TestGetUserStatus(t *testing.T) {
 	db.Create(&otherUser)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -181,7 +179,7 @@ func TestGetUserStatus(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/status", user.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -227,7 +225,7 @@ func TestGetUserStatus(t *testing.T) {
 			Email:    userNoStatus.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/status", userNoStatus.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -270,7 +268,7 @@ func TestGetUserStatus(t *testing.T) {
 			Email:    userNoProfile.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/status", userNoProfile.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -303,7 +301,7 @@ func TestGetUserStatus(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/status", otherUser.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -323,7 +321,7 @@ func TestGetUserStatus(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/users/invalid-uuid/status", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -372,7 +370,7 @@ func TestGetUserStatus(t *testing.T) {
 			Email:    userCustomVisibility.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/status", userCustomVisibility.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -391,11 +389,11 @@ func TestGetUserStatus(t *testing.T) {
 }
 
 func TestSetUserStatus(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
+	db := userController.Db.Postgresql
 	t.Cleanup(func() {
 		tests.Cleanup(userController.Db)
 	})
-	db := userController.Db.Postgresql
 
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -425,7 +423,6 @@ func TestSetUserStatus(t *testing.T) {
 	})
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -438,14 +435,11 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("successfully sets status with all fields", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
@@ -498,9 +492,6 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("successfully sets status with only required text field", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 
 		userMinimal := models.User{
 			ID:       utility.GenerateUUID(),
@@ -518,7 +509,7 @@ func TestSetUserStatus(t *testing.T) {
 			Email:    userMinimal.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "Working on a project",
@@ -553,16 +544,14 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("successfully sets status with different visibility options", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
-
 		userContacts := models.User{
 			ID:       utility.GenerateUUID(),
 			Name:     "Contacts Visibility User",
 			Email:    fmt.Sprintf("contacts_visibility_user_%s@qa.team", utility.GenerateUUID()),
 			Password: password,
 		}
+
+		db := authController.Db.Postgresql
 		db.Create(&userContacts)
 		db.Create(&models.Profile{
 			ID:     utility.GenerateUUID(),
@@ -573,7 +562,7 @@ func TestSetUserStatus(t *testing.T) {
 			Email:    userContacts.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":       "Available for contacts",
@@ -607,14 +596,11 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when text is empty", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "",
@@ -628,21 +614,18 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when text is missing", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"emoji": "😊",
@@ -656,21 +639,18 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when text exceeds 255 characters", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		longText := make([]byte, 256)
 		for i := range longText {
@@ -688,21 +668,18 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when emoji contains whitespace", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":  "Status with bad emoji",
@@ -717,21 +694,18 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when emoji exceeds 64 characters", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		longEmoji := make([]byte, 65)
 		for i := range longEmoji {
@@ -750,21 +724,18 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when expiry is negative", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":   "Status with negative expiry",
@@ -779,21 +750,18 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns bad request when visibility is invalid", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":       "Status with invalid visibility",
@@ -808,16 +776,13 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusBadRequest)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
 	t.Run("returns forbidden when setting another user's status", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 
 		db.Create(&models.Profile{
 			ID:     utility.GenerateUUID(),
@@ -828,7 +793,7 @@ func TestSetUserStatus(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "Trying to set other user's status",
@@ -849,14 +814,11 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request for invalid UUID format", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "Status text",
@@ -876,10 +838,7 @@ func TestSetUserStatus(t *testing.T) {
 	})
 
 	t.Run("returns unauthorized when no token provided", func(t *testing.T) {
-		router, userController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(userController.Db)
-		})
+		router, _ := setup()
 
 		payload := map[string]any{
 			"text": "Status text",
@@ -897,10 +856,6 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns not found when profile does not exist", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
-
 		userNoProfile := models.User{
 			ID:       utility.GenerateUUID(),
 			Name:     "No Profile User",
@@ -914,7 +869,7 @@ func TestSetUserStatus(t *testing.T) {
 			Email:    userNoProfile.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "Status text",
@@ -935,10 +890,6 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("trims whitespace from text", func(t *testing.T) {
 		router, authController := setup()
-		t.Cleanup(func() {
-			tests.Cleanup(authController.Db)
-		})
-
 		userTrimmed := models.User{
 			ID:       utility.GenerateUUID(),
 			Name:     "Trimmed Text User",
@@ -955,7 +906,7 @@ func TestSetUserStatus(t *testing.T) {
 			Email:    userTrimmed.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "  Trimmed text  ",
@@ -1023,7 +974,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":  "Status with emoji",
@@ -1056,7 +1007,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":  "Status with emoji sequence",
@@ -1089,7 +1040,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":  "Status with skin tone emoji",
@@ -1122,7 +1073,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":  "Status with invalid emoji",
@@ -1152,7 +1103,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text":  "Status with mixed emoji",
@@ -1182,7 +1133,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"emoji": "🎉",
@@ -1214,7 +1165,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"emoji": "invalid123",
@@ -1242,7 +1193,7 @@ func TestEmojiValidation(t *testing.T) {
 			Email:    user.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
 			"text": "Status without emoji",

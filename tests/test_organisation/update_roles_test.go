@@ -17,6 +17,9 @@ import (
 
 func TestUpdateOrgRole(t *testing.T) {
 	_, orgController := SetupOrgTestRouter()
+	t.Cleanup(func() {
+		tests.Cleanup(orgController.Db)
+	})
 	db := orgController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -79,7 +82,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedRole := models.OrgRole{
 			Name:        fmt.Sprintf("%v-New name", utility.RandomString(5)),
@@ -127,7 +130,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedRole := models.OrgRole{
 			Name:        fmt.Sprintf("%v-Regur name", utility.RandomString(5)),
@@ -154,7 +157,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		invalidRole := models.OrgRole{
 			Description: "Missing name field",
@@ -175,7 +178,10 @@ func TestUpdateOrgRole(t *testing.T) {
 }
 
 func TestUpdateOrgPermissions(t *testing.T) {
-	_, orgController := SetupOrgTestRouter()
+	router, orgController := SetupOrgTestRouter()
+	t.Cleanup(func() {
+		tests.Cleanup(orgController.Db)
+	})
 	db := orgController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -239,7 +245,6 @@ func TestUpdateOrgPermissions(t *testing.T) {
 	db.Create(&perm)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, orgController := SetupOrgTestRouter()
 		authController := auth.Controller{
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
@@ -257,7 +262,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedPermissions := models.PermissionList{
 			CanRemovePeopleFromOrganization: false,
@@ -310,7 +315,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{
