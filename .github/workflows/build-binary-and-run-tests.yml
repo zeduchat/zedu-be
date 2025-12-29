@@ -25,14 +25,6 @@ jobs:
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
           pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
-
-          psql -U actionsdeployer -d ${DB_NAME} -c "
-            GRANT ALL ON SCHEMA public TO telexadmin;
-            GRANT ALL ON ALL TABLES IN SCHEMA public TO telexadmin;
-            GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO telexadmin;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO telexadmin;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO telexadmin;
-          "
           
       - name: Setup app.env
         run: | 
@@ -41,6 +33,8 @@ jobs:
           echo "${{ secrets.APP_ENV }}" > app.env
           sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
           sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
+          sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
+          sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
 
       - name: Build the application
         run: go build -o telex_be
