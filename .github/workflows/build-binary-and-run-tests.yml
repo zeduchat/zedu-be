@@ -25,6 +25,14 @@ jobs:
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
           pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
+
+          psql -U actionsdeployer -d ${DB_NAME} -c "
+            GRANT ALL ON SCHEMA public TO actionsdeployer;
+            GRANT ALL ON ALL TABLES IN SCHEMA public TO actionsdeployer;
+            GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO actionsdeployer;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO actionsdeployer;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO actionsdeployer;
+          "
           
       - name: Setup app.env
         run: | 
