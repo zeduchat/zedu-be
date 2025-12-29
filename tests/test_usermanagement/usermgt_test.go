@@ -77,7 +77,7 @@ func TestUserManagementEndpoints(t *testing.T) {
 		{
 			Name:         "Get User In Organisation Action Action",
 			ExpectedCode: http.StatusOK,
-			Message:      "users retrieved successfully",
+			Message:      "users and bots retrieved successfully",
 			Method:       http.MethodGet,
 			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/users", orgId)},
 			Headers: map[string]string{

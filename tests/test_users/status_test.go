@@ -392,6 +392,9 @@ func TestGetUserStatus(t *testing.T) {
 
 func TestSetUserStatus(t *testing.T) {
 	_, userController := SetupUsersTestRouter()
+	t.Cleanup(func() {
+		tests.Cleanup(userController.Db)
+	})
 	db := userController.Db.Postgresql
 
 	currUUID := utility.GenerateUUID()
@@ -435,6 +438,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("successfully sets status with all fields", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -492,6 +498,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("successfully sets status with only required text field", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 
 		userMinimal := models.User{
 			ID:       utility.GenerateUUID(),
@@ -544,6 +553,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("successfully sets status with different visibility options", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 
 		userContacts := models.User{
 			ID:       utility.GenerateUUID(),
@@ -595,6 +607,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when text is empty", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -620,6 +635,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when text is missing", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -645,6 +663,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when text exceeds 255 characters", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -674,6 +695,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when emoji contains whitespace", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -700,6 +724,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when emoji exceeds 64 characters", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -730,6 +757,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when expiry is negative", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -756,6 +786,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request when visibility is invalid", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -782,6 +815,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns forbidden when setting another user's status", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 
 		db.Create(&models.Profile{
 			ID:     utility.GenerateUUID(),
@@ -813,6 +849,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns bad request for invalid UUID format", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -837,7 +876,10 @@ func TestSetUserStatus(t *testing.T) {
 	})
 
 	t.Run("returns unauthorized when no token provided", func(t *testing.T) {
-		router, _ := setup()
+		router, userController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(userController.Db)
+		})
 
 		payload := map[string]any{
 			"text": "Status text",
@@ -855,6 +897,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("returns not found when profile does not exist", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 
 		userNoProfile := models.User{
 			ID:       utility.GenerateUUID(),
@@ -890,6 +935,9 @@ func TestSetUserStatus(t *testing.T) {
 
 	t.Run("trims whitespace from text", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 
 		userTrimmed := models.User{
 			ID:       utility.GenerateUUID(),
@@ -933,6 +981,9 @@ func TestSetUserStatus(t *testing.T) {
 
 func TestEmojiValidation(t *testing.T) {
 	_, userController := SetupUsersTestRouter()
+	t.Cleanup(func() {
+		tests.Cleanup(userController.Db)
+	})
 	db := userController.Db.Postgresql
 
 	currUUID := utility.GenerateUUID()
@@ -965,6 +1016,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("successfully sets status with valid Unicode emoji", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -995,6 +1049,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("successfully sets status with emoji sequence", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -1025,6 +1082,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("successfully sets status with emoji and skin tone", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -1055,6 +1115,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("returns bad request when emoji is invalid (non-emoji string)", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -1082,6 +1145,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("returns bad request when emoji contains mixed emoji and text", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -1109,6 +1175,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("successfully patches status with valid emoji", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -1138,6 +1207,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("returns bad request when patching with invalid emoji", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",
@@ -1163,6 +1235,9 @@ func TestEmojiValidation(t *testing.T) {
 
 	t.Run("allows empty emoji (optional field)", func(t *testing.T) {
 		router, authController := setup()
+		t.Cleanup(func() {
+			tests.Cleanup(authController.Db)
+		})
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
 			Password: "password",

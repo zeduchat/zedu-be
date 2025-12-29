@@ -240,14 +240,15 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 
 	metadataResp := buildBuzzMetadataResponse(&buzz, participantMetadata)
 	resp = models.BuzzCreateResponse{
-		BuzzID:       metadataResp.BuzzID,
-		HostID:       metadataResp.HostID,
-		ChannelID:    metadataResp.ChannelID,
-		Status:       metadataResp.Status,
-		CreatedAt:    metadataResp.CreatedAt,
-		StartedAt:    metadataResp.StartedAt,
-		Participants: metadataResp.Participants,
-		AgoraToken:   &agoraToken,
+		BuzzID:         metadataResp.BuzzID,
+		HostID:         metadataResp.HostID,
+		ChannelID:      metadataResp.ChannelID,
+		Status:         metadataResp.Status,
+		CreatedAt:      metadataResp.CreatedAt,
+		StartedAt:      metadataResp.StartedAt,
+		ParticipantIDs: buzz.ParticipantIDs,
+		Participants:   metadataResp.Participants,
+		AgoraToken:     &agoraToken,
 	}
 
 	eventPayload := models.BuzzEventPayload{

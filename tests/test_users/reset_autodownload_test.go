@@ -19,6 +19,12 @@ import (
 func TestResetAutoDownloadSettings(t *testing.T) {
 	_, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
+
+	// Register cleanup to close connections after all subtests complete
+	t.Cleanup(func() {
+		tests.Cleanup(userController.Db)
+	})
+
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
 
@@ -358,4 +364,3 @@ func TestResetAutoDownloadSettings(t *testing.T) {
 		}
 	})
 }
-

@@ -64,6 +64,21 @@ func Setup() *utility.Logger {
 	return logger
 }
 
+// Cleanup closes all database connections and cleans up resources
+func Cleanup(db *storage.Database) {
+	if db.Postgresql != nil {
+		sqlDB, err := db.Postgresql.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
+	}
+
+	// Close Redis connection
+	if db.Redis != nil {
+		db.Redis.Close()
+	}
+}
+
 func ParseResponse(w *httptest.ResponseRecorder) map[string]any {
 	res := make(map[string]any)
 	json.NewDecoder(w.Body).Decode(&res)
@@ -204,7 +219,7 @@ func JoinChannel(t *testing.T, r *gin.Engine, channel channel.Controller, db *st
 
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(JoinData)
-	req, err := http.NewRequest(http.MethodPost, joinURI.String() + JoinData.ChannelsID + "/join", &b)
+	req, err := http.NewRequest(http.MethodPost, joinURI.String()+JoinData.ChannelsID+"/join", &b)
 	if err != nil {
 		t.Fatal(err)
 	}

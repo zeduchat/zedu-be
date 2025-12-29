@@ -214,13 +214,13 @@ func TestCreateBuzzDMChannel(t *testing.T) {
 
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, user1SignUpData, false)
-	tst.SignupUser(t, r, auth, user2SignUpData, false)
+	tst.SignupUser(t, gin.Default(), auth, user2SignUpData, false)
 
 	user1Token := tst.GetLoginToken(t, r, auth, models.LoginRequestModel{
 		Email:    user1SignUpData.Email,
 		Password: user1SignUpData.Password,
 	})
-	user2Token := tst.GetLoginToken(t, r, auth, models.LoginRequestModel{
+	user2Token := tst.GetLoginToken(t, gin.Default(), auth, models.LoginRequestModel{
 		Email:    user2SignUpData.Email,
 		Password: user2SignUpData.Password,
 	})
@@ -385,13 +385,13 @@ func TestJoinBuzzScenarios(t *testing.T) {
 
 	r := gin.Default()
 	tst.SignupUser(t, r, auth, user1SignUpData, false)
-	tst.SignupUser(t, r, auth, user2SignUpData, false)
+	tst.SignupUser(t, gin.Default(), auth, user2SignUpData, false)
 
 	user1Token := tst.GetLoginToken(t, r, auth, models.LoginRequestModel{
 		Email:    user1SignUpData.Email,
 		Password: user1SignUpData.Password,
 	})
-	user2Token := tst.GetLoginToken(t, r, auth, models.LoginRequestModel{
+	user2Token := tst.GetLoginToken(t, gin.Default(), auth, models.LoginRequestModel{
 		Email:    user2SignUpData.Email,
 		Password: user2SignUpData.Password,
 	})

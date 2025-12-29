@@ -52,6 +52,7 @@ type BuzzParticipant struct {
 	JoinedAt      time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
 	LeftAt        *time.Time `gorm:"column:left_at" json:"left_at"`
 	CreatedAt     time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
 type CreateBuzzRequest struct {
@@ -72,14 +73,15 @@ type ParticipantMetadata struct {
 }
 
 type BuzzCreateResponse struct {
-	BuzzID       string                  `json:"buzz_id"`
-	HostID       string                  `json:"host_id"`
-	ChannelID    string                  `json:"channel_id"`
-	Status       string                  `json:"status"`
-	CreatedAt    time.Time               `json:"created_at"`
-	StartedAt    time.Time               `json:"started_at"`
-	Participants []ParticipantMetadata   `json:"participants"`
-	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
+	BuzzID         string                  `json:"buzz_id"`
+	HostID         string                  `json:"host_id"`
+	ChannelID      string                  `json:"channel_id"`
+	Status         string                  `json:"status"`
+	CreatedAt      time.Time               `json:"created_at"`
+	StartedAt      time.Time               `json:"started_at"`
+	ParticipantIDs []string                `json:"participants_id"`
+	Participants   []ParticipantMetadata   `json:"participants"`
+	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 type BuzzLeaveResponse struct {
@@ -148,21 +150,21 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 	if err == nil {
 		return true
 	}
-	
+
 	// Check DM channels - user can be either the creator (user_id) OR the participant (participant_id)
 	var dmChannel DmChannels
 	err = db.Where("channel_id = ? AND (user_id = ? OR participant_id = ?)", channelID, userID, userID).First(&dmChannel).Error
 	if err == nil {
 		return true
 	}
-	
+
 	// Check group DM channels
 	var participant ChannelParticipant
 	err = db.Where("channel_id = ? AND user_id = ?", channelID, userID).First(&participant).Error
 	if err == nil {
 		return true
 	}
-	
+
 	return false
 }
 

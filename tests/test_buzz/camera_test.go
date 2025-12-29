@@ -75,7 +75,7 @@ func TestUpdateCamera(t *testing.T) {
 		otherEmail := utility.GenerateUUID() + "@qa.team"
 		otherSign := models.CreateUserRequestModel{Email: otherEmail, Password: "password"}
 
-		tst.SignupUser(t, router, authController, otherSign, false)
+		tst.SignupUser(t, gin.Default(), authController, otherSign, false)
 		var other models.User
 		if err := db.Postgresql.Where("email = ?", otherSign.Email).First(&other).Error; err != nil {
 			t.Fatalf("failed to fetch other user: %v", err)
@@ -97,8 +97,8 @@ func TestUpdateCamera(t *testing.T) {
 		nonEmail := utility.GenerateUUID() + "@qa.team"
 		nonSign := models.CreateUserRequestModel{Email: nonEmail, Password: "password"}
 		nonLogin := models.LoginRequestModel{Email: nonSign.Email, Password: nonSign.Password}
-		tst.SignupUser(t, router, authController, nonSign, false)
-		nonToken := tst.GetLoginToken(t, router, authController, nonLogin)
+		tst.SignupUser(t, gin.Default(), authController, nonSign, false)
+		nonToken := tst.GetLoginToken(t, gin.Default(), authController, nonLogin)
 		if nonToken == "" {
 			t.Fatalf("failed to get token for non-participant")
 		}
@@ -117,7 +117,7 @@ func TestUpdateCamera(t *testing.T) {
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
 	})
 
 	t.Run("InvalidBuzzIDReturns400", func(t *testing.T) {
