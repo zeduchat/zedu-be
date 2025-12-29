@@ -20,17 +20,31 @@ jobs:
           files: ./static/swagger.yaml
           
       - name: Setup app.env
-        run: echo "${{ secrets.APP_ENV }}" > app.env
+        run: | 
+          SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
+          echo "SERVER_PORT=${SERVER_PORT}" >> $GITHUB_ENV
+          echo "${{ secrets.APP_ENV }}" > app.env
+          sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
+          sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
 
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
         run: nohup ./telex_be > /dev/null 2>&1 &
+
       - name: Wait for application to start
         run: |
+          SERVER_PORT=$(grep "^SERVER_PORT=" app.env | cut -d'=' -f2)
           for i in {1..30}; do
-            curl -s http://localhost:41010 && break
+            curl -s http://localhost:${SERVER_PORT} && break
             sleep 1
           done
+          
       - name: Run All Tests
         run: go test ./tests/... -timeout 300s
+
+      - name: Cleanup test database
+        if: always()
+        env:
+          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_PASSWORD }}
+        run: dropdb -U actionsdeployer ${TEST_DB_NAME} || true
