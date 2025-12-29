@@ -27,11 +27,11 @@ jobs:
           pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
 
           psql -U actionsdeployer -d ${DB_NAME} -c "
-            GRANT ALL ON SCHEMA public TO actionsdeployer;
-            GRANT ALL ON ALL TABLES IN SCHEMA public TO actionsdeployer;
-            GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO actionsdeployer;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO actionsdeployer;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO actionsdeployer;
+            GRANT ALL ON SCHEMA public TO telexadmin;
+            GRANT ALL ON ALL TABLES IN SCHEMA public TO telexadmin;
+            GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO telexadmin;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO telexadmin;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO telexadmin;
           "
           
       - name: Setup app.env
