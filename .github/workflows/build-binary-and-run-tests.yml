@@ -25,21 +25,22 @@ jobs:
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
 
-      - name: Run DB migrations
-        run: |
-          echo "Running DB migrations..."
-          yes | make migrate-safe-up
-          
       - name: Setup app.env
         run: | 
           SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
           echo "SERVER_PORT=${SERVER_PORT}" >> $GITHUB_ENV
           echo "${{ secrets.APP_ENV }}" > app.env
           sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
+          sed -i "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer:${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}@localhost:5432/${TEST_DB_NAME}?sslmode=disable|" app.env
           sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
           sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
           sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
 
+      - name: Run DB migrations
+        run: |
+          echo "Running DB migrations..."
+          yes | make migrate-safe-up
+          
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
