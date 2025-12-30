@@ -18,7 +18,7 @@ import (
 
 func TestUpdateUserNotificationPreferences(t *testing.T) {
 
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -55,7 +55,6 @@ func TestUpdateUserNotificationPreferences(t *testing.T) {
 	db.Create(&notificationPreferences)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -72,7 +71,7 @@ func TestUpdateUserNotificationPreferences(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := models.NotificationPreferences{
 			NotifyAbout:             models.NotifyDirectMentions,

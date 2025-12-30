@@ -17,7 +17,7 @@ import (
 )
 
 func TestUpdateMediaPreferences(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -60,7 +60,6 @@ func TestUpdateMediaPreferences(t *testing.T) {
 	db.Create(&mediaPreferences)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -77,7 +76,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := models.UpdateMediaPreferencesRequest{
 			AutoDownloadPhotos:    "always",
@@ -115,7 +114,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Only update upload quality
 		updateData := models.UpdateMediaPreferencesRequest{
@@ -147,7 +146,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Create new device
 		newDeviceID := utility.GenerateUUID()
@@ -197,7 +196,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Create device-specific preferences first
 		devicePref := models.MediaPreferences{
@@ -250,7 +249,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := map[string]string{
 			"upload_quality": "invalid_quality",
@@ -273,7 +272,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := map[string]string{
 			"auto_download_photos": "invalid_option",
@@ -296,7 +295,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		invalidDeviceID := "invalid-uuid"
 		updateData := models.UpdateMediaPreferencesRequest{
@@ -320,12 +319,12 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		nonExistentDeviceID := utility.GenerateUUID()
 		updateData := models.UpdateMediaPreferencesRequest{
-			DeviceID:        &nonExistentDeviceID,
-			UploadQuality:   "high",
+			DeviceID:      &nonExistentDeviceID,
+			UploadQuality: "high",
 		}
 		body, _ := json.Marshal(updateData)
 
@@ -380,7 +379,7 @@ func TestUpdateMediaPreferences(t *testing.T) {
 			Email:    newUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := models.UpdateMediaPreferencesRequest{
 			AutoDownloadPhotos: "always",
@@ -409,4 +408,3 @@ func TestUpdateMediaPreferences(t *testing.T) {
 		}
 	})
 }
-

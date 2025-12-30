@@ -43,12 +43,6 @@ func TestGetUserSingleThreads(t *testing.T) {
 		OrganisationID: org.ID,
 	}
 
-	threads := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: channel.ID,
-		Status:     "pending",
-	}
-
 	userChan := models.UserChannels{
 		UserID:     adminUser.ID,
 		ChannelsID: channel.ID,
@@ -58,8 +52,53 @@ func TestGetUserSingleThreads(t *testing.T) {
 	db.Create(&adminUser)
 	db.Create(&org)
 	db.Create(&channel)
-	db.Create(&threads)
 	db.Create(&userChan)
+
+	// Helper function to create and validate a thread in ElasticDB
+	createAndValidateThread := func(t *testing.T, controller *auth.Controller) models.ThreadDocument {
+		threadDoc := models.ThreadDocument{
+			ID:            utility.GenerateUUID(),
+			ChannelsID:    channel.ID,
+			OrgansationID: org.ID,
+			Username:      adminUser.Name,
+			Content:       "Test thread content",
+			UserId:        adminUser.ID,
+			Type:          "thread",
+			FullName:      adminUser.Name,
+			Email:         adminUser.Email,
+			AvatarURL:     "",
+			UserType:      "user",
+		}
+
+		// Create the thread in ElasticDB
+		err := threadDoc.CreateThread(controller.Db, controller.Logger)
+		if err != nil {
+			t.Fatalf("Failed to create thread in ElasticDB: %v", err)
+		}
+
+		// Validate the thread was created by retrieving it
+		var retrievedThread models.ThreadDocument
+		err = retrievedThread.GetThreadById(threadDoc.ID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve created thread from ElasticDB: %v", err)
+		}
+
+		// Validate thread fields
+		if retrievedThread.ID != threadDoc.ID {
+			t.Errorf("Expected thread ID %s, got %s", threadDoc.ID, retrievedThread.ID)
+		}
+		if retrievedThread.ChannelsID != channel.ID {
+			t.Errorf("Expected channel ID %s, got %s", channel.ID, retrievedThread.ChannelsID)
+		}
+		if retrievedThread.UserId != adminUser.ID {
+			t.Errorf("Expected user ID %s, got %s", adminUser.ID, retrievedThread.UserId)
+		}
+		if retrievedThread.Content != threadDoc.Content {
+			t.Errorf("Expected content %s, got %s", threadDoc.Content, retrievedThread.Content)
+		}
+
+		return threadDoc
+	}
 
 	setup := func() (*gin.Engine, *auth.Controller) {
 		router, threadController := SetupThreadsTestRouter()
@@ -76,13 +115,16 @@ func TestGetUserSingleThreads(t *testing.T) {
 	t.Run("Successful Get User Single Thread", func(t *testing.T) {
 		router, threadController := setup()
 
+		// Create and validate thread in ElasticDB
+		thread := createAndValidateThread(t, threadController)
+
 		loginData := models.LoginRequestModel{
 			Email:    adminUser.Email,
 			Password: "password",
 		}
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", thread.ID, channel.ID), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 		resp := httptest.NewRecorder()
@@ -92,9 +134,12 @@ func TestGetUserSingleThreads(t *testing.T) {
 	})
 
 	t.Run("Unauthorized Access", func(t *testing.T) {
-		router, _ := setup()
+		router, threadController := setup()
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), nil)
+		// Create and validate thread in ElasticDB
+		thread := createAndValidateThread(t, threadController)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", thread.ID, channel.ID), nil)
 		req.Header.Set("Authorization", "Bearer invalid_token")
 
 		resp := httptest.NewRecorder()

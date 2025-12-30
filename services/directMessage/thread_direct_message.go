@@ -384,10 +384,10 @@ func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mo
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
+	accessResp, paginationResponse, code, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
 
 	if err != nil {
-		return accessResp, nil, http.StatusInternalServerError, err
+		return accessResp, nil, code, err
 	}
 
 	return accessResp, paginationResponse, http.StatusOK, nil

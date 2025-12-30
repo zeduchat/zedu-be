@@ -29,10 +29,10 @@ func TestBuzzLeave(t *testing.T) {
 	channelController := channel.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	buzzController := buzz.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	router, _ := SetupBuzzTestRouter()
+	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
-	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
+	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password", UserName: fmt.Sprintf("user_test%s", utility.GenerateUUID())}
 	login := models.LoginRequestModel{Email: signUp.Email, Password: signUp.Password}
 
 	tst.SignupUser(t, router, authController, signUp, false)
@@ -47,7 +47,7 @@ func TestBuzzLeave(t *testing.T) {
 	}
 	channelData := models.CreateChannelsRequest{
 		OrganisationID: user.CurrentOrg.String(),
-		Username:       user.Profile.UserName,
+		Username:       signUp.UserName,
 		Name:           "test_" + utility.GenerateUUID(),
 	}
 	channelID, _ := tst.CreateChannels(t, router, channelController, db, channelData, token)

@@ -180,7 +180,7 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 	updatedOrg, code, err := service.UpdateOrganisation(orgId, userId, updateReq, base.Db.Postgresql, base.Logger)
 
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", "failed to update organisation", err.Error(), nil)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "failed to update organisation", nil)
 		c.JSON(code, rd)
 		return
 	}
@@ -211,7 +211,7 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 
 	if err := service.DeleteOrganisation(orgId, userId, base.Db.Postgresql); err != nil {
 		switch err.Error() {
-		case "organisation not found":
+		case "failed to retrieve organisation: organisation not found":
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to delete organisation", nil)
 			c.JSON(http.StatusNotFound, rd)
 		case "user not authorised to delete this organisation":

@@ -25,10 +25,15 @@ func TestSendBuzzReaction(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
+	// Register cleanup to close connections after test completes
+	t.Cleanup(func() {
+		tst.Cleanup(db)
+	})
+
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
-	router, _ := SetupBuzzTestRouter()
+	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
 	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
@@ -165,8 +170,8 @@ func TestSendBuzzReaction(t *testing.T) {
 		otherSignUp := models.CreateUserRequestModel{Email: otherEmail, Password: "password"}
 		otherLogin := models.LoginRequestModel{Email: otherSignUp.Email, Password: otherSignUp.Password}
 
-		tst.SignupUser(t, router, authController, otherSignUp, false)
-		otherToken := tst.GetLoginToken(t, router, authController, otherLogin)
+		tst.SignupUser(t, gin.Default(), authController, otherSignUp, false)
+		otherToken := tst.GetLoginToken(t, gin.Default(), authController, otherLogin)
 
 		reactionReq := models.SendBuzzReactionRequest{
 			BuzzID:       buzzID,
@@ -187,10 +192,6 @@ func TestSendBuzzReaction(t *testing.T) {
 		}
 	})
 
-	// Cleanup
-	db.Postgresql.Delete(&participant)
-	db.Postgresql.Delete(&buzz)
-	db.Postgresql.Delete(&user)
 }
 
 func TestUpdateBuzzSticker(t *testing.T) {
@@ -199,10 +200,15 @@ func TestUpdateBuzzSticker(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
+	// Register cleanup to close connections after test completes
+	t.Cleanup(func() {
+		tst.Cleanup(db)
+	})
+
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
-	router, _ := SetupBuzzTestRouter()
+	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
 	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
@@ -368,8 +374,8 @@ func TestUpdateBuzzSticker(t *testing.T) {
 		otherSignUp := models.CreateUserRequestModel{Email: otherEmail, Password: "password"}
 		otherLogin := models.LoginRequestModel{Email: otherSignUp.Email, Password: otherSignUp.Password}
 
-		tst.SignupUser(t, router, authController, otherSignUp, false)
-		otherToken := tst.GetLoginToken(t, router, authController, otherLogin)
+		tst.SignupUser(t, gin.Default(), authController, otherSignUp, false)
+		otherToken := tst.GetLoginToken(t, gin.Default(), authController, otherLogin)
 
 		sticker := "raise_hand"
 		stickerReq := models.BuzzStickerUpdateRequest{
@@ -390,8 +396,4 @@ func TestUpdateBuzzSticker(t *testing.T) {
 		}
 	})
 
-	// Cleanup
-	db.Postgresql.Delete(&participant)
-	db.Postgresql.Delete(&buzz)
-	db.Postgresql.Delete(&user)
 }

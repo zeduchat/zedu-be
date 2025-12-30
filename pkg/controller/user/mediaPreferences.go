@@ -149,11 +149,17 @@ func (base *Controller) ResetAutoDownloadSettings(c *gin.Context) {
 	// Bind request body (device_id is optional)
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		// Allow empty body (user-level reset)
+		// Allow empty body (user-level reset) - check for EOF or nil/empty body
 		if !errors.Is(err, io.EOF) {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
+			// Check if body is empty/nil
+			if c.Request.ContentLength == 0 || c.Request.Body == nil || c.Request.Body == http.NoBody {
+				// Allow empty body for user-level reset
+				// req will have zero values which is fine
+			} else {
+				rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+				c.JSON(http.StatusBadRequest, rd)
+				return
+			}
 		}
 	}
 

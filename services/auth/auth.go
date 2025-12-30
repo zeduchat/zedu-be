@@ -319,11 +319,17 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context)
 		phoneNumber  = req.PhoneNumber
 		password     = req.Password
 		responseData gin.H
+		userChk      = models.User{}
 	)
+
+	exists := postgresql.CheckExists(db, &userChk, "email = ?", req.Email)
+	if exists {
+		return responseData, 400, fmt.Errorf("Email address already exist, use another email or signin")
+	}
 
 	password, err := utility.HashPassword(req.Password)
 	if err != nil {
-		return nil, http.StatusInternalServerError, err
+		return nil, http.StatusBadRequest, err
 	}
 
 	user := models.User{

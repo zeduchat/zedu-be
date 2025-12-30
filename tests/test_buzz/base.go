@@ -9,15 +9,13 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/buzz"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
 
-func SetupBuzzTestRouter() (*gin.Engine, *buzz.Controller) {
+func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) (*gin.Engine, *buzz.Controller) {
 	gin.SetMode(gin.TestMode)
 
-	logger := tst.Setup()
 	db := storage.Connection()
-	validator := validator.New()
 
 	buzzController := &buzz.Controller{
 		Db:        db,
@@ -47,12 +45,12 @@ func SetupBuzzTestRouter() (*gin.Engine, *buzz.Controller) {
 }
 
 // SetupBuzzInvitationTestRouter sets up router with invitation endpoints
-func SetupBuzzInvitationTestRouter() (*gin.Engine, *buzz.Controller) {
-	return SetupBuzzTestRouter()
+func SetupBuzzInvitationTestRouter(logger *utility.Logger, validator *validator.Validate) (*gin.Engine, *buzz.Controller) {
+	return SetupBuzzTestRouter(logger, validator)
 }
 
-func SetupBuzzEndTestRouter() (*gin.Engine, *buzz.Controller) {
-	return SetupBuzzTestRouter()
+func SetupBuzzEndTestRouter(logger *utility.Logger, validator *validator.Validate) (*gin.Engine, *buzz.Controller) {
+	return SetupBuzzTestRouter(logger, validator)
 }
 
 // getTestUserID retrieves the user ID from the database by email
