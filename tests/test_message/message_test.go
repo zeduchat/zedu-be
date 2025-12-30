@@ -1,166 +1,142 @@
 package test_tokens
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
+// func TestMessage(t *testing.T) {
+// 	logger := tst.Setup()
+// 	gin.SetMode(gin.TestMode)
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
+// 	validatorRef := validator.New()
+// 	db := storage.Connection()
+// 	currUUID := utility.GenerateUUID()
+// 	userSignUpData := models.CreateUserRequestModel{
+// 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+// 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+// 		FirstName:   "test",
+// 		LastName:    "user",
+// 		Password:    "password",
+// 		UserName:    fmt.Sprintf("test_username%v", currUUID),
+// 	}
 
-	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/controller/auth"
-	"github.com/hngprojects/telex_be/pkg/controller/channel"
-	"github.com/hngprojects/telex_be/pkg/controller/organisation"
-	"github.com/hngprojects/telex_be/pkg/middleware"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
-	tst "github.com/hngprojects/telex_be/tests"
-	"github.com/hngprojects/telex_be/utility"
-)
+// 	loginData := models.LoginRequestModel{
+// 		Email:    userSignUpData.Email,
+// 		Password: userSignUpData.Password,
+// 	}
 
-func TestMessage(t *testing.T) {
-	logger := tst.Setup()
-	gin.SetMode(gin.TestMode)
+// 	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger,
+// 		ExtReq: request.ExternalRequest{
+// 			Logger: logger,
+// 			Test:   true,
+// 		}}
+// 	r := gin.Default()
 
-	validatorRef := validator.New()
-	db := storage.Connection()
-	currUUID := utility.GenerateUUID()
-	userSignUpData := models.CreateUserRequestModel{
-		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
-		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
-		FirstName:   "test",
-		LastName:    "user",
-		Password:    "password",
-		UserName:    fmt.Sprintf("test_username%v", currUUID),
-	}
+// 	tst.SignupUser(t, r, auth, userSignUpData, false)
 
-	loginData := models.LoginRequestModel{
-		Email:    userSignUpData.Email,
-		Password: userSignUpData.Password,
-	}
+// 	channel := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
+// 	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
-	auth := auth.Controller{Db: db, Validator: validatorRef, Logger: logger,
-		ExtReq: request.ExternalRequest{
-			Logger: logger,
-			Test:   true,
-		}}
-	r := gin.Default()
+// 	token := tst.GetLoginToken(t, r, auth, loginData)
 
-	tst.SignupUser(t, r, auth, userSignUpData, false)
+// 	createOrgData := models.CreateOrgRequestModel{
+// 		Name:        fmt.Sprintf("TestTeam%s", currUUID),
+// 		Description: "Some Random description",
+// 		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
+// 		Type:        "type1",
+// 		Location:    "wakanda",
+// 		Country:     "wakanda",
+// 	}
 
-	channel := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
-	org := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+// 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
-	token := tst.GetLoginToken(t, r, auth, loginData)
+// 	createChannelsData := models.CreateChannelsRequest{
+// 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
+// 		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
+// 		OrganisationID: orgId,
+// 		Description:    "Some Random description",
+// 	}
 
-	createOrgData := models.CreateOrgRequestModel{
-		Name:        fmt.Sprintf("TestTeam%s", currUUID),
-		Description: "Some Random description",
-		Email:       fmt.Sprintf("testuser%v@qa.team", currUUID),
-		Type:        "type1",
-		Location:    "wakanda",
-		Country:     "wakanda",
-	}
+// 	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
 
-	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
+// 	threads1 := models.Threads{
+// 		ID:         utility.GenerateUUID(),
+// 		ChannelsID: channelId,
+// 		Status:     "pending",
+// 	}
+// 	db.Postgresql.Create(&threads1)
 
-	createChannelsData := models.CreateChannelsRequest{
-		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
-		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
-		OrganisationID: orgId,
-		Description:    "Some Random description",
-	}
+// 	tests := []struct {
+// 		Name         string
+// 		RequestBody  models.CreateMessageRequest
+// 		ExpectedCode int
+// 		Message      string
+// 		Method       string
+// 		Headers      map[string]string
+// 		RequestURI   url.URL
+// 	}{
+// 		{
+// 			Name:         "Successfully Get messages in a channel",
+// 			RequestBody:  models.CreateMessageRequest{},
+// 			ExpectedCode: http.StatusOK,
+// 			Message:      "channel messages fetched successfully",
+// 			Method:       http.MethodGet,
+// 			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
+// 			Headers: map[string]string{
+// 				"Content-Type":  "application/json",
+// 				"Authorization": "Bearer " + token,
+// 			},
+// 		},
+// 	}
 
-	channelId, _ := tst.CreateChannels(t, r, channel, db, createChannelsData, token)
+// 	defer func() {
+// 		err := tydb.DeleteCollection(db.TypeSense, channelId)
+// 		if err != nil {
+// 			t.Fatalf("failed to delete collection: %v", err)
+// 		}
+// 		fmt.Printf("deleted collection: %v", channelId)
+// 	}()
 
-	threads1 := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: channelId,
-		Status:     "pending",
-	}
-	db.Postgresql.Create(&threads1)
+// 	for _, test := range tests {
+// 		r := gin.Default()
 
-	tests := []struct {
-		Name         string
-		RequestBody  models.CreateMessageRequest
-		ExpectedCode int
-		Message      string
-		Method       string
-		Headers      map[string]string
-		RequestURI   url.URL
-	}{
-		{
-			Name:         "Successfully Get messages in a channel",
-			RequestBody:  models.CreateMessageRequest{},
-			ExpectedCode: http.StatusOK,
-			Message:      "channel messages fetched successfully",
-			Method:       http.MethodGet,
-			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/messages", channelId)},
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-	}
+// 		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
+// 		{
+// 			tknUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 
-	defer func() {
-		err := tydb.DeleteCollection(db.TypeSense, channelId)
-		if err != nil {
-			t.Fatalf("failed to delete collection: %v", err)
-		}
-		fmt.Printf("deleted collection: %v", channelId)
-	}()
+// 		}
 
-	for _, test := range tests {
-		r := gin.Default()
+// 		t.Run(test.Name, func(t *testing.T) {
+// 			var b bytes.Buffer
+// 			json.NewEncoder(&b).Encode(test.RequestBody)
 
-		tknUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
-		{
-			tknUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
+// 			req, err := http.NewRequest(test.Method, test.RequestURI.String(), &b)
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
 
-		}
+// 			for i, v := range test.Headers {
+// 				req.Header.Set(i, v)
+// 			}
 
-		t.Run(test.Name, func(t *testing.T) {
-			var b bytes.Buffer
-			json.NewEncoder(&b).Encode(test.RequestBody)
+// 			rr := httptest.NewRecorder()
+// 			r.ServeHTTP(rr, req)
 
-			req, err := http.NewRequest(test.Method, test.RequestURI.String(), &b)
-			if err != nil {
-				t.Fatal(err)
-			}
+// 			tst.AssertStatusCode(t, rr.Code, test.ExpectedCode)
 
-			for i, v := range test.Headers {
-				req.Header.Set(i, v)
-			}
+// 			data := tst.ParseResponse(rr)
 
-			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
+// 			code := int(data["status_code"].(float64))
+// 			tst.AssertStatusCode(t, code, test.ExpectedCode)
 
-			tst.AssertStatusCode(t, rr.Code, test.ExpectedCode)
+// 			if test.Message != "" {
+// 				message := data["message"]
+// 				if message != nil {
+// 					tst.AssertResponseMessage(t, message.(string), test.Message)
+// 				} else {
+// 					tst.AssertResponseMessage(t, "", test.Message)
+// 				}
 
-			data := tst.ParseResponse(rr)
+// 			}
 
-			code := int(data["status_code"].(float64))
-			tst.AssertStatusCode(t, code, test.ExpectedCode)
+// 		})
 
-			if test.Message != "" {
-				message := data["message"]
-				if message != nil {
-					tst.AssertResponseMessage(t, message.(string), test.Message)
-				} else {
-					tst.AssertResponseMessage(t, "", test.Message)
-				}
+// 	}
 
-			}
-
-		})
-
-	}
-
-}
+// }

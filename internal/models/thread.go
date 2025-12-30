@@ -256,17 +256,17 @@ type Mention struct {
 }
 
 type CreateThreadMsgReq struct {
-	Content    string                 `json:"content" validate:"required"`
-	Media      []File `json:"media"`
-	Mentions   []Mention              `json:"mentions"`
-	ChannelsID string                 `json:"channels_id"`
-	Message    string                 `json:"message"`
-	UserId     string                 `json:"user_id"`
-	AgentId    string                 `json:"agent_id"`
-	ThreadId   string                 `json:"thread_id"`
-	OrgId      string                 `json:"org_id"`
-	AgentName  string                 `json:"agent_name"`
-	Type       string                 `json:"type"`
+	Content    string    `json:"content" validate:"required"`
+	Media      []File    `json:"media"`
+	Mentions   []Mention `json:"mentions"`
+	ChannelsID string    `json:"channels_id"`
+	Message    string    `json:"message"`
+	UserId     string    `json:"user_id"`
+	AgentId    string    `json:"agent_id"`
+	ThreadId   string    `json:"thread_id"`
+	OrgId      string    `json:"org_id"`
+	AgentName  string    `json:"agent_name"`
+	Type       string    `json:"type"`
 }
 
 type CreateThreadMsgReq2 struct {
@@ -279,16 +279,16 @@ type CreateThreadMsgReq2 struct {
 }
 
 type BotReturnRequest struct {
-	ChannelID      string                 `json:"channel_id" validate:"required"`
-	Content        string                 `json:"message"  validate:"required"`
-	Media          []File `json:"media"`
-	State          string                 `json:"state"`
-	Mentions       []Mention              `json:"mentions"`
-	ThreadId       string                 `json:"thread_id" validate:"required"`
-	OperationPrice *float64               `json:"operation_price"`
-	UserId         string                 `json:"user_id"`
-	OrgId          string                 `json:"org_id"`
-	AgentId        string                 `json:"agent_id"`
+	ChannelID      string    `json:"channel_id" validate:"required"`
+	Content        string    `json:"message"  validate:"required"`
+	Media          []File    `json:"media"`
+	State          string    `json:"state"`
+	Mentions       []Mention `json:"mentions"`
+	ThreadId       string    `json:"thread_id" validate:"required"`
+	OperationPrice *float64  `json:"operation_price"`
+	UserId         string    `json:"user_id"`
+	OrgId          string    `json:"org_id"`
+	AgentId        string    `json:"agent_id"`
 }
 
 type FeedMessageRequest struct {
@@ -305,7 +305,7 @@ type FeedMessageRequest struct {
 	ThreadId                 string                    `json:"thread_id"`
 	OrgId                    string                    `json:"org_id"`
 	UserId                   string                    `json:"user_id"`
-	Media                    []File    `json:"media"`
+	Media                    []File                    `json:"media"`
 	UserType                 string                    `json:"user_type"`
 	Id                       string                    `json:"id,omitempty"`
 	State                    string                    `json:"state"`
@@ -813,7 +813,7 @@ func (t *ThreadDocument) CheckExists() (bool, int, error) {
 	return check, http.StatusOK, err
 }
 
-func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
+func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, int, error) {
 	var (
 		threads     []Threads
 		channel     Channels
@@ -825,14 +825,14 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 	dmChanExist, _ := dmChannel.CheckChannelExists(db, channelID, userId)
 
 	if !(dmChanExist || chanExist) {
-		return nil, &elastic.PaginationResponse{}, errors.New("channel does not exist")
+		return nil, &elastic.PaginationResponse{}, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
 	if chanExist {
 		userExist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channelID, userId)
 
 		if channel.IsPrivate && !userExist {
-			return nil, &elastic.PaginationResponse{}, errors.New("permission denied, private channel")
+			return nil, &elastic.PaginationResponse{}, http.StatusBadRequest, errors.New("permission denied, private channel")
 		}
 	}
 
@@ -864,15 +864,15 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
+		return nil, pagR, http.StatusInternalServerError, fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	threads, err = UnmarshalThreadResponse(threadData)
 	if err != nil {
-		return nil, pagR, err
+		return nil, pagR, http.StatusInternalServerError, err
 	}
 
-	return threads, pagR, nil
+	return threads, pagR, http.StatusOK, nil
 }
 
 func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, channelID string) ([]Threads, *elastic.PaginationResponse, error) {
@@ -1189,7 +1189,7 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 	return
 }
 
-func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, error) {
+func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, int, error) {
 	var (
 		threads []Threads
 	)
@@ -1244,7 +1244,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 
 	err := elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, cardinality_query, &cardData)
 	if err != nil {
-		return nil, pagR, fmt.Errorf("failed to fetch number of group thread records, error: %v", err)
+		return nil, pagR, http.StatusInternalServerError, fmt.Errorf("failed to fetch number of group thread records, error: %v", err)
 	}
 
 	var cardinalityResult struct {
@@ -1259,7 +1259,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 
 	if errr := json.Unmarshal(rawJSON, &cardinalityResult); errr != nil {
 		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
-		return nil, pagR, fmt.Errorf("failed to fetch number of group thread records, error: %v", err)
+		return nil, pagR, http.StatusInternalServerError, fmt.Errorf("failed to fetch number of group thread records, error: %v", err)
 	}
 
 	// Total unique threads and compute partitions
@@ -1267,7 +1267,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	numPartitions := int(math.Ceil(float64(totalThreads) / float64(limit)))
 
 	if page-1 >= numPartitions {
-		return threads, pagR, nil
+		return threads, pagR, http.StatusInternalServerError, nil
 	}
 
 	pagR.TotalPagesCount = numPartitions
@@ -1323,7 +1323,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	err = elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, paginatedQuery, &threadData)
 
 	if err != nil {
-		return nil, pagR, fmt.Errorf("failed to fetch group thread records, error: %v", err)
+		return nil, pagR, http.StatusInternalServerError, fmt.Errorf("failed to fetch group thread records, error: %v", err)
 	}
 
 	var paginatedResult struct {
@@ -1348,7 +1348,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 
 	if errr := json.Unmarshal(rawJSON, &paginatedResult); errr != nil {
 		err = fmt.Errorf("failed to unmarshal result, error: %v", errr)
-		return nil, pagR, fmt.Errorf("failed to unmarshal group thread records, error: %v", err)
+		return nil, pagR, http.StatusInternalServerError, fmt.Errorf("failed to unmarshal group thread records, error: %v", err)
 	}
 
 	result := paginatedResult.Aggregations.PartitionedThreads.Buckets
@@ -1364,7 +1364,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 		threads[ind].Count = bucket.DocCount
 	}
 
-	return threads, pagR, nil
+	return threads, pagR, http.StatusOK, nil
 }
 
 func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *sync.Mutex) {

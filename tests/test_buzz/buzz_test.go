@@ -3,6 +3,7 @@ package test_buzz
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,14 +26,19 @@ func TestBuzz(t *testing.T) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
+	// Register cleanup to close connections after test completes
+	t.Cleanup(func() {
+		tst.Cleanup(db)
+	})
+
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	channelController := channel.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
-	router, _ := SetupBuzzTestRouter()
+	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
-	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password"}
+	signUp := models.CreateUserRequestModel{Email: userEmail, Password: "password", UserName: fmt.Sprintf("user_%s", utility.GenerateUUID())}
 	login := models.LoginRequestModel{Email: signUp.Email, Password: signUp.Password}
 
 	tst.SignupUser(t, router, authController, signUp, false)
@@ -47,7 +53,7 @@ func TestBuzz(t *testing.T) {
 	}
 	channelData := models.CreateChannelsRequest{
 		OrganisationID: user.CurrentOrg.String(),
-		Username:       user.Profile.UserName,
+		Username:       signUp.UserName,
 		Name:           "test_" + utility.GenerateUUID(),
 	}
 	channelID, _ := tst.CreateChannels(t, router, channelController, db, channelData, token)

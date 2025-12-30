@@ -37,18 +37,19 @@ func SearchChannelMembers(db *storage.Database, logger *utility.Logger, req mode
 	}
 
 	query := db.Postgresql.Table("user_channels uc").
-		Select(`p.userid as user_id, 
-				p.username as user_name, 
-				CONCAT(p.firstname, ' ', p.lastname) as full_name,
-				p.email,
-				p.avatarurl as avatar_url`).
+		Select(`p.userid as user_id,
+				p.user_name as user_name,
+				CONCAT(p.first_name, ' ', p.last_name) as full_name,
+				u.email,
+				p.avatar_url as avatar_url`).
 		Joins("JOIN profiles p ON p.userid = uc.user_id").
+		Joins("JOIN users u ON u.id = uc.user_id").
 		Where("uc.channels_id = ?", req.ChannelID)
 
 	if req.Query != "" {
 		searchTerm := "%" + strings.ToLower(req.Query) + "%"
 		query = query.Where(
-			"LOWER(p.username) LIKE ? OR LOWER(p.firstname) LIKE ? OR LOWER(p.lastname) LIKE ? OR LOWER(p.email) LIKE ?",
+			"LOWER(p.user_name) LIKE ? OR LOWER(p.first_name) LIKE ? OR LOWER(p.last_name) LIKE ? OR LOWER(u.email) LIKE ?",
 			searchTerm, searchTerm, searchTerm, searchTerm,
 		)
 	}

@@ -8,11 +8,13 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/profile"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -43,6 +45,8 @@ func SetupProfileTestRouter() (*gin.Engine, *profile.Controller) {
 
 	logger := tst.Setup()
 	db := storage.Connection()
+	config := config.Setup(logger, "../../app")
+	minio.ConnectToMinio(logger, config.Minio)
 	validator := validator.New()
 
 	profileController := &profile.Controller{

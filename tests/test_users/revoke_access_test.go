@@ -17,7 +17,7 @@ import (
 )
 
 func TestRevokeUserAccessToken(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -51,7 +51,6 @@ func TestRevokeUserAccessToken(t *testing.T) {
 	db.Create(&accessToken)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -69,7 +68,7 @@ func TestRevokeUserAccessToken(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		reqBody := models.TerminateSessionRequest{
 			UserID:            &adminUser.ID,
@@ -119,7 +118,7 @@ func TestRevokeUserAccessToken(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		reqBody := models.TerminateSessionRequest{
 			UserID:            &adminUser.ID,
@@ -147,7 +146,7 @@ func TestRevokeUserAccessToken(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		invalidReqBody := map[string]any{
 			"user_id":            "invalid_user_id",

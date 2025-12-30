@@ -67,7 +67,7 @@ func TestBuzzCreateInDM(t *testing.T) {
 	// Setup users
 	r := gin.Default()
 	tst.SignupUser(t, r, authController, user1SignUpData, false)
-	tst.SignupUser(t, r, authController, user2SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user2SignUpData, false)
 	token1 := tst.GetLoginToken(t, r, authController, loginData1)
 
 	// Get user IDs from database
@@ -139,9 +139,6 @@ func TestBuzzCreateInDM(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		t.Logf("Response Status: %d", rr.Code)
-		t.Logf("Response Body: %s", rr.Body.String())
-
 		if rr.Code != http.StatusCreated {
 			t.Errorf("Expected status 201, got %d", rr.Code)
 		}
@@ -196,8 +193,8 @@ func TestBuzzCreateInDM(t *testing.T) {
 			Password: user3SignUpData.Password,
 		}
 
-		tst.SignupUser(t, r, authController, user3SignUpData, false)
-		token3 := tst.GetLoginToken(t, r, authController, loginData3)
+		tst.SignupUser(t, gin.Default(), authController, user3SignUpData, false)
+		token3 := tst.GetLoginToken(t, gin.Default(), authController, loginData3)
 
 		r := gin.Default()
 		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
@@ -415,7 +412,7 @@ func TestBuzzCreateInGroupDM(t *testing.T) {
 	})
 
 	// Cleanup: End the buzz for next test
-	db.Postgresql.Exec("UPDATE buzzes SET status = 'ended', is_live_status = false WHERE channel_id = ?", groupDMChannelID)
+	db.Postgresql.Exec("UPDATE buzzs SET status = 'ended', is_live_status = false WHERE channel_id = ?", groupDMChannelID)
 
 	t.Run("Any Group Member Can Create Buzz", func(t *testing.T) {
 		r := gin.Default()

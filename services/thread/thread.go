@@ -108,13 +108,13 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 	timeRange, check := GetGroupByDate(c)
 
 	if check {
-		accessResp, paginationResponse, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
+		accessResp, paginationResponse, code,  err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
 	} else {
-		accessResp, paginationResponse, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
+		accessResp, paginationResponse, code, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
 	}
 
 	if err != nil {
-		return accessResp, nil, http.StatusInternalServerError, err
+		return accessResp, nil, code, err
 	}
 
 	updateCall := map[string]func(chanType, orgId string){

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +49,12 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 		Error
 	if err != nil {
 		return loginActivities, postgresql.PaginationResponse{}, err
+	}
+
+	// Check if user has permission to access the login activities
+	hasPermission := isOwner || isSuperAdmin || requesterID == userID
+	if !hasPermission {
+		return loginActivities, postgresql.PaginationResponse{}, errors.New("login activities not found")
 	}
 
 	query := db.Model(&LoginActivity{}).

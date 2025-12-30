@@ -11,43 +11,6 @@ on:
 jobs:
   build_and_test:
     runs-on: self-hosted
-    env:
-      TEST_USERNAME: postgres
-      TEST_PASSWORD: password
-      TEST_DB_NAME: db_name # must match details in app-sample.env
-      TEST_DB_HOST: localhost
-      TEST_DB_PORT: 5433
-      TEST_MIGRATE: true
-
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: ${{ env.TEST_USERNAME }}
-          POSTGRES_PASSWORD: ${{ env.TEST_PASSWORD }}
-          POSTGRES_DB: ${{ env.TEST_DB_NAME }}
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd="pg_isready -U $TEST_USERNAME -d $TEST_DB_NAME"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      minio:
-        image: minio/minio:latest
-        ports:
-          - 9007:9000
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -55,25 +18,51 @@ jobs:
         uses: GrantBirki/json-yaml-validate@v3.1.0
         with:
           files: ./static/swagger.yaml
+
+      - name: Create test database
+        run: |
+          DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
+          echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
+          createdb -U actionsdeployer ${DB_NAME}
+          pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
+
       - name: Setup app.env
-        uses: vicradon/create-env-action@v1.0.1
-        with:
-          action_input_file: app-sample.env
-          action_output_file: app.env
-          TYPESENSE_API_URL: ${{ secrets.TEST_TYPESENSE_API_URL }}
-          TYPESENSE_API_KEY: ${{ secrets.TEST_TYPESENSE_API_KEY }}
-          CENTRIFUGE_URL: ${{ secrets.CENTRIFUGE_URL }}
-          CENTRIFUGE_API_KEY: ${{ secrets.CENTRIFUGE_API_KEY }}
+        run: | 
+          SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
+          echo "SERVER_PORT=${SERVER_PORT}" >> $GITHUB_ENV
+          echo "${{ secrets.APP_ENV }}" > app.env
+          sed -i "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer:${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}@localhost:5432/${TEST_DB_NAME}?sslmode=disable|" app.env
+          sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
+          sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
+          sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
+          sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
+          sed -i "s/^DB_NAME=.*/DB_NAME=${TEST_DB_NAME}/" app.env
+          sed -i "s/^USERNAME=.*/USERNAME=actionsdeployer/" app.env
+          sed -i "s/^PASSWORD=.*/PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
 
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
         run: nohup ./telex_be > /dev/null 2>&1 &
+
       - name: Wait for application to start
         run: |
+          SERVER_PORT=$(grep "^SERVER_PORT=" app.env | cut -d'=' -f2)
           for i in {1..30}; do
-            curl -s http://localhost:8019 && break
+            curl -s http://localhost:${SERVER_PORT} && break
             sleep 1
           done
+
+      - name: Run DB migrations
+        run: |
+          echo "Running DB migrations..."
+          yes | make migrate-safe-up
+          
       - name: Run All Tests
         run: go test ./tests/... -timeout 300s
+
+      - name: Cleanup test database
+        if: false # always()
+        env:
+          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_PASSWORD }}
+        run: dropdb -U actionsdeployer ${TEST_DB_NAME} || true

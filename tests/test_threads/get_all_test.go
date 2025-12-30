@@ -27,6 +27,14 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		Role:     int(models.RoleIdentity.SuperAdmin),
 	}
 
+	user := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "User",
+		Email:    fmt.Sprintf("admin%v@qa.team", currUUID),
+		Password: password,
+		Role:     int(models.RoleIdentity.User),
+	}
+
 	org := models.Organisation{
 		ID:      utility.GenerateUUID(),
 		Name:    fmt.Sprintf("Org comp%v", currUUID),
@@ -40,25 +48,13 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		Description:    "General discussion channel",
 		OwnerId:        adminUser.ID,
 		OrganisationID: org.ID,
-	}
-
-	threads1 := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: channel.ID,
-		Status:     "pending",
-	}
-
-	threads2 := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: channel.ID,
-		Status:     "closed",
+		IsPrivate:      true,
 	}
 
 	db.Create(&adminUser)
 	db.Create(&org)
 	db.Create(&channel)
-	db.Create(&threads1)
-	db.Create(&threads2)
+	db.Create(&user)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
 		router, threadController := SetupThreadsTestRouter()
@@ -72,11 +68,11 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		return router, &authcontroller
 	}
 
-	t.Run("User Not Found", func(t *testing.T) {
+	t.Run("User Not in private channel", func(t *testing.T) {
 		router, threadController := setup()
 
 		loginData := models.LoginRequestModel{
-			Email:    adminUser.Email,
+			Email:    user.Email,
 			Password: "password",
 		}
 		token := tests.GetLoginToken(t, router, *threadController, loginData)
@@ -89,7 +85,7 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 
 		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "user not in channel")
+		tests.AssertResponseMessage(t, response["message"].(string), "permission denied, private channel")
 	})
 
 	t.Run("Channel Not Found", func(t *testing.T) {
@@ -108,9 +104,9 @@ func TestGetAllUserChannelThreads(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "user not in channel")
+		tests.AssertResponseMessage(t, response["message"].(string), "channel does not exist")
 	})
 
 	t.Run("Unauthorized Access", func(t *testing.T) {

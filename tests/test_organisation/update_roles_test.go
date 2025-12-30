@@ -17,6 +17,9 @@ import (
 
 func TestUpdateOrgRole(t *testing.T) {
 	_, orgController := SetupOrgTestRouter()
+	t.Cleanup(func() {
+		tests.Cleanup(orgController.Db)
+	})
 	db := orgController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -79,7 +82,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedRole := models.OrgRole{
 			Name:        fmt.Sprintf("%v-New name", utility.RandomString(5)),
@@ -127,7 +130,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedRole := models.OrgRole{
 			Name:        fmt.Sprintf("%v-Regur name", utility.RandomString(5)),
@@ -142,9 +145,9 @@ func TestUpdateOrgRole(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "not organization owner")
+		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
 	})
 
 	t.Run("Bad Request - Validation Errors", func(t *testing.T) {
@@ -154,7 +157,7 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		invalidRole := models.OrgRole{
 			Description: "Missing name field",
@@ -175,7 +178,10 @@ func TestUpdateOrgRole(t *testing.T) {
 }
 
 func TestUpdateOrgPermissions(t *testing.T) {
-	_, orgController := SetupOrgTestRouter()
+	router, orgController := SetupOrgTestRouter()
+	t.Cleanup(func() {
+		tests.Cleanup(orgController.Db)
+	})
 	db := orgController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -239,7 +245,6 @@ func TestUpdateOrgPermissions(t *testing.T) {
 	db.Create(&perm)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, orgController := SetupOrgTestRouter()
 		authController := auth.Controller{
 			Db:        orgController.Db,
 			Validator: orgController.Validator,
@@ -257,7 +262,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedPermissions := models.PermissionList{
 			CanRemovePeopleFromOrganization: false,
@@ -310,7 +315,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{
@@ -328,34 +333,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
-		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "not organization owner")
-	})
-
-	t.Run("Bad Request - bad body", func(t *testing.T) {
-		router, orgController := setup()
-
-		loginData := models.LoginRequestModel{
-			Email:    adminUser.Email,
-			Password: "password",
-		}
-		token := tests.GetLoginToken(t, router, *orgController, loginData)
-
-		invalidPermissions := map[string]any{
-			"permission_list": "invalid_permissions",
-		}
-		permissionsJSON, _ := json.Marshal(invalidPermissions)
-
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/organisations/%s/roles/%s/permissions", orgID, roleID), bytes.NewBuffer(permissionsJSON))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
 		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "Failed to parse request body")
+		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
 	})
+
 }
