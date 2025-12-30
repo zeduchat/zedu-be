@@ -24,7 +24,6 @@ jobs:
           DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
-          pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
           
       - name: Setup app.env
         run: | 
