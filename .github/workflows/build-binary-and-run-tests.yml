@@ -19,11 +19,16 @@ jobs:
         with:
           files: ./static/swagger.yaml
 
-      - name: Create test database copy
+      - name: Create test database
         run: |
           DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
+
+      - name: Run DB migrations
+        run: |
+          echo "Running DB migrations..."
+          yes | make migrate-safe-up
           
       - name: Setup app.env
         run: | 
