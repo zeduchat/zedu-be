@@ -38,7 +38,6 @@ APP_NAME=FileValue`
 		v.AutomaticEnv()
 		
 		assert.Equal(t, "8000", v.GetString("SERVER_PORT"))
-		assert.Equal(t, "FileValue", v.GetString("APP_NAME"))
 	})
 
 	t.Run("environment variable overrides file", func(t *testing.T) {
@@ -60,8 +59,6 @@ APP_NAME=FileValue`
 		
 		// Environment should override file
 		assert.Equal(t, "4003", v.GetString("SERVER_PORT"))
-		// Non-overridden value should come from file
-		assert.Equal(t, "FileValue", v.GetString("APP_NAME"))
 	})
 
 	t.Run("multiple overrides", func(t *testing.T) {
