@@ -1,1 +1,1 @@
-ALTER TABLE files ADD COLUMN last_accessed_at TIMESTAMP;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMP;

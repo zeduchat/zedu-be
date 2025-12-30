@@ -16,7 +16,7 @@ import (
 )
 
 func TestGetUserLoginAudit(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -75,7 +75,6 @@ func TestGetUserLoginAudit(t *testing.T) {
 	}
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -93,7 +92,7 @@ func TestGetUserLoginAudit(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *userController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *userController, loginData)
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/login-audit", adminUser.ID), nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -128,7 +127,7 @@ func TestGetUserLoginAudit(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *userController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *userController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s/login-audit", adminUser.ID), nil)
 		req.Header.Set("Content-Type", "application/json")

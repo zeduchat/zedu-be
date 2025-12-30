@@ -103,19 +103,19 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	// Handle DM channel creation if participant_id is provided
 	if req.ParticipantID != nil && *req.ParticipantID != "" {
 		logger.Info("creating buzz with new DM channel for user %s and participant %s", hostID, *req.ParticipantID)
-		
+
 		// Get user's organization
 		var user models.User
 		if err := db.Postgresql.Where("id = ?", hostID).First(&user).Error; err != nil {
 			logger.Error("failed to get user for DM creation: %v", err)
 			return resp, http.StatusBadRequest, errors.New("user not found")
 		}
-		
+
 		// Check if DM channel already exists
 		var existingDM models.DmChannels
-		exists := db.Postgresql.Where("(user_id = ? AND participant_id = ?) OR (user_id = ? AND participant_id = ?)", 
+		exists := db.Postgresql.Where("(user_id = ? AND participant_id = ?) OR (user_id = ? AND participant_id = ?)",
 			hostID, *req.ParticipantID, *req.ParticipantID, hostID).First(&existingDM).Error == nil
-		
+
 		if exists {
 			// Use existing DM channel
 			channelID = existingDM.ChannelId
@@ -128,7 +128,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 				OrgId:         user.CurrentOrg.String(),
 				ChatType:      "user",
 			}
-			
+
 			dmResp, code, err := dm.CreateDmChannel(dmReq, db.Postgresql, request.ExternalRequest{Logger: logger, Test: false}, db.Redis)
 			if err != nil {
 				logger.Error("failed to create DM channel: %v", err)
@@ -240,14 +240,15 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 
 	metadataResp := buildBuzzMetadataResponse(&buzz, participantMetadata)
 	resp = models.BuzzCreateResponse{
-		BuzzID:       metadataResp.BuzzID,
-		HostID:       metadataResp.HostID,
-		ChannelID:    metadataResp.ChannelID,
-		Status:       metadataResp.Status,
-		CreatedAt:    metadataResp.CreatedAt,
-		StartedAt:    metadataResp.StartedAt,
-		Participants: metadataResp.Participants,
-		AgoraToken:   &agoraToken,
+		BuzzID:         metadataResp.BuzzID,
+		HostID:         metadataResp.HostID,
+		ChannelID:      metadataResp.ChannelID,
+		Status:         metadataResp.Status,
+		CreatedAt:      metadataResp.CreatedAt,
+		StartedAt:      metadataResp.StartedAt,
+		ParticipantIDs: buzz.ParticipantIDs,
+		Participants:   metadataResp.Participants,
+		AgoraToken:     &agoraToken,
 	}
 
 	eventPayload := models.BuzzEventPayload{
@@ -557,13 +558,12 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 
 	// Update buzz status in transaction
 	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
-		// Update buzz to ended status
-		buzz.Status = models.BuzzStatusEnded
-		buzz.IsLiveStatus = false
-		buzz.BuzzEndTime = &now
-		buzz.UpdatedAt = now
-
-		if err := tx.Model(&buzz).Updates(buzz).Error; err != nil {
+		if err := tx.Model(&buzz).Updates(map[string]interface{}{
+			"status":         models.BuzzStatusEnded,
+			"is_live_status": false,
+			"Buzz_end_time":  &now,
+			"updated_at":     now,
+		}).Error; err != nil {
 			return err
 		}
 

@@ -17,7 +17,7 @@ import (
 )
 
 func TestUploadQuality(t *testing.T) {
-	_, userController := SetupUsersTestRouter()
+	router, userController := SetupUsersTestRouter()
 	db := userController.Db.Postgresql
 	currUUID := utility.GenerateUUID()
 	password, _ := utility.HashPassword("password")
@@ -60,7 +60,6 @@ func TestUploadQuality(t *testing.T) {
 	db.Create(&mediaPreferences)
 
 	setup := func() (*gin.Engine, *auth.Controller) {
-		router, userController := SetupUsersTestRouter()
 		authController := auth.Controller{
 			Db:        userController.Db,
 			Validator: userController.Validator,
@@ -77,7 +76,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := models.UpdateMediaPreferencesRequest{
 			UploadQuality: "standard",
@@ -105,7 +104,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := models.UpdateMediaPreferencesRequest{
 			UploadQuality: "high",
@@ -133,7 +132,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := models.UpdateMediaPreferencesRequest{
 			UploadQuality: "original",
@@ -161,7 +160,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := map[string]string{
 			"upload_quality": "low",
@@ -184,7 +183,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := map[string]string{
 			"upload_quality": "medium",
@@ -207,7 +206,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		updateData := map[string]string{
 			"upload_quality": "",
@@ -231,7 +230,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Create device-specific preferences first
 		devicePref := models.MediaPreferences{
@@ -277,7 +276,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/users/media-preferences", nil)
 		req.Header.Set("Content-Type", "application/json")
@@ -316,7 +315,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// Create device preferences without upload_quality (should fallback to user-level)
 		newDeviceID := utility.GenerateUUID()
@@ -366,7 +365,7 @@ func TestUploadQuality(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, router, *authController, loginData)
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		// First update
 		updateData1 := models.UpdateMediaPreferencesRequest{

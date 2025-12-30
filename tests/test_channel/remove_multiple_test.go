@@ -62,8 +62,8 @@ func TestRemoveMultipleMembersFromChannel(t *testing.T) {
 	memberEmail := fmt.Sprintf("member_%s@qa.team", utility.GenerateUUID())
 	memberSignup := models.CreateUserRequestModel{Email: memberEmail, Password: "password"}
 	memberLogin := models.LoginRequestModel{Email: memberSignup.Email, Password: memberSignup.Password}
-	tst.SignupUser(t, r, authController, memberSignup, false)
-	tst.GetLoginToken(t, r, authController, memberLogin) // ensure user exists
+	tst.SignupUser(t, gin.Default(), authController, memberSignup, false)
+	tst.GetLoginToken(t, gin.Default(), authController, memberLogin) // ensure user exists
 
 	var member models.User
 	if err := db.Postgresql.Where("email = ?", memberSignup.Email).First(&member).Error; err != nil {

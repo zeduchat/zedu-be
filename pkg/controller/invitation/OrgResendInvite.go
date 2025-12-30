@@ -81,7 +81,7 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 		UserID:         userId,
 	}
 
-	statusCode, msg, err := invitation.CheckerValidator(base.Db, emails, ids, base.Logger)
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, emails, &ids, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err.Error(), nil)

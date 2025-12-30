@@ -1,1 +1,1 @@
-ALTER TABLE folders DROP COLUMN parent_id;
+ALTER TABLE folders DROP COLUMN IF EXISTS parent_id;

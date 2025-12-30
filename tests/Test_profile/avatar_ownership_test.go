@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -159,7 +161,7 @@ func TestAvatarOwnershipProtection(t *testing.T) {
 			Email:    otherUser.Email,
 			Password: "password",
 		}
-		otherToken := tst.GetLoginToken(t, router, *authController, otherLoginData)
+		otherToken := tst.GetLoginToken(t, gin.Default(), *authController, otherLoginData)
 		if otherToken == "" {
 			t.Fatal("Failed to get other user token")
 		}
@@ -254,7 +256,7 @@ func TestAvatarOwnershipErrorMessages(t *testing.T) {
 		Email:    testUser.Email,
 		Password: "password",
 	}
-	token := tst.GetLoginToken(t, router, authController, loginData)
+	token := tst.GetLoginToken(t, gin.Default(), authController, loginData)
 	if token == "" {
 		t.Fatal("Failed to get token")
 	}

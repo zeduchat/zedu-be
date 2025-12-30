@@ -103,7 +103,7 @@ func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 		RoleID:         inviteReq.RoleID,
 	}
 
-	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, ids, base.Logger)
+	statusCode, msg, err := invitation.CheckerValidator(base.Db, inviteReq.Emails, &ids, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to validate user", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", msg, err, nil)

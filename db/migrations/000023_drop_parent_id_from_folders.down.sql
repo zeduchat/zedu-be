@@ -1,1 +1,1 @@
-ALTER TABLE folders ADD COLUMN parent_id UUID REFERENCES folders(id);
+ALTER TABLE folders ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES folders(id);

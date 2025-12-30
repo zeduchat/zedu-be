@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -49,13 +50,13 @@ func TestGetOrgRoles(t *testing.T) {
 	roles := []models.OrgRole{
 		{
 			ID:             utility.GenerateUUID(),
-			Name:           fmt.Sprintf("Admin Role-%v", utility.GetRandomNumbersInRange(3, 7)),
+			Name:           fmt.Sprintf("Admin-%v", strings.Split(utility.GenerateUUID(), "-")[4]),
 			Description:    "Administrator role",
 			OrganisationID: &orgID,
 		},
 		{
 			ID:             utility.GenerateUUID(),
-			Name:           fmt.Sprintf("User Role -%v", utility.GetRandomNumbersInRange(3, 7)),
+			Name:           fmt.Sprintf("User-%v", strings.Split(utility.GenerateUUID(), "-")[4]),
 			Description:    "Regular user role",
 			OrganisationID: &orgID,
 		},
@@ -251,8 +252,8 @@ func TestGetAOrgRole(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
+		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "not organization owner")
+		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
 	})
 }
