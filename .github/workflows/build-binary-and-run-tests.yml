@@ -36,11 +36,6 @@ jobs:
           sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
           sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
 
-      - name: Run DB migrations
-        run: |
-          echo "Running DB migrations..."
-          yes | make migrate-safe-up
-          
       - name: Build the application
         run: go build -o telex_be
       - name: Run the application
@@ -53,6 +48,11 @@ jobs:
             curl -s http://localhost:${SERVER_PORT} && break
             sleep 1
           done
+
+      - name: Run DB migrations
+        run: |
+          echo "Running DB migrations..."
+          yes | make migrate-safe-up
           
       - name: Run All Tests
         run: go test ./tests/... -timeout 300s
