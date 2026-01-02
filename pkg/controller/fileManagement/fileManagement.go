@@ -432,7 +432,7 @@ func (base *Controller) GetFolders(c *gin.Context) {
 		}
 	}
 
-	folders, count, err := services.GetFolders(base.Db.Postgresql, models.GetFoldersParams{
+	folders, paginationResponse, err := services.GetFolders(base.Db.Postgresql, models.GetFoldersParams{
 		OrgID:       orgID,
 		Page:        page,
 		Limit:       limit,
@@ -442,14 +442,6 @@ func (base *Controller) GetFolders(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
-	}
-
-	totalPages := int(math.Ceil(float64(count) / float64(limit)))
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     page,
-		PageCount:       len(folders),
-		TotalPagesCount: totalPages,
-		TotalItems:      count,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Folders fetched successfully", map[string]interface{}{

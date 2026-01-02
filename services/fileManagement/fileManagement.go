@@ -282,12 +282,14 @@ func CreateFolder(db *gorm.DB, params models.CreateFolderParams) (*models.Folder
 	return &folder, nil
 }
 
-func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, int64, error) {
+func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, postgresql.PaginationResponse, error) {
 	var folders []models.Folder
-	var count int64
-
-	offset := (params.Page - 1) * params.Limit
 	queryParams := params.QueryParams
+
+	pagination := postgresql.Pagination{
+		Page:  params.Page,
+		Limit: params.Limit,
+	}
 
 	query := db.Model(&models.Folder{}).
 		Joins("LEFT JOIN profiles ON profiles.userid = folders.user_id").
@@ -297,9 +299,16 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, i
 		query = query.Where("profiles.full_name ILIKE ?", "%"+owner+"%")
 	}
 
-	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&folders).Error
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"folders.created_at",
+		"desc",
+		pagination,
+		&folders,
+		nil,
+	)
 	if err != nil {
-		return folders, 0, err
+		return folders, paginationResponse, err
 	}
 
 	type FolderCount struct {
@@ -315,7 +324,7 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, i
 		Scan(&folderCounts).Error
 
 	if err != nil {
-		return folders, 0, err
+		return folders, paginationResponse, err
 	}
 
 	// map counts to folders
@@ -330,7 +339,7 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, i
 		folders[i].ItemCount = countMap[folders[i].ID]
 	}
 
-	return folders, count, nil
+	return folders, paginationResponse, nil
 }
 
 func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {

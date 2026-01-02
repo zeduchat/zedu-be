@@ -736,8 +736,19 @@ func TestFileFilters(t *testing.T) {
 		data := resp["data"].(map[string]interface{})
 		files := data["files"].([]interface{})
 
-		if len(files) < 3 {
-			t.Error("Expected all files to be modified this year")
+		expected := 2
+		/*
+			two files created today in SetupTestFiles
+			if today is late enough in the year, the file modified 10 days ago
+			will also be in the current year.
+		*/
+
+		if time.Now().YearDay() > 10 {
+			expected = 3
+		}
+
+		if len(files) < expected {
+			t.Errorf("Expected at least %d files to be modified this year, got %d", expected, len(files))
 		}
 	})
 
