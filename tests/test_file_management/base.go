@@ -21,8 +21,6 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 
 	db := storage.Connection()
 
-	config.Config.Minio.UseSSL = false
-
 	minio.ConnectToMinio(logger, config.Config.Minio)
 
 	validatorRef := validator.New()
