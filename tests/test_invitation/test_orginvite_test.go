@@ -68,7 +68,7 @@ func TestOrganisationInvitation(t *testing.T) {
 	createInviteData := models.InvitationCreateReq{
 		Emails:         []string{fmt.Sprintf("test%s@example.com", currUUID)},
 		OrganisationID: orgId,
-		RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
+		RoleID:         "00000000-0000-0000-0000-000000000000",
 	}
 
 	invitation := invitation.Controller{Db: db, Validator: validatorRef, Logger: logger}
@@ -90,7 +90,7 @@ func TestOrganisationInvitation(t *testing.T) {
 			RequestBody: models.InvitationCreateReq{
 				Emails:         []string{test_email},
 				OrganisationID: orgId,
-				RoleID:         "01915c5c-6417-7620-a80f-b8dde5509881",
+				RoleID:         "00000000-0000-0000-0000-000000000000",
 			},
 			ExpectedCode: http.StatusCreated,
 			Message:      "Invitations created successfully",

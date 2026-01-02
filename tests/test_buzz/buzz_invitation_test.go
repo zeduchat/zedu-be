@@ -19,7 +19,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -41,7 +40,7 @@ func TestBuzzInvitations(t *testing.T) {
 		UserName:    "inviter_user" + currUUID,
 		FirstName:   "Inviter",
 		LastName:    "User",
-		PhoneNumber: "+2348120001111",
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 	}
 	user1Login := models.LoginRequestModel{Email: user1Signup.Email, Password: user1Signup.Password}
 
@@ -103,7 +102,7 @@ func TestBuzzInvitations(t *testing.T) {
 		UserName:    "invitee_user" + currUUID2,
 		FirstName:   "Invitee",
 		LastName:    "User",
-		PhoneNumber: "+2348120002222",
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 	}
 	user2Login := models.LoginRequestModel{Email: user2Signup.Email, Password: user2Signup.Password}
 
@@ -113,15 +112,19 @@ func TestBuzzInvitations(t *testing.T) {
 
 	// Add user2 to channel
 	r = gin.Default()
-	channelGroupJoin := r.Group("/api/v1/channels", middleware.Authorize(db.Postgresql))
-	channelGroupJoin.POST("/:channelId/join", channelCtrl.JoinChannels)
-	joinReq, _ := http.NewRequest("POST", "/api/v1/channels/"+channelID+"/join", nil)
-	joinReq.Header.Set("Authorization", "Bearer "+token2)
-	joinRr := httptest.NewRecorder()
-	r.ServeHTTP(joinRr, joinReq)
+
+	err := tst.JoinChannel(t, r, channelCtrl, db, models.JoinChannelsRequest{
+		ChannelsID: channelID,
+		UserID:     getTestUserID(db, user2Signup.Email),
+		Username:   user2Signup.UserName,
+	}, token2)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// --- TEST ROUTER FOR INVITATIONS ---
-	router, _ := SetupBuzzInvitationTestRouter()
+	router, _ := SetupBuzzInvitationTestRouter(logger, validatorRef)
 
 	t.Run("SearchChannelMembers", func(t *testing.T) {
 		body := models.SearchChannelMembersRequest{

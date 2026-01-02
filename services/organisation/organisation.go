@@ -233,10 +233,7 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 	var org models.Organisation
 	org, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, http.StatusNotFound, errors.New("organisation not found")
-		}
-		return nil, http.StatusBadRequest, err
+		return nil, http.StatusNotFound, errors.New("organisation not found")
 	}
 
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)

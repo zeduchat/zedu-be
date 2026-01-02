@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-
-	"context"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -28,6 +27,7 @@ import (
 	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
@@ -43,6 +43,7 @@ func Setup() *utility.Logger {
 	typesense.ConnectToTypeSense(logger, config.TypeSense)
 	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
 	elastic.ConnectToElastic(logger, config.Elastic)
+	minio.ConnectToMinio(logger, config.Minio)
 	agora.NewAgoraService(logger, config.Agora)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
@@ -61,6 +62,21 @@ func Setup() *utility.Logger {
 	}
 
 	return logger
+}
+
+// Cleanup closes all database connections and cleans up resources
+func Cleanup(db *storage.Database) {
+	if db.Postgresql != nil {
+		sqlDB, err := db.Postgresql.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
+	}
+
+	// Close Redis connection
+	if db.Redis != nil {
+		db.Redis.Close()
+	}
 }
 
 func ParseResponse(w *httptest.ResponseRecorder) map[string]any {
@@ -190,6 +206,37 @@ func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db 
 	return channelID, channelName
 }
 
+func JoinChannel(t *testing.T, r *gin.Engine, channel channel.Controller, db *storage.Database, JoinData models.JoinChannelsRequest, token string) error {
+	var (
+		joinPath = "/api/v1/channels/"
+		joinURI  = url.URL{Path: joinPath}
+	)
+
+	channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
+	{
+		channelUrl.POST("/:channelId/join", channel.JoinChannels)
+	}
+
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(JoinData)
+	req, err := http.NewRequest(http.MethodPost, joinURI.String()+JoinData.ChannelsID+"/join", &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		return fmt.Errorf("expected status code %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	return nil
+}
+
 func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org organisation.Controller, orgData models.CreateOrgRequestModel, token string) (string, string, string) {
 	var (
 		orgPath = "/api/v1/organisations"
@@ -266,10 +313,6 @@ func CreateBuzz(t *testing.T, r *gin.Engine, buzzContoller buzz.Controller, db *
 		createBuzzPath = "/api/v1/buzz/create"
 		createBuzzURI  = url.URL{Path: createBuzzPath}
 	)
-	buzzUrl := r.Group(fmt.Sprintf("%v", "/api/buzz/create"), middleware.Authorize(db.Postgresql))
-	{
-		buzzUrl.POST("/", buzzContoller.Create)
-	}
 
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(createBuzzReq)

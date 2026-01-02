@@ -45,16 +45,56 @@ func TestUpdateThread(t *testing.T) {
 		OrganisationID: org.ID,
 	}
 
-	threads := models.Threads{
-		ID:         utility.GenerateUUID(),
-		ChannelsID: channel.ID,
-		Status:     "pending",
-	}
-
 	db.Create(&adminUser)
 	db.Create(&org)
 	db.Create(&channel)
-	db.Create(&threads)
+
+	// Helper function to create and validate a thread in ElasticDB
+	createAndValidateThread := func(t *testing.T, controller *auth.Controller) models.ThreadDocument {
+		threadDoc := models.ThreadDocument{
+			ID:            utility.GenerateUUID(),
+			ChannelsID:    channel.ID,
+			OrgansationID: org.ID,
+			Username:      adminUser.Name,
+			Content:       "Test thread content",
+			UserId:        adminUser.ID,
+			Type:          "thread",
+			FullName:      adminUser.Name,
+			Email:         adminUser.Email,
+			AvatarURL:     "",
+			UserType:      "user",
+			Status:        "pending",
+		}
+
+		// Create the thread in ElasticDB
+		err := threadDoc.CreateThread(controller.Db, controller.Logger)
+		if err != nil {
+			t.Fatalf("Failed to create thread in ElasticDB: %v", err)
+		}
+
+		// Validate the thread was created by retrieving it
+		var retrievedThread models.ThreadDocument
+		err = retrievedThread.GetThreadById(threadDoc.ID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve created thread from ElasticDB: %v", err)
+		}
+
+		// Validate thread fields
+		if retrievedThread.ID != threadDoc.ID {
+			t.Errorf("Expected thread ID %s, got %s", threadDoc.ID, retrievedThread.ID)
+		}
+		if retrievedThread.ChannelsID != channel.ID {
+			t.Errorf("Expected channel ID %s, got %s", channel.ID, retrievedThread.ChannelsID)
+		}
+		if retrievedThread.UserId != adminUser.ID {
+			t.Errorf("Expected user ID %s, got %s", adminUser.ID, retrievedThread.UserId)
+		}
+		if retrievedThread.Status != threadDoc.Status {
+			t.Errorf("Expected status %s, got %s", threadDoc.Status, retrievedThread.Status)
+		}
+
+		return threadDoc
+	}
 
 	setup := func() (*gin.Engine, *auth.Controller) {
 		router, threadController := SetupThreadsTestRouter()
@@ -71,6 +111,9 @@ func TestUpdateThread(t *testing.T) {
 	t.Run("Successful Update Thread", func(t *testing.T) {
 		router, threadController := setup()
 
+		// Create and validate thread in ElasticDB
+		thread := createAndValidateThread(t, threadController)
+
 		loginData := models.LoginRequestModel{
 			Email:    adminUser.Email,
 			Password: "password",
@@ -82,7 +125,7 @@ func TestUpdateThread(t *testing.T) {
 		}
 		reqBodyJSON, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), bytes.NewBuffer(reqBodyJSON))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/channels/%s", thread.ID, channel.ID), bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
@@ -97,6 +140,9 @@ func TestUpdateThread(t *testing.T) {
 	t.Run("Bad Request - Bad Body", func(t *testing.T) {
 		router, threadController := setup()
 
+		// Create and validate thread in ElasticDB
+		thread := createAndValidateThread(t, threadController)
+
 		loginData := models.LoginRequestModel{
 			Email:    adminUser.Email,
 			Password: "password",
@@ -108,7 +154,7 @@ func TestUpdateThread(t *testing.T) {
 		}
 		reqBodyJSON, _ := json.Marshal(invalidReqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/channels/%s", threads.ID, channel.ID), bytes.NewBuffer(reqBodyJSON))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/threads/%s/channels/%s", thread.ID, channel.ID), bytes.NewBuffer(reqBodyJSON))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 

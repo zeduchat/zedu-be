@@ -339,7 +339,7 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 		SELECT b.id as buzz_id, b.host_id, u.name as host_name, 
 		       b.huddle_start_time as started_at,
 		       COUNT(bp.id) as participant_count
-		FROM buzzes b
+		FROM buzzs b
 		JOIN users u ON b.host_id = u.id
 		LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
 		WHERE b.channel_id = ? AND b.status = ? AND b.is_live_status = ?
@@ -937,7 +937,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			SELECT b.id as buzz_id, b.channel_id, b.host_id, u.name as host_name, 
 			       b.huddle_start_time as started_at,
 			       COUNT(bp.id) as participant_count
-			FROM buzzes b
+			FROM buzzs b
 			JOIN users u ON b.host_id = u.id
 			LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
 			WHERE b.channel_id IN ? AND b.status = ? AND b.is_live_status = ?

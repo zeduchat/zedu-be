@@ -245,6 +245,20 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 func (base *Controller) SetUserStatus(c *gin.Context) {
 	userClaims := common.GetAllUserClaims(c)
 	userID, ok := userClaims["user_id"].(string)
+	userIdParam := c.Param("user_id")
+
+	if !utility.IsValidUUID(userIdParam) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if userIdParam != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to update another user's status", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
 		c.JSON(http.StatusUnauthorized, rd)

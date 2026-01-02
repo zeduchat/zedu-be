@@ -125,7 +125,7 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 	_, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID)
 
 	if err != nil {
-		logger.Error("error getting channel err: " + err.Error())
+		logger.Error("error getting channel err: " + err.Error() + " channelId: " + req.ChannelID)
 		return nil, http.StatusNotFound, errors.New("error getting channel, channel does not exist")
 	}
 
