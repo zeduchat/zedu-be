@@ -614,12 +614,14 @@ func MoveFile(db *gorm.DB, fileID, folderID string) (*models.File, error) {
 	return &file, err
 }
 
-func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, error) {
+func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgresql.PaginationResponse, error) {
 	var files []models.File
-	var count int64
-
-	offset := (params.Page - 1) * params.Limit
 	queryParams := params.QueryParams
+
+	pagination := postgresql.Pagination{
+		Page:  params.Page,
+		Limit: params.Limit,
+	}
 
 	query := db.Model(&models.File{}).
 		Select("files.*, profiles.full_name as owner_name, profiles.avatar_url as owner_avatar").
@@ -638,14 +640,16 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 		var userChannels []string
 		err := db.Model(&models.UserChannels{}).Where("user_id = ?", params.UserID).Pluck("channels_id", &userChannels).Error
 		if err != nil {
-			return nil, 0, err
+			return nil, postgresql.PaginationResponse{}, err
 		}
 
 		if len(userChannels) > 0 {
 			query = query.Where("files.channel_id IN ?", userChannels)
 		} else {
-
-			return []models.File{}, 0, nil
+			return []models.File{}, postgresql.PaginationResponse{
+				CurrentPage: params.Page,
+				PageCount:   0,
+			}, nil
 		}
 	case "trash":
 		query = query.Unscoped().Where("files.deleted_at IS NOT NULL")
@@ -711,8 +715,15 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, int64, 
 		}
 	}
 
-	err := query.Count(&count).Offset(offset).Limit(params.Limit).Find(&files).Error
-	return files, count, err
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"files.created_at",
+		"desc",
+		pagination,
+		&files,
+		nil,
+	)
+	return files, paginationResponse, err
 }
 
 func GetFileInfo(db *gorm.DB, params models.File) *models.FileInfoResponse {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -626,9 +625,8 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	}
 
 	pagination := postgresql.GetPagination(c)
-	page, limit := pagination.Page, pagination.Limit
 
-	files, count, err := services.GetFiles(base.Db.Postgresql, models.GetFilesParams{
+	files, paginationResponse, err := services.GetFiles(base.Db.Postgresql, models.GetFilesParams{
 		OrgID:       orgID,
 		UserID:      userID,
 		QueryParams: queryParams,
@@ -639,14 +637,6 @@ func (base *Controller) GetFiles(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch files", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
-	}
-
-	totalPages := int(math.Ceil(float64(count) / float64(limit)))
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     page,
-		PageCount:       len(files),
-		TotalPagesCount: totalPages,
-		TotalItems:      count,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Files fetched successfully", map[string]interface{}{
