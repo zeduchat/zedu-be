@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -422,14 +421,32 @@ func (base *Controller) GetFolders(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	orgID := userClaims["org_id"].(string)
 
-	folders, err := services.GetFolders(base.Db.Postgresql, orgID)
+	pagination := postgresql.GetPagination(c)
+	page, limit := pagination.Page, pagination.Limit
+
+	queryParams := make(map[string]string)
+	for k, v := range c.Request.URL.Query() {
+		if len(v) > 0 {
+			queryParams[k] = v[0]
+		}
+	}
+
+	folders, paginationResponse, err := services.GetFolders(base.Db.Postgresql, models.GetFoldersParams{
+		OrgID:       orgID,
+		Page:        page,
+		Limit:       limit,
+		QueryParams: queryParams,
+	})
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Folders fetched successfully", folders)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Folders fetched successfully", map[string]interface{}{
+		"folders":    folders,
+		"pagination": paginationResponse,
+	})
 	c.JSON(http.StatusOK, rd)
 }
 
@@ -608,9 +625,8 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	}
 
 	pagination := postgresql.GetPagination(c)
-	page, limit := pagination.Page, pagination.Limit
 
-	files, count, err := services.GetFiles(base.Db.Postgresql, models.GetFilesParams{
+	files, paginationResponse, err := services.GetFiles(base.Db.Postgresql, models.GetFilesParams{
 		OrgID:       orgID,
 		UserID:      userID,
 		QueryParams: queryParams,
@@ -621,14 +637,6 @@ func (base *Controller) GetFiles(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch files", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
-	}
-
-	totalPages := int(math.Ceil(float64(count) / float64(limit)))
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     page,
-		PageCount:       len(files),
-		TotalPagesCount: totalPages,
-		TotalItems:      count,
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Files fetched successfully", map[string]interface{}{

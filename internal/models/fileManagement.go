@@ -95,6 +95,13 @@ type GetFilesParams struct {
 	Limit       int
 }
 
+type GetFoldersParams struct {
+	OrgID       string
+	Page        int
+	Limit       int
+	QueryParams map[string]string
+}
+
 type File struct {
 	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
 	FileName       string         `gorm:"column:file_name; not null" json:"file_name"`
