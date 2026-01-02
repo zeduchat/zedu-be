@@ -61,11 +61,10 @@ func UpdateCameraStatus(db *storage.Database, logger *utility.Logger, buzzID str
 	}
 	notification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, notification); err != nil {
-		logger.Error("failed to publish camera status event: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to broadcast camera status")
+	if err := centrifuge.PublishChannelOptional(logger, buzz.ChannelID, notification); err != nil {
+		logger.Warning("failed to publish camera status event (non-critical): %v", err)
 	}
 
-	logger.Info("camera status broadcasted successfully for user %s in buzz %s", req.UserID, buzzID)
+	logger.Info("camera status updated successfully")
 	return resp, http.StatusOK, nil
 }
