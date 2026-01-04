@@ -50,6 +50,44 @@ func (base *Controller) GetAllUserOrgThreads(c *gin.Context) {
 
 }
 
+func (base *Controller) GetUserRecentThreads(c *gin.Context) {
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("unable to get user claims"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(userID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", errors.New("failed to parse user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(orgID); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org id format", errors.New("failed to parse org id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	usersData, paginationResponse, code, err := service.GetUserRecentThreads(userID, orgID, base.Db.Postgresql, c, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Data retrieved successfully", usersData, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+
+}
+
 func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 
 	var (

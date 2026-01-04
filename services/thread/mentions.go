@@ -94,6 +94,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		FullName:      utility.ThisOrThat(profile.FullName, req.AgentName),
 		Email:         user.Email,
 		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
 		UserType:      userType,
 		UserId:        req.UserId,

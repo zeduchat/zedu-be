@@ -22,6 +22,7 @@ func Threads(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
 	threadUrl := r.Group(fmt.Sprintf("%v/threads", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
+		threadUrl.GET("/recent", thread.GetUserRecentThreads)
 		threadUrl.GET("/organisations/:org_id", thread.GetAllUserOrgThreads)
 		threadUrl.GET("/channels/:channel_id/threads", thread.GetChannelThreads)
 		threadUrl.GET("/channels/:channel_id", thread.GetAllChannelThreads)

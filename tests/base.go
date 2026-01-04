@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -175,6 +176,33 @@ func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData 
 	token := dataM["access_token"].(string)
 
 	return token
+}
+
+func GetUserIDFromToken(t *testing.T, token string, db *storage.Database) string {
+	config := config.GetConfig()
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(config.Server.Secret), nil
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to parse token: %v", err)
+		return ""
+	}
+
+	// Extract claims
+	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
+		if userID, exists := claims["user_id"]; exists {
+			return userID.(string)
+		}
+		t.Fatal("user_id not found in token claims")
+		return ""
+	}
+
+	t.Fatal("Invalid token or claims")
+	return ""
 }
 
 func CreateChannels(t *testing.T, r *gin.Engine, channel channel.Controller, db *storage.Database, CreateData models.CreateChannelsRequest, token string) (string, string) {
