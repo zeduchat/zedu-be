@@ -47,6 +47,13 @@ func Setup() *utility.Logger {
 	agora.NewAgoraService(logger, config.Agora)
 	db := storage.Connection()
 	if config.TestDatabase.Migrate {
+		logger.Info("Starting SQL migrations...")
+		success, err := RunSQLMigrations(config.TestDatabase, logger)
+		if err != nil {
+			logger.Error("SQL migration failed: %v", err)
+		} else if success {
+			logger.Info("SQL migrations completed successfully")
+		}
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 		seed.SeedPlans(logger, db.Postgresql)

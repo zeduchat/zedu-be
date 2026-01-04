@@ -63,8 +63,15 @@ func PublishChannel(logger *utility.Logger, channelID string, publishPayload any
 	}
 
 	logger.Info(fmt.Sprintf("published to %s", channelID))
-
 	return nil
+}
+
+func PublishChannelOptional(logger *utility.Logger, channelID string, publishPayload any) error {
+	if Client == nil || Client.C == nil {
+		logger.Warning("Centrifuge client not initialized, skipping publish to channel %s", channelID)
+		return nil
+	}
+	return PublishChannel(logger, channelID, publishPayload)
 }
 
 func PublishToThreadSubChannel(logger *utility.Logger, channelID string, threadID string, publishPayload any) error {
