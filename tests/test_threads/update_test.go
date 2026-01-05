@@ -52,18 +52,18 @@ func TestUpdateThread(t *testing.T) {
 	// Helper function to create and validate a thread in ElasticDB
 	createAndValidateThread := func(t *testing.T, controller *auth.Controller) models.ThreadDocument {
 		threadDoc := models.ThreadDocument{
-			ID:            utility.GenerateUUID(),
-			ChannelsID:    channel.ID,
-			OrgansationID: org.ID,
-			Username:      adminUser.Name,
-			Content:       "Test thread content",
-			UserId:        adminUser.ID,
-			Type:          "thread",
-			FullName:      adminUser.Name,
-			Email:         adminUser.Email,
-			AvatarURL:     "",
-			UserType:      "user",
-			Status:        "pending",
+			ID:             utility.GenerateUUID(),
+			ChannelsID:     channel.ID,
+			OrganisationID: org.ID,
+			Username:       adminUser.Name,
+			Content:        "Test thread content",
+			UserId:         adminUser.ID,
+			Type:           "thread",
+			FullName:       adminUser.Name,
+			Email:          adminUser.Email,
+			AvatarURL:      "",
+			UserType:       "user",
+			Status:         "pending",
 		}
 
 		// Create the thread in ElasticDB

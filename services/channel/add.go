@@ -194,7 +194,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	threadReplyNotif.Content = feed
 	threadReplyNotif.NotificationId = utility.GenerateUUID()
 
-	err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", threads.OrgansationID, threads.UserId), threadReplyNotif)
+	err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", threads.OrganisationID, threads.UserId), threadReplyNotif)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing thread reply message to user, channelid: %s, with userid: %s error: %v", threads.ChannelsID, threads.UserId, err.Error()))
 	}
@@ -253,7 +253,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		"edited":    updateKey["edited"],
 		"edited_at": now,
 	}
-	
+
 	if err := message.UpdateMessageInPostgres(db, postgresUpdates); err != nil {
 		logger.Error(fmt.Sprintf("Failed to update message in postgres for message_id: %s, error: %v", req.MessageId, err.Error()))
 		return nil, http.StatusInternalServerError, errors.New("failed to update message in postgres: " + err.Error())

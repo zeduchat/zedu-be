@@ -89,16 +89,16 @@ func TestGetUserRecentThreads(t *testing.T) {
 	now := time.Now().UTC()
 
 	thread1 := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
-		ChannelsID:    channelId,
-		OrgansationID: orgId,
-		UserId:        tst.GetUserIDFromToken(t, token, db),
-		Status:        "success",
-		Type:          "thread",
-		Content:       "Test thread 1 (older)",
-		Username:      "test_user",
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:             utility.GenerateUUID(),
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+		UserId:         tst.GetUserIDFromToken(t, token, db),
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Test thread 1 (older)",
+		Username:       "test_user",
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	err := thread1.CreateThread(db, logger)
@@ -110,16 +110,16 @@ func TestGetUserRecentThreads(t *testing.T) {
 
 	now2 := time.Now().UTC()
 	thread2 := models.ThreadDocument{
-		ID:            utility.GenerateUUID(),
-		ChannelsID:    channelId,
-		OrgansationID: orgId,
-		UserId:        tst.GetUserIDFromToken(t, token, db),
-		Status:        "success",
-		Type:          "thread",
-		Content:       "Test thread 2 (newer)",
-		Username:      "test_user",
-		CreatedAt:     now2,
-		UpdatedAt:     now2,
+		ID:             utility.GenerateUUID(),
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+		UserId:         tst.GetUserIDFromToken(t, token, db),
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Test thread 2 (newer)",
+		Username:       "test_user",
+		CreatedAt:      now2,
+		UpdatedAt:      now2,
 	}
 
 	err = thread2.CreateThread(db, logger)

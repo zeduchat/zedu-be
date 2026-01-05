@@ -49,7 +49,7 @@ type Threads struct {
 	UserId                   string                    `json:"user_id"`
 	Media                    []File                    `json:"media,omitempty"`
 	Mentions                 []Mention                 `json:"mentions,omitempty"`
-	OrgansationID            string                    `json:"org_id,omitempty"`
+	OrganisationID           string                    `json:"org_id,omitempty"`
 	State                    string                    `json:"state,omitempty"`
 	PinnedDetails            PinnedDetails             `json:"pinned_details,omitempty"`
 	Reactions                []ReactionDetails         `json:"reactions"`
@@ -60,7 +60,7 @@ type Threads struct {
 type ThreadDocument struct {
 	ID                       string                    `json:"thread_id"`
 	ChannelsID               string                    `json:"channels_id"`
-	OrgansationID            string                    `json:"org_id"`
+	OrganisationID           string                    `json:"org_id"`
 	EventName                string                    `json:"event_name,omitempty"`
 	Username                 string                    `json:"username"`
 	ActionType               string                    `json:"action_type,omitempty"`
@@ -949,7 +949,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	threads = make([]Threads, 0)
 	result := make([]ThreadWithMessagesResponse, 0)
 	userId := t.UserId
-	organisationID := t.OrgansationID
+	organisationID := t.OrganisationID
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
@@ -1126,7 +1126,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		threadDoc := ThreadDocument{
 			ID:                       thread.ID,
 			ChannelsID:               thread.ChannelsID,
-			OrgansationID:            thread.OrgansationID,
+			OrganisationID:           thread.OrganisationID,
 			EventName:                thread.EventName,
 			Username:                 thread.Username,
 			ActionType:               thread.ActionType,
@@ -1176,7 +1176,7 @@ func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *util
 
 	threads = make([]Threads, 0)
 	userID := t.UserId
-	orgID := t.OrgansationID
+	orgID := t.OrganisationID
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
