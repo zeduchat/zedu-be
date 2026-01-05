@@ -127,7 +127,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
-		OrgansationID: orgId,
+		OrganisationID: orgId,
 	}
 	err := threadDoc.CreateThread(db, logger)
 	if err != nil {
@@ -290,7 +290,7 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
-		OrgansationID: dmChannel.OrgId,
+		OrganisationID: dmChannel.OrgId,
 	}
 
 	if err := threadDoc.CreateThread(db, logger); err != nil {

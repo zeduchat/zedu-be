@@ -66,7 +66,7 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *uti
 	}
 
 	accessData.UserId = userID
-	accessData.OrgansationID = orgID
+	accessData.OrganisationID = orgID
 
 	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, logger)
 	if err != nil {
@@ -92,7 +92,7 @@ func GetUserRecentThreads(userID, orgID string, db *gorm.DB, c *gin.Context, log
 	}
 
 	accessData.UserId = userID
-	accessData.OrgansationID = orgID
+	accessData.OrganisationID = orgID
 
 	accessResp, paginationResponse, err := accessData.GetUserRecentThreads(c, db, logger)
 	if err != nil {
@@ -364,7 +364,7 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 	savedMessageIds := models.SavedMessageIds{
 		UserID:   userID,
-		OrgID:    threadDoc.OrgansationID,
+		OrgID:    threadDoc.OrganisationID,
 		ThreadID: threadDoc.ID,
 	}
 
@@ -479,7 +479,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		UserType:  threadResp.UserType,
 		UserName:  user.Profile.UserName,
 		FullName:  user.Profile.FullName,
-		OrgId:     threadResp.OrgansationID,
+		OrgId:     threadResp.OrganisationID,
 		UserId:    threadResp.UserId,
 		Media:     threadResp.Media,
 	}
