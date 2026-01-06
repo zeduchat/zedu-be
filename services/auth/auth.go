@@ -201,6 +201,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"current_organisation_slug": slug.Make(org.Name),
+			"organisation":              org,
 		},
 		"access_token":       tokenData.AccessToken,
 		"notification_token": access_token.SubAccessToken,
@@ -272,6 +273,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"current_organisation_slug": slug.Make(org.Name),
+			"organisation":              org,
 		},
 		"access_token":            tokenData.AccessToken,
 		"notification_token":      access_token.SubAccessToken,
@@ -466,6 +468,7 @@ func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"current_organisation_slug": slug.Make(org.Name),
+			"organisation":              org,
 		},
 	}
 
