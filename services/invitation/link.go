@@ -234,6 +234,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 	if userData.CurrentOrg.String() != "00000000-0000-0000-0000-000000000000" {
 		if u, ok := responseData["user"].(map[string]any); ok {
 			u["current_organisation_slug"] = slug.Make(org.Name)
+			u["organisation"] = org
 		}
 	}
 

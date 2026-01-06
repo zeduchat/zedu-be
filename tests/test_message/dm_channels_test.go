@@ -186,6 +186,56 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 				}
 
 				t.Logf("✅ Preview message is not empty: '%s'", previewMessage)
+
+				previewThread, ok := channel["preview_thread"].([]interface{})
+				if !ok {
+					t.Error("preview_thread field is missing or not an array")
+				} else {
+					if len(previewThread) == 0 {
+						t.Error("preview_thread array is empty, expected at least one thread")
+					} else {
+						t.Logf("✅ preview_thread is an array with %d thread(s)", len(previewThread))
+						firstThread, ok := previewThread[0].(map[string]interface{})
+						if !ok {
+							t.Error("First thread in preview_thread is not a valid object")
+						} else {
+							if threadMsg, exists := firstThread["message"]; exists {
+								t.Logf("✅ First thread message: '%v'", threadMsg)
+							}
+							if threadID, exists := firstThread["thread_id"]; exists {
+								t.Logf("✅ First thread ID: '%v'", threadID)
+							}
+						}
+					}
+				}
+
+				participants, ok := channel["participants"].([]interface{})
+				if !ok {
+					t.Error("participants field is missing or not an array")
+				} else {
+					if len(participants) == 0 {
+						t.Error("participants array is empty, expected at least one participant")
+					} else {
+						t.Logf("✅ participants array has %d participant(s)", len(participants))
+						for i, p := range participants {
+							participant, ok := p.(map[string]interface{})
+							if !ok {
+								t.Errorf("Participant %d is not a valid object", i)
+								continue
+							}
+							if _, exists := participant["username"]; !exists {
+								t.Errorf("Participant %d missing username field", i)
+							}
+							if _, exists := participant["email"]; !exists {
+								t.Errorf("Participant %d missing email field", i)
+							}
+							if _, exists := participant["user_id"]; !exists {
+								t.Errorf("Participant %d missing user_id field", i)
+							}
+							t.Logf("✅ Participant %d: username=%v, email=%v", i, participant["username"], participant["email"])
+						}
+					}
+				}
 				break
 			}
 		}
@@ -314,6 +364,42 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 				}
 
 				t.Logf("✅ Group DM preview message is not empty: '%s'", previewMessage)
+
+				previewThread, ok := channel["preview_thread"].([]interface{})
+				if !ok {
+					t.Error("preview_thread field is missing or not an array")
+				} else {
+					if len(previewThread) == 0 {
+						t.Error("preview_thread array is empty, expected at least one thread")
+					} else {
+						t.Logf("✅ preview_thread is an array with %d thread(s)", len(previewThread))
+					}
+				}
+
+				participants, ok := channel["participants"].([]interface{})
+				if !ok {
+					t.Error("participants field is missing or not an array")
+				} else {
+					if len(participants) != 3 {
+						t.Errorf("Expected 3 participants in group DM, got %d", len(participants))
+					} else {
+						t.Logf("✅ participants array has %d participants as expected", len(participants))
+						for i, p := range participants {
+							participant, ok := p.(map[string]interface{})
+							if !ok {
+								t.Errorf("Participant %d is not a valid object", i)
+								continue
+							}
+							if _, exists := participant["username"]; !exists {
+								t.Errorf("Participant %d missing username field", i)
+							}
+							if _, exists := participant["email"]; !exists {
+								t.Errorf("Participant %d missing email field", i)
+							}
+							t.Logf("✅ Participant %d: username=%v, email=%v", i, participant["username"], participant["email"])
+						}
+					}
+				}
 				break
 			}
 		}
@@ -399,6 +485,28 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 					t.Logf("⚠️  Preview message is '%s', expected empty for channel without messages", previewMessage)
 				} else {
 					t.Logf("✅ Preview message is empty as expected for channel without messages")
+				}
+
+				previewThread, ok := channel["preview_thread"].([]interface{})
+				if !ok {
+					t.Error("preview_thread field is missing or not an array")
+				} else {
+					if len(previewThread) == 0 {
+						t.Logf("✅ preview_thread array is empty as expected for channel without threads")
+					} else {
+						t.Logf("⚠️  preview_thread has %d thread(s), expected empty for channel without messages", len(previewThread))
+					}
+				}
+
+				participants, ok := channel["participants"].([]interface{})
+				if !ok {
+					t.Error("participants field is missing or not an array")
+				} else {
+					if len(participants) == 0 {
+						t.Error("participants array is empty, expected at least one participant")
+					} else {
+						t.Logf("✅ participants array has %d participant(s)", len(participants))
+					}
 				}
 				break
 			}
