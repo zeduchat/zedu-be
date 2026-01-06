@@ -9243,6 +9243,45 @@ paths:
                         preview_message:
                           type: string
                           description: A preview of the last message in the channel
+                        preview_thread:
+                          type: array
+                          description: Array of preview threads (up to 50) from the channel
+                          items:
+                            type: object
+                            properties:
+                              thread_id:
+                                type: string
+                                format: uuid
+                              message:
+                                type: string
+                              user_id:
+                                type: string
+                                format: uuid
+                              username:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                              message_count:
+                                type: integer
+                        participants:
+                          type: array
+                          description: Array of participants in the DM channel
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: string
+                                format: uuid
+                              username:
+                                type: string
+                              email:
+                                type: string
+                              avatar_url:
+                                type: string
+                              user_type:
+                                type: string
+                                enum: [user, bot]
                   pagination:
                     type: array
                     items:
