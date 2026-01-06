@@ -49,7 +49,7 @@ type Threads struct {
 	UserId                   string                    `json:"user_id"`
 	Media                    []File                    `json:"media,omitempty"`
 	Mentions                 []Mention                 `json:"mentions,omitempty"`
-	OrgansationID            string                    `json:"org_id,omitempty"`
+	OrganisationID           string                    `json:"org_id,omitempty"`
 	State                    string                    `json:"state,omitempty"`
 	PinnedDetails            PinnedDetails             `json:"pinned_details,omitempty"`
 	Reactions                []ReactionDetails         `json:"reactions"`
@@ -60,12 +60,13 @@ type Threads struct {
 type ThreadDocument struct {
 	ID                       string                    `json:"thread_id"`
 	ChannelsID               string                    `json:"channels_id"`
-	OrgansationID            string                    `json:"org_id"`
+	OrganisationID           string                    `json:"org_id"`
 	EventName                string                    `json:"event_name,omitempty"`
 	Username                 string                    `json:"username"`
 	ActionType               string                    `json:"action_type,omitempty"`
 	Status                   string                    `json:"status,omitempty"`
 	CreatedAt                time.Time                 `json:"created_at"`
+	UpdatedAt                time.Time                 `json:"updated_at"`
 	MessageCount             int64                     `json:"message_count"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
@@ -170,6 +171,10 @@ var Thread_mapping = map[string]any{
 			"created_at": map[string]string{
 				"type": "date",
 				// "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+				"format": "strict_date_optional_time||epoch_millis",
+			},
+			"updated_at": map[string]string{
+				"type":   "date",
 				"format": "strict_date_optional_time||epoch_millis",
 			},
 			"message_count": map[string]string{"type": "integer"},
@@ -944,7 +949,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	threads = make([]Threads, 0)
 	result := make([]ThreadWithMessagesResponse, 0)
 	userId := t.UserId
-	organisationID := t.OrgansationID
+	organisationID := t.OrganisationID
 
 	pag := elastic.GetPagination(c)
 	page, limit := pag.Page, pag.Limit
@@ -1121,7 +1126,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		threadDoc := ThreadDocument{
 			ID:                       thread.ID,
 			ChannelsID:               thread.ChannelsID,
-			OrgansationID:            thread.OrgansationID,
+			OrganisationID:           thread.OrganisationID,
 			EventName:                thread.EventName,
 			Username:                 thread.Username,
 			ActionType:               thread.ActionType,
@@ -1161,6 +1166,69 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	}
 
 	return result, pagR, nil
+}
+
+func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]Threads, *elastic.PaginationResponse, error) {
+	var (
+		threads    []Threads
+		threadData any
+	)
+
+	threads = make([]Threads, 0)
+	userID := t.UserId
+	orgID := t.OrganisationID
+
+	pag := elastic.GetPagination(c)
+	page, limit := pag.Page, pag.Limit
+
+	from := (page - 1) * limit
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"user_id.keyword": userID,
+						},
+					},
+					{
+						"term": map[string]any{
+							"org_id.keyword": orgID,
+						},
+					},
+				},
+			},
+		},
+		"sort": []map[string]any{
+			{
+				"_script": map[string]any{
+					"type": "number",
+					"script": map[string]any{
+						"lang":   "painless",
+						"source": "doc.containsKey('updated_at') && doc['updated_at'].size() > 0 ? doc['updated_at'].value.toInstant().toEpochMilli() : doc['created_at'].value.toInstant().toEpochMilli()",
+					},
+					"order": "desc",
+				},
+			},
+		},
+		"from": from,
+		"size": limit,
+	}
+
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+
+	if err != nil {
+		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
+	}
+
+	threads, err = UnmarshalThreadResponse(threadData)
+
+	if err != nil {
+		return nil, pagR, err
+	}
+
+	return threads, pagR, nil
 }
 
 func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {

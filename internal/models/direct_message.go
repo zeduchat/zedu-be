@@ -14,6 +14,7 @@ import (
 
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -47,6 +48,7 @@ type DmChannelsResponse struct {
 	LastThreadId     string    `json:"last_thread_id"`
 	LastReadAt       time.Time `json:"last_read_at"`
 	UserId           string    `json:"-"`
+	PreviewMessage   string    `json:"preview_message"`
 }
 
 type DmChannelsRequest struct {
@@ -261,6 +263,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 			}
 
+			previewMessage := dmchan.GetLastMessageByChannelId(db, dmchan.ChannelId)
+
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
 				Name:             userDetails.Profile.UserName,
@@ -271,6 +275,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				LastThreadId:     dmchan.LastThreadId,
 				ThreadCount:      dmchan.ThreadCount,
 				LastReadAt:       dmchan.LastReadAt,
+				PreviewMessage:   previewMessage,
 			})
 		} else if dmchan.ChannelType == "group_dm" {
 
@@ -313,6 +318,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				return nil, paginationResp, fmt.Errorf("user not found in channel")
 			}
 
+			previewMessage := dmchan.GetLastMessageByChannelId(db, dmchan.ChannelId)
+
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
 				Name:             strings.Join(usernames, ", "),
@@ -322,6 +329,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				LastThreadId:     chanParti.LastThreadId,
 				ThreadCount:      chanParti.ThreadCount,
 				LastReadAt:       chanParti.LastReadAt,
+				PreviewMessage:   previewMessage,
 			})
 
 		}
@@ -787,4 +795,60 @@ func (r *DmChannels) UpdateInteractionAt(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func (r *DmChannels) GetLastMessageByChannelId(db *gorm.DB, channelId string) string {
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"channels_id.keyword": channelId,
+			},
+		},
+		"size": 1,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData any
+	err := elastic.SelectAll(storage.DB.Elastic, ThreadIndexName, query, &threadData)
+	if err != nil {
+		return ""
+	}
+
+	threadDataMap, ok := threadData.(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	hits, ok := threadDataMap["hits"].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	hitsArray, ok := hits["hits"].([]any)
+	if !ok || len(hitsArray) == 0 {
+		return ""
+	}
+
+	firstHit, ok := hitsArray[0].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	source, ok := firstHit["_source"].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	content, ok := source["message"].(string)
+	if !ok {
+		return ""
+	}
+
+	return content
 }

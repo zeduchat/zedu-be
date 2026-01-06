@@ -66,9 +66,35 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *uti
 	}
 
 	accessData.UserId = userID
-	accessData.OrgansationID = orgID
+	accessData.OrganisationID = orgID
 
 	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, logger)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &accessResp, nil, http.StatusNoContent, nil
+		}
+		return &accessResp, nil, http.StatusInternalServerError, err
+
+	}
+
+	return &accessResp, paginationResponse, http.StatusOK, nil
+}
+
+func GetUserRecentThreads(userID, orgID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.Threads, *elastic.PaginationResponse, int, error) {
+	var (
+		accessData models.Threads
+		accessResp []models.Threads
+	)
+
+	_, code, err := user.GetUser(userID, db)
+	if err != nil {
+		return nil, nil, code, err
+	}
+
+	accessData.UserId = userID
+	accessData.OrganisationID = orgID
+
+	accessResp, paginationResponse, err := accessData.GetUserRecentThreads(c, db, logger)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -108,7 +134,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 	timeRange, check := GetGroupByDate(c)
 
 	if check {
-		accessResp, paginationResponse, code,  err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
+		accessResp, paginationResponse, code, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
 	} else {
 		accessResp, paginationResponse, code, err = accessData.GetAllThreadsByChannelID(c, db, userID, channelID)
 	}
@@ -329,16 +355,16 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-    thread.ID = threadID
-    err = threadDoc.GetThreadById(threadID)
-    if err != nil {
-        tx.Rollback()
-        return http.StatusNotFound, errors.New("thread not found")
-    }
+	thread.ID = threadID
+	err = threadDoc.GetThreadById(threadID)
+	if err != nil {
+		tx.Rollback()
+		return http.StatusNotFound, errors.New("thread not found")
+	}
 
 	savedMessageIds := models.SavedMessageIds{
 		UserID:   userID,
-		OrgID:    threadDoc.OrgansationID,
+		OrgID:    threadDoc.OrganisationID,
 		ThreadID: threadDoc.ID,
 	}
 
@@ -453,7 +479,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		UserType:  threadResp.UserType,
 		UserName:  user.Profile.UserName,
 		FullName:  user.Profile.FullName,
-		OrgId:     threadResp.OrgansationID,
+		OrgId:     threadResp.OrganisationID,
 		UserId:    threadResp.UserId,
 		Media:     threadResp.Media,
 	}

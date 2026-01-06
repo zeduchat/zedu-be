@@ -179,7 +179,8 @@ func TestFileManagement(t *testing.T) {
 
 		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
 		resp := tests.ParseResponse(rr)
-		folders := resp["data"].([]interface{})
+		data := resp["data"].(map[string]interface{})
+		folders := data["folders"].([]interface{})
 
 		found := false
 		for _, f := range folders {
@@ -208,7 +209,8 @@ func TestFileManagement(t *testing.T) {
 
 		tests.AssertStatusCode(t, rr2.Code, http.StatusOK)
 		resp2 := tests.ParseResponse(rr2)
-		folders2 := resp2["data"].([]interface{})
+		data2 := resp2["data"].(map[string]interface{})
+		folders2 := data2["folders"].([]interface{})
 
 		found2 := false
 		for _, f := range folders2 {
@@ -223,6 +225,106 @@ func TestFileManagement(t *testing.T) {
 		}
 		if !found2 {
 			t.Error("Folder not found")
+		}
+	})
+
+	t.Run("GetFoldersPagination", func(t *testing.T) {
+
+		// creating 2 more folders with the existing one
+		// to ensure enough for pagination
+		for i := 0; i < 2; i++ {
+			reqBody := map[string]string{
+				"name": fmt.Sprintf("Pagination Folder %d", i),
+			}
+			var b bytes.Buffer
+			json.NewEncoder(&b).Encode(reqBody)
+
+			req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/folders", &b)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+			if rr.Code != http.StatusCreated {
+				t.Fatalf("Failed to create folder for pagination test: %s", rr.Body.String())
+			}
+		}
+
+		//get the folders with pagination
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("page", "1")
+		q.Set("limit", "1")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		folders := data["folders"].([]interface{})
+		pagination := data["pagination"].(map[string]interface{})
+
+		if len(folders) != 1 {
+			t.Errorf("Expected 1 folder in page 1, got %d", len(folders))
+		}
+
+		if pagination["current_page"].(float64) != 1 {
+			t.Errorf("Expected current_page 1, got %v", pagination["current_page"])
+		}
+
+		totalItems := pagination["total_items"].(float64)
+		if totalItems < 3 {
+			t.Errorf("Expected at least 3 total items, got %v", totalItems)
+		}
+	})
+
+	t.Run("GetFoldersOwnerFilter", func(t *testing.T) {
+
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("owner", "Test")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		folders := data["folders"].([]interface{})
+
+		if len(folders) == 0 {
+			t.Error("Expected folders matching owner 'Test', got 0")
+		}
+	})
+
+	t.Run("GetFoldersOwnerFilter_NoMatch", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("owner", "NonExistentUserXYZ")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		folders := data["folders"].([]interface{})
+
+		if len(folders) != 0 {
+			t.Errorf("Expected 0 folders matching owner 'NonExistentUserXYZ', got %d", len(folders))
 		}
 	})
 
@@ -634,8 +736,19 @@ func TestFileFilters(t *testing.T) {
 		data := resp["data"].(map[string]interface{})
 		files := data["files"].([]interface{})
 
-		if len(files) < 3 {
-			t.Error("Expected all files to be modified this year")
+		expected := 2
+		/*
+			two files created today in SetupTestFiles
+			if today is late enough in the year, the file modified 10 days ago
+			will also be in the current year.
+		*/
+
+		if time.Now().YearDay() > 10 {
+			expected = 3
+		}
+
+		if len(files) < expected {
+			t.Errorf("Expected at least %d files to be modified this year, got %d", expected, len(files))
 		}
 	})
 

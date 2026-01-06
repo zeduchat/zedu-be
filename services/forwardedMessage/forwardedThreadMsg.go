@@ -102,6 +102,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 		FullName:      utility.ThisOrThat(profile.FullName, "a-user"),
 		Email:         user.Email,
 		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
 		UserType:      userType,
 		UserId:        req.UserId,
@@ -126,7 +127,7 @@ func ForwardThreadMessageToChannel(db *storage.Database, req models.ForwardThrea
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
-		OrgansationID: orgId,
+		OrganisationID: orgId,
 	}
 	err := threadDoc.CreateThread(db, logger)
 	if err != nil {
@@ -266,6 +267,7 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 		FullName:      utility.ThisOrThat(profile.FullName, "a-user"),
 		Email:         user.Email,
 		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
 		CurrentStatus: "pending",
 		UserType:      userType,
 		UserId:        req.UserId,
@@ -288,7 +290,7 @@ func ForwardThreadMessageToDM(db *storage.Database, req models.ForwardThreadMess
 			OriginalCreatedAt:       time.Now().UTC(),
 			IsThread:                true,
 		},
-		OrgansationID: dmChannel.OrgId,
+		OrganisationID: dmChannel.OrgId,
 	}
 
 	if err := threadDoc.CreateThread(db, logger); err != nil {
