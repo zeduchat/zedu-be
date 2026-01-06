@@ -3,6 +3,8 @@ package models
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"slices"
 	"sort"
 	"strings"
@@ -49,6 +51,8 @@ type DmChannelsResponse struct {
 	LastReadAt       time.Time `json:"last_read_at"`
 	UserId           string    `json:"-"`
 	PreviewMessage   string    `json:"preview_message"`
+	PreviewThread    []Threads `json:"preview_thread"`
+	Participants     []gin.H   `json:"participants"`
 }
 
 type DmChannelsRequest struct {
@@ -253,6 +257,23 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	}
 
 	for _, dmchan := range dmchans {
+		previewThread := []Threads{}
+		participants := []gin.H{}
+
+		threadCtx := &gin.Context{
+			Request: &http.Request{
+				URL: &url.URL{
+					RawQuery: "page=1&limit=50",
+				},
+			},
+		}
+
+		var thread Threads
+		threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, dm.UserId, dmchan.ChannelId)
+		if threadErr == nil && len(threads) > 0 {
+			previewThread = threads
+		}
+
 		if dmchan.ChannelType == "dm" || dmchan.ChannelType == "" {
 			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
 			if err != nil {
@@ -261,6 +282,16 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 			if userDetails.Profile.UserName == "" {
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+			}
+
+			participants = []gin.H{
+				{
+					"avatar_url": userDetails.Profile.AvatarURL,
+					"username":   userDetails.Profile.UserName,
+					"email":      userDetails.Email,
+					"user_type":  "user",
+					"user_id":    dmchan.ParticipantId,
+				},
 			}
 
 			previewMessage := dmchan.GetLastMessageByChannelId(db, dmchan.ChannelId)
@@ -276,6 +307,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				ThreadCount:      dmchan.ThreadCount,
 				LastReadAt:       dmchan.LastReadAt,
 				PreviewMessage:   previewMessage,
+				PreviewThread:    previewThread,
+				Participants:     participants,
 			})
 		} else if dmchan.ChannelType == "group_dm" {
 
@@ -299,6 +332,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				}
 
 				usernames = append(usernames, userDetails.Profile.UserName)
+
+				participants = append(participants, gin.H{
+					"avatar_url": userDetails.Profile.AvatarURL,
+					"username":   userDetails.Profile.UserName,
+					"email":      userDetails.Email,
+					"user_type":  "user",
+					"user_id":    part.UserId,
+				})
 
 				if profilePic == "" {
 					profilePic = userDetails.Profile.AvatarURL
@@ -330,6 +371,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				ThreadCount:      chanParti.ThreadCount,
 				LastReadAt:       chanParti.LastReadAt,
 				PreviewMessage:   previewMessage,
+				PreviewThread:    previewThread,
+				Participants:     participants,
 			})
 
 		}
