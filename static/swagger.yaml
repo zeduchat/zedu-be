@@ -13988,6 +13988,122 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/onesignal-subscription-id:
+    post:
+      tags:
+        - user
+      summary: Register OneSignal subscription ID
+      description: Register a new OneSignal subscription ID for push notifications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OneSignalSubscriptionIDRequestSchema"
+      responses:
+        "200":
+          description: OneSignal subscription ID registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneSignalSubscriptionIDResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    put:
+      tags:
+        - user
+      summary: Update OneSignal subscription ID
+      description: Update OneSignal subscription ID for authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OneSignalSubscriptionIDRequestSchema"
+      responses:
+        "200":
+          description: OneSignal subscription ID updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneSignalSubscriptionIDResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    get:
+      tags:
+        - user
+      summary: Get OneSignal subscription ID
+      description: Retrieve OneSignal subscription ID for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OneSignal subscription ID retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneSignalSubscriptionIDResponseSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /optin:
     post:
       tags:
@@ -27782,6 +27898,55 @@ components:
       required:
         - status
         - message
+
+    OneSignalSubscriptionIDRequestSchema:
+      type: object
+      properties:
+        subscription_id:
+          type: string
+          description: The OneSignal subscription ID
+          example: "6392d91a-b206-4b7b-a620-cd68e6a953e0"
+        platform:
+          type: string
+          description: The platform type (iOS, Android, Web)
+          example: "iOS"
+          enum:
+            - iOS
+            - Android
+            - Web
+      required:
+        - subscription_id
+
+    OneSignalSubscriptionIDResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+          description: Response status
+        message:
+          type: string
+          example: "OneSignal subscription ID registered successfully"
+          description: Response message
+        data:
+          type: object
+          properties:
+            user_id:
+              type: string
+              format: uuid
+              example: "019142c8-5408-7a48-8173-f31e6c8e00cd"
+              description: The user ID
+            subscription_id:
+              type: string
+              example: "6392d91a-b206-4b7b-a620-cd68e6a953e0"
+              description: The registered OneSignal subscription ID
+          required:
+            - user_id
+            - subscription_id
+      required:
+        - status
+        - message
+        - data
 
     WebhookHistory:
       type: object
