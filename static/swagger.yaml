@@ -9212,10 +9212,37 @@ paths:
                         channel_id:
                           type: string
                           format: uuid
-                        avatar_url:
-                          type: string
+                          description: The unique identifier of the DM channel
                         username:
                           type: string
+                          description: The username or display name of the participant(s)
+                        participant_id:
+                          type: string
+                          format: uuid
+                          description: The ID of the participant (for DM) or empty for group DM
+                        participant_email:
+                          type: string
+                          description: The email of the participant
+                        avatar_url:
+                          type: string
+                          description: The avatar URL of the participant
+                        channel_type:
+                          type: string
+                          enum: [dm, group_dm]
+                          description: The type of channel (dm or group_dm)
+                        thread_count:
+                          type: integer
+                          description: The number of unread threads in the channel
+                        last_thread_id:
+                          type: string
+                          description: The ID of the last thread in the channel
+                        last_read_at:
+                          type: string
+                          format: date-time
+                          description: The timestamp when the user last read messages in the channel
+                        preview_message:
+                          type: string
+                          description: A preview of the last message in the channel
                   pagination:
                     type: array
                     items:
