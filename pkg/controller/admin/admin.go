@@ -120,3 +120,16 @@ func (base *Controller) DeleteAdmin(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Admin deleted successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) ListUsers(c *gin.Context) {
+
+	users, paginationResponse, code, err := admin.ListUsers(base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+}

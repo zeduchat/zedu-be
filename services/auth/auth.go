@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -225,7 +226,11 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		return responseData, 400, fmt.Errorf("invalid email and password supplied")
 	}
 
+	// Update user active status and last login timestamp
+	now := time.Now()
 	user.IsActive = true
+	user.LastLogInAt = &now
+
 	if err := db.Save(&user).Error; err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: %w", err)
 	}

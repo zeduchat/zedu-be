@@ -162,3 +162,62 @@ func GenerateStrongPassword(length int) (string, error) {
 
 	return password, nil
 }
+
+type UserListItem struct {
+	ID             string  `json:"id"`
+	Email          string  `json:"email"`
+	Name           string  `json:"name"`
+	CreatedAt      string  `json:"created_at"`
+	LastLogInAt    *string `json:"last_log_in_at"`
+	LastActivityAt *string `json:"last_activity_at"`
+}
+
+func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
+	var users []models.User
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		db,
+		"created_at",
+		"desc",
+		pagination,
+		&users,
+		"deleted_at IS NULL",
+	)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, paginationResponse, http.StatusNoContent, nil
+		}
+		return nil, paginationResponse, http.StatusBadRequest, err
+	}
+
+	if len(users) == 0 {
+		return []map[string]any{}, paginationResponse, http.StatusOK, nil
+	}
+
+	resp := make([]map[string]any, 0, len(users))
+	for _, u := range users {
+		var lastLogInAt *string
+		if u.LastLogInAt != nil {
+			formatted := u.LastLogInAt.Format("2006-01-02T15:04:05Z07:00")
+			lastLogInAt = &formatted
+		}
+
+		var lastActivityAt *string
+		if u.LastActivityAt != nil {
+			formatted := u.LastActivityAt.Format("2006-01-02T15:04:05Z07:00")
+			lastActivityAt = &formatted
+		}
+
+		resp = append(resp, map[string]any{
+			"id":               u.ID,
+			"email":            u.Email,
+			"name":             u.Name,
+			"created_at":       u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			"last_log_in_at":   lastLogInAt,
+			"last_activity_at": lastActivityAt,
+		})
+	}
+
+	return resp, paginationResponse, http.StatusOK, nil
+}
