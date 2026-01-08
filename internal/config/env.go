@@ -22,6 +22,7 @@ type Configuration struct {
 	RabbitMQ     RabbitMQ
 	Elastic      ElasticDb
 	Firebase     Firebase
+	OneSignal    OneSignal
 	MongoDB      MongoDB
 	OpenRouter   OpenRouter
 	Admin        Admin
@@ -140,6 +141,10 @@ type BaseConfig struct {
 
 	AGORA_APP_ID          string `mapstructure:"AGORA_APP_ID"`
 	AGORA_APP_CERTIFICATE string `mapstructure:"AGORA_APP_CERTIFICATE"`
+
+	ONESIGNAL_APP_ID       string `mapstructure:"ONESIGNAL_APP_ID"`
+	ONESIGNAL_REST_API_KEY string `mapstructure:"ONESIGNAL_REST_API_KEY"`
+	ONESIGNAL_ENABLED      bool   `mapstructure:"ONESIGNAL_ENABLED"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -293,6 +298,11 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Agora: Agora{
 			AppId:          config.AGORA_APP_ID,
 			AppCertificate: config.AGORA_APP_CERTIFICATE,
+		},
+		OneSignal: OneSignal{
+			AppID:      config.ONESIGNAL_APP_ID,
+			RestAPIKey: config.ONESIGNAL_REST_API_KEY,
+			Enabled:    config.ONESIGNAL_ENABLED,
 		},
 	}
 }

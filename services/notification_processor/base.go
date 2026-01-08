@@ -111,6 +111,14 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 
 	logger.Info("sent fcm push notification to channel users")
 
+	// Push OneSignal notification to channel users
+	err = push_notifications.PushOneSignalToUsers(pushReq, logger, db)
+	if err != nil {
+		logger.Error("failed to send OneSignal notification to channel users, Err: %v", err.Error())
+	}
+
+	logger.Info("sent OneSignal push notification to channel users")
+
 	return nil
 }
 
@@ -148,6 +156,12 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			if err != nil {
 				logger.Error("Failed to send push notification to user %s: %v", channelId, err)
 				return fmt.Errorf("failed to send push notification to user %s: %v", channelId, err)
+			}
+
+			// Send OneSignal notification to single DM user
+			err = push_notifications.PushOneSignalToUser(pushReq, logger, db)
+			if err != nil {
+				logger.Error("Failed to send OneSignal notification to user %s: %v", channelId, err)
 			}
 
 			return nil
@@ -198,6 +212,12 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			err = push_notifications.PushFCMToUsers(pushReq, logger, db)
 			if err != nil {
 				logger.Error("failed to send push notification to users %s: %v", userIDs, err)
+			}
+
+			// Send OneSignal notification to group DM users
+			err = push_notifications.PushOneSignalToUsers(pushReq, logger, db)
+			if err != nil {
+				logger.Error("failed to send OneSignal notification to users %s: %v", userIDs, err)
 			}
 
 			logger.Info("sent fcm push notification to channel users")
