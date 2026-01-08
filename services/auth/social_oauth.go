@@ -216,6 +216,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 	responseData = gin.H{
 		"user": map[string]any{
 			"id":                        user.ID,
+			"user_id":                   user.ID,
 			"email":                     user.Email,
 			"username":                  user.Name,
 			"fullname":                  user.Name,

@@ -186,6 +186,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 	responseData = gin.H{
 		"user": map[string]any{
 			"id":                        userData.ID,
+			"user_id":                   userData.ID,
 			"email":                     userData.Email,
 			"username":                  userData.Name,
 			"is_verified":               userData.IsVerified,
@@ -263,6 +264,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		"user": map[string]any{
 			"id":                        userData.ID,
 			"email":                     userData.Email,
+			"user_id":                   userData.ID,
 			"username":                  userData.Name,
 			"is_verified":               userData.IsVerified,
 			"is_onboarded":              userData.IsOnboarded,
@@ -380,6 +382,7 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context)
 	responseData = gin.H{
 		"user": map[string]string{
 			"id":         user.ID,
+			"user_id":    user.ID,
 			"email":      user.Email,
 			"username":   user.Name,
 			"first_name": user.Profile.FirstName,
@@ -458,6 +461,7 @@ func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
 	responseData = gin.H{
 		"user": map[string]any{
 			"id":                        userData.ID,
+			"user_id":                   userData.ID,
 			"email":                     userData.Email,
 			"username":                  userData.Name,
 			"is_verified":               userData.IsVerified,
