@@ -31,6 +31,8 @@ type User struct {
 	Password                string         `gorm:"column:password; type:text; not null" json:"-"`
 	CreatedAt               time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt               time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	LastLogInAt             *time.Time     `gorm:"column:last_log_in_at;null" json:"last_log_in_at"`
+	LastActivityAt          *time.Time     `gorm:"column:last_activity_at;null" json:"last_activity_at"`
 	DeletedAt               gorm.DeletedAt `gorm:"index" json:"-"`
 	Role                    int            `gorm:"column:role" json:"role"`
 }
