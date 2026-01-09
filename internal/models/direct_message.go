@@ -304,7 +304,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		var thread Threads
 		threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, dm.UserId, dmchan.ChannelId)
 		if threadErr == nil && len(threads) > 0 {
-			slices.Reverse(threads)
 			previewThread = threads
 		}
 
