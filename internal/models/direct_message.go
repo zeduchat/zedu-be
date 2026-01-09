@@ -83,6 +83,16 @@ func FetchDetailsFromAgentJSON(agent OrganisationIntegrations) (map[string]any, 
 }
 
 func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse {
+	participants := []gin.H{
+		{
+			"avatar_url": appLogo,
+			"username":   appName,
+			"email":      appName,
+			"user_type":  "bot",
+			"user_id":    dm.ParticipantId,
+		},
+	}
+
 	return DmChannelsResponse{
 		ID:               dm.ChannelId,
 		ParticipantId:    *dm.ParticipantId,
@@ -92,6 +102,7 @@ func buildDmResponse(dm *DmChannels, appName, appLogo string) DmChannelsResponse
 		LastThreadId:     dm.LastThreadId,
 		ThreadCount:      dm.ThreadCount,
 		LastReadAt:       dm.LastReadAt,
+		Participants:     participants,
 	}
 }
 
@@ -140,11 +151,22 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 
 	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ? AND org_id = ?", dm.UserId, *dm.ParticipantId, dm.OrgId)
 	if exists {
+		participants := []gin.H{
+			{
+				"avatar_url": userDetails.Profile.AvatarURL,
+				"username":   userDetails.Profile.UserName,
+				"email":      userDetails.Email,
+				"user_type":  "user",
+				"user_id":    dm.ParticipantId,
+			},
+		}
+
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 		dmchanresp.Name = userDetails.Profile.UserName
 		dmchanresp.ID = existDmchan.ChannelId
 		dmchanresp.ParticipantId = *dm.ParticipantId
 		dmchanresp.ParticipantEmail = userDetails.Email
+		dmchanresp.Participants = participants
 
 		return dmchanresp, nil
 	}
@@ -154,11 +176,22 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		return dmchanresp, err
 	}
 
+	participants := []gin.H{
+		{
+			"avatar_url": userDetails.Profile.AvatarURL,
+			"username":   userDetails.Profile.UserName,
+			"email":      userDetails.Email,
+			"user_type":  "user",
+			"user_id":    dm.ParticipantId,
+		},
+	}
+
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 	dmchanresp.Name = userDetails.Profile.UserName
 	dmchanresp.ID = dm.ChannelId
 	dmchanresp.ParticipantId = *dm.ParticipantId
 	dmchanresp.ParticipantEmail = userDetails.Email
+	dmchanresp.Participants = participants
 
 	return dmchanresp, nil
 }
@@ -271,6 +304,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		var thread Threads
 		threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, dm.UserId, dmchan.ChannelId)
 		if threadErr == nil && len(threads) > 0 {
+			slices.Reverse(threads)
 			previewThread = threads
 		}
 
