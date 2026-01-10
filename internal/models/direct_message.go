@@ -50,8 +50,8 @@ type DmChannelsResponse struct {
 	LastThreadId     string    `json:"last_thread_id"`
 	LastReadAt       time.Time `json:"last_read_at"`
 	UserId           string    `json:"-"`
-	PreviewMessage   string    `json:"preview_message,omitempty"`
-	PreviewThread    []Threads `gorm:"-" json:"preview_thread,omitempty"`
+	PreviewMessage   string    `json:"preview_message"`
+	PreviewThread    []Threads `gorm:"-" json:"preview_thread"`
 	Participants     []gin.H   `gorm:"-" json:"participants,omitempty"`
 }
 
@@ -327,7 +327,10 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				},
 			}
 
-			previewMessage := previewThread[0].Content
+			previewMessage := ""
+			if len(previewThread) > 0 {
+				previewMessage = previewThread[0].Content
+			}
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
