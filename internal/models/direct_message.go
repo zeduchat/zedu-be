@@ -50,9 +50,9 @@ type DmChannelsResponse struct {
 	LastThreadId     string    `json:"last_thread_id"`
 	LastReadAt       time.Time `json:"last_read_at"`
 	UserId           string    `json:"-"`
-	PreviewMessage   string    `json:"preview_message"`
-	PreviewThread    []Threads `json:"preview_thread"`
-	Participants     []gin.H   `json:"participants"`
+	PreviewMessage   string    `json:"preview_message,omitempty"`
+	PreviewThread    []Threads `gorm:"-" json:"preview_thread,omitempty"`
+	Participants     []gin.H   `gorm:"-" json:"participants,omitempty"`
 }
 
 type DmChannelsRequest struct {
@@ -327,7 +327,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				},
 			}
 
-			previewMessage := dmchan.GetLastMessageByChannelId(db, dmchan.ChannelId)
+			previewMessage := previewThread[0].Content
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
@@ -566,6 +566,8 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 	chanInfo := map[string]func() ([]DmChannelsResponse, error){
 
 		"dm": func() ([]DmChannelsResponse, error) {
+			var user User
+			previewThread := []Threads{}
 
 			if err := db.Model(&DmChannels{}).
 				Select("dm_channels.*, dm_channels.channel_id as id, COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as name, p.avatar_url as avatar_url, u.email as participant_email").
@@ -573,8 +575,53 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				Joins("JOIN users AS u ON u.id = dm_channels.user_id").
 				Where("dm_channels.channel_id = ? AND dm_channels.user_id != ?", r.ChannelId, r.UserId).
 				Order("dm_channels.created_at").
+				Omit("preview_thread").
 				Scan(&chanResp).Error; err != nil {
 				return nil, errors.New("error fetching channels")
+			}
+
+			threadCtx := &gin.Context{
+				Request: &http.Request{
+					URL: &url.URL{
+						RawQuery: "page=1&limit=50",
+					},
+				},
+			}
+
+			var thread Threads
+			threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, r.UserId, r.ChannelId)
+			if threadErr == nil && len(threads) > 0 {
+				previewThread = threads
+			}
+
+			for i := range chanResp {
+				userDetails, err := user.GetUserByID(db, chanResp[i].UserId)
+				if err != nil {
+					continue
+				}
+
+				if userDetails.Profile.UserName == "" {
+					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+				}
+
+				participants := []gin.H{
+					{
+						"avatar_url": userDetails.Profile.AvatarURL,
+						"username":   userDetails.Profile.UserName,
+						"email":      userDetails.Email,
+						"user_type":  "user",
+						"user_id":    chanResp[i].UserId,
+					},
+				}
+
+				previewMessage := ""
+				if len(previewThread) > 0 {
+					previewMessage = previewThread[0].Content
+				}
+
+				chanResp[i].PreviewMessage = previewMessage
+				chanResp[i].PreviewThread = previewThread
+				chanResp[i].Participants = participants
 			}
 
 			return chanResp, nil
@@ -582,14 +629,17 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 		"group_dm": func() ([]DmChannelsResponse, error) {
 			var chanResp []DmChannelsResponse
+			var user User
+			previewThread := []Threads{}
 
 			var userProfiles []struct {
 				UserName  string
 				AvatarURL string
+				UserId    string
 			}
 
 			if err := db.Table("channel_participants AS cp").
-				Select("COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) AS user_name, p.avatar_url").
+				Select("COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) AS user_name, p.avatar_url, u.id as user_id").
 				Joins("JOIN users u ON u.id = cp.user_id").
 				Joins("LEFT JOIN profiles p ON p.userid = u.id").
 				Where("cp.channel_id = ?", r.ChannelId).
@@ -599,10 +649,22 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 			usernames := []string{}
 			profilePic := ""
+			participants := []gin.H{}
 			for _, prof := range userProfiles {
 				usernames = append(usernames, prof.UserName)
 				if profilePic == "" {
 					profilePic = prof.AvatarURL
+				}
+
+				userDetails, err := user.GetUserByID(db, prof.UserId)
+				if err == nil {
+					participants = append(participants, gin.H{
+						"avatar_url": userDetails.Profile.AvatarURL,
+						"username":   userDetails.Profile.UserName,
+						"email":      userDetails.Email,
+						"user_type":  "user",
+						"user_id":    prof.UserId,
+					})
 				}
 			}
 			sort.Strings(usernames)
@@ -624,8 +686,34 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				Joins("JOIN users u ON u.id = cp.user_id").
 				Where("cp.channel_id = ? AND cp.user_id != ?", r.ChannelId, r.UserId).
 				Order("cp.created_at").
+				Omit("PreviewThread").
 				Scan(&chanResp).Error; err != nil {
 				return nil, fmt.Errorf("error fetching participants for channel %s: %w", r.ChannelId, err)
+			}
+
+			threadCtx := &gin.Context{
+				Request: &http.Request{
+					URL: &url.URL{
+						RawQuery: "page=1&limit=50",
+					},
+				},
+			}
+
+			var thread Threads
+			threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, r.UserId, r.ChannelId)
+			if threadErr == nil && len(threads) > 0 {
+				previewThread = threads
+			}
+
+			for i := range chanResp {
+				previewMessage := ""
+				if len(previewThread) > 0 {
+					previewMessage = previewThread[0].Content
+				}
+
+				chanResp[i].PreviewMessage = previewMessage
+				chanResp[i].PreviewThread = previewThread
+				chanResp[i].Participants = participants
 			}
 
 			return chanResp, nil

@@ -30,7 +30,7 @@ type Threads struct {
 	ActionType               string                    `gorm:"type:text;index" json:"action_type,omitempty"`
 	Status                   string                    `gorm:"type:varchar(200);index" json:"status,omitempty"`
 	CreatedAt                time.Time                 `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages                 []Message                 `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	Messages                 []Message                 `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages,omitempty"`
 	MessageCount             int64                     `gorm:"type:int;" json:"message_count,omitempty"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
@@ -47,7 +47,7 @@ type Threads struct {
 	UserType                 string                    `json:"user_type"`
 	Count                    int                       `json:"frequency,omitempty"`
 	UserId                   string                    `json:"user_id"`
-	Media                    []File                    `json:"media,omitempty"`
+	Media                    []File                    `gorm:"-" json:"media,omitempty"`
 	Mentions                 []Mention                 `json:"mentions,omitempty"`
 	OrganisationID           string                    `json:"org_id,omitempty"`
 	State                    string                    `json:"state,omitempty"`
