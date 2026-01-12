@@ -1059,7 +1059,8 @@ func (r *DmChannels) GetLastMessageByChannelId(db *gorm.DB, channelId string) st
 func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, mediaType string) ([]File, postgresql.PaginationResponse, error) {
 	pagination := postgresql.GetPagination(c)
 
-	// Build the base query for threads in this channel
+	// Build the base query for threads in this channel that have media
+	// Note: media is not a nested type in the index, so we use a simple exists query
 	query := map[string]any{
 		"query": map[string]any{
 			"bool": map[string]any{
@@ -1069,14 +1070,11 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 							"channels_id.keyword": dm.ChannelId,
 						},
 					},
+				},
+				"filter": []map[string]any{
 					{
-						"nested": map[string]any{
-							"path": "media",
-							"query": map[string]any{
-								"exists": map[string]any{
-									"field": "media.id",
-								},
-							},
+						"exists": map[string]any{
+							"field": "media",
 						},
 					},
 				},

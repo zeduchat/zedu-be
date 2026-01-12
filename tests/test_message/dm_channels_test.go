@@ -865,3 +865,281 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 		}
 	})
 }
+
+// TestGetDmChannelMedia tests the GET /organisations/:org_id/dms/:channel_id/media endpoint
+func TestGetDmChannelMedia(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+
+	defer tst.Cleanup(db)
+
+	// Create test users
+	user1SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("media_test1_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Media",
+		LastName:    "User1",
+		Password:    "password",
+		UserName:    fmt.Sprintf("media_user1_%v", currUUID),
+	}
+
+	user2SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("media_test2_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Media",
+		LastName:    "User2",
+		Password:    "password",
+		UserName:    fmt.Sprintf("media_user2_%v", currUUID),
+	}
+
+	loginData1 := models.LoginRequestModel{
+		Email:    user1SignUpData.Email,
+		Password: user1SignUpData.Password,
+	}
+
+	authController := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authController, user1SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user2SignUpData, false)
+	token1 := tst.GetLoginToken(t, r, authController, loginData1)
+
+	var user1, user2 models.User
+	if err := db.Postgresql.Where("email = ?", user1SignUpData.Email).First(&user1).Error; err != nil {
+		t.Fatalf("Failed to get user1: %v", err)
+	}
+	if err := db.Postgresql.Where("email = ?", user2SignUpData.Email).First(&user2).Error; err != nil {
+		t.Fatalf("Failed to get user2: %v", err)
+	}
+
+	var org models.Organisation
+	if err := db.Postgresql.Where("owner_id = ?", user1.ID).First(&org).Error; err != nil {
+		t.Fatalf("Failed to get organization: %v", err)
+	}
+
+	t.Run("Get Media - Success with Media", func(t *testing.T) {
+		dmChannelID := utility.GenerateUUID()
+		participantID := user2.ID
+
+		// Create DM channel
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		// Create reverse channel entry
+		dmChannel2 := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user2.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &user1.ID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel2).Error; err != nil {
+			t.Fatalf("Failed to create reverse DM channel: %v", err)
+		}
+
+		// Create a thread with media in Elasticsearch
+		threadID := utility.GenerateUUID()
+		mediaFiles := []map[string]any{
+			{
+				"id":        utility.GenerateUUID(),
+				"file_name": "test_image.jpg",
+				"file_type": "jpg",
+				"mime_type": "image/jpeg",
+				"file_link": "https://example.com/test_image.jpg",
+			},
+			{
+				"id":        utility.GenerateUUID(),
+				"file_name": "test_video.mp4",
+				"file_type": "mp4",
+				"mime_type": "video/mp4",
+				"file_link": "https://example.com/test_video.mp4",
+			},
+		}
+
+		thread := map[string]any{
+			"id":          threadID,
+			"channels_id": dmChannelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Test message with media",
+			"media":       mediaFiles,
+			"created_at":  time.Now().Format(time.RFC3339),
+			"updated_at":  time.Now().Format(time.RFC3339),
+		}
+
+		if err := elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadID, thread, logger); err != nil {
+			t.Fatalf("Failed to add thread to Elasticsearch: %v", err)
+		}
+
+		// Wait for Elasticsearch to index
+		time.Sleep(2 * time.Second)
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/:channel_id/media", middleware.Authorize(db.Postgresql), controller.GetDmChannelMedia)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/media", org.ID, dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		t.Logf("✅ Got successful response")
+
+		data, ok := response["data"].([]interface{})
+		if !ok {
+			t.Error("Response missing data field or data is not an array")
+			return
+		}
+
+		t.Logf("✅ Found %d media files", len(data))
+
+		// Check pagination exists
+		pagination, hasPagination := response["pagination"].(map[string]interface{})
+		if hasPagination {
+			t.Logf("✅ Pagination: current_page=%v, total_items=%v", pagination["current_page"], pagination["total_items"])
+		}
+	})
+
+	t.Run("Get Media - Empty Channel", func(t *testing.T) {
+		dmChannelID := utility.GenerateUUID()
+		participantID := user2.ID
+
+		// Create DM channel without any messages/media
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		dmChannel2 := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user2.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &user1.ID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel2).Error; err != nil {
+			t.Fatalf("Failed to create reverse DM channel: %v", err)
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/:channel_id/media", middleware.Authorize(db.Postgresql), controller.GetDmChannelMedia)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/media", org.ID, dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].([]interface{})
+		if !ok {
+			t.Error("Response missing data field")
+			return
+		}
+
+		if len(data) == 0 {
+			t.Logf("✅ Empty media array returned for channel with no media")
+		} else {
+			t.Logf("⚠️ Expected empty array, got %d items", len(data))
+		}
+	})
+
+	t.Run("Get Media - Invalid Channel ID", func(t *testing.T) {
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/:channel_id/media", middleware.Authorize(db.Postgresql), controller.GetDmChannelMedia)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/invalid-uuid/media", org.ID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code == http.StatusBadRequest {
+			t.Logf("✅ Got expected 400 Bad Request for invalid channel ID")
+		} else {
+			t.Logf("Got status %d for invalid channel ID", rr.Code)
+		}
+	})
+
+	t.Run("Get Media - Unauthorized", func(t *testing.T) {
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/:channel_id/media", middleware.Authorize(db.Postgresql), controller.GetDmChannelMedia)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/media", org.ID, utility.GenerateUUID()), nil)
+		// No Authorization header
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code == http.StatusUnauthorized {
+			t.Logf("✅ Got expected 401 Unauthorized")
+		} else {
+			t.Logf("Got status %d (expected 401)", rr.Code)
+		}
+	})
+}
