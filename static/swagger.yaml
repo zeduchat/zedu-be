@@ -98,16 +98,74 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
-  - name: Skills
-    description: API endpoints for agents skills
-  - name: Tasks
-    description: API endpoints for agents tasks
-  - name: Translator
-    description: API endpoints for telex markdown to json formatting engine
-  - name: buzz
-    description: API endpoints for buzz (audio/video calls) feature
-
+  - name: Super Admin
+    description: API endpoints for superadmin dashboard and operations
 paths:
+  # Super Admin Dashboard paths
+  /backoffice/dashboard/credits-summary:
+    get:
+      tags:
+        - Super Admin
+      summary: Get platform credit summary for superadmin dashboard
+      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform credit summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Platform credit summary retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/PlatformCreditMetrics"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Unauthorized"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Access denied. Super admin privileges required."
+        "500":
+          description: Internal server error - Failed to fetch platform credit summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch platform credit summary"
+
   # Auth paths
   /auth/register:
     post:
@@ -28471,6 +28529,37 @@ components:
         status_code:
           type: integer
           example: 200
+
+    PlatformCreditMetrics:
+      type: object
+      description: Platform-wide credit statistics for superadmin dashboard
+      properties:
+        total_credited:
+          type: number
+          format: float64
+          description: Total credits purchased across all organizations
+          example: 50000.0
+        total_used:
+          type: number
+          format: float64
+          description: Total credits consumed across all organizations
+          example: 15000.0
+        total_balance:
+          type: number
+          format: float64
+          description: Current available credit balance across all organizations (total_credited - total_used)
+          example: 35000.0
+        total_organizations:
+          type: integer
+          format: int64
+          description: Total number of organizations on the platform
+          example: 120
+        active_organizations:
+          type: integer
+          format: int64
+          description: Number of organizations with positive credit balance
+          example: 45
+
   securitySchemes:
     bearerAuth:
       type: http

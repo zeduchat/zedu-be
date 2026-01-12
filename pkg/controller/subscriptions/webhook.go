@@ -79,7 +79,7 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			org_id := checkoutSession.Metadata["org_id"]
 			package_id := checkoutSession.Metadata["package_id"]
 
-			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id)
+			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id, base.Logger)
 			if err != nil {
 				rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
 				c.JSON(code, rd)

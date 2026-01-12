@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -82,7 +83,7 @@ type CreditTopUpRequest struct {
 }
 
 func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
-	err := postgresql.CreateOneRecord(db, c)
+	err := postgresql.CreateOneRecord(db, &c)
 	if err != nil {
 		return err
 	}
@@ -162,7 +163,7 @@ func UpdateOrgCreditBalance(db *gorm.DB, organisationID string) error {
 		Update("credit_balance", balance).Error
 }
 
-func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, error) {
+func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string, logger *utility.Logger) (*gin.H, int, error) {
 	var org Organisation
 
 	org, err := org.GetOrgByID(db, OrgID)
@@ -195,6 +196,9 @@ func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, e
 	if err = UpdateOrgCreditBalance(db, OrgID); err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
+
+	// Publish real-time update to superadmin dashboard (async)
+	go PublishPlatformCreditUpdate(db, logger)
 
 	// refetch org with updated values
 	org, err = org.GetOrgByID(db, OrgID)
@@ -405,4 +409,66 @@ func GetAllCreditUsage(db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, post
 	}
 
 	return creditUsageResponses, paginationResponse, nil
+}
+
+type PlatformCreditMetrics struct {
+	TotalCredited       float64 `json:"total_credited"`
+	TotalUsed           float64 `json:"total_used"`
+	TotalBalance        float64 `json:"total_balance"`
+	TotalOrganizations  int64   `json:"total_organizations"`
+	ActiveOrganizations int64   `json:"active_organizations"`
+}
+
+func GetPlatformCreditSummary(db *gorm.DB) (PlatformCreditMetrics, error) {
+	var metrics PlatformCreditMetrics
+
+	if err := db.Model(&CreditTransaction{}).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&metrics.TotalCredited).Error; err != nil {
+		return metrics, fmt.Errorf("failed to calculate total credited: %w", err)
+	}
+
+	if err := db.Model(&CreditUsage{}).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&metrics.TotalUsed).Error; err != nil {
+		return metrics, fmt.Errorf("failed to calculate total used: %w", err)
+	}
+
+	metrics.TotalBalance = metrics.TotalCredited - metrics.TotalUsed
+
+	if err := db.Model(&Organisation{}).
+		Count(&metrics.TotalOrganizations).Error; err != nil {
+		return metrics, fmt.Errorf("failed to count organizations: %w", err)
+	}
+
+	if err := db.Model(&Organisation{}).
+		Where("credit_balance > ?", 0).
+		Count(&metrics.ActiveOrganizations).Error; err != nil {
+		return metrics, fmt.Errorf("failed to count active organizations: %w", err)
+	}
+
+	return metrics, nil
+}
+
+func PublishPlatformCreditUpdate(db *gorm.DB, logger *utility.Logger) {
+	metrics, err := GetPlatformCreditSummary(db)
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to get platform credit summary for publishing", err)
+		}
+		return
+	}
+
+	channelID := "superadmin:dashboard:credits"
+
+	if err := centrifuge.PublishChannelOptional(logger, channelID, metrics); err != nil {
+		if logger != nil {
+			logger.Error("Failed to publish platform credit update to centrifuge", err)
+		}
+		return
+	}
+
+	if logger != nil {
+		logger.Info("Published platform credit update to channel %s", channelID)
+	}
 }

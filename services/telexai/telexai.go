@@ -41,8 +41,6 @@ func RespondToChat(w http.ResponseWriter, db *storage.Database, logger *utility.
 	return response, code, nil
 }
 
-
-
 func StreamChatCompletions(w http.ResponseWriter, db *storage.Database, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, ids models.IDS) error {
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -250,7 +248,7 @@ func ListModels(logger *utility.Logger, extReq request.ExternalRequest, redisCli
 
 func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalRequest, req models.TelexAIChatCompletionsReq) (map[string]any, int, error) {
 	openRouterPayload := external_models.OpenRouterReq{
-		Model:    "google/gemini-2.0-flash-001",
+		Model: "google/gemini-2.0-flash-001",
 		// Model: "anthropic/claude-3.5-haiku",
 		// Model: "openai/gpt-4.1-nano",
 		Messages: req.Messages,
@@ -279,7 +277,6 @@ func TranslatorCompletions(logger *utility.Logger, extReq request.ExternalReques
 
 	return result, http.StatusOK, nil
 }
-
 
 func ExtractModel(c *gin.Context, logger *utility.Logger, req models.TelexAIChatCompletionsReq, extReq request.ExternalRequest, redis *redis.Client) (string, error) {
 	var (
@@ -349,6 +346,9 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 	if err = models.UpdateOrgCreditBalance(db.Postgresql, ids.OrganisationID); err != nil {
 		logger.Error("Organisation credit Recalculation failed")
 	}
+
+	// Publish real-time update to superadmin dashboard (async)
+	go models.PublishPlatformCreditUpdate(db.Postgresql, logger)
 
 	return nil
 }

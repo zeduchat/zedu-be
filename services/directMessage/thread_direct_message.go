@@ -587,6 +587,9 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
 
+	// Publish real-time update to superadmin dashboard (async)
+	go models.PublishPlatformCreditUpdate(db.Postgresql, logger)
+
 	return &threadDoc, http.StatusCreated, nil
 }
 
