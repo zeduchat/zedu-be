@@ -106,6 +106,8 @@ tags:
     description: API endpoints for telex markdown to json formatting engine
   - name: buzz
     description: API endpoints for buzz (audio/video calls) feature
+  - name: shares
+    description: API endpoints for buying and tracking shares
 
 paths:
   # Auth paths
@@ -4582,6 +4584,183 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # Shares endpoints
+  /shares:
+    post:
+      tags:
+        - shares
+      summary: Buy shares
+      description: Purchase shares on Telex
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                number_of_shares:
+                  type: integer
+                  minimum: 1
+                  example: 10
+                price_purchased:
+                  type: number
+                  format: float
+                  example: 1.50
+              required:
+                - number_of_shares
+                - price_purchased
+      responses:
+        "201":
+          description: Share purchased successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share created successfully"
+                  data:
+                    $ref: "#/components/schemas/ShareSchema"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+    get:
+      tags:
+        - shares
+      summary: Get my shares
+      description: Retrieve all share purchases for the authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageLimitParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Shares retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "shares retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ShareSchema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /shares/performance:
+    get:
+      tags:
+        - shares
+      summary: Get share performance
+      description: Get portfolio performance with profit/loss calculations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Performance retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share performance retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/SharePerformanceSchema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /shares/{id}:
+    get:
+      tags:
+        - shares
+      summary: Get a specific share
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Share retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/ShareSchema"
+        "404":
+          description: Share not found
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    delete:
+      tags:
+        - shares
+      summary: Delete/sell a share
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Share deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share deleted successfully"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /contact:
     post:
@@ -23982,6 +24161,58 @@ components:
             - private
           description: Status visibility level
           example: "public"
+
+    ShareSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        user_id:
+          type: string
+          format: uuid
+          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+        number_of_shares:
+          type: integer
+          example: 10
+        price_purchased:
+          type: number
+          format: float
+          example: 1.50
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SharePerformanceSchema:
+      type: object
+      properties:
+        total_shares:
+          type: integer
+          example: 100
+        total_invested:
+          type: number
+          format: float
+          example: 150.00
+        current_price_per_share:
+          type: number
+          format: float
+          example: 2.00
+        current_value:
+          type: number
+          format: float
+          example: 200.00
+        profit_loss:
+          type: number
+          format: float
+          example: 50.00
+        performance_percent:
+          type: number
+          format: float
+          example: 33.33
 
     UserStatusResponse:
       type: object
