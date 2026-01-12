@@ -51,8 +51,8 @@ type DmChannelsResponse struct {
 	LastReadAt       time.Time `json:"last_read_at"`
 	UserId           string    `json:"-"`
 	PreviewMessage   string    `json:"preview_message"`
-	PreviewThread    []Threads `json:"preview_thread"`
-	Participants     []gin.H   `json:"participants"`
+	PreviewThread    []Threads `gorm:"-" json:"preview_thread"`
+	Participants     []gin.H   `gorm:"-" json:"participants,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 }
 
