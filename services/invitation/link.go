@@ -387,6 +387,7 @@ func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) g
 	return gin.H{
 		"user": map[string]any{
 			"id":              user.ID,
+			"user_id":         user.ID,
 			"email":           user.Email,
 			"username":        user.Name,
 			"is_onboarded":    user.IsOnboarded,

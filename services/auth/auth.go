@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -185,6 +186,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 	responseData = gin.H{
 		"user": map[string]any{
 			"id":                        userData.ID,
+			"user_id":                   userData.ID,
 			"email":                     userData.Email,
 			"username":                  userData.Name,
 			"is_verified":               userData.IsVerified,
@@ -225,7 +227,11 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		return responseData, 400, fmt.Errorf("invalid email and password supplied")
 	}
 
+	// Update user active status and last login timestamp
+	now := time.Now()
 	user.IsActive = true
+	user.LastLogInAt = &now
+
 	if err := db.Save(&user).Error; err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: %w", err)
 	}
@@ -258,6 +264,7 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		"user": map[string]any{
 			"id":                        userData.ID,
 			"email":                     userData.Email,
+			"user_id":                   userData.ID,
 			"username":                  userData.Name,
 			"is_verified":               userData.IsVerified,
 			"is_onboarded":              userData.IsOnboarded,
@@ -375,6 +382,7 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context)
 	responseData = gin.H{
 		"user": map[string]string{
 			"id":         user.ID,
+			"user_id":    user.ID,
 			"email":      user.Email,
 			"username":   user.Name,
 			"first_name": user.Profile.FirstName,
@@ -453,6 +461,7 @@ func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
 	responseData = gin.H{
 		"user": map[string]any{
 			"id":                        userData.ID,
+			"user_id":                   userData.ID,
 			"email":                     userData.Email,
 			"username":                  userData.Name,
 			"is_verified":               userData.IsVerified,

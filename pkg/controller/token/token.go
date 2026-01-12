@@ -2,6 +2,7 @@ package token
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -77,7 +78,8 @@ func (base *Controller) GetSubToken(c *gin.Context) {
 
 	respData, code, err := token.GetSubToken(userId, req, base.Db.Postgresql)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		base.Logger.Error("An error occured while getting subscription token, error: %v", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, fmt.Sprintf("an error occured: %v", err.Error()), err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

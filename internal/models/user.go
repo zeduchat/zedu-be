@@ -12,26 +12,29 @@ import (
 )
 
 type User struct {
-	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	Name           string         `gorm:"column:name; type:varchar(255)" json:"name"`
-	Email          string         `gorm:"column:email; type:varchar(255)" json:"email"`
-	IsVerified     bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
-	Deactivated    bool           `gorm:"column:deactivated; type:bool" json:"deactivated"`
-	IsActive       bool           `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
-	IsOnboarded    bool           `gorm:"column:is_onboarded; type:bool" json:"is_onboarded"`
-	ProfileUpdated bool           `gorm:"column:profile_updated; type:bool" json:"profile_updated"`
-	CurrentOrg     uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
-	Profile        Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
-	Channelss      []Channels     `gorm:"many2many:user_channels;" json:"channels"`
-	Organisations  []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`
-	OrgRoleID      *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
-	UserRoleID     *string        `gorm:"type:varchar(100);null;index" json:"user_role_id"`
-	OrgRole        OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
-	Password       string         `gorm:"column:password; type:text; not null" json:"-"`
-	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-	Role           int            `gorm:"column:role" json:"role"`
+	ID                      string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	Name                    string         `gorm:"column:name; type:varchar(255)" json:"name"`
+	Email                   string         `gorm:"column:email; type:varchar(255)" json:"email"`
+	IsVerified              bool           `gorm:"column:is_verified; type:bool" json:"is_verified"`
+	Deactivated             bool           `gorm:"column:deactivated; type:bool" json:"deactivated"`
+	IsActive                bool           `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
+	IsOnboarded             bool           `gorm:"column:is_onboarded; type:bool" json:"is_onboarded"`
+	ProfileUpdated          bool           `gorm:"column:profile_updated; type:bool" json:"profile_updated"`
+	CurrentOrg              uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
+	OneSignalSubscriptionID string         `gorm:"column:onesignal_subscription_id; type:varchar(255); null" json:"onesignal_subscription_id"`
+	Profile                 Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
+	Channelss               []Channels     `gorm:"many2many:user_channels;" json:"channels"`
+	Organisations           []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`
+	OrgRoleID               *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
+	UserRoleID              *string        `gorm:"type:varchar(100);null;index" json:"user_role_id"`
+	OrgRole                 OrgRole        `gorm:"foreignKey:OrgRoleID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"org_role"`
+	Password                string         `gorm:"column:password; type:text; not null" json:"-"`
+	CreatedAt               time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt               time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	LastLogInAt             *time.Time     `gorm:"column:last_log_in_at;null" json:"last_log_in_at"`
+	LastActivityAt          *time.Time     `gorm:"column:last_activity_at;null" json:"last_activity_at"`
+	DeletedAt               gorm.DeletedAt `gorm:"index" json:"-"`
+	Role                    int            `gorm:"column:role" json:"role"`
 }
 
 type CreateUserRequestModel struct {
@@ -156,6 +159,18 @@ func (u *User) GetProfileID(db *gorm.DB, userID string) (string, error) {
 	}
 
 	return user.Profile.ID, nil
+}
+
+func (u *User) GetOneSignalSubscriptionID(db *gorm.DB, userID string) (string, error) {
+	var user User
+
+	query := db.Where("id = ?", userID)
+
+	if err := query.First(&user).Error; err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+
+	return user.OneSignalSubscriptionID, nil
 }
 
 func (u *User) GetUserWithProfile(db *gorm.DB, userID string) (User, error) {
