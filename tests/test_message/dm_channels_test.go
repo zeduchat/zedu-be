@@ -517,3 +517,351 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 		}
 	})
 }
+
+// TestGetDmChannelsAdminAndTitle tests that the is_admin and title fields are correctly returned
+func TestGetDmChannelsAdminAndTitle(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+
+	defer tst.Cleanup(db)
+
+	// Create user 1 (will be admin/creator)
+	user1SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("admin_test_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Admin",
+		LastName:    "User",
+		Password:    "password",
+		UserName:    fmt.Sprintf("admin_user_%v", currUUID),
+	}
+
+	// Create user 2 (will be a regular participant)
+	user2SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("member_test_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Member",
+		LastName:    "User",
+		Password:    "password",
+		UserName:    fmt.Sprintf("member_user_%v", currUUID),
+	}
+
+	// Create user 3
+	user3SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("member2_test_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Member2",
+		LastName:    "User",
+		Password:    "password",
+		UserName:    fmt.Sprintf("member2_user_%v", currUUID),
+	}
+
+	loginData1 := models.LoginRequestModel{
+		Email:    user1SignUpData.Email,
+		Password: user1SignUpData.Password,
+	}
+
+	authController := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authController, user1SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user2SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user3SignUpData, false)
+	token1 := tst.GetLoginToken(t, r, authController, loginData1)
+
+	var user1, user2, user3 models.User
+	if err := db.Postgresql.Where("email = ?", user1SignUpData.Email).First(&user1).Error; err != nil {
+		t.Fatalf("Failed to get user1: %v", err)
+	}
+	if err := db.Postgresql.Where("email = ?", user2SignUpData.Email).First(&user2).Error; err != nil {
+		t.Fatalf("Failed to get user2: %v", err)
+	}
+	if err := db.Postgresql.Where("email = ?", user3SignUpData.Email).First(&user3).Error; err != nil {
+		t.Fatalf("Failed to get user3: %v", err)
+	}
+
+	var org models.Organisation
+	if err := db.Postgresql.Where("owner_id = ?", user1.ID).First(&org).Error; err != nil {
+		t.Fatalf("Failed to get organization: %v", err)
+	}
+
+	// Update user profiles with titles
+	user1Title := "Senior Engineer"
+	user2Title := "Product Manager"
+	user3Title := "Designer"
+
+	db.Postgresql.Model(&models.Profile{}).Where("userid = ?", user1.ID).Update("title", user1Title)
+	db.Postgresql.Model(&models.Profile{}).Where("userid = ?", user2.ID).Update("title", user2Title)
+	db.Postgresql.Model(&models.Profile{}).Where("userid = ?", user3.ID).Update("title", user3Title)
+
+	t.Run("Group DM - Admin and Title Fields", func(t *testing.T) {
+		groupDMChannelID := utility.GenerateUUID()
+		participantHash := utility.GenerateUUID()
+
+		// Create the group DM channel with user1 as the creator (admin)
+		groupDMChannel := models.DmChannels{
+			ID:              utility.GenerateUUID(),
+			UserId:          user1.ID, // User1 is the creator/admin
+			ChannelId:       groupDMChannelID,
+			OrgId:           org.ID,
+			ParticipantHash: participantHash,
+			ChatType:        "user",
+			ChannelType:     "group_dm",
+		}
+		if err := db.Postgresql.Create(&groupDMChannel).Error; err != nil {
+			t.Fatalf("Failed to create group DM channel: %v", err)
+		}
+
+		// Create channel participants for all users
+		users := []models.User{user1, user2, user3}
+		for _, user := range users {
+			participant := models.ChannelParticipant{
+				ID:        utility.GenerateUUID(),
+				ChannelId: groupDMChannelID,
+				UserId:    user.ID,
+				OrgId:     org.ID,
+			}
+			if err := db.Postgresql.Create(&participant).Error; err != nil {
+				t.Fatalf("Failed to create channel participant: %v", err)
+			}
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms", middleware.Authorize(db.Postgresql), controller.GetDmChannels)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms", org.ID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].([]interface{})
+		if !ok {
+			t.Fatal("Response missing data field")
+		}
+
+		foundChannel := false
+		for _, item := range data {
+			channel, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if channel["channel_id"] == groupDMChannelID {
+				foundChannel = true
+
+				participants, ok := channel["participants"].([]interface{})
+				if !ok {
+					t.Error("participants field is missing or not an array")
+					break
+				}
+
+				t.Logf("✅ Found %d participants in group DM", len(participants))
+
+				adminCount := 0
+				for i, p := range participants {
+					participant, ok := p.(map[string]interface{})
+					if !ok {
+						t.Errorf("Participant %d is not a valid object", i)
+						continue
+					}
+
+					userId, _ := participant["user_id"].(string)
+					isAdmin, hasIsAdmin := participant["is_admin"].(bool)
+					title, hasTitle := participant["title"].(string)
+
+					// Check is_admin field exists
+					if !hasIsAdmin {
+						t.Errorf("Participant %d missing is_admin field", i)
+					}
+
+					// Check title field exists
+					if !hasTitle {
+						t.Errorf("Participant %d missing title field", i)
+					}
+
+					// Verify admin is correctly set (user1 created the channel)
+					if userId == user1.ID {
+						if !isAdmin {
+							t.Errorf("User1 should be admin but is_admin is false")
+						} else {
+							adminCount++
+							t.Logf("✅ User1 (creator) correctly marked as admin")
+						}
+						if title != user1Title {
+							t.Errorf("User1 title mismatch: expected '%s', got '%s'", user1Title, title)
+						} else {
+							t.Logf("✅ User1 title correctly set: '%s'", title)
+						}
+					} else if userId == user2.ID {
+						if isAdmin {
+							t.Errorf("User2 should NOT be admin")
+						} else {
+							t.Logf("✅ User2 correctly NOT marked as admin")
+						}
+						if title != user2Title {
+							t.Errorf("User2 title mismatch: expected '%s', got '%s'", user2Title, title)
+						} else {
+							t.Logf("✅ User2 title correctly set: '%s'", title)
+						}
+					} else if userId == user3.ID {
+						if isAdmin {
+							t.Errorf("User3 should NOT be admin")
+						} else {
+							t.Logf("✅ User3 correctly NOT marked as admin")
+						}
+						if title != user3Title {
+							t.Errorf("User3 title mismatch: expected '%s', got '%s'", user3Title, title)
+						} else {
+							t.Logf("✅ User3 title correctly set: '%s'", title)
+						}
+					}
+
+					t.Logf("  Participant %d: user_id=%s, is_admin=%v, title='%s'", i, userId, isAdmin, title)
+				}
+
+				if adminCount != 1 {
+					t.Errorf("Expected exactly 1 admin, found %d", adminCount)
+				}
+
+				break
+			}
+		}
+
+		if !foundChannel {
+			t.Error("Group DM channel not found in response")
+		}
+	})
+
+	t.Run("Group DM - Empty Title when Profile has no Title", func(t *testing.T) {
+		// Create a user without a title
+		user4SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("notitle_test_%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "NoTitle",
+			LastName:    "User",
+			Password:    "password",
+			UserName:    fmt.Sprintf("notitle_user_%v", currUUID),
+		}
+		tst.SignupUser(t, gin.Default(), authController, user4SignUpData, false)
+
+		var user4 models.User
+		if err := db.Postgresql.Where("email = ?", user4SignUpData.Email).First(&user4).Error; err != nil {
+			t.Fatalf("Failed to get user4: %v", err)
+		}
+
+		groupDMChannelID := utility.GenerateUUID()
+		participantHash := utility.GenerateUUID()
+
+		groupDMChannel := models.DmChannels{
+			ID:              utility.GenerateUUID(),
+			UserId:          user1.ID,
+			ChannelId:       groupDMChannelID,
+			OrgId:           org.ID,
+			ParticipantHash: participantHash,
+			ChatType:        "user",
+			ChannelType:     "group_dm",
+		}
+		if err := db.Postgresql.Create(&groupDMChannel).Error; err != nil {
+			t.Fatalf("Failed to create group DM channel: %v", err)
+		}
+
+		// Add participants
+		for _, user := range []models.User{user1, user4} {
+			participant := models.ChannelParticipant{
+				ID:        utility.GenerateUUID(),
+				ChannelId: groupDMChannelID,
+				UserId:    user.ID,
+				OrgId:     org.ID,
+			}
+			if err := db.Postgresql.Create(&participant).Error; err != nil {
+				t.Fatalf("Failed to create channel participant: %v", err)
+			}
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms", middleware.Authorize(db.Postgresql), controller.GetDmChannels)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms", org.ID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", rr.Code)
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].([]interface{})
+		if !ok {
+			t.Fatal("Response missing data field")
+		}
+
+		for _, item := range data {
+			channel, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if channel["channel_id"] == groupDMChannelID {
+				participants, ok := channel["participants"].([]interface{})
+				if !ok {
+					t.Error("participants field is missing")
+					break
+				}
+
+				for _, p := range participants {
+					participant, ok := p.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					userId, _ := participant["user_id"].(string)
+					title, hasTitle := participant["title"].(string)
+
+					if userId == user4.ID {
+						if !hasTitle {
+							t.Error("title field should exist even when empty")
+						} else if title != "" {
+							t.Errorf("Expected empty title for user4, got '%s'", title)
+						} else {
+							t.Logf("✅ User4 (no profile title) correctly has empty title field")
+						}
+					}
+				}
+				break
+			}
+		}
+	})
+}

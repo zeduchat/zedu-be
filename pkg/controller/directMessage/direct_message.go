@@ -195,3 +195,50 @@ func (base *Controller) DeleteDmChannel(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Dm channel deleted successfully", nil)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) GetDmChannelMedia(c *gin.Context) {
+	var req models.DmChannelMediaRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = c.Param("org_id")
+	req.ChannelId = c.Param("channel_id")
+	req.MediaType = c.Query("type") // Optional: images, videos, documents, audio
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, paginationResponse, code, err := dm.GetDmChannelMedia(req, base.Db, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResponse.CurrentPage,
+		"total_pages":  paginationResponse.TotalPagesCount,
+		"page_size":    paginationResponse.PageCount,
+		"total_items":  paginationResponse.TotalItems,
+	}
+
+	base.Logger.Info("DM channel media retrieved successfully")
+	rd := utility.BuildSuccessResponse(code, "DM channel media retrieved successfully", resp, paginationData)
+	c.JSON(code, rd)
+}

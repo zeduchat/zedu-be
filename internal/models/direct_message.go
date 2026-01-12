@@ -53,6 +53,7 @@ type DmChannelsResponse struct {
 	PreviewMessage   string    `json:"preview_message"`
 	PreviewThread    []Threads `json:"preview_thread"`
 	Participants     []gin.H   `json:"participants"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 type DmChannelsRequest struct {
@@ -61,6 +62,13 @@ type DmChannelsRequest struct {
 	UserId        string `json:"user_id"`
 	OrgId         string `json:"org_id"`
 	ChannelId     string `json:"channel_id"`
+}
+
+type DmChannelMediaRequest struct {
+	UserId    string `json:"user_id"`
+	OrgId     string `json:"org_id"`
+	ChannelId string `json:"channel_id"`
+	MediaType string `json:"media_type"` // Optional: images, videos, documents, audio
 }
 
 func FetchDetailsFromAgentJSON(agent OrganisationIntegrations) (map[string]any, error) {
@@ -228,11 +236,10 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 
 func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {
 	var (
-		user     User
-		chanPart []ChannelParticipant
-		orderBy  string
-		order    string
-		args     []any
+		user    User
+		orderBy string
+		order   string
+		args    []any
 	)
 
 	dmchans := []DmChannels{}
@@ -342,19 +349,44 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				PreviewMessage:   previewMessage,
 				PreviewThread:    previewThread,
 				Participants:     participants,
+				CreatedAt:        dmchan.CreatedAt,
 			})
 		} else if dmchan.ChannelType == "group_dm" {
 
-			err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
-			if err != nil {
-				return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
+			// err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
+			// if err != nil {
+			// 	return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
+			// }
+
+			type ParticipantWithProfile struct {
+				UserId    string
+				Title     string
+				AvatarURL string
+				UserName  string
+				Email     string
 			}
+
+			var participantsWithProfile []ParticipantWithProfile
+
+			err = db.Table("channel_participants cp").
+				Select(`
+					cp.user_id,
+					COALESCE(p.title, '') as title,
+					COALESCE(p.avatar_url, '') as avatar_url,
+					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
+					u.email
+				`).
+				Joins("JOIN users u ON u.id = cp.user_id").
+				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+				Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dmchan.ChannelId).
+				Scan(&participantsWithProfile).Error
 
 			usernames := []string{}
 			profilePic := ""
 			email := ""
 
-			for _, part := range chanPart {
+			for _, part := range participantsWithProfile {
+
 				userDetails, err := user.GetUserByID(db, part.UserId)
 				if err != nil {
 					return nil, paginationResp, err
@@ -372,6 +404,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					"email":      userDetails.Email,
 					"user_type":  "user",
 					"user_id":    part.UserId,
+					"is_admin":   part.UserId == dmchan.UserId,
+					"title":      part.Title,
 				})
 
 				if profilePic == "" {
@@ -406,6 +440,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				PreviewMessage:   previewMessage,
 				PreviewThread:    previewThread,
 				Participants:     participants,
+				CreatedAt:        dmchan.CreatedAt,
 			})
 
 		}
@@ -927,4 +962,165 @@ func (r *DmChannels) GetLastMessageByChannelId(db *gorm.DB, channelId string) st
 	}
 
 	return content
+}
+
+// GetChannelMedia fetches all media files from threads in a DM channel
+func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, mediaType string) ([]File, postgresql.PaginationResponse, error) {
+	pagination := postgresql.GetPagination(c)
+
+	// Build the base query for threads in this channel
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": dm.ChannelId,
+						},
+					},
+					{
+						"nested": map[string]any{
+							"path": "media",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "media.id",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"_source": []string{"media"},
+		"size":    1000, // Get all threads with media first
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData any
+	err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &threadData)
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch media: %w", err)
+	}
+
+	// Parse the response and collect all media files
+	threadDataMap, ok := threadData.(map[string]any)
+	if !ok {
+		return []File{}, postgresql.PaginationResponse{}, nil
+	}
+
+	hits, ok := threadDataMap["hits"].(map[string]any)
+	if !ok {
+		return []File{}, postgresql.PaginationResponse{}, nil
+	}
+
+	hitsArray, ok := hits["hits"].([]any)
+	if !ok || len(hitsArray) == 0 {
+		return []File{}, postgresql.PaginationResponse{}, nil
+	}
+
+	// Collect all media from all threads
+	var allMedia []File
+	for _, hit := range hitsArray {
+		hitMap, ok := hit.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		source, ok := hitMap["_source"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		mediaArray, ok := source["media"].([]any)
+		if !ok {
+			continue
+		}
+
+		for _, m := range mediaArray {
+			mediaMap, ok := m.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			file := File{
+				ID:       utility.GetString(mediaMap, "id"),
+				FileName: utility.GetString(mediaMap, "file_name"),
+				FileType: utility.GetString(mediaMap, "file_type"),
+				MimeType: utility.GetString(mediaMap, "mime_type"),
+				FileLink: utility.GetString(mediaMap, "file_link"),
+			}
+
+			// Apply type filter if specified
+			if mediaType != "" {
+				if !matchesMediaType(file.MimeType, mediaType) {
+					continue
+				}
+			}
+
+			allMedia = append(allMedia, file)
+		}
+	}
+
+	// Apply pagination
+	totalItems := len(allMedia)
+	start := (pagination.Page - 1) * pagination.Limit
+	end := start + pagination.Limit
+
+	if start > totalItems {
+		start = totalItems
+	}
+	if end > totalItems {
+		end = totalItems
+	}
+
+	paginatedMedia := allMedia[start:end]
+
+	totalPages := (totalItems + pagination.Limit - 1) / pagination.Limit
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	pagResp := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		TotalPagesCount: totalPages,
+		PageCount:       len(paginatedMedia),
+		TotalItems:      int64(totalItems),
+	}
+
+	return paginatedMedia, pagResp, nil
+}
+
+// matchesMediaType checks if a mime type matches the requested media type filter
+func matchesMediaType(mimeType, mediaType string) bool {
+	switch mediaType {
+	case "images":
+		return len(mimeType) >= 6 && mimeType[:6] == "image/"
+	case "videos":
+		return len(mimeType) >= 6 && mimeType[:6] == "video/"
+	case "audio":
+		return len(mimeType) >= 6 && mimeType[:6] == "audio/"
+	case "documents":
+		return containsAny(mimeType, []string{"pdf", "document", "word", "text", "rtf"})
+	default:
+		return true
+	}
+}
+
+func containsAny(s string, substrs []string) bool {
+	for _, sub := range substrs {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
