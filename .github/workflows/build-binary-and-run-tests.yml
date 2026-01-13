@@ -77,15 +77,15 @@ jobs:
       
       - name: Terminate database sessions
         if: always()
+        env:
+          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}
         run: |
           echo "Terminating all sessions for database: ${TEST_DB_NAME}"
-          sudo -iu postgres bash -c "
-            psql -d postgres -t -c \"
-              SELECT pg_terminate_backend(pid)
-              FROM pg_stat_activity
-              WHERE datname = '${TEST_DB_NAME}'
-                AND pid <> pg_backend_pid();
-            \"
+          psql -U actionsdeployer -d postgres -t -c "
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = '${TEST_DB_NAME}'
+              AND pid <> pg_backend_pid();
           "
       
       - name: Cleanup test database
