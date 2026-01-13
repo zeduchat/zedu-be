@@ -24,12 +24,14 @@ func (base *Controller) Create(c *gin.Context) {
 	var req models.ShareRequest
 
 	if err := c.ShouldBind(&req); err != nil {
+		base.Logger.Error("Failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed: ", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
@@ -37,6 +39,7 @@ func (base *Controller) Create(c *gin.Context) {
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
+		base.Logger.Error("failed to get user: ", err)
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to get user", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
@@ -44,6 +47,7 @@ func (base *Controller) Create(c *gin.Context) {
 
 	share, err := service.CreateShares(base.Db.Postgresql, req, userID.(string))
 	if err != nil {
+		base.Logger.Error("failed to create share: ", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to create share", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -57,6 +61,7 @@ func (base *Controller) Create(c *gin.Context) {
 func (base *Controller) GetMyShares(c *gin.Context) {
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
+		base.Logger.Error("failed to get user: ", err)
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to get user", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
@@ -64,6 +69,7 @@ func (base *Controller) GetMyShares(c *gin.Context) {
 
 	shares, paginationResponse, err := service.GetUserShares(base.Db.Postgresql, c, userID.(string))
 	if err != nil {
+		base.Logger.Error("failed to fetch shares: ", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "failed to fetch shares", err, nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
@@ -86,6 +92,7 @@ func (base *Controller) GetShare(c *gin.Context) {
 
 	share, err := service.GetShareByID(base.Db.Postgresql, id)
 	if err != nil {
+		base.Logger.Error("share not found: ", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "share not found", err, nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
@@ -101,6 +108,7 @@ func (base *Controller) Delete(c *gin.Context) {
 
 	err := service.DeleteShares(base.Db.Postgresql, id)
 	if err != nil {
+		base.Logger.Error("failed to delete shares: ", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete share", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -114,6 +122,7 @@ func (base *Controller) Delete(c *gin.Context) {
 func (base *Controller) GetPerformance(c *gin.Context) {
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
+		base.Logger.Error("failed to get the user: ", err)
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to get user", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
@@ -121,6 +130,7 @@ func (base *Controller) GetPerformance(c *gin.Context) {
 
 	performance, err := service.GetSharePerformance(base.Db.Postgresql, c, userID.(string))
 	if err != nil {
+		base.Logger.Error("failed to get performance: ", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to get performance", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
