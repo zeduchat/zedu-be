@@ -149,7 +149,18 @@ func (base *Controller) GetPlatformCreditsSummary(c *gin.Context) {
 }
 
 func (base *Controller) InviteLeaderboard(c *gin.Context) {
-	users, paginationResponse, code, err := admin.ListUsersByInvites(base.Db.Postgresql, c)
+	orgID := c.Query("org_id")
+	var orgPtr *string
+	if orgID != "" {
+		if _, err := uuid.Parse(orgID); err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org_id format", "invalid org_id format", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		orgPtr = &orgID
+	}
+
+	users, paginationResponse, code, err := admin.ListUsersByInvites(base.Db.Postgresql, c, orgPtr)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)

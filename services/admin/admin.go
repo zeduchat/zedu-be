@@ -242,7 +242,7 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 	return resp, paginationResponse, http.StatusOK, nil
 }
 
-func ListUsersByInvites(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
+func ListUsersByInvites(db *gorm.DB, c *gin.Context, orgID *string) ([]map[string]any, postgresql.PaginationResponse, int, error) {
 	pagination := postgresql.GetPagination(c)
 
 	type leaderRow struct {
@@ -254,10 +254,51 @@ func ListUsersByInvites(db *gorm.DB, c *gin.Context) ([]map[string]any, postgres
 
 	var rows []leaderRow
 
-	selectQuery := "users.id, users.name, users.email, COALESCE(COUNT(invitations.id), 0) as referrals"
-	paginationResponse, err := postgresql.RawSelectAllFromByGroup(db, "referrals", "desc", &pagination, &models.User{}, &rows, "invitations.invited_by", selectQuery, "users.deleted_at IS NULL")
+	whereClause := "users.deleted_at IS NULL"
+	var whereArgs []any
+	if orgID != nil && *orgID != "" {
+		whereClause = whereClause + " AND invitations.organisation_id = ?"
+		whereArgs = append(whereArgs, *orgID)
+	}
+
+	// Count groups to determine total items
+	var totalItems int64
+	err := db.Table("users").
+		Joins("LEFT JOIN invitations ON invitations.invited_by = users.id").
+		Where(whereClause, whereArgs...).
+		Group("users.id").
+		Count(&totalItems).Error
 	if err != nil {
-		return nil, paginationResponse, http.StatusBadRequest, err
+		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, err
+	}
+
+	// Query rows
+	selectQuery := "users.id, users.name, users.email, COALESCE(COUNT(invitations.id), 0) as referrals"
+	tx := db.Table("users").
+		Select(selectQuery).
+		Joins("LEFT JOIN invitations ON invitations.invited_by = users.id").
+		Where(whereClause, whereArgs...).
+		Group("users.id").
+		Order("referrals desc").
+		Limit(pagination.Limit).
+		Offset((pagination.Page - 1) * pagination.Limit).
+		Find(&rows)
+
+	if tx.Error != nil {
+		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, tx.Error
+	}
+
+	// Build pagination response
+	totalPages := 0
+	if pagination.Limit > 0 {
+		totalPages = int((totalItems + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+	}
+
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       int(tx.RowsAffected),
+		TotalPagesCount: totalPages,
+		TotalItems:      totalItems,
 	}
 
 	resp := make([]map[string]any, 0, len(rows))
@@ -266,7 +307,7 @@ func ListUsersByInvites(db *gorm.DB, c *gin.Context) ([]map[string]any, postgres
 			"id":        r.ID,
 			"name":      r.Name,
 			"email":     r.Email,
-			"referrals": r.Referrals,
+			"referrals": int(r.Referrals),
 		})
 	}
 
