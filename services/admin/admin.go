@@ -175,9 +175,9 @@ type UserListItem struct {
 	LastActivityAt     *string `json:"last_activity_at"`
 	ActivityLength     *string `json:"activity_length"`
 	Referrals          int64   `json:"referrals"`
-	CreditUsed         int64   `json:"credit_used"`         //TODO: follow up on credit usage implementation (Tobi)
+	CreditUsed         int64   `json:"credit_used"`         //TODO
 	AmountSpent        int64   `json:"amount_spent"`        //TODO
-	SubscriptionStatus string  `json:"subscription_status"` //TODO: follow up on the the plan-split endpoint implementation
+	SubscriptionStatus string  `json:"subscription_status"` //TODO
 }
 
 func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
@@ -242,8 +242,6 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 	return resp, paginationResponse, http.StatusOK, nil
 }
 
-// ListUsersByInvites returns the top N users ordered by number of invites (referrals).
-// orgID is optional; if provided the results are restricted to that organisation.
 func ListUsersByInvites(db *gorm.DB, orgID *string, limit int) ([]map[string]any, int, error) {
 	if limit <= 0 {
 		limit = 10

@@ -16,7 +16,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	admin := admin.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	// Regular admin endpoints (all admins including super admins)
+	// Regular admin endpoints
 	adminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		adminAuthUrl.GET("/admins", admin.ListAdmins)
@@ -32,7 +32,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		superAdminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 	}
 
-	// Public admin endpoints (no authentication required)
+	// Public admin endpoints
 	adminUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion))
 	{
 		adminUrl.POST("/login", admin.LoginAdmin)
