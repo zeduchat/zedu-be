@@ -45,9 +45,7 @@ func SetupOnesignalTestRouter() (*gin.Engine, *user.Controller) {
 func SetupOnesignalRoutes(r *gin.Engine, userController *user.Controller, db *storage.Database) {
 	userUrl := r.Group("/api/v1", middleware.Authorize(db.Postgresql))
 	{
-		userUrl.POST("/users/onesignal-subscription-id", userController.RegisterOneSignalSubscriptionID)
 		userUrl.PUT("/users/onesignal-subscription-id", userController.UpdateOneSignalSubscriptionID)
-		userUrl.GET("/users/onesignal-subscription-id", userController.GetOneSignalSubscriptionID)
 	}
 }
 

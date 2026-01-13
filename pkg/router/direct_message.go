@@ -51,6 +51,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		organisationUrls.DELETE("/:org_id/dms/:channel_id", dmCtrl.DeleteDmChannel)
 		organisationUrls.GET("/:org_id/dms", dmCtrl.GetDmChannels)
 		organisationUrls.GET("/:org_id/dms/participants/:channel_id", dmCtrl.GetDmParticipants)
+		organisationUrls.GET("/:org_id/dms/:channel_id/media", dmCtrl.GetDmChannelMedia)
 		organisationUrls.GET("/:org_id/recent-dm", dmFilter.DmFilter)
 	}
 

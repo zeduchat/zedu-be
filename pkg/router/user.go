@@ -41,9 +41,7 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.POST("/users/media-preferences/reset-autodownload", user.ResetAutoDownloadSettings)
 		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
 		userUrl.GET("/users/:user_id/organisations/:org_id/roles", user.GetUserRoleInOrganisation)
-		userUrl.POST("/users/onesignal-subscription-id", user.RegisterOneSignalSubscriptionID)
 		userUrl.PUT("/users/onesignal-subscription-id", user.UpdateOneSignalSubscriptionID)
-		userUrl.GET("/users/onesignal-subscription-id", user.GetOneSignalSubscriptionID)
 		userUrl.GET("/users/me", auth.FetchUser)
 	}
 	{

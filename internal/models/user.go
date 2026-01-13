@@ -76,6 +76,11 @@ type SwitchUserRoleRequest struct {
 	RoleId string `json:"role_id" validate:"required,uuid"`
 }
 
+type OneSignalSubscriptionIDRequest struct {
+	SubscriptionID string `json:"subscription_id" binding:"required"`
+	Platform       string `json:"platform"`
+}
+
 func (u *User) AddUserToOrganisation(db *gorm.DB, user any, orgs []any) error {
 
 	err := db.Model(user).Association("Organisations").Append(orgs...)

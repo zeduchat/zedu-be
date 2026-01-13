@@ -9698,6 +9698,121 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /organisations/{org_id}/dms/{channel_id}/media:
+    get:
+      tags:
+        - Direct Message
+      summary: Retrieve media files from a DM channel
+      description: Fetches all media files (images, videos, documents, audio) from threads in a DM channel with pagination support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the DM channel
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default 10)
+          schema:
+            type: integer
+            default: 10
+        - name: type
+          in: query
+          required: false
+          description: Filter by media type
+          schema:
+            type: string
+            enum: [images, videos, audio, documents]
+      responses:
+        "200":
+          description: Media files retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: DM channel media retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        file_name:
+                          type: string
+                          example: photo.jpg
+                        file_type:
+                          type: string
+                          example: jpg
+                        mime_type:
+                          type: string
+                          example: image/jpeg
+                        file_link:
+                          type: string
+                          example: https://cdn.example.com/files/photo.jpg
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 10
+                      total_items:
+                        type: integer
+                        example: 50
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Channel not found or user is not a participant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
   /help-center/categories:
     post:
       tags:
@@ -13077,7 +13192,6 @@ paths:
                     type: string
                     example: Unauthorized access — valid bearer token required.
 
-
   #  Market place
   /marketplace/agent/categories:
     get:
@@ -13892,7 +14006,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /waitlist:
     post:
       tags:
@@ -14168,50 +14281,6 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /users/onesignal-subscription-id:
-    post:
-      tags:
-        - user
-      summary: Register OneSignal subscription ID
-      description: Register a new OneSignal subscription ID for push notifications
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OneSignalSubscriptionIDRequestSchema"
-      responses:
-        "200":
-          description: OneSignal subscription ID registered successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OneSignalSubscriptionIDResponseSchema"
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NotFoundErrorSchema"
-        "500":
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
     put:
       tags:
         - user
@@ -14250,32 +14319,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-        "500":
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ServerErrorSchema"
-    get:
-      tags:
-        - user
-      summary: Get OneSignal subscription ID
-      description: Retrieve OneSignal subscription ID for authenticated user
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: OneSignal subscription ID retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OneSignalSubscriptionIDResponseSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Server error
           content:
@@ -16308,7 +16351,11 @@ paths:
                   items:
                     type: string
                     format: uuid
-                  example: ["0195ca6f-a7ef-70b0-8392-a0ddc510bec3", "0195ca6f-a7ef-70b0-8392-a0ddc510bec4"]
+                  example:
+                    [
+                      "0195ca6f-a7ef-70b0-8392-a0ddc510bec3",
+                      "0195ca6f-a7ef-70b0-8392-a0ddc510bec4",
+                    ]
                 permanent:
                   type: boolean
                   example: false
@@ -16493,7 +16540,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /files/{id}/move:
     put:
       tags:
@@ -16573,7 +16619,11 @@ paths:
                   items:
                     type: string
                     format: uuid
-                  example: ["0195ca6f-a7ef-70b0-8392-a0ddc510bec3", "0195ca6f-a7ef-70b0-8392-a0ddc510bec4"]
+                  example:
+                    [
+                      "0195ca6f-a7ef-70b0-8392-a0ddc510bec3",
+                      "0195ca6f-a7ef-70b0-8392-a0ddc510bec4",
+                    ]
                 permanent:
                   type: boolean
                   example: false
@@ -16975,7 +17025,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedSchema"
-
 
   /files/favorites:
     get:
@@ -22119,7 +22168,6 @@ paths:
                   data:
                     $ref: "#/components/schemas/CredentialConfigResponse"
 
-
   /skills/general/{skill_id}:
     get:
       tags:
@@ -23225,7 +23273,6 @@ paths:
                     avatar: "📊"
                     agent_config: {}
 
-
   /credentials:
     post:
       summary: Create credentials for a skill
@@ -23289,8 +23336,8 @@ paths:
                   items:
                     type: object
                     properties:
-                    - id: "0198e565-018e-7692-8e23-8a267accdb87"
-                      name: "Pirate weather API key"
+                      - id: "0198e565-018e-7692-8e23-8a267accdb87"
+                        name: "Pirate weather API key"
 
   /credentials/{credential_id}:
     get:
@@ -23322,7 +23369,6 @@ paths:
                     user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
                     name: "Pirate weather API key"
                     credentials: {}
-
 
   /buzz/token:
     post:
@@ -24090,7 +24136,7 @@ paths:
       tags:
         - buzz
       summary: Get active buzz indicator for a channel
-      description: "Retrieves a lightweight indicator showing if there's an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Useful for displaying \"X, Y, and N others are in the buzz\" on channel pages. Available to any authenticated user who is a member of the channel."
+      description: 'Retrieves a lightweight indicator showing if there''s an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Useful for displaying "X, Y, and N others are in the buzz" on channel pages. Available to any authenticated user who is a member of the channel.'
       operationId: getChannelActiveBuzz
       security:
         - bearerAuth: []
@@ -24508,7 +24554,6 @@ components:
         agora_token:
           $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           description: Agora token for joining the buzz (only present if accepted)
-
 
     CreateBuzzRequest:
       type: object
@@ -27903,7 +27948,6 @@ components:
     CredentialConfigResponse:
       type: object
 
-
     AgentSkillResponse:
       type: object
       properties:
@@ -28348,33 +28392,33 @@ components:
           example: "550e8400-e29b-41d4-a716-446655440000"
 
   responses:
-        UnauthorizedError:
-          description: Authentication information is missing or invalid
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  message:
-                    type: string
-                    example: Unauthorized
+    UnauthorizedError:
+      description: Authentication information is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Unauthorized
 
-        NotFoundError:
-          description: The specified resource was not found
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  message:
-                    type: string
-                    example: Not Found
+    NotFoundError:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Not Found
 
   parameters:
     PageLimitParam:
