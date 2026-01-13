@@ -347,6 +347,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		ChannelID:    metadataResp.ChannelID,
 		UserID:       userID,
 		Status:       metadataResp.Status,
+		CreatedAt:    metadataResp.CreatedAt,
 		JoinedAt:     timestamp,
 		Participants: metadataResp.Participants,
 		AgoraToken:   &agoraToken,
@@ -380,16 +381,29 @@ func addUserToBuzzTransaction(db *storage.Database, logger *utility.Logger, buzz
 			return err
 		}
 
-		participant := models.BuzzParticipant{
-			ID:       utility.GenerateUUID(),
-			BuzzID:   buzz.ID,
-			UserID:   userID,
-			Status:   models.BuzzParticipantStatusActive,
-			IsMuted:  false,
-			JoinedAt: timestamp,
+		var existingParticipant models.BuzzParticipant
+		err := tx.Where("buzz_id = ? AND user_id = ?", buzz.ID, userID).First(&existingParticipant).Error
+
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				participant := models.BuzzParticipant{
+					ID:       utility.GenerateUUID(),
+					BuzzID:   buzz.ID,
+					UserID:   userID,
+					Status:   models.BuzzParticipantStatusActive,
+					IsMuted:  false,
+					JoinedAt: timestamp,
+				}
+				return tx.Create(&participant).Error
+			}
+			return err
 		}
 
-		return tx.Create(&participant).Error
+		existingParticipant.Status = models.BuzzParticipantStatusActive
+		existingParticipant.IsMuted = false
+		existingParticipant.JoinedAt = timestamp
+		existingParticipant.LeftAt = nil
+		return tx.Save(&existingParticipant).Error
 	})
 
 	if err != nil {
@@ -664,7 +678,8 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 
 // GetChannelActiveBuzzIndicator returns whether a channel has an active buzz with participant preview
 // Returns indicator info plus participant count and a preview of first few names
-func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger, channelID string) (models.ActiveBuzzIndicator, int, error) {
+// Also checks if the requesting user is in the buzz (for member verification)
+func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger, channelID, userID string) (models.ActiveBuzzIndicator, int, error) {
 	var resp models.ActiveBuzzIndicator
 
 	logger.Info("checking for active buzz in channel %s", channelID)
@@ -694,12 +709,24 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 		logger.Error("failed to fetch participant metadata for indicator: %v", err)
 		// Don't fail the entire request, just return without participant preview
 		resp = models.ActiveBuzzIndicator{
-			IsActive: true,
-			BuzzID:   buzz.ID,
-			HostID:   buzz.HostID,
-			Status:   buzz.Status,
+			IsActive:     true,
+			BuzzID:       buzz.ID,
+			HostID:       buzz.HostID,
+			Status:       buzz.Status,
+			IsUserInBuzz: false,
 		}
 		return resp, http.StatusOK, nil
+	}
+
+	// Check if requesting user is in the buzz
+	isUserInBuzz := false
+	if userID != "" {
+		for _, participant := range participantMetadata {
+			if participant.UserID == userID && participant.Status == models.BuzzParticipantStatusActive {
+				isUserInBuzz = true
+				break
+			}
+		}
 	}
 
 	// Build participant preview (first 2-3 names)
@@ -727,6 +754,7 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 		ParticipantCount:      len(participantMetadata),
 		ParticipantPreview:    participantPreview,
 		RemainingParticipants: remainingCount,
+		IsUserInBuzz:          isUserInBuzz,
 	}
 
 	return resp, http.StatusOK, nil

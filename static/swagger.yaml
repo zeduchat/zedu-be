@@ -8917,16 +8917,11 @@ paths:
                               type: array
                               items:
                                 type: string
-                              example:
-                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_da41992a35ce.jpeg
-                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
-                                - https://lh3.googleusercontent.com/a/ACg8ocJT...
-                            last_post_time:
-                              type: string
-                              example: Last post Apr 23 11:01
-                            members_count:
-                              type: integer
-                              example: 14
+                                description: "Array of member avatar URLs"
+                                example:
+                                  [
+                                    https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_da41992a35ce.jpeg,
+                                  ]
 
   /organisations/{org_id}/metrics:
     get:
@@ -23312,7 +23307,7 @@ paths:
       tags:
         - buzz
       summary: Join a buzz (video/audio call)
-      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token (valid for 4 hours) for real-time communication. Token is generated before adding user to ensure consistency.
+      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token (valid for 4 hours) for real-time communication. Token is generated before adding user to ensure consistency. Users who previously left the buzz can rejoin.
       operationId: joinBuzz
       security:
         - bearerAuth: []
@@ -23332,7 +23327,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/BuzzJoinResponseSchema"
         "400":
-          description: Bad request - buzz not active or already a participant
+          description: Bad request - buzz not active or already an active participant
           content:
             application/json:
               schema:
@@ -23573,7 +23568,7 @@ paths:
       tags:
         - buzz
       summary: Leave a buzz (call)
-      description: Remove the current user from a buzz and handle host reassignment if needed
+      description: Remove the current user from a buzz and handle host reassignment if needed. Users who leave can rejoin the buzz while it remains active.
       operationId: leaveBuzz
       security:
         - bearerAuth: []
@@ -23957,7 +23952,7 @@ paths:
       tags:
         - buzz
       summary: Get active buzz indicator for a channel
-      description: 'Retrieves a lightweight indicator showing if there''s an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Useful for displaying "X, Y, and N others are in the buzz" on channel pages. Available to any authenticated user who is a member of the channel.'
+      description: 'Retrieves a lightweight indicator showing if there''s an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Also indicates whether the requesting user is currently in the buzz. Useful for displaying "X, Y, and N others are in the buzz" and for member verification. Available to any authenticated user who is a member of the channel.'
       operationId: getChannelActiveBuzz
       security:
         - bearerAuth: []
@@ -23992,6 +23987,55 @@ paths:
           description: Not found - channel does not exist
           content:
             application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/dm/{dm_id}/active:
+    get:
+      tags:
+        - buzz
+      summary: Get active buzz indicator for a DM
+      description: "Retrieves a lightweight indicator showing if there's an active buzz in a DM channel, along with participant preview. Also indicates whether the requesting user is currently in the buzz. Available to any authenticated user who is a participant in the DM."
+      operationId: getDMActiveBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: dm_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of DM channel
+      responses:
+        "200":
+          description: Successfully retrieved active buzz indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveBuzzIndicator"
+        "400":
+          description: Bad request - invalid DM ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a participant in the DM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - DM does not exist
+          content:
+            application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
@@ -24001,7 +24045,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-components:
+  /buzz/group-dm/{group_dm_id}/active:
+    get:
+      tags:
+        - buzz
+      summary: Get active buzz indicator for a group DM
+      description: "Retrieves a lightweight indicator showing if there's an active buzz in a group DM channel, along with participant preview. Also indicates whether the requesting user is currently in the buzz. Available to any authenticated user who is a member of the group DM."
+      operationId: getGroupDMActiveBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: group_dm_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of group DM channel
+      responses:
+        "200":
+          description: Successfully retrieved active buzz indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveBuzzIndicator"
+        "400":
+          description: Bad request - invalid group DM ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the group DM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - group DM does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  components:
   schemas:
     PartialStatusUpdateRequest:
       type: object
@@ -24213,14 +24306,14 @@ components:
           format: uri
           nullable: true
           example: "https://example.com/avatar.jpg"
-        is_in_buzz:
-          type: boolean
-          description: Whether the user is currently in the buzz
-          example: false
-        is_invited:
-          type: boolean
-          description: Whether the user has a pending invitation
-          example: false
+          is_in_buzz:
+            type: boolean
+            description: Whether the user is currently an active participant in the buzz (excludes users who have left)
+            example: false
+          is_invited:
+            type: boolean
+            description: Whether the user has a pending invitation
+            example: false
 
     SearchChannelMembersResponse:
       type: object
@@ -24422,6 +24515,10 @@ components:
           type: string
           enum: [active]
           description: Buzz status
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
         joined_at:
           type: string
           format: date-time
@@ -24442,6 +24539,7 @@ components:
         channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
         status: "active"
+        created_at: "2025-11-28T12:00:00Z"
         joined_at: "2025-11-28T12:05:00Z"
         participants:
           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -24464,6 +24562,7 @@ components:
 
     BuzzLeaveResponseSchema:
       type: object
+      description: Response returned when a user leaves a buzz. Users can rejoin a buzz after leaving as long as it remains active.
       required:
         - buzz_id
         - participant_id
@@ -24637,22 +24736,27 @@ components:
           type: integer
           description: Number of remaining participants not shown in preview (0 if all shown)
           minimum: 0
-      example:
-        is_active: true
-        buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
-        host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
-        status: "active"
-        participant_count: 11
-        participant_preview: ["tolu", "kemi"]
-        remaining_participants: 9
-      example_no_active:
-        is_active: false
-        buzz_id: null
-        host_id: null
-        status: null
-        participant_count: 0
-        participant_preview: []
-        remaining_participants: 0
+        is_user_in_buzz:
+          type: boolean
+          description: Whether the requesting user is currently an active participant in the buzz
+          nullable: true
+        example:
+          is_active: true
+          buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+          host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+          status: "active"
+          participant_count: 11
+          participant_preview: ["tolu", "kemi"]
+          remaining_participants: 9
+          is_user_in_buzz: true
+        example_no_active:
+          is_active: false
+          buzz_id: null
+          host_id: null
+          status: null
+          participant_count: 0
+          participant_preview: []
+          remaining_participants: 0
 
     ErrorResponse:
       type: object
@@ -28238,6 +28342,7 @@ components:
 
     BuzzLeaveResponseSchema:
       type: object
+      description: Response returned when a user leaves a buzz. Users can rejoin a buzz after leaving as long as it remains active.
       required:
         - buzz_id
         - participant_id
