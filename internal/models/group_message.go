@@ -25,6 +25,7 @@ type ChannelParticipant struct {
 	ThreadCount  int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
 	LastThreadId string         `gorm:"columnhrea:last_thread_id" json:"last_thread_id"`
 	LastReadAt   time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
+	Title        string         `gorm:"column:title" json:"title"`
 }
 
 type GroupDMChannelsRequest struct {
