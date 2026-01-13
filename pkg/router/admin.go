@@ -16,7 +16,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	admin := admin.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	// Regular admin endpoints
+	// Regular admin endpoints (including superadmin)
 	adminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		adminAuthUrl.GET("/admins", admin.ListAdmins)
