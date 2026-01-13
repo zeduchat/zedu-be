@@ -13,12 +13,12 @@ import (
 // ConnectOneSignal initializes OneSignal client with provided configuration
 func ConnectOneSignal(logger *utility.Logger, cfg config.OneSignal) {
 	if !cfg.Enabled {
-		utility.LogAndPrint(logger, "OneSignal is disabled in configuration")
+		logger.Info("OneSignal is disabled in configuration")
 		return
 	}
 
 	if cfg.AppID == "" || cfg.RestAPIKey == "" {
-		utility.LogAndPrint(logger, "OneSignal AppID or RestAPIKey is empty, skipping initialization")
+		logger.Info("OneSignal AppID or RestAPIKey is empty, skipping initialization")
 		return
 	}
 
@@ -33,7 +33,7 @@ func ConnectOneSignal(logger *utility.Logger, cfg config.OneSignal) {
 	Client.AppID = cfg.AppID
 	Client.ApiKey = cfg.RestAPIKey
 
-	utility.LogAndPrint(logger, "Successfully initialized OneSignal SDK v5 client")
+	logger.Info("Successfully initialized OneSignal SDK v5 client")
 }
 
 // SendNotification sends a push notification to a single user via OneSignal subscription ID
@@ -78,15 +78,17 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, ti
 		Execute()
 
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Error sending OneSignal notification: %v", err))
+		logger.Error("Error sending OneSignal notification: %v", err)
 		return fmt.Errorf("error sending OneSignal notification: %v", err)
 	}
 
 	if httpResp != nil && httpResp.StatusCode >= 400 {
+		logger.Error("OneSignal API error (status %d)", httpResp.StatusCode)
 		return fmt.Errorf("OneSignal API error (status %d)", httpResp.StatusCode)
 	}
 
 	if response == nil {
+		logger.Error("OneSignal API returned nil response")
 		return fmt.Errorf("OneSignal API returned nil response")
 	}
 
@@ -95,14 +97,14 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, ti
 		notificationID = *response.Id
 	}
 
-	utility.LogAndPrint(logger, fmt.Sprintf("Successfully sent OneSignal notification to %d recipients. ID: %s", len(subscriptionIDs), notificationID))
+	logger.Info("Successfully sent OneSignal notification to %d recipients. ID: %s", len(subscriptionIDs), notificationID)
 	return nil
 }
 
 // OptionalSendNotification sends a notification without failing if OneSignal is not initialized
 func OptionalSendNotification(logger *utility.Logger, subscriptionID string, title string, body string) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
-		utility.LogAndPrint(logger, "OneSignal client not initialized, skipping notification")
+		logger.Info("OneSignal client not initialized, skipping notification")
 		return nil
 	}
 
@@ -112,7 +114,7 @@ func OptionalSendNotification(logger *utility.Logger, subscriptionID string, tit
 // OptionalSendBatchNotifications sends batch notifications without failing if OneSignal is not initialized
 func OptionalSendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, title string, body string) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
-		utility.LogAndPrint(logger, "OneSignal client not initialized, skipping batch notification")
+		logger.Info("OneSignal client not initialized, skipping batch notification")
 		return nil
 	}
 

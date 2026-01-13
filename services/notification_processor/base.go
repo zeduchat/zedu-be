@@ -155,7 +155,6 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			err = push_notifications.PushFCMToUser(pushReq, logger, db)
 			if err != nil {
 				logger.Error("Failed to send push notification to user %s: %v", channelId, err)
-				return fmt.Errorf("failed to send push notification to user %s: %v", channelId, err)
 			}
 
 			// Send OneSignal notification to single DM user
