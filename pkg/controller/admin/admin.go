@@ -147,3 +147,15 @@ func (base *Controller) GetPlatformCreditsSummary(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Platform credit summary retrieved successfully", metrics)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) InviteLeaderboard(c *gin.Context) {
+	users, paginationResponse, code, err := admin.ListUsersByInvites(base.Db.Postgresql, c)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "invite leaderboard retrieved successfully", users, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+}

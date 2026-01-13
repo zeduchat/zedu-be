@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -173,7 +174,7 @@ type UserListItem struct {
 	LastLogInAt        *string `json:"last_log_in_at"`
 	LastActivityAt     *string `json:"last_activity_at"`
 	ActivityLength     *string `json:"activity_length"`
-	Referrals          int     `json:"referrals"`      //TODO
+	Referrals          int64   `json:"referrals"`      //TODO
 	CreditUsed         int     `json:"credit_used"`    //TODO: follow up on credit usage implementation (Tobi)
 	AmountSpent        int     `json:"amount_spent"`   //TODO
 	SubscriptionStatus string  `json:"payment_status"` //TODO: follow up on the the plan-split endpoint implementation
@@ -223,6 +224,8 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 
 		activityLength := user.GetActivityLength(u)
 
+		referrals, _ := invitation.CountInvitesByUser(db, u.ID)
+
 		resp = append(resp, map[string]any{
 			"id":               u.ID,
 			"email":            u.Email,
@@ -232,6 +235,38 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 			"last_log_in_at":   lastLogInAt,
 			"last_activity_at": lastActivityAt,
 			"activity_length":  activityLength,
+			"referrals":        referrals,
+		})
+	}
+
+	return resp, paginationResponse, http.StatusOK, nil
+}
+
+func ListUsersByInvites(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
+	pagination := postgresql.GetPagination(c)
+
+	type leaderRow struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		Referrals int64  `json:"referrals"`
+	}
+
+	var rows []leaderRow
+
+	selectQuery := "users.id, users.name, users.email, COALESCE(COUNT(invitations.id), 0) as referrals"
+	paginationResponse, err := postgresql.RawSelectAllFromByGroup(db, "referrals", "desc", &pagination, &models.User{}, &rows, "invitations.invited_by", selectQuery, "users.deleted_at IS NULL")
+	if err != nil {
+		return nil, paginationResponse, http.StatusBadRequest, err
+	}
+
+	resp := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		resp = append(resp, map[string]any{
+			"id":        r.ID,
+			"name":      r.Name,
+			"email":     r.Email,
+			"referrals": r.Referrals,
 		})
 	}
 
