@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -164,12 +165,18 @@ func GenerateStrongPassword(length int) (string, error) {
 }
 
 type UserListItem struct {
-	ID             string  `json:"id"`
-	Email          string  `json:"email"`
-	Name           string  `json:"name"`
-	CreatedAt      string  `json:"created_at"`
-	LastLogInAt    *string `json:"last_log_in_at"`
-	LastActivityAt *string `json:"last_activity_at"`
+	ID                 string  `json:"id"`
+	Email              string  `json:"email"`
+	Name               string  `json:"name"`
+	AvatarUrl          *string `json:"avatar_url"`
+	CreatedAt          string  `json:"created_at"`
+	LastLogInAt        *string `json:"last_log_in_at"`
+	LastActivityAt     *string `json:"last_activity_at"`
+	ActivityLength     *string `json:"activity_length"`
+	Referrals          int     `json:"referrals"`      //TODO
+	CreditUsed         int     `json:"credit_used"`    //TODO: follow up on credit usage implementation (Tobi)
+	AmountSpent        int     `json:"amount_spent"`   //TODO
+	SubscriptionStatus string  `json:"payment_status"` //TODO: follow up on the the plan-split endpoint implementation
 }
 
 func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
@@ -209,13 +216,22 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 			lastActivityAt = &formatted
 		}
 
+		var avatarUrl *string
+		if u.Profile.AvatarURL != "" {
+			avatarUrl = &u.Profile.AvatarURL
+		}
+
+		activityLength := user.GetActivityLength(u)
+
 		resp = append(resp, map[string]any{
 			"id":               u.ID,
 			"email":            u.Email,
 			"name":             u.Name,
+			"avatar_url":       avatarUrl,
 			"created_at":       u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			"last_log_in_at":   lastLogInAt,
 			"last_activity_at": lastActivityAt,
+			"activity_length":  activityLength,
 		})
 	}
 
