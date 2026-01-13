@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -160,13 +161,29 @@ func (base *Controller) InviteLeaderboard(c *gin.Context) {
 		orgPtr = &orgID
 	}
 
-	users, paginationResponse, code, err := admin.ListUsersByInvites(base.Db.Postgresql, c, orgPtr)
+	limit := 10
+	if c.Query("limit") != "" {
+		l, err := strconv.Atoi(c.Query("limit"))
+		if err != nil || l <= 0 {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid limit", "limit must be a positive integer", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		if l > 100 {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "limit cannot exceed 100", "limit cannot exceed 100", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		limit = l
+	}
+
+	users, code, err := admin.ListUsersByInvites(base.Db.Postgresql, orgPtr, limit)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "invite leaderboard retrieved successfully", users, paginationResponse)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "invite leaderboard retrieved successfully", users)
 	c.JSON(http.StatusOK, rd)
 }

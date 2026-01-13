@@ -27,9 +27,9 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	superAdminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.SuperAdminAuthorize(db.Postgresql))
 	{
 		superAdminAuthUrl.POST("/admins", admin.CreateAdmin)                                 // Only super admins can create admins
-		superAdminAuthUrl.GET("/admins/users", admin.ListUsers)                              // Only super admins can list all users
 		superAdminAuthUrl.GET("/dashboard/credits-summary", admin.GetPlatformCreditsSummary) // Platform credit metrics
-		superAdminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)              // Super admins can view invite leaderboard
+		superAdminAuthUrl.GET("/admins/users", admin.ListUsers)
+		superAdminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 	}
 
 	// Public admin endpoints (no authentication required)

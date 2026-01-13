@@ -174,10 +174,10 @@ type UserListItem struct {
 	LastLogInAt        *string `json:"last_log_in_at"`
 	LastActivityAt     *string `json:"last_activity_at"`
 	ActivityLength     *string `json:"activity_length"`
-	Referrals          int64   `json:"referrals"`      //TODO
-	CreditUsed         int     `json:"credit_used"`    //TODO: follow up on credit usage implementation (Tobi)
-	AmountSpent        int     `json:"amount_spent"`   //TODO
-	SubscriptionStatus string  `json:"payment_status"` //TODO: follow up on the the plan-split endpoint implementation
+	Referrals          int64   `json:"referrals"`
+	CreditUsed         int64   `json:"credit_used"`         //TODO: follow up on credit usage implementation (Tobi)
+	AmountSpent        int64   `json:"amount_spent"`        //TODO
+	SubscriptionStatus string  `json:"subscription_status"` //TODO: follow up on the the plan-split endpoint implementation
 }
 
 func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
@@ -242,8 +242,15 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 	return resp, paginationResponse, http.StatusOK, nil
 }
 
-func ListUsersByInvites(db *gorm.DB, c *gin.Context, orgID *string) ([]map[string]any, postgresql.PaginationResponse, int, error) {
-	pagination := postgresql.GetPagination(c)
+// ListUsersByInvites returns the top N users ordered by number of invites (referrals).
+// orgID is optional; if provided the results are restricted to that organisation.
+func ListUsersByInvites(db *gorm.DB, orgID *string, limit int) ([]map[string]any, int, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		return nil, http.StatusBadRequest, fmt.Errorf("limit cannot exceed 100")
+	}
 
 	type leaderRow struct {
 		ID        string `json:"id"`
@@ -261,18 +268,6 @@ func ListUsersByInvites(db *gorm.DB, c *gin.Context, orgID *string) ([]map[strin
 		whereArgs = append(whereArgs, *orgID)
 	}
 
-	// Count groups to determine total items
-	var totalItems int64
-	err := db.Table("users").
-		Joins("LEFT JOIN invitations ON invitations.invited_by = users.id").
-		Where(whereClause, whereArgs...).
-		Group("users.id").
-		Count(&totalItems).Error
-	if err != nil {
-		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, err
-	}
-
-	// Query rows
 	selectQuery := "users.id, users.name, users.email, COALESCE(COUNT(invitations.id), 0) as referrals"
 	tx := db.Table("users").
 		Select(selectQuery).
@@ -280,36 +275,23 @@ func ListUsersByInvites(db *gorm.DB, c *gin.Context, orgID *string) ([]map[strin
 		Where(whereClause, whereArgs...).
 		Group("users.id").
 		Order("referrals desc").
-		Limit(pagination.Limit).
-		Offset((pagination.Page - 1) * pagination.Limit).
+		Limit(limit).
 		Find(&rows)
 
 	if tx.Error != nil {
-		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, tx.Error
-	}
-
-	// Build pagination response
-	totalPages := 0
-	if pagination.Limit > 0 {
-		totalPages = int((totalItems + int64(pagination.Limit) - 1) / int64(pagination.Limit))
-	}
-
-	paginationResponse := postgresql.PaginationResponse{
-		CurrentPage:     pagination.Page,
-		PageCount:       int(tx.RowsAffected),
-		TotalPagesCount: totalPages,
-		TotalItems:      totalItems,
+		return nil, http.StatusBadRequest, tx.Error
 	}
 
 	resp := make([]map[string]any, 0, len(rows))
-	for _, r := range rows {
+	for idx, r := range rows {
 		resp = append(resp, map[string]any{
 			"id":        r.ID,
 			"name":      r.Name,
 			"email":     r.Email,
 			"referrals": int(r.Referrals),
+			"rank":      idx + 1,
 		})
 	}
 
-	return resp, paginationResponse, http.StatusOK, nil
+	return resp, http.StatusOK, nil
 }
