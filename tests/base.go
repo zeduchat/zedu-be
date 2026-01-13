@@ -58,6 +58,7 @@ func Setup() *utility.Logger {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 		seed.SeedPlans(logger, db.Postgresql)
+		seed.SeedCreditPackages(logger, db.Postgresql)
 	}
 
 	// Initialize River client for background jobs
