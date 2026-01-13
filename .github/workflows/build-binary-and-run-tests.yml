@@ -62,7 +62,7 @@ jobs:
         run: go test ./tests/... -timeout 300s
 
       - name: Cleanup test database
-        if: false # always()
+        if: always()
         env:
           PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_PASSWORD }}
-        run: dropdb -U actionsdeployer ${TEST_DB_NAME} || true
+        run: dropdb -U actionsdeployer --if-exists ${TEST_DB_NAME}
