@@ -561,7 +561,7 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 		if err := tx.Model(&buzz).Updates(map[string]interface{}{
 			"status":         models.BuzzStatusEnded,
 			"is_live_status": false,
-			"Buzz_end_time":  &now,
+			"buzz_end_time":  &now,
 			"updated_at":     now,
 		}).Error; err != nil {
 			return err

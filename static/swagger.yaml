@@ -3183,7 +3183,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        id:
+                        channels_id:
                           type: string
                           format: uuid
                           example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
@@ -3197,6 +3197,120 @@ paths:
                           type: string
                           format: date-time
                           example: "2024-08-27T15:28:20.499875+01:00"
+                        organisation_id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        is_private:
+                          type: boolean
+                          example: false
+                        owner_id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        archived:
+                          type: boolean
+                          example: false
+                        group_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                          example: null
+                        mention_count:
+                          type: integer
+                          example: 0
+                        thread_count:
+                          type: integer
+                          example: 5
+                        last_thread_id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        access:
+                          type: boolean
+                          example: true
+                        member_avatars:
+                          type: array
+                          items:
+                            type: string
+                          example: ["https://example.com/avatar1.jpg", "https://example.com/avatar2.jpg"]
+                        members_count:
+                          type: integer
+                          example: 10
+                        last_post_time:
+                          type: string
+                          example: "5 minutes ago"
+                        unread_count:
+                          type: integer
+                          example: 3
+                        channel_slug:
+                          type: string
+                          example: "default-82ae6afe2da4"
+                        preview_thread:
+                          type: array
+                          description: Array of preview threads for the channel, sorted by created_at in descending order
+                          items:
+                            type: object
+                            properties:
+                              thread_id:
+                                type: string
+                                format: uuid
+                                example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                              channels_id:
+                                type: string
+                                format: uuid
+                                example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                              username:
+                                type: string
+                                example: "john_doe"
+                              message:
+                                type: string
+                                example: "Hello, this is a test message"
+                              created_at:
+                                type: string
+                                format: date-time
+                                example: "2024-08-27T15:28:20.499875+01:00"
+                              user_id:
+                                type: string
+                                format: uuid
+                                example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                              avatar_url:
+                                type: string
+                                example: "https://example.com/avatar.jpg"
+                              full_name:
+                                type: string
+                                example: "John Doe"
+                              email:
+                                type: string
+                                example: "john@example.com"
+                              type:
+                                type: string
+                                example: "thread"
+                              edited:
+                                type: boolean
+                                example: false
+                              is_pinned:
+                                type: boolean
+                                example: false
+                        active_buzz:
+                          type: object
+                          nullable: true
+                          description: Information about active buzz (audio/video call) in the channel
+                          properties:
+                            buzz_id:
+                              type: string
+                              format: uuid
+                            host_id:
+                              type: string
+                              format: uuid
+                            host_name:
+                              type: string
+                            participant_count:
+                              type: integer
+                            started_at:
+                              type: string
+                              format: date-time
+
 
   /organisations/{organisation_id}/user-not-channels:
     get:

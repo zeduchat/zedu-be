@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -91,16 +93,17 @@ type GetChannelResp struct {
 type GetUserChannelResp []struct {
 	Channels
 	WebhookUrl    string          `json:"webhook_url,omitempty"`
-	ThreadCount   int64           `json:"thread_count,omitempty"`
-	Access        bool            `json:"access,omitempty"`
-	MentionCount  int64           `json:"mention_count,omitempty"`
-	LastThreadId  string          `json:"last_thread_id,omitempty"`
-	MemberAvatars []string        `json:"member_avatars,omitempty"`
-	MembersCount  int             `json:"members_count,omitempty"`
-	LastPostTime  string          `json:"last_post_time,omitempty"`
-	UnreadCount   int64           `json:"unread_count,omitempty"`
+	ThreadCount   int64           `json:"thread_count"`
+	Access        bool            `json:"access"`
+	MentionCount  int64           `json:"mention_count"`
+	LastThreadId  string          `json:"last_thread_id"`
+	MemberAvatars []string        `gorm:"-" json:"member_avatars"`
+	MembersCount  int             `json:"members_count"`
+	LastPostTime  string          `json:"last_post_time"`
+	UnreadCount   int64           `json:"unread_count"`
 	ChannelSlug   string          `json:"channel_slug"`
-	ActiveBuzz    *ActiveBuzzInfo `json:"active_buzz,omitempty"`
+	ActiveBuzz    *ActiveBuzzInfo `gorm:"-" json:"active_buzz,omitempty"`
+	PreviewThread []Threads       `gorm:"-" json:"preview_thread"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -337,13 +340,13 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 
 	err = db.Raw(`
 		SELECT b.id as buzz_id, b.host_id, u.name as host_name, 
-		       b.huddle_start_time as started_at,
+		       b.buzz_start_time as started_at,
 		       COUNT(bp.id) as participant_count
 		FROM buzzs b
 		JOIN users u ON b.host_id = u.id
 		LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
 		WHERE b.channel_id = ? AND b.status = ? AND b.is_live_status = ?
-		GROUP BY b.id, b.host_id, u.name, b.huddle_start_time
+		GROUP BY b.id, b.host_id, u.name, b.buzz_start_time
 		LIMIT 1
 	`, BuzzParticipantStatusActive, chanReq.ChannelID, BuzzStatusActive, true).Scan(&buzzData).Error
 
@@ -838,6 +841,22 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			totalMembers int64
 			lastReadAt   *time.Time
 		)
+		previewThread := []Threads{}
+
+		threadCtx := &gin.Context{
+			Request: &http.Request{
+				URL: &url.URL{
+					RawQuery: "page=1&limit=50",
+				},
+			},
+		}
+
+		var thread Threads
+		threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, ids.UserID, chanResp[i].ID)
+		if threadErr == nil && len(threads) > 0 {
+			previewThread = threads
+		}
+
 		if err := db.Table("user_channels").
 			Select("profiles.avatar_url").
 			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
@@ -912,10 +931,43 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		chanResp[i].MemberAvatars = avatars
 		chanResp[i].MembersCount = membersLeft
+		if previewThread != nil {
+			chanResp[i].PreviewThread = previewThread
+		} else {
+			chanResp[i].PreviewThread = []Threads{}
+		}
 		parts := strings.Split(chanResp[i].ID, "-")
 		lastPart := parts[len(parts)-1]
 		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
 	}
+
+	sort.Slice(chanResp, func(i, j int) bool {
+		var iTime, jTime time.Time
+		iHasThread := chanResp[i].PreviewThread != nil && len(chanResp[i].PreviewThread) > 0
+		jHasThread := chanResp[j].PreviewThread != nil && len(chanResp[j].PreviewThread) > 0
+
+		if iHasThread {
+			iTime = chanResp[i].PreviewThread[0].CreatedAt
+		}
+
+		if jHasThread {
+			jTime = chanResp[j].PreviewThread[0].CreatedAt
+		}
+
+		if iHasThread && jHasThread {
+			return iTime.After(jTime)
+		}
+
+		if iHasThread {
+			return true
+		}
+
+		if jHasThread {
+			return false
+		}
+
+		return false
+	})
 
 	// Batch fetch active buzzes for all channels to avoid N+1 queries
 	if len(chanResp) > 0 {
@@ -935,13 +987,13 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		err := db.Raw(`
 			SELECT b.id as buzz_id, b.channel_id, b.host_id, u.name as host_name, 
-			       b.huddle_start_time as started_at,
+			       b.buzz_start_time as started_at,
 			       COUNT(bp.id) as participant_count
 			FROM buzzs b
 			JOIN users u ON b.host_id = u.id
 			LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
 			WHERE b.channel_id IN ? AND b.status = ? AND b.is_live_status = ?
-			GROUP BY b.id, b.channel_id, b.host_id, u.name, b.huddle_start_time
+			GROUP BY b.id, b.channel_id, b.host_id, u.name, b.buzz_start_time
 		`, BuzzParticipantStatusActive, channelIDs, BuzzStatusActive, true).Scan(&activeBuzzes).Error
 
 		if err == nil {
