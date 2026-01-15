@@ -80,6 +80,12 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	for _, userId := range userIDs {
 		orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
 	}
+
+	if len(orgUserIds) == 0 {
+		logger.Info("Channel Notification aborted, empty users")
+		return nil
+	}
+
 	notifPayload.Notification.NotificationId = utility.GenerateUUID()
 
 	err = centrifuge.BatchBroadcastToChannel(logger, orgUserIds, notifPayload.Notification)
