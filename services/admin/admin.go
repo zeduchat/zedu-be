@@ -17,7 +17,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/invitation"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -203,6 +202,27 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 		return []map[string]any{}, paginationResponse, http.StatusOK, nil
 	}
 
+	// Fetch all referral counts in a single query to avoid N+1 problem
+	type referralCount struct {
+		UserID string
+		Count  int64
+	}
+	var referralCounts []referralCount
+	if err := db.Model(&models.Invitation{}).
+		Select("invited_by as user_id, COUNT(*) as count").
+		Where("invited_by IN ?", getUserIDs(users)).
+		Group("invited_by").
+		Scan(&referralCounts).Error; err != nil {
+		// If query fails, continue with zero referrals
+		referralCounts = []referralCount{}
+	}
+
+	// Build a map for quick lookup
+	referralMap := make(map[string]int64)
+	for _, rc := range referralCounts {
+		referralMap[rc.UserID] = rc.Count
+	}
+
 	resp := make([]map[string]any, 0, len(users))
 	for _, u := range users {
 		var lastLogInAt *string
@@ -224,7 +244,7 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 
 		activityLength := user.GetActivityLength(u)
 
-		referrals, _ := invitation.CountInvitesByUser(db, u.ID)
+		referrals := referralMap[u.ID]
 
 		resp = append(resp, map[string]any{
 			"id":               u.ID,
@@ -240,6 +260,14 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 	}
 
 	return resp, paginationResponse, http.StatusOK, nil
+}
+
+func getUserIDs(users []models.User) []string {
+	userIDs := make([]string, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+	}
+	return userIDs
 }
 
 func ListUsersByInvites(db *gorm.DB, orgID *string, limit int) ([]map[string]any, int, error) {
