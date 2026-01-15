@@ -340,13 +340,13 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 
 	err = db.Raw(`
 		SELECT b.id as buzz_id, b.host_id, u.name as host_name, 
-		       b.huddle_start_time as started_at,
+		       b.buzz_start_time as started_at,
 		       COUNT(bp.id) as participant_count
 		FROM buzzs b
 		JOIN users u ON b.host_id = u.id
 		LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
 		WHERE b.channel_id = ? AND b.status = ? AND b.is_live_status = ?
-		GROUP BY b.id, b.host_id, u.name, b.huddle_start_time
+		GROUP BY b.id, b.host_id, u.name, b.buzz_start_time
 		LIMIT 1
 	`, BuzzParticipantStatusActive, chanReq.ChannelID, BuzzStatusActive, true).Scan(&buzzData).Error
 
@@ -987,13 +987,13 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		err := db.Raw(`
 			SELECT b.id as buzz_id, b.channel_id, b.host_id, u.name as host_name, 
-			       b.huddle_start_time as started_at,
+			       b.buzz_start_time as started_at,
 			       COUNT(bp.id) as participant_count
 			FROM buzzs b
 			JOIN users u ON b.host_id = u.id
 			LEFT JOIN buzz_participants bp ON b.id = bp.buzz_id AND bp.status = ?
 			WHERE b.channel_id IN ? AND b.status = ? AND b.is_live_status = ?
-			GROUP BY b.id, b.channel_id, b.host_id, u.name, b.huddle_start_time
+			GROUP BY b.id, b.channel_id, b.host_id, u.name, b.buzz_start_time
 		`, BuzzParticipantStatusActive, channelIDs, BuzzStatusActive, true).Scan(&activeBuzzes).Error
 
 		if err == nil {
