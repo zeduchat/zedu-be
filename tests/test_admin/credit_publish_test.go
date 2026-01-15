@@ -9,7 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
-	"github.com/hngprojects/telex_be/utility"
 )
 
 func TestPublishPlatformCreditUpdate_Success(t *testing.T) {
@@ -21,9 +20,7 @@ func TestPublishPlatformCreditUpdate_Success(t *testing.T) {
 	CreateCreditTransaction(t, db.Postgresql, orgID, 100.00)
 	CreateCreditUsage(t, db.Postgresql, orgID, 20.00)
 
-	logger := utility.NewLogger()
-
-	models.PublishPlatformCreditUpdate(db.Postgresql, logger)
+	models.PublishPlatformCreditUpdate(db.Postgresql)
 
 	t.Cleanup(func() {
 		CleanupTestData(t, db.Postgresql)

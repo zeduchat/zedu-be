@@ -348,7 +348,7 @@ func ChargeAICreditUsage(db *storage.Database, ids models.IDS, inputputLength in
 	}
 
 	// Publish real-time update to superadmin dashboard (async)
-	go models.PublishPlatformCreditUpdate(db.Postgresql, logger)
+	go models.PublishPlatformCreditUpdate(db.Postgresql)
 
 	return nil
 }

@@ -187,9 +187,9 @@ func CreateTestCreditPackage(t *testing.T, db *gorm.DB, credits int, price float
 	pkg := models.CreditPackage{
 		ID:       utility.GenerateUUID(),
 		Name:     fmt.Sprintf("Test Package %s", utility.RandomString(5)),
-		Credits:   credits,
-		Price:     price,
-		Currency:  "USD",
+		Credits:  credits,
+		Price:    price,
+		Currency: "USD",
 	}
 	err := db.Create(&pkg).Error
 	if err != nil {

@@ -117,17 +117,15 @@ func (c *CreditUsage) UpdateOrCreateDailyCredit(db *gorm.DB, amount float64) err
 	return nil
 }
 
-func OrgHasValidCreditBalance(db *gorm.DB, organisationID string, creditUsed float64, logger *utility.Logger) bool {
+func OrgHasValidCreditBalance(db *gorm.DB, organisationID string, creditUsed float64) bool {
 	var org Organisation
 
 	err := db.First(&org, "id = ?", organisationID).Error
 	if err != nil {
-		logger.Error("Failed to get organisation")
 		return false
 	}
 
 	if org.CreditBalance <= creditUsed {
-		logger.Error("Organisation has insufficient credit balance!!")
 		return false
 	}
 
@@ -163,7 +161,7 @@ func UpdateOrgCreditBalance(db *gorm.DB, organisationID string) error {
 		Update("credit_balance", balance).Error
 }
 
-func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string, logger *utility.Logger) (*gin.H, int, error) {
+func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, error) {
 	var org Organisation
 
 	org, err := org.GetOrgByID(db, OrgID)
@@ -198,7 +196,7 @@ func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string, logger *utility
 	}
 
 	// Publish real-time update to superadmin dashboard (async)
-	go PublishPlatformCreditUpdate(db, logger)
+	go PublishPlatformCreditUpdate(db)
 
 	// refetch org with updated values
 	org, err = org.GetOrgByID(db, OrgID)
@@ -450,25 +448,15 @@ func GetPlatformCreditSummary(db *gorm.DB) (PlatformCreditMetrics, error) {
 	return metrics, nil
 }
 
-func PublishPlatformCreditUpdate(db *gorm.DB, logger *utility.Logger) {
+func PublishPlatformCreditUpdate(db *gorm.DB) {
 	metrics, err := GetPlatformCreditSummary(db)
 	if err != nil {
-		if logger != nil {
-			logger.Error("Failed to get platform credit summary for publishing", err)
-		}
 		return
 	}
 
 	channelID := "superadmin:dashboard:credits"
 
-	if err := centrifuge.PublishChannelOptional(logger, channelID, metrics); err != nil {
-		if logger != nil {
-			logger.Error("Failed to publish platform credit update to centrifuge", err)
-		}
+	if err := centrifuge.PublishChannelOptional(nil, channelID, metrics); err != nil {
 		return
-	}
-
-	if logger != nil {
-		logger.Info("Published platform credit update to channel %s", channelID)
 	}
 }
