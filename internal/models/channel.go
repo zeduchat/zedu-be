@@ -97,12 +97,12 @@ type GetUserChannelResp []struct {
 	Access        bool            `json:"access"`
 	MentionCount  int64           `json:"mention_count"`
 	LastThreadId  string          `json:"last_thread_id"`
-	MemberAvatars []string        `json:"member_avatars"`
+	MemberAvatars []string        `gorm:"-" json:"member_avatars"`
 	MembersCount  int             `json:"members_count"`
 	LastPostTime  string          `json:"last_post_time"`
 	UnreadCount   int64           `json:"unread_count"`
 	ChannelSlug   string          `json:"channel_slug"`
-	ActiveBuzz    *ActiveBuzzInfo `json:"active_buzz,omitempty"`
+	ActiveBuzz    *ActiveBuzzInfo `gorm:"-" json:"active_buzz,omitempty"`
 	PreviewThread []Threads       `gorm:"-" json:"preview_thread"`
 }
 

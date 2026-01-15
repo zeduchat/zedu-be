@@ -96,14 +96,12 @@ func TestGetUserChannelsWithPreviewThread(t *testing.T) {
 		t.Fatalf("Failed to create test thread: %v", err)
 	}
 
+	channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
+	{
+		channelUrl.GET("/org/:org_id", channelController.GetUserChannels)
+	}
+
 	t.Run("Get User Channels with Preview Thread", func(t *testing.T) {
-		r := gin.Default()
-
-		channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
-		{
-			channelUrl.GET("/org/:org_id", channelController.GetUserChannels)
-		}
-
 		getUserChannelsPath := fmt.Sprintf("/api/v1/channels/org/%s", orgId)
 		getUserChannelsURI := url.URL{Path: getUserChannelsPath}
 
@@ -160,6 +158,8 @@ func TestGetUserChannelsWithPreviewThread(t *testing.T) {
 	})
 
 	t.Run("Verify Channels Sorted by Preview Thread Created At", func(t *testing.T) {
+		r2 := gin.Default()
+
 		createChannelsData2 := models.CreateChannelsRequest{
 			Name:           fmt.Sprintf("TestChannels2%s", utility.GenerateUUID()),
 			Username:       fmt.Sprintf("Mr%sChannels2", utility.GenerateUUID()),
@@ -167,7 +167,9 @@ func TestGetUserChannelsWithPreviewThread(t *testing.T) {
 			Description:    "Second test channel",
 		}
 
-		channelsId2, _ := tst.CreateChannels(t, r, channelController, db, createChannelsData2, token)
+		channelsId2, _ := tst.CreateChannels(t, r2, channelController, db, createChannelsData2, token)
+
+		time.Sleep(100 * time.Millisecond)
 
 		threadDoc2 := models.ThreadDocument{
 			ID:         utility.GenerateUUID(),
@@ -183,11 +185,9 @@ func TestGetUserChannelsWithPreviewThread(t *testing.T) {
 			t.Fatalf("Failed to create second test thread: %v", err)
 		}
 
-		r := gin.Default()
-
-		channelUrl := r.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
+		channelUrl2 := r2.Group(fmt.Sprintf("%v", "/api/v1/channels"), middleware.Authorize(db.Postgresql))
 		{
-			channelUrl.GET("/org/:org_id", channelController.GetUserChannels)
+			channelUrl2.GET("/org/:org_id", channelController.GetUserChannels)
 		}
 
 		getUserChannelsPath := fmt.Sprintf("/api/v1/channels/org/%s", orgId)
@@ -202,7 +202,7 @@ func TestGetUserChannelsWithPreviewThread(t *testing.T) {
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		rr := httptest.NewRecorder()
-		r.ServeHTTP(rr, req)
+		r2.ServeHTTP(rr, req)
 
 		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
