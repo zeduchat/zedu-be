@@ -30,14 +30,14 @@ type Threads struct {
 	ActionType               string                    `gorm:"type:text;index" json:"action_type,omitempty"`
 	Status                   string                    `gorm:"type:varchar(200);index" json:"status,omitempty"`
 	CreatedAt                time.Time                 `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Messages                 []Message                 `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages,omitempty"`
-	MessageCount             int64                     `gorm:"type:int;" json:"message_count,omitempty"`
+	Messages                 []Message                 `gorm:"foreignKey:ThreadID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"messages"`
+	MessageCount             int64                     `gorm:"type:int;" json:"message_count"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
 	Type                     string                    `gorm:"default:thread" json:"type"`
 	Content                  string                    `gorm:"type:text;index" json:"message"`
 	ChannelName              string                    `json:"channel_name,omitempty"`
-	ChannelType              string                    `json:"channel_type,omitempty"` // public, private, or DM
+	ChannelType              string                    `gorm:"-" json:"channel_type,omitempty"` // public, private, or DM
 	CurrentStatus            string                    `json:"current_status"`
 	FullName                 string                    `json:"full_name"`
 	Email                    string                    `json:"email"`
@@ -48,13 +48,13 @@ type Threads struct {
 	Count                    int                       `json:"frequency,omitempty"`
 	UserId                   string                    `json:"user_id"`
 	Media                    []File                    `gorm:"-" json:"media,omitempty"`
-	Mentions                 []Mention                 `json:"mentions,omitempty"`
+	Mentions                 []Mention                 `gorm:"-" json:"mentions,omitempty"`
 	OrganisationID           string                    `json:"org_id,omitempty"`
 	State                    string                    `json:"state,omitempty"`
-	PinnedDetails            PinnedDetails             `json:"pinned_details,omitempty"`
-	Reactions                []ReactionDetails         `json:"reactions"`
+	PinnedDetails            PinnedDetails             `gorm:"-" json:"pinned_details,omitempty"`
+	Reactions                []ReactionDetails         `gorm:"-" json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
-	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	ForwardedMessageMetadata *ForwardedMessageMetadata `gorm:"-" json:"forwarded_message_metadata,omitempty"`
 }
 
 type ThreadDocument struct {

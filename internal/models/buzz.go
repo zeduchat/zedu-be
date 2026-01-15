@@ -33,8 +33,8 @@ type Buzz struct {
 	ChannelType    string         `gorm:"type:varchar(20);not null;default:'channel'" json:"channel_type"`
 	HostID         string         `gorm:"type:uuid;not null;index" json:"host_id"`
 	ParticipantIDs pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
-	BuzzStartTime  time.Time      `gorm:"column:Buzz_start_time;autoCreateTime" json:"Buzz_start_time"`
-	BuzzEndTime    *time.Time     `gorm:"column:Buzz_end_time" json:"Buzz_end_time"`
+	BuzzStartTime  time.Time      `gorm:"column:buzz_start_time;autoCreateTime" json:"Buzz_start_time"`
+	BuzzEndTime    *time.Time     `gorm:"column:buzz_end_time" json:"Buzz_end_time"`
 	IsLiveStatus   bool           `gorm:"column:is_live_status;default:true" json:"is_live_status"`
 	Status         string         `gorm:"type:text;default:'active'" json:"status"`
 	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
@@ -116,8 +116,9 @@ type ActiveBuzzIndicator struct {
 	HostID                string   `json:"host_id,omitempty"`
 	Status                string   `json:"status,omitempty"`
 	ParticipantCount      int      `json:"participant_count"`
-	ParticipantPreview    []string `json:"participant_preview"`    // First 2-3 names
-	RemainingParticipants int      `json:"remaining_participants"` // Count of others
+	ParticipantPreview    []string `json:"participant_preview"`       // First 2-3 names
+	RemainingParticipants int      `json:"remaining_participants"`    // Count of others
+	IsUserInBuzz          bool     `json:"is_user_in_buzz,omitempty"` // Whether the requesting user is in the buzz
 }
 
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
@@ -296,6 +297,7 @@ type JoinBuzzResponse struct {
 	ChannelID    string                  `json:"channel_id"`
 	UserID       string                  `json:"user_id"`
 	Status       string                  `json:"status"`
+	CreatedAt    time.Time               `json:"created_at"`
 	JoinedAt     time.Time               `json:"joined_at"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`

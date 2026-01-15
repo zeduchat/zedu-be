@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -14,7 +15,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
-	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
@@ -33,8 +33,6 @@ func TestBuzz(t *testing.T) {
 
 	authController := auth.Controller{Db: db, Validator: validatorRef,
 		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
-	channelController := channel.Controller{Db: db, Validator: validatorRef,
-		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
 	userEmail := utility.GenerateUUID() + "@qa.team"
@@ -51,14 +49,31 @@ func TestBuzz(t *testing.T) {
 	if err := db.Postgresql.Where("email = ?", signUp.Email).First(&user).Error; err != nil {
 		t.Fatalf("failed to fetch created user: %v", err)
 	}
-	channelData := models.CreateChannelsRequest{
-		OrganisationID: user.CurrentOrg.String(),
-		Username:       signUp.UserName,
+
+	// Manually create channel and add user (bypass Elasticsearch issue)
+	channelID := utility.GenerateUUID()
+
+	// Create channel directly in database
+	channel := models.Channels{
+		ID:             channelID,
 		Name:           "test_" + utility.GenerateUUID(),
+		OrganisationID: user.CurrentOrg.String(),
+		OwnerId:        user.ID,
+		CreatedAt:      time.Now(),
 	}
-	channelID, _ := tst.CreateChannels(t, router, channelController, db, channelData, token)
-	if channelID == "" {
-		t.Fatal("failed to obtain channelID")
+	if err := db.Postgresql.Create(&channel).Error; err != nil {
+		t.Fatalf("Failed to create test channel: %v", err)
+	}
+
+	// Add user to channel
+	userChannel := models.UserChannels{
+		ChannelsID: channelID,
+		UserID:     user.ID,
+		Username:   signUp.UserName,
+		CreatedAt:  time.Now(),
+	}
+	if err := db.Postgresql.Create(&userChannel).Error; err != nil {
+		t.Logf("Warning: Failed to add user to channel: %v", err)
 	}
 	t.Run("CreateBuzzSuccess", func(t *testing.T) {
 		reqBody := models.CreateBuzzRequest{

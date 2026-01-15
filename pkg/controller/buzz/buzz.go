@@ -2,6 +2,7 @@ package buzz
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -248,16 +249,36 @@ func (base *Controller) GetMetadata(c *gin.Context) {
 }
 
 func (base *Controller) GetChannelActiveBuzz(c *gin.Context) {
-	channelID := c.Param("channel_id")
+	base.getActiveBuzzForChannel(c, "channel_id", "channel")
+}
+
+func (base *Controller) GetDMActiveBuzz(c *gin.Context) {
+	base.getActiveBuzzForChannel(c, "dm_id", "dm")
+}
+
+func (base *Controller) GetGroupDMActiveBuzz(c *gin.Context) {
+	base.getActiveBuzzForChannel(c, "group_dm_id", "group dm")
+}
+
+func (base *Controller) getActiveBuzzForChannel(c *gin.Context, paramName, channelType string) {
+	channelID := c.Param(paramName)
 
 	if channelID == "" || !(utility.IsValidUUID(channelID)) {
-		base.Logger.Error("invalid request param: channel id is empty or invalid")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id in params", errors.New("invalid channel id"), nil)
+		base.Logger.Error("invalid request param: %s id is empty or invalid", channelType)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", fmt.Sprintf("invalid %s id in params", channelType), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	data, statusCode, err := buzz.GetChannelActiveBuzzIndicator(base.Db, base.Logger, channelID)
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	data, statusCode, err := buzz.GetChannelActiveBuzzIndicator(base.Db, base.Logger, channelID, userID.(string))
 
 	if err != nil {
 		base.Logger.Error("Failed to fetch active buzz indicator: %v", err)
@@ -266,7 +287,7 @@ func (base *Controller) GetChannelActiveBuzz(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("active buzz indicator retrieved for channel %s", channelID)
+	base.Logger.Info("active buzz indicator retrieved for %s %s", channelType, channelID)
 	rd := utility.BuildSuccessResponse(statusCode, "active buzz status retrieved", data)
 	c.JSON(statusCode, rd)
 }

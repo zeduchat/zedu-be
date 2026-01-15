@@ -98,18 +98,74 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
-  - name: Skills
-    description: API endpoints for agents skills
-  - name: Tasks
-    description: API endpoints for agents tasks
-  - name: Translator
-    description: API endpoints for telex markdown to json formatting engine
-  - name: buzz
-    description: API endpoints for buzz (audio/video calls) feature
-  - name: shares
-    description: API endpoints for buying and tracking shares
-
+  - name: Super Admin
+    description: API endpoints for superadmin dashboard and operations
 paths:
+  # Super Admin Dashboard paths
+  /backoffice/dashboard/credits-summary:
+    get:
+      tags:
+        - Super Admin
+      summary: Get platform credit summary for superadmin dashboard
+      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform credit summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Platform credit summary retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/PlatformCreditMetrics"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Unauthorized"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Access denied. Super admin privileges required."
+        "500":
+          description: Internal server error - Failed to fetch platform credit summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch platform credit summary"
+
   # Auth paths
   /auth/register:
     post:
@@ -3185,7 +3241,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        id:
+                        channels_id:
                           type: string
                           format: uuid
                           example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
@@ -3199,6 +3255,124 @@ paths:
                           type: string
                           format: date-time
                           example: "2024-08-27T15:28:20.499875+01:00"
+                        organisation_id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        is_private:
+                          type: boolean
+                          example: false
+                        owner_id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        archived:
+                          type: boolean
+                          example: false
+                        group_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                          example: null
+                        mention_count:
+                          type: integer
+                          example: 0
+                        thread_count:
+                          type: integer
+                          example: 5
+                        last_thread_id:
+                          type: string
+                          format: uuid
+                          example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                        access:
+                          type: boolean
+                          example: true
+                        member_avatars:
+                          type: array
+                          items:
+                            type: string
+                          example: ["https://example.com/avatar1.jpg", "https://example.com/avatar2.jpg"]
+                        members_count:
+                          type: integer
+                          example: 10
+                        last_post_time:
+                          type: string
+                          example: "5 minutes ago"
+                        unread_count:
+                          type: integer
+                          example: 3
+                        channel_slug:
+                          type: string
+                          example: "default-82ae6afe2da4"
+                        preview_thread:
+                          type: array
+                          description: Array of preview threads for the channel, sorted by created_at in descending order
+                          items:
+                            type: object
+                            properties:
+                              thread_id:
+                                type: string
+                                format: uuid
+                                example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                              channels_id:
+                                type: string
+                                format: uuid
+                                example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                              username:
+                                type: string
+                                example: "john_doe"
+                              message:
+                                type: string
+                                example: "Hello, this is a test message"
+                              created_at:
+                                type: string
+                                format: date-time
+                                example: "2024-08-27T15:28:20.499875+01:00"
+                              user_id:
+                                type: string
+                                format: uuid
+                                example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+                              avatar_url:
+                                type: string
+                                example: "https://example.com/avatar.jpg"
+                              full_name:
+                                type: string
+                                example: "John Doe"
+                              email:
+                                type: string
+                                example: "john@example.com"
+                              type:
+                                type: string
+                                example: "thread"
+                              edited:
+                                type: boolean
+                                example: false
+                              is_pinned:
+                                type: boolean
+                                example: false
+                        preview_message:
+                          type: string
+                          description: A preview of the last message content from the first thread in the channel
+                          example: "Hello, this is a test message"
+                        active_buzz:
+                          type: object
+                          nullable: true
+                          description: Information about active buzz (audio/video call) in the channel
+                          properties:
+                            buzz_id:
+                              type: string
+                              format: uuid
+                            host_id:
+                              type: string
+                              format: uuid
+                            host_name:
+                              type: string
+                            participant_count:
+                              type: integer
+                            started_at:
+                              type: string
+                              format: date-time
+
 
   /organisations/{organisation_id}/user-not-channels:
     get:
@@ -9096,16 +9270,11 @@ paths:
                               type: array
                               items:
                                 type: string
-                              example:
-                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_da41992a35ce.jpeg
-                                - https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
-                                - https://lh3.googleusercontent.com/a/ACg8ocJT...
-                            last_post_time:
-                              type: string
-                              example: Last post Apr 23 11:01
-                            members_count:
-                              type: integer
-                              example: 14
+                                description: "Array of member avatar URLs"
+                                example:
+                                  [
+                                    https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_da41992a35ce.jpeg,
+                                  ]
 
   /organisations/{org_id}/metrics:
     get:
@@ -23491,7 +23660,7 @@ paths:
       tags:
         - buzz
       summary: Join a buzz (video/audio call)
-      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token (valid for 4 hours) for real-time communication. Token is generated before adding user to ensure consistency.
+      description: Allows a user to join an active buzz. Returns buzz details and generates an Agora RTC token (valid for 4 hours) for real-time communication. Token is generated before adding user to ensure consistency. Users who previously left the buzz can rejoin.
       operationId: joinBuzz
       security:
         - bearerAuth: []
@@ -23511,7 +23680,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/BuzzJoinResponseSchema"
         "400":
-          description: Bad request - buzz not active or already a participant
+          description: Bad request - buzz not active or already an active participant
           content:
             application/json:
               schema:
@@ -23752,7 +23921,7 @@ paths:
       tags:
         - buzz
       summary: Leave a buzz (call)
-      description: Remove the current user from a buzz and handle host reassignment if needed
+      description: Remove the current user from a buzz and handle host reassignment if needed. Users who leave can rejoin the buzz while it remains active.
       operationId: leaveBuzz
       security:
         - bearerAuth: []
@@ -24136,7 +24305,7 @@ paths:
       tags:
         - buzz
       summary: Get active buzz indicator for a channel
-      description: 'Retrieves a lightweight indicator showing if there''s an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Useful for displaying "X, Y, and N others are in the buzz" on channel pages. Available to any authenticated user who is a member of the channel.'
+      description: 'Retrieves a lightweight indicator showing if there''s an active buzz in a channel, along with participant preview (first 2-3 names and remaining count). Also indicates whether the requesting user is currently in the buzz. Useful for displaying "X, Y, and N others are in the buzz" and for member verification. Available to any authenticated user who is a member of the channel.'
       operationId: getChannelActiveBuzz
       security:
         - bearerAuth: []
@@ -24171,6 +24340,55 @@ paths:
           description: Not found - channel does not exist
           content:
             application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/dm/{dm_id}/active:
+    get:
+      tags:
+        - buzz
+      summary: Get active buzz indicator for a DM
+      description: "Retrieves a lightweight indicator showing if there's an active buzz in a DM channel, along with participant preview. Also indicates whether the requesting user is currently in the buzz. Available to any authenticated user who is a participant in the DM."
+      operationId: getDMActiveBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: dm_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of DM channel
+      responses:
+        "200":
+          description: Successfully retrieved active buzz indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveBuzzIndicator"
+        "400":
+          description: Bad request - invalid DM ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a participant in the DM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - DM does not exist
+          content:
+            application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
@@ -24180,7 +24398,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-components:
+  /buzz/group-dm/{group_dm_id}/active:
+    get:
+      tags:
+        - buzz
+      summary: Get active buzz indicator for a group DM
+      description: "Retrieves a lightweight indicator showing if there's an active buzz in a group DM channel, along with participant preview. Also indicates whether the requesting user is currently in the buzz. Available to any authenticated user who is a member of the group DM."
+      operationId: getGroupDMActiveBuzz
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: group_dm_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of group DM channel
+      responses:
+        "200":
+          description: Successfully retrieved active buzz indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveBuzzIndicator"
+        "400":
+          description: Bad request - invalid group DM ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the group DM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - group DM does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  components:
   schemas:
     PartialStatusUpdateRequest:
       type: object
@@ -24444,14 +24711,14 @@ components:
           format: uri
           nullable: true
           example: "https://example.com/avatar.jpg"
-        is_in_buzz:
-          type: boolean
-          description: Whether the user is currently in the buzz
-          example: false
-        is_invited:
-          type: boolean
-          description: Whether the user has a pending invitation
-          example: false
+          is_in_buzz:
+            type: boolean
+            description: Whether the user is currently an active participant in the buzz (excludes users who have left)
+            example: false
+          is_invited:
+            type: boolean
+            description: Whether the user has a pending invitation
+            example: false
 
     SearchChannelMembersResponse:
       type: object
@@ -24653,6 +24920,10 @@ components:
           type: string
           enum: [active]
           description: Buzz status
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
         joined_at:
           type: string
           format: date-time
@@ -24673,6 +24944,7 @@ components:
         channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
         status: "active"
+        created_at: "2025-11-28T12:00:00Z"
         joined_at: "2025-11-28T12:05:00Z"
         participants:
           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -24695,6 +24967,7 @@ components:
 
     BuzzLeaveResponseSchema:
       type: object
+      description: Response returned when a user leaves a buzz. Users can rejoin a buzz after leaving as long as it remains active.
       required:
         - buzz_id
         - participant_id
@@ -24868,22 +25141,27 @@ components:
           type: integer
           description: Number of remaining participants not shown in preview (0 if all shown)
           minimum: 0
-      example:
-        is_active: true
-        buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
-        host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
-        status: "active"
-        participant_count: 11
-        participant_preview: ["tolu", "kemi"]
-        remaining_participants: 9
-      example_no_active:
-        is_active: false
-        buzz_id: null
-        host_id: null
-        status: null
-        participant_count: 0
-        participant_preview: []
-        remaining_participants: 0
+        is_user_in_buzz:
+          type: boolean
+          description: Whether the requesting user is currently an active participant in the buzz
+          nullable: true
+        example:
+          is_active: true
+          buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+          host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+          status: "active"
+          participant_count: 11
+          participant_preview: ["tolu", "kemi"]
+          remaining_participants: 9
+          is_user_in_buzz: true
+        example_no_active:
+          is_active: false
+          buzz_id: null
+          host_id: null
+          status: null
+          participant_count: 0
+          participant_preview: []
+          remaining_participants: 0
 
     ErrorResponse:
       type: object
@@ -28469,6 +28747,7 @@ components:
 
     BuzzLeaveResponseSchema:
       type: object
+      description: Response returned when a user leaves a buzz. Users can rejoin a buzz after leaving as long as it remains active.
       required:
         - buzz_id
         - participant_id
@@ -28702,6 +28981,37 @@ components:
         status_code:
           type: integer
           example: 200
+
+    PlatformCreditMetrics:
+      type: object
+      description: Platform-wide credit statistics for superadmin dashboard
+      properties:
+        total_credited:
+          type: number
+          format: float64
+          description: Total credits purchased across all organizations
+          example: 50000.0
+        total_used:
+          type: number
+          format: float64
+          description: Total credits consumed across all organizations
+          example: 15000.0
+        total_balance:
+          type: number
+          format: float64
+          description: Current available credit balance across all organizations (total_credited - total_used)
+          example: 35000.0
+        total_organizations:
+          type: integer
+          format: int64
+          description: Total number of organizations on the platform
+          example: 120
+        active_organizations:
+          type: integer
+          format: int64
+          description: Number of organizations with positive credit balance
+          example: 45
+
   securitySchemes:
     bearerAuth:
       type: http

@@ -252,7 +252,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	creditUsed := models.CalculateCreditCost(inputputLength, agentPrice)
 
 	// validate credit here
-	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed, logger) {
+	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed) {
 		logger.Error("Organisation has insufficient credit balance!!")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
 	}
@@ -586,6 +586,9 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		logger.Error("Organisation credit Recalculation failed")
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation credit recalculation failed: %v", err)
 	}
+
+	// Publish real-time update to superadmin dashboard (async)
+	go models.PublishPlatformCreditUpdate(db.Postgresql)
 
 	return &threadDoc, http.StatusCreated, nil
 }
