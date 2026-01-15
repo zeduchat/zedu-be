@@ -155,6 +155,20 @@ func TestGetUserChannelsWithPreviewThread(t *testing.T) {
 		if firstThread["message"] != "Test message for preview" {
 			t.Errorf("Expected thread content 'Test message for preview', got %s", firstThread["message"])
 		}
+
+		previewMessage, exists := channelData["preview_message"]
+		if !exists {
+			t.Fatal("Expected preview_message field in response")
+		}
+
+		previewMessageStr, ok := previewMessage.(string)
+		if !ok {
+			t.Fatal("Expected preview_message to be a string")
+		}
+
+		if previewMessageStr != "Test message for preview" {
+			t.Errorf("Expected preview_message 'Test message for preview', got %s", previewMessageStr)
+		}
 	})
 
 	t.Run("Verify Channels Sorted by Preview Thread Created At", func(t *testing.T) {

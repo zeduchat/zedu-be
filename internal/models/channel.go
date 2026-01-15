@@ -92,18 +92,19 @@ type GetChannelResp struct {
 
 type GetUserChannelResp []struct {
 	Channels
-	WebhookUrl    string          `json:"webhook_url,omitempty"`
-	ThreadCount   int64           `json:"thread_count"`
-	Access        bool            `json:"access"`
-	MentionCount  int64           `json:"mention_count"`
-	LastThreadId  string          `json:"last_thread_id"`
-	MemberAvatars []string        `gorm:"-" json:"member_avatars"`
-	MembersCount  int             `json:"members_count"`
-	LastPostTime  string          `json:"last_post_time"`
-	UnreadCount   int64           `json:"unread_count"`
-	ChannelSlug   string          `json:"channel_slug"`
-	ActiveBuzz    *ActiveBuzzInfo `gorm:"-" json:"active_buzz,omitempty"`
-	PreviewThread []Threads       `gorm:"-" json:"preview_thread"`
+	WebhookUrl     string          `json:"webhook_url,omitempty"`
+	ThreadCount    int64           `json:"thread_count"`
+	Access         bool            `json:"access"`
+	MentionCount   int64           `json:"mention_count"`
+	LastThreadId   string          `json:"last_thread_id"`
+	MemberAvatars  []string        `gorm:"-" json:"member_avatars"`
+	MembersCount   int             `json:"members_count"`
+	LastPostTime   string          `json:"last_post_time"`
+	UnreadCount    int64           `json:"unread_count"`
+	ChannelSlug    string          `json:"channel_slug"`
+	ActiveBuzz     *ActiveBuzzInfo `gorm:"-" json:"active_buzz,omitempty"`
+	PreviewThread  []Threads       `gorm:"-" json:"preview_thread"`
+	PreviewMessage string          `json:"preview_message"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -822,7 +823,7 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUserChannelResp, error) {
 
 	var (
-		db = base.Postgresql
+		db             = base.Postgresql
 	)
 	chanResp := make(GetUserChannelResp, 0)
 
@@ -936,6 +937,11 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		} else {
 			chanResp[i].PreviewThread = []Threads{}
 		}
+		previewMessage := ""
+		if len(previewThread) > 0 {
+			previewMessage = previewThread[0].Content
+		}
+		chanResp[i].PreviewMessage = previewMessage
 		parts := strings.Split(chanResp[i].ID, "-")
 		lastPart := parts[len(parts)-1]
 		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
