@@ -1,5 +1,4 @@
 name: Build Golang Binary and Run Tests
-
 on:
   pull_request:
     branches:
@@ -7,25 +6,32 @@ on:
   push:
     branches:
       - testing
-
 jobs:
   build_and_test:
     runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+      
       - name: Validate swagger.yaml
         uses: GrantBirki/json-yaml-validate@v3.1.0
         with:
           files: ./static/swagger.yaml
-
+      
+      - name: Generate randomized binary name
+        run: |
+          RANDOM_SUFFIX="${GITHUB_RUN_NUMBER}_$(date +%s)"
+          BINARY_NAME="telex_be_${RANDOM_SUFFIX}"
+          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+          echo "Generated binary name: ${BINARY_NAME}"
+      
       - name: Create test database
         run: |
           DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
           pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
-
+      
       - name: Setup app.env
         run: | 
           SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
@@ -39,12 +45,13 @@ jobs:
           sed -i "s/^DB_NAME=.*/DB_NAME=${TEST_DB_NAME}/" app.env
           sed -i "s/^USERNAME=.*/USERNAME=actionsdeployer/" app.env
           sed -i "s/^PASSWORD=.*/PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
-
+      
       - name: Build the application
-        run: go build -o telex_be
+        run: go build -o ${BINARY_NAME}
+      
       - name: Run the application
-        run: nohup ./telex_be > /dev/null 2>&1 &
-
+        run: nohup ./${BINARY_NAME} > /dev/null 2>&1 &
+      
       - name: Wait for application to start
         run: |
           SERVER_PORT=$(grep "^SERVER_PORT=" app.env | cut -d'=' -f2)
@@ -52,17 +59,41 @@ jobs:
             curl -s http://localhost:${SERVER_PORT} && break
             sleep 1
           done
-
+      
       - name: Run DB migrations
         run: |
           echo "Running DB migrations..."
           yes | make migrate-safe-up
-          
+      
       - name: Run All Tests
         run: go test ./tests/... -timeout 300s
-
+      
+      - name: Stop the application
+        if: always()
+        run: |
+          echo "Stopping application: ${BINARY_NAME}"
+          pkill -f "${BINARY_NAME}" || echo "Application already stopped or not found"
+          sleep 2
+      
+      - name: Terminate database sessions
+        if: always()
+        env:
+          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}
+        run: |
+          echo "Terminating all sessions for database: ${TEST_DB_NAME}"
+          psql -U actionsdeployer -d postgres -t -c "
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = '${TEST_DB_NAME}'
+              AND pid <> pg_backend_pid();
+          "
+      
       - name: Cleanup test database
-        if: false # always()
+        if: always()
         env:
           PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_PASSWORD }}
         run: dropdb -U actionsdeployer ${TEST_DB_NAME} || true
+      
+      - name: Cleanup binary
+        if: always()
+        run: rm -f ${BINARY_NAME}

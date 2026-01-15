@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -61,7 +62,6 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	dmchans.UserId = req.UserId
 
 	resp, pagResp, err := dmchans.GetDmChannels(db, c)
-
 	if err != nil {
 		return nil, pagResp, http.StatusInternalServerError, err
 	}
@@ -168,4 +168,25 @@ func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
 	}
 
 	return http.StatusOK, nil
+}
+
+func GetDmChannelMedia(req models.DmChannelMediaRequest, db *storage.Database, c *gin.Context) ([]models.File, postgresql.PaginationResponse, int, error) {
+	var dmchan models.DmChannels
+
+	// Verify user is a participant in the channel
+	dmchan.ChannelId = req.ChannelId
+	dmchan.UserId = req.UserId
+
+	exists, err := dmchan.CheckChannelExists(db.Postgresql, req.ChannelId, req.UserId)
+	if err != nil || !exists {
+		return nil, postgresql.PaginationResponse{}, http.StatusNotFound, fmt.Errorf("channel not found or user is not a participant")
+	}
+
+	// Fetch media from Elasticsearch
+	media, pagResp, err := dmchan.GetChannelMedia(db, c, req.MediaType)
+	if err != nil {
+		return nil, pagResp, http.StatusInternalServerError, err
+	}
+
+	return media, pagResp, http.StatusOK, nil
 }
