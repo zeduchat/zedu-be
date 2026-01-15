@@ -202,7 +202,6 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 		return []map[string]any{}, paginationResponse, http.StatusOK, nil
 	}
 
-	// Fetch all referral counts in a single query to avoid N+1 problem
 	type referralCount struct {
 		UserID string
 		Count  int64
@@ -213,11 +212,9 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 		Where("invited_by IN ?", getUserIDs(users)).
 		Group("invited_by").
 		Scan(&referralCounts).Error; err != nil {
-		// If query fails, continue with zero referrals
 		referralCounts = []referralCount{}
 	}
 
-	// Build a map for quick lookup
 	referralMap := make(map[string]int64)
 	for _, rc := range referralCounts {
 		referralMap[rc.UserID] = rc.Count
