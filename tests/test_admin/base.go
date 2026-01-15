@@ -11,29 +11,12 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/admin"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
-
-func SetupAdminTestRouter() (*gin.Engine, *admin.Controller) {
-	gin.SetMode(gin.TestMode)
-
-	logger := utility.NewLogger()
-	db := storage.Connection()
-	validator := validator.New()
-
-	adminController := &admin.Controller{
-		Db:        db,
-		Validator: validator,
-		Logger:    logger,
-		ExtReq:    request.ExternalRequest{Logger: logger, Test: true},
-	}
-
-	r := gin.Default()
-	SetupAdminRoutes(r, adminController)
-	return r, adminController
-}
 
 func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 	adminUrl := r.Group("/api/v1/backoffice",
@@ -232,4 +215,24 @@ func CleanupTestData(t *testing.T, db *gorm.DB) {
 
 	// Delete admins
 	db.Exec("DELETE FROM admins WHERE email LIKE ?", "%@qa.team%")
+}
+
+func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *storage.Database) {
+	gin.SetMode(gin.TestMode)
+	logger := tst.Setup()
+	db := storage.Connection()
+	validator := validator.New()
+
+	authController := &auth.Controller{
+		Db:        db,
+		Validator: validator,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	r := gin.Default()
+	return r, authController, logger, db
 }
