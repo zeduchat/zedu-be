@@ -133,3 +133,17 @@ func (base *Controller) ListUsers(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationResponse)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetPlatformCreditsSummary(c *gin.Context) {
+	metrics, err := models.GetPlatformCreditSummary(base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch platform credit summary", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch platform credit summary", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Platform credit summary retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Platform credit summary retrieved successfully", metrics)
+	c.JSON(http.StatusOK, rd)
+}
