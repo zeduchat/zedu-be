@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -15,7 +16,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/buzz"
-	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -50,7 +50,6 @@ func TestBuzzCreate(t *testing.T) {
 			Logger: logger,
 			Test:   true,
 		}}
-	channelController := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
 	// Setup user
 	r := gin.Default()
@@ -69,14 +68,38 @@ func TestBuzzCreate(t *testing.T) {
 	}
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
-	// Create channel
-	createChannelsData := models.CreateChannelsRequest{
-		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
-		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
-		OrganisationID: orgId,
-		Description:    "Some Random description",
+	// Get user ID for channel owner
+	var user models.User
+	if err := db.Postgresql.Where("email = ?", userSignUpData.Email).First(&user).Error; err != nil {
+		t.Fatalf("failed to fetch user: %v", err)
 	}
-	channelID, _ := tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
+
+	// Manually create channel and add user (bypass Elasticsearch issue)
+	channelID := utility.GenerateUUID()
+
+	// Create channel directly in database
+	channel := models.Channels{
+		ID:             channelID,
+		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
+		Description:    "Some Random description",
+		OrganisationID: orgId,
+		OwnerId:        user.ID,
+		CreatedAt:      time.Now(),
+	}
+	if err := db.Postgresql.Create(&channel).Error; err != nil {
+		t.Fatalf("Failed to create test channel: %v", err)
+	}
+
+	// Add user to channel
+	userChannel := models.UserChannels{
+		ChannelsID: channelID,
+		UserID:     user.ID,
+		Username:   userSignUpData.UserName,
+		CreatedAt:  time.Now(),
+	}
+	if err := db.Postgresql.Create(&userChannel).Error; err != nil {
+		t.Logf("Warning: Failed to add user to channel: %v", err)
+	}
 
 	buzzController := buzz.Controller{Db: db, Validator: validatorRef, Logger: logger}
 
@@ -115,24 +138,24 @@ func TestBuzzCreate(t *testing.T) {
 			t.Fatal("Expected data field in response")
 		}
 
-		       if responseData["buzz_id"] == nil {
-			       t.Error("Expected buzz_id in response")
-		       }
-		       if responseData["channel_id"] != channelID {
-			       t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
-		       }
-		       if responseData["status"] != "active" {
-			       t.Error("Expected status to be 'active'")
-		       }
-		       // Check for 'participants' field (should be a non-empty array)
-		       participants, ok := responseData["participants"].([]interface{})
-		       if !ok || len(participants) == 0 {
-			       t.Error("Expected non-empty participants array in response")
-		       }
-		       // Verify agora_token is present (can be nil if generation fails)
-		       if _, exists := responseData["agora_token"]; !exists {
-			       t.Error("Expected agora_token field in response")
-		       }
+		if responseData["buzz_id"] == nil {
+			t.Error("Expected buzz_id in response")
+		}
+		if responseData["channel_id"] != channelID {
+			t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
+		}
+		if responseData["status"] != "active" {
+			t.Error("Expected status to be 'active'")
+		}
+		// Check for 'participants' field (should be a non-empty array)
+		participants, ok := responseData["participants"].([]interface{})
+		if !ok || len(participants) == 0 {
+			t.Error("Expected non-empty participants array in response")
+		}
+		// Verify agora_token is present (can be nil if generation fails)
+		if _, exists := responseData["agora_token"]; !exists {
+			t.Error("Expected agora_token field in response")
+		}
 	})
 
 	t.Run("Create Buzz - Duplicate (Channel Already Has Active Buzz)", func(t *testing.T) {

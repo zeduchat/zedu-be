@@ -116,8 +116,9 @@ type ActiveBuzzIndicator struct {
 	HostID                string   `json:"host_id,omitempty"`
 	Status                string   `json:"status,omitempty"`
 	ParticipantCount      int      `json:"participant_count"`
-	ParticipantPreview    []string `json:"participant_preview"`    // First 2-3 names
-	RemainingParticipants int      `json:"remaining_participants"` // Count of others
+	ParticipantPreview    []string `json:"participant_preview"`       // First 2-3 names
+	RemainingParticipants int      `json:"remaining_participants"`    // Count of others
+	IsUserInBuzz          bool     `json:"is_user_in_buzz,omitempty"` // Whether the requesting user is in the buzz
 }
 
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
@@ -296,6 +297,7 @@ type JoinBuzzResponse struct {
 	ChannelID    string                  `json:"channel_id"`
 	UserID       string                  `json:"user_id"`
 	Status       string                  `json:"status"`
+	CreatedAt    time.Time               `json:"created_at"`
 	JoinedAt     time.Time               `json:"joined_at"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
