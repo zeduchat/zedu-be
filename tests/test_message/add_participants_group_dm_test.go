@@ -182,6 +182,16 @@ func TestAddParticipantsToGroupDM(t *testing.T) {
 			t.Fatal("Response missing data field")
 		}
 
+		addedCount, ok := data["added_count"].(float64)
+		if !ok || int(addedCount) != 3 {
+			t.Errorf("Expected added_count to be 3, got %v", data["added_count"])
+		}
+
+		skippedCount, ok := data["skipped_count"].(float64)
+		if !ok || int(skippedCount) != 0 {
+			t.Errorf("Expected skipped_count to be 0, got %v", data["skipped_count"])
+		}
+
 		participants, ok := data["participants"].([]interface{})
 		if !ok {
 			t.Fatal("participants field is missing or not an array")
@@ -197,7 +207,7 @@ func TestAddParticipantsToGroupDM(t *testing.T) {
 			t.Errorf("Expected 5 participants in database, got %d", participantCount)
 		}
 
-		t.Logf("✅ Successfully added multiple participants to group DM")
+		t.Logf("✅ Successfully added %d participants to group DM", int(addedCount))
 	})
 
 	t.Run("Fail to Add - Channel at Maximum Capacity (10)", func(t *testing.T) {

@@ -327,9 +327,8 @@ func (u *User) CheckUserExists(db *gorm.DB, userID string) bool {
 func ValidateUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, error) {
 	var validIDs []string
 	if err := db.Table("users").
-		Joins("INNER JOIN user_organisations ON users.id = user_organisations.user_id").
-		Where("user_organisations.organisation_id = ? AND users.id IN ?", orgID, userIDs).
-		Pluck("users.id", &validIDs).Error; err != nil {
+		Where("id IN ?", userIDs).
+		Pluck("id", &validIDs).Error; err != nil {
 		return nil, fmt.Errorf("error validating users: %w", err)
 	}
 
@@ -346,7 +345,7 @@ func ValidateUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, err
 	}
 
 	if len(invalid) > 0 {
-		return validIDs, fmt.Errorf("invalid user IDs: %v, users do not exist in organisation", invalid)
+		return validIDs, fmt.Errorf("invalid user IDs: %v, users do not exist", invalid)
 	}
 
 	return validIDs, nil
