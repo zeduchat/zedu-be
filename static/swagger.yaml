@@ -17502,6 +17502,152 @@ paths:
                 status_code: 404
                 message: "Group DM channel not found"
 
+  /organisations/group-dms/{channel_id}/join:
+    post:
+      tags:
+        - Group Direct Message
+      summary: Join a Group DM Channel
+      security:
+        - bearerAuth: []
+      description: Allows an authenticated user to join an existing Group DM channel. The organisation ID is extracted from the user's JWT claims. Returns the updated list of participants after joining.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel to join.
+      responses:
+        "200":
+          description: User joined Group DM channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      channel_id:
+                        type: string
+                        description: Unique identifier for the Group DM channel.
+                      channel_type:
+                        type: string
+                        description: Type of channel (group_dm).
+                      participants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              description: Unique identifier of the participant.
+                            username:
+                              type: string
+                              description: Username of the participant.
+                            avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
+                            email:
+                              type: string
+                              format: email
+                              description: Email of the participant.
+              example:
+                status: "success"
+                status_code: 200
+                message: "User joined Group DM channel successfully"
+                data:
+                  channel_id: "0195c046-c8fa-7341-b9ea-f463de6a82d5"
+                  channel_type: "group_dm"
+                  participants:
+                    - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                      username: "micahshallom"
+                      avatar_url: ""
+                      email: "micahshallom@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
+                      username: "user1"
+                      avatar_url: ""
+                      email: "user1@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
+                      username: "newuser"
+                      avatar_url: ""
+                      email: "newuser@gmail.com"
+        "400":
+          description: Invalid request or channel at maximum capacity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 400
+                message: "group DM channel has reached maximum capacity of 6 participants"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 401
+                message: "unable to get user claims"
+        "404":
+          description: Group DM channel or user not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 404
+                message: "group DM channel does not exist"
+        "409":
+          description: User is already a participant in the channel.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 409
+                message: "user is already a participant in the group DM channel"
+
   /organisations/{organisation_id}/group-dms/{user_id}:
     get:
       tags:

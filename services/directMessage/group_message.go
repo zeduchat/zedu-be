@@ -50,6 +50,21 @@ func LeaveGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error)
 	return statusCode, nil
 }
 
+func JoinGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.GroupDMChannelsResponse, int, error) {
+	var dmchans models.DmChannels
+
+	dmchans.ChannelId = req.ChannelId
+	dmchans.UserId = req.UserId
+	dmchans.OrgId = req.OrgId
+
+	resp, statusCode, err := dmchans.JoinGroupDMChannel(db)
+	if err != nil {
+		return nil, statusCode, err
+	}
+
+	return &resp, statusCode, nil
+}
+
 func GetGroupDMChannels(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Context) ([]models.GroupDMChannelsResponse, postgresql.PaginationResponse, int, error) {
 
 	var dmchans models.DmChannels
