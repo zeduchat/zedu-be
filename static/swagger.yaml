@@ -1342,7 +1342,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/organizationGSuccessResponse"
+                $ref: "#/components/schemas/organizationSuccessResponse"
         "400":
           description: Bad request
           content:
@@ -2289,7 +2289,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/organizationGSuccessResponse"
+                  $ref: "#/components/schemas/organizationSuccessResponse"
         "400":
           description: Bad request
           content:
@@ -6186,7 +6186,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/organizationGSuccessResponse"
+                  $ref: "#/components/schemas/organizationSuccessResponse"
         "400":
           description: Bad request
           content:
@@ -24212,7 +24212,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  components:
+components:
   schemas:
     PartialStatusUpdateRequest:
       type: object
