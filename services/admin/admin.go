@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -164,12 +165,18 @@ func GenerateStrongPassword(length int) (string, error) {
 }
 
 type UserListItem struct {
-	ID             string  `json:"id"`
-	Email          string  `json:"email"`
-	Name           string  `json:"name"`
-	CreatedAt      string  `json:"created_at"`
-	LastLogInAt    *string `json:"last_log_in_at"`
-	LastActivityAt *string `json:"last_activity_at"`
+	ID                 string  `json:"id"`
+	Email              string  `json:"email"`
+	Name               string  `json:"name"`
+	AvatarUrl          *string `json:"avatar_url"`
+	CreatedAt          string  `json:"created_at"`
+	LastLogInAt        *string `json:"last_log_in_at"`
+	LastActivityAt     *string `json:"last_activity_at"`
+	ActivityLength     *string `json:"activity_length"`
+	Referrals          int64   `json:"referrals"`
+	CreditUsed         int64   `json:"credit_used"`         //TODO
+	AmountSpent        int64   `json:"amount_spent"`        //TODO
+	SubscriptionStatus string  `json:"subscription_status"` //TODO
 }
 
 func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
@@ -195,6 +202,24 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 		return []map[string]any{}, paginationResponse, http.StatusOK, nil
 	}
 
+	type referralCount struct {
+		UserID string
+		Count  int64
+	}
+	var referralCounts []referralCount
+	if err := db.Model(&models.Invitation{}).
+		Select("invited_by as user_id, COUNT(*) as count").
+		Where("invited_by IN ?", getUserIDs(users)).
+		Group("invited_by").
+		Scan(&referralCounts).Error; err != nil {
+		referralCounts = []referralCount{}
+	}
+
+	referralMap := make(map[string]int64)
+	for _, rc := range referralCounts {
+		referralMap[rc.UserID] = rc.Count
+	}
+
 	resp := make([]map[string]any, 0, len(users))
 	for _, u := range users {
 		var lastLogInAt *string
@@ -209,15 +234,87 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 			lastActivityAt = &formatted
 		}
 
+		var avatarUrl *string
+		if u.Profile.AvatarURL != "" {
+			avatarUrl = &u.Profile.AvatarURL
+		}
+
+		activityLength := user.GetActivityLength(u)
+
+		referrals := referralMap[u.ID]
+
 		resp = append(resp, map[string]any{
 			"id":               u.ID,
 			"email":            u.Email,
 			"name":             u.Name,
+			"avatar_url":       avatarUrl,
 			"created_at":       u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			"last_log_in_at":   lastLogInAt,
 			"last_activity_at": lastActivityAt,
+			"activity_length":  activityLength,
+			"referrals":        referrals,
 		})
 	}
 
 	return resp, paginationResponse, http.StatusOK, nil
+}
+
+func getUserIDs(users []models.User) []string {
+	userIDs := make([]string, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+	}
+	return userIDs
+}
+
+func ListUsersByInvites(db *gorm.DB, orgID *string, limit int) ([]map[string]any, int, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		return nil, http.StatusBadRequest, fmt.Errorf("limit cannot exceed 100")
+	}
+
+	type leaderRow struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		Referrals int64  `json:"referrals"`
+	}
+
+	var rows []leaderRow
+
+	whereClause := "users.deleted_at IS NULL"
+	var whereArgs []any
+	if orgID != nil && *orgID != "" {
+		whereClause = whereClause + " AND invitations.organisation_id = ?"
+		whereArgs = append(whereArgs, *orgID)
+	}
+
+	selectQuery := "users.id, users.name, users.email, COALESCE(COUNT(invitations.id), 0) as referrals"
+	tx := db.Table("users").
+		Select(selectQuery).
+		Joins("LEFT JOIN invitations ON invitations.invited_by = users.id").
+		Where(whereClause, whereArgs...).
+		Group("users.id").
+		Order("referrals desc").
+		Limit(limit).
+		Find(&rows)
+
+	if tx.Error != nil {
+		return nil, http.StatusBadRequest, tx.Error
+	}
+
+	resp := make([]map[string]any, 0, len(rows))
+	for idx, r := range rows {
+		resp = append(resp, map[string]any{
+			"id":        r.ID,
+			"name":      r.Name,
+			"email":     r.Email,
+			"referrals": int(r.Referrals),
+			"rank":      idx + 1,
+		})
+	}
+
+	return resp, http.StatusOK, nil
 }

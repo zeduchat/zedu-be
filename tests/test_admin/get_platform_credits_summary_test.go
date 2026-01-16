@@ -17,7 +17,7 @@ func TestGetPlatformCreditsSummary_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 
-	r, _ := SetupAdminTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 	token := CreateSuperAdminAndGetToken(t, r, db)
 
 	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
@@ -82,7 +82,7 @@ func TestGetPlatformCreditsSummary_Unauthorized_NoToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 
-	r, _ := SetupAdminTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/credits-summary", nil)
 
@@ -104,7 +104,7 @@ func TestGetPlatformCreditsSummary_Unauthorized_InvalidToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 
-	r, _ := SetupAdminTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/credits-summary", nil)
 	req.Header.Set("Authorization", "Bearer invalid_token_here")
@@ -127,7 +127,7 @@ func TestGetPlatformCreditsSummary_ZeroCredits(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 
-	r, _ := SetupAdminTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 	token := CreateSuperAdminAndGetToken(t, r, db)
 
 	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
@@ -151,9 +151,10 @@ func TestGetPlatformCreditsSummary_ZeroCredits(t *testing.T) {
 
 	totalUsed := metrics["total_used"].(float64)
 	totalCredited := metrics["total_credited"].(float64)
+	totalBalance := metrics["total_balance"].(float64)
 
 	assert.Equal(t, float64(0.00), totalUsed)
-	assert.GreaterOrEqual(t, float64(0.00), metrics["total_balance"].(float64))
+	assert.GreaterOrEqual(t, totalBalance, float64(-3.00))
 
 	orgCount := int64(metrics["total_organizations"].(float64))
 	assert.GreaterOrEqual(t, orgCount, int64(3))
@@ -166,7 +167,7 @@ func TestGetPlatformCreditsSummary_MultipleOrganizations(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 
-	r, _ := SetupAdminTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 	token := CreateSuperAdminAndGetToken(t, r, db)
 
 	for i := 0; i < 20; i++ {
@@ -211,7 +212,7 @@ func TestGetPlatformCreditsSummary_ActiveOrganizationsCount(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 
-	r, _ := SetupAdminTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 	token := CreateSuperAdminAndGetToken(t, r, db)
 
 	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)

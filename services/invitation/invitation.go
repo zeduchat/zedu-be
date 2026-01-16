@@ -426,3 +426,13 @@ func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
 
 	return i.DeleteInvitation(db, inviteID)
 }
+
+// CountInvitesByUser returns the number of invitations sent by a specific user
+func CountInvitesByUser(db *gorm.DB, userID string) (int64, error) {
+	var count int64
+	err := db.Model(&models.Invitation{}).Where("invited_by = ?", userID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}

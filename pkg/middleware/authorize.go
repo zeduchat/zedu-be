@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
@@ -113,7 +112,12 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		c.Next()
 
 		if userID != "" {
-			_ = db.Model(&models.User{}).Where("id = ?", userID).Update("last_activity_at", time.Now()).Error
+			// Update last_activity_at to now and set last_activity_started_at to now only if the previous
+			// last_activity_at is null or older than the inactivity threshold (30 minutes)
+			_ = db.Exec(
+				"UPDATE users SET last_activity_at = now(), last_activity_started_at = CASE WHEN last_activity_at IS NULL OR last_activity_at < now() - interval '30 minutes' THEN now() ELSE last_activity_started_at END WHERE id = ?",
+				userID,
+			).Error
 		}
 
 	}

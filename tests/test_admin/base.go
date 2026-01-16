@@ -11,17 +11,28 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/admin"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func SetupAdminTestRouter() (*gin.Engine, *admin.Controller) {
+func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *storage.Database) {
 	gin.SetMode(gin.TestMode)
-
-	logger := utility.NewLogger()
+	logger := tst.Setup()
 	db := storage.Connection()
 	validator := validator.New()
+
+	authController := &auth.Controller{
+		Db:        db,
+		Validator: validator,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
 
 	adminController := &admin.Controller{
 		Db:        db,
@@ -32,7 +43,7 @@ func SetupAdminTestRouter() (*gin.Engine, *admin.Controller) {
 
 	r := gin.Default()
 	SetupAdminRoutes(r, adminController)
-	return r, adminController
+	return r, authController, logger, db
 }
 
 func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
