@@ -3375,7 +3375,6 @@ paths:
                               type: string
                               format: date-time
 
-
   /organisations/{organisation_id}/user-not-channels:
     get:
       tags:
@@ -7687,7 +7686,7 @@ paths:
       summary: Retrieve invite leaderboard (top N inviters)
       description: |-
         Returns the top N users ordered by the number of invitations (referrals) they have sent. This endpoint is intended for leaderboard use and **does not** return a paginated list. 
-        
+
         **Access**: Superadmins only.
       operationId: getInviteLeaderboard
       parameters:
@@ -9739,6 +9738,7 @@ paths:
       tags:
         - Direct Message
       summary: Retrieve dm participants info
+      description: Retrieves participant information for a DM channel. Optionally includes the 10 most recent media files when include_media=true.
       security:
         - bearerAuth: []
       parameters:
@@ -9756,6 +9756,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: include_media
+          in: query
+          required: false
+          description: Include the 10 most recent media files in the response
+          schema:
+            type: boolean
+            default: false
 
       responses:
         "200":
@@ -9775,16 +9782,50 @@ paths:
                     type: string
                     example: Dm participants retrieved successfully
                   data:
-                    type: array
-                    items:
-                      type: object
-                      propertis:
-                        email:
-                          type: string
-                        avatar_url:
-                          type: string
-                        username:
-                          type: string
+                    type: object
+                    properties:
+                      participants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            email:
+                              type: string
+                            avatar_url:
+                              type: string
+                            username:
+                              type: string
+                            user_id:
+                              type: string
+                              format: uuid
+                            user_type:
+                              type: string
+                              enum: [user, bot]
+                      preview_media:
+                        type: array
+                        description: The 10 most recent media files (only present when include_media=true)
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            file_name:
+                              type: string
+                            file_type:
+                              type: string
+                            mime_type:
+                              type: string
+                            file_link:
+                              type: string
+                            user_id:
+                              type: string
+                              format: uuid
+                              description: The ID of the user who uploaded the file
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: When the file was uploaded
 
         "400":
           description: Bad request
@@ -9886,6 +9927,14 @@ paths:
                         file_link:
                           type: string
                           example: https://cdn.example.com/files/photo.jpg
+                        user_id:
+                          type: string
+                          format: uuid
+                          description: The ID of the user who uploaded the file
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: When the file was uploaded
                   pagination:
                     type: object
                     properties:
@@ -28960,7 +29009,6 @@ paths:
           format: int64
           description: Number of organizations with positive credit balance
           example: 45
-
 
     InviteLeaderboardItem:
       type: object
