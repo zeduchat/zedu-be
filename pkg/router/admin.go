@@ -16,7 +16,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	admin := admin.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	// Regular admin endpoints (all admins including super admins)
+	// Regular admin endpoints (including superadmin)
 	adminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		adminAuthUrl.GET("/admins", admin.ListAdmins)
@@ -26,11 +26,13 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	// Super admin only endpoints
 	superAdminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.SuperAdminAuthorize(db.Postgresql))
 	{
-		superAdminAuthUrl.POST("/admins", admin.CreateAdmin)    // Only super admins can create admins
-		superAdminAuthUrl.GET("/admins/users", admin.ListUsers) // Only super admins can list all users
+		superAdminAuthUrl.POST("/admins", admin.CreateAdmin)                                 // Only super admins can create admins
+		superAdminAuthUrl.GET("/dashboard/credits-summary", admin.GetPlatformCreditsSummary) // Platform credit metrics
+		superAdminAuthUrl.GET("/admins/users", admin.ListUsers)
+		superAdminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 	}
 
-	// Public admin endpoints (no authentication required)
+	// Public admin endpoints
 	adminUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion))
 	{
 		adminUrl.POST("/login", admin.LoginAdmin)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -35,51 +36,61 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+var (
+	logger    *utility.Logger
+	setupOnce sync.Once
+)
+
 func Setup() *utility.Logger {
-	logger := utility.NewLogger()
-	config := config.Setup(logger, "../../app")
+	setupOnce.Do(func() {
+		logger = utility.NewLogger()
+		config := config.Setup(logger, "../../app")
 
-	postgresql.ConnectToDatabase(logger, config.TestDatabase)
-	redis.ConnectToRedis(logger, config.Redis)
-	typesense.ConnectToTypeSense(logger, config.TypeSense)
-	centrifuge.NewCentrifugoService(logger, config.Centrifuge)
-	elastic.ConnectToElastic(logger, config.Elastic)
-	minio.ConnectToMinio(logger, config.Minio)
-	agora.NewAgoraService(logger, config.Agora)
-	db := storage.Connection()
-	if config.TestDatabase.Migrate {
-		logger.Info("Starting SQL migrations...")
-		success, err := RunSQLMigrations(config.TestDatabase, logger)
-		if err != nil {
-			logger.Error("SQL migration failed: %v", err)
-		} else if success {
-			logger.Info("SQL migrations completed successfully")
+		postgresql.ConnectToDatabase(logger, config.TestDatabase)
+		redis.ConnectToRedis(logger, config.Redis)
+		typesense.ConnectToTypeSense(logger, config.TypeSense)
+		centrifuge.NewCentrifugoService(logger, config.Centrifuge)
+		elastic.ConnectToElastic(logger, config.Elastic)
+		minio.ConnectToMinio(logger, config.Minio)
+		agora.NewAgoraService(logger, config.Agora)
+		db := storage.Connection()
+		if config.TestDatabase.Migrate {
+			logger.Info("Starting SQL migrations...")
+			success, err := RunSQLMigrations(config.TestDatabase, logger)
+			if err != nil {
+				logger.Error("SQL migration failed: %v", err)
+			} else if success {
+				logger.Info("SQL migrations completed successfully")
+			}
+			migrations.RunAllMigrations(db)
+			seed.SeedRolesAndPermissions(logger, db.Postgresql)
+			seed.SeedPlans(logger, db.Postgresql)
+			seed.SeedCreditPackages(logger, db.Postgresql)
 		}
-		migrations.RunAllMigrations(db)
-		seed.SeedRolesAndPermissions(logger, db.Postgresql)
-		seed.SeedPlans(logger, db.Postgresql)
-	}
 
-	// Initialize River client for background jobs
-	ctx := context.Background()
-	riverClient, err := riverqueueBg.SetupRiver(ctx, config.TestDatabase, logger, db)
-	if err != nil {
-		logger.Error("Failed to initialize River client: ", err)
-	} else {
-		db.River = riverClient
-	}
+		// Initialize River client for background jobs
+		ctx := context.Background()
+		riverClient, err := riverqueueBg.SetupRiver(ctx, config.TestDatabase, logger, db)
+		if err != nil {
+			logger.Error("Failed to initialize River client: ", err)
+		} else {
+			db.River = riverClient
+		}
+	})
 
 	return logger
 }
 
 // Cleanup closes all database connections and cleans up resources
 func Cleanup(db *storage.Database) {
-	if db.Postgresql != nil {
-		sqlDB, err := db.Postgresql.DB()
-		if err == nil {
-			sqlDB.Close()
-		}
-	}
+	// Postresql connection is shared across tests, so we shouldn't close it here.
+	// It will be closed when the test process exits.
+	// if db.Postgresql != nil {
+	// 	sqlDB, err := db.Postgresql.DB()
+	// 	if err == nil {
+	// 		sqlDB.Close()
+	// 	}
+	// }
 
 	// Close Redis connection
 	if db.Redis != nil {

@@ -51,8 +51,9 @@ func PublishChannel(logger *utility.Logger, channelID string, publishPayload any
 	client := Client.C
 
 	if channelID == "" {
-
-		logger.Error("published to %s failed, empty channel_id supplied", channelID)
+		if logger != nil {
+			logger.Error("published to %s failed, empty channel_id supplied", channelID)
+		}
 		return fmt.Errorf("empty channel_id supplied")
 	}
 
@@ -62,13 +63,17 @@ func PublishChannel(logger *utility.Logger, channelID string, publishPayload any
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("published to %s", channelID))
+	if logger != nil {
+		logger.Info(fmt.Sprintf("published to %s", channelID))
+	}
 	return nil
 }
 
 func PublishChannelOptional(logger *utility.Logger, channelID string, publishPayload any) error {
 	if Client == nil || Client.C == nil {
-		logger.Warning("Centrifuge client not initialized, skipping publish to channel %s", channelID)
+		if logger != nil {
+			logger.Warning("Centrifuge client not initialized, skipping publish to channel %s", channelID)
+		}
 		return nil
 	}
 	return PublishChannel(logger, channelID, publishPayload)

@@ -71,6 +71,11 @@ type DmChannelMediaRequest struct {
 	MediaType string `json:"media_type"` // Optional: images, videos, documents, audio
 }
 
+type DmParticipantsResponse struct {
+	Participants []map[string]any `json:"participants"`
+	PreviewMedia []File           `json:"preview_media,omitempty"`
+}
+
 func FetchDetailsFromAgentJSON(agent OrganisationIntegrations) (map[string]any, error) {
 
 	var data_r map[string]any
@@ -1080,7 +1085,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 				},
 			},
 		},
-		"_source": []string{"media"},
+		"_source": []string{"media", "user_id", "created_at"},
 		"size":    1000, // Get all threads with media first
 		"sort": []map[string]any{
 			{
@@ -1126,6 +1131,10 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 			continue
 		}
 
+		// Get thread-level metadata
+		threadUserID := utility.GetString(source, "user_id")
+		threadCreatedAt := utility.GetString(source, "created_at")
+
 		mediaArray, ok := source["media"].([]any)
 		if !ok {
 			continue
@@ -1137,12 +1146,20 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 				continue
 			}
 
+			// Parse created_at time
+			var createdAt time.Time
+			if threadCreatedAt != "" {
+				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
+			}
+
 			file := File{
-				ID:       utility.GetString(mediaMap, "id"),
-				FileName: utility.GetString(mediaMap, "file_name"),
-				FileType: utility.GetString(mediaMap, "file_type"),
-				MimeType: utility.GetString(mediaMap, "mime_type"),
-				FileLink: utility.GetString(mediaMap, "file_link"),
+				ID:        utility.GetString(mediaMap, "id"),
+				FileName:  utility.GetString(mediaMap, "file_name"),
+				FileType:  utility.GetString(mediaMap, "file_type"),
+				MimeType:  utility.GetString(mediaMap, "mime_type"),
+				FileLink:  utility.GetString(mediaMap, "file_link"),
+				UserID:    threadUserID,
+				CreatedAt: createdAt,
 			}
 
 			// Apply type filter if specified
@@ -1183,6 +1200,119 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 	}
 
 	return paginatedMedia, pagResp, nil
+}
+
+// GetPreviewMedia fetches the N most recent media files from threads in a DM channel
+func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, int, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": dm.ChannelId,
+						},
+					},
+				},
+				"filter": []map[string]any{
+					{
+						"exists": map[string]any{
+							"field": "media",
+						},
+					},
+				},
+			},
+		},
+		"_source": []string{"media", "user_id", "created_at"},
+		"size":    limit,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData any
+	err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &threadData)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch preview media: %w", err)
+	}
+
+	threadDataMap, ok := threadData.(map[string]any)
+	if !ok {
+		return []File{}, 0, nil
+	}
+
+	hits, ok := threadDataMap["hits"].(map[string]any)
+	if !ok {
+		return []File{}, 0, nil
+	}
+
+	hitsArray, ok := hits["hits"].([]any)
+	if !ok || len(hitsArray) == 0 {
+		return []File{}, 0, nil
+	}
+
+	var allMedia []File
+	for _, hit := range hitsArray {
+		if len(allMedia) >= limit {
+			break
+		}
+
+		hitMap, ok := hit.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		source, ok := hitMap["_source"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		threadUserID := utility.GetString(source, "user_id")
+		threadCreatedAt := utility.GetString(source, "created_at")
+
+		mediaArray, ok := source["media"].([]any)
+		if !ok {
+			continue
+		}
+
+		for _, m := range mediaArray {
+			if len(allMedia) >= limit {
+				break
+			}
+
+			mediaMap, ok := m.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			var createdAt time.Time
+			if threadCreatedAt != "" {
+				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
+			}
+
+			file := File{
+				ID:        utility.GetString(mediaMap, "id"),
+				FileName:  utility.GetString(mediaMap, "file_name"),
+				FileType:  utility.GetString(mediaMap, "file_type"),
+				MimeType:  utility.GetString(mediaMap, "mime_type"),
+				FileLink:  utility.GetString(mediaMap, "file_link"),
+				UserID:    threadUserID,
+				CreatedAt: createdAt,
+			}
+
+			allMedia = append(allMedia, file)
+		}
+	}
+
+	return allMedia, len(allMedia), nil
 }
 
 // matchesMediaType checks if a mime type matches the requested media type filter

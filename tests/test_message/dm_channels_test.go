@@ -704,7 +704,8 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 					}
 
 					// Verify admin is correctly set (user1 created the channel)
-					if userId == user1.ID {
+					switch userId {
+					case user1.ID:
 						if !isAdmin {
 							t.Errorf("User1 should be admin but is_admin is false")
 						} else {
@@ -716,7 +717,7 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 						} else {
 							t.Logf("✅ User1 title correctly set: '%s'", title)
 						}
-					} else if userId == user2.ID {
+					case user2.ID:
 						if isAdmin {
 							t.Errorf("User2 should NOT be admin")
 						} else {
@@ -727,7 +728,7 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 						} else {
 							t.Logf("✅ User2 title correctly set: '%s'", title)
 						}
-					} else if userId == user3.ID {
+					case user3.ID:
 						if isAdmin {
 							t.Errorf("User3 should NOT be admin")
 						} else {
@@ -744,7 +745,7 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 				}
 
 				if adminCount != 1 {
-					t.Errorf("Expected exactly 1 admin, found %d", adminCount)
+					t.Errorf("Expected exac tly 1 admin, found %d", adminCount)
 				}
 
 				break
@@ -1140,6 +1141,281 @@ func TestGetDmChannelMedia(t *testing.T) {
 			t.Logf("✅ Got expected 401 Unauthorized")
 		} else {
 			t.Logf("Got status %d (expected 401)", rr.Code)
+		}
+	})
+}
+
+// TestGetDmParticipantsWithPreviewMedia tests the include_media query param
+func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+
+	defer tst.Cleanup(db)
+
+	// Create test users
+	user1SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("preview_media1_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Preview",
+		LastName:    "User1",
+		Password:    "password",
+		UserName:    fmt.Sprintf("preview_user1_%v", currUUID),
+	}
+
+	user2SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("preview_media2_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Preview",
+		LastName:    "User2",
+		Password:    "password",
+		UserName:    fmt.Sprintf("preview_user2_%v", currUUID),
+	}
+
+	loginData1 := models.LoginRequestModel{
+		Email:    user1SignUpData.Email,
+		Password: user1SignUpData.Password,
+	}
+
+	authController := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authController, user1SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user2SignUpData, false)
+	token1 := tst.GetLoginToken(t, r, authController, loginData1)
+
+	var user1, user2 models.User
+	if err := db.Postgresql.Where("email = ?", user1SignUpData.Email).First(&user1).Error; err != nil {
+		t.Fatalf("Failed to get user1: %v", err)
+	}
+	if err := db.Postgresql.Where("email = ?", user2SignUpData.Email).First(&user2).Error; err != nil {
+		t.Fatalf("Failed to get user2: %v", err)
+	}
+
+	var org models.Organisation
+	if err := db.Postgresql.Where("owner_id = ?", user1.ID).First(&org).Error; err != nil {
+		t.Fatalf("Failed to get organization: %v", err)
+	}
+
+	t.Run("Get Participants with include_media=true", func(t *testing.T) {
+		dmChannelID := utility.GenerateUUID()
+		participantID := user2.ID
+
+		// Create DM channel
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		// Create reverse channel entry
+		dmChannel2 := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user2.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &user1.ID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel2).Error; err != nil {
+			t.Fatalf("Failed to create reverse DM channel: %v", err)
+		}
+
+		// Create a thread with media in Elasticsearch
+		threadID := utility.GenerateUUID()
+		mediaFiles := []map[string]any{
+			{
+				"id":        utility.GenerateUUID(),
+				"file_name": "preview_image.jpg",
+				"file_type": "jpg",
+				"mime_type": "image/jpeg",
+				"file_link": "https://example.com/preview_image.jpg",
+			},
+			{
+				"id":        utility.GenerateUUID(),
+				"file_name": "preview_doc.pdf",
+				"file_type": "pdf",
+				"mime_type": "application/pdf",
+				"file_link": "https://example.com/preview_doc.pdf",
+			},
+		}
+
+		thread := map[string]any{
+			"id":          threadID,
+			"channels_id": dmChannelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Test message with media for preview",
+			"media":       mediaFiles,
+			"created_at":  time.Now().Format(time.RFC3339),
+			"updated_at":  time.Now().Format(time.RFC3339),
+		}
+
+		if err := elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadID, thread, logger); err != nil {
+			t.Fatalf("Failed to add thread to Elasticsearch: %v", err)
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		// Poll for Elasticsearch indexing with retries
+		maxRetries := 10
+		var response map[string]interface{}
+		var previewMedia []interface{}
+
+		for i := 0; i < maxRetries; i++ {
+			time.Sleep(1 * time.Second) // Wait before each attempt
+
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s?include_media=true", org.ID, dmChannelID), nil)
+			req.Header.Set("Authorization", "Bearer "+token1)
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusOK {
+				continue
+			}
+
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				continue
+			}
+
+			data, ok := response["data"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if pm, ok := data["preview_media"].([]interface{}); ok && len(pm) > 0 {
+				previewMedia = pm
+				break
+			}
+		}
+
+		if len(previewMedia) == 0 {
+			t.Fatalf("Failed to retrieve preview media after %d retries", maxRetries)
+		}
+
+		t.Logf("✅ Got successful response with %d preview media files", len(previewMedia))
+
+		data, _ := response["data"].(map[string]interface{})
+		participants, ok := data["participants"].([]interface{})
+		if !ok {
+			t.Error("Missing participants array in response")
+			return
+		}
+		t.Logf("✅ Found %d participants", len(participants))
+
+		// Verify media has expected fields
+		firstMedia := previewMedia[0].(map[string]interface{})
+		if _, hasID := firstMedia["id"]; hasID {
+			t.Logf("✅ Media has 'id' field")
+		}
+		if _, hasUserID := firstMedia["user_id"]; hasUserID {
+			t.Logf("✅ Media has 'user_id' field")
+		}
+		if _, hasCreatedAt := firstMedia["created_at"]; hasCreatedAt {
+			t.Logf("✅ Media has 'created_at' field")
+		}
+	})
+
+	t.Run("Get Participants without include_media", func(t *testing.T) {
+		dmChannelID := utility.GenerateUUID()
+		participantID := user2.ID
+
+		// Create DM channel
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		dmChannel2 := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user2.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &user1.ID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel2).Error; err != nil {
+			t.Fatalf("Failed to create reverse DM channel: %v", err)
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		// Request WITHOUT include_media
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].(map[string]interface{})
+		if !ok {
+			t.Error("Response data is not an object")
+			return
+		}
+
+		// Check participants exists
+		participants, ok := data["participants"].([]interface{})
+		if !ok {
+			t.Error("Missing participants array in response")
+			return
+		}
+		t.Logf("✅ Found %d participants", len(participants))
+
+		// preview_media should be null/omitted when include_media is not set
+		if data["preview_media"] == nil {
+			t.Logf("✅ preview_media is omitted as expected when include_media is not set")
+		} else {
+			previewMedia, ok := data["preview_media"].([]interface{})
+			if ok && len(previewMedia) == 0 {
+				t.Logf("✅ preview_media is empty array when include_media is not set")
+			}
 		}
 	})
 }

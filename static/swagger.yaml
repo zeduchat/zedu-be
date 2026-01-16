@@ -58,6 +58,8 @@ tags:
     description: API for user agents operations
   - name: System Agents
     description: API for system agents operations
+  - name: admin
+    description: API for backoffice admin and superadmin operations (superadmin only)
   - name: Overview
     description: API for overview operations
   - name: newsletter
@@ -98,16 +100,74 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
-  - name: Skills
-    description: API endpoints for agents skills
-  - name: Tasks
-    description: API endpoints for agents tasks
-  - name: Translator
-    description: API endpoints for telex markdown to json formatting engine
-  - name: buzz
-    description: API endpoints for buzz (audio/video calls) feature
-
+  - name: Super Admin
+    description: API endpoints for superadmin dashboard and operations
 paths:
+  # Super Admin Dashboard paths
+  /backoffice/dashboard/credits-summary:
+    get:
+      tags:
+        - Super Admin
+      summary: Get platform credit summary for superadmin dashboard
+      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform credit summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Platform credit summary retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/PlatformCreditMetrics"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Unauthorized"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Access denied. Super admin privileges required."
+        "500":
+          description: Internal server error - Failed to fetch platform credit summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch platform credit summary"
+
   # Auth paths
   /auth/register:
     post:
@@ -3314,7 +3374,6 @@ paths:
                             started_at:
                               type: string
                               format: date-time
-
 
   /organisations/{organisation_id}/user-not-channels:
     get:
@@ -7559,6 +7618,119 @@ paths:
                   status_code: 404
                   message: "Invitation not found"
 
+  /backoffice/admins/users:
+    get:
+      tags:
+        - admin
+      summary: Retrieve all users
+      description: |-
+        Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts and activity metrics.
+
+        **Access**: Superadmins only.
+      operationId: listAdminUsers
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default is 10)
+          schema:
+            type: integer
+            default: 10
+            example: 10
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersResponseSchema"
+        "204":
+          description: No content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoContentResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /backoffice/admins/users/invites:
+    get:
+      tags:
+        - admin
+      summary: Retrieve invite leaderboard (top N inviters)
+      description: |-
+        Returns the top N users ordered by the number of invitations (referrals) they have sent. This endpoint is intended for leaderboard use and **does not** return a paginated list. 
+
+        **Access**: Superadmins only.
+      operationId: getInviteLeaderboard
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+          description: Maximum number of results to return (top N). Default is 10, maximum allowed is 100.
+        - in: query
+          name: org_id
+          schema:
+            type: string
+            format: uuid
+          description: Optional organisation ID to limit the leaderboard to invites for a specific organisation.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Invite leaderboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteLeaderboardResponse"
+        "400":
+          description: Bad Request (invalid parameter)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
   /invite/change-status:
     post:
       tags:
@@ -9566,6 +9738,7 @@ paths:
       tags:
         - Direct Message
       summary: Retrieve dm participants info
+      description: Retrieves participant information for a DM channel. Optionally includes the 10 most recent media files when include_media=true.
       security:
         - bearerAuth: []
       parameters:
@@ -9583,6 +9756,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: include_media
+          in: query
+          required: false
+          description: Include the 10 most recent media files in the response
+          schema:
+            type: boolean
+            default: false
 
       responses:
         "200":
@@ -9602,16 +9782,50 @@ paths:
                     type: string
                     example: Dm participants retrieved successfully
                   data:
-                    type: array
-                    items:
-                      type: object
-                      propertis:
-                        email:
-                          type: string
-                        avatar_url:
-                          type: string
-                        username:
-                          type: string
+                    type: object
+                    properties:
+                      participants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            email:
+                              type: string
+                            avatar_url:
+                              type: string
+                            username:
+                              type: string
+                            user_id:
+                              type: string
+                              format: uuid
+                            user_type:
+                              type: string
+                              enum: [user, bot]
+                      preview_media:
+                        type: array
+                        description: The 10 most recent media files (only present when include_media=true)
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            file_name:
+                              type: string
+                            file_type:
+                              type: string
+                            mime_type:
+                              type: string
+                            file_link:
+                              type: string
+                            user_id:
+                              type: string
+                              format: uuid
+                              description: The ID of the user who uploaded the file
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: When the file was uploaded
 
         "400":
           description: Bad request
@@ -9713,6 +9927,14 @@ paths:
                         file_link:
                           type: string
                           example: https://cdn.example.com/files/photo.jpg
+                        user_id:
+                          type: string
+                          format: uuid
+                          description: The ID of the user who uploaded the file
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: When the file was uploaded
                   pagination:
                     type: object
                     properties:
@@ -25286,6 +25508,69 @@ components:
               type: integer
               example: 1
 
+    AdminUsersResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "users retrieved successfully"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              email:
+                type: string
+                example: "user@example.com"
+              name:
+                type: string
+                example: "Full Name"
+              avatar_url:
+                type: string
+                example: "https://example.com/avatar.png"
+              created_at:
+                type: string
+                format: date-time
+              last_log_in_at:
+                type: string
+                format: date-time
+                nullable: true
+              last_activity_at:
+                type: string
+                format: date-time
+                nullable: true
+              activity_length:
+                type: string
+                example: "2 days"
+                nullable: true
+              referrals:
+                type: integer
+                example: 0
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+            total_items:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
+
     UpdateProfileResponse:
       type: object
       properties:
@@ -28694,6 +28979,77 @@ components:
         status_code:
           type: integer
           example: 200
+
+    PlatformCreditMetrics:
+      type: object
+      description: Platform-wide credit statistics for superadmin dashboard
+      properties:
+        total_credited:
+          type: number
+          format: float64
+          description: Total credits purchased across all organizations
+          example: 50000.0
+        total_used:
+          type: number
+          format: float64
+          description: Total credits consumed across all organizations
+          example: 15000.0
+        total_balance:
+          type: number
+          format: float64
+          description: Current available credit balance across all organizations (total_credited - total_used)
+          example: 35000.0
+        total_organizations:
+          type: integer
+          format: int64
+          description: Total number of organizations on the platform
+          example: 120
+        active_organizations:
+          type: integer
+          format: int64
+          description: Number of organizations with positive credit balance
+          example: 45
+
+    InviteLeaderboardItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The user id
+        name:
+          type: string
+          description: The user's name
+        email:
+          type: string
+          description: The user's email
+        referrals:
+          type: integer
+          description: Number of invites (referrals) sent by the user
+        rank:
+          type: integer
+          description: 1-based rank on the leaderboard
+
+    InviteLeaderboardResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                leaderboard:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/InviteLeaderboardItem"
+                limit:
+                  type: integer
+                  description: Maximum number of results returned
+                organisation_id:
+                  type: string
+                  format: uuid
+                  description: Optional organisation filter applied to this leaderboard
+
   securitySchemes:
     bearerAuth:
       type: http
