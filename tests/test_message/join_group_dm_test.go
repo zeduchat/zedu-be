@@ -341,18 +341,70 @@ func TestJoinGroupDMChannel(t *testing.T) {
 			UserName:    fmt.Sprintf("groupdm_user6_%v", currUUID),
 		}
 
+		user7SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("groupdm_user7_%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "GroupDM",
+			LastName:    "UserSeven",
+			Password:    "password",
+			UserName:    fmt.Sprintf("groupdm_user7_%v", currUUID),
+		}
+
+		user8SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("groupdm_user8_%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "GroupDM",
+			LastName:    "UserEight",
+			Password:    "password",
+			UserName:    fmt.Sprintf("groupdm_user8_%v", currUUID),
+		}
+
+		user9SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("groupdm_user9_%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "GroupDM",
+			LastName:    "UserNine",
+			Password:    "password",
+			UserName:    fmt.Sprintf("groupdm_user9_%v", currUUID),
+		}
+
+		user10SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("groupdm_user10_%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "GroupDM",
+			LastName:    "UserTen",
+			Password:    "password",
+			UserName:    fmt.Sprintf("groupdm_user10_%v", currUUID),
+		}
+
 		tst.SignupUser(t, gin.Default(), authController, user5SignUpData, false)
 		tst.SignupUser(t, gin.Default(), authController, user6SignUpData, false)
+		tst.SignupUser(t, gin.Default(), authController, user7SignUpData, false)
+		tst.SignupUser(t, gin.Default(), authController, user8SignUpData, false)
+		tst.SignupUser(t, gin.Default(), authController, user9SignUpData, false)
+		tst.SignupUser(t, gin.Default(), authController, user10SignUpData, false)
 
-		var user5, user6 models.User
+		var user5, user6, user7, user8, user9, user10 models.User
 		if err := db.Postgresql.Where("email = ?", user5SignUpData.Email).First(&user5).Error; err != nil {
 			t.Fatalf("Failed to get user5: %v", err)
 		}
 		if err := db.Postgresql.Where("email = ?", user6SignUpData.Email).First(&user6).Error; err != nil {
 			t.Fatalf("Failed to get user6: %v", err)
 		}
+		if err := db.Postgresql.Where("email = ?", user7SignUpData.Email).First(&user7).Error; err != nil {
+			t.Fatalf("Failed to get user7: %v", err)
+		}
+		if err := db.Postgresql.Where("email = ?", user8SignUpData.Email).First(&user8).Error; err != nil {
+			t.Fatalf("Failed to get user8: %v", err)
+		}
+		if err := db.Postgresql.Where("email = ?", user9SignUpData.Email).First(&user9).Error; err != nil {
+			t.Fatalf("Failed to get user9: %v", err)
+		}
+		if err := db.Postgresql.Where("email = ?", user10SignUpData.Email).First(&user10).Error; err != nil {
+			t.Fatalf("Failed to get user10: %v", err)
+		}
 
-		for _, user := range []models.User{user1, user2, user3, user4, user5, user6} {
+		for _, user := range []models.User{user1, user2, user3, user4, user5, user6, user7, user8, user9, user10} {
 			participant := models.ChannelParticipant{
 				ID:        utility.GenerateUUID(),
 				ChannelId: groupDMChannelID,
@@ -364,22 +416,22 @@ func TestJoinGroupDMChannel(t *testing.T) {
 			}
 		}
 
-		user7SignUpData := models.CreateUserRequestModel{
-			Email:       fmt.Sprintf("groupdm_user7_%v@qa.team", currUUID),
+		user11SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("groupdm_user11_%v@qa.team", currUUID),
 			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 			FirstName:   "GroupDM",
-			LastName:    "UserSeven",
+			LastName:    "UserEleven",
 			Password:    "password",
-			UserName:    fmt.Sprintf("groupdm_user7_%v", currUUID),
+			UserName:    fmt.Sprintf("groupdm_user11_%v", currUUID),
 		}
 
-		loginData7 := models.LoginRequestModel{
-			Email:    user7SignUpData.Email,
-			Password: user7SignUpData.Password,
+		loginData11 := models.LoginRequestModel{
+			Email:    user11SignUpData.Email,
+			Password: user11SignUpData.Password,
 		}
 
-		tst.SignupUser(t, gin.Default(), authController, user7SignUpData, false)
-		token7 := tst.GetLoginToken(t, gin.Default(), authController, loginData7)
+		tst.SignupUser(t, gin.Default(), authController, user11SignUpData, false)
+		token11 := tst.GetLoginToken(t, gin.Default(), authController, loginData11)
 
 		extReq := request.ExternalRequest{Logger: logger, Test: true}
 		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
@@ -389,7 +441,7 @@ func TestJoinGroupDMChannel(t *testing.T) {
 
 		reqBody := bytes.NewBuffer([]byte(`{}`))
 		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/group-dms/%s/join", groupDMChannelID), reqBody)
-		req.Header.Set("Authorization", "Bearer "+token7)
+		req.Header.Set("Authorization", "Bearer "+token11)
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
@@ -409,7 +461,7 @@ func TestJoinGroupDMChannel(t *testing.T) {
 			t.Fatal("Response missing message field")
 		}
 
-		if message != "group DM channel has reached maximum capacity of 6 participants" {
+		if message != "group DM channel has reached maximum capacity of 10 participants" {
 			t.Errorf("Expected capacity message, got: %s", message)
 		}
 

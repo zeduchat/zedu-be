@@ -29,11 +29,17 @@ type ChannelParticipant struct {
 }
 
 type GroupDMChannelsRequest struct {
-	Participants []string `json:"participants" validate:"required,min=2,max=6,dive,uuid"`
+	Participants []string `json:"participants" validate:"required,min=2,max=9,dive,uuid"`
 	OrgId        string   `json:"org_id"`
 	ChatType     string   `json:"chat_type" validate:"required,oneof=user bot"`
 	UserId       string   `json:"user_id"`
 	ChannelId    string   `json:"channel_id"`
+}
+
+type AddParticipantsRequest struct {
+	UserIds   []string `json:"user_ids" validate:"required,min=1,max=9,dive,uuid"`
+	ChannelId string   `json:"channel_id"`
+	OrgId     string   `json:"org_id"`
 }
 
 type ParticipantInfo struct {
@@ -246,8 +252,8 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants %v", err)
 	}
 
-	if len(remainingChannelParticipants) >= 6 {
-		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("group DM channel has reached maximum capacity of 6 participants")
+	if len(remainingChannelParticipants) >= 10 {
+		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("group DM channel has reached maximum capacity of 10 participants")
 	}
 
 	chanPart.ID = utility.GenerateUUID()
@@ -285,6 +291,113 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 	}
 
 	gpdmchanresp.ChannelId = dm.ChannelId
+	gpdmchanresp.ChannelType = existDM.ChannelType
+	gpdmchanresp.Participants = []ParticipantInfo{}
+
+	for _, part := range remainingChannelParticipants {
+		userDetails, err := user.GetUserByID(db, part.UserId)
+		if err != nil {
+			continue
+		}
+
+		if userDetails.Profile.UserName == "" {
+			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		}
+		partInfo.UserId = part.UserId
+		partInfo.Name = userDetails.Profile.UserName
+		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+		partInfo.Email = userDetails.Email
+
+		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+	}
+
+	return gpdmchanresp, http.StatusOK, nil
+}
+
+func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsRequest) (GroupDMChannelsResponse, int, error) {
+	var (
+		user                         User
+		existDM                      DmChannels
+		chanPart                     ChannelParticipant
+		remainingChannelParticipants []ChannelParticipant
+		gpdmchanresp                 GroupDMChannelsResponse
+		partInfo                     ParticipantInfo
+	)
+
+	exists := postgresql.CheckExists(db, &existDM, "channel_id = ?", req.ChannelId)
+	if !exists {
+		return gpdmchanresp, http.StatusNotFound, fmt.Errorf("group DM channel does not exist")
+	}
+
+	err := postgresql.SelectAllFromDb(db, "", &remainingChannelParticipants, "channel_id = ?", req.ChannelId)
+	if err != nil {
+		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants %v", err)
+	}
+
+	currentCount := len(remainingChannelParticipants)
+	newCount := len(req.UserIds)
+
+	if currentCount+newCount > 10 {
+		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("adding %d participants would exceed maximum capacity of 10 (current: %d)", newCount, currentCount)
+	}
+
+	existingParticipantMap := make(map[string]bool)
+	for _, part := range remainingChannelParticipants {
+		existingParticipantMap[part.UserId] = true
+	}
+
+	addedCount := 0
+	for _, userId := range req.UserIds {
+		if existingParticipantMap[userId] {
+			continue
+		}
+
+		_, err := user.GetUserByID(db, userId)
+		if err != nil {
+			continue
+		}
+
+		chanPart.ID = utility.GenerateUUID()
+		chanPart.ChannelId = req.ChannelId
+		chanPart.UserId = userId
+		chanPart.OrgId = req.OrgId
+
+		err = postgresql.CreateOneRecord(db, &chanPart)
+		if err != nil {
+			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to add participant %s to group DM channel: %v", userId, err)
+		}
+
+		addedCount++
+	}
+
+	if addedCount == 0 {
+		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("no new participants were added (all users are already participants or invalid)")
+	}
+
+	err = postgresql.SelectAllFromDb(db, "", &remainingChannelParticipants, "channel_id = ?", req.ChannelId)
+	if err != nil {
+		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to fetch updated channel participants %v", err)
+	}
+
+	rcp := []string{}
+	for _, chap := range remainingChannelParticipants {
+		rcp = append(rcp, chap.UserId)
+	}
+
+	_, participantHash := utility.GenerateParticipantHash(rcp)
+	update := make(map[string]any)
+	update["participant_hash"] = participantHash
+
+	result, err := postgresql.UpdateFields(db, &existDM, update, "channel_id = ?", req.ChannelId)
+	if err != nil {
+		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to update participant hash: %v", err)
+	}
+
+	if result.RowsAffected == 0 {
+		return gpdmchanresp, http.StatusBadRequest, errors.New("no update occured during participant hash update")
+	}
+
+	gpdmchanresp.ChannelId = req.ChannelId
 	gpdmchanresp.ChannelType = existDM.ChannelType
 	gpdmchanresp.Participants = []ParticipantInfo{}
 
