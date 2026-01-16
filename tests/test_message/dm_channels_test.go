@@ -704,7 +704,8 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 					}
 
 					// Verify admin is correctly set (user1 created the channel)
-					if userId == user1.ID {
+					switch userId {
+					case user1.ID:
 						if !isAdmin {
 							t.Errorf("User1 should be admin but is_admin is false")
 						} else {
@@ -716,7 +717,7 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 						} else {
 							t.Logf("✅ User1 title correctly set: '%s'", title)
 						}
-					} else if userId == user2.ID {
+					case user2.ID:
 						if isAdmin {
 							t.Errorf("User2 should NOT be admin")
 						} else {
@@ -727,7 +728,7 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 						} else {
 							t.Logf("✅ User2 title correctly set: '%s'", title)
 						}
-					} else if userId == user3.ID {
+					case user3.ID:
 						if isAdmin {
 							t.Errorf("User3 should NOT be admin")
 						} else {
@@ -744,7 +745,7 @@ func TestGetDmChannelsAdminAndTitle(t *testing.T) {
 				}
 
 				if adminCount != 1 {
-					t.Errorf("Expected exactly 1 admin, found %d", adminCount)
+					t.Errorf("Expected exac tly 1 admin, found %d", adminCount)
 				}
 
 				break
@@ -1273,41 +1274,52 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 			t.Fatalf("Failed to add thread to Elasticsearch: %v", err)
 		}
 
-		// Wait for Elasticsearch to index
-		time.Sleep(2 * time.Second)
-
 		extReq := request.ExternalRequest{Logger: logger, Test: true}
 		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
 
 		r := gin.Default()
 		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
 
-		// Request WITH include_media=true
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s?include_media=true", org.ID, dmChannelID), nil)
-		req.Header.Set("Authorization", "Bearer "+token1)
-
-		rr := httptest.NewRecorder()
-		r.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
-			return
-		}
-
+		// Poll for Elasticsearch indexing with retries
+		maxRetries := 10
 		var response map[string]interface{}
-		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-			t.Fatalf("Failed to parse response: %v", err)
+		var previewMedia []interface{}
+
+		for i := 0; i < maxRetries; i++ {
+			time.Sleep(1 * time.Second) // Wait before each attempt
+
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s?include_media=true", org.ID, dmChannelID), nil)
+			req.Header.Set("Authorization", "Bearer "+token1)
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusOK {
+				continue
+			}
+
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				continue
+			}
+
+			data, ok := response["data"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if pm, ok := data["preview_media"].([]interface{}); ok && len(pm) > 0 {
+				previewMedia = pm
+				break
+			}
 		}
 
-		t.Logf("✅ Got successful response")
-
-		data, ok := response["data"].(map[string]interface{})
-		if !ok {
-			t.Error("Response data is not an object")
-			return
+		if len(previewMedia) == 0 {
+			t.Fatalf("Failed to retrieve preview media after %d retries", maxRetries)
 		}
 
-		// Check participants
+		t.Logf("✅ Got successful response with %d preview media files", len(previewMedia))
+
+		data, _ := response["data"].(map[string]interface{})
 		participants, ok := data["participants"].([]interface{})
 		if !ok {
 			t.Error("Missing participants array in response")
@@ -1315,26 +1327,16 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		}
 		t.Logf("✅ Found %d participants", len(participants))
 
-		// Check preview_media
-		previewMedia, ok := data["preview_media"].([]interface{})
-		if !ok {
-			t.Error("Missing preview_media array in response")
-			return
-		}
-		t.Logf("✅ Found %d preview media files", len(previewMedia))
-
 		// Verify media has expected fields
-		if len(previewMedia) > 0 {
-			firstMedia := previewMedia[0].(map[string]interface{})
-			if _, hasID := firstMedia["id"]; hasID {
-				t.Logf("✅ Media has 'id' field")
-			}
-			if _, hasUserID := firstMedia["user_id"]; hasUserID {
-				t.Logf("✅ Media has 'user_id' field")
-			}
-			if _, hasCreatedAt := firstMedia["created_at"]; hasCreatedAt {
-				t.Logf("✅ Media has 'created_at' field")
-			}
+		firstMedia := previewMedia[0].(map[string]interface{})
+		if _, hasID := firstMedia["id"]; hasID {
+			t.Logf("✅ Media has 'id' field")
+		}
+		if _, hasUserID := firstMedia["user_id"]; hasUserID {
+			t.Logf("✅ Media has 'user_id' field")
+		}
+		if _, hasCreatedAt := firstMedia["created_at"]; hasCreatedAt {
+			t.Logf("✅ Media has 'created_at' field")
 		}
 	})
 

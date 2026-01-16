@@ -69,16 +69,17 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client, includeMedia bool) (models.DmParticipantsResponse, int, error) {
+func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client, includeMedia bool) (gin.H, int, error) {
 	var (
-		user      models.User
-		is_agent  bool = false
-		orgAgent  models.OrganisationIntegrations
-		dmchannel models.DmChannels
+		user         models.User
+		is_agent     bool = false
+		orgAgent     models.OrganisationIntegrations
+		dmchannel    models.DmChannels
+		participants []gin.H
 	)
 
-	resp := models.DmParticipantsResponse{
-		Participants: []map[string]any{},
+	resp := gin.H{
+		"participants": []gin.H{},
 	}
 
 	_, err := dmchannel.FetchChannelParticipant(db.Postgresql, req)
@@ -102,7 +103,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		if appName == "" {
 			return resp, http.StatusInternalServerError, errors.New("missing required agent details (app_name, app_logo)")
 		}
-		resp.Participants = append(resp.Participants, map[string]any{
+		participants = append(participants, gin.H{
 			"avatar_url": appLogo,
 			"username":   appName,
 			"email":      appName,
@@ -110,6 +111,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			"user_type":  "bot",
 			"user_id":    dmchannel.ParticipantId,
 		})
+		resp["participants"] = participants
 		return resp, http.StatusOK, nil
 	}
 
@@ -129,7 +131,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 			}
 
-			resp.Participants = append(resp.Participants, map[string]any{
+			participants = append(participants, gin.H{
 				"avatar_url": userDetails.Profile.AvatarURL,
 				"username":   userDetails.Profile.UserName,
 				"email":      userDetails.Email,
@@ -145,7 +147,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
-		resp.Participants = append(resp.Participants, map[string]any{
+		participants = append(participants, gin.H{
 			"avatar_url": userDetails.Profile.AvatarURL,
 			"username":   userDetails.Profile.UserName,
 			"email":      userDetails.Email,
@@ -155,11 +157,13 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 	}
 
+	resp["participants"] = participants
+
 	if includeMedia && db != nil {
 		dmchannel.ChannelId = req.ChannelId
 		previewMedia, _, err := dmchannel.GetPreviewMedia(db, 10)
 		if err == nil {
-			resp.PreviewMedia = previewMedia
+			resp["preview_media"] = previewMedia
 		}
 	}
 
