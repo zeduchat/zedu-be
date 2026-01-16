@@ -69,24 +69,27 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client) ([]gin.H, int, error) {
+func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client, includeMedia bool) (gin.H, int, error) {
 	var (
-		user      models.User
-		is_agent  bool = false
-		orgAgent  models.OrganisationIntegrations
-		dmchannel models.DmChannels
+		user         models.User
+		is_agent     bool = false
+		orgAgent     models.OrganisationIntegrations
+		dmchannel    models.DmChannels
+		participants []gin.H
 	)
 
-	resp := []gin.H{}
+	resp := gin.H{
+		"participants": []gin.H{},
+	}
 
-	_, err := dmchannel.FetchChannelParticipant(db, req)
+	_, err := dmchannel.FetchChannelParticipant(db.Postgresql, req)
 	if err != nil {
-		return []gin.H{}, http.StatusBadRequest, err
+		return resp, http.StatusBadRequest, err
 	}
 
 	if dmchannel.ChatType == "bot" {
 		//check if user is a bot
-		is_agent = postgresql.CheckExists(db, &orgAgent, "integration_id = ? AND org_id = ?", dmchannel.ParticipantId, req.OrgId)
+		is_agent = postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ? AND org_id = ?", dmchannel.ParticipantId, req.OrgId)
 		if !is_agent {
 			return resp, http.StatusNotFound, fmt.Errorf("user not found: %v", err)
 		}
@@ -100,7 +103,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 		if appName == "" {
 			return resp, http.StatusInternalServerError, errors.New("missing required agent details (app_name, app_logo)")
 		}
-		resp = append(resp, gin.H{
+		participants = append(participants, gin.H{
 			"avatar_url": appLogo,
 			"username":   appName,
 			"email":      appName,
@@ -108,25 +111,27 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 			"user_type":  "bot",
 			"user_id":    dmchannel.ParticipantId,
 		})
+		resp["participants"] = participants
 		return resp, http.StatusOK, nil
 	}
 
-	if dmchannel.ChannelType == "group_dm" {
+	switch dmchannel.ChannelType {
+	case "group_dm":
 
 		var (
 			chanPart []models.ChannelParticipant
 		)
 
-		_ = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchannel.ChannelId)
+		_ = postgresql.SelectAllFromDb(db.Postgresql, "", &chanPart, "channel_id = ?", dmchannel.ChannelId)
 
 		for _, part := range chanPart {
-			userDetails, _ := user.GetUserByID(db, part.UserId)
+			userDetails, _ := user.GetUserByID(db.Postgresql, part.UserId)
 
 			if userDetails.Profile.UserName == "" {
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 			}
 
-			resp = append(resp, gin.H{
+			participants = append(participants, gin.H{
 				"avatar_url": userDetails.Profile.AvatarURL,
 				"username":   userDetails.Profile.UserName,
 				"email":      userDetails.Email,
@@ -134,15 +139,15 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 				"user_id":    part.UserId,
 			})
 		}
-	} else if dmchannel.ChannelType == "dm" {
+	case "dm":
 
-		userDetails, _ := user.GetUserByID(db, *dmchannel.ParticipantId)
+		userDetails, _ := user.GetUserByID(db.Postgresql, *dmchannel.ParticipantId)
 
 		if userDetails.Profile.UserName == "" {
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
-		resp = append(resp, gin.H{
+		participants = append(participants, gin.H{
 			"avatar_url": userDetails.Profile.AvatarURL,
 			"username":   userDetails.Profile.UserName,
 			"email":      userDetails.Email,
@@ -152,7 +157,17 @@ func GetDmParticipants(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context
 
 	}
 
-	return resp, http.StatusOK, err
+	resp["participants"] = participants
+
+	if includeMedia && db != nil {
+		dmchannel.ChannelId = req.ChannelId
+		previewMedia, _, err := dmchannel.GetPreviewMedia(db, 10)
+		if err == nil {
+			resp["preview_media"] = previewMedia
+		}
+	}
+
+	return resp, http.StatusOK, nil
 }
 
 func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {

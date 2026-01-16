@@ -142,10 +142,12 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	resp, code, err := dm.GetDmParticipants(req, base.Db.Postgresql, c, base.ExtReq, base.Db.Redis)
+	includeMedia := c.Query("include_media") == "true"
+
+	resp, code, err := dm.GetDmParticipants(req, base.Db, c, base.ExtReq, base.Db.Redis, includeMedia)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
 	}
 

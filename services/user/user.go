@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
@@ -15,6 +16,55 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
+
+// Inactivity threshold used to determine if a user is currently in an active streak.
+const InactivityThreshold = 30 * time.Minute
+
+func GetActivityLength(u models.User) *string {
+	if u.LastActivityAt == nil || u.LastActivityStreakStartedAt == nil {
+		return nil
+	}
+
+	if time.Since(*u.LastActivityAt) > InactivityThreshold {
+		return nil
+	}
+
+	duration := time.Since(*u.LastActivityStreakStartedAt)
+	hours := int(duration.Hours())
+	days := hours / 24
+	remHours := hours % 24
+
+	var s string
+	if days >= 1 {
+		if remHours == 0 {
+			if days == 1 {
+				s = fmt.Sprintf("active for %d day", days)
+			} else {
+				s = fmt.Sprintf("active for %d days", days)
+			}
+		} else {
+			dayWord := "days"
+			if days == 1 {
+				dayWord = "day"
+			}
+			hourWord := "hours"
+			if remHours == 1 {
+				hourWord = "hour"
+			}
+			s = fmt.Sprintf("active for %d %s and %d %s", days, dayWord, remHours, hourWord)
+		}
+	} else {
+		if hours <= 0 {
+			s = "active for less than 1 hour"
+		} else if hours == 1 {
+			s = "active for 1 hour"
+		} else {
+			s = fmt.Sprintf("active for %d hours", hours)
+		}
+	}
+
+	return &s
+}
 
 func GetUser(userID string, db *gorm.DB) (models.User, int, error) {
 	var user models.User
@@ -339,7 +389,7 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	access_token := models.AccessToken{ID: token.AccessUuid, OwnerID: user.ID}
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
-		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: %v",err.Error())
+		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
 	}
 
 	err = user.Update(db)

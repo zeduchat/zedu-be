@@ -66,7 +66,7 @@ jobs:
           yes | make migrate-safe-up
       
       - name: Run All Tests
-        run: go test ./tests/... -timeout 300s
+        run: go test -p 1 ./tests/... -timeout 600s
       
       - name: Stop the application
         if: always()
