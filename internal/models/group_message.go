@@ -356,22 +356,9 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		existingParticipantMap[part.UserId] = true
 	}
 
-	validUserIds, validationErr := ValidateUserIDs(db, req.OrgId, req.UserIds)
-
-	invalidUserIds := []string{}
+	validUserIds, invalidUserIds, validationErr := ValidateUserIDs(db, req.OrgId, req.UserIds)
 	if validationErr != nil {
-		for _, userId := range req.UserIds {
-			found := false
-			for _, validId := range validUserIds {
-				if userId == validId {
-					found = true
-					break
-				}
-			}
-			if !found {
-				invalidUserIds = append(invalidUserIds, userId)
-			}
-		}
+		return addParticipantsResp, http.StatusBadRequest, validationErr
 	}
 
 	var newParticipants []string
