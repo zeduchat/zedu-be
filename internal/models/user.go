@@ -323,3 +323,31 @@ func (user *User) ActivateUser(db *gorm.DB, userId string) error {
 func (u *User) CheckUserExists(db *gorm.DB, userID string) bool {
 	return postgresql.CheckExists(db, &u, "id = ?", userID)
 }
+
+func ValidateUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, error) {
+	var validIDs []string
+	if err := db.Table("users").
+		Joins("INNER JOIN user_organisations ON users.id = user_organisations.user_id").
+		Where("user_organisations.organisation_id = ? AND users.id IN ?", orgID, userIDs).
+		Pluck("users.id", &validIDs).Error; err != nil {
+		return nil, fmt.Errorf("error validating users: %w", err)
+	}
+
+	validMap := make(map[string]bool)
+	for _, id := range validIDs {
+		validMap[id] = true
+	}
+
+	var invalid []string
+	for _, id := range userIDs {
+		if !validMap[id] {
+			invalid = append(invalid, id)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return validIDs, fmt.Errorf("invalid user IDs: %v, users do not exist in organisation", invalid)
+	}
+
+	return validIDs, nil
+}

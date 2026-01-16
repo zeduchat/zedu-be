@@ -65,7 +65,7 @@ func JoinGroupDMChannel(req models.DmChannelsRequest, db *gorm.DB) (*models.Grou
 	return &resp, statusCode, nil
 }
 
-func AddParticipantsToGroupDM(req models.AddParticipantsRequest, db *gorm.DB) (*models.GroupDMChannelsResponse, int, error) {
+func AddParticipantsToGroupDM(req models.AddParticipantsRequest, db *gorm.DB) (*models.AddParticipantsResponse, int, error) {
 	var dmchans models.DmChannels
 
 	dmchans.ChannelId = req.ChannelId

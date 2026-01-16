@@ -55,6 +55,16 @@ type GroupDMChannelsResponse struct {
 	Participants []ParticipantInfo `json:"participants"` // List of all participants (excluding initiator)
 }
 
+type AddParticipantsResponse struct {
+	ChannelId      string            `json:"channel_id"`
+	ChannelType    string            `json:"channel_type"`
+	Participants   []ParticipantInfo `json:"participants"`
+	AddedCount     int               `json:"added_count"`
+	SkippedCount   int               `json:"skipped_count"`
+	SkippedUserIds []string          `json:"skipped_user_ids,omitempty"`
+	InvalidUserIds []string          `json:"invalid_user_ids,omitempty"`
+}
+
 func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsRequest) (GroupDMChannelsResponse, int, error) {
 	var (
 		user         User
@@ -314,31 +324,31 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 	return gpdmchanresp, http.StatusOK, nil
 }
 
-func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsRequest) (GroupDMChannelsResponse, int, error) {
+func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsRequest) (AddParticipantsResponse, int, error) {
 	var (
 		user                         User
 		existDM                      DmChannels
 		chanPart                     ChannelParticipant
 		remainingChannelParticipants []ChannelParticipant
-		gpdmchanresp                 GroupDMChannelsResponse
+		addParticipantsResp          AddParticipantsResponse
 		partInfo                     ParticipantInfo
 	)
 
 	exists := postgresql.CheckExists(db, &existDM, "channel_id = ?", req.ChannelId)
 	if !exists {
-		return gpdmchanresp, http.StatusNotFound, fmt.Errorf("group DM channel does not exist")
+		return addParticipantsResp, http.StatusNotFound, fmt.Errorf("group DM channel does not exist")
 	}
 
 	err := postgresql.SelectAllFromDb(db, "", &remainingChannelParticipants, "channel_id = ?", req.ChannelId)
 	if err != nil {
-		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants %v", err)
+		return addParticipantsResp, http.StatusInternalServerError, fmt.Errorf("failed to fetch channel participants %v", err)
 	}
 
 	currentCount := len(remainingChannelParticipants)
 	newCount := len(req.UserIds)
 
 	if currentCount+newCount > 10 {
-		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("adding %d participants would exceed maximum capacity of 10 (current: %d)", newCount, currentCount)
+		return addParticipantsResp, http.StatusBadRequest, fmt.Errorf("adding %d participants would exceed maximum capacity of 10 (current: %d)", newCount, currentCount)
 	}
 
 	existingParticipantMap := make(map[string]bool)
@@ -346,17 +356,40 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		existingParticipantMap[part.UserId] = true
 	}
 
-	addedCount := 0
-	for _, userId := range req.UserIds {
+	validUserIds, validationErr := ValidateUserIDs(db, req.OrgId, req.UserIds)
+
+	invalidUserIds := []string{}
+	if validationErr != nil {
+		for _, userId := range req.UserIds {
+			found := false
+			for _, validId := range validUserIds {
+				if userId == validId {
+					found = true
+					break
+				}
+			}
+			if !found {
+				invalidUserIds = append(invalidUserIds, userId)
+			}
+		}
+	}
+
+	var newParticipants []string
+	var skippedDuplicates []string
+	for _, userId := range validUserIds {
 		if existingParticipantMap[userId] {
+			skippedDuplicates = append(skippedDuplicates, userId)
 			continue
 		}
+		newParticipants = append(newParticipants, userId)
+	}
 
-		_, err := user.GetUserByID(db, userId)
-		if err != nil {
-			continue
-		}
+	if len(newParticipants) == 0 {
+		return addParticipantsResp, http.StatusBadRequest, fmt.Errorf("no new participants were added (all users are already participants or invalid)")
+	}
 
+	addedCount := 0
+	for _, userId := range newParticipants {
 		chanPart.ID = utility.GenerateUUID()
 		chanPart.ChannelId = req.ChannelId
 		chanPart.UserId = userId
@@ -364,19 +397,15 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 
 		err = postgresql.CreateOneRecord(db, &chanPart)
 		if err != nil {
-			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to add participant %s to group DM channel: %v", userId, err)
+			return addParticipantsResp, http.StatusInternalServerError, fmt.Errorf("failed to add participant %s to group DM channel: %v", userId, err)
 		}
 
 		addedCount++
 	}
 
-	if addedCount == 0 {
-		return gpdmchanresp, http.StatusBadRequest, fmt.Errorf("no new participants were added (all users are already participants or invalid)")
-	}
-
 	err = postgresql.SelectAllFromDb(db, "", &remainingChannelParticipants, "channel_id = ?", req.ChannelId)
 	if err != nil {
-		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to fetch updated channel participants %v", err)
+		return addParticipantsResp, http.StatusInternalServerError, fmt.Errorf("failed to fetch updated channel participants %v", err)
 	}
 
 	rcp := []string{}
@@ -390,16 +419,24 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 
 	result, err := postgresql.UpdateFields(db, &existDM, update, "channel_id = ?", req.ChannelId)
 	if err != nil {
-		return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to update participant hash: %v", err)
+		return addParticipantsResp, http.StatusInternalServerError, fmt.Errorf("failed to update participant hash: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
-		return gpdmchanresp, http.StatusBadRequest, errors.New("no update occured during participant hash update")
+		return addParticipantsResp, http.StatusBadRequest, errors.New("no update occured during participant hash update")
 	}
 
-	gpdmchanresp.ChannelId = req.ChannelId
-	gpdmchanresp.ChannelType = existDM.ChannelType
-	gpdmchanresp.Participants = []ParticipantInfo{}
+	addParticipantsResp.ChannelId = req.ChannelId
+	addParticipantsResp.ChannelType = existDM.ChannelType
+	addParticipantsResp.Participants = []ParticipantInfo{}
+	addParticipantsResp.AddedCount = addedCount
+	addParticipantsResp.SkippedCount = len(skippedDuplicates) + len(invalidUserIds)
+	if len(skippedDuplicates) > 0 {
+		addParticipantsResp.SkippedUserIds = skippedDuplicates
+	}
+	if len(invalidUserIds) > 0 {
+		addParticipantsResp.InvalidUserIds = invalidUserIds
+	}
 
 	for _, part := range remainingChannelParticipants {
 		userDetails, err := user.GetUserByID(db, part.UserId)
@@ -415,10 +452,10 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
 		partInfo.Email = userDetails.Email
 
-		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+		addParticipantsResp.Participants = append(addParticipantsResp.Participants, partInfo)
 	}
 
-	return gpdmchanresp, http.StatusOK, nil
+	return addParticipantsResp, http.StatusOK, nil
 }
 
 func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDMChannelsResponse, postgresql.PaginationResponse, error) {
