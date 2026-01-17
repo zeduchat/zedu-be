@@ -7,7 +7,8 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
-		// models.Group{},
+		models.DmFavourite{},
+		models.Group{},
 		models.BuzzInvitation{},
 		models.Waitlist{},
 		models.AgentSkill{},
@@ -88,7 +89,6 @@ func AuthMigrationModels() []any {
 		models.Buzz{},
 		models.BuzzParticipant{},
 		models.BuzzNote{},
-		models.DmFavourite{},
 	} // an array of db models, example: User{}
 }
 
