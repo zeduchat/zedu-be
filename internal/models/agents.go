@@ -769,6 +769,9 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 			previewMessage := ""
 			if len(previewThread) > 0 {
 				previewMessage = previewThread[0].Content
+				if previewMessage == "" && len(previewThread[0].Media) > 0 {
+					previewMessage = previewThread[0].Media[0].FileType
+				}
 			}
 
 			agents[i].PreviewMessage = previewMessage

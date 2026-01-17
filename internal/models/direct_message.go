@@ -394,6 +394,9 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			previewMessage := ""
 			if len(previewThread) > 0 {
 				previewMessage = previewThread[0].Content
+				if previewMessage == "" && len(previewThread[0].Media) > 0 {
+					previewMessage = previewThread[0].Media[0].FileType
+				}
 			}
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
@@ -712,6 +715,9 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				previewMessage := ""
 				if len(previewThread) > 0 {
 					previewMessage = previewThread[0].Content
+					if previewMessage == "" && len(previewThread[0].Media) > 0 {
+						previewMessage = previewThread[0].Media[0].FileType
+					}
 				}
 
 				chanResp[i].PreviewMessage = previewMessage
@@ -804,6 +810,9 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				previewMessage := ""
 				if len(previewThread) > 0 {
 					previewMessage = previewThread[0].Content
+					if previewMessage == "" && len(previewThread[0].Media) > 0 {
+						previewMessage = previewThread[0].Media[0].FileType
+					}
 				}
 
 				chanResp[i].PreviewMessage = previewMessage

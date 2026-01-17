@@ -3,6 +3,7 @@ package notification_processor
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"gorm.io/gorm"
@@ -13,6 +14,11 @@ import (
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/utility"
 )
+
+func stripHTMLTags(content string) string {
+	re := regexp.MustCompile(`<[^>]*>?`)
+	return re.ReplaceAllString(content, "")
+}
 
 func ProcessNotification(req Job, logger *utility.Logger) error {
 
@@ -104,7 +110,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		ChannelId:   channelId,
 		ChannelName: feed.ChannelName,
 		UserIds:     userIDs,
-		Message:     feed.Content,
+		Message:     stripHTMLTags(feed.Content),
 		UserId:      userId,
 		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 		Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
@@ -152,7 +158,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			pushReq := models.PushRequest{
 				ChannelName: feed.ChannelName,
 				UserId:      channelId,
-				Message:     feed.Content,
+				Message:     stripHTMLTags(feed.Content),
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
 				Title:       feed.ChannelName,
@@ -208,7 +214,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			pushReq := models.PushRequest{
 				UserIds:     userIDs,
 				ChannelName: feed.ChannelName,
-				Message:     feed.Content,
+				Message:     stripHTMLTags(feed.Content),
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
 				Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
