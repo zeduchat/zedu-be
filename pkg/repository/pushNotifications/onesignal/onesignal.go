@@ -3,10 +3,12 @@ package onesignal
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	onesignalapi "github.com/OneSignal/onesignal-go-api/v5"
 
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -37,17 +39,17 @@ func ConnectOneSignal(logger *utility.Logger, cfg config.OneSignal) {
 }
 
 // SendNotification sends a push notification to a single user via OneSignal subscription ID
-func SendNotification(logger *utility.Logger, subscriptionID string, title string, body string) error {
+func SendNotification(logger *utility.Logger, subscriptionID string, req models.PushRequest) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
 		return fmt.Errorf("OneSignal client not initialized")
 	}
 
 	subscriptionIDs := []string{subscriptionID}
-	return SendBatchNotifications(logger, subscriptionIDs, title, body)
+	return SendBatchNotifications(logger, subscriptionIDs, req)
 }
 
 // SendBatchNotifications sends a push notification to multiple users via OneSignal subscription IDs
-func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, title string, body string) error {
+func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest) error {
 	if len(subscriptionIDs) == 0 {
 		return fmt.Errorf("no subscription IDs provided")
 	}
@@ -58,16 +60,22 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, ti
 
 	// Create language string maps for multilingual support
 	contentsMap := onesignalapi.LanguageStringMap{}
-	contentsMap.SetEn(body)
+	contentsMap.SetEn(req.Message)
 
 	headingsMap := onesignalapi.LanguageStringMap{}
-	headingsMap.SetEn(title)
+	formattedTitle := fmt.Sprintf("**%s**", strings.Title(strings.ToLower(req.Title)))
+	headingsMap.SetEn(formattedTitle)
 
 	// Create notification using v5 SDK
 	notification := onesignalapi.NewNotification(Client.AppID)
 	notification.SetIncludeSubscriptionIds(subscriptionIDs)
 	notification.SetContents(contentsMap)
 	notification.SetHeadings(headingsMap)
+
+	if req.AvatarUrl != "" {
+		notification.SetLargeIcon(req.AvatarUrl)
+		notification.SetBigPicture(req.AvatarUrl)
+	}
 
 	// Use context-based authentication for v5
 	ctx := context.WithValue(context.Background(), onesignalapi.RestApiKey, Client.ApiKey)
@@ -102,21 +110,21 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, ti
 }
 
 // OptionalSendNotification sends a notification without failing if OneSignal is not initialized
-func OptionalSendNotification(logger *utility.Logger, subscriptionID string, title string, body string) error {
+func OptionalSendNotification(logger *utility.Logger, subscriptionID string, req models.PushRequest) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
 		logger.Info("OneSignal client not initialized, skipping notification")
 		return nil
 	}
 
-	return SendNotification(logger, subscriptionID, title, body)
+	return SendNotification(logger, subscriptionID, req)
 }
 
 // OptionalSendBatchNotifications sends batch notifications without failing if OneSignal is not initialized
-func OptionalSendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, title string, body string) error {
+func OptionalSendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
 		logger.Info("OneSignal client not initialized, skipping batch notification")
 		return nil
 	}
 
-	return SendBatchNotifications(logger, subscriptionIDs, title, body)
+	return SendBatchNotifications(logger, subscriptionIDs, req)
 }

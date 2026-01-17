@@ -155,7 +155,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				Message:     feed.Content,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
-				Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
+				Title:       feed.ChannelName,
 			}
 
 			err = push_notifications.PushFCMToUser(pushReq, logger, db)
