@@ -55,6 +55,7 @@ type DmChannelsResponse struct {
 	PreviewThread    []Threads `gorm:"-" json:"preview_thread"`
 	Participants     []gin.H   `gorm:"-" json:"participants,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
+	IsFavourite      bool      `gorm:"-" json:"is_favourite"`
 }
 
 type DmChannelsRequest struct {

@@ -82,6 +82,7 @@ func (base *Controller) GetDmChannels(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -94,6 +95,7 @@ func (base *Controller) GetDmChannels(c *gin.Context) {
 	req.OrgId = c.Param("org_id")
 
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -101,6 +103,7 @@ func (base *Controller) GetDmChannels(c *gin.Context) {
 
 	resp, paginationResponse, code, err := dm.GetDmChannels(req, base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("error getting dm channels", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -126,6 +129,7 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 	req.OrgId = c.Param("org_id")
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Error("invalid channel id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse user id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -134,6 +138,7 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -146,6 +151,7 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 
 	resp, code, err := dm.GetDmParticipants(req, base.Db, c, base.ExtReq, base.Db.Redis, includeMedia)
 	if err != nil {
+		base.Logger.Error("error getting dm participants", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
@@ -165,11 +171,13 @@ func (base *Controller) DeleteDmChannel(c *gin.Context) {
 	req.OrgId = c.Param("org_id")
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Error("invalid channel id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -178,6 +186,7 @@ func (base *Controller) DeleteDmChannel(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -188,6 +197,7 @@ func (base *Controller) DeleteDmChannel(c *gin.Context) {
 
 	code, err := dm.DeleteDmChannel(req, base.Db.Postgresql)
 	if err != nil {
+		base.Logger.Error("error deleting dm channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -203,6 +213,7 @@ func (base *Controller) GetDmChannelMedia(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -215,12 +226,14 @@ func (base *Controller) GetDmChannelMedia(c *gin.Context) {
 	req.MediaType = c.Query("type") // Optional: images, videos, documents, audio
 
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Error("invalid channel id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -228,6 +241,7 @@ func (base *Controller) GetDmChannelMedia(c *gin.Context) {
 
 	resp, paginationResponse, code, err := dm.GetDmChannelMedia(req, base.Db, c)
 	if err != nil {
+		base.Logger.Error("error getting dm channel media", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -250,6 +264,7 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		base.Logger.Error("unable to get user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -261,12 +276,14 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 	req.ChannelId = c.Param("channel_id")
 
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Error("invalid channel id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -274,6 +291,7 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		base.Logger.Error("failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -281,6 +299,7 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
@@ -288,6 +307,7 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 
 	code, err := dm.UpsertGroupDescription(req, base.Db.Postgresql)
 	if err != nil {
+		base.Logger.Error("error updating group description", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
@@ -295,5 +315,126 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 
 	base.Logger.Info("Group description updated successfully")
 	rd := utility.BuildSuccessResponse(code, "Group description updated successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) AddToFavourites(c *gin.Context) {
+	var req models.DmFavouriteRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = c.Param("org_id")
+	req.ChannelId = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Error("invalid channel id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := dm.AddToFavourites(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to add to favourites", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Added to favourites successfully")
+	rd := utility.BuildSuccessResponse(code, "Added to favourites", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) RemoveFromFavourites(c *gin.Context) {
+	var req models.DmFavouriteRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = c.Param("org_id")
+	req.ChannelId = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Error("invalid channel id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := dm.RemoveFromFavourites(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to remove from favourites", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Removed from favourites successfully")
+	rd := utility.BuildSuccessResponse(code, "Removed from favourites", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetFavouriteDms(c *gin.Context) {
+	var req models.DmChannelsRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = c.Param("org_id")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	favouriteDms, code, err := dm.GetFavouriteDms(base.Db, req)
+	if err != nil {
+		base.Logger.Error("failed to get favourite DMs", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Favourite DMs retrieved successfully")
+	rd := utility.BuildSuccessResponse(code, "Favourite DMs retrieved successfully", favouriteDms)
 	c.JSON(code, rd)
 }
