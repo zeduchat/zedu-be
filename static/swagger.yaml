@@ -3293,7 +3293,11 @@ paths:
                           type: array
                           items:
                             type: string
-                          example: ["https://example.com/avatar1.jpg", "https://example.com/avatar2.jpg"]
+                          example:
+                            [
+                              "https://example.com/avatar1.jpg",
+                              "https://example.com/avatar2.jpg",
+                            ]
                         members_count:
                           type: integer
                           example: 10
@@ -9738,7 +9742,7 @@ paths:
       tags:
         - Direct Message
       summary: Retrieve dm participants info
-      description: Retrieves participant information for a DM channel. Optionally includes the 10 most recent media files when include_media=true.
+      description: Retrieves participant information for a DM channel. For group DMs, includes group description and admin status. Optionally includes the 10 most recent media files when include_media=true.
       security:
         - bearerAuth: []
       parameters:
@@ -9784,6 +9788,13 @@ paths:
                   data:
                     type: object
                     properties:
+                      type:
+                        type: string
+                        enum: [bot, dm, groupdm]
+                        description: The type of DM channel
+                      group_description:
+                        type: string
+                        description: The group description (only present for group DMs with a description set)
                       participants:
                         type: array
                         items:
@@ -9801,6 +9812,12 @@ paths:
                             user_type:
                               type: string
                               enum: [user, bot]
+                            title:
+                              type: string
+                              description: The user's title from their profile
+                            is_admin:
+                              type: boolean
+                              description: Whether the user is the admin/creator of the group DM (only for group DMs)
                       preview_media:
                         type: array
                         description: The 10 most recent media files (only present when include_media=true)
@@ -9826,6 +9843,10 @@ paths:
                               type: string
                               format: date-time
                               description: When the file was uploaded
+                      created_at:
+                        type: string
+                        format: date-time
+                        description: When the DM channel was created
 
         "400":
           description: Bad request
@@ -9845,6 +9866,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /organisations/{org_id}/dms/{channel_id}/description:
+    put:
+      tags:
+        - Direct Message
+      summary: Update group description for a group DM
+      description: Sets or updates the group description for a group DM channel. Only works for group_dm channel types, and the user must be a participant in the group DM.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the group DM channel
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  maxLength: 500
+                  description: The group description (max 500 characters)
+              required:
+                - description
+      responses:
+        "200":
+          description: Group description updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Group description updated successfully
+        "400":
+          description: Bad request (channel not found, not a group DM, or user not a participant)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Validation failed (empty description or exceeds max length)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}/media:
     get:
