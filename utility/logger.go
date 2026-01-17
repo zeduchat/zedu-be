@@ -76,16 +76,25 @@ func NewLogger() *Logger {
 	}
 }
 
+// Close closes the logger and flushes all pending writes
+func (l *Logger) Close() {
+	if l.logger != nil {
+		// Give time for pending log writes to complete
+		time.Sleep(100 * time.Millisecond)
+		l.logger.Close()
+	}
+}
+
 // Info log information
 func (l *Logger) Info(arg0 any, args ...any) {
-	//record := LogRecord{
-	//	Level:   "INFO",
-	//	Date: time.Now().Local().String(),
-	//	Source:  getSource(),
-	//	Message: fmt.Sprintf(arg0.(string), args...),
-	//}
-	//go record.Save(l)
-	// l.logger.Log(log.INFO, getSource(), fmt.Sprintf(arg0.(string), args...))
+	if l == nil || l.logger == nil {
+		return
+	}
+
+	// Recover from "send on closed channel" panic from log4go
+	defer func() {
+		recover()
+	}()
 
 	var msg string
 
@@ -100,37 +109,25 @@ func (l *Logger) Info(arg0 any, args ...any) {
 
 // Debug log debug
 func (l *Logger) Debug(arg0 any, args ...any) {
-	//record := LogRecord{
-	//	Level:   "DEBUG",
-	//	Date: time.Now().Local().String(),
-	//	Source:  getSource(),
-	//	Message: fmt.Sprintf(arg0.(string), args...),
-	//}
-	//go record.Save(l)
+	if l == nil || l.logger == nil {
+		return
+	}
 	l.logger.Log(log.DEBUG, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 
 // Warning log warnings
 func (l *Logger) Warning(arg0 any, args ...any) {
-	//record := LogRecord{
-	//	Level:   "WARNING",
-	//	Date: time.Now().Local().String(),
-	//	Source:  getSource(),
-	//	Message: fmt.Sprintf(arg0.(string), args...),
-	//}
-	//go record.Save(l)
+	if l == nil || l.logger == nil {
+		return
+	}
 	l.logger.Log(log.WARNING, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 
 // Error log errors
 func (l *Logger) Error(arg0 any, args ...any) {
-	//record := LogRecord{
-	//	Level:   "ERROR",
-	//	Date: time.Now().Local().String(),
-	//	Source:  getSource(),
-	//	Message: fmt.Sprintf(arg0.(string), args...),
-	//}
-	//go record.Save(l)
+	if l == nil || l.logger == nil {
+		return
+	}
 	l.logger.Log(log.ERROR, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 

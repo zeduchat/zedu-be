@@ -20,11 +20,11 @@ func TestPublishPlatformCreditUpdate_Success(t *testing.T) {
 	CreateCreditTransaction(t, db.Postgresql, orgID, 100.00)
 	CreateCreditUsage(t, db.Postgresql, orgID, 20.00)
 
-	models.PublishPlatformCreditUpdate(db.Postgresql)
-
 	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
+		CleanupSpecificTestData(db.Postgresql, "", []string{orgID})
 	})
+
+	models.PublishPlatformCreditUpdate(db.Postgresql)
 
 	metrics, err := models.GetPlatformCreditSummary(db.Postgresql)
 	assert.NoError(t, err)

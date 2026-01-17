@@ -51,7 +51,7 @@ func TestCreditTopupWebhook_Success(t *testing.T) {
 	r.ServeHTTP(rr, req)
 
 	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
+		CleanupSpecificTestData(db.Postgresql, "", []string{orgID})
 	})
 
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -91,7 +91,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
 
-	webhookEvent := CreateTestStripeWebhookEvent(orgID, "invalid_package_id", sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
+	webhookEvent := CreateTestStripeWebhookEvent(orgID, "00000000-0000-0000-0000-000000000000", sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
 
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
@@ -102,7 +102,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	r.ServeHTTP(rr, req)
 
 	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
+		CleanupSpecificTestData(db.Postgresql, "", []string{orgID})
 	})
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -134,7 +134,8 @@ func TestCreditTopupWebhook_InvalidOrgID(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
 
-	webhookEvent := CreateTestStripeWebhookEvent("invalid_org_id", packageID, sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
+	// Use valid UUID format but non-existent ID to avoid PostgreSQL parse errors
+	webhookEvent := CreateTestStripeWebhookEvent("00000000-0000-0000-0000-000000000000", packageID, sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
 
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
@@ -145,7 +146,8 @@ func TestCreditTopupWebhook_InvalidOrgID(t *testing.T) {
 	r.ServeHTTP(rr, req)
 
 	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
+		// No org created in this test, just clean package
+		db.Postgresql.Exec("DELETE FROM credit_packages WHERE id = ?", packageID)
 	})
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
@@ -188,7 +190,7 @@ func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 	r.ServeHTTP(rr, req)
 
 	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
+		CleanupSpecificTestData(db.Postgresql, "", []string{orgID})
 	})
 
 	assert.Equal(t, http.StatusOK, rr.Code)
