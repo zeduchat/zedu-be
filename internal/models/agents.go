@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -409,6 +410,11 @@ type AgentResp struct {
 	LastThreadId     string            `json:"last_thread_id"`
 	LastReadAt       time.Time         `json:"last_read_at"`
 	UserId           string            `json:"-"`
+	ChannelId        string            `json:"channel_id"`
+	PreviewMessage   string            `json:"preview_message"`
+	PreviewThread    []Threads         `gorm:"-" json:"preview_thread"`
+	Participants     []gin.H           `gorm:"-" json:"participants,omitempty"`
+	CreatedAt        time.Time         `json:"created_at"`
 }
 
 type IntegrationBills struct {
@@ -691,8 +697,9 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		oi.visibility,
 		oi.stars,
 		COALESCE(dc.thread_count, 0) as thread_count,
-		COALESCE(dc.last_thread_id, '') as last_thread_id,
+		dc.last_thread_id,
 		COALESCE(dc.last_read_at, '0001-01-01'::timestamp) as last_read_at,
+		dc.channel_id,
 		oi.created_at
 	`).
 		Joins(`
@@ -710,6 +717,77 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 		&agents,
 		nil,
 	)
+
+	if err != nil {
+		return agents, paginationResponse, err, http.StatusOK
+	}
+
+	for i := range agents {
+		if agents[i].ChannelId != "" {
+			previewThread := []Threads{}
+
+			threadCtx := &gin.Context{
+				Request: &http.Request{
+					URL: &url.URL{
+						RawQuery: "page=1&limit=50",
+					},
+				},
+			}
+
+			var thread Threads
+			threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, ids.UserID, agents[i].ChannelId)
+			if threadErr == nil && len(threads) > 0 {
+				previewThread = threads
+			}
+
+			var user User
+			userDetails, userErr := user.GetUserByID(db, ids.UserID)
+			if userErr == nil {
+				if userDetails.Profile.UserName == "" {
+					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+				}
+
+				participants := []gin.H{
+					{
+						"avatar_url": userDetails.Profile.AvatarURL,
+						"username":   userDetails.Profile.UserName,
+						"email":      userDetails.Email,
+						"user_type":  "user",
+						"user_id":    ids.UserID,
+					},
+					{
+						"avatar_url": agents[i].Avatar,
+						"username":   agents[i].Name,
+						"email":      fmt.Sprintf("%s@telex.im", slug.Make(agents[i].Name)),
+						"user_type":  "bot",
+						"user_id":    agents[i].ID,
+					},
+				}
+				agents[i].Participants = participants
+			}
+
+			previewMessage := ""
+			if len(previewThread) > 0 {
+				previewMessage = previewThread[0].Content
+			}
+
+			agents[i].PreviewMessage = previewMessage
+			agents[i].PreviewThread = previewThread
+		}
+	}
+
+	sort.Slice(agents, func(i, j int) bool {
+		if len(agents[i].PreviewThread) > 0 && len(agents[j].PreviewThread) > 0 {
+			return agents[i].PreviewThread[0].CreatedAt.After(agents[j].PreviewThread[0].CreatedAt)
+		}
+		if len(agents[i].PreviewThread) > 0 {
+			return true
+		}
+		if len(agents[j].PreviewThread) > 0 {
+			return false
+		}
+		return agents[i].CreatedAt.After(agents[j].CreatedAt)
+	})
 
 	return agents, paginationResponse, err, http.StatusOK
 }
