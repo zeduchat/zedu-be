@@ -83,14 +83,6 @@ func Setup() *utility.Logger {
 
 // Cleanup closes all database connections and cleans up resources
 func Cleanup(db *storage.Database) {
-	// Postresql connection is shared across tests, so we shouldn't close it here.
-	// It will be closed when the test process exits.
-	// if db.Postgresql != nil {
-	// 	sqlDB, err := db.Postgresql.DB()
-	// 	if err == nil {
-	// 		sqlDB.Close()
-	// 	}
-	// }
 
 	// Close Redis connection
 	if db.Redis != nil {

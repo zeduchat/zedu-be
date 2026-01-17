@@ -66,6 +66,16 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 		return nil, pagResp, http.StatusInternalServerError, err
 	}
 
+	favouriteChannelIds, _ := models.GetUserFavouriteChannelIds(db, req.UserId, req.OrgId)
+	favouriteMap := make(map[string]bool)
+	for _, id := range favouriteChannelIds {
+		favouriteMap[id] = true
+	}
+
+	for i := range resp {
+		resp[i].IsFavourite = favouriteMap[resp[i].ID]
+	}
+
 	return resp, pagResp, http.StatusOK, err
 }
 
@@ -237,4 +247,61 @@ func UpsertGroupDescription(req models.GroupDescriptionRequest, db *gorm.DB) (in
 	}
 
 	return http.StatusOK, nil
+}
+
+func AddToFavourites(req models.DmFavouriteRequest, db *gorm.DB) (int, error) {
+	var dmFav models.DmFavourite
+	dmFav.ID = utility.GenerateUUID()
+
+	err := dmFav.AddToFavourites(db, req)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func RemoveFromFavourites(req models.DmFavouriteRequest, db *gorm.DB) (int, error) {
+	var dmFav models.DmFavourite
+
+	err := dmFav.RemoveFromFavourites(db, req)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]models.DmChannelsResponse, int, error) {
+	favouriteChannelIds, err := models.GetUserFavouriteChannelIds(db.Postgresql, req.UserId, req.OrgId)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if len(favouriteChannelIds) == 0 {
+		return []models.DmChannelsResponse{}, http.StatusOK, nil
+	}
+
+	// Get DM channels that match the favourite channel IDs
+	var dmChannels []models.DmChannels
+	err = db.Postgresql.Where("user_id = ? AND org_id = ? AND channel_id IN ?", req.UserId, req.OrgId, favouriteChannelIds).
+		Find(&dmChannels).Error
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	// Convert to DmChannelsResponse
+	var response []models.DmChannelsResponse
+	for _, dm := range dmChannels {
+		resp := models.DmChannelsResponse{
+			ID:          dm.ChannelId,
+			ChannelType: dm.ChannelType,
+			CreatedAt:   dm.CreatedAt,
+			IsFavourite: true,
+		}
+		response = append(response, resp)
+	}
+
+	return response, http.StatusOK, nil
 }

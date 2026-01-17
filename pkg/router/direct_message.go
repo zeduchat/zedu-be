@@ -54,6 +54,11 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		organisationUrls.GET("/:org_id/dms/:channel_id/media", dmCtrl.GetDmChannelMedia)
 		organisationUrls.GET("/:org_id/recent-dm", dmFilter.DmFilter)
 		organisationUrls.PUT("/:org_id/dms/:channel_id/description", dmCtrl.UpsertGroupDescription)
+
+		// Favourites endpoints
+		organisationUrls.POST("/:org_id/dms/:channel_id/favourite", dmCtrl.AddToFavourites)
+		organisationUrls.DELETE("/:org_id/dms/:channel_id/favourite", dmCtrl.RemoveFromFavourites)
+		organisationUrls.GET("/:org_id/dms/favourites", dmCtrl.GetFavouriteDms)
 	}
 
 	return r

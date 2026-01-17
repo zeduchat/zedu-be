@@ -9519,6 +9519,9 @@ paths:
                           type: string
                           enum: [dm, group_dm]
                           description: The type of channel (dm or group_dm)
+                        is_favourite:
+                          type: boolean
+                          description: Whether this channel is in the user's favourites
                         thread_count:
                           type: integer
                           description: The number of unread threads in the channel
@@ -9938,6 +9941,173 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationErrorSchema"
+
+  /organisations/{org_id}/dms/{channel_id}/favourite:
+    post:
+      tags:
+        - Direct Message
+      summary: Add DM channel to favourites
+      description: Adds a DM or Group DM channel to the user's favourites list. Operation is idempotent - adding an already favourited channel returns success.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the DM channel to add to favourites
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Added to favourites successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Added to favourites
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    delete:
+      tags:
+        - Direct Message
+      summary: Remove DM channel from favourites
+      description: Removes a DM or Group DM channel from the user's favourites list. Operation is idempotent - removing a non-favourited channel returns success.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the DM channel to remove from favourites
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Removed from favourites successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Removed from favourites
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /organisations/{org_id}/dms/favourites:
+    get:
+      tags:
+        - Direct Message
+      summary: Get user's favourite DMs
+      description: Retrieves all DM and Group DM channels that the user has added to favourites.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Favourite DMs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Favourite DMs retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channel_id:
+                          type: string
+                          format: uuid
+                        channel_type:
+                          type: string
+                          enum: [dm, group_dm]
+                        is_favourite:
+                          type: boolean
+                          example: true
+                        created_at:
+                          type: string
+                          format: date-time
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}/media:
     get:
