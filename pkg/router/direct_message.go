@@ -53,6 +53,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		organisationUrls.GET("/:org_id/dms/participants/:channel_id", dmCtrl.GetDmParticipants)
 		organisationUrls.GET("/:org_id/dms/:channel_id/media", dmCtrl.GetDmChannelMedia)
 		organisationUrls.GET("/:org_id/recent-dm", dmFilter.DmFilter)
+		organisationUrls.PUT("/:org_id/dms/:channel_id/description", dmCtrl.UpsertGroupDescription)
 	}
 
 	return r

@@ -244,3 +244,56 @@ func (base *Controller) GetDmChannelMedia(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "DM channel media retrieved successfully", resp, paginationData)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) UpsertGroupDescription(c *gin.Context) {
+	var req models.GroupDescriptionRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = c.Param("org_id")
+	req.ChannelId = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := dm.UpsertGroupDescription(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Group description updated successfully")
+	rd := utility.BuildSuccessResponse(code, "Group description updated successfully", nil)
+	c.JSON(code, rd)
+}

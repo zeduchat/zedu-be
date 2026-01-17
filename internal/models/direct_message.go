@@ -22,21 +22,22 @@ import (
 )
 
 type DmChannels struct {
-	ID              string         `gorm:"type:uuid" json:"id"`
-	UserId          string         `gorm:"type:uuid" json:"-"`
-	ChannelId       string         `gorm:"type:uuid" json:"channel_id"`
-	OrgId           string         `gorm:"type:uuid" json:"-"`
-	ParticipantId   *string        `gorm:"type:uuid" json:"-"`
-	ParticipantHash string         `gorm:"type:string" json:"participant_hash"`
-	ChatType        string         `gorm:"type:string;default:user" json:"chat_type"`  // user or bot
-	ChannelType     string         `gorm:"type:string;default:dm" json:"channel_type"` // dm or group_dm
-	CreatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt       time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
-	ThreadCount     int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
-	LastThreadId    string         `gorm:"column:last_thread_id" json:"last_thread_id"`
-	LastReadAt      time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
-	InteractedAt    time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"-"`
+	ID               string         `gorm:"type:uuid" json:"id"`
+	UserId           string         `gorm:"type:uuid" json:"-"`
+	ChannelId        string         `gorm:"type:uuid" json:"channel_id"`
+	OrgId            string         `gorm:"type:uuid" json:"-"`
+	ParticipantId    *string        `gorm:"type:uuid" json:"-"`
+	ParticipantHash  string         `gorm:"type:string" json:"participant_hash"`
+	ChatType         string         `gorm:"type:string;default:user" json:"chat_type"`  // user or bot
+	ChannelType      string         `gorm:"type:string;default:dm" json:"channel_type"` // dm or group_dm
+	CreatedAt        time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt        time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	ThreadCount      int64          `gorm:"column:thread_count;default:0" json:"thread_count"`
+	LastThreadId     string         `gorm:"column:last_thread_id" json:"last_thread_id"`
+	LastReadAt       time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
+	InteractedAt     time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"-"`
+	GroupDescription string         `gorm:"column:group_description" json:"group_description"`
 }
 
 type DmChannelsResponse struct {
@@ -71,9 +72,29 @@ type DmChannelMediaRequest struct {
 	MediaType string `json:"media_type"` // Optional: images, videos, documents, audio
 }
 
+type Participant struct {
+	AvatarUrl string `json:"avatar_url"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	UserType  string `json:"user_type"`
+	UserId    string `json:"user_id"`
+	IsAdmin   bool   `json:"is_admin"`
+	Title     string `json:"title"`
+}
+
 type DmParticipantsResponse struct {
-	Participants []map[string]any `json:"participants"`
-	PreviewMedia []File           `json:"preview_media,omitempty"`
+	Type             string        `json:"type"` // bot, dm, or groupdm
+	GroupDescription string        `json:"group_description,omitempty"`
+	Participants     []Participant `json:"participants"`
+	PreviewMedia     []File        `json:"preview_media"`
+	CreatedAt        time.Time     `json:"created_at"`
+}
+
+type GroupDescriptionRequest struct {
+	ChannelId   string `json:"channel_id"`
+	UserId      string `json:"user_id"`
+	OrgId       string `json:"org_id"`
+	Description string `json:"description" validate:"required,max=500"`
 }
 
 func FetchDetailsFromAgentJSON(agent OrganisationIntegrations) (map[string]any, error) {
@@ -239,6 +260,35 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 	return nil
 }
 
+func (dm *DmChannels) UpsertGroupDescription(db *gorm.DB, req GroupDescriptionRequest) error {
+	var dmChannel DmChannels
+
+	exists := postgresql.CheckExists(db, &dmChannel, "channel_id = ? AND org_id = ?", req.ChannelId, req.OrgId)
+	if !exists {
+		return errors.New("channel does not exist")
+	}
+
+	if dmChannel.ChannelType != "group_dm" {
+		return errors.New("group description can only be set for group DM channels")
+	}
+
+	var chanPart ChannelParticipant
+	isParticipant := postgresql.CheckExists(db, &chanPart, "channel_id = ? AND user_id = ? AND deleted_at IS NULL", req.ChannelId, req.UserId)
+	if !isParticipant {
+		return errors.New("user is not a participant in this group DM")
+	}
+
+	result := db.Model(&DmChannels{}).
+		Where("channel_id = ? AND org_id = ?", req.ChannelId, req.OrgId).
+		Update("group_description", req.Description)
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update group description: %w", result.Error)
+	}
+
+	return nil
+}
+
 func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {
 	var (
 		user    User
@@ -319,7 +369,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			previewThread = threads
 		}
 
-		if dmchan.ChannelType == "dm" || dmchan.ChannelType == "" {
+		switch dmchan.ChannelType {
+		case "dm", "":
 			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
 			if err != nil {
 				return nil, paginationResp, err
@@ -359,7 +410,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				Participants:     participants,
 				CreatedAt:        dmchan.CreatedAt,
 			})
-		} else if dmchan.ChannelType == "group_dm" {
+		case "group_dm":
 
 			// err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
 			// if err != nil {
