@@ -63,7 +63,7 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, re
 	contentsMap.SetEn(req.Message)
 
 	headingsMap := onesignalapi.LanguageStringMap{}
-	formattedTitle := fmt.Sprintf("**%s**", strings.Title(strings.ToLower(req.Title)))
+	formattedTitle := fmt.Sprintf("%s", strings.Title(strings.ToLower(req.Title)))
 	headingsMap.SetEn(formattedTitle)
 
 	// Create notification using v5 SDK
